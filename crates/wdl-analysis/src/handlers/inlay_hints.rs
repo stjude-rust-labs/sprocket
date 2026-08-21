@@ -62,12 +62,7 @@ pub fn inlay_hints(
     let mut hints = Vec::new();
 
     // Find all enum definitions in the document
-    for (_, enum_entry) in document.enums() {
-        // Skip imported enums
-        if enum_entry.source().is_some() {
-            continue;
-        }
-
+    for enum_entry in document.local_enums() {
         let definition = enum_entry.definition();
 
         // Calculate the enum name end position (where the type hint would appear)

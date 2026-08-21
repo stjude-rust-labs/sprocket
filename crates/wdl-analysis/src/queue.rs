@@ -61,6 +61,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::config::Config;
 use crate::document::Document;
+use crate::document::cache::AnalysisCache;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::EdgeKind;
@@ -1311,15 +1312,16 @@ where
                     let config = self.config.clone();
                     let validator = validator.clone();
                     handles.push(RayonHandle::spawn(move || {
+                        let mut graph = graph.write();
+
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                            Self::analyze_node(&config, &mut graph, index, &mut (validator)())
                         }));
 
-                        let mut graph = graph.write();
                         let node = graph.get_mut(index);
                         match result {
-                            Ok((_, document)) => {
-                                node.analysis_completed(document);
+                            Ok((_, document, cache)) => {
+                                node.analysis_completed(document, cache);
                                 (index, Ok(()))
                             }
                             Err(payload) => {
@@ -1358,7 +1360,7 @@ where
             }));
         }
 
-        results.sort_by(|a, b| a.document().uri().cmp(b.document().uri()));
+        results.sort_by_key(|a| a.document().uri());
         Cancelable::Completed(Ok(results))
     }
 
@@ -1827,15 +1829,15 @@ where
     }
 
     /// Analyzes a node in the document graph.
+    #[tracing::instrument(name = "analysis", skip_all)]
     fn analyze_node(
         config: &Config,
-        graph: Arc<RwLock<DocumentGraph>>,
+        graph: &mut DocumentGraph,
         index: NodeIndex,
         validator: &mut crate::Validator,
-    ) -> (NodeIndex, Document) {
+    ) -> (NodeIndex, Document, AnalysisCache) {
         let start = Instant::now();
-        let graph = graph.read();
-        let mut document = Document::from_graph_node(config, &graph, index);
+        let mut document = Document::from_graph_node(config, graph, index);
 
         match &graph.get(index).parse_state() {
             ParseState::Parsed { diagnostics, .. }
@@ -1855,7 +1857,8 @@ where
             elapsed = start.elapsed()
         );
 
-        (index, document)
+        let cache = document.take_cache();
+        (index, document, cache)
     }
 
     /// Returns the [`Module`] that governs the document at `uri`.

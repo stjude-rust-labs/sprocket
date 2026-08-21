@@ -148,12 +148,12 @@ impl Visitor for ExceptDirectiveValidRule {
                 let id = &rule.name;
 
                 if let Some(elem) = &excepted_element
-                    && let Some(Some(exceptable_nodes)) = RULE_MAP.get(id.as_str())
+                    && let Some(Some(exceptable_nodes)) = RULE_MAP.get(&**id)
                     && !exceptable_nodes.contains(&elem.kind())
                 {
                     diagnostics.add(misplaced_except_directive(
                         id,
-                        Span::new(start + comment.text().find(id).unwrap(), id.len()),
+                        Span::new(start + comment.text().find(&**id).unwrap(), id.len()),
                         elem,
                         exceptable_nodes,
                     ));

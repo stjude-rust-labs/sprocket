@@ -10,6 +10,7 @@ use std::sync::Arc;
 use arrayvec::ArrayString;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
+use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
 use rowan::TextRange;
@@ -24,7 +25,12 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::AnalysisCache;
 use crate::Diagnostics;
+use crate::EnumRef;
+use crate::StructRef;
+use crate::TaskRef;
+use crate::WorkflowRef;
 use crate::config::Config;
 use crate::diagnostics::Context;
 use crate::diagnostics::no_common_type;
@@ -34,6 +40,7 @@ use crate::types::CallType;
 use crate::types::Optional;
 use crate::types::Type;
 
+pub mod cache;
 pub mod v1;
 
 /// The `task` variable name available in task command sections and outputs in
@@ -41,8 +48,10 @@ pub mod v1;
 pub const TASK_VAR_NAME: &str = "task";
 
 /// A successfully resolved namespace introduced by an import.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Namespace {
+    /// The name of the namespace.
+    name: String,
     /// The span of the import that introduced the namespace.
     pub(crate) span: Span,
     /// The URI of the imported document that introduced the namespace.
@@ -51,17 +60,30 @@ pub struct Namespace {
     document: Document,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
     pub(crate) used: bool,
+    /// Structs imported from this namespace, keyed by their local name.
+    ///
+    /// NOTE: While this is separated from the [`Document`], imported
+    /// structs/enums are copied into the document's scope and should
+    /// be treated as though they were defined in the document.
+    pub(in crate::document) imported_structs: IndexMap<String, ImportedStruct>,
+    /// Enums imported from this namespace, keyed by their local name.
+    pub(in crate::document) imported_enums: IndexMap<String, ImportedEnum>,
 }
 
 impl Namespace {
+    /// Gets the name of the namespace.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Gets the span of the import that introduced the namespace.
     pub fn span(&self) -> Span {
         self.span
     }
 
     /// Gets the URI of the imported document that introduced the namespace.
-    pub fn source(&self) -> &Arc<Url> {
-        &self.source
+    pub fn source(&self) -> Arc<Url> {
+        self.source.clone()
     }
 
     /// Gets the imported document.
@@ -76,9 +98,6 @@ pub struct Struct {
     /// The name of the struct.
     name: String,
     /// The span that introduced the struct.
-    ///
-    /// This is either the name of a struct definition (local) or an import's
-    /// URI or alias (imported).
     name_span: Span,
     /// The offset of the CST node from the start of the document.
     ///
@@ -89,16 +108,6 @@ pub struct Struct {
     ///
     /// This is used to calculate type equivalence for imports.
     node: rowan::GreenNode,
-    /// The source of this struct.
-    ///
-    /// `Some(uri)` means the struct was imported (by a namespaced, wildcard, or
-    /// selective import) from the document at `uri`. Imported structs carry
-    /// their resolved type from that document, so they are not type-checked
-    /// again here, and `uri` locates the original definition for
-    /// go-to-definition.
-    ///
-    /// `None` means the struct is defined locally in the containing document.
-    source: Option<Arc<Url>>,
     /// The type of the struct.
     ///
     /// Initially this is `None` until a type check occurs.
@@ -126,14 +135,10 @@ impl Struct {
         &self.node
     }
 
-    /// Gets the URI of the document this struct was imported from.
-    ///
-    /// Returns `Some(uri)` for an imported struct (whether namespaced,
-    /// wildcard, or selective), where `uri` is the document the struct was
-    /// imported from. Returns `None` for a struct defined locally in the
-    /// containing document.
-    pub fn source(&self) -> Option<&Arc<Url>> {
-        self.source.as_ref()
+    /// Reconstructs the AST definition from the stored green node.
+    pub fn definition(&self) -> wdl_ast::v1::StructDefinition {
+        wdl_ast::v1::StructDefinition::cast(wdl_ast::SyntaxNode::new_root(self.node.clone()))
+            .expect("stored node should be a valid struct definition")
     }
 
     /// Gets the type of the struct.
@@ -151,9 +156,6 @@ pub struct Enum {
     /// The name of the enum.
     name: String,
     /// The span that introduced the enum.
-    ///
-    /// This is either the name of an enum definition (local) or an import's
-    /// URI or alias (imported).
     name_span: Span,
     /// The offset of the CST node from the start of the document.
     ///
@@ -165,15 +167,6 @@ pub struct Enum {
     /// This is used to calculate type equivalence for imports and can be
     /// reconstructed into an AST node to access choice expressions.
     node: rowan::GreenNode,
-    /// The source of this enum.
-    ///
-    /// `Some(uri)` means the enum was imported (by a namespaced, wildcard, or
-    /// selective import) from the document at `uri`. Imported enums carry their
-    /// resolved type from that document, so they are not type-checked again
-    /// here, and `uri` locates the original definition for go-to-definition.
-    ///
-    /// `None` means the enum is defined locally in the containing document.
-    source: Option<Arc<Url>>,
     /// The type of the enum.
     ///
     /// Initially this is `None` until a type check/coercion occurs.
@@ -209,15 +202,6 @@ impl Enum {
             .expect("stored node should be a valid enum definition")
     }
 
-    /// Gets the URI of the document this enum was imported from.
-    ///
-    /// Returns `Some(uri)` for an imported enum (whether namespaced, wildcard,
-    /// or selective), where `uri` is the document the enum was imported from.
-    /// Returns `None` for an enum defined locally in the containing document.
-    pub fn source(&self) -> Option<&Arc<Url>> {
-        self.source.as_ref()
-    }
-
     /// Gets the type of the enum.
     pub fn ty(&self) -> Option<&Type> {
         self.ty.as_ref()
@@ -250,7 +234,7 @@ impl Name {
 pub struct ScopeIndex(usize);
 
 /// Represents a scope in a WDL document.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Scope {
     /// The index of the parent scope.
     ///
@@ -532,24 +516,24 @@ impl Output {
 }
 
 /// Represents a task in a document.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Task {
     /// The span of the task name.
-    name_span: Span,
+    pub(in crate::document) name_span: Span,
     /// The name of the task.
-    name: String,
+    pub(in crate::document) name: String,
     /// The span of the task definition.
-    span: Span,
+    pub(in crate::document) span: Span,
     /// The scopes contained in the task.
     ///
     /// The first scope will always be the task's scope.
     ///
     /// The scopes will be in sorted order by span start.
-    scopes: Vec<Scope>,
+    pub(in crate::document) scopes: Vec<Scope>,
     /// The inputs of the task.
-    inputs: Arc<IndexMap<String, Input>>,
+    pub(in crate::document) inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
-    outputs: Arc<IndexMap<String, Output>>,
+    pub(in crate::document) outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl Task {
@@ -585,28 +569,28 @@ impl Task {
 }
 
 /// Represents a workflow in a document.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Workflow {
     /// The span of the workflow name.
-    name_span: Span,
+    pub(in crate::document) name_span: Span,
     /// The name of the workflow.
-    name: String,
+    pub(in crate::document) name: String,
     /// The span of the workflow definition.
-    span: Span,
+    pub(in crate::document) span: Span,
     /// The scopes contained in the workflow.
     ///
     /// The first scope will always be the workflow's scope.
     ///
     /// The scopes will be in sorted order by span start.
-    scopes: Vec<Scope>,
+    pub(in crate::document) scopes: Vec<Scope>,
     /// The inputs of the workflow.
-    inputs: Arc<IndexMap<String, Input>>,
+    pub(in crate::document) inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
-    outputs: Arc<IndexMap<String, Output>>,
+    pub(in crate::document) outputs: Arc<IndexMap<String, Output>>,
     /// The calls made by the workflow.
-    calls: HashMap<String, CallType>,
+    pub(in crate::document) calls: HashMap<String, CallType>,
     /// Whether or not nested inputs are allowed for the workflow.
-    allows_nested_inputs: bool,
+    pub(in crate::document) allows_nested_inputs: bool,
 }
 
 impl Workflow {
@@ -651,21 +635,133 @@ impl Workflow {
     }
 }
 
+/// A struct imported into scope.
+#[derive(Debug, Clone)]
+pub struct ImportedStruct {
+    /// The aliased name of the struct in the dependent document.
+    pub local_name: String,
+    /// The offset of the CST node from the start of the document.
+    ///
+    /// This is used to adjust diagnostics resulting from traversing the struct
+    /// node as if it were the root of the CST.
+    offset: usize,
+    /// Stores the CST node of the struct.
+    ///
+    /// This is used to calculate type equivalence for imports.
+    node: rowan::GreenNode,
+    /// The span of the import statement that introduced this struct.
+    pub span: Span,
+    /// The source URI the struct came from.
+    pub source: Arc<Url>,
+    /// The type of the struct.
+    ///
+    /// Initially this is `None` until a type check/coercion occurs.
+    ty: Option<Type>,
+}
+
+impl ImportedStruct {
+    /// Gets the node of the struct.
+    pub fn node(&self) -> &rowan::GreenNode {
+        &self.node
+    }
+
+    /// Gets the offset of the struct in the source document's CST.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Gets the URI of the document this struct was imported from.
+    pub fn source(&self) -> Arc<Url> {
+        self.source.clone()
+    }
+
+    /// Reconstructs the AST definition from the stored green node.
+    ///
+    /// This provides access to choice expressions and other AST details.
+    pub fn definition(&self) -> wdl_ast::v1::StructDefinition {
+        wdl_ast::v1::StructDefinition::cast(wdl_ast::SyntaxNode::new_root(self.node.clone()))
+            .expect("stored node should be a valid struct definition")
+    }
+
+    /// Gets the type of the struct.
+    ///
+    /// A value of `None` indicates that the type could not be determined for
+    /// the struct; this may happen if the struct definition is recursive.
+    pub fn ty(&self) -> Option<&Type> {
+        self.ty.as_ref()
+    }
+}
+
+/// An enum imported into scope.
+#[derive(Debug, Clone)]
+pub struct ImportedEnum {
+    /// The aliased name of the enum in the dependent document.
+    pub local_name: String,
+    /// The offset of the CST node from the start of the document.
+    ///
+    /// This is used to adjust diagnostics resulting from traversing the enum
+    /// node as if it were the root of the CST.
+    offset: usize,
+    /// Stores the CST node of the enum.
+    ///
+    /// This is used to calculate type equivalence for imports and can be
+    /// reconstructed into an AST node to access choice expressions.
+    node: rowan::GreenNode,
+    /// The span of the import statement.
+    pub span: Span,
+    /// The source URI.
+    pub source: Arc<Url>,
+    /// The type of the enum.
+    ///
+    /// Initially this is `None` until a type check/coercion occurs.
+    ty: Option<Type>,
+}
+
+impl ImportedEnum {
+    /// Gets the node of the enum.
+    pub fn node(&self) -> &rowan::GreenNode {
+        &self.node
+    }
+
+    /// Gets the offset of the enum in the source document's CST.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Gets the URI of the document this enum was imported from.
+    pub fn source(&self) -> Arc<Url> {
+        self.source.clone()
+    }
+
+    /// Reconstructs the AST definition from the stored green node.
+    ///
+    /// This provides access to choice expressions and other AST details.
+    pub fn definition(&self) -> wdl_ast::v1::EnumDefinition {
+        wdl_ast::v1::EnumDefinition::cast(wdl_ast::SyntaxNode::new_root(self.node.clone()))
+            .expect("stored node should be a valid enum definition")
+    }
+
+    /// Gets the type of the enum.
+    pub fn ty(&self) -> Option<&Type> {
+        self.ty.as_ref()
+    }
+}
+
 /// A task imported into scope by a wildcard or selected-member import.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedTask {
+    /// The aliased name of the task in the dependent document.
+    pub local_name: String,
     /// The task name in the source document.
-    name: String,
+    pub name: String,
     /// The span of the import statement that introduced this task.
-    span: Span,
-    /// The source URI the task came from.
-    source: Arc<Url>,
+    pub span: Span,
     /// The source document that defines the task.
-    document: Document,
+    pub document: Document,
     /// The inputs of the task.
-    inputs: Arc<IndexMap<String, Input>>,
+    pub inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
-    outputs: Arc<IndexMap<String, Output>>,
+    pub outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl ImportedTask {
@@ -680,26 +776,26 @@ impl ImportedTask {
     }
 
     /// Gets the source URI the task came from.
-    pub(crate) fn source(&self) -> &Url {
-        &self.source
+    pub(crate) fn source(&self) -> Arc<Url> {
+        self.document.uri()
     }
 }
 
 /// A workflow imported into scope by a wildcard or selected-member import.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedWorkflow {
+    /// The aliased name of the workflow in the dependent document.
+    pub local_name: String,
     /// The workflow name in the source document.
-    name: String,
+    pub name: String,
     /// The span of the import statement.
-    span: Span,
-    /// The source URI.
-    source: Arc<Url>,
-    /// The source document that defines the workflow.
-    document: Document,
+    pub span: Span,
+    /// The source document that defines the task.
+    pub document: Document,
     /// The inputs of the workflow.
-    inputs: Arc<IndexMap<String, Input>>,
+    pub inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
-    outputs: Arc<IndexMap<String, Output>>,
+    pub outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl ImportedWorkflow {
@@ -714,8 +810,8 @@ impl ImportedWorkflow {
     }
 
     /// Gets the source URI the workflow came from.
-    pub(crate) fn source(&self) -> &Url {
-        &self.source
+    pub(crate) fn source(&self) -> Arc<Url> {
+        self.document.uri()
     }
 }
 
@@ -723,9 +819,9 @@ impl ImportedWorkflow {
 #[derive(Copy, Clone, Debug)]
 pub enum Callable<'a> {
     /// A workflow.
-    Workflow(&'a Workflow),
+    Workflow(WorkflowRef<'a>),
     /// A task.
-    Task(&'a Task),
+    Task(TaskRef<'a>),
 }
 
 impl Callable<'_> {
@@ -745,14 +841,6 @@ impl Callable<'_> {
         }
     }
 
-    /// Get the [`Span`] of the callable's full definition.
-    pub fn span(&self) -> Span {
-        match self {
-            Callable::Workflow(w) => w.span(),
-            Callable::Task(t) => t.span(),
-        }
-    }
-
     /// Whether this callable represents a workflow.
     pub fn is_workflow(&self) -> bool {
         matches!(self, Callable::Workflow(_))
@@ -764,18 +852,72 @@ impl Callable<'_> {
     }
 
     /// Get the inputs of the callable.
-    pub fn inputs(&self) -> &IndexMap<String, Input> {
+    pub fn inputs(&self) -> Arc<IndexMap<String, Input>> {
         match self {
             Callable::Workflow(w) => w.inputs(),
             Callable::Task(t) => t.inputs(),
         }
     }
 
-    /// Get the defined outputs of the callable.
-    pub fn outputs(&self) -> &IndexMap<String, Output> {
+    /// Get the outputs of the callable.
+    pub fn outputs(&self) -> Arc<IndexMap<String, Output>> {
         match self {
             Callable::Workflow(w) => w.outputs(),
             Callable::Task(t) => t.outputs(),
+        }
+    }
+}
+
+/// A potentially shared analysis cache for a document.
+///
+/// A [`DocumentData`] only owns the [`AnalysisCache`] during construction.
+/// Afterwards, it gets shared between the parent `DocumentGraphNode`
+/// and the document.
+#[derive(Debug)]
+pub(crate) enum DocumentAnalysisCache {
+    /// Owned cache during document construction.
+    Owned(Box<AnalysisCache>),
+    /// Shared reference to the cache.
+    Shared(Arc<AnalysisCache>),
+}
+
+impl DocumentAnalysisCache {
+    /// Creates a new shared document cache.
+    pub fn shared(cache: Arc<AnalysisCache>) -> Self {
+        Self::Shared(cache)
+    }
+
+    /// Takes the `AnalysisCache` out of an `Owned` variant.
+    fn take_owned(&mut self) -> AnalysisCache {
+        match std::mem::replace(self, Self::Shared(Arc::new(AnalysisCache::default()))) {
+            Self::Owned(cache) => *cache,
+            Self::Shared(_) => panic!("expected owned cache"),
+        }
+    }
+}
+
+impl Default for DocumentAnalysisCache {
+    fn default() -> Self {
+        Self::Owned(Box::default())
+    }
+}
+
+impl std::ops::Deref for DocumentAnalysisCache {
+    type Target = AnalysisCache;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(cache) => cache,
+            Self::Shared(cache) => cache,
+        }
+    }
+}
+
+impl std::ops::DerefMut for DocumentAnalysisCache {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Self::Owned(cache) => cache,
+            Self::Shared(_) => panic!("cannot mutate shared analysis cache"),
         }
     }
 }
@@ -797,26 +939,14 @@ pub(crate) struct DocumentData {
     uri: Arc<Url>,
     /// The version of the document.
     version: Option<SupportedVersion>,
-    /// The successfully resolved namespaces in the document, keyed by name.
-    namespaces: IndexMap<String, Namespace>,
     /// The names of imports that failed to resolve, keyed by name, each with
     /// the span of the failing import. Kept so that downstream references to
     /// the imported name (e.g., `import spellbook` followed by
     /// `call spellbook.fireball`) don't produce cascading "unknown namespace"
     /// diagnostics.
     failed_imports: IndexMap<String, Span>,
-    /// The tasks in the document.
-    tasks: IndexMap<String, Task>,
-    /// The singular workflow in the document.
-    workflow: Option<Workflow>,
-    /// The structs in the document.
-    structs: IndexMap<String, Struct>,
-    /// The enums in the document.
-    enums: IndexMap<String, Enum>,
-    /// Tasks imported via wildcard or selected-member imports.
-    imported_tasks: IndexMap<String, ImportedTask>,
-    /// Workflows imported via wildcard or selected-member imports.
-    imported_workflows: IndexMap<String, ImportedWorkflow>,
+    /// The analysis cache for the document.
+    cache: DocumentAnalysisCache,
     /// Whether a wildcard import failed to resolve.
     ///
     /// Unknown unqualified calls are suppressed in this case because they may
@@ -827,7 +957,15 @@ pub(crate) struct DocumentData {
     /// The diagnostics from parsing.
     parse_diagnostics: Vec<Diagnostic>,
     /// The diagnostics from analysis.
-    analysis_diagnostics: Diagnostics,
+    pub(crate) analysis_diagnostics: Diagnostics,
+}
+
+impl DocumentData {
+    /// Gets the internal cache.
+    #[cfg(test)]
+    pub(crate) fn cache(&self) -> &DocumentAnalysisCache {
+        &self.cache
+    }
 }
 
 impl DocumentData {
@@ -837,7 +975,8 @@ impl DocumentData {
         uri: Arc<Url>,
         root: Option<GreenNode>,
         version: Option<SupportedVersion>,
-        diagnostics: Vec<Diagnostic>,
+        parse_diagnostics: Vec<Diagnostic>,
+        cache: Option<AnalysisCache>,
     ) -> Self {
         Self {
             config,
@@ -845,17 +984,13 @@ impl DocumentData {
             id: Uuid::new_v4().to_string().into(),
             uri,
             version,
-            namespaces: Default::default(),
             failed_imports: Default::default(),
-            tasks: Default::default(),
-            workflow: Default::default(),
-            structs: Default::default(),
-            enums: Default::default(),
-            imported_tasks: Default::default(),
-            imported_workflows: Default::default(),
+            cache: cache
+                .map(|c| DocumentAnalysisCache::Owned(Box::new(c)))
+                .unwrap_or_default(),
             failed_wildcard_import: false,
             failed_selected_imports: Default::default(),
-            parse_diagnostics: diagnostics,
+            parse_diagnostics,
             analysis_diagnostics: Default::default(),
         }
     }
@@ -867,21 +1002,21 @@ impl DocumentData {
     /// Returns `None` if there is no context for the given name.
     pub fn context(&self, name: &str) -> Option<Context> {
         // Look through the various data structures for the name
-        if let Some(ns) = self.namespaces.get(name) {
+        if let Some((_hash, ns)) = self.cache.namespace_by_name(name) {
             Some(Context::Namespace(ns.span))
         } else if let Some(span) = self.failed_imports.get(name) {
             Some(Context::Namespace(*span))
-        } else if let Some(task) = self.tasks.get(name) {
+        } else if let Some((_idx, _hash, task)) = self.cache.local_task_by_name(name) {
             Some(Context::Task(task.name_span()))
-        } else if let Some(wf) = &self.workflow
-            && wf.name == name
-        {
+        } else if let Some(wf) = self.cache.workflow().filter(|w| w.name() == name) {
             Some(Context::Workflow(wf.name_span()))
-        } else if let Some(s) = self.structs.get(name) {
+        } else if let Some((_idx, _hash, s)) = self.cache.local_struct_by_name(name) {
             Some(Context::Struct(s.name_span()))
         } else {
             // Finally, check the enums and failing that return `None`
-            self.enums.get(name).map(|e| Context::Enum(e.name_span()))
+            self.cache
+                .local_enum_by_name(name)
+                .map(|(_idx, _hash, e)| Context::Enum(e.name_span()))
         }
     }
 }
@@ -896,6 +1031,14 @@ pub struct Document {
 }
 
 impl Document {
+    /// Gets the internal document data.
+    #[cfg(test)]
+    pub(crate) fn data(&self) -> &Arc<DocumentData> {
+        &self.data
+    }
+}
+
+impl Document {
     /// Creates a new default document from a URI.
     pub(crate) fn default_from_uri(uri: Arc<Url>) -> Self {
         Self {
@@ -905,6 +1048,7 @@ impl Document {
                 None,
                 None,
                 Default::default(),
+                None,
             )),
         }
     }
@@ -912,19 +1056,22 @@ impl Document {
     /// Creates a new analyzed document from a document graph node.
     pub(crate) fn from_graph_node(
         config: &Config,
-        graph: &DocumentGraph,
+        graph: &mut DocumentGraph,
         index: NodeIndex,
     ) -> Self {
-        let node = graph.get(index);
-
-        let (wdl_version, diagnostics) = match node.parse_state() {
+        let node = graph.get_mut(index);
+        let old_cache = node.take_cache();
+        let (wdl_version, parse_diagnostics, edits) = match node.parse_state() {
             ParseState::NotParsed => panic!("node should have been parsed"),
-            ParseState::Error(_) => return Self::default_from_uri(node.uri().clone()),
+            ParseState::Error(_) => {
+                return Self::default_from_uri(node.uri().clone());
+            }
             ParseState::Parsed {
                 wdl_version,
                 diagnostics,
+                edits,
                 ..
-            } => (wdl_version, diagnostics),
+            } => (*wdl_version, diagnostics.clone(), edits.clone()),
         };
 
         let root = node.root().expect("node should have been parsed");
@@ -933,7 +1080,7 @@ impl Document {
                 config.with_diagnostics_config(
                     config.diagnostics_config().excepted_for_node(stmt.inner()),
                 ),
-                *wdl_version,
+                wdl_version,
             ),
             _ => {
                 // Don't process a document with a missing version statement or an unsupported
@@ -944,7 +1091,8 @@ impl Document {
                         node.uri().clone(),
                         Some(root.inner().green().into()),
                         None,
-                        diagnostics.to_vec(),
+                        parse_diagnostics,
+                        old_cache,
                     )),
                 };
             }
@@ -955,12 +1103,15 @@ impl Document {
             node.uri().clone(),
             Some(root.inner().green().into()),
             Some(wdl_version),
-            diagnostics.to_vec(),
+            parse_diagnostics,
+            old_cache,
         );
+
+        let _ = node;
         match root.ast_with_version_fallback(config.fallback_version()) {
             Ast::Unsupported => {}
-            Ast::V1(ast) => v1::populate_document(&mut data, &config, graph, index, &ast),
-        }
+            Ast::V1(ast) => v1::populate_document(&mut data, &config, graph, index, &ast, &edits),
+        };
 
         Self {
             data: Arc::new(data),
@@ -970,6 +1121,20 @@ impl Document {
     /// Gets the analysis configuration.
     pub fn config(&self) -> &Config {
         &self.data.config
+    }
+
+    /// Takes the analysis cache out of the document.
+    pub(crate) fn take_cache(&mut self) -> AnalysisCache {
+        Arc::get_mut(&mut self.data)
+            .map(|data| data.cache.take_owned())
+            .expect("we should be the only holder to references of the document")
+    }
+
+    /// Attaches a shared cache to the document data.
+    pub(crate) fn attach_shared_cache(&mut self, cache: Arc<AnalysisCache>) {
+        Arc::get_mut(&mut self.data)
+            .expect("we should be the only holder to references of the document")
+            .cache = DocumentAnalysisCache::shared(cache);
     }
 
     /// Gets the root AST document node.
@@ -992,8 +1157,8 @@ impl Document {
     }
 
     /// Gets the URI of the document.
-    pub fn uri(&self) -> &Arc<Url> {
-        &self.data.uri
+    pub fn uri(&self) -> Arc<Url> {
+        self.data.uri.clone()
     }
 
     /// Gets the path to the document.
@@ -1053,50 +1218,78 @@ impl Document {
     }
 
     /// Gets the successfully resolved namespaces in the document.
-    pub fn namespaces(&self) -> impl Iterator<Item = (&str, &Namespace)> {
-        self.data.namespaces.iter().map(|(n, ns)| (n.as_str(), ns))
+    pub fn namespaces(&self) -> impl Iterator<Item = &Namespace> {
+        self.data.cache.namespaces().map(|(_, ns)| ns)
     }
 
     /// Gets a successfully resolved namespace in the document by name.
     pub fn namespace(&self, name: &str) -> Option<&Namespace> {
-        self.data.namespaces.get(name)
+        self.data.cache.namespace_by_name(name).map(|(_, ns)| ns)
     }
 
     /// Gets the tasks in the document.
-    pub fn tasks(&self) -> impl Iterator<Item = &Task> {
-        self.data.tasks.iter().map(|(_, t)| t)
+    pub fn tasks(&self) -> impl Iterator<Item = TaskRef<'_>> {
+        self.data.cache.tasks()
+    }
+
+    /// Gets the tasks in the document.
+    pub(crate) fn local_tasks(&self) -> impl Iterator<Item = &Task> {
+        self.data.cache.local_tasks().map(|(_, _, task)| task)
+    }
+
+    /// Gets a locally defined task by name.
+    pub fn local_task_by_name(&self, name: &str) -> Option<&Task> {
+        self.data
+            .cache
+            .local_task_by_name(name)
+            .map(|(_idx, _hash, task)| task)
     }
 
     /// Gets a task in the document by name.
-    pub fn task_by_name(&self, name: &str) -> Option<&Task> {
-        self.data.tasks.get(name)
+    pub fn task_by_name(&self, name: &str) -> Option<TaskRef<'_>> {
+        self.data.cache.task_by_name(name).map(|(_hash, task)| task)
     }
 
     /// Gets an imported task in the document by local name.
+    ///
+    /// NOTE: This only includes tasks in the current document's scope (e.g.,
+    /// those from select/wildcard imports).
     pub fn imported_task_by_name(&self, name: &str) -> Option<&ImportedTask> {
-        self.data.imported_tasks.get(name)
+        self.data.cache.imported_task_by_name(name).map(|(_, t)| t)
     }
 
     /// Gets a workflow in the document.
     ///
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<&Workflow> {
-        self.data.workflow.as_ref()
+        self.data.cache.workflow()
     }
 
     /// Gets an imported workflow in the document by local name.
+    ///
+    /// NOTE: This only includes workflows in the current document's scope
+    /// (e.g., those from select/wildcard imports).
     pub fn imported_workflow_by_name(&self, name: &str) -> Option<&ImportedWorkflow> {
-        self.data.imported_workflows.get(name)
+        self.data
+            .cache
+            .imported_workflow_by_name(name)
+            .map(|(_, w)| w)
+    }
+
+    /// Gets a workflow in the document by name.
+    pub fn workflow_by_name(&self, name: &str) -> Option<WorkflowRef<'_>> {
+        self.data.cache.workflow_by_name(name).map(|(_, w)| w)
     }
 
     /// Gets a [`Callable`] in the document by name.
     ///
     /// Returns `None` if the document did not contain a callable definition
     /// with the given name.
+    ///
+    /// NOTE: This includes imports, see also:
+    /// [`Self::local_callable_by_name()`].
     pub fn callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
-        if let Some(workflow) = self.workflow()
-            && workflow.name() == name
-        {
+        if let Some(workflow) = self.workflow_by_name(name) {
             return Some(Callable::Workflow(workflow));
         }
 
@@ -1107,32 +1300,112 @@ impl Document {
         None
     }
 
-    /// Get all callable targets in the document.
+    /// Get all callable targets in the document, including imports.
+    ///
+    /// See also: [`Self::local_callables()`]
     pub fn callables(&self) -> impl Iterator<Item = Callable<'_>> {
+        self.local_callables()
+            .chain(
+                self.data
+                    .cache
+                    .imported_workflows()
+                    .map(|(_hash, w)| Callable::Workflow(WorkflowRef::Imported(w))),
+            )
+            .chain(
+                self.data
+                    .cache
+                    .imported_tasks()
+                    .map(|(_hash, t)| Callable::Task(TaskRef::Imported(t))),
+            )
+    }
+
+    /// Gets a [`Callable`] in the document by name.
+    ///
+    /// Returns `None` if the document did not contain a callable definition
+    /// with the given name.
+    ///
+    /// NOTE: Unlike [`Self::callable_by_name()`], this only searches callables
+    /// defined in this document.
+    pub fn local_callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
+        if let Some(workflow) = self.workflow()
+            && workflow.name == name
+        {
+            return Some(Callable::Workflow(WorkflowRef::Local(workflow)));
+        }
+
+        if let Some(task) = self.local_task_by_name(name) {
+            return Some(Callable::Task(TaskRef::Local(task)));
+        }
+
+        None
+    }
+
+    /// Get all locally defined callable targets in the document.
+    ///
+    /// See also: [`Self::callables()`]
+    pub fn local_callables(&self) -> impl Iterator<Item = Callable<'_>> {
         self.workflow()
+            .map(WorkflowRef::Local)
             .map(Callable::Workflow)
             .into_iter()
-            .chain(self.tasks().map(Callable::Task))
+            .chain(self.local_tasks().map(TaskRef::Local).map(Callable::Task))
     }
 
     /// Gets the structs in the document.
-    pub fn structs(&self) -> impl Iterator<Item = (&str, &Struct)> {
-        self.data.structs.iter().map(|(n, s)| (n.as_str(), s))
+    pub fn structs(&self) -> impl Iterator<Item = StructRef<'_>> {
+        self.data.cache.structs()
+    }
+
+    /// Gets a locally defined struct in the document by name.
+    pub fn local_struct_by_name(&self, name: &str) -> Option<&Struct> {
+        self.data
+            .cache
+            .local_struct_by_name(name)
+            .map(|(_idx, _hash, s)| s)
+    }
+
+    /// Gets an imported struct in the document by local name.
+    pub fn imported_struct_by_name(&self, name: &str) -> Option<&ImportedStruct> {
+        self.data
+            .cache
+            .imported_struct_by_name(name)
+            .map(|(_hash, s)| s)
     }
 
     /// Gets a struct in the document by name.
-    pub fn struct_by_name(&self, name: &str) -> Option<&Struct> {
-        self.data.structs.get(name)
+    pub fn struct_by_name(&self, name: &str) -> Option<StructRef<'_>> {
+        self.data.cache.struct_by_name(name).map(|(_hash, s)| s)
     }
 
     /// Gets the enums in the document.
-    pub fn enums(&self) -> impl Iterator<Item = (&str, &Enum)> {
-        self.data.enums.iter().map(|(n, e)| (n.as_str(), e))
+    pub fn local_enums(&self) -> impl Iterator<Item = &Enum> {
+        self.data.cache.local_enums().map(|(_idx, _hash, e)| e)
+    }
+
+    /// Gets a locally defined enum in the document by name.
+    pub fn local_enum_by_name(&self, name: &str) -> Option<&Enum> {
+        self.data
+            .cache
+            .local_enum_by_name(name)
+            .map(|(_idx, _hash, e)| e)
+    }
+
+    /// Gets the enums in the document.
+    pub fn enums(&self) -> impl Iterator<Item = EnumRef<'_>> {
+        self.data.cache.enums()
+    }
+
+    /// Gets an imported enum in the document by local name.
+    pub fn imported_enum_by_name(&self, name: &str) -> Option<&ImportedEnum> {
+        self.data
+            .cache
+            .imported_enum_by_name(name)
+            .map(|(_hash, e)| e)
     }
 
     /// Gets an enum in the document by name.
-    pub fn enum_by_name(&self, name: &str) -> Option<&Enum> {
-        self.data.enums.get(name)
+    pub fn enum_by_name(&self, name: &str) -> Option<EnumRef<'_>> {
+        self.data.cache.enum_by_name(name).map(|(_hash, e)| e)
     }
 
     /// Gets the custom type by name.
@@ -1154,7 +1427,9 @@ impl Document {
         name: &str,
         choice: &str,
     ) -> Option<crate::types::EnumChoiceCacheKey> {
-        let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
+        // Look through the enums, keeping track of the index so we don't have to look
+        // it up again
+        let (enum_index, _hash, r#enum) = self.data.cache.local_enum_by_name(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
         let choice_index = enum_ty.choices().iter().position(|v| v == choice)?;
         Some(crate::types::EnumChoiceCacheKey::new(
@@ -1240,29 +1515,25 @@ impl Document {
         }
 
         // Check to see if the position is contained in the workflow
-        if let Some(workflow) = &self.data.workflow
+        if let Some(workflow) = self.data.cache.workflow()
             && workflow.scope().span().contains(position)
         {
             return find_scope(&workflow.scopes, position);
         }
 
         // Search for a task that might contain the position
-        let task = match self
+        let task = self
             .data
-            .tasks
-            .binary_search_by_key(&position, |_, t| t.scope().span().start())
-        {
-            Ok(index) => &self.data.tasks[index],
-            Err(index) => {
-                // This indicates that we couldn't find a match and the match would go _before_
-                // the first task, so there is no containing task.
-                if index == 0 {
-                    return None;
+            .cache
+            .local_tasks()
+            .filter_map(|(_idx, _hash, t)| {
+                if t.scope().span().start() <= position {
+                    Some(t)
+                } else {
+                    None
                 }
-
-                &self.data.tasks[index - 1]
-            }
-        };
+            })
+            .find_or_last(|t| t.scope().span().start() == position)?;
 
         if task.scope().span().contains(position) {
             return find_scope(&task.scopes, position);
@@ -1286,7 +1557,7 @@ impl Document {
         }
 
         // Check every imported document for errors
-        for (_, ns) in self.namespaces() {
+        for ns in self.namespaces() {
             if ns.document().has_errors() {
                 return true;
             }

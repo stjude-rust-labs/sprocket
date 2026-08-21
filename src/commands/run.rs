@@ -1001,7 +1001,7 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
 
     match (&*target, &inputs) {
         (Target::Task(task), Inputs::Task(inputs)) => {
-            let Some(task) = document.task_by_name(task) else {
+            let Some(task) = document.local_task_by_name(task) else {
                 bail!("task '{task}' not found in document");
             };
 

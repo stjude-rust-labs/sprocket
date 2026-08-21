@@ -112,7 +112,7 @@ impl Diagnostics {
             for rule in node
                 .rule_exceptions()
                 .into_iter()
-                .filter(|rule| rule.name == target_rule)
+                .filter(|rule| &*rule.name == target_rule)
             {
                 rule_excepted = true;
                 self.exceptions
@@ -254,7 +254,7 @@ impl Validator {
                 // Try not to clash with `ExceptDirectiveValid`
                 || invalid_directives.contains(&exception.span)
                 // If none of the visitors know the rule, it can't ever fire
-                || (!ALL_RULE_IDS.iter().any(|r| r == &exception.name) && !visitor_known_rules.contains(&exception.name))
+                || (!ALL_RULE_IDS.iter().any(|r| r == &*exception.name) && !visitor_known_rules.contains(&*exception.name))
             {
                 continue;
             }
@@ -276,6 +276,7 @@ impl Validator {
 
     /// Validates the given document and returns the validation errors upon
     /// failure.
+    #[tracing::instrument(name = "validation", skip_all)]
     pub fn validate(&mut self, document: &Document, config: &Config) -> Result<(), Diagnostics> {
         let mut diagnostics = Diagnostics {
             exceptions: document.analysis_diagnostics().exceptions.clone(),

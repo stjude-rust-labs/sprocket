@@ -592,7 +592,7 @@ impl WorkflowInputs {
             let inputs = match call.kind() {
                 CallKind::Task => {
                     let task = document
-                        .task_by_name(call_target_name)
+                        .local_task_by_name(call_target_name)
                         .expect("task should be present");
 
                     let task_inputs = inputs.as_task_inputs().with_context(|| {
@@ -700,7 +700,7 @@ impl WorkflowInputs {
                 let input = match call.kind() {
                     CallKind::Task => {
                         let task = document
-                            .task_by_name(call_target_name)
+                            .local_task_by_name(call_target_name)
                             .expect("task should be present");
                         inputs
                             .as_task_inputs_mut()
@@ -1071,7 +1071,10 @@ impl Inputs {
             ),
         };
 
-        let inputs = match (document.task_by_name(&target_name), document.workflow()) {
+        let inputs = match (
+            document.local_task_by_name(&target_name),
+            document.workflow(),
+        ) {
             (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
             (None, Some(workflow)) if workflow.name() == target_name => {
                 Self::parse_workflow_inputs(document, workflow, object)?

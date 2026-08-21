@@ -200,7 +200,7 @@ async fn run_test(test: &Path) -> Result<()> {
                         .validate(
                             document,
                             document
-                                .task_by_name(&name)
+                                .local_task_by_name(&name)
                                 .expect("task should be present"),
                             None,
                         )

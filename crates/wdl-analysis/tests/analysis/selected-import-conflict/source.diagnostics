@@ -1,8 +1,10 @@
-error: import of `Record` conflicts with an existing definition
-  ┌─ tests/analysis/selected-import-conflict/source.wdl:7:10
+error: conflicting struct name `Record`
+  ┌─ tests/analysis/selected-import-conflict/source.wdl:3:8
   │
 3 │ struct Record {
-  │        ------ previous definition
+  │        ^^^^^^ this name conflicts with an imported struct
   ·
 7 │ import { Record } from "lib.wdl"
-  │          ^^^^^^ imported here
+  │          ------ the import that introduced the struct is here
+  │
+  = fix: either rename the struct or use an `alias` clause on the import with a different name

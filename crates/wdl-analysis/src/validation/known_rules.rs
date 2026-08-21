@@ -97,7 +97,7 @@ impl Visitor for KnownRules {
         };
 
         for rule in except {
-            if self.known_rules.contains(&rule.name) {
+            if self.known_rules.contains(&*rule.name) {
                 continue;
             }
 

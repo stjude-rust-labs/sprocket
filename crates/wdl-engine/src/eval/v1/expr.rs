@@ -10,6 +10,7 @@ use indexmap::IndexMap;
 use ordered_float::Pow;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::EnumRef;
 use wdl_analysis::Exceptable;
 use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::ambiguous_argument;
@@ -41,7 +42,6 @@ use wdl_analysis::diagnostics::unknown_call_io;
 use wdl_analysis::diagnostics::unknown_function;
 use wdl_analysis::diagnostics::unknown_task_io;
 use wdl_analysis::diagnostics::unsupported_function;
-use wdl_analysis::document::Enum;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::v1::infer_type_from_literal;
 use wdl_analysis::stdlib::FunctionBindError;
@@ -1691,7 +1691,7 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
 ///
 /// All of these should be caught by `wdl-analysis` checks.
 pub(crate) fn resolve_enum_choice_value(
-    r#enum: &Enum,
+    r#enum: &EnumRef<'_>,
     choice_name: &str,
 ) -> Result<Value, Diagnostic> {
     // SAFETY: we can assume that any type associated with an [`Enum`] entry is
