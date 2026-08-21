@@ -84,15 +84,15 @@ fn hash_command(request: &KeyRequest<'_>, input_digests: &[ArrayString<64>]) -> 
                     Some((index, len)) => {
                         let end = start + len;
 
-                        // If the backend input isn't excluded, hash the input kind, content digest,
+                        // If the backend input is cacheable, hash the input kind, content digest,
                         // and file name (non-temporary only)
                         let input = &request.backend_inputs[index];
-                        if !input.excluded_from_call_cache() {
+                        if input.cacheable() {
                             input.kind().hash(&mut hasher);
 
-                            // Count the number of preceding excluded inputs to offset by
+                            // Count the number of preceding non-cacheable inputs to offset by
                             let offset = (0..index)
-                                .filter(|i| request.backend_inputs[*i].excluded_from_call_cache())
+                                .filter(|i| !request.backend_inputs[*i].cacheable())
                                 .count();
                             input_digests[index - offset].as_bytes().hash(&mut hasher);
                             match input.kind() {
@@ -532,11 +532,7 @@ impl CallCache {
 
         // Calculate the digests of the backend inputs
         let mut inputs = Vec::with_capacity(request.backend_inputs.len());
-        for input in request
-            .backend_inputs
-            .iter()
-            .filter(|i| !i.excluded_from_call_cache())
-        {
+        for input in request.backend_inputs.iter().filter(|i| i.cacheable()) {
             let digest = input
                 .path()
                 .calculate_digest(self.0.transferer.as_ref(), input.kind(), self.0.mode)
@@ -1857,7 +1853,7 @@ mod tests {
             EvaluationPath::from_local_path(input_file_path.clone()),
             Some(GuestPath::new("/mnt/task/inputs/0/input")),
         );
-        input.mark_excluded_from_call_cache();
+        input.update_cacheable(false);
         let backend_inputs = [input];
 
         let request = KeyRequest {

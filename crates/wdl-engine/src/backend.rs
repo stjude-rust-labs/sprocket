@@ -64,8 +64,13 @@ pub(crate) struct Input {
     ///
     /// This is `Some` if the input has been downloaded to a known location.
     location: Option<Location>,
-    /// Whether or not the input is excluded from the call cache.
-    excluded_from_call_cache: bool,
+    /// Wether or not the input is cacheable by the call cache.
+    ///
+    /// A value of `None` and `Some(true)` indicates cacheable.
+    ///
+    /// For an input to *not* be cacheable, all calls to `update_cacheable` must
+    /// be passed `false`.
+    cacheable: Option<bool>,
 }
 
 impl Input {
@@ -76,7 +81,7 @@ impl Input {
             path,
             guest_path,
             location: None,
-            excluded_from_call_cache: false,
+            cacheable: None,
         }
     }
 
@@ -113,14 +118,30 @@ impl Input {
         self.location = Some(location);
     }
 
-    /// Whether or not the input is excluded from the call cache.
-    pub fn excluded_from_call_cache(&self) -> bool {
-        self.excluded_from_call_cache
+    /// Determines if the input is cacheable by the call cache.
+    pub fn cacheable(&self) -> bool {
+        match self.cacheable {
+            Some(false) => false,
+            _ => true,
+        }
     }
 
-    /// Marks the input as being excluded from the call cache.
-    pub fn mark_excluded_from_call_cache(&mut self) {
-        self.excluded_from_call_cache = true
+    /// Updates the cacheability of the input.
+    ///
+    /// For an input to _not_ be cacheable, every call to `update_cacheable`
+    /// must pass `false`.
+    pub fn update_cacheable(&mut self, cacheable: bool) {
+        match self.cacheable {
+            Some(false) if cacheable => {
+                self.cacheable = Some(true);
+            }
+            Some(true) | Some(false) => {
+                // No op
+            }
+            None => {
+                self.cacheable = Some(cacheable);
+            }
+        }
     }
 }
 
