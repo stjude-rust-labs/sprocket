@@ -1,0 +1,7 @@
+note[ExceptDirectiveValid]: `except` directive `ConciseInput` has no effect above task definition
+  ┌─ source.wdl:5:12
+  │
+5 │ #@ except: ConciseInput
+  │            ^^^^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: valid locations for this directive are above: version statement, workflow definition, call statement, call input item

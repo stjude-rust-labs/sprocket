@@ -1,7 +1,5 @@
 //! Validation of known rule names.
 
-use std::collections::HashMap;
-
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Directive;
@@ -17,6 +15,7 @@ use crate::Diagnostics;
 use crate::Document;
 use crate::ExceptDirectiveValidRule;
 use crate::KnownRulesRule;
+use crate::RuleMap;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::find_nearest_rule;
@@ -69,7 +68,7 @@ struct ExceptDirectiveValid(Option<Severity>);
 /// A visitor that ensures well-formed lint exceptions.
 pub struct Exceptions {
     /// The rules that the validator is aware of.
-    rules: HashMap<String, Option<&'static [SyntaxKind]>>,
+    rules: RuleMap,
     /// The `KnownRules` rule handler.
     known_rules: KnownRules,
     /// The `ExceptDirectiveValid` rule handler.
@@ -78,7 +77,7 @@ pub struct Exceptions {
 
 impl Exceptions {
     /// Create a new `Exceptions` visitor with a set of known rules.
-    pub fn new(rules: HashMap<String, Option<&'static [SyntaxKind]>>) -> Self {
+    pub fn new(rules: RuleMap) -> Self {
         Self {
             rules,
             known_rules: KnownRules(None),
@@ -87,7 +86,7 @@ impl Exceptions {
     }
 
     /// Gets the set of known rules.
-    pub fn known_rules(&self) -> &HashMap<String, Option<&'static [SyntaxKind]>> {
+    pub fn known_rules(&self) -> &RuleMap {
         &self.rules
     }
 
@@ -136,8 +135,6 @@ impl Visitor for Exceptions {
             return;
         };
 
-        let start: usize = comment.span().start();
-
         let excepted_element = comment
             .inner()
             .siblings_with_tokens(rowan::Direction::Next)
@@ -161,10 +158,7 @@ impl Visitor for Exceptions {
                 {
                     let diagnostic = misplaced_except_directive(
                         &rule.name,
-                        Span::new(
-                            start + comment.text().find(&rule.name).unwrap(),
-                            rule.name.len(),
-                        ),
+                        rule.span,
                         excepted_element,
                         exceptable_nodes,
                     )

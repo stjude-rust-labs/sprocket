@@ -29,6 +29,7 @@ use std::sync::LazyLock;
 use dyn_clone::DynClone;
 use strum::VariantArray;
 use wdl_analysis::Example;
+use wdl_analysis::RuleMap;
 use wdl_analysis::Visitor;
 use wdl_ast::SyntaxKind;
 
@@ -65,15 +66,14 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// All rule IDs and their exceptable nodes.
-pub static RULE_MAP: LazyLock<HashMap<String, Option<&'static [SyntaxKind]>>> =
-    LazyLock::new(|| {
-        let rules = rules(&Config::default());
-        let mut map = HashMap::with_capacity(rules.len());
-        for rule in rules {
-            map.insert(String::from(rule.id()), rule.exceptable_nodes());
-        }
-        map
-    });
+pub static RULE_MAP: LazyLock<RuleMap> = LazyLock::new(|| {
+    let rules = rules(&Config::default());
+    let mut map = HashMap::with_capacity(rules.len());
+    for rule in rules {
+        map.insert(String::from(rule.id()), rule.exceptable_nodes());
+    }
+    map
+});
 
 /// All tag names sorted alphabetically.
 pub static ALL_TAG_NAMES: LazyLock<Vec<String>> =

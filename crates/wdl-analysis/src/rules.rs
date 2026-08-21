@@ -6,6 +6,8 @@ use std::sync::LazyLock;
 use wdl_ast::Severity;
 use wdl_grammar::SyntaxKind;
 
+use crate::RuleMap;
+
 /// All rule IDs sorted alphabetically.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut ids: Vec<String> = rules().iter().map(|r| r.id().to_string()).collect();
@@ -14,15 +16,14 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// All rules and their exceptable nodes.
-pub(crate) static RULE_MAP: LazyLock<HashMap<String, Option<&'static [SyntaxKind]>>> =
-    LazyLock::new(|| {
-        let rules = rules();
-        let mut map = HashMap::with_capacity(rules.len());
-        for rule in rules {
-            map.insert(String::from(rule.id()), rule.exceptable_nodes());
-        }
-        map
-    });
+pub(crate) static RULE_MAP: LazyLock<RuleMap> = LazyLock::new(|| {
+    let rules = rules();
+    let mut map = HashMap::with_capacity(rules.len());
+    for rule in rules {
+        map.insert(String::from(rule.id()), rule.exceptable_nodes());
+    }
+    map
+});
 
 /// A labeled WDL code snippet.
 #[derive(Copy, Clone, Debug)]
@@ -837,7 +838,7 @@ workflow example {
     }
 }
 
-/// Detects unknown rules within lint directives.
+/// Detects improperly placed `except` directives.
 #[derive(Debug, Clone, Copy)]
 pub struct ExceptDirectiveValidRule(Severity);
 
@@ -879,7 +880,7 @@ impl Rule for ExceptDirectiveValidRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.2
+                snippet: r#"version 1.3
 
 # UsingFallbackVersion exceptions aren't valid
 # in this context
@@ -891,7 +892,7 @@ workflow example {
             revised: Some(LabeledSnippet {
                 label: None,
                 snippet: r#"#@ except: UsingFallbackVersion
-version 1.2
+version 1.3
 
 workflow example {
 }

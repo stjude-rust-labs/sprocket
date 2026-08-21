@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * An import must now share the importing document's major version and have a
   minor version no greater than it; importing a newer minor version is rejected
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `Vistor::known_rules()` and `Validator::extend_known_rules()` were renamed to `Visitor::rules()` and
+  `Validator::extend_rules()`, respectively ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
 
 #### Fixed
 

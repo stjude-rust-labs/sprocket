@@ -20,6 +20,7 @@ use crate::Config;
 use crate::ExceptDirectiveValidRule;
 use crate::Exceptable;
 use crate::MeaninglessLintDirective;
+use crate::RuleMap;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::diagnostics::meaningless_lint_directive;
@@ -340,7 +341,7 @@ impl Default for Validator {
 }
 
 impl Visitor for Validator {
-    fn rules(&self) -> HashMap<String, Option<&'static [SyntaxKind]>> {
+    fn rules(&self) -> RuleMap {
         let mut rules = HashMap::new();
         for visitor in &self.visitors {
             rules.extend(visitor.rules());

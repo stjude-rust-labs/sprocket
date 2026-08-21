@@ -1,18 +1,17 @@
 //! Implementation of the linter.
 
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document as AnalysisDocument;
 use wdl_analysis::Exceptable;
+use wdl_analysis::RuleMap;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Comment;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
@@ -79,7 +78,7 @@ impl Default for Linter {
 }
 
 impl Visitor for Linter {
-    fn rules(&self) -> HashMap<String, Option<&'static [SyntaxKind]>> {
+    fn rules(&self) -> RuleMap {
         self.rules
             .iter()
             .map(|(id, rule)| (id.to_string(), rule.exceptable_nodes()))
