@@ -40,10 +40,6 @@ fn misplaced_except_directive(
     ))
     .with_rule(ExceptDirectiveValidRule::ID)
     .with_label("cannot make an exception for this rule", span)
-    .with_label(
-        "invalid element for this `except` directive",
-        wrong_element.text_range(),
-    )
     .with_fix(format!(
         "valid locations for this directive are above: {locations}"
     ))
