@@ -64,7 +64,7 @@ pub(crate) struct Input {
     ///
     /// This is `Some` if the input has been downloaded to a known location.
     location: Option<Location>,
-    /// Wether or not the input is cacheable by the call cache.
+    /// Whether or not the input is cacheable by the call cache.
     ///
     /// A value of `None` and `Some(true)` indicates cacheable.
     ///
