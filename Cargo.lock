@@ -5234,7 +5234,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.29.0"
+version = "0.30.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6749,7 +6749,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.4"
+version = "0.23.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -6767,7 +6767,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6810,7 +6810,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.26.1"
+version = "0.26.2"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -6829,7 +6829,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "clap",
@@ -6842,7 +6842,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6871,7 +6871,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "anyhow",
  "approx",
@@ -6926,7 +6926,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.20.1"
+version = "0.20.2"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6956,7 +6956,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6991,7 +6991,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.21.1"
+version = "0.22.0"
 dependencies = [
  "anyhow",
  "async-lsp",
@@ -7019,7 +7019,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-modules"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
