@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -181,7 +180,7 @@ impl DocumentTests {
 #[derive(Clone, Debug, JsonSchema)]
 pub struct TestDefinition {
     /// Name for the test.
-    pub name: Arc<str>,
+    pub name: Spanned<String>,
     /// Any tags associated with the test.
     #[schemars(default)]
     pub tags: HashSet<String>,
@@ -221,7 +220,11 @@ impl TestDefinition {
                     );
                     return Err(diagnostics);
                 };
-                Some(name)
+                Some(Spanned(serde_saphyr::Spanned {
+                    value: name,
+                    defined: raw_name.value.0.defined,
+                    referenced: raw_name.value.0.referenced,
+                }))
             }
             None => None,
         };
@@ -273,7 +276,7 @@ impl TestDefinition {
 
         if diagnostics.is_empty() {
             Ok(Self {
-                name: name.into(),
+                name,
                 tags: parsed_tags,
                 inputs: parsed_inputs,
                 assertions: parsed_assertions,
