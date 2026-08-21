@@ -2596,7 +2596,7 @@ task test {
     #[traced_test]
     async fn cache_write_lines() {
         const SOURCE: &str = r#"
-version 1.2
+version 1.3
 
 task test {
     input {
