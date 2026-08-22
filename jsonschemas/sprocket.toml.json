@@ -139,7 +139,7 @@
       "type": "object",
       "properties": {
         "except": {
-          "description": "Rule IDs or tags to except from running.",
+          "description": "Rule IDs or tags to except from running.\n\nThis list is also honored by the `analyzer` command, so that\ndiagnostics reported by `sprocket check` and `sprocket analyzer`\n(e.g. via the LSP) stay in sync.",
           "type": "array",
           "items": {
             "type": "string"
@@ -245,21 +245,13 @@
       ]
     },
     "AnalyzerConfig": {
-      "description": "Represents the configuration for the Sprocket `analyzer` command.",
+      "description": "Represents the configuration for the Sprocket `analyzer` command.\n\nExcepted rule IDs are not configured here; set `[check].except` instead,\nas it is shared between the `check` and `analyzer` commands.",
       "type": "object",
       "properties": {
         "lint": {
           "description": "Whether to enable lint rules.",
           "type": "boolean",
           "default": false
-        },
-        "except": {
-          "description": "Rule IDs to except from running.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         }
       },
       "additionalProperties": false
