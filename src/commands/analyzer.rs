@@ -144,7 +144,10 @@ mod tests {
 
         assert_eq!(
             args.except,
-            vec!["MissingRequirements".to_string(), "ContainerUri".to_string()]
+            vec![
+                "MissingRequirements".to_string(),
+                "ContainerUri".to_string()
+            ]
         );
     }
 }
