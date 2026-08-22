@@ -403,6 +403,10 @@ mod feature_flags {
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
     /// Rule IDs or tags to except from running.
+    ///
+    /// This list is also honored by the `analyzer` command, so that
+    /// diagnostics reported by `sprocket check` and `sprocket analyzer`
+    /// (e.g. via the LSP) stay in sync.
     #[toml(default)]
     #[schemars(default)]
     pub except: Vec<String>,
@@ -436,6 +440,9 @@ pub struct CheckConfig {
 }
 
 /// Represents the configuration for the Sprocket `analyzer` command.
+///
+/// Excepted rule IDs are not configured here; set `[check].except` instead,
+/// as it is shared between the `check` and `analyzer` commands.
 #[derive(Debug, Clone, Default, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
@@ -444,10 +451,6 @@ pub struct AnalyzerConfig {
     #[toml(default)]
     #[schemars(default)]
     pub lint: bool,
-    /// Rule IDs to except from running.
-    #[toml(default)]
-    #[schemars(default)]
-    pub except: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `run` command.
