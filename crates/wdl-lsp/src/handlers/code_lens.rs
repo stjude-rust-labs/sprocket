@@ -20,7 +20,7 @@ use crate::test::Document;
 ///
 /// See [`is_sprocket_test_file()`](crate::test::is_sprocket_test_file)
 fn associated_wdl_file_path(path: &std::path::Path) -> Option<std::path::PathBuf> {
-    let base_name = path.file_stem()?;
+    let base_name = path.file_name()?;
     let expected_wdl = std::path::Path::new(base_name).with_extension("wdl");
     let parent = path.parent()?;
 
@@ -32,7 +32,12 @@ fn associated_wdl_file_path(path: &std::path::Path) -> Option<std::path::PathBuf
         parent
     };
 
-    Some(wdl_dir.join(expected_wdl))
+    let associated_wdl_path = wdl_dir.join(expected_wdl);
+    if !associated_wdl_path.exists() {
+        return None;
+    }
+
+    Some(associated_wdl_path)
 }
 
 /// Determine the range of a test target.

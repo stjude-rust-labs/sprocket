@@ -1185,6 +1185,10 @@ impl<S: 'static> Server<S> {
             return;
         }
 
+        if to_wdl_file_path(&params.text_document.uri).is_none() {
+            return; // Not a file we care about
+        }
+
         let result = state
             .config
             .analyzer
@@ -1451,7 +1455,7 @@ impl<S: 'static> Server<S> {
         if is_sprocket_test_file(&params.text_document.uri) {
             if let Err(e) = state
                 .test_yamls
-                .open(params.text_document.uri.clone())
+                .open(params.text_document.uri.clone(), params.text_document.text)
                 .await
             {
                 error!(
@@ -1501,17 +1505,6 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/didChange` notification handler.
     async fn did_change(mut params: DidChangeTextDocumentParams, state: &ServerState<S>) {
-        if is_sprocket_test_file(&params.text_document.uri) {
-            if let Err(e) = state
-                .test_yamls
-                .change(params.text_document.uri.clone(), params.content_changes)
-                .await
-            {
-                error!("failed to apply change: {e}");
-            }
-            return;
-        }
-
         debug!(
             "document `{uri}` is now client version {version}",
             uri = params.text_document.uri,
@@ -1531,25 +1524,41 @@ impl<S: 'static> Server<S> {
             None => (None, &mut params.content_changes[..]),
         };
 
-        if let Err(e) = state.config.analyzer.notify_incremental_change(
-            params.text_document.uri,
-            IncrementalChange {
-                version: params.text_document.version,
-                start,
-                edits: changes
-                    .iter_mut()
-                    .map(|e| {
-                        let range = e.range.expect("edit should be after the last full change");
-                        SourceEdit::new(
-                            SourcePosition::new(range.start.line, range.start.character)
-                                ..SourcePosition::new(range.end.line, range.end.character),
-                            SourcePositionEncoding::UTF16,
-                            mem::take(&mut e.text),
-                        )
-                    })
-                    .collect(),
-            },
-        ) {
+        let edits = changes
+            .iter_mut()
+            .map(|e| {
+                let range = e.range.expect("edit should be after the last full change");
+                SourceEdit::new(
+                    SourcePosition::new(range.start.line, range.start.character)
+                        ..SourcePosition::new(range.end.line, range.end.character),
+                    SourcePositionEncoding::UTF16,
+                    mem::take(&mut e.text),
+                )
+            })
+            .collect();
+
+        let change = IncrementalChange {
+            version: params.text_document.version,
+            start,
+            edits,
+        };
+
+        if state.test_yamls.contains(&params.text_document.uri).await {
+            if let Err(e) = state
+                .test_yamls
+                .change(params.text_document.uri.clone(), change)
+                .await
+            {
+                error!("failed to apply change: {e}");
+            }
+            return;
+        }
+
+        if let Err(e) = state
+            .config
+            .analyzer
+            .notify_incremental_change(params.text_document.uri, change)
+        {
             error!("failed to notify incremental change: {e}");
         }
     }
@@ -1691,7 +1700,6 @@ impl<S: 'static> Server<S> {
 /// Converts a URI into a WDL file path.
 fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
     if let Ok(path) = uri.to_file_path()
-        && path.is_file()
         && path.extension().and_then(OsStr::to_str) == Some("wdl")
     {
         return Some(path);

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added support for the `textDocument/codeLens` request on `sprocket test` YAML files
-  ([#1129](https://github.com/stjude-rust-labs/sprocket/pull/1129)).
+  ([#1130](https://github.com/stjude-rust-labs/sprocket/pull/1130)).
 
 ## 0.21.1 - 2026-08-05
 

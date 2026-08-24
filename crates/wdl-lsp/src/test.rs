@@ -8,12 +8,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use anyhow::bail;
-use async_lsp::lsp_types::TextDocumentContentChangeEvent;
 use line_index::LineIndex;
 use sprocket_test_types::DocumentTests;
 use tokio::sync::Mutex;
 use url::Url;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::IncrementalChange;
 
 /// The parse status of a `sprocket dev test` YAML file.
 #[derive(Clone, Debug)]
@@ -47,13 +47,12 @@ pub struct SprocketTestCache {
 
 impl SprocketTestCache {
     /// Add a Sprocket test YAML file to the cache.
-    pub async fn open(&self, uri: Url) -> Result<Arc<SprocketTestYaml>> {
+    pub async fn open(&self, uri: Url, content: String) -> Result<Arc<SprocketTestYaml>> {
         let Ok(path) = uri.to_file_path() else {
             // `Analyzer` only supports `file://` URIs anyway.
             bail!("unsupported uri: {uri}");
         };
 
-        let content = tokio::fs::read_to_string(&path).await?;
         Ok(self
             .documents
             .lock()
@@ -76,58 +75,28 @@ impl SprocketTestCache {
     }
 
     /// Apply a change to a [`SprocketTestYaml`].
-    pub async fn change(
-        &self,
-        uri: Url,
-        changes: Vec<TextDocumentContentChangeEvent>,
-    ) -> Result<(), anyhow::Error> {
+    pub async fn change(&self, uri: Url, change: IncrementalChange) -> Result<(), anyhow::Error> {
         let mut docs = self.documents.lock().await;
         let Entry::Occupied(mut entry) = docs.entry(uri) else {
             return Ok(());
         };
 
         let test_yaml = Arc::make_mut(entry.get_mut());
-        for change in changes {
-            match &change.range {
-                None => {
-                    test_yaml.source = change.text;
-                }
-                Some(range) => {
-                    let start_wide = line_index::WideLineCol {
-                        line: range.start.line,
-                        col: range.start.character,
-                    };
-                    let end_wide = line_index::WideLineCol {
-                        line: range.end.line,
-                        col: range.end.character,
-                    };
-
-                    let start_offset = test_yaml
-                        .lines
-                        .to_utf8(line_index::WideEncoding::Utf16, start_wide)
-                        .and_then(|lc| test_yaml.lines.offset(lc))
-                        .map(usize::from)
-                        .unwrap_or(0);
-
-                    let end_offset = test_yaml
-                        .lines
-                        .to_utf8(line_index::WideEncoding::Utf16, end_wide)
-                        .and_then(|lc| test_yaml.lines.offset(lc))
-                        .map(usize::from)
-                        .unwrap_or(test_yaml.source.len());
-
-                    if start_offset <= end_offset && end_offset <= test_yaml.source.len() {
-                        test_yaml
-                            .source
-                            .replace_range(start_offset..end_offset, &change.text);
-                    }
-                }
-            }
+        if change.start.is_some() {
+            let (new_source, new_lines) = change.apply()?;
+            test_yaml.source = new_source;
+            test_yaml.lines = new_lines;
+        } else {
+            change.apply_to(&mut test_yaml.source, &mut test_yaml.lines)?;
         }
 
-        test_yaml.lines = LineIndex::new(&test_yaml.source);
         test_yaml.document = None;
         Ok(())
+    }
+
+    /// Returns true if the URI exists in the server's test YAML cache.
+    pub async fn contains(&self, uri: &Url) -> bool {
+        self.documents.lock().await.contains_key(uri)
     }
 
     /// Get a [`SprocketTestYaml`] by its URI, ensuring it is parsed beforehand.

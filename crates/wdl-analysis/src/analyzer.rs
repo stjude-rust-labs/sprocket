@@ -315,6 +315,47 @@ pub struct IncrementalChange {
     pub edits: Vec<SourceEdit>,
 }
 
+impl IncrementalChange {
+    /// Attempts to apply the changes to the change's `start`.
+    ///
+    /// # Errors
+    ///
+    /// This will error if the `IncrementalChange` does not have a `start`
+    /// source.
+    pub fn apply(&self) -> Result<(String, LineIndex)> {
+        let Some(mut source) = self.start.clone() else {
+            bail!("no start source provided");
+        };
+        let mut lines = LineIndex::new(&source);
+        self.apply_to(&mut source, &mut lines)?;
+        Ok((source, lines))
+    }
+
+    /// Attempts to apply the changes to the given `source`.
+    pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<()> {
+        // We keep track of the last line we've processed so we only rebuild the line
+        // index when there is a change that crosses a line
+        let mut last_line = !0u32;
+        for edit in &self.edits {
+            let range = edit.range();
+            if last_line <= range.end.line {
+                // Only rebuild the line index if the edit has changed lines
+                *lines = LineIndex::new(source);
+            }
+
+            last_line = range.start.line;
+            edit.apply(source, lines)?;
+        }
+
+        if !self.edits.is_empty() {
+            // Rebuild the line index after all edits have been applied
+            *lines = LineIndex::new(source);
+        }
+
+        Ok(())
+    }
+}
+
 /// Represents a Workflow Description Language (WDL) document analyzer.
 ///
 /// By default, analysis parses documents, performs validation checks, resolves
