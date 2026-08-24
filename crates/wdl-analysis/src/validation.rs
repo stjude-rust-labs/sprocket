@@ -1,7 +1,6 @@
 //! Validator for WDL documents.
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 use strsim::levenshtein;
 use wdl_ast::AstNode;
@@ -18,19 +17,22 @@ use wdl_grammar::SyntaxKind;
 
 use crate::ALL_RULE_IDS;
 use crate::Config;
+use crate::ExceptDirectiveValidRule;
 use crate::Exceptable;
 use crate::MeaninglessLintDirective;
+use crate::RuleMap;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::diagnostics::meaningless_lint_directive;
 use crate::document::Document;
+use crate::rules::RULE_MAP;
 
 mod counts;
 mod env;
+mod exceptions;
 mod exprs;
 mod imports;
 mod keys;
-mod known_rules;
 mod numbers;
 mod requirements;
 mod strings;
@@ -180,8 +182,8 @@ impl From<Diagnostics> for Vec<Diagnostic> {
 pub struct Validator {
     /// The set of validation visitors.
     visitors: Vec<Box<dyn Visitor>>,
-    /// The known rules visitor.
-    known_rules: known_rules::KnownRules,
+    /// The exceptions visitor.
+    exceptions: exceptions::Exceptions,
 }
 
 impl Validator {
@@ -190,26 +192,34 @@ impl Validator {
         Self {
             visitors: Vec::new(),
             // Analysis rules are always known
-            known_rules: known_rules::KnownRules::new(ALL_RULE_IDS.iter().cloned().collect()),
+            exceptions: exceptions::Exceptions::new(
+                RULE_MAP
+                    .iter()
+                    .map(|(name, exceptable_nodes)| (name.to_string(), *exceptable_nodes))
+                    .collect(),
+            ),
         }
     }
 
     /// Adds a visitor to the validator.
     pub fn add_visitor<V: Visitor + 'static>(&mut self, visitor: V) {
-        self.add_visitors(std::iter::once(Box::new(visitor) as Box<dyn Visitor>));
+        self.add_visitors([Box::new(visitor) as Box<dyn Visitor>]);
     }
 
     /// Adds multiple visitors to the validator.
     pub fn add_visitors(&mut self, visitors: impl IntoIterator<Item = Box<dyn Visitor>>) {
         for visitor in visitors {
-            self.known_rules.extend(visitor.known_rules());
+            self.exceptions.extend_rules(visitor.rules());
             self.visitors.push(visitor);
         }
     }
 
     /// Adds rule names to the validator's known rules set.
-    pub fn extend_known_rules(&mut self, rules: impl IntoIterator<Item = String>) {
-        self.known_rules.extend(rules);
+    pub fn extend_rules(
+        &mut self,
+        rules: impl IntoIterator<Item = (String, Option<&'static [SyntaxKind]>)>,
+    ) {
+        self.exceptions.extend_rules(rules);
     }
 
     /// Catch any unapplied lint exceptions.
@@ -230,7 +240,7 @@ impl Validator {
     ) {
         let mut meaningless_lint_directives = Diagnostics::default();
 
-        let visitor_known_rules = self.known_rules();
+        let visitor_known_rules = self.rules();
 
         // `ExceptDirectiveValid` does a different job of checking whether a lint
         // exception is *ever* applicable to the applied node.
@@ -239,9 +249,7 @@ impl Validator {
         let invalid_directives = diagnostics
             .iter()
             .filter_map(|d| {
-                // Unfortunately, somewhat hacky since `ExceptDirectiveValid` comes from
-                // `wdl-lint`
-                if d.rule() == Some("ExceptDirectiveValid") {
+                if d.rule() == Some(ExceptDirectiveValidRule::ID) {
                     d.labels().next().map(|l| l.span())
                 } else {
                     None
@@ -254,7 +262,7 @@ impl Validator {
                 // Try not to clash with `ExceptDirectiveValid`
                 || invalid_directives.contains(&exception.span)
                 // If none of the visitors know the rule, it can't ever fire
-                || (!ALL_RULE_IDS.iter().any(|r| r == &exception.name) && !visitor_known_rules.contains(&exception.name))
+                || (!ALL_RULE_IDS.iter().any(|r| r == &exception.name) && !visitor_known_rules.contains_key(&exception.name))
             {
                 continue;
             }
@@ -307,7 +315,7 @@ impl Validator {
     /// or `None` if no rule ID is close enough.
     pub fn find_nearest_rule(&self, unknown_rule_id: &str) -> Option<String> {
         find_nearest_rule(
-            self.known_rules.known_rules().iter().map(String::as_str),
+            self.exceptions.known_rules().keys().map(String::as_str),
             unknown_rule_id,
         )
     }
@@ -333,12 +341,12 @@ impl Default for Validator {
 }
 
 impl Visitor for Validator {
-    fn known_rules(&self) -> HashSet<String> {
-        let mut known_rules = HashSet::new();
+    fn rules(&self) -> RuleMap {
+        let mut rules = HashMap::new();
         for visitor in &self.visitors {
-            known_rules.extend(visitor.known_rules());
+            rules.extend(visitor.rules());
         }
-        known_rules
+        rules
     }
 
     fn register(&mut self, config: &crate::Config) {
@@ -348,7 +356,7 @@ impl Visitor for Validator {
     }
 
     fn reset(&mut self) {
-        self.known_rules.reset();
+        self.exceptions.reset();
         for visitor in self.visitors.iter_mut() {
             visitor.reset();
         }
@@ -361,7 +369,7 @@ impl Visitor for Validator {
         doc: &Document,
         version: SupportedVersion,
     ) {
-        self.known_rules.document(diagnostics, reason, doc, version);
+        self.exceptions.document(diagnostics, reason, doc, version);
         for visitor in self.visitors.iter_mut() {
             visitor.document(diagnostics, reason, doc, version);
         }
@@ -374,7 +382,7 @@ impl Visitor for Validator {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        self.known_rules.comment(diagnostics, comment);
+        self.exceptions.comment(diagnostics, comment);
         for visitor in self.visitors.iter_mut() {
             visitor.comment(diagnostics, comment);
         }

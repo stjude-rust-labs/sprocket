@@ -1,0 +1,7 @@
+note[ExceptDirectiveValid]: `except` directive `UsingFallbackVersion` has no effect above task definition
+  ┌─ tests/analysis/except-directive-valid/source.wdl:3:12
+  │
+3 │ #@ except: UsingFallbackVersion
+  │            ^^^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: valid locations for this directive are above: version statement

@@ -6,7 +6,6 @@ Rules with the tag `Clarity`:
   - DocCommentTabs
   - DoubleQuotes
   - EmptyDocComment
-  - ExceptDirectiveValid
   - HereDocCommands
   - ImportPlacement
   - MetaSections

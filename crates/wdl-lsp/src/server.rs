@@ -475,7 +475,7 @@ fn validator(
 
         // Even if linting isn't enabled, we need to make the validator aware of
         // `wdl-lint` rules for `KnownRules`.
-        validator.extend_known_rules(wdl_lint::ALL_RULE_IDS.iter().cloned());
+        validator.extend_rules(wdl_lint::RULE_MAP.clone());
         validator
     }
 }
