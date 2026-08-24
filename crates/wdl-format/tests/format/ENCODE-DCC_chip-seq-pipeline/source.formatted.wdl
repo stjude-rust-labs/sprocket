@@ -1043,10 +1043,7 @@ workflow chip {
             runtime_environment = runtime_environment,
         }
     }
-    File ref_fa_ = select_first([
-        ref_fa,
-        read_genome_tsv.ref_fa,
-    ])
+    File ref_fa_ = select_first([ref_fa, read_genome_tsv.ref_fa])
     File? bwa_idx_tar_ = if defined(bwa_idx_tar)
         then bwa_idx_tar
         else read_genome_tsv.bwa_idx_tar
@@ -1054,14 +1051,8 @@ workflow chip {
         bowtie2_idx_tar,
         read_genome_tsv.bowtie2_idx_tar,
     ])
-    File chrsz_ = select_first([
-        chrsz,
-        read_genome_tsv.chrsz,
-    ])
-    String gensz_ = select_first([
-        gensz,
-        read_genome_tsv.gensz,
-    ])
+    File chrsz_ = select_first([chrsz, read_genome_tsv.chrsz])
+    String gensz_ = select_first([gensz, read_genome_tsv.gensz])
     File? blacklist1_ = if defined(blacklist)
         then blacklist
         else read_genome_tsv.blacklist
@@ -1071,10 +1062,7 @@ workflow chip {
     # merge multiple blacklists
     # two blacklists can have different number of columns (3 vs 6)
     # so we limit merged blacklist's columns to 3
-    Array[File] blacklists = select_all([
-        blacklist1_,
-        blacklist2_,
-    ])
+    Array[File] blacklists = select_all([blacklist1_, blacklist2_])
     if (length(blacklists) > 1) {
         call pool_ta as pool_blacklist { input:
             tas = blacklists,
@@ -1087,10 +1075,7 @@ workflow chip {
         else if length(blacklists) > 0
         then blacklists[0]
         else blacklist2_
-    String mito_chr_name_ = select_first([
-        mito_chr_name,
-        read_genome_tsv.mito_chr_name,
-    ])
+    String mito_chr_name_ = select_first([mito_chr_name, read_genome_tsv.mito_chr_name])
     String regex_bfilt_peak_chr_name_ = select_first([
         regex_bfilt_peak_chr_name,
         read_genome_tsv.regex_bfilt_peak_chr_name,
@@ -1106,14 +1091,8 @@ workflow chip {
         then "custom"
         else aligner
     String peak_caller_ = if pipeline_type == "tf"
-        then select_first([
-            peak_caller,
-            "spp",
-        ])
-        else select_first([
-            peak_caller,
-            "macs2",
-        ])
+        then select_first([peak_caller, "spp"])
+        else select_first([peak_caller, "macs2"])
     String peak_type_ = if peak_caller_ == "spp"
         then "regionPeak"
         else "narrowPeak"
@@ -1126,14 +1105,8 @@ workflow chip {
     Int cap_num_peak_spp = 300000
     Int cap_num_peak_macs2 = 500000
     Int cap_num_peak_ = if peak_caller_ == "spp"
-        then select_first([
-            cap_num_peak,
-            cap_num_peak_spp,
-        ])
-        else select_first([
-            cap_num_peak,
-            cap_num_peak_macs2,
-        ])
+        then select_first([cap_num_peak, cap_num_peak_spp])
+        else select_first([cap_num_peak, cap_num_peak_macs2])
     Int mapq_thresh_ = mapq_thresh
     Boolean enable_xcor_ = if pipeline_type == "control"
         then false
@@ -1229,27 +1202,13 @@ workflow chip {
             fastqs_rep5_R1,
         ]
         else if length(fastqs_rep4_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1]
         else if length(fastqs_rep3_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1]
         else if length(fastqs_rep2_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1]
         else if length(fastqs_rep1_R1) > 0
-        then [
-            fastqs_rep1_R1,
-        ]
+        then [fastqs_rep1_R1]
         else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
     Array[Array[File]] fastqs_R2 = [
@@ -1337,20 +1296,11 @@ workflow chip {
             ctl_fastqs_rep4_R1,
         ]
         else if length(ctl_fastqs_rep3_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1]
         else if length(ctl_fastqs_rep2_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1]
         else if length(ctl_fastqs_rep1_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-        ]
+        then [ctl_fastqs_rep1_R1]
         else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
     Array[Array[File]] ctl_fastqs_R2 = [
@@ -1468,9 +1418,7 @@ workflow chip {
         #     paired_end will override paired_ends[i]
         Boolean paired_end_ = if !defined(paired_end) && i < length(paired_ends)
             then paired_ends[i]
-            else select_first([
-                paired_end,
-            ])
+            else select_first([paired_end])
 
         Boolean has_input_of_align = i < length(fastqs_R1) && length(fastqs_R1[i]) > 0
         Boolean has_output_of_align = i < length(bams)
@@ -1738,10 +1686,7 @@ workflow chip {
             ctl_paired_ends
         )
             then ctl_paired_ends[i]
-            else select_first([
-                ctl_paired_end,
-                paired_end,
-            ])
+            else select_first([ctl_paired_end, paired_end])
 
         Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[
             i
@@ -1935,14 +1880,10 @@ workflow chip {
         #     -1: use pooled control
         #    -2: there is no control
         Int chosen_ctl_ta_id = if has_all_input_of_choose_ctl && !align_only_
-            then select_first([
-                choose_ctl.chosen_ctl_ta_ids,
-            ])[i]
+            then select_first([choose_ctl.chosen_ctl_ta_ids])[i]
             else -2
         Int chosen_ctl_ta_subsample = if has_all_input_of_choose_ctl && !align_only_
-            then select_first([
-                choose_ctl.chosen_ctl_ta_subsample,
-            ])[i]
+            then select_first([choose_ctl.chosen_ctl_ta_subsample])[i]
             else 0
         Boolean chosen_ctl_paired_end = if chosen_ctl_ta_id == -2
             then false
@@ -1966,27 +1907,13 @@ workflow chip {
         Array[File] chosen_ctl_tas = if chosen_ctl_ta_id <= -2
             then []
             else if chosen_ctl_ta_subsample > 0
-            then [
-                select_first([
-                    subsample_ctl.ta_subsampled,
-                ]),
-            ]
+            then [select_first([subsample_ctl.ta_subsampled])]
             else if chosen_ctl_ta_id == -1
-            then [
-                select_first([
-                    pool_ta_ctl.ta_pooled,
-                ]),
-            ]
-            else [
-                select_first([
-                    ctl_ta_[chosen_ctl_ta_id],
-                ]),
-            ]
+            then [select_first([pool_ta_ctl.ta_pooled])]
+            else [select_first([ctl_ta_[chosen_ctl_ta_id]])]
     }
     Int chosen_ctl_ta_pooled_subsample = if has_all_input_of_choose_ctl && !align_only_
-        then select_first([
-            choose_ctl.chosen_ctl_ta_subsample_pooled,
-        ])
+        then select_first([choose_ctl.chosen_ctl_ta_subsample_pooled])
         else 0
 
     # workaround for dx error (Unsupported combination: womType: Int womValue: ([225], Array[Int]))
@@ -2000,12 +1927,7 @@ workflow chip {
             call call_peak { input:
                 peak_caller = peak_caller_,
                 peak_type = peak_type_,
-                tas = flatten([
-                    [
-                        ta_[i],
-                    ],
-                    chosen_ctl_tas[i],
-                ]),
+                tas = flatten([[ta_[i]], chosen_ctl_tas[i]]),
                 gensz = gensz_,
                 chrsz = chrsz_,
                 cap_num_peak = cap_num_peak_,
@@ -2034,12 +1956,7 @@ workflow chip {
         # signal track
         if (has_input_of_call_peak && !align_only_) {
             call macs2_signal_track { input:
-                tas = flatten([
-                    [
-                        ta_[i],
-                    ],
-                    chosen_ctl_tas[i],
-                ]),
+                tas = flatten([[ta_[i]], chosen_ctl_tas[i]]),
                 gensz = gensz_,
                 chrsz = chrsz_,
                 pval_thresh = pval_thresh,
@@ -2059,12 +1976,7 @@ workflow chip {
             call call_peak as call_peak_pr1 { input:
                 peak_caller = peak_caller_,
                 peak_type = peak_type_,
-                tas = flatten([
-                    [
-                        spr.ta_pr1[i],
-                    ],
-                    chosen_ctl_tas[i],
-                ]),
+                tas = flatten([[spr.ta_pr1[i]], chosen_ctl_tas[i]]),
                 gensz = gensz_,
                 chrsz = chrsz_,
                 cap_num_peak = cap_num_peak_,
@@ -2097,12 +2009,7 @@ workflow chip {
             call call_peak as call_peak_pr2 { input:
                 peak_caller = peak_caller_,
                 peak_type = peak_type_,
-                tas = flatten([
-                    [
-                        spr.ta_pr2[i],
-                    ],
-                    chosen_ctl_tas[i],
-                ]),
+                tas = flatten([[spr.ta_pr2[i]], chosen_ctl_tas[i]]),
                 gensz = gensz_,
                 chrsz = chrsz_,
                 cap_num_peak = cap_num_peak_,
@@ -2156,16 +2063,10 @@ workflow chip {
     Array[File?] chosen_ctl_ta_pooled = if !has_all_input_of_choose_ctl || align_only_
         then []
         else if chosen_ctl_ta_pooled_subsample > 0
-        then [
-            subsample_ctl_pooled.ta_subsampled,
-        ]
+        then [subsample_ctl_pooled.ta_subsampled]
         else if num_ctl < 2
-        then [
-            ctl_ta_[0],
-        ]
-        else [
-            pool_ta_ctl.ta_pooled,
-        ]
+        then [ctl_ta_[0]]
+        else [pool_ta_ctl.ta_pooled]
 
     Boolean has_input_of_call_peak_pooled = defined(pool_ta.ta_pooled)
     Boolean has_output_of_call_peak_pooled = defined(peak_pooled)
@@ -2176,12 +2077,7 @@ workflow chip {
         call call_peak as call_peak_pooled { input:
             peak_caller = peak_caller_,
             peak_type = peak_type_,
-            tas = flatten([
-                select_all([
-                    pool_ta.ta_pooled,
-                ]),
-                chosen_ctl_ta_pooled,
-            ]),
+            tas = flatten([select_all([pool_ta.ta_pooled]), chosen_ctl_ta_pooled]),
             gensz = gensz_,
             chrsz = chrsz_,
             cap_num_peak = cap_num_peak_,
@@ -2210,12 +2106,7 @@ workflow chip {
     # macs2 signal track for pooled rep
     if (has_input_of_call_peak_pooled && !align_only_ && num_rep > 1) {
         call macs2_signal_track as macs2_signal_track_pooled { input:
-            tas = flatten([
-                select_all([
-                    pool_ta.ta_pooled,
-                ]),
-                chosen_ctl_ta_pooled,
-            ]),
+            tas = flatten([select_all([pool_ta.ta_pooled]), chosen_ctl_ta_pooled]),
             gensz = gensz_,
             chrsz = chrsz_,
             pval_thresh = pval_thresh,
@@ -2236,12 +2127,7 @@ workflow chip {
         call call_peak as call_peak_ppr1 { input:
             peak_caller = peak_caller_,
             peak_type = peak_type_,
-            tas = flatten([
-                select_all([
-                    pool_ta_pr1.ta_pooled,
-                ]),
-                chosen_ctl_ta_pooled,
-            ]),
+            tas = flatten([select_all([pool_ta_pr1.ta_pooled]), chosen_ctl_ta_pooled]),
             gensz = gensz_,
             chrsz = chrsz_,
             cap_num_peak = cap_num_peak_,
@@ -2275,12 +2161,7 @@ workflow chip {
         call call_peak as call_peak_ppr2 { input:
             peak_caller = peak_caller_,
             peak_type = peak_type_,
-            tas = flatten([
-                select_all([
-                    pool_ta_pr2.ta_pooled,
-                ]),
-                chosen_ctl_ta_pooled,
-            ]),
+            tas = flatten([select_all([pool_ta_pr2.ta_pooled]), chosen_ctl_ta_pooled]),
             gensz = gensz_,
             chrsz = chrsz_,
             cap_num_peak = cap_num_peak_,
@@ -2432,9 +2313,7 @@ workflow chip {
             prefix = "overlap",
             peaks = select_all(overlap.bfilt_overlap_peak),
             peaks_pr = if defined(overlap_pr.bfilt_overlap_peak)
-                then select_first([
-                    overlap_pr.bfilt_overlap_peak,
-                ])
+                then select_first([overlap_pr.bfilt_overlap_peak])
                 else []
             ,
             peak_ppr = overlap_ppr.bfilt_overlap_peak,
@@ -2450,9 +2329,7 @@ workflow chip {
             prefix = "idr",
             peaks = select_all(idr.bfilt_idr_peak),
             peaks_pr = if defined(idr_pr.bfilt_idr_peak)
-                then select_first([
-                    idr_pr.bfilt_idr_peak,
-                ])
+                then select_first([idr_pr.bfilt_idr_peak])
                 else []
             ,
             peak_ppr = idr_ppr.bfilt_idr_peak,
@@ -2494,9 +2371,7 @@ workflow chip {
 
         jsd_plot = jsd.plot,
         jsd_qcs = if defined(jsd.jsd_qcs)
-            then select_first([
-                jsd.jsd_qcs,
-            ])
+            then select_first([jsd.jsd_qcs])
             else []
         ,
 
@@ -2509,25 +2384,19 @@ workflow chip {
 
         idr_plots = select_all(idr.idr_plot),
         idr_plots_pr = if defined(idr_pr.idr_plot)
-            then select_first([
-                idr_pr.idr_plot,
-            ])
+            then select_first([idr_pr.idr_plot])
             else []
         ,
         idr_plot_ppr = idr_ppr.idr_plot,
         frip_idr_qcs = select_all(idr.frip_qc),
         frip_idr_qcs_pr = if defined(idr_pr.frip_qc)
-            then select_first([
-                idr_pr.frip_qc,
-            ])
+            then select_first([idr_pr.frip_qc])
             else []
         ,
         frip_idr_qc_ppr = idr_ppr.frip_qc,
         frip_overlap_qcs = select_all(overlap.frip_qc),
         frip_overlap_qcs_pr = if defined(overlap_pr.frip_qc)
-            then select_first([
-                overlap_pr.frip_qc,
-            ])
+            then select_first([overlap_pr.frip_qc])
             else []
         ,
         frip_overlap_qc_ppr = overlap_ppr.frip_qc,
@@ -2591,13 +2460,8 @@ task align {
 
     Float trimmomatic_java_heap_factor = 0.9
     Array[Array[File]] tmp_fastqs = if paired_end
-        then transpose([
-            fastqs_R1,
-            fastqs_R2,
-        ])
-        else transpose([
-            fastqs_R1,
-        ])
+        then transpose([fastqs_R1, fastqs_R2])
+        else transpose([fastqs_R1])
 
     command <<<
         set -e

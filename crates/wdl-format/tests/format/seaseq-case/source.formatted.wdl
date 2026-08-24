@@ -168,13 +168,8 @@ workflow seaseq {
         # Download sample file(s) from SRA database
         # outputs:
         #    fastqdump.fastqfile : downloaded sample files in fastq.gz format
-        Array[String] string_sra = [
-            1,
-        ]  #buffer to allow for sra_id optionality
-        Array[String] s_sraid = select_first([
-            sample_sraid,
-            string_sra,
-        ])
+        Array[String] string_sra = [1]  #buffer to allow for sra_id optionality
+        Array[String] s_sraid = select_first([sample_sraid, string_sra])
         scatter (eachsra in s_sraid) {
             call sra.fastqdump { input:
                 sra_id = eachsra,
@@ -199,10 +194,7 @@ workflow seaseq {
         Array[String] string_bowtie_index = [
             1,
         ]  #buffer to allow for bowtie_index optionality
-        Array[File] int_bowtie_index = select_first([
-            bowtie_index,
-            string_bowtie_index,
-        ])
+        Array[File] int_bowtie_index = select_first([bowtie_index, string_bowtie_index])
         if (length(int_bowtie_index) != 6) {
             # create bowtie index if 6 index files aren't provided
             call bowtie.index as bowtie_idx_2 { input:
@@ -219,16 +211,11 @@ workflow seaseq {
     # Spike-in DNA
     #3. Bowtie INDEX files if not provided
     String string_spikein = "1"
-    Array[String] string_spikein_buffer = [
-        1,
-    ]
+    Array[String] string_spikein_buffer = [1]
     if (!defined(spikein_bowtie_index) && defined(spikein_reference)) {
         # create bowtie index on spikein genome
         call bowtie.index as spikein_bowtie_idx { input:
-            reference = select_first([
-                spikein_reference,
-                string_spikein,
-            ]),
+            reference = select_first([spikein_reference, string_spikein]),
         }
     }
 
@@ -242,10 +229,7 @@ workflow seaseq {
         if (length(int_spikein_bowtie_index) != 6) {
             # create bowtie index if 6 index files aren't provided
             call bowtie.index as spikein_bowtie_idx_2 { input:
-                reference = select_first([
-                    spikein_reference,
-                    string_spikein,
-                ]),
+                reference = select_first([spikein_reference, string_spikein]),
             }
         }
     }
@@ -271,13 +255,8 @@ workflow seaseq {
     # Process FASTQs
     if (defined(sample_fastq)) {
 
-        Array[String] string_fastq = [
-            1,
-        ]  #buffer to allow for fastq optionality
-        Array[File] s_fastq = select_first([
-            sample_fastq,
-            string_fastq,
-        ])
+        Array[String] string_fastq = [1]  #buffer to allow for fastq optionality
+        Array[File] s_fastq = select_first([sample_fastq, string_fastq])
 
         Array[File] sample_fastqfile = s_fastq
     }
@@ -328,10 +307,7 @@ workflow seaseq {
 
         Array[File] spikein_fastqfiles = spikein_indv_map.unaligned
     }
-    Array[File] fastqfiles = select_first([
-        spikein_fastqfiles,
-        original_fastqfiles,
-    ])
+    Array[File] fastqfiles = select_first([spikein_fastqfiles, original_fastqfiles])
 
     ### ------------------------------------------------- ###
     ### ---------------- S E C T I O N 2 ---------------- ###
@@ -447,10 +423,7 @@ workflow seaseq {
         if (defined(blacklist)) {
             # remove blacklist regions
             String string_blacklist = ""  #buffer to allow for blacklist optionality
-            File blacklist_file = select_first([
-                blacklist,
-                string_blacklist,
-            ])
+            File blacklist_file = select_first([blacklist, string_blacklist])
             call bedtools.intersect as merge_rmblklist { input:
                 fileA = mergebam.mergebam,
                 fileB = blacklist_file,
@@ -522,17 +495,11 @@ workflow seaseq {
         }
 
         call runspp.runspp as uno_runspp { input:
-            bamfile = select_first([
-                mapping.bklist_bam,
-                mapping.sorted_bam,
-            ]),
+            bamfile = select_first([mapping.bklist_bam, mapping.sorted_bam]),
         }
 
         call bedtools.bamtobed as uno_bamtobed { input:
-            bamfile = select_first([
-                mapping.bklist_bam,
-                mapping.sorted_bam,
-            ]),
+            bamfile = select_first([mapping.bklist_bam, mapping.sorted_bam]),
         }
     }  # end if length(fastqfiles) == 1: one_fastq
 
@@ -595,46 +562,28 @@ workflow seaseq {
     call bamtogff.bamtogff { input:
         gtffile = gtf,
         chromsizes = samtools_faidx.chromsizes,
-        bamfile = select_first([
-            merge_markdup.mkdupbam,
-            mapping.mkdup_bam,
-        ]),
-        bamindex = select_first([
-            merge_mkdup.indexbam,
-            mapping.mkdup_index,
-        ]),
+        bamfile = select_first([merge_markdup.mkdupbam, mapping.mkdup_bam]),
+        bamindex = select_first([merge_mkdup.indexbam, mapping.mkdup_index]),
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/BAM_Density",
     }
 
     call bedtools.bamtobed as forsicerbed { input:
-        bamfile = select_first([
-            merge_markdup.mkdupbam,
-            mapping.mkdup_bam,
-        ]),
+        bamfile = select_first([merge_markdup.mkdupbam, mapping.mkdup_bam]),
     }
 
     call sicer.sicer { input:
         bedfile = forsicerbed.bedfile,
         chromsizes = samtools_faidx.chromsizes,
         genome_fraction = egs.genomefraction,
-        fragmentlength = select_first([
-            uno_bfs.readlength,
-            mergebam.avg_readlength,
-        ]),
+        fragmentlength = select_first([uno_bfs.readlength, mergebam.avg_readlength]),
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/BROAD_peaks",
         coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/BROAD_peaks",
     }
 
     call rose.rose { input:
         gtffile = gtf,
-        bamfile = select_first([
-            merge_markdup.mkdupbam,
-            mapping.mkdup_bam,
-        ]),
-        bamindex = select_first([
-            merge_mkdup.indexbam,
-            mapping.mkdup_index,
-        ]),
+        bamfile = select_first([merge_markdup.mkdupbam, mapping.mkdup_bam]),
+        bamindex = select_first([merge_mkdup.indexbam, mapping.mkdup_index]),
         bedfile_auto = macs.peakbedfile,
         bedfile_all = all.peakbedfile,
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/STITCHED_peaks",
@@ -762,10 +711,7 @@ workflow seaseq {
             fastq_type = "SEAseq Sample FASTQ",
             bambed = finalbed.bedfile,
             sppfile = runspp.spp_out,
-            fastqczip = select_first([
-                uno_bamfqc.zipfile,
-                string_qual,
-            ]),
+            fastqczip = select_first([uno_bamfqc.zipfile, string_qual]),
             bamflag = mapping.bam_stats,
             rmdupflag = mapping.mkdup_stats,
             bkflag = mapping.bklist_stats,
@@ -792,10 +738,7 @@ workflow seaseq {
             fastq_type = "SEAseq Comprehensive",
             bambed = finalbed.bedfile,
             sppfile = runspp.spp_out,
-            fastqczip = select_first([
-                mergebamfqc.zipfile,
-                string_qual,
-            ]),
+            fastqczip = select_first([mergebamfqc.zipfile, string_qual]),
             bamflag = mergeindexstats.flagstats,
             rmdupflag = merge_mkdup.flagstats,
             bkflag = merge_bklist.flagstats,

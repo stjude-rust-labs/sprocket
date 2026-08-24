@@ -193,7 +193,7 @@ impl PostToken {
     /// As such, newlines are considered zero-width tokens. Similarly, doc
     /// comments and directive comments are considered zero-width as they always
     /// appear on their own lines.
-    fn width(&self, config: &crate::Config) -> usize {
+    pub(crate) fn width(&self, config: &crate::Config) -> usize {
         match self {
             Self::Space => SPACE.len(), // 1 character
             Self::Newline => 0,

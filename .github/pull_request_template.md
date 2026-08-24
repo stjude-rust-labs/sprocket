@@ -18,7 +18,7 @@ For all contributors:
 
 For PRs containing lint rule changes:
 
-- [ ] You have updated any and all effected entries within `RULES.md`.
+- [ ] You have updated any and all affected entries within `RULES.md`.
 - [ ] You have added a test case in `crates/wdl-lint/tests/lints` that covers every
       possible diagnostic emitted for the rule within the file where the rule
       is implemented.

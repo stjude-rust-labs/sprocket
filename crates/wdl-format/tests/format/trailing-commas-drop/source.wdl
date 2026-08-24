@@ -18,6 +18,7 @@ workflow test {
     }
 
     Array[String] names = ["James", "Jimmy", "John",]
+    Array[String] long_names = ["Bartholomew", "Christopher", "Evangelina", "Maximilian", "Wilhelmina",]
     Map[String, Int] ages = { "James": 34, "Jimmy": 55, "John": 26, # comment prevents comma from dropping
     }
     Person james = Person { name: "James", age: 34, }

@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Comments within import statements are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
 * Non-directive comment ordering and blank lines are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
 
+#### Changed
+
+* Array literals are now formatted on a single line when they fit within the
+  maximum line length, instead of always being split with one element per line
+  ([#NNNN](https://github.com/stjude-rust-labs/sprocket/pull/NNNN)).
+
 ## 0.20.1 - 2026-08-05
 
 #### Fixed

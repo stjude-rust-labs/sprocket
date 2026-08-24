@@ -1,11 +1,21 @@
 //! Formatting of WDL v1.x expression elements.
 
+use wdl_ast::AstNode as _;
+use wdl_ast::Direction;
+use wdl_ast::Element;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
+use wdl_ast::v1::Expr;
 
 use crate::Config;
+use crate::MaxLineLength;
+use crate::PostToken;
+use crate::Postprocessor;
 use crate::PreToken;
+use crate::SPACE;
 use crate::TokenStream;
 use crate::Writable as _;
+use crate::element::AstElementFormatExt as _;
 use crate::element::FormatElement;
 
 /// Formats a [`SepOption`](wdl_ast::v1::SepOption).
@@ -368,6 +378,11 @@ pub fn format_literal_array(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    // Decided before any of the array's own tokens are written, as the fit test
+    // takes the array's starting column from the stream as it stands here.
+    let multiline =
+        contains_element_requiring_multiline(element) || overflows_line(element, stream, config);
+
     let mut children = element.children().expect("literal array children");
 
     let open_bracket = children.next().expect("literal array open bracket");
@@ -393,7 +408,7 @@ pub fn format_literal_array(
     }
 
     let empty = items.is_empty();
-    if !empty {
+    if multiline && !empty {
         stream.increment_indent();
     }
 
@@ -401,22 +416,345 @@ pub fn format_literal_array(
     let mut commas = commas.iter();
     while let Some(item) = items.next() {
         (item).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
+        if multiline {
+            if let Some(comma) = commas.next()
+                && (items.peek().is_some() || comma.has_comment())
+            {
+                (comma).write(stream, config);
+                if items.peek().is_some() {
+                    stream.end_line();
+                }
+            } else if config.trailing_commas {
+                stream.push_literal(",".into(), SyntaxKind::Comma);
             }
-        } else if config.trailing_commas {
+        } else if items.peek().is_some() {
             stream.push_literal(",".into(), SyntaxKind::Comma);
+            stream.end_word();
         }
     }
 
-    if !empty {
+    if multiline && !empty {
         stream.decrement_indent();
     }
     (&close_bracket.expect("literal array close bracket")).write(stream, config);
+}
+
+/// Returns `true` if the underlying syntax for `element` contains a direct
+/// child (comment, map/object/struct literal) that forces the array to be
+/// formatted multiline.
+fn contains_element_requiring_multiline(element: &FormatElement) -> bool {
+    let Some(node) = element.element().as_node() else {
+        return false;
+    };
+
+    node.inner().children_with_tokens().any(|c| {
+        matches!(
+            c.kind(),
+            SyntaxKind::Comment
+                | SyntaxKind::LiteralMapNode
+                | SyntaxKind::LiteralObjectNode
+                | SyntaxKind::LiteralStructNode
+        )
+    })
+}
+
+/// Returns `true` if writing `element` on a single line would take that line
+/// past the maximum line length.
+///
+/// This is the sum of the column the array starts at, the width of the array
+/// itself, and the width of whatever is written after it on the same line.
+/// `stream` must not yet contain any of the array's tokens.
+fn overflows_line(
+    element: &FormatElement,
+    stream: &TokenStream<PreToken>,
+    config: &Config,
+) -> bool {
+    let Some(max) = config.max_line_length.get() else {
+        return false;
+    };
+
+    let (column, open) = line_position(stream, config);
+    let (width, wraps) = first_line_width(element, config);
+
+    // An array with a nested element of its own that has to be written across
+    // several lines cannot be written on one, whatever its width.
+    wraps || column + width + array_suffix_width(element, open, config) > max
+}
+
+/// Returns the width of everything that would be written after the array's
+/// closing bracket on the same line.
+///
+/// None of this has been written to the stream yet, so it is measured from the
+/// syntax tree: the siblings that follow the array, then the siblings that
+/// follow each of its ancestors, for as long as those ancestors are still on
+/// the array's line. `open` is the number of delimiters left open on that line
+/// and so bounds how far up the walk can go.
+fn array_suffix_width(element: &FormatElement, mut open: usize, config: &Config) -> usize {
+    let mut width = 0;
+    let mut current = element
+        .element()
+        .as_node()
+        .expect("literal array node")
+        .inner()
+        .clone();
+
+    while let Some(parent) = current.parent() {
+        let parent_kind = parent.kind();
+
+        if opens_delimiter(parent_kind) {
+            match open.checked_sub(1) {
+                // Climbing the syntax tree, delimiter-opening ancestors are encountered
+                // innermost-first. The first `open` of them are therefore the ones whose openers
+                // are on the array's line, and whose closers are still to be written after the
+                // array.
+                Some(remaining) => open = remaining,
+                // The delimiter `parent` opens is not on the array's line, so
+                // the line began within it and ends before it is closed.
+                None => return width + line_remainder_width(&current, config),
+            }
+        }
+
+        // Whitespace is written between two children, so the left one of the
+        // pair is tracked as the siblings are walked.
+        let mut left_kind = current.kind();
+
+        let mut next = current.next_sibling_or_token();
+        while let Some(sibling) = next {
+            next = sibling.next_sibling_or_token();
+            // Neither kind of trivia is measured here: source whitespace is replaced by
+            // what `trailing_space_width` reports below, and a comment on the array's line
+            // would be written as inline trivia of the token it follows, so it would
+            // already have been measured with that token.
+            if sibling.kind().is_trivia() {
+                continue;
+            }
+            if starts_new_line(parent_kind, sibling.kind()) {
+                return width;
+            }
+
+            let element = Element::cast(sibling.clone()).into_format_element();
+            let (sibling_width, wraps) = first_line_width(&element, config);
+            width += trailing_space_width(parent_kind, left_kind) + sibling_width;
+            if wraps {
+                // The line ends inside this sibling, so its first line is the last thing
+                // written on the array's line.
+                return width;
+            }
+            left_kind = sibling.kind();
+        }
+
+        if ends_line(parent_kind) {
+            // The array's line ends where `parent` does, so the walk climbs no
+            // further. What the enclosing list writes between `parent` and that
+            // break is still on the line: the comma separating `parent` from the
+            // next item, and any comment trailing that comma.
+            return width + line_remainder_width(&parent, config);
+        }
+
+        current = parent;
+    }
+
+    width
+}
+
+/// Returns the width of what is written after `node` before its line ends: the
+/// comma separating it from the next item of the list it belongs to, any
+/// comment trailing that comma, or nothing if no comma follows.
+fn line_remainder_width(node: &SyntaxNode, config: &Config) -> usize {
+    let comma = node
+        .siblings_with_tokens(Direction::Next)
+        // The first sibling yielded is `node` itself, skip this.
+        .skip(1)
+        .find(|sibling| !sibling.kind().is_trivia())
+        .filter(|sibling| sibling.kind() == SyntaxKind::Comma);
+
+    match comma {
+        // There could be a comment trailing the comma, so call `first_line_width` to be able to
+        // account for that.
+        Some(comma) => first_line_width(&Element::cast(comma).into_format_element(), config).0,
+        // The last item of a list has no comma of its own, but is given one.
+        None if config.trailing_commas
+            && node
+                .parent()
+                .is_some_and(|list| writes_trailing_commas(list.kind())) =>
+        {
+            ",".len()
+        }
+        None => 0,
+    }
+}
+
+/// Returns `true` if a node of `kind` writes each of its items followed by a
+/// comma and a line break.
+fn writes_trailing_commas(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::CallStatementNode
+            | SyntaxKind::LiteralArrayNode
+            | SyntaxKind::LiteralMapNode
+            | SyntaxKind::LiteralObjectNode
+            | SyntaxKind::LiteralStructNode
+    )
+}
+
+/// Returns `true` if a node of `kind` opens a delimiter that is closed only
+/// after all of its children have been written.
+fn opens_delimiter(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::CallExprNode
+            | SyntaxKind::LiteralArrayNode
+            | SyntaxKind::LiteralMapNode
+            | SyntaxKind::LiteralObjectNode
+            | SyntaxKind::LiteralPairNode
+            | SyntaxKind::LiteralStructNode
+            | SyntaxKind::ParenthesizedExprNode
+            | SyntaxKind::PlaceholderNode
+    )
+}
+
+/// Returns `true` if a node of `kind` is written as a line of its own, so that
+/// the line ends where the node does.
+fn ends_line(kind: SyntaxKind) -> bool {
+    // Expressions are fragments of a larger line; every other construct the
+    // walk climbs through is line-sized. The clauses of an `if` expression
+    // break internally, which `starts_new_line` accounts for.
+    !(Expr::<SyntaxNode>::can_cast(kind) || kind == SyntaxKind::PlaceholderNode)
+}
+
+/// Returns `true` if a new line is started before a child of kind `child`
+/// within a node of `parent`.
+fn starts_new_line(parent: SyntaxKind, child: SyntaxKind) -> bool {
+    // Each clause of an `if` expression is placed on its own line.
+    parent == SyntaxKind::IfExprNode
+        && matches!(child, SyntaxKind::ThenKeyword | SyntaxKind::ElseKeyword)
+}
+
+/// Returns the width of the whitespace a node of `parent` writes after a child
+/// of kind `left_child`, before the child that follows it.
+fn trailing_space_width(parent: SyntaxKind, left_child: SyntaxKind) -> usize {
+    match parent {
+        // These are written as an unbroken run of their children.
+        SyntaxKind::AccessExprNode
+        | SyntaxKind::IndexExprNode
+        | SyntaxKind::ParenthesizedExprNode
+        | SyntaxKind::PlaceholderNode
+        | SyntaxKind::LiteralStringNode => 0,
+        // Only the comma between two elements is followed by a space.
+        SyntaxKind::CallExprNode | SyntaxKind::LiteralArrayNode | SyntaxKind::LiteralPairNode => {
+            usize::from(left_child == SyntaxKind::Comma)
+        }
+        // Operators are surrounded by spaces, as is anything not handled
+        // above, so that this never reports less than the true width.
+        _ => SPACE.len(),
+    }
+}
+
+/// Returns a copy of `config` with no maximum line length, so that nested
+/// constructs are laid out flat and the postprocessor inserts no line breaks
+/// on account of width.
+fn flat_config(config: &Config) -> Config {
+    // `Config` is `Copy`, and `MaxLineLength(None)` means "unlimited".
+    let mut flat = *config;
+    flat.max_line_length =
+        MaxLineLength::try_new(None).expect("`None` is a valid maximum line length");
+    flat
+}
+
+/// Returns the formatted width of the first line `element` would be written
+/// across, and whether it would be written across more than one line.
+fn first_line_width(element: &FormatElement, config: &Config) -> (usize, bool) {
+    let flat_config = flat_config(config);
+
+    let mut raw_pre_stream = TokenStream::<PreToken>::default();
+    element.write(&mut raw_pre_stream, &flat_config);
+
+    // Comments preceding the element are written on lines of their own, ahead
+    // of the element, and so are not part of its width.
+    let mut trimmed_pre_stream = TokenStream::<PreToken>::default();
+    for token in raw_pre_stream
+        .iter()
+        .skip_while(|token| matches!(token, PreToken::Trivia(_) | PreToken::BlankLine))
+    {
+        trimmed_pre_stream.push(token.clone());
+    }
+    // `end_line()` here as we are measuring just the width of this element, no
+    // additional space.
+    trimmed_pre_stream.end_line();
+
+    let post_stream = Postprocessor::default().run(trimmed_pre_stream, &flat_config);
+    let mut post_iter = post_stream.iter();
+
+    let width = post_iter
+        .by_ref()
+        .take_while(|token| !matches!(token, PostToken::Newline))
+        .map(|token| token.width(&flat_config))
+        .sum();
+
+    // The `end_line()` above guarantees a trailing newline, so tokens left
+    // after the first one mean a second line.
+    (width, post_iter.next().is_some())
+}
+
+/// Sums the rendered width of `stream`, laid out with no width breaks.
+fn flat_width(stream: TokenStream<PreToken>, config: &Config) -> usize {
+    let config = flat_config(config);
+
+    Postprocessor::default()
+        .run(stream, &config)
+        .iter()
+        .map(|t| t.width(&config))
+        .sum()
+}
+
+/// Returns the column the next token written to `stream` would occupy, and the
+/// number of delimiters left open on that line.
+fn line_position(stream: &TokenStream<PreToken>, config: &Config) -> (usize, usize) {
+    let mut level = 0usize;
+    let mut tail_start = 0usize;
+    for (i, t) in stream.iter().enumerate() {
+        match t {
+            PreToken::IndentStart => level += 1,
+            PreToken::IndentEnd => level = level.saturating_sub(1),
+            PreToken::LineEnd | PreToken::BlankLine | PreToken::Trivia(_) => tail_start = i + 1,
+            _ => {}
+        }
+    }
+
+    let mut tail = TokenStream::<PreToken>::default();
+    let mut open = 0usize;
+    for t in stream.iter().skip(tail_start) {
+        // The postprocessor line breaks for indent tokens, which we don't want here;
+        // `level` calculated above already accounts for indentation.
+        if matches!(t, PreToken::IndentStart | PreToken::IndentEnd) {
+            continue;
+        }
+        if let PreToken::Literal(_, kind) = t {
+            match kind {
+                SyntaxKind::OpenParen
+                | SyntaxKind::OpenBracket
+                | SyntaxKind::OpenBrace
+                | SyntaxKind::PlaceholderOpen => {
+                    open += 1;
+                }
+                SyntaxKind::CloseParen | SyntaxKind::CloseBracket | SyntaxKind::CloseBrace => {
+                    open = open.saturating_sub(1);
+                }
+                _ => {}
+            }
+        }
+        tail.push(t.clone());
+    }
+    // The `end_line()` below trims any trailing whitespace before its newline,
+    // which would drop the space preceding the array literal
+    // (`TokenStream::end_line` and `Postprocessor::run`). To avoid this, anchor
+    // that whitespace with the array open bracket, then subtract the bracket's
+    // width.
+    tail.push_literal("[".to_string(), SyntaxKind::OpenBracket);
+    tail.end_line();
+
+    let prefix = flat_width(tail, config).saturating_sub("[".len());
+    (level * config.indent.num() + prefix, open)
 }
 
 /// Formats a [`LiteralMapItem`](wdl_ast::v1::LiteralMapItem).
