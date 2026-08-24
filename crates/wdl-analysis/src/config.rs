@@ -14,6 +14,7 @@ use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::CommandSectionIndentationRule;
 use crate::ExceptDirectiveValidRule;
 use crate::Exceptable as _;
 use crate::FormatConfig;
@@ -347,6 +348,11 @@ pub struct DiagnosticsConfig {
     /// A value of `None` disables the diagnostic.
     #[toml(FromToml with = parse_string)]
     pub except_directive_valid: Option<Severity>,
+    /// The severity for the `command` section indentation diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub command_section_indentation: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -368,6 +374,7 @@ impl DiagnosticsConfig {
         let mut meaningless_lint_directive = None;
         let mut known_rules = None;
         let mut except_directive_valid = None;
+        let mut command_section_indentation = None;
 
         for rule in rules {
             let rule = rule.as_ref();
@@ -384,6 +391,9 @@ impl DiagnosticsConfig {
                 MeaninglessLintDirective::ID => meaningless_lint_directive = Some(rule.severity()),
                 KnownRulesRule::ID => known_rules = Some(rule.severity()),
                 ExceptDirectiveValidRule::ID => except_directive_valid = Some(rule.severity()),
+                CommandSectionIndentationRule::ID => {
+                    command_section_indentation = Some(rule.severity())
+                }
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -404,6 +414,7 @@ impl DiagnosticsConfig {
             meaningless_lint_directive,
             known_rules,
             except_directive_valid,
+            command_section_indentation,
         }
     }
 
@@ -424,6 +435,7 @@ impl DiagnosticsConfig {
                 MeaninglessLintDirective::ID => self.meaningless_lint_directive = None,
                 KnownRulesRule::ID => self.known_rules = None,
                 ExceptDirectiveValidRule::ID => self.except_directive_valid = None,
+                CommandSectionIndentationRule::ID => self.command_section_indentation = None,
                 _ => {}
             }
         }
@@ -444,6 +456,7 @@ impl DiagnosticsConfig {
             meaningless_lint_directive: None,
             known_rules: None,
             except_directive_valid: None,
+            command_section_indentation: None,
         }
     }
 }

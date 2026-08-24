@@ -1,5 +1,3 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, EmptyOutputs, BashSetSyntax
-
 ## This is a test of having tabs before spaces in command sections.
 
 version 1.1
@@ -24,7 +22,6 @@ task test2 {
 
     parameter_meta {}
 
-    #@ except: HereDocCommands
     command {
 		this line is prefixed with ~{"tabs"}
         this line is prefixed with spaces

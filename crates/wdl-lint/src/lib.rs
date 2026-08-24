@@ -136,7 +136,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::new(rules::SnakeCaseRule::new(config)),
         Box::<rules::RuntimeSectionRule>::default(),
         Box::<rules::ParameterMetaMatchedRule>::default(),
-        Box::<rules::CommandSectionIndentationRule>::default(),
         Box::<rules::ImportPlacementRule>::default(),
         Box::<rules::PascalCaseRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
