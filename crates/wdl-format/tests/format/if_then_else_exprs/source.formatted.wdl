@@ -5,8 +5,8 @@ workflow if_then_else_exprs {
     input {
         Int a
         Int b
-        Bool foo
-        Bool bar
+        Boolean foo
+        Boolean bar
     }
 
     Int c = (if (a < b)
@@ -25,8 +25,27 @@ workflow if_then_else_exprs {
             else b
         else c + d
 
+    call empty { input:
+        arg = if foo
+            then if bar
+                then c
+                else if c == d
+                then c - d
+                else b
+            else c + d,
+    }
+
     output {
         Int result = c
         Int other_result = qaz
     }
+}
+
+task empty {
+    input {
+        Int arg
+    }
+
+    command <<<
+    >>>
 }
