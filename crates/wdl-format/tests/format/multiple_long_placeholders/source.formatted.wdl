@@ -6,30 +6,25 @@ task cast_spell {
             length(spell_components) != 0
         )
             then arcane_focus_gem.right
-            else None
-        )} \
+            else None)} \
         --wardOuterPerimeter ~{binding_sigil_ink.left} "~{(if (length(
             spell_components
         ) != 0)
             then binding_sigil_ink.right
-            else None
-        )}" \
+            else None)}" \
         --brewElixir ~{mandrake_root.left} ~{(if (length(
             spell_components
         ) != 0)
             then mandrake_root.right
-            else None
-        )} \
+            else None)} \
         --inscribeGreaterWardingCircle ~{consecrated_chalk_powder.left} ~{
             (if (length(spell_components) != 0)
             then consecrated_chalk_powder.right
-            else None
-        )} \
+            else None)} \
         --dispelLingering ~{warding_dust.left} ~{(if (length(
             spell_components
         ) != 0)
             then warding_dust.right
-            else None
-        )} \
+            else None)} \
     >>>
 }
