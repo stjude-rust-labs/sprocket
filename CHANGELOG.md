@@ -67,11 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* The `except` list is now configured only under `[check]` and is shared by
-  both `sprocket check` and `sprocket analyzer` (including LSP diagnostics).
-  The `[analyzer].except` config key has been removed; move any entries to
-  `[check].except` instead
-  ([#1008](https://github.com/stjude-rust-labs/sprocket/issues/1008)).
+* The `analyzer.except` config field has been merged into `check.except`, shared by both `sprocket check` and `sprocket analyzer` ([#1008](https://github.com/stjude-rust-labs/sprocket/issues/1008)).
 * `module.json` no longer declares a module `version`; Git version tags are the
   source of truth for module versions
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
