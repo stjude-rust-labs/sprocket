@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Commas are no longer "dangled" after if/then/else clauses ([#1056](https://github.com/stjude-rust-labs/sprocket/pull/1056)).
 * Duplicate sections in a task, workflow, or struct are no longer dropped; every section is retained in the order it was written. A task that has both a `requirements` and a `runtime` section now retains both ([#1112](https://github.com/stjude-rust-labs/sprocket/pull/1112)).
 * Formatting no longer panics on `input` hints keys that use dotted struct member paths, such as `foo.bar` ([#854](https://github.com/stjude-rust-labs/sprocket/issues/854)).
 * Comments within import statements are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
