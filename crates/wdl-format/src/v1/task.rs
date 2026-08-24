@@ -42,6 +42,7 @@ pub fn format_task_definition(
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
+    stream.end_line();
 
     let mut meta_sections = Vec::new();
     let mut parameter_meta_sections = Vec::new();
@@ -116,6 +117,7 @@ pub fn format_task_definition(
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
+    stream.end_line();
     close_brace.expect("task close brace").write(stream, config);
     stream.end_line();
 }
@@ -201,6 +203,7 @@ pub fn format_command_section(
             // Now we parse the stripped command section and format it.
             // End the line after the open delimiter and increment indent.
             stream.increment_indent();
+            stream.end_line();
 
             let mut bash_indent: Option<Rc<String>> = None;
             for (part, child) in parts.iter().zip(children.by_ref()) {
@@ -245,6 +248,7 @@ pub fn format_command_section(
             }
 
             stream.decrement_indent();
+            stream.end_line();
 
             for child in children {
                 match child.element().kind() {
@@ -322,6 +326,7 @@ pub fn format_requirements_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -349,6 +354,7 @@ pub fn format_requirements_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("requirements close brace")).write(stream, config);
     stream.end_line();
 }
@@ -426,6 +432,7 @@ pub fn format_runtime_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -453,6 +460,7 @@ pub fn format_runtime_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("runtime close brace")).write(stream, config);
     stream.end_line();
 }
@@ -478,6 +486,7 @@ pub fn format_task_hints_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -505,6 +514,7 @@ pub fn format_task_hints_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("task hints close brace")).write(stream, config);
     stream.end_line();
 }

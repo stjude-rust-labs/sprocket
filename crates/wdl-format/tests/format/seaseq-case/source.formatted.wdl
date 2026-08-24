@@ -305,15 +305,13 @@ workflow seaseq {
                 inputfile = eachfastq,
                 default_location = if (one_fastq)
                     then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
-                ,
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC",
             }
             call util.basicfastqstats as spikein_indv_bfs { input:
                 fastqfile = eachfastq,
                 default_location = if (one_fastq)
                     then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                ,
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
             }
             call bowtie.spikein_SE as spikein_indv_map { input:
                 fastqfile = eachfastq,
@@ -321,8 +319,7 @@ workflow seaseq {
                 metricsfile = spikein_indv_bfs.metrics_out,
                 default_location = if (one_fastq)
                     then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                ,
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
             }
         }
 
@@ -426,12 +423,10 @@ workflow seaseq {
             metricsfiles = indv_bfs.metrics_out,
             default_location = if defined(results_name)
                 then results_name + "/BAM_files"
-                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files"
-            ,
+                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files",
             outputfile = if defined(results_name)
                 then results_name + ".sorted.bam"
-                else "AllMerge_" + length(fastqfiles) + "_mapped.sorted.bam"
-            ,
+                else "AllMerge_" + length(fastqfiles) + "_mapped.sorted.bam",
         }
 
         call fastqc.fastqc as mergebamfqc { input:
