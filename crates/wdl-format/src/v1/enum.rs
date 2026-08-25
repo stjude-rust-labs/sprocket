@@ -43,6 +43,7 @@ pub fn format_enum_definition(
                 (&child).write(stream, config);
                 stream.end_line();
                 stream.increment_indent();
+                stream.end_line();
             }
             SyntaxKind::EnumChoiceNode => {
                 choices.push(child.clone());
@@ -79,6 +80,7 @@ pub fn format_enum_definition(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("enum definition close brace")).write(stream, config);
     stream.end_line();
 }

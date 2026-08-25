@@ -33,7 +33,7 @@ anyhow = "1.0.100"
 approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
 async-lsp = "0.2.4"
-async-trait = "0.1.89"
+async-trait = "0.1.92"
 axum = "0.8.8"
 base64 = "0.23.0"
 bimap = "0.6.3"
@@ -121,7 +121,7 @@ sysinfo = "0.39.0"
 tempfile = "3.24.0"
 test-log = { version = "0.2.21", default-features = false, features = ["color", "trace"] }
 thirtyfour = "0.37.1"
-thiserror = "2.0.18"
+thiserror = "2.0.20"
 tokio = { version = "1.49.0", features = ["full"] }
 tokio-retry2 = "0.9.1"
 tokio-util = "0.7.18"

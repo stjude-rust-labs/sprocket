@@ -14,6 +14,7 @@ use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::ExceptDirectiveValidRule;
 use crate::Exceptable as _;
 use crate::FormatConfig;
 use crate::KnownRulesRule;
@@ -341,6 +342,11 @@ pub struct DiagnosticsConfig {
     /// A value of `None` disables the diagnostic.
     #[toml(FromToml with = parse_string)]
     pub known_rules: Option<Severity>,
+    /// The severity for the except directive valid diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub except_directive_valid: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -361,6 +367,7 @@ impl DiagnosticsConfig {
         let mut misleading_declaration_order = None;
         let mut meaningless_lint_directive = None;
         let mut known_rules = None;
+        let mut except_directive_valid = None;
 
         for rule in rules {
             let rule = rule.as_ref();
@@ -376,6 +383,7 @@ impl DiagnosticsConfig {
                 }
                 MeaninglessLintDirective::ID => meaningless_lint_directive = Some(rule.severity()),
                 KnownRulesRule::ID => known_rules = Some(rule.severity()),
+                ExceptDirectiveValidRule::ID => except_directive_valid = Some(rule.severity()),
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -395,6 +403,7 @@ impl DiagnosticsConfig {
             misleading_declaration_order,
             meaningless_lint_directive,
             known_rules,
+            except_directive_valid,
         }
     }
 
@@ -414,6 +423,7 @@ impl DiagnosticsConfig {
                 MisleadingDeclarationOrderRule::ID => self.misleading_declaration_order = None,
                 MeaninglessLintDirective::ID => self.meaningless_lint_directive = None,
                 KnownRulesRule::ID => self.known_rules = None,
+                ExceptDirectiveValidRule::ID => self.except_directive_valid = None,
                 _ => {}
             }
         }
@@ -433,6 +443,7 @@ impl DiagnosticsConfig {
             misleading_declaration_order: None,
             meaningless_lint_directive: None,
             known_rules: None,
+            except_directive_valid: None,
         }
     }
 }

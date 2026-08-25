@@ -60,6 +60,7 @@ pub fn format_metadata_array(
     let empty = items.is_empty();
     if !empty {
         stream.increment_indent();
+        stream.end_line();
     }
 
     let mut items = items.iter().peekable();
@@ -80,6 +81,7 @@ pub fn format_metadata_array(
 
     if !empty {
         stream.decrement_indent();
+        stream.end_line();
     }
     (&close_bracket.expect("metadata array close bracket")).write(stream, config);
 }
@@ -125,6 +127,7 @@ pub fn format_metadata_object(
     let empty = items.is_empty();
     if !empty {
         stream.increment_indent();
+        stream.end_line();
     }
 
     let mut items = items.iter().peekable();
@@ -145,6 +148,7 @@ pub fn format_metadata_object(
 
     if !empty {
         stream.decrement_indent();
+        stream.end_line();
     }
     (&close_brace.expect("metadata object close brace")).write(stream, config);
 }
@@ -195,6 +199,7 @@ pub fn format_metadata_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -220,6 +225,7 @@ pub fn format_metadata_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("metadata section close brace")).write(stream, config);
     stream.end_line();
 }
@@ -250,6 +256,7 @@ pub fn format_parameter_metadata_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -275,6 +282,7 @@ pub fn format_parameter_metadata_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("parameter metadata section close brace")).write(stream, config);
     stream.end_line();
 }

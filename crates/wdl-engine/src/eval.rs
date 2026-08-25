@@ -92,7 +92,7 @@ impl CancellationContextState {
     fn update(mode: FailureMode, error: bool, state: &Arc<AtomicU8>) -> Option<Self> {
         // Update the provided state with the new state
         let previous_state = state
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
                 // If updating for an error and there has been a cancellation, bail out
                 if error && state != CANCELLATION_STATE_NOT_CANCELED {
                     return None;
