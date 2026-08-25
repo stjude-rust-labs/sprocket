@@ -31,6 +31,7 @@ use crate::diagnostics::no_common_type;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
+use crate::types::EnumChoiceCacheKey;
 use crate::types::Optional;
 use crate::types::Type;
 
@@ -1149,15 +1150,12 @@ impl Document {
     }
 
     /// Gets a cache key for an enum choice lookup.
-    pub fn get_choice_cache_key(
-        &self,
-        name: &str,
-        choice: &str,
-    ) -> Option<crate::types::EnumChoiceCacheKey> {
+    pub fn get_choice_cache_key(&self, name: &str, choice: &str) -> Option<EnumChoiceCacheKey> {
         let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
         let choice_index = enum_ty.choices().iter().position(|v| v == choice)?;
-        Some(crate::types::EnumChoiceCacheKey::new(
+        Some(EnumChoiceCacheKey::new(
+            self.data.uri.clone(),
             enum_index,
             choice_index,
         ))

@@ -68,8 +68,6 @@ pub struct Evaluator {
     /// is submitted for execution.
     names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
     /// Cache for evaluated enum choice values to avoid redundant AST lookups.
-    /// TODO: this is incorrect and must be fixed; i.e. the cache keys need to
-    /// be based on document
     choice_cache: Arc<Mutex<HashMap<EnumChoiceCacheKey, Value>>>,
 }
 

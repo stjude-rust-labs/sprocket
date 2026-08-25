@@ -5,6 +5,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use url::Url;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
@@ -1168,8 +1169,10 @@ impl Coercible for StructType {
 }
 
 /// Cache key for enum choice values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnumChoiceCacheKey {
+    /// The URI of the document containing the enum.
+    uri: Arc<Url>,
     /// The index of the enum in the document.
     enum_index: usize,
     /// The index of the choice within the enum.
@@ -1178,8 +1181,9 @@ pub struct EnumChoiceCacheKey {
 
 impl EnumChoiceCacheKey {
     /// Constructs a new enum choice cache key.
-    pub(crate) fn new(enum_index: usize, choice_index: usize) -> Self {
+    pub(crate) fn new(uri: Arc<Url>, enum_index: usize, choice_index: usize) -> Self {
         Self {
+            uri,
             enum_index,
             choice_index,
         }
