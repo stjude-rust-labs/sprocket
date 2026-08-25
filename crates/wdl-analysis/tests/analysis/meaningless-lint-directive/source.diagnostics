@@ -1,8 +1,10 @@
-note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedCall`
+note[ExceptDirectiveValid]: `except` directive `UnusedCall` has no effect above task definition
   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:7:12
   │
 7 │ #@ except: UnusedCall
-  │            ^^^^^^^^^^
+  │            ^^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: valid locations for this directive are above: version statement, workflow definition, call statement
 
 note[KnownRules]: unknown rule `WhatIsThisMysteriousRule`
    ┌─ tests/analysis/meaningless-lint-directive/source.wdl:17:12

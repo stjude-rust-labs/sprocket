@@ -1479,8 +1479,7 @@ workflow chip {
                 fastqs_R1 = fastqs_R1[i],
                 fastqs_R2 = if paired_end_
                     then fastqs_R2[i]
-                    else []
-                ,
+                    else [],
                 crop_length = crop_length,
                 crop_length_tol = crop_length_tol,
                 trimmomatic_phred_score_format = trimmomatic_phred_score_format,
@@ -1492,8 +1491,7 @@ workflow chip {
                     then bwa_idx_tar_
                     else if aligner == "bowtie2"
                     then bowtie2_idx_tar_
-                    else custom_aligner_idx_tar
-                ,
+                    else custom_aligner_idx_tar,
                 paired_end = paired_end_,
                 use_bwa_mem_for_pe = use_bwa_mem_for_pe,
                 bwa_mem_read_len_limit = bwa_mem_read_len_limit,
@@ -1609,8 +1607,7 @@ workflow chip {
                     then bwa_idx_tar_
                     else if aligner == "bowtie2"
                     then bowtie2_idx_tar_
-                    else custom_aligner_idx_tar
-                ,
+                    else custom_aligner_idx_tar,
                 paired_end = false,
                 use_bwa_mem_for_pe = false,
                 bwa_mem_read_len_limit = 0,
@@ -1752,8 +1749,7 @@ workflow chip {
                 fastqs_R1 = ctl_fastqs_R1[i],
                 fastqs_R2 = if ctl_paired_end_
                     then ctl_fastqs_R2[i]
-                    else []
-                ,
+                    else [],
                 crop_length = crop_length,
                 crop_length_tol = crop_length_tol,
                 trimmomatic_phred_score_format = trimmomatic_phred_score_format,
@@ -1765,8 +1761,7 @@ workflow chip {
                     then bwa_idx_tar_
                     else if aligner == "bowtie2"
                     then bowtie2_idx_tar_
-                    else custom_aligner_idx_tar
-                ,
+                    else custom_aligner_idx_tar,
                 paired_end = ctl_paired_end_,
                 use_bwa_mem_for_pe = use_bwa_mem_for_pe,
                 bwa_mem_read_len_limit = bwa_mem_read_len_limit,
@@ -1954,8 +1949,7 @@ workflow chip {
             call subsample_ctl { input:
                 ta = if chosen_ctl_ta_id == -1
                     then pool_ta_ctl.ta_pooled
-                    else ctl_ta_[chosen_ctl_ta_id]
-                ,
+                    else ctl_ta_[chosen_ctl_ta_id],
                 subsample = chosen_ctl_ta_subsample,
                 paired_end = chosen_ctl_paired_end,
                 mem_factor = subsample_ctl_mem_factor,
@@ -2023,8 +2017,7 @@ workflow chip {
                     then runtime_environment_spp
                     else if peak_caller_ == "macs2"
                     then runtime_environment_macs2
-                    else runtime_environment
-                ,
+                    else runtime_environment,
             }
         }
         File? peak_ = if has_output_of_call_peak
@@ -2082,8 +2075,7 @@ workflow chip {
                     then runtime_environment_spp
                     else if peak_caller_ == "macs2"
                     then runtime_environment_macs2
-                    else runtime_environment
-                ,
+                    else runtime_environment,
             }
         }
         File? peak_pr1_ = if has_output_of_call_peak_pr1
@@ -2120,8 +2112,7 @@ workflow chip {
                     then runtime_environment_spp
                     else if peak_caller_ == "macs2"
                     then runtime_environment_macs2
-                    else runtime_environment
-                ,
+                    else runtime_environment,
             }
         }
         File? peak_pr2_ = if has_output_of_call_peak_pr2
@@ -2143,8 +2134,7 @@ workflow chip {
         call subsample_ctl as subsample_ctl_pooled { input:
             ta = if num_ctl < 2
                 then ctl_ta_[0]
-                else pool_ta_ctl.ta_pooled
-            ,
+                else pool_ta_ctl.ta_pooled,
             subsample = chosen_ctl_ta_pooled_subsample,
             paired_end = ctl_paired_end_[0],
             mem_factor = subsample_ctl_mem_factor,
@@ -2199,8 +2189,7 @@ workflow chip {
                 then runtime_environment_spp
                 else if peak_caller_ == "macs2"
                 then runtime_environment_macs2
-                else runtime_environment
-            ,
+                else runtime_environment,
         }
     }
     File? peak_pooled_ = if has_output_of_call_peak_pooled
@@ -2259,8 +2248,7 @@ workflow chip {
                 then runtime_environment_spp
                 else if peak_caller_ == "macs2"
                 then runtime_environment_macs2
-                else runtime_environment
-            ,
+                else runtime_environment,
         }
     }
     File? peak_ppr1_ = if has_output_of_call_peak_ppr1
@@ -2298,8 +2286,7 @@ workflow chip {
                 then runtime_environment_spp
                 else if peak_caller_ == "macs2"
                 then runtime_environment_macs2
-                else runtime_environment
-            ,
+                else runtime_environment,
         }
     }
     File? peak_ppr2_ = if has_output_of_call_peak_ppr2
@@ -2435,8 +2422,7 @@ workflow chip {
                 then select_first([
                     overlap_pr.bfilt_overlap_peak,
                 ])
-                else []
-            ,
+                else [],
             peak_ppr = overlap_ppr.bfilt_overlap_peak,
             peak_type = peak_type_,
             chrsz = chrsz_,
@@ -2453,8 +2439,7 @@ workflow chip {
                 then select_first([
                     idr_pr.bfilt_idr_peak,
                 ])
-                else []
-            ,
+                else [],
             peak_ppr = idr_ppr.bfilt_idr_peak,
             peak_type = peak_type_,
             chrsz = chrsz_,
@@ -2497,8 +2482,7 @@ workflow chip {
             then select_first([
                 jsd.jsd_qcs,
             ])
-            else []
-        ,
+            else [],
 
         frip_qcs = select_all(call_peak.frip_qc),
         frip_qcs_pr1 = select_all(call_peak_pr1.frip_qc),
@@ -2512,24 +2496,21 @@ workflow chip {
             then select_first([
                 idr_pr.idr_plot,
             ])
-            else []
-        ,
+            else [],
         idr_plot_ppr = idr_ppr.idr_plot,
         frip_idr_qcs = select_all(idr.frip_qc),
         frip_idr_qcs_pr = if defined(idr_pr.frip_qc)
             then select_first([
                 idr_pr.frip_qc,
             ])
-            else []
-        ,
+            else [],
         frip_idr_qc_ppr = idr_ppr.frip_qc,
         frip_overlap_qcs = select_all(overlap.frip_qc),
         frip_overlap_qcs_pr = if defined(overlap_pr.frip_qc)
             then select_first([
                 overlap_pr.frip_qc,
             ])
-            else []
-        ,
+            else [],
         frip_overlap_qc_ppr = overlap_ppr.frip_qc,
         idr_reproducibility_qc = reproducibility_idr.reproducibility_qc,
         overlap_reproducibility_qc = reproducibility_overlap.reproducibility_qc,
@@ -2612,8 +2593,7 @@ task align {
             ~{write_tsv(tmp_fastqs)} \
             ~{if paired_end
                 then "--paired-end"
-                else ""
-            } \
+                else ""} \
             ~{"--nth " + cpu}
 
         if [ -z '~{trim_bp}' ]; then
@@ -2639,24 +2619,20 @@ task align {
                 --fastq1 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
                     then "--fastq2 R2$SUFFIX/*.fastq.gz"
-                    else ""
-                } \
+                    else ""} \
                 ~{if paired_end
                     then "--paired-end"
-                    else ""
-                } \
+                    else ""} \
                 --crop-length ~{crop_length} \
                 --crop-length-tol "~{crop_length_tol}" \
                 ~{"--phred-score-format " + trimmomatic_phred_score_format} \
                 --out-dir-R1 R1$NEW_SUFFIX \
                 ~{if paired_end
                     then "--out-dir-R2 R2$NEW_SUFFIX"
-                    else ""
-                } \
+                    else ""} \
                 ~{"--trimmomatic-java-heap " + if defined(trimmomatic_java_heap)
                     then trimmomatic_java_heap
-                    else (round(mem_gb * trimmomatic_java_heap_factor) + "G")
-                } \
+                    else (round(mem_gb * trimmomatic_java_heap_factor) + "G")} \
                 ~{"--nth " + cpu}
             SUFFIX=$NEW_SUFFIX
         fi
@@ -2667,16 +2643,13 @@ task align {
                 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
                     then "R2$SUFFIX/*.fastq.gz"
-                    else ""
-                } \
+                    else ""} \
                 ~{if paired_end
                     then "--paired-end"
-                    else ""
-                } \
+                    else ""} \
                 ~{if use_bwa_mem_for_pe
                     then "--use-bwa-mem-for-pe"
-                    else ""
-                } \
+                    else ""} \
                 ~{"--bwa-mem-read-len-limit " + bwa_mem_read_len_limit} \
                 ~{"--mem-gb " + samtools_mem_gb} \
                 ~{"--nth " + cpu}
@@ -2687,17 +2660,14 @@ task align {
                 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
                     then "R2$SUFFIX/*.fastq.gz"
-                    else ""
-                } \
+                    else ""} \
                 ~{"--multimapping " + multimapping} \
                 ~{if paired_end
                     then "--paired-end"
-                    else ""
-                } \
+                    else ""} \
                 ~{if use_bowtie2_local_mode
                     then "--local"
-                    else ""
-                } \
+                    else ""} \
                 ~{"--mem-gb " + samtools_mem_gb} \
                 ~{"--nth " + cpu}
         else
@@ -2706,12 +2676,10 @@ task align {
                 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
                     then "R2$SUFFIX/*.fastq.gz"
-                    else ""
-                } \
+                    else ""} \
                 ~{if paired_end
                     then "--paired-end"
-                    else ""
-                } \
+                    else ""} \
                 ~{"--mem-gb " + samtools_mem_gb} \
                 ~{"--nth " + cpu}
         fi 
@@ -2776,8 +2744,7 @@ task filter {
             ~{bam} \
             ~{if paired_end
                 then "--paired-end"
-                else ""
-            } \
+                else ""} \
             --multimapping 0 \
             ~{"--dup-marker " + dup_marker} \
             ~{"--mapq-thresh " + mapq_thresh} \
@@ -2785,15 +2752,13 @@ task filter {
             ~{"--chrsz " + chrsz} \
             ~{if no_dup_removal
                 then "--no-dup-removal"
-                else ""
-            } \
+                else ""} \
             ~{"--mito-chr-name " + mito_chr_name} \
             ~{"--mem-gb " + samtools_mem_gb} \
             ~{"--nth " + cpu} \
             ~{"--picard-java-heap " + if defined(picard_java_heap)
                 then picard_java_heap
-                else (round(mem_gb * picard_java_heap_factor) + "G")
-            }
+                else (round(mem_gb * picard_java_heap_factor) + "G")}
 
         if [ '~{redact_nodup_bam}' == 'true' ]; then
             python3 $(which encode_task_bam_to_pbam.py) \
@@ -2848,8 +2813,7 @@ task bam2ta {
             --disable-tn5-shift \
             ~{if paired_end
                 then "--paired-end"
-                else ""
-            } \
+                else ""} \
             ~{"--mito-chr-name " + mito_chr_name} \
             ~{"--subsample " + subsample} \
             ~{"--mem-gb " + samtools_mem_gb} \
@@ -2892,8 +2856,7 @@ task spr {
             ~{"--pseudoreplication-random-seed " + pseudoreplication_random_seed} \
             ~{if paired_end
                 then "--paired-end"
-                else ""
-            }
+                else ""}
     >>>
 
     output {
@@ -2971,8 +2934,7 @@ task xcor {
             ~{ta} \
             ~{if paired_end
                 then "--paired-end"
-                else ""
-            } \
+                else ""} \
             ~{"--mito-chr-name " + mito_chr_name} \
             ~{"--subsample " + subsample} \
             ~{"--chip-seq-type " + chip_seq_type} \
@@ -3024,8 +2986,7 @@ task jsd {
             ~{sep=" " select_all(nodup_bams)} \
             ~{if length(ctl_bams) > 0
                 then "--ctl-bam " + select_first(ctl_bams)
-                else ""
-            } \
+                else ""} \
             ~{"--mapq-thresh " + mapq_thresh} \
             ~{"--blacklist " + blacklist} \
             ~{"--nth " + cpu}
@@ -3070,8 +3031,7 @@ task choose_ctl {
             ~{"--ctl-ta-pooled " + ctl_ta_pooled} \
             ~{if always_use_pooled_ctl
                 then "--always-use-pooled-ctl"
-                else ""
-            } \
+                else ""} \
             ~{"--ctl-depth-ratio " + ctl_depth_ratio} \
             ~{"--ctl-depth-limit " + ctl_depth_limit} \
             ~{"--exp-ctl-depth-ratio-limit " + exp_ctl_depth_ratio_limit}
@@ -3150,8 +3110,7 @@ task subsample_ctl {
             ~{"--subsample " + subsample} \
             ~{if paired_end
                 then "--paired-end"
-                else ""
-            } \
+                else ""} \
     >>>
 
     output {
@@ -3323,8 +3282,7 @@ task idr {
         set -e
         ~{if defined(ta)
             then ""
-            else "touch null.frip.qc"
-        }
+            else "touch null.frip.qc"}
         touch null 
         python3 $(which encode_task_idr.py) \
             ~{peak1} ~{peak2} ~{peak_pooled} \
@@ -3385,8 +3343,7 @@ task overlap {
         set -e
         ~{if defined(ta)
             then ""
-            else "touch null.frip.qc"
-        }
+            else "touch null.frip.qc"}
         touch null 
         python3 $(which encode_task_overlap.py) \
             ~{peak1} ~{peak2} ~{peak_pooled} \
@@ -3498,8 +3455,7 @@ task gc_bias {
             ~{"--ref-fa " + ref_fa} \
             ~{"--picard-java-heap " + if defined(picard_java_heap)
                 then picard_java_heap
-                else (round(mem_gb * picard_java_heap_factor) + "G")
-            }
+                else (round(mem_gb * picard_java_heap_factor) + "G")}
     >>>
 
     output {
@@ -3597,8 +3553,7 @@ task qc_report {
             --aligner ~{aligner} \
             ~{if (no_dup_removal)
                 then "--no-dup-removal "
-                else ""
-            } \
+                else ""} \
             --peak-caller ~{peak_caller} \
             ~{"--cap-num-peak " + cap_num_peak} \
             --idr-thresh ~{idr_thresh} \

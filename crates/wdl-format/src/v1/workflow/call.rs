@@ -178,6 +178,7 @@ pub fn format_call_statement(
             (&colon.expect("colon")).write(stream, config);
         }
         stream.increment_indent();
+        stream.end_line();
 
         let mut inputs = inputs.iter().peekable();
         let mut commas = commas.iter();
@@ -196,6 +197,7 @@ pub fn format_call_statement(
         }
 
         stream.decrement_indent();
+        stream.end_line();
         (&close_brace.expect("close brace")).write(stream, config);
     }
     stream.end_line();
