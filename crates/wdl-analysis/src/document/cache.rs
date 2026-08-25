@@ -54,7 +54,7 @@ pub enum ItemKind {
 }
 
 /// The import merges its contents directly into the document's scope.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct MergingImport {
     /// Tasks imported via wildcard or selected import.
     pub(in crate::document) imported_tasks: IndexMap<String, ImportedTask>,
@@ -83,7 +83,7 @@ impl MergingImport {
 }
 
 /// An import in a document.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Import {
     /// The import introduces a new namespace in the document.
     Namespace(Namespace),
@@ -430,7 +430,7 @@ pub(in crate::document) type SignatureHash = [u8; 32];
 pub(in crate::document) type BodyHash = [u8; 32];
 
 /// An analyzed item with an associated [`BodyHash`].
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WithBodyHash<T> {
     /// The hash of the item's body.
     pub body_hash: BodyHash,
@@ -439,7 +439,7 @@ pub struct WithBodyHash<T> {
 }
 
 /// A cached, analyzed document item.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CachedItem<T> {
     /// The hash for this item's signature.
     pub signature_hash: SignatureHash,
@@ -622,7 +622,7 @@ impl CachedItemRefMut<'_> {
 }
 
 /// A reference to an item in the cache.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(in crate::document) enum CachedItemRef<'a> {
     /// An analyzed struct.
     Struct(&'a CachedItem<Struct>),
@@ -696,7 +696,7 @@ impl<'a> CachedItemRef<'a> {
 
 /// Extra data retained during test analysis runs.
 #[cfg(test)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct TestCache {
     /// The list of items whose signatures were invalidated in the last pass.
     invalidated_signatures: Vec<SignatureHash>,
@@ -722,6 +722,28 @@ pub(crate) struct AnalysisCache {
     /// Extra data used for tests.
     #[cfg(test)]
     tests: TestCache,
+}
+
+impl PartialEq for AnalysisCache {
+    fn eq(&self, other: &Self) -> bool {
+        if self.structs == other.structs
+            && self.enums == other.enums
+            && self.tasks == other.tasks
+            && self.workflow == other.workflow
+            && self.imports == other.imports
+            && self
+                .dependencies
+                .all_edges()
+                .all(|(a, b, _)| other.dependencies.contains_edge(a, b))
+        {
+            #[cfg(test)]
+            return self.tests == other.tests;
+            #[cfg(not(test))]
+            return true;
+        }
+
+        false
+    }
 }
 
 /// Generates the common methods for local and imported items.

@@ -64,7 +64,7 @@ pub fn find_nearest_rule<'a>(
 ///
 /// Validation visitors receive a diagnostics collection during
 /// visitation of the AST.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Diagnostics {
     /// Diagnostics to emit.
     pub(crate) diagnostics: Vec<Diagnostic>,

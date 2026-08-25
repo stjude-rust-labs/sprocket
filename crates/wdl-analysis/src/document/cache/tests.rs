@@ -1,6 +1,8 @@
 //! Tests for the analysis cache's internal state.
 
+use pretty_assertions::assert_eq;
 use url::Url;
+use wdl_ast::AstNode;
 use wdl_grammar::Span;
 
 use crate::AnalysisResult;
@@ -797,4 +799,102 @@ task foo {
             unused_decl_span2.len()
         )
     );
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn cache_results_are_consistent() {
+    // A file incrementally analyzed should produce the same results as analysis
+    // over the final product.
+
+    let initial_content = r#"version 1.3
+
+task foo {
+    command <<<>>>
+}
+"#;
+
+    let (doc_handle, analyzer) = setup_analyzer(initial_content).await;
+    let result = doc_handle.analyze(&analyzer).await;
+
+    assert!(result.document().diagnostics().next().is_none());
+    drop(result);
+
+    analyzer
+        .notify_incremental_change(
+            doc_handle.uri.clone(),
+            IncrementalChange {
+                version: 1,
+                start: None,
+                edits: vec![SourceEdit::new(
+                    SourcePosition::new(3, 0)..SourcePosition::new(3, 0),
+                    SourcePositionEncoding::UTF8,
+                    r#"    input {
+        String unused_input
+    }
+
+"#
+                    .to_string(),
+                )],
+            },
+        )
+        .unwrap();
+    let result2 = doc_handle.analyze(&analyzer).await;
+
+    result2
+        .document()
+        .analysis_diagnostics()
+        .iter()
+        .find(|d| d.rule().is_some_and(|r| r == "UnusedInput"))
+        .expect("`foo` should produce an `UnusedInput` diagnostic");
+    drop(result2);
+
+    analyzer
+        .notify_incremental_change(
+            doc_handle.uri.clone(),
+            IncrementalChange {
+                version: 2,
+                start: None,
+                edits: vec![SourceEdit::new(
+                    SourcePosition::new(6, 0)..SourcePosition::new(6, 0),
+                    SourcePositionEncoding::UTF8,
+                    r#"
+    String unused_decl = "Hello"
+"#
+                    .to_string(),
+                )],
+            },
+        )
+        .unwrap();
+    let result3 = doc_handle.analyze(&analyzer).await;
+
+    result3
+        .document()
+        .analysis_diagnostics()
+        .iter()
+        .find(|d| d.rule().is_some_and(|r| r == "UnusedDeclaration"))
+        .expect("`foo` should produce an `UnusedDeclaration` diagnostic");
+
+    let current_file = r#"version 1.3
+
+task foo {
+    input {
+        String unused_input
+    }
+
+    String unused_decl = "Hello"
+
+    command <<<>>>
+}
+"#;
+
+    let ast = result3.document().root().ast().unwrap_v1();
+    assert_eq!(ast.inner().text().to_string(), current_file);
+
+    // A fresh analysis of the same contents should produce the same results
+
+    let (doc_handle2, analyzer2) = setup_analyzer(current_file).await;
+    let result = doc_handle2.analyze(&analyzer2).await;
+
+    assert_eq!(result.document(), result3.document());
 }

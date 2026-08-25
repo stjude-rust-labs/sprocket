@@ -48,7 +48,7 @@ pub mod v1;
 pub const TASK_VAR_NAME: &str = "task";
 
 /// A successfully resolved namespace introduced by an import.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Namespace {
     /// The name of the namespace.
     name: String,
@@ -93,7 +93,7 @@ impl Namespace {
 }
 
 /// Represents a struct in a document.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Struct {
     /// The name of the struct.
     name: String,
@@ -151,7 +151,7 @@ impl Struct {
 }
 
 /// Represents an enum in a document.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Enum {
     /// The name of the enum.
     name: String,
@@ -209,7 +209,7 @@ impl Enum {
 }
 
 /// Represents information about a name in a scope.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Name {
     /// The span of the name.
     span: Span,
@@ -234,7 +234,7 @@ impl Name {
 pub struct ScopeIndex(usize);
 
 /// Represents a scope in a WDL document.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scope {
     /// The index of the parent scope.
     ///
@@ -516,7 +516,7 @@ impl Output {
 }
 
 /// Represents a task in a document.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Task {
     /// The span of the task name.
     pub(in crate::document) name_span: Span,
@@ -569,7 +569,7 @@ impl Task {
 }
 
 /// Represents a workflow in a document.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Workflow {
     /// The span of the workflow name.
     pub(in crate::document) name_span: Span,
@@ -636,7 +636,7 @@ impl Workflow {
 }
 
 /// A struct imported into scope.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedStruct {
     /// The aliased name of the struct in the dependent document.
     pub local_name: String,
@@ -693,7 +693,7 @@ impl ImportedStruct {
 }
 
 /// An enum imported into scope.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedEnum {
     /// The aliased name of the enum in the dependent document.
     pub local_name: String,
@@ -748,7 +748,7 @@ impl ImportedEnum {
 }
 
 /// A task imported into scope by a wildcard or selected-member import.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImportedTask {
     /// The aliased name of the task in the dependent document.
     pub local_name: String,
@@ -782,7 +782,7 @@ impl ImportedTask {
 }
 
 /// A workflow imported into scope by a wildcard or selected-member import.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImportedWorkflow {
     /// The aliased name of the workflow in the dependent document.
     pub local_name: String,
@@ -873,7 +873,7 @@ impl Callable<'_> {
 /// A [`DocumentData`] only owns the [`AnalysisCache`] during construction.
 /// Afterwards, it gets shared between the parent `DocumentGraphNode`
 /// and the document.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum DocumentAnalysisCache {
     /// Owned cache during document construction.
     Owned(Box<AnalysisCache>),
@@ -960,6 +960,35 @@ pub(crate) struct DocumentData {
     pub(crate) analysis_diagnostics: Diagnostics,
 }
 
+impl PartialEq for DocumentData {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            config,
+            root,
+            id: _,
+            uri,
+            version,
+            failed_imports,
+            cache,
+            failed_wildcard_import,
+            failed_selected_imports,
+            parse_diagnostics,
+            analysis_diagnostics,
+        } = self;
+
+        config == &other.config
+            && root == &other.root
+            && uri == &other.uri
+            && version == &other.version
+            && failed_imports == &other.failed_imports
+            && cache == &other.cache
+            && failed_wildcard_import == &other.failed_wildcard_import
+            && failed_selected_imports == &other.failed_selected_imports
+            && parse_diagnostics == &other.parse_diagnostics
+            && analysis_diagnostics == &other.analysis_diagnostics
+    }
+}
+
 impl DocumentData {
     /// Gets the internal cache.
     #[cfg(test)]
@@ -1024,7 +1053,7 @@ impl DocumentData {
 /// Represents an analyzed WDL document.
 ///
 /// This type is cheaply cloned.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Document {
     /// The document data for the document.
     data: Arc<DocumentData>,
