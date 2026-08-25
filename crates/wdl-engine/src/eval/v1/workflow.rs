@@ -164,7 +164,11 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         }
 
         if let Some(ty) = self.state.document.get_custom_type(name) {
-            return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty)));
+            return Ok(TypeNameRefValue::new(
+                name,
+                ty.as_custom().expect("should be custom type").clone(),
+            )
+            .into());
         }
 
         Err(unknown_name(name, span))

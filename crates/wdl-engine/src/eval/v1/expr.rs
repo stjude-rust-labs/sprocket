@@ -33,6 +33,7 @@ use wdl_analysis::diagnostics::not_a_previous_task_data_member;
 use wdl_analysis::diagnostics::not_a_struct;
 use wdl_analysis::diagnostics::not_a_struct_member;
 use wdl_analysis::diagnostics::not_a_task_member;
+use wdl_analysis::diagnostics::not_an_enum_choice;
 use wdl_analysis::diagnostics::numeric_mismatch;
 use wdl_analysis::diagnostics::too_few_arguments;
 use wdl_analysis::diagnostics::too_many_arguments;
@@ -123,7 +124,6 @@ use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::unknown_enum_choice;
-use crate::diagnostics::unknown_enum_choice_access;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -1484,7 +1484,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         expr: &AccessExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
-
         let target_value = self.evaluate_expr(&target).await?;
         match target_value {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
@@ -1523,17 +1522,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
             Value::TypeNameRef(v) => {
-                let ty = v.ty();
-                if let Some(enum_ty) = ty.as_enum() {
+                if let Some(enum_ty) = v.as_enum() {
                     let value = self
                         .context()
-                        .enum_choice_value(enum_ty.name(), name.text())
-                        .map_err(|_| unknown_enum_choice_access(enum_ty.name(), &name))?;
+                        .enum_choice_value(v.name(), name.text())
+                        .map_err(|_| not_an_enum_choice(v.name(), &name))?;
 
                     let choice = EnumChoice::new(enum_ty.clone(), name.text(), value);
                     Ok(Value::Compound(CompoundValue::EnumChoice(choice)))
                 } else {
-                    Err(cannot_access(ty, target.span()))
+                    Err(cannot_access(v.ty(), target.span()))
                 }
             }
             value => Err(cannot_access(&value.ty(), target.span())),
@@ -1908,14 +1906,23 @@ pub(crate) mod test {
                 return Ok(var);
             }
 
-            // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+            // If the name is a reference to a struct, return it as a
+            // [`Value::TypeNameRef`].
             if let Some(ty) = self.env.structs.get(name) {
-                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
+                return Ok(TypeNameRefValue::new(
+                    name,
+                    ty.as_struct().expect("should be struct type").clone(),
+                )
+                .into());
             }
 
-            // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+            // If the name is a reference to an enum, return it as a [`Value::TypeNameRef`].
             if let Some(ty) = self.env.enums.get(name) {
-                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
+                return Ok(TypeNameRefValue::new(
+                    name,
+                    ty.as_enum().expect("should be enum type").clone(),
+                )
+                .into());
             }
 
             Err(unknown_name(name, span))

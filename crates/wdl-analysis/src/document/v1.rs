@@ -102,9 +102,9 @@ use crate::diagnostics::recursive_workflow_call;
 use crate::diagnostics::selected_import_conflict;
 use crate::diagnostics::selected_member_not_found;
 use crate::diagnostics::struct_conflicts_with_import;
-use crate::diagnostics::struct_not_in_document;
 use crate::diagnostics::type_is_not_array;
 use crate::diagnostics::type_mismatch;
+use crate::diagnostics::type_not_in_document;
 use crate::diagnostics::unknown_call_io;
 use crate::diagnostics::unknown_name;
 use crate::diagnostics::unknown_namespace;
@@ -135,6 +135,7 @@ use crate::types::Optional;
 use crate::types::PairType;
 use crate::types::PrimitiveType;
 use crate::types::Type;
+use crate::types::TypeNameRefType;
 use crate::types::TypeNameResolver;
 use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
@@ -348,11 +349,21 @@ fn add_namespace(
         .aliases()
         .filter_map(|a| {
             let (from, to) = a.names();
-            if !imported.data.structs.contains_key(from.text()) {
+
+            let is_struct = imported.data.structs.contains_key(from.text());
+            let is_enum = imported.data.enums.contains_key(from.text());
+
+            // Check to see if the type name exists in the document
+            if !is_struct && !is_enum {
                 document
                     .analysis_diagnostics
-                    .add(struct_not_in_document(&from));
+                    .add(type_not_in_document(&from));
                 failed = true;
+                return None;
+            }
+
+            if is_enum {
+                // We'll process enums below
                 return None;
             }
 
@@ -416,6 +427,7 @@ fn add_namespace(
         .filter_map(|a| {
             let (from, to) = a.names();
             if !imported.data.enums.contains_key(from.text()) {
+                // Ignore structs or unknown type names (diagnostic added above)
                 return None;
             }
 
@@ -2601,12 +2613,11 @@ fn populate_types(document: &mut DocumentData) {
     for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
         match index {
             TypeIndex::Struct(index) => {
-                let definition = StructDefinition::cast(SyntaxNode::new_root(
-                    document.structs[index].node.clone(),
-                ))
-                .expect("node should cast");
+                let s = &document.structs[index];
+                let definition = StructDefinition::cast(SyntaxNode::new_root(s.node.clone()))
+                    .expect("node should cast");
 
-                let offset = document.structs[index].offset;
+                let offset = s.offset;
                 let mut converter = AstTypeConverter::new(Resolver { document, offset });
                 match converter.convert_struct_type(&definition) {
                     Ok(ty) => {
@@ -2665,7 +2676,7 @@ fn populate_types(document: &mut DocumentData) {
                         &choice_spans,
                     )
                 } else {
-                    EnumType::infer(document.enums[index].name.clone(), choices, &choice_spans)
+                    EnumType::infer(e.name.clone(), choices, &choice_spans)
                 };
 
                 match result {
@@ -2851,16 +2862,25 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
         // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
         if let Some(s) = self.document.structs.get(name).and_then(|s| s.ty()) {
             return Some(
-                s.type_name_ref()
-                    .expect("type name ref to be created from struct"),
+                TypeNameRefType::new(
+                    name,
+                    s.as_struct()
+                        .expect("type should be a struct")
+                        .clone()
+                        .into(),
+                )
+                .into(),
             );
         }
 
         // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
         if let Some(e) = self.document.enums.get(name).and_then(|e| e.ty()) {
             return Some(
-                e.type_name_ref()
-                    .expect("type name ref to be created from enum"),
+                TypeNameRefType::new(
+                    name,
+                    e.as_enum().expect("type should be an enum").clone().into(),
+                )
+                .into(),
             );
         }
 

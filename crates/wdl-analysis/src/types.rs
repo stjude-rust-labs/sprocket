@@ -195,7 +195,7 @@ pub enum Type {
     /// The type is a call output.
     Call(CallType),
     /// A reference to a custom type name (struct or enum).
-    TypeNameRef(CustomType),
+    TypeNameRef(TypeNameRefType),
 }
 
 // NOTE: `Type` was optimized to `24` bytes as part of the type representation
@@ -289,9 +289,9 @@ impl Type {
     /// Converts the type to a type name reference.
     ///
     /// Returns `None` if the type is not a type name reference.
-    pub fn as_type_name_ref(&self) -> Option<&CustomType> {
+    pub fn as_type_name_ref(&self) -> Option<&TypeNameRefType> {
         match self {
-            Self::TypeNameRef(custom_ty) => Some(custom_ty),
+            Self::TypeNameRef(ty) => Some(ty),
             _ => None,
         }
     }
@@ -379,16 +379,6 @@ impl Type {
         }
 
         None
-    }
-
-    /// Attempts to transform the type into the analogous type name reference.
-    ///
-    /// This is only supported for custom types (structs and enums).
-    pub fn type_name_ref(&self) -> Option<Type> {
-        match self {
-            Type::Compound(CompoundType::Custom(ty), _) => Some(Type::TypeNameRef(ty.clone())),
-            _ => None,
-        }
     }
 }
 
@@ -655,6 +645,18 @@ impl From<EnumType> for Type {
 impl From<CallType> for Type {
     fn from(value: CallType) -> Self {
         Self::Call(value)
+    }
+}
+
+impl From<CustomType> for Type {
+    fn from(value: CustomType) -> Self {
+        Self::Compound(CompoundType::Custom(value), false)
+    }
+}
+
+impl From<TypeNameRefType> for Type {
+    fn from(value: TypeNameRefType) -> Self {
+        Self::TypeNameRef(value)
     }
 }
 
@@ -1500,6 +1502,68 @@ impl fmt::Display for CallType {
 impl PartialEq for CallType {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+/// The inner type for [`TypeNameRefType`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TypeNameRefTypeInner {
+    /// The name used to refer to the type.
+    name: String,
+    /// The custom type that was referred to.
+    ty: CustomType,
+}
+
+/// Represents a reference to a custom type (struct or enum).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeNameRefType(Arc<TypeNameRefTypeInner>);
+
+impl TypeNameRefType {
+    /// Constructs a new [`TypeNameRefType`].
+    pub fn new(name: impl Into<String>, ty: CustomType) -> Self {
+        Self(
+            TypeNameRefTypeInner {
+                name: name.into(),
+                ty,
+            }
+            .into(),
+        )
+    }
+
+    /// Gets the name used to reference the type.
+    pub fn name(&self) -> &str {
+        &self.0.name
+    }
+
+    /// Gets the referenced custom type.
+    pub fn ty(&self) -> &CustomType {
+        &self.0.ty
+    }
+
+    /// Converts the referenced custom type to a struct type.
+    ///
+    /// Returns `None` if the referenced custom type is not a struct.
+    pub fn as_struct(&self) -> Option<&StructType> {
+        match &self.0.ty {
+            CustomType::Struct(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the referenced custom type to an enum type.
+    ///
+    /// Returns `None` if the referenced custom type is not an enum.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        match &self.0.ty {
+            CustomType::Enum(ty) => Some(ty),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for TypeNameRefType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.name.fmt(f)
     }
 }
 

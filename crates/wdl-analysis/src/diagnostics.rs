@@ -351,13 +351,13 @@ pub fn selected_import_conflict(name: &str, import_span: Span, prev_span: Span) 
     .with_label("previous definition", prev_span)
 }
 
-/// Creates a "struct not in document" diagnostic.
-pub fn struct_not_in_document<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
+/// Creates a "type not in document" diagnostic.
+pub fn type_not_in_document<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
-        "a struct named `{name}` does not exist in the imported document",
+        "a struct or enum named `{name}` does not exist in the imported document",
         name = name.text()
     ))
-    .with_label("this struct does not exist", name.span())
+    .with_label("this type name does not exist", name.span())
 }
 
 /// Creates an "imported struct conflict" diagnostic.

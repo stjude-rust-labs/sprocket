@@ -200,18 +200,3 @@ pub(crate) fn unknown_enum_choice(enum_name: &str, choice_name: &str) -> Diagnos
         "unknown choice named `{choice_name}` for enum `{enum_name}`",
     ))
 }
-
-/// Creates an "unknown enum choice access" diagnostic.
-///
-/// This is distinguished from an "unknown enum choice" diagnostic because we
-/// have a span to point to that contains the supposed enum choice name.
-pub(crate) fn unknown_enum_choice_access<T: TreeToken>(
-    enum_name: &str,
-    choice_name: &Ident<T>,
-) -> Diagnostic {
-    Diagnostic::error(format!(
-        "unknown choice named `{choice_name}` for enum `{enum_name}`",
-        choice_name = choice_name.text()
-    ))
-    .with_label("the choice is referenced here", choice_name.span())
-}

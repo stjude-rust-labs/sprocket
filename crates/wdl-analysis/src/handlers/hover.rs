@@ -334,10 +334,18 @@ fn resolve_hover_by_context(
                 .unwrap_or(crate::types::Type::Union);
 
             let (member_ty, documentation) = match target_type {
-                Type::TypeNameRef(CustomType::Enum(e)) => {
-                    if e.choices().iter().any(|text| text == member.text()) {
+                Type::TypeNameRef(ty) => {
+                    let enum_ty = match ty.ty() {
+                        CustomType::Struct(_) => {
+                            // `Struct.member` is not currently valid in WDL.
+                            return Ok(None);
+                        }
+                        CustomType::Enum(ty) => ty,
+                    };
+
+                    if enum_ty.choices().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
-                        if let Some(enum_entry) = document.enum_by_name(e.name()) {
+                        if let Some(enum_entry) = document.enum_by_name(ty.name()) {
                             let definition = enum_entry.definition();
 
                             // Find the specific choice
@@ -353,9 +361,9 @@ fn resolve_hover_by_context(
 
                                 let content = format!(
                                     "```wdl\n{}.{}[{}] = {}\n```",
-                                    e.name(),
+                                    enum_ty.name(),
                                     member.text(),
-                                    e.inner_value_type(),
+                                    enum_ty.inner_value_type(),
                                     value_str
                                 );
                                 return Ok(Some(content));
@@ -365,17 +373,13 @@ fn resolve_hover_by_context(
                         // Fallback to showing just the type
                         let content = format!(
                             "```wdl\n{}.{}[{}]\n```",
-                            e.name(),
+                            enum_ty.name(),
                             member.text(),
-                            e.inner_value_type()
+                            enum_ty.inner_value_type()
                         );
                         return Ok(Some(content));
                     }
                     (None, None)
-                }
-                Type::TypeNameRef(CustomType::Struct(_)) => {
-                    // `Struct.member` is not valid in WDL.
-                    return Ok(None);
                 }
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {

@@ -177,7 +177,7 @@ pub struct Enum {
     source: Option<Arc<Url>>,
     /// The type of the enum.
     ///
-    /// Initially this is `None` until a type check/coercion occurs.
+    /// Initially this is `None` until types are populated for the document.
     ty: Option<Type>,
 }
 
@@ -1137,13 +1137,13 @@ impl Document {
     }
 
     /// Gets the custom type by name.
-    pub fn get_custom_type(&self, name: &str) -> Option<Type> {
+    pub fn get_custom_type(&self, name: &str) -> Option<&Type> {
         if let Some(s) = self.struct_by_name(name) {
-            return s.ty().cloned();
+            return s.ty();
         }
 
-        if let Some(s) = self.enum_by_name(name) {
-            return s.ty().cloned();
+        if let Some(e) = self.enum_by_name(name) {
+            return e.ty();
         }
 
         None

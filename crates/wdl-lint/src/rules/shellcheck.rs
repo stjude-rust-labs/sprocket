@@ -27,6 +27,7 @@ use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
+use wdl_analysis::types::TypeNameRefType;
 use wdl_analysis::types::v1::EvaluationContext;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_ast::AstNode;
@@ -387,8 +388,13 @@ impl EvaluationContext for CommandContext<'_> {
 
         if let Some(ty) = self.document.get_custom_type(name) {
             return Some(
-                ty.type_name_ref()
-                    .expect("type name ref to be created from custom type"),
+                TypeNameRefType::new(
+                    name,
+                    ty.as_custom()
+                        .expect("type should be a custom type")
+                        .clone(),
+                )
+                .into(),
             );
         }
 
