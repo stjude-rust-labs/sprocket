@@ -322,7 +322,6 @@ impl ApptainerRuntime {
                 .clone()
         };
 
-        let events_clone = events.clone();
         let pull = once.get_or_try_init(|| async move {
             // SAFETY: the next two `unwrap` calls are safe because the source can't be a
             // file or an unknown source at this point
@@ -372,14 +371,15 @@ impl ApptainerRuntime {
             )
             .await
             .with_context(|| format!("failed pulling Apptainer image `{container}`"))?;
-
-            send_event!(events_clone, Event::ImagePullFinished { id: task.unwrap(), name: container.uri() });
             debug!(path = %path.display(), "Apptainer image `{container}` pulled successfully");
             Ok(path)
         });
 
         tokio::select! {
-            _ = token.cancelled() => Ok(None),
+            _ = token.cancelled() => {
+                send_event!(events, Event::ImagePullFailed { id: task.unwrap(), name: container.uri(), message: String::from("task canceled") });
+                Ok(None)
+            },
             res = pull => match res {
                 Ok(p) => {
                     send_event!(events, Event::ImagePullFinished { id: task.unwrap(), name: container.uri() });

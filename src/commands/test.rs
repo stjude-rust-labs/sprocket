@@ -478,6 +478,7 @@ struct TestTask {
 struct StatusBarState {
     /// The images currently being pulled.
     pulling_images: HashMap<String, usize>,
+    style: ProgressStyle,
     span: tracing::Span,
 }
 
@@ -494,6 +495,7 @@ impl StatusBar {
             disabled: true,
             state: Arc::new(Mutex::new(StatusBarState {
                 pulling_images: HashMap::new(),
+                style: ProgressStyle::default_bar(),
                 span: tracing::Span::none(),
             })),
         }
@@ -508,12 +510,12 @@ impl StatusBar {
         };
 
         let status_bar = span!(Level::WARN, "status bar");
-        status_bar.pb_set_style(&ProgressStyle::with_template(template).unwrap());
 
         Self {
             disabled: false,
             state: Arc::new(Mutex::new(StatusBarState {
                 pulling_images: HashMap::new(),
+                style: ProgressStyle::with_template(template).unwrap(),
                 span: status_bar,
             })),
         }
@@ -528,6 +530,7 @@ impl StatusBar {
         }
 
         state.span = span!(Level::WARN, "status bar");
+        state.span.pb_set_style(&state.style);
         state.span.pb_start();
 
         if state.pulling_images.len() == 1 {
