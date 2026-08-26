@@ -82,14 +82,17 @@ impl SprocketTestCache {
         };
 
         let test_yaml = Arc::make_mut(entry.get_mut());
-        if change.start.is_some() {
-            let (new_source, new_lines) = change.apply()?;
-            test_yaml.source = new_source;
-            test_yaml.lines = new_lines;
+        let (new_source, new_lines) = if change.start.is_some() {
+            change.apply()?
         } else {
-            change.apply_to(&mut test_yaml.source, &mut test_yaml.lines)?;
-        }
+            let mut source = test_yaml.source.clone();
+            let mut lines = test_yaml.lines.clone();
+            change.apply_to(&mut source, &mut lines)?;
+            (source, lines)
+        };
 
+        test_yaml.source = new_source;
+        test_yaml.lines = new_lines;
         test_yaml.document = None;
         Ok(())
     }
@@ -172,7 +175,7 @@ pub fn is_sprocket_test_file(uri: &Url) -> bool {
         return true;
     }
 
-    let Some(base_name) = path.file_stem() else {
+    let Some(base_name) = path.file_name() else {
         return false;
     };
     let wdl_sibling = parent.join(base_name).with_extension("wdl");

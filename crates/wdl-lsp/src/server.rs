@@ -1186,7 +1186,9 @@ impl<S: 'static> Server<S> {
         }
 
         if to_wdl_file_path(&params.text_document.uri).is_none() {
-            return; // Not a file we care about
+            // Not a file we care about
+            let _ = tx.send(Ok(None));
+            return;
         }
 
         let result = state
@@ -1535,7 +1537,15 @@ impl<S: 'static> Server<S> {
                     mem::take(&mut e.text),
                 )
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>();
+
+        let edits = match edits {
+            Ok(edits) => edits,
+            Err(e) => {
+                error!("received a malformed edit from the client: {e}");
+                return;
+            }
+        };
 
         let change = IncrementalChange {
             version: params.text_document.version,

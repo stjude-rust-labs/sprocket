@@ -159,7 +159,7 @@ async fn should_handle_change_notifications() {
             content_changes: vec![TextDocumentContentChangeEvent {
                 range: Some(test_single_range),
                 range_length: None,
-                text: "switching_up_again〰".to_string(),
+                text: "switching_up_again🚀".to_string(),
             }],
         })
         .unwrap();
@@ -202,16 +202,16 @@ async fn should_handle_change_notifications() {
                 },
                 end: Position {
                     line: 1,
-                    character: 29,
+                    character: 30,
                 },
             },
             command: Some(Command {
-                title: "Run test 'switching_up_again〰'".to_string(),
+                title: "Run test 'switching_up_again🚀'".to_string(),
                 command: String::from("sprocket.testSingle"),
                 arguments: Some(vec![
                     ctx.doc_uri("example.wdl").to_string().into(),
                     "say_hello".into(),
-                    "switching_up_again〰".into(),
+                    "switching_up_again🚀".into(),
                 ]),
             }),
             data: None,

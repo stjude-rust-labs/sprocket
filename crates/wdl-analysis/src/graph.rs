@@ -1022,11 +1022,14 @@ mod tests {
             node.change = Some(IncrementalChange {
                 version: 2,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
-                    SourcePositionEncoding::UTF8,
-                    "task foo {}\n",
-                )],
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
+                        SourcePositionEncoding::UTF8,
+                        "task foo {}\n",
+                    )
+                    .unwrap(),
+                ],
             });
         }
 
