@@ -69,16 +69,11 @@
           # Vendor dependencies straight from Cargo.lock via `importCargoLock`.
           # Registry crate hashes come from Cargo.lock itself, so routine
           # dependency bumps need no Nix changes—there is no whole-vendor hash
-          # to go stale. Route crates.io downloads directly through its CDN;
-          # the API endpoint rejects nixpkgs' generic curl user agent with 403.
+          # to go stale. The pinned nixpkgs downloads crates directly from the
+          # crates.io CDN, avoiding the API endpoint's rate limit.
           # (`outputHashes` would only be needed for git-sourced crates, of
           # which the workspace currently has none.)
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-            extraRegistries = {
-              "https://github.com/rust-lang/crates.io-index" = "https://static.crates.io/crates";
-            };
-          };
+          cargoLock.lockFile = ./Cargo.lock;
 
           inherit nativeBuildInputs buildInputs;
 
