@@ -1873,7 +1873,6 @@ mod test {
     use crate::Events;
     use crate::config::Config;
     use crate::config::FailureMode;
-    use crate::config::LocalBackendConfig;
     use crate::v1::Engine;
 
     #[tokio::test]
@@ -1944,12 +1943,7 @@ workflow test {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-
-        let engine = Engine::new(config).await.unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
             engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
@@ -2078,11 +2072,7 @@ workflow test {
             .expect("expected `source.wdl` analysis result")
             .document();
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let engine = Engine::new(config).await.unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
             engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
@@ -2176,11 +2166,7 @@ workflow test {
             .expect("expected `source.wdl` analysis result")
             .document();
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let engine = Engine::new(config).await.unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
             engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
@@ -2273,12 +2259,7 @@ workflow foo {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            experimental_features_enabled: true,
-            ..Default::default()
-        };
-        let engine = Engine::new(config).await.unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
             engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
@@ -2484,10 +2465,6 @@ workflow w {
         }
 
         // Use a progress callback that simply increments the appropriate counter
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
         let state = Arc::<State>::default();
         let events_state = state.clone();
         let events = Events::new(100);
@@ -2517,7 +2494,7 @@ workflow w {
             }
         });
 
-        let engine = Engine::new(config).await.unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
@@ -2585,12 +2562,7 @@ workflow w {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-
-        let engine = Engine::new(config).await.unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
         let evaluator = engine.create_v1_evaluator(Events::disabled(), cancellation.clone());
 

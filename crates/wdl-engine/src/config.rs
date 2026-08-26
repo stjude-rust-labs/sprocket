@@ -478,6 +478,14 @@ impl Config {
         ConfigBuilder::default()
     }
 
+    /// Constructs a default configuration using a local backend.
+    pub fn local() -> Self {
+        Config {
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
+            ..Default::default()
+        }
+    }
+
     /// Validates the evaluation configuration.
     pub async fn validate(&self) -> Result<()> {
         self.http.validate()?;
@@ -3803,19 +3811,10 @@ type = 'lsf_apptainer'
         /// The string is expected to be a valid WDL expression.
         async fn eval(context: Context, expression: &str) -> Result<bool> {
             let dir = tempdir().context("failed to create temporary directory")?;
-            let config = Config {
-                backends: IndexMap::from_iter([(
-                    "default".to_string(),
-                    BackendConfig::Local {
-                        config: Default::default(),
-                    },
-                )]),
-                ..Default::default()
-            };
             let condition = Condition::new(expression).expect("invalid expression");
             condition
                 .evaluate(&ExecuteTaskRequest {
-                    engine: &Engine::new_with_transferer(config, Transferer).await?,
+                    engine: &Engine::new_with_transferer(Config::local(), Transferer).await?,
                     name: "test",
                     command: "",
                     inputs: &context.inputs,
