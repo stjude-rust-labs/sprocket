@@ -199,7 +199,7 @@ pub fn spawn_heartbeat(
 /// Creates a timestamped run directory for the given target.
 ///
 /// The directory is created at `<output_dir>/runs/<target>/<timestamp>/` where
-/// timestamp has the format `YYYY-MM-DD_HHMMSS`. A `_latest` symlink is
+/// timestamp has the format `YYYY-MM-DD_HHMMSSffffff`. A `_latest` symlink is
 /// created pointing to the new directory.
 ///
 /// Returns the [`RunDirectory`] handle for the created directory.
