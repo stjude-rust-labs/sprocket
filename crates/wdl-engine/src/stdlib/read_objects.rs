@@ -22,7 +22,6 @@ use crate::Object;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::stdlib::download_file;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_objects";
@@ -54,7 +53,8 @@ fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let file_path = download_file(context.transferer(), context.base_dir(), &path)
+        let file_path = context
+            .download_file(&path)
             .await
             .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 

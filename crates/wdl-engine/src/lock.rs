@@ -1,4 +1,4 @@
-//! Implementation of a file lock used by the call cache.
+//! Implementation of advisory locks using files.
 
 use std::fs;
 use std::fs::File;
@@ -60,13 +60,13 @@ impl LockedFile {
                 let path = path.to_path_buf();
                 spawn_blocking(move || {
                     info!(
-                        "waiting to acquire shared lock on cache entry file `{path}`",
+                        "waiting to acquire shared lock on file `{path}`",
                         path = path.display()
                     );
 
                     file.lock_shared().with_context(|| {
                         format!(
-                            "failed to acquire shared lock on cache entry file `{path}`",
+                            "failed to acquire shared lock on file `{path}`",
                             path = path.display()
                         )
                     })?;
@@ -77,7 +77,7 @@ impl LockedFile {
             }
             Err(TryLockError::Error(e)) => Err(e).with_context(|| {
                 format!(
-                    "failed to acquire shared lock on cache entry file `{path}`",
+                    "failed to acquire shared lock on file `{path}`",
                     path = path.display()
                 )
             }),
@@ -87,20 +87,15 @@ impl LockedFile {
     /// Acquires an exclusive file lock for the given path.
     ///
     /// If the file does not exist, it is created.
-    ///
-    /// If the file exists, it is truncated once the lock is acquired.
-    pub async fn acquire_exclusive_truncated(path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn acquire_exclusive(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         // Create or open the file, but do not truncate it if it exists before the lock
         // is acquired
         let mut options = fs::OpenOptions::new();
         options.create(true).write(true);
-        let file = options.open(path).with_context(|| {
-            format!(
-                "failed to create call cache entry file `{path}`",
-                path = path.display()
-            )
-        })?;
+        let file = options
+            .open(path)
+            .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
 
         let file = match file.try_lock() {
             Ok(_) => Ok(Self(file)),
@@ -108,13 +103,13 @@ impl LockedFile {
                 let path = path.to_path_buf();
                 spawn_blocking(move || {
                     info!(
-                        "waiting to acquire exclusive lock on cache entry file `{path}`",
+                        "waiting to acquire exclusive lock on file `{path}`",
                         path = path.display()
                     );
 
                     file.lock().with_context(|| {
                         format!(
-                            "failed to acquire exclusive lock on cache entry file `{path}`",
+                            "failed to acquire exclusive lock on file `{path}`",
                             path = path.display()
                         )
                     })?;
@@ -125,18 +120,11 @@ impl LockedFile {
             }
             Err(TryLockError::Error(e)) => Err(e).with_context(|| {
                 format!(
-                    "failed to acquire exclusive lock on cache entry file `{path}`",
+                    "failed to acquire exclusive lock on file `{path}`",
                     path = path.display()
                 )
             }),
         }?;
-
-        file.set_len(0).with_context(|| {
-            format!(
-                "failed to truncate cache entry file `{path}`",
-                path = path.display()
-            )
-        })?;
 
         Ok(file)
     }
@@ -222,9 +210,7 @@ mod test {
     #[tokio::test]
     async fn acquire_exclusive() {
         let file = NamedTempFile::new().unwrap();
-        let _exclusive = LockedFile::acquire_exclusive_truncated(file.path())
-            .await
-            .unwrap();
+        let _exclusive = LockedFile::acquire_exclusive(file.path()).await.unwrap();
 
         // Ensure we can't acquire a shared lock
         assert!(matches!(

@@ -1,12 +1,11 @@
 //! Facilities for performing a typical WDL evaluation using the `wdl-*` crates.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::anyhow;
 use wdl::analysis::Document;
 use wdl::engine::CancellationContext;
-use wdl::engine::Config;
+use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -14,25 +13,19 @@ use wdl::engine::EvaluationResult;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
-use wdl::engine::v1::Evaluator as WdlEvaluator;
 
 /// An evaluator for a WDL task or workflow.
 pub struct Evaluator<'a> {
     /// The document that contains the task or workflow to run.
     document: &'a Document,
-
     /// The name of the task or workflow to run.
     name: &'a str,
-
     /// The inputs to the task or workflow.
     inputs: Inputs,
-
     /// The base directory to join for relative input paths.
     base_dir: &'a EvaluationPath,
-
-    /// The configuration for the WDL engine.
-    config: Arc<Config>,
-
+    /// The WDL evaluation engine to use.
+    engine: &'a Engine,
     /// The output directory.
     output_dir: &'a Path,
 }
@@ -44,7 +37,7 @@ impl<'a> Evaluator<'a> {
         name: &'a str,
         inputs: Inputs,
         base_dir: &'a EvaluationPath,
-        config: Arc<Config>,
+        engine: &'a Engine,
         output_dir: &'a Path,
     ) -> Self {
         Self {
@@ -52,7 +45,7 @@ impl<'a> Evaluator<'a> {
             name,
             inputs,
             base_dir,
-            config,
+            engine,
             output_dir,
         }
     }
@@ -69,8 +62,8 @@ impl<'a> Evaluator<'a> {
     /// Panics if the evaluator is for a workflow.
     pub async fn evaluate_task(
         self,
-        cancellation: CancellationContext,
         events: Events,
+        cancellation: CancellationContext,
     ) -> Result<EvaluatedTask, EvaluationError> {
         if self.is_workflow() {
             panic!(
@@ -92,9 +85,8 @@ impl<'a> Evaluator<'a> {
             .join_paths(task, |_| Ok(std::slice::from_ref(self.base_dir)))
             .await?;
 
-        let evaluator =
-            WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
-        evaluator
+        self.engine
+            .create_v1_evaluator(events, cancellation)
             .evaluate_task(self.document, task, inputs, self.output_dir)
             .await
     }
@@ -102,12 +94,12 @@ impl<'a> Evaluator<'a> {
     /// Runs a WDL task or workflow evaluation.
     pub async fn run(
         self,
-        cancellation: CancellationContext,
         events: Events,
+        cancellation: CancellationContext,
     ) -> EvaluationResult<Outputs> {
         match self.inputs {
             Inputs::Task(_) => self
-                .evaluate_task(cancellation, events)
+                .evaluate_task(events, cancellation)
                 .await
                 .and_then(EvaluatedTask::into_outputs),
             Inputs::Workflow(mut inputs) => {
@@ -129,9 +121,8 @@ impl<'a> Evaluator<'a> {
                     .join_paths(workflow, |_| Ok(std::slice::from_ref(self.base_dir)))
                     .await?;
 
-                let evaluator =
-                    WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
-                evaluator
+                self.engine
+                    .create_v1_evaluator(events, cancellation)
                     .evaluate_workflow(self.document, inputs, self.output_dir)
                     .await
             }

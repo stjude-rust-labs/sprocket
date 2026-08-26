@@ -36,7 +36,7 @@ pub use workflow::*;
 /// A token is a span of text from the WDL source text and
 /// is terminal in the tree.
 ///
-/// Elements of an AST are trivially cloned.
+/// Elements of an AST are cheaply cloned.
 ///
 /// [1]: crate::SyntaxTree
 #[derive(Clone, Debug, PartialEq, Eq)]

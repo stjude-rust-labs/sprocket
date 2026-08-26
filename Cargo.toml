@@ -48,8 +48,7 @@ cloud-copy = { version = "0.10.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
 convert_case = "0.11.0"
-crankshaft = { git = "https://github.com/stjude-rust-labs/crankshaft.git", features = ["docker"] }
-#crankshaft = { version = "0.10.0", features = ["docker"] }
+crankshaft = { version = "0.11.0", features = ["docker"] }
 criterion = "0.8.2"
 dialoguer = "0.12.0"
 dirs = "6.0.0"

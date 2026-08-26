@@ -32,6 +32,9 @@ use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::config::BackendConfig;
+use wdl::engine::config::LsfApptainerBackendConfig;
+use wdl::engine::config::SlurmApptainerBackendConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
 
@@ -1265,46 +1268,52 @@ impl Config {
                 }
             }
         }
+
+        // Expands the paths in the given engine configuration.
+        fn expand_paths(config: &mut EngineConfig) -> Result<()> {
+            // Expand the call cache directory
+            if !config.task.using_system_cache_dir() {
+                config.task.cache_dir = config
+                    .task
+                    .cache_dir()
+                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+            }
+
+            // Expand the download cache directory
+            if !config.http.using_system_cache_dir() {
+                config.http.cache_dir = config
+                    .http
+                    .cache_dir()
+                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+            }
+
+            // Expand the apptainer image cache directory
+            for backend in config.backends.values_mut() {
+                match backend {
+                    BackendConfig::LsfApptainer {
+                        config: LsfApptainerBackendConfig { apptainer, .. },
+                    }
+                    | BackendConfig::SlurmApptainer {
+                        config: SlurmApptainerBackendConfig { apptainer, .. },
+                    } if !apptainer.using_system_image_cache_dir() => {
+                        apptainer.image_cache_dir = apptainer
+                            .image_cache_dir()
+                            .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok(())
+        }
+
+        // Expand paths in the configuration for both the `run` and `server` sections
         self.run.output_dir = expand(&self.run.output_dir)?;
         self.server.output_dir = expand(&self.server.output_dir)?;
-        self.run.engine.task.cache_dir = match self
-            .run
-            .engine
-            .task
-            .cache_dir()
-            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
-            .transpose()?
-        {
-            Some(s) => s,
-            None => self.run.engine.task.cache_dir.clone(),
-        };
-        if !self.run.engine.http.using_system_cache_dir() {
-            self.run.engine.http.cache_dir = self
-                .run
-                .engine
-                .http
-                .cache_dir()
-                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
-        }
-        self.server.engine.task.cache_dir = match self
-            .server
-            .engine
-            .task
-            .cache_dir()
-            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
-            .transpose()?
-        {
-            Some(s) => s,
-            None => self.server.engine.task.cache_dir.clone(),
-        };
-        if !self.server.engine.http.using_system_cache_dir() {
-            self.server.engine.http.cache_dir = self
-                .server
-                .engine
-                .http
-                .cache_dir()
-                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
-        }
+
+        // Expand the paths in the engine configuration for both `run` and `server`
+        expand_paths(&mut self.run.engine)?;
+        expand_paths(&mut self.server.engine)?;
 
         // Validate inner configs
         self.server.validate()?;

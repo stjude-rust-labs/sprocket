@@ -93,7 +93,8 @@ async fn create_server_app(
         report_mode,
         colorize,
         db,
-    );
+    )
+    .await?;
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)

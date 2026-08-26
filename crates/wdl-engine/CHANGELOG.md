@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft` events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
+* Introduced the `Engine` type which stores a shared reference to the task
+  execution backend and file transferer. Configuration for backend and file
+  transfers are now shared between all evaluations in the same process,
+  specifically for the server and test commands ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added a shared user-specific image cache for the apptainer-based backends.
+  SIF files are now reused between runs. NOTE: a cache entry for a mutable tag
+  (e.g. `latest`) is not updated if already present in the cache; avoid using
+  mutated tag references in your WDL tasks. ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft`
+  events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
 
 #### Changed
 
@@ -21,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed the enum choice value cache to be keyed by document URI; this prevents
+  an enum with the same index and choice index from overwriting a cache entry
+  from another document ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
 * Call cache entries for commands that reference temporary files created by a
   call to a `write_*` stdlib function will no longer be ignored due to a
   mismatch between the evaluated command and the cached evaluated command.

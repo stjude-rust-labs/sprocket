@@ -65,7 +65,9 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Wait manager to be ready
     let (tx, rx) = oneshot::channel();
@@ -1251,6 +1253,7 @@ task sleep_task {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn submit_run_with_invalid_wdl(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -1300,6 +1303,7 @@ this is not valid WDL syntax
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn submit_run_with_forbidden_file_path(pool: sqlx::SqlitePool) {
     let (app, _, temp) = create_test_server().pool(pool).call().await;
 
@@ -1332,6 +1336,7 @@ async fn submit_run_with_forbidden_file_path(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn submit_run_with_invalid_index_path(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -1363,6 +1368,7 @@ async fn submit_run_with_invalid_index_path(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn get_run_not_found(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 
@@ -1886,6 +1892,7 @@ task my_task {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn ambiguous_document_requires_target(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -1948,6 +1955,7 @@ task task_two {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn target_not_found_fails_run(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -2002,6 +2010,7 @@ async fn target_not_found_fails_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn empty_document_fails_run(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -2079,7 +2088,9 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Write workflow with task that will generate events
     let workflow_path = wdl_dir.join("test.wdl");
@@ -2130,6 +2141,7 @@ workflow test {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn invalid_next_token_returns_error(pool: sqlx::SqlitePool) {
     let (app, _db, _temp) = create_test_server().pool(pool).call().await;
 
@@ -2157,6 +2169,7 @@ async fn invalid_next_token_returns_error(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_runs_returns_empty_initially(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 
@@ -2179,6 +2192,7 @@ async fn list_runs_returns_empty_initially(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn get_run_returns_seeded_run(pool: sqlx::SqlitePool) {
     let (app, db, ..) = create_test_server().pool(pool).call().await;
     let session_id = uuid::Uuid::new_v4();
@@ -2226,6 +2240,7 @@ async fn get_run_returns_seeded_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn submit_run_rejects_non_object_inputs(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
     let submit_request = json!({
@@ -2252,6 +2267,7 @@ async fn submit_run_rejects_non_object_inputs(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn missing_run_action_endpoints_return_404(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
     let run_id = uuid::Uuid::new_v4();
@@ -2283,6 +2299,7 @@ async fn missing_run_action_endpoints_return_404(pool: sqlx::SqlitePool) {
 /// as the cancellation that task execution reports, so the run's outcome has to
 /// be classified from the cancellation context.
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
     use tokio::io::AsyncReadExt as _;
     use tokio::io::AsyncWriteExt as _;
