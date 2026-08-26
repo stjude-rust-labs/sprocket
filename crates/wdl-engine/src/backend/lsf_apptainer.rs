@@ -31,6 +31,7 @@ use anyhow::bail;
 use bytesize::ByteSize;
 use cloud_copy::Alphanumeric;
 use crankshaft::events::Event as CrankshaftEvent;
+use crankshaft::events::TaskId;
 use crankshaft::events::send_event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
@@ -219,7 +220,7 @@ struct Job {
     /// The current tick count of the job.
     tick: u64,
     /// The Crankshaft identifier for the job.
-    crankshaft_id: u64,
+    crankshaft_id: TaskId,
     /// The last known state of the job.
     state: JobState,
     /// The channel to notify of the completion of the job; provides the job's
@@ -383,10 +384,6 @@ impl MonitorState {
 struct SubmittedJob {
     /// The identifier for the LSF job.
     id: u64,
-    /// The task name for Crankshaft events.
-    ///
-    /// Note: this name differs from the job name used in `bsub`.
-    task_name: String,
     /// The receiver for when the job completes.
     completed: oneshot::Receiver<Result<u8>>,
 }
@@ -427,7 +424,7 @@ impl Monitor {
         &self,
         config: &LsfApptainerBackendConfig,
         request: &ExecuteTaskRequest<'_>,
-        crankshaft_id: u64,
+        crankshaft_id: TaskId,
         command_path: &Path,
         transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
@@ -557,7 +554,6 @@ impl Monitor {
 
         Ok(SubmittedJob {
             id: job_id,
-            task_name,
             completed: rx,
         })
     }
@@ -888,90 +884,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .as_lsf_apptainer()
                 .expect("configured backend is not LSF Apptainer");
 
-            // Create the host directory that will be mapped to the working directory.
-            let work_dir = request.work_dir();
-            fs::create_dir_all(&work_dir).await.with_context(|| {
-                format!(
-                    "failed to create working directory `{path}`",
-                    path = work_dir.display()
-                )
-            })?;
-
-            // Create an empty file for the task's stdout.
-            let stdout_path = request.stdout_path();
-            let _ = File::create(&stdout_path).await.with_context(|| {
-                format!(
-                    "failed to create stdout file `{path}`",
-                    path = stdout_path.display()
-                )
-            })?;
-
-            // Create an empty file for the task's stderr
-            let stderr_path = request.stderr_path();
-            let _ = File::create(&stderr_path).await.with_context(|| {
-                format!(
-                    "failed to create stderr file `{path}`",
-                    path = stderr_path.display()
-                )
-            })?;
-
-            // Write the evaluated command section to a host file.
-            let command_path = request.command_path();
-            fs::write(&command_path, request.command)
-                .await
-                .with_context(|| {
-                    format!(
-                        "failed to write command contents to `{path}`",
-                        path = command_path.display()
-                    )
-                })?;
-
-            let Some((apptainer_script, container)) = self
-                .apptainer
-                .generate_script(
-                    &backend_config.apptainer,
-                    &self.config.task.shell,
-                    &request,
-                    self.cancellation.first(),
-                )
-                .await?
-            else {
-                return Ok(None);
-            };
-
-            let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
-            fs::write(&apptainer_command_path, apptainer_script)
-                .await
-                .with_context(|| {
-                    format!(
-                        "failed to write Apptainer command file `{}`",
-                        apptainer_command_path.display()
-                    )
-                })?;
-
-            // Ensure the command files are executable
-            #[cfg(unix)]
-            {
-                use std::fs::Permissions;
-                use std::os::unix::fs::PermissionsExt;
-
-                fs::set_permissions(&command_path, Permissions::from_mode(0o770)).await?;
-                fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o770)).await?;
-            }
-
             let crankshaft_id = crankshaft::events::next_task_id();
-
-            let permit = self
-                .permits
-                .acquire()
-                .await
-                .context("failed to acquire permit for submitting job")?;
-
-            let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
-            drop(permit);
-
-            let name = job.task_name;
-            let job_id = job.id;
+            let name = request.name.to_string();
 
             // Create a task-specific cancellation token that is independent of the overall
             // cancellation context
@@ -986,90 +900,186 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 },
             );
 
-            let cancelled = async {
+            let run = async {
+                // Create the host directory that will be mapped to the working directory.
+                let work_dir = request.work_dir();
+                fs::create_dir_all(&work_dir).await.with_context(|| {
+                    format!(
+                        "failed to create working directory `{path}`",
+                        path = work_dir.display()
+                    )
+                })?;
+
+                // Create an empty file for the task's stdout.
+                let stdout_path = request.stdout_path();
+                let _ = File::create(&stdout_path).await.with_context(|| {
+                    format!(
+                        "failed to create stdout file `{path}`",
+                        path = stdout_path.display()
+                    )
+                })?;
+
+                // Create an empty file for the task's stderr
+                let stderr_path = request.stderr_path();
+                let _ = File::create(&stderr_path).await.with_context(|| {
+                    format!(
+                        "failed to create stderr file `{path}`",
+                        path = stderr_path.display()
+                    )
+                })?;
+
+                // Write the evaluated command section to a host file.
+                let command_path = request.command_path();
+                fs::write(&command_path, request.command)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to write command contents to `{path}`",
+                            path = command_path.display()
+                        )
+                    })?;
+
+                let Some((apptainer_script, container)) = self
+                    .apptainer
+                    .generate_script(
+                        &backend_config.apptainer,
+                        &self.config.task.shell,
+                        &request,
+                        self.cancellation.first(),
+                        self.events.crankshaft().map(|e| (e.clone(), crankshaft_id)),
+                    )
+                    .await?
+                else {
+                    send_event!(
+                        self.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled {
+                            id: crankshaft_id,
+                        },
+                    );
+
+                    return Ok(None);
+                };
+
+                let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
+                fs::write(&apptainer_command_path, apptainer_script)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to write Apptainer command file `{}`",
+                            apptainer_command_path.display()
+                        )
+                    })?;
+
+                // Ensure the command files are executable
+                #[cfg(unix)]
+                {
+                    use std::fs::Permissions;
+                    use std::os::unix::fs::PermissionsExt;
+
+                    fs::set_permissions(&command_path, Permissions::from_mode(0o770)).await?;
+                    fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o770)).await?;
+                }
+
+                let permit = self
+                    .permits
+                    .acquire()
+                    .await
+                    .context("failed to acquire permit for submitting job")?;
+
+                let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
+                drop(permit);
+
+                let job_id = job.id;
+
+                let cancelled = async {
+                    send_event!(
+                        self.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled { id: crankshaft_id },
+                    );
+
+                    self.kill_job(job_id).await
+                };
+
+                let token = self.cancellation.second();
+                let exit_code = tokio::select! {
+                    _ = task_token.cancelled() => {
+                        if let Err(e) = cancelled.await {
+                            error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
+                        }
+
+                        return Ok(None);
+                    }
+                    _ = token.cancelled() => {
+                        if let Err(e) = cancelled.await {
+                            error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
+                        }
+
+                        return Ok(None);
+                    }
+                    result = job.completed => match result.context("failed to wait for task to complete")? {
+                        Ok(exit_code) => {
+                            // See WEXITSTATUS from wait(2) to explain the shift and masking here
+                            #[cfg(unix)]
+                            let status = if exit_code >= 128 {
+                                // Treat it as a signal
+                                ExitStatus::from_raw((exit_code as i32 - 128) & 0x7f)
+                            } else {
+                                ExitStatus::from_raw((exit_code as i32) << 8)
+                            };
+
+                            #[cfg(windows)]
+                            let status = ExitStatus::from_raw(exit_code as u32);
+
+                            send_event!(
+                                self.events.crankshaft(),
+                                CrankshaftEvent::TaskCompleted {
+                                    id: crankshaft_id,
+                                    exit_statuses: NonEmpty::new(status),
+                                }
+                            );
+
+                            exit_code
+                        },
+                        Err(e) => {
+                            return Err(e);
+                        }
+                    }
+                };
+
+                Ok(Some(TaskExecutionResult {
+                    container: Some(container),
+                    exit_code: exit_code as i32,
+                    work_dir: EvaluationPath::from_local_path(work_dir),
+                    stdout: PrimitiveValue::new_file(
+                        stdout_path
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                        .into(),
+                    stderr: PrimitiveValue::new_file(
+                        stderr_path
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                        .into(),
+                }))
+            };
+
+            let result = run.await;
+            if let Err(e) = &result {
                 send_event!(
                     self.events.crankshaft(),
-                    CrankshaftEvent::TaskCanceled { id: crankshaft_id },
-                );
-
-                self.kill_job(job_id).await
-            };
-
-            let token = self.cancellation.second();
-            let exit_code = tokio::select! {
-                _ = task_token.cancelled() => {
-                    if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
-                    }
-
-                    return Ok(None);
-                }
-                _ = token.cancelled() => {
-                    if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
-                    }
-
-                    return Ok(None);
-                }
-                result = job.completed => match result.context("failed to wait for task to complete")? {
-                    Ok(exit_code) => {
-                        // See WEXITSTATUS from wait(2) to explain the shift and masking here
-                        #[cfg(unix)]
-                        let status = if exit_code >= 128 {
-                            // Treat it as a signal
-                            ExitStatus::from_raw((exit_code as i32 - 128) & 0x7f)
-                        } else {
-                            ExitStatus::from_raw((exit_code as i32) << 8)
-                        };
-
-                        #[cfg(windows)]
-                        let status = ExitStatus::from_raw(exit_code as u32);
-
-                        send_event!(
-                            self.events.crankshaft(),
-                            CrankshaftEvent::TaskCompleted {
-                                id: crankshaft_id,
-                                exit_statuses: NonEmpty::new(status),
-                            }
-                        );
-
-                        exit_code
+                    CrankshaftEvent::TaskFailed {
+                        id: crankshaft_id,
+                        message: e.to_string(),
                     },
-                    Err(e) => {
-                        send_event!(
-                            self.events.crankshaft(),
-                            CrankshaftEvent::TaskFailed {
-                                id: crankshaft_id,
-                                message: format!("{e:#}"),
-                            },
-                        );
+                );
+            }
 
-                        return Err(e);
-                    }
-                }
-            };
-
-            Ok(Some(TaskExecutionResult {
-                container: Some(container),
-                exit_code: exit_code as i32,
-                work_dir: EvaluationPath::from_local_path(work_dir),
-                stdout: PrimitiveValue::new_file(
-                    stdout_path
-                        .into_os_string()
-                        .into_string()
-                        .expect("path should be UTF-8"),
-                )
-                .into(),
-                stderr: PrimitiveValue::new_file(
-                    stderr_path
-                        .into_os_string()
-                        .into_string()
-                        .expect("path should be UTF-8"),
-                )
-                .into(),
-            }))
-        }
-        .boxed()
+            result
+        }.boxed()
     }
 }
 

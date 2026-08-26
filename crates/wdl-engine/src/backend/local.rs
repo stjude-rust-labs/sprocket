@@ -371,7 +371,7 @@ impl TaskExecutionBackend for LocalBackend {
                 config: self.config.clone(),
                 request,
                 name,
-                events: self.events.crankshaft().clone(),
+                events: self.events.crankshaft().cloned(),
                 cancellation: self.cancellation.clone(),
             };
 

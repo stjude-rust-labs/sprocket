@@ -7,6 +7,7 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::config::backend;
 use crankshaft::engine::Task;
@@ -25,7 +26,6 @@ use crankshaft::engine::task::output::Type as OutputType;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
-use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -134,8 +134,6 @@ struct DockerTask<'a> {
     config: Arc<Config>,
     /// The task execution request.
     request: ExecuteTaskRequest<'a>,
-    /// The resolved container image to use.
-    container: ContainerSource,
     /// The underlying Crankshaft backend.
     backend: Arc<docker::Backend>,
     /// The name of the task.
@@ -150,11 +148,61 @@ struct DockerTask<'a> {
     cancellation: CancellationContext,
 }
 
+/// Filters out any non-Docker sources.
+fn collect_applicable_sources(sources: &[ContainerSource]) -> anyhow::Result<Vec<String>> {
+    let mut pull_results = PullResults::default();
+    for source in sources {
+        match source {
+            ContainerSource::Docker(s) => pull_results.push(source.clone(), Ok(s.clone())),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support `{source:#}`; use a Docker registry image \
+                     instead"
+                );
+                warn!("{err:?}");
+                pull_results.push(source.clone(), Err(err));
+            }
+            ContainerSource::SifFile(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support local SIF file `{source:#}`; use a Docker \
+                     registry image instead"
+                );
+                warn!("{err:?}");
+                pull_results.push(source.clone(), Err(err));
+            }
+            ContainerSource::Unknown(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support unknown container source `{source:#}`"
+                );
+                warn!("{err:?}");
+                pull_results.push(source.clone(), Err(err));
+            }
+        }
+    }
+
+    if pull_results.successful_containers().next().is_none() {
+        return Err(anyhow!("{pull_results}"));
+    }
+
+    Ok(pull_results
+        .successful_containers()
+        .map(|(_, v)| v.clone())
+        .collect::<Vec<_>>())
+}
+
 impl<'a> DockerTask<'a> {
     /// Runs the docker task.
     ///
     /// Returns `Ok(None)` if the task was canceled.
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
+        let candidate_images = collect_applicable_sources(
+            self.request
+                .constraints
+                .container
+                .as_ref()
+                .context("task does not use a container")?,
+        )?;
+
         // Create the working directory
         let work_dir = self.request.work_dir();
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -279,7 +327,7 @@ impl<'a> DockerTask<'a> {
             .name(&self.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .image(self.container.to_string())
+                    .images(candidate_images)?
                     .program(&self.config.task.shell)
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
@@ -302,18 +350,24 @@ impl<'a> DockerTask<'a> {
             .volumes(volumes)
             .build();
 
-        let statuses = match self.backend.run(task, self.cancellation.second())?.await {
+        let results = match self.backend.run(task, self.cancellation.second())?.await {
             Ok(statuses) => statuses,
             Err(TaskRunError::Canceled) => return Ok(None),
             Err(e) => return Err(explain_missing_bind_source(e.into())),
         };
 
-        assert_eq!(statuses.len(), 1, "there should only be one exit status");
-        let status = statuses.first();
+        assert_eq!(results.len(), 1, "there should only be one result");
+        let result = results.first();
 
         Ok(Some(TaskExecutionResult {
-            container: Some(self.container),
-            exit_code: status.code().expect("should have exit code"),
+            container: Some(ContainerSource::Docker(
+                result
+                    .image
+                    .as_deref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+            )),
+            exit_code: result.status.code().expect("should have exit code"),
             work_dir: EvaluationPath::from_local_path(work_dir),
             stdout: PrimitiveValue::new_file(
                 stdout_path
@@ -371,7 +425,7 @@ impl CleanupTask {
             .name(&self.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .image("alpine:latest")
+                    .images(["alpine:latest"])?
                     .program("chown")
                     .args([
                         "-R".to_string(),
@@ -407,9 +461,9 @@ impl CleanupTask {
             .context("failed to submit cleanup task")?
             .await
         {
-            Ok(statuses) => {
-                let status = statuses.first();
-                if status.success() {
+            Ok(results) => {
+                let result = results.first();
+                if result.status.success() {
                     Ok(Some(()))
                 } else {
                     bail!(
@@ -422,74 +476,6 @@ impl CleanupTask {
             Err(e) => Err(e).context("failed to run cleanup task"),
         }
     }
-}
-
-/// Attempts to pull the first available Docker image from a list of
-/// candidates.
-///
-/// Iterates through the candidates in order, using the bollard API (via
-/// crankshaft) to ensure each image exists locally. Returns a
-/// [`PullResults`] containing the outcome of each attempt, stopping after the
-/// first success.
-async fn pull_first_available_docker_image(
-    docker: &crankshaft::docker::Docker,
-    candidates: &[ContainerSource],
-    token: CancellationToken,
-) -> Option<PullResults<ContainerSource>> {
-    let mut results = PullResults::default();
-
-    for candidate in candidates {
-        match candidate {
-            ContainerSource::Docker(_) => {}
-            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
-                let err = anyhow::anyhow!(
-                    "Docker backend does not support `{candidate:#}`; use a Docker registry image \
-                     instead"
-                );
-                warn!("{err:#}");
-                results.push(candidate.clone(), Err(err));
-                continue;
-            }
-            ContainerSource::SifFile(_) => {
-                let err = anyhow::anyhow!(
-                    "Docker backend does not support local SIF file `{candidate:#}`; use a Docker \
-                     registry image instead"
-                );
-                warn!("{err:#}");
-                results.push(candidate.clone(), Err(err));
-                continue;
-            }
-            ContainerSource::Unknown(_) => {
-                let err = anyhow::anyhow!(
-                    "Docker backend does not support unknown container source `{candidate:#}`"
-                );
-                warn!("{err:#}");
-                results.push(candidate.clone(), Err(err));
-                continue;
-            }
-        }
-
-        debug!("attempting to pull container image `{candidate:#}`");
-        match docker
-            .ensure_image(&candidate.to_string(), token.clone())
-            .await
-        {
-            Ok(Some(())) => {
-                debug!("successfully pulled container image `{candidate:#}`");
-                results.push(candidate.clone(), Ok(candidate.clone()));
-                return Some(results);
-            }
-            Ok(None) => return None,
-            Err(e) => {
-                let err =
-                    anyhow::anyhow!(e).context(format!("failed to pull image `{candidate:#}`"));
-                warn!("failed to pull container image `{candidate:#}`: {err:#}");
-                results.push(candidate.clone(), Err(err));
-            }
-        }
-    }
-
-    Some(results)
 }
 
 /// Represents the Docker backend.
@@ -535,7 +521,7 @@ impl DockerBackend {
                 .cleanup(backend_config.cleanup)
                 .build(),
             names.clone(),
-            events.crankshaft().clone(),
+            events.crankshaft().cloned(),
         )
         .await
         .context("failed to initialize Docker backend")?;
@@ -685,32 +671,11 @@ impl TaskExecutionBackend for DockerBackend {
                 .map(|i| (i as u64).min(self.max_memory));
             let gpu = requirements::gpu(request.inputs, request.requirements, request.hints);
 
-            let results = match pull_first_available_docker_image(
-                self.inner.client(),
-                request
-                    .constraints
-                    .container
-                    .as_ref()
-                    .context("task does not use a container")?,
-                self.cancellation.second(),
-            )
-            .await
-            {
-                Some(results) => results,
-                None => return Ok(None),
-            };
-
-            let (_, container) = results
-                .successful_container()
-                .ok_or_else(|| anyhow::anyhow!("{results}"))?;
-            let container = container.clone();
-
             let task_name = request.name.to_string();
 
             let task = DockerTask {
                 config: self.config.clone(),
                 request,
-                container,
                 backend: self.inner.clone(),
                 name: task_name.clone(),
                 max_cpu,

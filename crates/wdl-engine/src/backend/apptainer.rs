@@ -17,9 +17,12 @@ use std::sync::Mutex;
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
-use anyhow::bail;
+use crankshaft::events::Event;
+use crankshaft::events::TaskId;
+use crankshaft::events::send_event;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
+use tokio::sync::broadcast;
 use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
@@ -103,6 +106,7 @@ impl ApptainerRuntime {
         shell: &str,
         request: &ExecuteTaskRequest<'_>,
         token: CancellationToken,
+        events: Option<(broadcast::Sender<Event>, TaskId)>,
     ) -> Result<Option<(String, ContainerSource)>> {
         let results = match self
             .pull_first_available_image(
@@ -113,6 +117,7 @@ impl ApptainerRuntime {
                     .as_deref()
                     .ok_or_else(|| anyhow!("task does not use a container"))?,
                 token,
+                events,
             )
             .await
         {
@@ -121,7 +126,8 @@ impl ApptainerRuntime {
         };
 
         let (container, path) = results
-            .successful_container()
+            .successful_containers()
+            .next()
             .ok_or_else(|| anyhow!("{results}"))?;
         let container = container.clone();
         let path = path.clone();
@@ -276,15 +282,36 @@ impl ApptainerRuntime {
         executable: &str,
         container: &ContainerSource,
         token: CancellationToken,
+        events_ctx: Option<(broadcast::Sender<Event>, TaskId)>,
     ) -> Result<Option<PathBuf>> {
+        let events = events_ctx.as_ref().map(|(sender, _)| sender.clone());
+        let task = events_ctx.as_ref().map(|(_, task_id)| *task_id);
+
         // For local SIF files, return the path directly.
         if let ContainerSource::SifFile(path) = container {
             return Ok(Some(path.clone()));
         }
 
+        send_event!(
+            events,
+            Event::ImagePullStarted {
+                id: task.unwrap(),
+                name: container.uri()
+            }
+        );
+
         // For unknown container sources, error early.
         if let ContainerSource::Unknown(s) = container {
-            bail!("unknown container source `{s}`");
+            let err = format!("unknown container source `{s}`");
+            send_event!(
+                events,
+                Event::ImagePullFailed {
+                    id: task.unwrap(),
+                    name: container.uri(),
+                    message: err.clone()
+                }
+            );
+            return Err(anyhow::Error::msg(err));
         }
 
         // For registry-based images, pull and cache.
@@ -299,7 +326,8 @@ impl ApptainerRuntime {
             // SAFETY: the next two `unwrap` calls are safe because the source can't be a
             // file or an unknown source at this point
             let mut path = self.cache_dir.join(container.scheme().unwrap());
-            for part in container.name().unwrap().split("/") {
+            let name = container.name().unwrap();
+            for part in name.split("/") {
                 for part in part.split(':') {
                     path.push(part);
                 }
@@ -321,7 +349,7 @@ impl ApptainerRuntime {
                 })?;
             }
 
-            let container = format!("{container:#}");
+            let image = format!("{container:#}");
             let executable = executable.to_string();
 
             Retry::spawn_notify(
@@ -333,7 +361,7 @@ impl ApptainerRuntime {
                 ExponentialBackoff::from_millis(50)
                     .max_delay_millis(60_000)
                     .take(10),
-                || Self::try_pull_image(&executable, &container, &path),
+                || Self::try_pull_image(&executable, &image, &path),
                 {
                     let executable = executable.clone();
                     move |e: &anyhow::Error, _| {
@@ -343,14 +371,25 @@ impl ApptainerRuntime {
             )
             .await
             .with_context(|| format!("failed pulling Apptainer image `{container}`"))?;
-
             debug!(path = %path.display(), "Apptainer image `{container}` pulled successfully");
             Ok(path)
         });
 
         tokio::select! {
-            _ = token.cancelled() => Ok(None),
-            res = pull => res.map(|p| Some(p.clone())),
+            _ = token.cancelled() => {
+                send_event!(events, Event::ImagePullFailed { id: task.unwrap(), name: container.uri(), message: String::from("task canceled") });
+                Ok(None)
+            },
+            res = pull => match res {
+                Ok(p) => {
+                    send_event!(events, Event::ImagePullFinished { id: task.unwrap(), name: container.uri() });
+                    Ok(Some(p.clone()))
+                },
+                Err(e) => {
+                    send_event!(events, Event::ImagePullFailed { id: task.unwrap(), name: container.uri(), message: format!("{e:#}") });
+                    Err(e)
+                },
+            },
         }
     }
 
@@ -365,12 +404,16 @@ impl ApptainerRuntime {
         executable: &str,
         candidates: &[ContainerSource],
         token: CancellationToken,
+        events: Option<(broadcast::Sender<Event>, TaskId)>,
     ) -> Option<PullResults<PathBuf>> {
         let mut results = PullResults::default();
 
         for candidate in candidates {
             debug!("attempting to pull container image `{candidate:#}`");
-            match self.pull_image(executable, candidate, token.clone()).await {
+            match self
+                .pull_image(executable, candidate, token.clone(), events.clone())
+                .await
+            {
                 Ok(Some(path)) => {
                     debug!("successfully pulled container image `{candidate:#}`");
                     results.push(candidate.clone(), Ok(path));
@@ -520,6 +563,7 @@ mod tests {
                     temp_dir: &root.path().join("temp"),
                 },
                 CancellationToken::new(),
+                None,
             )
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))
@@ -572,6 +616,7 @@ mod tests {
                     temp_dir: &root.path().join("temp"),
                 },
                 CancellationToken::new(),
+                None,
             )
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))

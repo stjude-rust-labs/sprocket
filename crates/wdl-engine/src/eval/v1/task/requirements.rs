@@ -93,6 +93,17 @@ impl ContainerSource {
             Self::SifFile(_) | Self::Unknown(_) => None,
         }
     }
+
+    /// Gets the full URI ([`Self::scheme()`] + [`Self::name()`]) for display.
+    ///
+    /// This is used for user-facing events.
+    pub fn uri(&self) -> String {
+        match self {
+            ContainerSource::SifFile(path) => format!("file://{}", path.display()),
+            ContainerSource::Unknown(unknown) => unknown.clone(),
+            _ => format!("{}://{}", self.scheme().unwrap(), self.name().unwrap()),
+        }
+    }
 }
 
 impl FromStr for ContainerSource {
