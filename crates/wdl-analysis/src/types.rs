@@ -195,7 +195,7 @@ pub enum Type {
     /// The type is a call output.
     Call(CallType),
     /// A reference to a custom type name (struct or enum).
-    TypeNameRef(TypeNameRefType),
+    TypeNameRef(TypeNameRef),
 }
 
 // NOTE: `Type` was optimized to `24` bytes as part of the type representation
@@ -289,7 +289,7 @@ impl Type {
     /// Converts the type to a type name reference.
     ///
     /// Returns `None` if the type is not a type name reference.
-    pub fn as_type_name_ref(&self) -> Option<&TypeNameRefType> {
+    pub fn as_type_name_ref(&self) -> Option<&TypeNameRef> {
         match self {
             Self::TypeNameRef(ty) => Some(ty),
             _ => None,
@@ -654,8 +654,8 @@ impl From<CustomType> for Type {
     }
 }
 
-impl From<TypeNameRefType> for Type {
-    fn from(value: TypeNameRefType) -> Self {
+impl From<TypeNameRef> for Type {
+    fn from(value: TypeNameRef) -> Self {
         Self::TypeNameRef(value)
     }
 }
@@ -1505,9 +1505,9 @@ impl PartialEq for CallType {
     }
 }
 
-/// The inner type for [`TypeNameRefType`].
+/// The inner type for [`TypeNameRef`].
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct TypeNameRefTypeInner {
+struct TypeNameRefInner {
     /// The name used to refer to the type.
     name: String,
     /// The custom type that was referred to.
@@ -1516,13 +1516,13 @@ struct TypeNameRefTypeInner {
 
 /// Represents a reference to a custom type (struct or enum).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TypeNameRefType(Arc<TypeNameRefTypeInner>);
+pub struct TypeNameRef(Arc<TypeNameRefInner>);
 
-impl TypeNameRefType {
-    /// Constructs a new [`TypeNameRefType`].
+impl TypeNameRef {
+    /// Constructs a new [`TypeNameRef`].
     pub fn new(name: impl Into<String>, ty: CustomType) -> Self {
         Self(
-            TypeNameRefTypeInner {
+            TypeNameRefInner {
                 name: name.into(),
                 ty,
             }
@@ -1561,7 +1561,7 @@ impl TypeNameRefType {
     }
 }
 
-impl std::fmt::Display for TypeNameRefType {
+impl std::fmt::Display for TypeNameRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.name.fmt(f)
     }

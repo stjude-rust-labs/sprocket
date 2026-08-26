@@ -7,6 +7,7 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::config::backend;
 use crankshaft::engine::Task;
@@ -42,6 +43,7 @@ use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
 use crate::backend::ExecuteTaskRequest;
+use crate::backend::PullResults;
 use crate::backend::manager::ManagedTask;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
@@ -272,10 +274,9 @@ impl ManagedTask for DockerTask<'_> {
             .name(self.request.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .images(
-                        filter_docker_sources(&self.request.constraints.sources)
-                            .map(ToString::to_string),
-                    )?
+                    .images(collect_applicable_sources(
+                        &self.request.constraints.sources,
+                    )?)?
                     .program(&self.config.task.shell)
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
@@ -436,28 +437,48 @@ impl ManagedTask for CleanupTask<'_> {
     }
 }
 
-/// Filters the provided image sources so that only Docker sources are yielded.
+/// Collects only Docker image sources.
 ///
-/// If a source is unsupported, a warning is emitted and the source ignored.
-fn filter_docker_sources(candidates: &[ImageSource]) -> impl Iterator<Item = &ImageSource> {
-    candidates.iter().filter(|s| match s {
-        ImageSource::Docker(_) => true,
-        ImageSource::Library(_) | ImageSource::Oras(_) => {
-            warn!("Docker backend does not support `{s:#}`; use a Docker registry image instead");
-            false
+/// A warning is emitted for unsupported sources.
+fn collect_applicable_sources(sources: &[ImageSource]) -> anyhow::Result<Vec<String>> {
+    let mut results = PullResults::default();
+    for source in sources {
+        match source {
+            ImageSource::Docker(s) => results.push(source.clone(), Ok(s.clone())),
+            ImageSource::Library(_) | ImageSource::Oras(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support `{source:#}`; use a Docker registry image \
+                     instead"
+                );
+                warn!("{err:?}");
+                results.push(source.clone(), Err(err));
+            }
+            ImageSource::SifFile(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support local SIF file `{source:#}`; use a Docker \
+                     registry image instead"
+                );
+                warn!("{err:?}");
+                results.push(source.clone(), Err(err));
+            }
+            ImageSource::Unknown(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support unknown container source `{source:#}`"
+                );
+                warn!("{err:?}");
+                results.push(source.clone(), Err(err));
+            }
         }
-        ImageSource::SifFile(_) => {
-            warn!(
-                "Docker backend does not support local SIF file `{s:#}`; use a Docker registry \
-                 image instead"
-            );
-            false
-        }
-        ImageSource::Unknown(_) => {
-            warn!("Docker backend does not support unknown container image source `{s:#}`");
-            false
-        }
-    })
+    }
+
+    if results.successful_images().next().is_none() {
+        return Err(anyhow!("{results}"));
+    }
+
+    Ok(results
+        .successful_images()
+        .map(|(_, v)| v.clone())
+        .collect::<Vec<_>>())
 }
 
 /// Represents the Docker backend.

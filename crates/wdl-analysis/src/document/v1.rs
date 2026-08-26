@@ -135,7 +135,7 @@ use crate::types::Optional;
 use crate::types::PairType;
 use crate::types::PrimitiveType;
 use crate::types::Type;
-use crate::types::TypeNameRefType;
+use crate::types::TypeNameRef;
 use crate::types::TypeNameResolver;
 use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
@@ -2862,7 +2862,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
         // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
         if let Some(s) = self.document.structs.get(name).and_then(|s| s.ty()) {
             return Some(
-                TypeNameRefType::new(
+                TypeNameRef::new(
                     name,
                     s.as_struct()
                         .expect("type should be a struct")
@@ -2876,7 +2876,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
         // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
         if let Some(e) = self.document.enums.get(name).and_then(|e| e.ty()) {
             return Some(
-                TypeNameRefType::new(
+                TypeNameRef::new(
                     name,
                     e.as_enum().expect("type should be an enum").clone().into(),
                 )

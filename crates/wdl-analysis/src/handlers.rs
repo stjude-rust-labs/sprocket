@@ -8,7 +8,7 @@ use crate::Document;
 use crate::Exceptable;
 use crate::diagnostics;
 use crate::document::ScopeRef;
-use crate::types::TypeNameRefType;
+use crate::types::TypeNameRef;
 use crate::types::v1::EvaluationContext;
 
 mod call_hierarchy;
@@ -78,7 +78,7 @@ impl EvaluationContext for TypeEvalContext<'_> {
 
         if let Some(ty) = self.document.get_custom_type(name) {
             return Some(
-                TypeNameRefType::new(
+                TypeNameRef::new(
                     name,
                     ty.as_custom()
                         .expect("type should be a custom type")
