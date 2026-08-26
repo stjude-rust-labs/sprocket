@@ -3803,10 +3803,19 @@ type = 'lsf_apptainer'
         /// The string is expected to be a valid WDL expression.
         async fn eval(context: Context, expression: &str) -> Result<bool> {
             let dir = tempdir().context("failed to create temporary directory")?;
+            let config = Config {
+                backends: IndexMap::from_iter([(
+                    "default".to_string(),
+                    BackendConfig::Local {
+                        config: Default::default(),
+                    },
+                )]),
+                ..Default::default()
+            };
             let condition = Condition::new(expression).expect("invalid expression");
             condition
                 .evaluate(&ExecuteTaskRequest {
-                    engine: &Engine::new_with_transferer(Config::default(), Transferer).await?,
+                    engine: &Engine::new_with_transferer(config, Transferer).await?,
                     name: "test",
                     command: "",
                     inputs: &context.inputs,
