@@ -902,6 +902,9 @@ pub async fn run(
     }
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    if let Some(output_dir) = &args.output_dir {
+        config.run.output_dir.clone_from(output_dir);
+    }
     args.apply_engine_config(&mut config.run.engine);
 
     // Bring a stale or missing module lockfile up to date before executing so
@@ -1191,11 +1194,7 @@ async fn setup_run_context(
     inputs: &Inputs,
 ) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
-    let output_dir = OutputDirectory::new(
-        args.output_dir
-            .clone()
-            .unwrap_or_else(|| config.run.output_dir.clone()),
-    );
+    let output_dir = OutputDirectory::new(config.run.output_dir.clone());
 
     // Acquire an exclusive lock on the output directory to serialize setup
     // operations across concurrent processes (e.g., database creation,
@@ -1221,7 +1220,7 @@ async fn setup_run_context(
     );
 
     // Open or create the database for provenance tracking
-    let db_path = config.server.database_url();
+    let db_path = config.server.database.resolve_url(output_dir.root());
     let db = open_database(&db_path).await?;
 
     // Create session and run records

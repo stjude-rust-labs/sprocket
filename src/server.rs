@@ -74,7 +74,10 @@ async fn create_server_app(
     report_mode: Mode,
     colorize: bool,
 ) -> anyhow::Result<Router> {
-    let db_path = config.server.database_url();
+    let db_path = config
+        .server
+        .database
+        .resolve_url(&config.server.output_dir);
 
     let db = open_database(&db_path).await?;
     let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
