@@ -399,9 +399,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Value::Compound(CompoundValue::Array(v))
                     if matches!(placeholder.option(), Some(PlaceholderOption::Sep(_)))
                         && v.as_slice()
-                            .first()
-                            .map(|e| !matches!(e, Value::None(_) | Value::Compound(_)))
-                            .unwrap_or(false) =>
+                            .iter()
+                            .all(|e| matches!(e, Value::Primitive(_))) =>
                 {
                     let option = placeholder.option().unwrap().unwrap_sep();
 
@@ -415,7 +414,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
 
                         match e {
-                            Value::None(_) => {}
                             Value::Primitive(v) => {
                                 write!(buffer, "{v}", v = v.raw(Some(&evaluator.context))).unwrap()
                             }
@@ -2184,6 +2182,20 @@ pub(crate) mod test {
             .await
             .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1+2+3 = 6");
+
+        env.insert_name(
+            "empty",
+            Array::new(ArrayType::new(PrimitiveType::String), Vec::<Value>::new()).unwrap(),
+        );
+        let value = eval_v1_expr(&env, V1::Two, r#""~{sep="+" empty}""#)
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "");
+
+        let value = eval_v1_expr(&env, V1::Two, r#""~{sep="+" prefix("-i ", empty)}""#)
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "");
 
         let diagnostic = eval_v1_expr(&env, V1::Two, r#""~{[1, 2, 3]}""#)
             .await
