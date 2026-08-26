@@ -70,6 +70,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::uses_docker_backend;
+use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
@@ -1136,6 +1138,8 @@ pub async fn test(
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.validate()?;
 
+    // Determined here as the engine configuration is moved into the engine below.
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let engine = Engine::new(config.run.engine)
         .await
         .context("failed to create WDL evaluation engine")?;
@@ -1183,6 +1187,10 @@ pub async fn test(
 
             _ = tokio::signal::ctrl_c() => {
                 if cancellation.state() == CancellationContextState::Canceling {
+                    if uses_docker {
+                        warn_docker_termination();
+                    }
+
                     return Err(anyhow!("evaluation was interrupted").into());
                 }
 
