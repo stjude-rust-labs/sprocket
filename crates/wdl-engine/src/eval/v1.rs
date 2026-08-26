@@ -53,6 +53,10 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
 /// To create an [`Evaluator`], see [`Engine::create_v1_evaluator`].
 ///
 /// This type is cheaply cloned and sendable between threads.
+///
+/// Note: as the evaluator internally holds a reference to the provided
+/// [`Events`], the evaluator must be dropped prior to waiting for event
+/// subscribers to close.
 #[derive(Clone)]
 pub struct Evaluator {
     /// The engine for the evaluator.

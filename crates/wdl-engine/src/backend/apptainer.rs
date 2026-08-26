@@ -18,6 +18,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use blake3::Hasher;
 use crankshaft::events::Event;
 use crankshaft::events::TaskId;
 use crankshaft::events::send_event;
@@ -314,31 +315,19 @@ impl ApptainerRuntime {
 
         let pull_cancellation = cancellation.clone();
         let result = once.get_or_try_init(|| async move {
-            // SAFETY: the next two `unwrap` calls are safe because the source can't be a
-            // file or an unknown source at this point
-            let mut path = self.cache_dir.join(image.scheme().unwrap());
-            let name = image.name().unwrap();
-            for part in name.split("/") {
-                for part in part.split(':') {
-                    path.push(part);
-                }
-            }
+            let uri = image.uri();
 
+            // Hash the image's URI
+            let mut hasher = Hasher::new();
+            hasher.update(uri.as_bytes());
+            let key = hasher.finalize().to_hex();
+
+            // Format the path to the output image
+            let mut path = self.cache_dir.join(key.as_str());
             path.add_extension("sif");
 
-            // As an image always has a scheme and name, the parent directory is guaranteed to exist
-            let parent = path.parent().expect("image cache entry does not have a parent directory");
-
-            // Create the parent directory prior to creating the lock file
-            tokio::fs::create_dir_all(parent).await.with_context(|| {
-                format!(
-                    "failed to create directory `{parent}`",
-                    parent = parent.display()
-                )
-            })?;
-
             // Take an exclusive lock to prevent another process from also attempting a pull for this cache entry
-            let _lock = LockedFile::acquire_exclusive(parent.join(LOCK_FILE_NAME)).await?;
+            let _lock = LockedFile::acquire_exclusive(path.with_extension(LOCK_FILE_NAME)).await?;
 
             // If the image already exists, then a previous pull was successful
             if path.exists() {
@@ -355,7 +344,7 @@ impl ApptainerRuntime {
                 events.crankshaft(),
                 Event::ImagePullStarted {
                     id: task_id,
-                    name: image.uri()
+                    name: uri.clone()
                 }
             );
 
@@ -379,7 +368,7 @@ impl ApptainerRuntime {
 
             tokio::select! {
                 _ = pull_cancellation.cancelled() => {
-                    send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: image.uri(), message: String::from("pull canceled") });
+                    send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: String::from("pull canceled") });
                     Err(anyhow!("pull canceled"))
                 },
                 res = pull => match res.with_context(|| format!("failed pulling Apptainer image `{image:#}`")) {
@@ -389,7 +378,7 @@ impl ApptainerRuntime {
                         Ok(path)
                     },
                     Err(e) => {
-                        send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: image.uri(), message: format!("{e:#}") });
+                        send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: format!("{e:#}") });
                         Err(e)
                     },
                 },
@@ -526,6 +515,7 @@ mod tests {
 
     use super::*;
     use crate::CancellationContext;
+    use crate::Config;
     use crate::Engine;
     use crate::EvaluationPath;
     use crate::Events;
@@ -552,7 +542,7 @@ mod tests {
                 &ApptainerConfig::default(),
                 DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
-                    engine: &Engine::new(Default::default()).await.unwrap(),
+                    engine: &Engine::new(Config::local()).await.unwrap(),
                     name: "example-task-0",
                     command: "echo hello",
                     inputs: &TaskInputs::default(),
@@ -609,7 +599,7 @@ mod tests {
                 &ApptainerConfig::default(),
                 DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
-                    engine: &Engine::new(Default::default()).await.unwrap(),
+                    engine: &Engine::new(Config::local()).await.unwrap(),
                     name: "example-task-0",
                     command: "echo hello",
                     inputs: &TaskInputs::default(),

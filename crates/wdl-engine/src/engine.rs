@@ -45,10 +45,6 @@ struct EngineInner {
 /// creating new [`Evaluator`](crate::v1::Evaluator) from the engine.
 ///
 /// This type is cheaply cloned.
-///
-/// Note: as the engine holds a reference to the provided [`Events`], the engine
-/// and all evaluators created by the engine must be dropped prior to waiting
-/// for event subscribers to close.
 #[derive(Clone)]
 pub struct Engine(Arc<EngineInner>);
 

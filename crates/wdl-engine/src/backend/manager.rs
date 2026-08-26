@@ -13,7 +13,6 @@ use futures::channel::oneshot;
 use ordered_float::OrderedFloat;
 use tracing::debug;
 
-use crate::CancellationContextState;
 use crate::EngineEvent;
 use crate::backend::ExecuteTaskRequest;
 
@@ -266,7 +265,6 @@ impl TaskManager {
                 };
 
                 // Run the task, waiting for it to be unparked if necessary
-                let cancellation = task.request().cancellation.clone();
                 let res = match &mut parked {
                     Some((notify, _)) => {
                         if let Some(sender) = task.request().events.engine() {
@@ -274,7 +272,7 @@ impl TaskManager {
                         }
 
                         // Wait for cancellation or notice of being unparked
-                        let token = cancellation.first();
+                        let token = task.request().cancellation.first();
                         let canceled = tokio::select! {
                             biased;
                             _ = token.cancelled() => true,
@@ -295,10 +293,13 @@ impl TaskManager {
 
                 let mut state = limits.0.lock().expect("failed to lock state");
                 match parked {
-                    Some((_, id)) if state.parked.iter().any(|t| t.id == id) => {
-                        // Task is still parked, it must have been canceled; don't increment the
+                    Some((_, id))
+                        if let Some(index) = state.parked.iter().position(|t| t.id == id) =>
+                    {
+                        // Task is still parked; remove it from set and do not increment the
                         // resource counts
                         assert!(matches!(res, Ok(None)), "task should be canceled");
+                        state.parked.swap_remove_back(index);
                     }
                     _ => {
                         // Task was either not parked or previously unparked, increment the resource
@@ -308,14 +309,8 @@ impl TaskManager {
                     }
                 }
 
-                // If a cancellation has occurred, clear the parked tasks; otherwise, unpark
-                // what tasks we can
-                if cancellation.state() != CancellationContextState::NotCanceled {
-                    state.parked.clear();
-                } else {
-                    state.unpark_tasks();
-                }
-
+                // Unpark what tasks we can
+                state.unpark_tasks();
                 res
             }
             None => {
