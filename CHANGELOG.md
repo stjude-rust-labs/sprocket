@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.30.0 - 2026-08-26
+
 ### Added
 
 * Runs whose owning process stops reporting are marked `orphaned` after
