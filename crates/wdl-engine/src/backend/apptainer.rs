@@ -327,7 +327,7 @@ impl ApptainerRuntime {
             path.add_extension("sif");
 
             // Take an exclusive lock to prevent another process from also attempting a pull for this cache entry
-            let _lock = LockedFile::acquire_exclusive(path.with_extension(LOCK_FILE_NAME)).await?;
+            let _lock = LockedFile::acquire_exclusive(path.with_extension("lock")).await?;
 
             // If the image already exists, then a previous pull was successful
             if path.exists() {
