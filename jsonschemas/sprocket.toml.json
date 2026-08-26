@@ -1208,7 +1208,7 @@
         },
         "database": {
           "description": "Database configuration.",
-          "$ref": "#/$defs/ServerDatabaseConfig"
+          "$ref": "#/$defs/DatabaseConfig"
         },
         "output_dir": {
           "description": "Directory for workflow outputs.",
@@ -1249,8 +1249,8 @@
       },
       "additionalProperties": false
     },
-    "ServerDatabaseConfig": {
-      "description": "Server database configuration.",
+    "DatabaseConfig": {
+      "description": "Database configuration.",
       "type": "object",
       "properties": {
         "url": {

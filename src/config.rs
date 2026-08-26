@@ -497,11 +497,11 @@ impl Default for RunConfig {
     }
 }
 
-/// Server database configuration.
+/// Database configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
-pub struct ServerDatabaseConfig {
+pub struct DatabaseConfig {
     /// Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db`
     /// in the output directory. in the output directory.
     #[toml(default = String::from(sentinel_database_filename()))]
@@ -509,10 +509,24 @@ pub struct ServerDatabaseConfig {
     pub url: String,
 }
 
-impl Default for ServerDatabaseConfig {
+impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
             url: sentinel_database_filename().into(),
+        }
+    }
+}
+
+impl DatabaseConfig {
+    /// Resolves the database URL for the given output directory.
+    pub(crate) fn resolve_url(&self, output_dir: &Path) -> String {
+        if self.url == sentinel_database_filename() {
+            output_dir
+                .join(DEFAULT_DATABASE_FILENAME)
+                .to_string_lossy()
+                .to_string()
+        } else {
+            self.url.clone()
         }
     }
 }
@@ -605,7 +619,7 @@ pub struct ServerConfig {
     /// Database configuration.
     #[toml(default, style = Header)]
     #[schemars(default)]
-    pub database: ServerDatabaseConfig,
+    pub database: DatabaseConfig,
     /// Directory for workflow outputs.
     #[toml(default = PathBuf::from(default_output_directory()))]
     #[schemars(default = "default_output_directory")]
@@ -640,7 +654,7 @@ impl Default for ServerConfig {
             host: default_host().into(),
             port: default_port(),
             allowed_origins: Vec::new(),
-            database: ServerDatabaseConfig::default(),
+            database: DatabaseConfig::default(),
             output_dir: DEFAULT_OUTPUT_DIRECTORY.into(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
@@ -652,18 +666,6 @@ impl Default for ServerConfig {
 }
 
 impl ServerConfig {
-    /// Get the database URL.
-    pub fn database_url(&self) -> String {
-        if self.database.url == sentinel_database_filename() {
-            self.output_dir
-                .join(DEFAULT_DATABASE_FILENAME)
-                .to_string_lossy()
-                .to_string()
-        } else {
-            self.database.url.to_string()
-        }
-    }
-
     /// The interval at which a process records a liveness heartbeat on the
     /// session it owns, and a server re-sweeps for sessions that have stopped
     /// recording one.
@@ -1459,20 +1461,20 @@ mod test {
     }
 
     #[test]
-    fn server_database_url_uses_output_dir_for_default() {
-        let config = ServerConfig::default();
+    fn database_url_uses_output_dir_for_default() {
+        let config = DatabaseConfig::default();
         assert_eq!(
-            PathBuf::from(config.database_url()),
-            PathBuf::from(".").join("out").join("sprocket.db")
+            PathBuf::from(config.resolve_url(Path::new("custom-output"))),
+            PathBuf::from("custom-output").join("sprocket.db")
         );
 
-        let config = ServerConfig {
-            database: ServerDatabaseConfig {
-                url: "sqlite://custom.db".to_string(),
-            },
-            ..Default::default()
+        let config = DatabaseConfig {
+            url: "sqlite://custom.db".to_string(),
         };
-        assert_eq!(config.database_url(), "sqlite://custom.db");
+        assert_eq!(
+            config.resolve_url(Path::new("ignored")),
+            "sqlite://custom.db"
+        );
     }
 
     #[test]
