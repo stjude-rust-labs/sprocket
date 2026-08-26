@@ -241,6 +241,7 @@ command <<<>>>
     const INVALID_FILE: &str = r#"this is not valid wdl"#;
 
     #[tokio::test]
+    #[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
     pub async fn can_submit_and_complete() -> anyhow::Result<()> {
         let ServerTestFixture {
             server_task,
