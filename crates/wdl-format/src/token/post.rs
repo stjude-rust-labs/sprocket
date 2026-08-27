@@ -354,7 +354,10 @@ pub struct Postprocessor {
     /// Temporary indentation to add.
     temp_indent: Option<Rc<String>>,
 
+    /// Whether potential splits should be linebroken or not.
     fit_potential_splits: bool,
+
+    /// The delimiter to use when "fitting" a potential split.
     fit_delimiter: Option<Rc<String>>,
 }
 
@@ -568,9 +571,10 @@ impl Postprocessor {
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
         let mut post_buffer = TokenStream::<PostToken>::default();
 
-        // If we encounter any potential splits, we use the first iteration to find any spans that
-        // will fit. If we don't find any potential splits, we can just push the result of the first
-        // iteration to the out stream and be done.
+        // If we encounter any potential splits, we use the first iteration to find any
+        // spans that will fit. If we don't find any potential splits, we can
+        // just push the result of the first iteration to the out stream and be
+        // done.
         self.fit_potential_splits = true;
         let mut fit_spans = Vec::new();
         let mut fit_start = None;
@@ -784,7 +788,7 @@ impl Postprocessor {
             if fit_span.is_some_and(|(_start, end)| *end == i) {
                 disable_fit_after_step = true;
                 fit_span = fit_spans.next();
-            } else if let PreToken::FitOrSplitEnd { split_end_line, .. } = token {
+            } else if let PreToken::FitOrSplitEnd { .. } = token {
                 self.indent_level = self.indent_level.saturating_sub(1);
                 self.interrupted = false;
             }

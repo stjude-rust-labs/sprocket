@@ -63,17 +63,30 @@ pub enum PreToken {
     /// See [`PreToken::TempIndentStart`] for more information.
     TempIndentEnd,
 
+    /// The start of a fit or split block.
     FitOrSplitStart {
+        /// If the block will be "fit", insert this literal string at the
+        /// beginning.
         fit_start: Rc<String>,
+        /// If the block will be "fit", insert this literal string between each
+        /// potential split.
         fit_delimiter: Rc<String>,
+        /// If the block will be split, end the line after inserting
+        /// `fit_start`.
         split_end_line: bool,
     },
 
+    /// A potential split in a fit or split block.
     PotentialSplit,
 
+    /// The end of a fit or split block.
     FitOrSplitEnd {
+        /// If the block will be "fit", insert this literal string at the end.
         fit_end: Rc<String>,
+        /// If the block will be split, insert this literal string at the end.
         split_end: Rc<String>,
+        /// If the block will be split, end the line after inserting
+        /// `split_end`.
         split_end_line: bool,
     },
 }
@@ -170,6 +183,7 @@ impl TokenStream<PreToken> {
         self.0.push(PreToken::IndentEnd);
     }
 
+    /// Start a fit or split block.
     pub fn fit_or_split_start(
         &mut self,
         fit_start: Rc<String>,
@@ -183,10 +197,12 @@ impl TokenStream<PreToken> {
         })
     }
 
+    /// Insert a potential split in the middle of a fit or split block.
     pub fn potential_split(&mut self) {
         self.0.push(PreToken::PotentialSplit);
     }
 
+    /// End a fit or split block.
     pub fn fit_or_split_end(
         &mut self,
         fit_end: Rc<String>,
