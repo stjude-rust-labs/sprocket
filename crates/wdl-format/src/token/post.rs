@@ -783,13 +783,13 @@ impl Postprocessor {
                     indent_on_first_split = false;
                 }
             }
-            let mut disable_fit_after_step = false;
-            if fit_span.is_some_and(|(_start, end)| *end == i) {
-                disable_fit_after_step = true;
-                fit_span = fit_spans.next();
-            } else if let PreToken::FitOrSplitEnd { .. } = token {
+            if !self.fit_potential_splits
+                && let PreToken::FitOrSplitEnd { split_end_line, .. } = token
+            {
                 self.indent_level = self.indent_level.saturating_sub(1);
-                self.interrupted = false;
+                if *split_end_line {
+                    self.interrupted = false;
+                }
             }
 
             if let Some(max) = max_length {
@@ -844,7 +844,8 @@ impl Postprocessor {
             let next = pre_buffer.peek().map(|(_, n)| *n);
             self.step(token.clone(), next, &mut post_buffer);
 
-            if disable_fit_after_step {
+            if fit_span.is_some_and(|(_start, end)| *end == i) {
+                fit_span = fit_spans.next();
                 self.fit_potential_splits = false;
             }
             // If we cached before the step and the line is now too long, revert, line
