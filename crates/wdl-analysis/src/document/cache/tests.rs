@@ -948,3 +948,54 @@ enum FooBar {
         assert!(!data_b.cache.imports.contains_key(import_hash_a));
     }
 }
+
+#[tokio::test]
+#[test_log::test]
+async fn type_updates() {
+    let initial_content = r#"version 1.3
+
+task foo {
+    Array[Int] a = []
+    Array[Int]? b = None
+
+    command <<<>>>
+
+    output {
+        Array[Int] c = a
+        Array[Int]? d = b
+    }
+}
+"#;
+
+    let ([doc_main], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
+
+    let result = doc_main.analyze(&analyzer).await;
+    assert!(dbg!(result.document().analysis_diagnostics()).is_empty());
+
+    // Change `Array[Int]` to `Array[Int]+` and `Array[Int]?` to `Array[Int]`
+    analyzer
+        .notify_incremental_change(
+            doc_main.uri.clone(),
+            IncrementalChange {
+                version: 1,
+                start: None,
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(3, 14)..SourcePosition::new(3, 14),
+                        SourcePositionEncoding::UTF8,
+                        r#"+"#.to_string(),
+                    ),
+                    SourceEdit::new(
+                        SourcePosition::new(4, 14)..SourcePosition::new(4, 15),
+                        SourcePositionEncoding::UTF8,
+                        r#" "#.to_string(),
+                    ),
+                ],
+            },
+        )
+        .unwrap();
+
+    let result2 = doc_main.analyze(&analyzer).await;
+    assert!(!result2.document().analysis_diagnostics().is_empty());
+}

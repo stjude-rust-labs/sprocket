@@ -203,25 +203,31 @@ impl HashableElement for Type {
         }
         match self {
             Type::Map(map) => {
+                Digest::update(hasher, [2]);
                 let (k, v) = map.types();
                 HashableElement::hash(&k, hasher);
                 HashableElement::hash(&v, hasher);
             }
             Type::Array(array) => {
+                Digest::update(hasher, [3, array.is_non_empty() as u8]);
                 HashableElement::hash(&array.element_type(), hasher);
             }
             Type::Pair(pair) => {
+                Digest::update(hasher, [4]);
                 let (l, r) = pair.types();
                 HashableElement::hash(&l, hasher);
                 HashableElement::hash(&r, hasher);
             }
             Type::Object(_) => {
+                Digest::update(hasher, [5]);
                 hash_text(hasher, "Object");
             }
             Type::Ref(type_ref) => {
+                Digest::update(hasher, [6]);
                 hash_text(hasher, type_ref.name().text());
             }
             Type::Primitive(p) => {
+                Digest::update(hasher, [7]);
                 HashableElement::hash(p, hasher);
             }
         }
