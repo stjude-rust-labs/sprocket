@@ -787,13 +787,15 @@ impl Postprocessor {
             if !self.fit_potential_splits
                 && let PreToken::FitOrSplitEnd { split_end_line, .. } = token
             {
-                self.indent_level = self.indent_level.saturating_sub(1);
+                self.indent_level -= 1;
                 if *split_end_line {
                     self.interrupted = false;
                 }
             }
 
-            if let Some(max) = max_length {
+            if let Some(max) = max_length
+                && !self.fit_potential_splits
+            {
                 if let PreToken::Literal(_, kind) = token {
                     // Check if we need a break to match a prior tandem break
                     if let Some(top_of_stack) = break_stack.last_mut() {
@@ -882,6 +884,7 @@ impl Postprocessor {
             // check if we should line break now, after the step has been taken
             if let Some(max) = max_length
                 && let PreToken::Literal(_, kind) = token
+                && !self.fit_potential_splits
             {
                 // will be cleared to `None` if a linebreak is added this pass
                 prev_kind = Some(*kind);
