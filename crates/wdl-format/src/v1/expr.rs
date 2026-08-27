@@ -4,6 +4,7 @@ use wdl_ast::SyntaxKind;
 
 use crate::Config;
 use crate::PreToken;
+use crate::SPACE;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
@@ -394,12 +395,12 @@ pub fn format_literal_array(
 
     let empty = items.is_empty();
     if !empty {
-        stream.increment_indent();
-        stream.end_line();
+        stream.fit_or_split_start("".to_string().into(), SPACE.to_string().into(), true);
     }
 
     let mut items = items.iter().peekable();
     let mut commas = commas.iter();
+    let mut trailing_comma_inserted = false;
     while let Some(item) = items.next() {
         (item).write(stream, config);
         if let Some(comma) = commas.next()
@@ -407,16 +408,23 @@ pub fn format_literal_array(
         {
             (comma).write(stream, config);
             if items.peek().is_some() {
-                stream.end_line();
+                stream.potential_split();
+            } else {
+                trailing_comma_inserted = true;
             }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
     }
 
     if !empty {
-        stream.decrement_indent();
-        stream.end_line();
+        stream.fit_or_split_end(
+            "".to_string().into(),
+            if trailing_comma_inserted {
+                "".to_string().into()
+            } else {
+                ",".to_string().into()
+            },
+            true,
+        );
     }
     (&close_bracket.expect("literal array close bracket")).write(stream, config);
 }
@@ -1001,7 +1009,10 @@ pub fn format_if_expr(
             }
             // only match on `else`; `then` could be considered for "chaining" but that
             // makes it harder to read IMO (a-frantz).
-            result = matches!(cur.kind(), SyntaxKind::ElseKeyword);
+            result = matches!(
+                cur.kind(),
+                SyntaxKind::ElseKeyword // | SyntaxKind::ThenKeyword
+            );
             break;
         }
         result
@@ -1010,16 +1021,28 @@ pub fn format_if_expr(
     let mut children = element.children().expect("if expr children").peekable();
     while let Some(child) = children.next() {
         match child.element().kind() {
+            SyntaxKind::IfKeyword => {
+                if !in_chain {
+                    stream.fit_or_split_start(
+                        "".to_string().into(),
+                        SPACE.to_string().into(),
+                        false,
+                    );
+                }
+            }
             SyntaxKind::ThenKeyword => {
                 if !in_chain {
-                    stream.increment_indent();
-                    stream.end_line();
+                    stream.potential_split();
                 } else {
                     stream.end_line();
                 }
             }
             SyntaxKind::ElseKeyword => {
-                stream.end_line();
+                if !in_chain {
+                    stream.potential_split();
+                } else {
+                    stream.end_line();
+                }
             }
             _ => {}
         }
@@ -1030,6 +1053,6 @@ pub fn format_if_expr(
     }
 
     if !in_chain {
-        stream.decrement_indent();
+        stream.fit_or_split_end("".to_string().into(), "".to_string().into(), false);
     }
 }

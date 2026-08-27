@@ -62,6 +62,20 @@ pub enum PreToken {
     ///
     /// See [`PreToken::TempIndentStart`] for more information.
     TempIndentEnd,
+
+    FitOrSplitStart {
+        fit_start: Rc<String>,
+        fit_delimiter: Rc<String>,
+        split_end_line: bool,
+    },
+
+    PotentialSplit,
+
+    FitOrSplitEnd {
+        fit_end: Rc<String>,
+        split_end: Rc<String>,
+        split_end_line: bool,
+    },
 }
 
 impl std::fmt::Display for PreToken {
@@ -99,6 +113,9 @@ impl std::fmt::Display for PreToken {
             },
             PreToken::TempIndentStart(value) => write!(f, "<TempIndentStart@{value}>"),
             PreToken::TempIndentEnd => write!(f, "<TempIndentEnd>"),
+            PreToken::FitOrSplitStart { .. } => write!(f, "<FitOrSplitStart>"),
+            PreToken::PotentialSplit => write!(f, "<PotentialSplit>"),
+            PreToken::FitOrSplitEnd { .. } => write!(f, "<FitOrSplitEnd>"),
         }
     }
 }
@@ -151,6 +168,36 @@ impl TokenStream<PreToken> {
     /// call `end_line()` after this.
     pub fn decrement_indent(&mut self) {
         self.0.push(PreToken::IndentEnd);
+    }
+
+    pub fn fit_or_split_start(
+        &mut self,
+        fit_start: Rc<String>,
+        fit_delimiter: Rc<String>,
+        split_end_line: bool,
+    ) {
+        self.0.push(PreToken::FitOrSplitStart {
+            fit_start,
+            fit_delimiter,
+            split_end_line,
+        })
+    }
+
+    pub fn potential_split(&mut self) {
+        self.0.push(PreToken::PotentialSplit);
+    }
+
+    pub fn fit_or_split_end(
+        &mut self,
+        fit_end: Rc<String>,
+        split_end: Rc<String>,
+        split_end_line: bool,
+    ) {
+        self.0.push(PreToken::FitOrSplitEnd {
+            fit_end,
+            split_end,
+            split_end_line,
+        })
     }
 
     /// Inserts a trivial blank lines "always allowed" context change.

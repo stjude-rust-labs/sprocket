@@ -23,11 +23,7 @@ workflow test {
         }
     }
 
-    Array[String] names = [
-        "James",
-        "Jimmy",
-        "John"
-    ]
+    Array[String] names = ["James", "Jimmy", "John"]
     Map[String, Int] ages = {
         "James": 34,
         "Jimmy": 55,
@@ -46,7 +42,7 @@ workflow test {
         Person {
             name: "John",
             age: 26
-        }
+        },
     ]
     Object person = object {
         name: "Jimmy",
