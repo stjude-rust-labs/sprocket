@@ -33,6 +33,7 @@ use wdl_analysis::diagnostics::not_a_previous_task_data_member;
 use wdl_analysis::diagnostics::not_a_struct;
 use wdl_analysis::diagnostics::not_a_struct_member;
 use wdl_analysis::diagnostics::not_a_task_member;
+use wdl_analysis::diagnostics::not_an_enum_choice;
 use wdl_analysis::diagnostics::numeric_mismatch;
 use wdl_analysis::diagnostics::too_few_arguments;
 use wdl_analysis::diagnostics::too_many_arguments;
@@ -123,7 +124,6 @@ use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::unknown_enum_choice;
-use crate::diagnostics::unknown_enum_choice_access;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -399,9 +399,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Value::Compound(CompoundValue::Array(v))
                     if matches!(placeholder.option(), Some(PlaceholderOption::Sep(_)))
                         && v.as_slice()
-                            .first()
-                            .map(|e| !matches!(e, Value::None(_) | Value::Compound(_)))
-                            .unwrap_or(false) =>
+                            .iter()
+                            .all(|e| matches!(e, Value::Primitive(_))) =>
                 {
                     let option = placeholder.option().unwrap().unwrap_sep();
 
@@ -415,7 +414,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
 
                         match e {
-                            Value::None(_) => {}
                             Value::Primitive(v) => {
                                 write!(buffer, "{v}", v = v.raw(Some(&evaluator.context))).unwrap()
                             }
@@ -1484,7 +1482,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         expr: &AccessExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
-
         let target_value = self.evaluate_expr(&target).await?;
         match target_value {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
@@ -1523,17 +1520,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
             Value::TypeNameRef(v) => {
-                let ty = v.ty();
-                if let Some(enum_ty) = ty.as_enum() {
+                if let Some(enum_ty) = v.as_enum() {
                     let value = self
                         .context()
-                        .enum_choice_value(enum_ty.name(), name.text())
-                        .map_err(|_| unknown_enum_choice_access(enum_ty.name(), &name))?;
+                        .enum_choice_value(v.name(), name.text())
+                        .map_err(|_| not_an_enum_choice(v.name(), &name))?;
 
                     let choice = EnumChoice::new(enum_ty.clone(), name.text(), value);
                     Ok(Value::Compound(CompoundValue::EnumChoice(choice)))
                 } else {
-                    Err(cannot_access(ty, target.span()))
+                    Err(cannot_access(v.ty(), target.span()))
                 }
             }
             value => Err(cannot_access(&value.ty(), target.span())),
@@ -1734,7 +1730,9 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
+    use crate::CancellationContext;
     use crate::EvaluationPath;
+    use crate::Events;
     use crate::TypeNameRefValue;
     use crate::eval::Scope;
     use crate::eval::ScopeRef;
@@ -1804,14 +1802,19 @@ pub(crate) mod test {
     }
 
     impl Transferer for TestEnv {
-        fn download<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Location>> {
+        fn download<'a>(
+            &'a self,
+            source: &'a Url,
+            _: &'a Events,
+            _: &'a CancellationContext,
+        ) -> BoxFuture<'a, Result<Location>> {
             async {
                 // For tests, redirect requests to example.com to files relative to the work dir
-                if url.authority() == "example.com" {
+                if source.authority() == "example.com" {
                     return Ok(Location::Path(
                         self.test_dir
                             .path()
-                            .join(url.path().strip_prefix('/').unwrap_or(url.path())),
+                            .join(source.path().strip_prefix('/').unwrap_or(source.path())),
                     ));
                 }
 
@@ -1820,7 +1823,13 @@ pub(crate) mod test {
             .boxed()
         }
 
-        fn upload<'a>(&'a self, _: &'a Path, _: &'a Url) -> BoxFuture<'a, Result<()>> {
+        fn upload<'a>(
+            &'a self,
+            _: &'a Path,
+            _: &'a Url,
+            _: &'a Events,
+            _: &'a CancellationContext,
+        ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
         }
 
@@ -1853,6 +1862,10 @@ pub(crate) mod test {
         stdout: Option<Value>,
         /// The stderr value from a task's execution.
         stderr: Option<Value>,
+        /// The evaluation events.
+        events: Events,
+        /// The cancellation context to use for the test.
+        cancellation: CancellationContext,
     }
 
     impl<'a> TestEvaluationContext<'a> {
@@ -1862,6 +1875,8 @@ pub(crate) mod test {
                 version,
                 stdout: None,
                 stderr: None,
+                events: Events::disabled(),
+                cancellation: Default::default(),
             }
         }
 
@@ -1889,14 +1904,23 @@ pub(crate) mod test {
                 return Ok(var);
             }
 
-            // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+            // If the name is a reference to a struct, return it as a
+            // [`Value::TypeNameRef`].
             if let Some(ty) = self.env.structs.get(name) {
-                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
+                return Ok(TypeNameRefValue::new(
+                    name,
+                    ty.as_struct().expect("should be struct type").clone(),
+                )
+                .into());
             }
 
-            // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+            // If the name is a reference to an enum, return it as a [`Value::TypeNameRef`].
             if let Some(ty) = self.env.enums.get(name) {
-                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
+                return Ok(TypeNameRefValue::new(
+                    name,
+                    ty.as_enum().expect("should be enum type").clone(),
+                )
+                .into());
             }
 
             Err(unknown_name(name, span))
@@ -1937,6 +1961,14 @@ pub(crate) mod test {
 
         fn transferer(&self) -> &dyn Transferer {
             self.env
+        }
+
+        fn events(&self) -> &Events {
+            &self.events
+        }
+
+        fn cancellation(&self) -> &CancellationContext {
+            &self.cancellation
         }
     }
 
@@ -2184,6 +2216,20 @@ pub(crate) mod test {
             .await
             .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1+2+3 = 6");
+
+        env.insert_name(
+            "empty",
+            Array::new(ArrayType::new(PrimitiveType::String), Vec::<Value>::new()).unwrap(),
+        );
+        let value = eval_v1_expr(&env, V1::Two, r#""~{sep="+" empty}""#)
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "");
+
+        let value = eval_v1_expr(&env, V1::Two, r#""~{sep="+" prefix("-i ", empty)}""#)
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "");
 
         let diagnostic = eval_v1_expr(&env, V1::Two, r#""~{[1, 2, 3]}""#)
             .await

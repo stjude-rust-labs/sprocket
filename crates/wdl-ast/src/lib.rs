@@ -512,7 +512,7 @@ impl Document {
     /// This optionally takes a `fallback_version`, which will be used if a
     /// [`SupportedVersion`] cannot be determined from the document.
     ///
-    /// A document and its AST elements are trivially cloned.
+    /// A document and its AST elements are cheaply cloned.
     ///
     /// # Examples
     ///

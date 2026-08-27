@@ -15,9 +15,11 @@ use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
+use crate::CancellationContext;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationPath;
+use crate::Events;
 use crate::HostPath;
 use crate::NoneValue;
 use crate::PrimitiveValue;
@@ -106,6 +108,8 @@ fn ensure_local_path(base_dir: &EvaluationPath, path: &str) -> Result<PathBuf> {
 pub(crate) async fn download_file(
     transferer: &dyn Transferer,
     base_dir: &EvaluationPath,
+    events: &Events,
+    cancellation: &CancellationContext,
     path: &HostPath,
 ) -> Result<Location> {
     let joined = base_dir.join(path.as_str())?;
@@ -114,7 +118,7 @@ pub(crate) async fn download_file(
     } else {
         let url = joined.unwrap_remote();
         transferer
-            .download(&url)
+            .download(&url, events, cancellation)
             .await
             .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"))
     }
@@ -245,6 +249,11 @@ impl<'a> CallContext<'a> {
         self.context.transferer()
     }
 
+    /// Gets the cancellation context for evaluation.
+    pub fn cancellation(&self) -> &CancellationContext {
+        self.context.cancellation()
+    }
+
     /// Gets the inner evaluation context.
     pub fn inner(&self) -> &dyn EvaluationContext {
         self.context
@@ -270,6 +279,25 @@ impl<'a> CallContext<'a> {
     #[allow(unused)]
     fn return_type_eq(&self, ty: impl Into<Type>) -> bool {
         self.return_type.eq(&ty.into())
+    }
+
+    /// Downloads a file to a temporary path.
+    ///
+    /// Paths are relative to the call's base directory.
+    ///
+    /// If the provided path is already local, its location is returned.
+    async fn download_file(&self, path: &HostPath) -> Result<Location> {
+        let joined = self.context.base_dir().join(path.as_str())?;
+        if joined.is_local() {
+            Ok(Location::Path(joined.unwrap_local()))
+        } else {
+            let url = joined.unwrap_remote();
+            self.context
+                .transferer()
+                .download(&url, self.context.events(), self.cancellation())
+                .await
+                .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"))
+        }
     }
 }
 

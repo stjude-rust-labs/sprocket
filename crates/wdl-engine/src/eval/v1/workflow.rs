@@ -61,12 +61,14 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
+use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationPath;
 use crate::EvaluationResult;
+use crate::Events;
 use crate::Inputs;
 use crate::Outputs;
 use crate::TypeNameRefValue;
@@ -162,7 +164,11 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         }
 
         if let Some(ty) = self.state.document.get_custom_type(name) {
-            return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty)));
+            return Ok(TypeNameRefValue::new(
+                name,
+                ty.as_custom().expect("should be custom type").clone(),
+            )
+            .into());
         }
 
         Err(unknown_name(name, span))
@@ -209,7 +215,15 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn transferer(&self) -> &dyn Transferer {
-        self.state.transferer()
+        self.state.evaluator.engine.transferer()
+    }
+
+    fn events(&self) -> &Events {
+        &self.state.evaluator.events
+    }
+
+    fn cancellation(&self) -> &CancellationContext {
+        &self.state.evaluator.cancellation
     }
 }
 
@@ -594,13 +608,6 @@ struct State {
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
-}
-
-impl State {
-    /// Get the [`Transferer`] for this evaluation.
-    fn transferer(&self) -> &dyn Transferer {
-        self.evaluator.transferer.as_ref()
-    }
 }
 
 impl Evaluator {
@@ -1047,7 +1054,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.transferer()),
+                    Some(self.evaluator.engine.transferer()),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1116,7 +1123,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.transferer()),
+                    Some(self.evaluator.engine.transferer()),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1173,7 +1180,7 @@ impl State {
             .resolve_paths(
                 expected_ty.is_optional(),
                 self.base_dir.as_local(),
-                Some(self.transferer()),
+                Some(self.evaluator.engine.transferer()),
                 &|path| {
                     if path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
@@ -1456,7 +1463,7 @@ impl State {
             return self.evaluate_empty_scatter(stmt, parent).await;
         }
 
-        let max_concurrency = self.evaluator.config.workflow.scatter.concurrency;
+        let max_concurrency = self.evaluator.engine.config().workflow.scatter.concurrency;
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
@@ -1866,7 +1873,7 @@ mod test {
     use crate::Events;
     use crate::config::Config;
     use crate::config::FailureMode;
-    use crate::config::LocalBackendConfig;
+    use crate::v1::Engine;
 
     #[tokio::test]
     async fn it_writes_input_and_output_files() {
@@ -1936,18 +1943,9 @@ workflow test {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
         // Evaluate the `test` workflow in `source.wdl` using the default local backend
         let mut inputs = WorkflowInputs::default();
@@ -2074,18 +2072,9 @@ workflow test {
             .expect("expected `source.wdl` analysis result")
             .document();
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2177,18 +2166,9 @@ workflow test {
             .expect("expected `source.wdl` analysis result")
             .document();
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2279,19 +2259,9 @@ workflow foo {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            experimental_features_enabled: true,
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
@@ -2495,10 +2465,6 @@ workflow w {
         }
 
         // Use a progress callback that simply increments the appropriate counter
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
         let state = Arc::<State>::default();
         let events_state = state.clone();
         let events = Events::new(100);
@@ -2528,9 +2494,8 @@ workflow w {
             }
         });
 
-        let evaluator = Evaluator::new(root_dir.path(), config.into(), Default::default(), events)
-            .await
-            .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend
@@ -2548,6 +2513,7 @@ workflow w {
             .map_err(|e| e.to_string())
             .expect("failed to evaluate workflow");
 
+        drop(engine);
         drop(evaluator);
         task.await.expect("failed to await events task");
 
@@ -2596,19 +2562,9 @@ workflow w {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
+        let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            cancellation.clone(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let evaluator = engine.create_v1_evaluator(Events::disabled(), cancellation.clone());
 
         let mut evaluation = evaluator
             .evaluate_workflow(
