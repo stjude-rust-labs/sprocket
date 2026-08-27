@@ -432,8 +432,12 @@ fn add_namespace(
         .filter_map(|a| {
             let (from, to) = a.names();
 
-            let is_struct = imported_doc.data.cache.struct_by_name(from.text());
-            let is_enum = imported_doc.data.cache.enum_by_name(from.text());
+            let is_struct = imported_doc
+                .data
+                .cache
+                .struct_by_name(from.text())
+                .is_some();
+            let is_enum = imported_doc.data.cache.enum_by_name(from.text()).is_some();
 
             // Check to see if the type name exists in the document
             if !is_struct && !is_enum {

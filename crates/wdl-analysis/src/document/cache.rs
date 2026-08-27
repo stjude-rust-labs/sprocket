@@ -162,9 +162,9 @@ pub(crate) enum ImportedItem<'a> {
     Workflow(&'a ImportedWorkflow),
 }
 
-impl ImportedItem<'_> {
+impl<'a> ImportedItem<'a> {
     /// Gets the aliased name of the imported item.
-    fn aliased_name(&self) -> &str {
+    fn aliased_name(&self) -> &'a str {
         match self {
             ImportedItem::Struct(s) => &s.local_name,
             ImportedItem::Enum(e) => &e.local_name,
@@ -195,9 +195,9 @@ pub(in crate::document) type Item<'a> = MaybeImported<CachedItemRef<'a>, Importe
 
 /// A reference to a workflow in the document's scope.
 pub type WorkflowRef<'a> = MaybeImported<&'a Workflow, &'a ImportedWorkflow>;
-impl WorkflowRef<'_> {
+impl<'a> WorkflowRef<'a> {
     /// Gets the name of the workflow.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'a str {
         match self {
             WorkflowRef::Local(w) => w.name(),
             WorkflowRef::Imported(i) => &i.local_name,
@@ -239,9 +239,9 @@ impl WorkflowRef<'_> {
 
 /// A reference to a task in the document's scope.
 pub type TaskRef<'a> = MaybeImported<&'a Task, &'a ImportedTask>;
-impl TaskRef<'_> {
+impl<'a> TaskRef<'a> {
     /// Gets the name of the task.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'a str {
         match self {
             TaskRef::Local(t) => t.name(),
             TaskRef::Imported(i) => &i.local_name,
@@ -283,9 +283,9 @@ impl TaskRef<'_> {
 
 /// A reference to a struct in the document's scope.
 pub type StructRef<'a> = MaybeImported<&'a Struct, &'a ImportedStruct>;
-impl StructRef<'_> {
+impl<'a> StructRef<'a> {
     /// Gets the name of the struct.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'a str {
         match self {
             StructRef::Local(s) => s.name(),
             StructRef::Imported(i) => &i.local_name,
@@ -301,7 +301,7 @@ impl StructRef<'_> {
     }
 
     /// Gets the type of the struct, if it was computed.
-    pub fn ty(&self) -> Option<&Type> {
+    pub fn ty(&self) -> Option<&'a Type> {
         match self {
             StructRef::Local(s) => s.ty(),
             StructRef::Imported(i) => i.ty(),
@@ -333,7 +333,7 @@ impl StructRef<'_> {
     }
 
     /// Gets the node of the struct.
-    pub fn node(&self) -> &rowan::GreenNode {
+    pub fn node(&self) -> &'a rowan::GreenNode {
         match self {
             StructRef::Local(s) => s.node(),
             StructRef::Imported(i) => i.node(),
@@ -343,9 +343,9 @@ impl StructRef<'_> {
 
 /// A reference to an enum in the document's scope.
 pub type EnumRef<'a> = MaybeImported<&'a Enum, &'a ImportedEnum>;
-impl EnumRef<'_> {
+impl<'a> EnumRef<'a> {
     /// Gets the name of the enum.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'a str {
         match self {
             EnumRef::Local(e) => e.name(),
             EnumRef::Imported(i) => &i.local_name,
@@ -361,7 +361,7 @@ impl EnumRef<'_> {
     }
 
     /// Gets the type of the enum, if it was computed.
-    pub fn ty(&self) -> Option<&Type> {
+    pub fn ty(&self) -> Option<&'a Type> {
         match self {
             EnumRef::Local(e) => e.ty(),
             EnumRef::Imported(i) => i.ty(),
@@ -393,7 +393,7 @@ impl EnumRef<'_> {
     }
 
     /// Gets the node of the enum.
-    pub fn node(&self) -> &rowan::GreenNode {
+    pub fn node(&self) -> &'a rowan::GreenNode {
         match self {
             EnumRef::Local(e) => e.node(),
             EnumRef::Imported(i) => i.node(),
@@ -401,9 +401,9 @@ impl EnumRef<'_> {
     }
 }
 
-impl Item<'_> {
+impl<'a> Item<'a> {
     /// Get the name of the item, if it introduces one.
-    fn name(&self) -> Option<&str> {
+    fn name(&self) -> Option<&'a str> {
         match self {
             Item::Local(i) => i.name(),
             Item::Imported(i) => Some(i.aliased_name()),
@@ -636,9 +636,9 @@ pub(in crate::document) enum CachedItemRef<'a> {
     Import(&'a CachedItem<WithBodyHash<Import>>),
 }
 
-impl CachedItemRef<'_> {
+impl<'a> CachedItemRef<'a> {
     /// Get the name of the item, if it has one.
-    pub fn name(&self) -> Option<&str> {
+    pub fn name(&self) -> Option<&'a str> {
         match self {
             Self::Struct(s) => Some(s.item.name()),
             Self::Enum(e) => Some(e.item.name()),
@@ -649,6 +649,25 @@ impl CachedItemRef<'_> {
                 Import::Namespace(ns) => Some(ns.name()),
             },
         }
+    }
+
+    /// Get the diagnostics produced for this item.
+    pub fn diagnostics(&self) -> impl Iterator<Item = Diagnostic> + use<'a> {
+        let (offset, diagnostics) = match self {
+            Self::Struct(s) => (s.offset, s.diagnostics.iter()),
+            Self::Enum(e) => (e.offset, e.diagnostics.iter()),
+            Self::Task(t) => (t.offset, t.diagnostics.iter()),
+            Self::Workflow(w) => (w.offset, w.diagnostics.iter()),
+            Self::Import(i) => (i.offset, i.diagnostics.iter()),
+        };
+
+        // We need to shift the diagnostics back to their absolute positions within the
+        // document. `CachedItemRef` stores diagnostics relative to the start of
+        // the item.
+        diagnostics.cloned().map(move |mut d| {
+            d.offset(offset as isize);
+            d
+        })
     }
 
     /// Get the [`SignatureHash`] of the item.
@@ -670,27 +689,6 @@ impl CachedItemRef<'_> {
             Self::Workflow(w) => Some(w.item.body_hash),
             _ => None,
         }
-    }
-}
-
-impl<'a> CachedItemRef<'a> {
-    /// Get the diagnostics produced for this item.
-    pub fn diagnostics(&self) -> impl Iterator<Item = Diagnostic> + use<'a> {
-        let (offset, diagnostics) = match self {
-            Self::Struct(s) => (s.offset, s.diagnostics.iter()),
-            Self::Enum(e) => (e.offset, e.diagnostics.iter()),
-            Self::Task(t) => (t.offset, t.diagnostics.iter()),
-            Self::Workflow(w) => (w.offset, w.diagnostics.iter()),
-            Self::Import(i) => (i.offset, i.diagnostics.iter()),
-        };
-
-        // We need to shift the diagnostics back to their absolute positions within the
-        // document. `CachedItemRef` stores diagnostics relative to the start of
-        // the item.
-        diagnostics.cloned().map(move |mut d| {
-            d.offset(offset as isize);
-            d
-        })
     }
 }
 
@@ -770,7 +768,7 @@ macro_rules! item_getters {
                     .map(|(idx, (hash, i))| (idx, *hash, i.target()))
             }
 
-            #[doc = "Gets a locally defined" $item_ty "in the document by name."]
+            #[doc = "Gets a locally defined " $item_ty " in the document by name."]
             ///
             #[doc = "See: [`Self::" $local_fn "`]"]
             pub(crate) fn $local_fn_by_name(&self, name: &str) -> Option<(usize, SignatureHash, &$ty)> {
