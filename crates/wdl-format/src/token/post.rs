@@ -514,19 +514,18 @@ impl Postprocessor {
                 split_end_line,
             } => {
                 if self.fit_potential_splits {
-                    // self.trim_last_line(stream);
                     stream.push(PostToken::Literal(fit_start));
+                    self.fit_delimiter = Some(fit_delimiter);
                 } else if split_end_line {
                     self.end_line(stream);
                 }
-                self.fit_delimiter = Some(fit_delimiter);
             }
             PreToken::PotentialSplit => {
-                if self.fit_potential_splits {
+                if self.fit_potential_splits
+                    && let Some(delim) = &self.fit_delimiter
+                {
                     self.trim_last_line(stream);
-                    stream.push(PostToken::Literal(
-                        self.fit_delimiter.clone().expect("some delimiter"),
-                    ));
+                    stream.push(PostToken::Literal(delim.clone()));
                 } else {
                     self.end_line(stream);
                 }
@@ -540,11 +539,11 @@ impl Postprocessor {
                     stream.push(PostToken::Literal(fit_end));
                 } else {
                     stream.push(PostToken::Literal(split_end));
-                    // self.indent_level = self.indent_level.saturating_sub(1);
                     if split_end_line {
                         self.end_line(stream);
                     }
                 }
+                self.fit_delimiter = None;
             }
         }
     }

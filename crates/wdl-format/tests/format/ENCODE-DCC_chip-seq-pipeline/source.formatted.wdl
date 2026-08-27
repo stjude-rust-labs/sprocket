@@ -1090,10 +1090,7 @@ workflow chip {
     String aligner_ = if defined(custom_align_py) then "custom" else aligner
     String peak_caller_ = if pipeline_type == "tf"
         then select_first([peak_caller, "spp"])
-        else select_first([
-            peak_caller,
-            "macs2",
-        ])
+        else select_first([peak_caller, "macs2"])
     String peak_type_ = if peak_caller_ == "spp" then "regionPeak" else "narrowPeak"
     Boolean enable_idr = pipeline_type == "tf"  # enable_idr for TF chipseq only
     String idr_rank_ = if peak_caller_ == "spp"
@@ -1108,10 +1105,7 @@ workflow chip {
             cap_num_peak,
             cap_num_peak_spp,
         ])
-        else select_first([
-            cap_num_peak,
-            cap_num_peak_macs2,
-        ])
+        else select_first([cap_num_peak, cap_num_peak_macs2])
     Int mapq_thresh_ = mapq_thresh
     Boolean enable_xcor_ = if pipeline_type == "control" then false else true
     Boolean enable_count_signal_track_ = if pipeline_type == "control"
@@ -2467,9 +2461,7 @@ task align {
     Float trimmomatic_java_heap_factor = 0.9
     Array[Array[File]] tmp_fastqs = if paired_end
         then transpose([fastqs_R1, fastqs_R2])
-        else transpose([
-            fastqs_R1,
-        ])
+        else transpose([fastqs_R1])
 
     command <<<
         set -e
