@@ -113,6 +113,12 @@ pub(super) trait HashableItem {
     fn hash(&self) -> SignatureHash;
 }
 
+/// Hashes text by its length and content.
+fn hash_text(hasher: &mut Sha256, text: &str) {
+    Digest::update(hasher, (text.len() as u64).to_le_bytes());
+    Digest::update(hasher, text.as_bytes());
+}
+
 impl HashableItem for ImportStatement {
     fn hash(&self) -> SignatureHash {
         let mut signature_hasher = Sha256::default();
@@ -120,30 +126,30 @@ impl HashableItem for ImportStatement {
         match self.source() {
             ImportSource::Uri(uri) => match uri.text() {
                 None => Digest::update(&mut signature_hasher, ""),
-                Some(text) => Digest::update(&mut signature_hasher, text.text()),
+                Some(text) => hash_text(&mut signature_hasher, text.text()),
             },
             ImportSource::ModulePath(path) => {
-                Digest::update(&mut signature_hasher, path.text());
+                hash_text(&mut signature_hasher, &path.text());
             }
         }
 
         for alias in self.aliases() {
             let (source, target) = alias.names();
-            Digest::update(&mut signature_hasher, source.text());
-            Digest::update(&mut signature_hasher, target.text());
+            hash_text(&mut signature_hasher, source.text());
+            hash_text(&mut signature_hasher, target.text());
         }
 
         if let Some(members) = self.members() {
             for member in members.members() {
-                Digest::update(&mut signature_hasher, member.name().text());
+                hash_text(&mut signature_hasher, member.name().text());
                 if let Some(alias) = member.alias() {
-                    Digest::update(&mut signature_hasher, alias.text());
+                    hash_text(&mut signature_hasher, alias.text());
                 }
             }
         }
 
         if let Some(ns) = self.explicit_namespace() {
-            Digest::update(&mut signature_hasher, ns.text());
+            hash_text(&mut signature_hasher, ns.text());
         }
 
         signature_hasher.finalize().into()
@@ -154,7 +160,7 @@ impl HashableItem for StructDefinition {
     fn hash(&self) -> SignatureHash {
         let mut signature_hasher = Sha256::default();
 
-        Digest::update(&mut signature_hasher, self.name().text());
+        hash_text(&mut signature_hasher, self.name().text());
 
         for member in self.members() {
             HashableElement::hash(&member, &mut signature_hasher);
@@ -168,13 +174,16 @@ impl HashableItem for EnumDefinition {
     fn hash(&self) -> SignatureHash {
         let mut signature_hasher = Sha256::default();
 
-        Digest::update(&mut signature_hasher, self.name().text());
+        hash_text(&mut signature_hasher, self.name().text());
         if let Some(ty) = self.type_parameter() {
             HashableElement::hash(&ty.ty(), &mut signature_hasher);
         }
 
         for choice in self.choices() {
-            Digest::update(&mut signature_hasher, choice.name().text());
+            hash_text(&mut signature_hasher, choice.name().text());
+            if let Some(value) = choice.value() {
+                HashableElement::hash(&value, &mut signature_hasher);
+            }
         }
 
         signature_hasher.finalize().into()
@@ -207,10 +216,10 @@ impl HashableElement for Type {
                 HashableElement::hash(&r, hasher);
             }
             Type::Object(_) => {
-                Digest::update(hasher, "Object");
+                hash_text(hasher, "Object");
             }
             Type::Ref(type_ref) => {
-                Digest::update(hasher, type_ref.name().text());
+                hash_text(hasher, type_ref.name().text());
             }
             Type::Primitive(p) => {
                 HashableElement::hash(p, hasher);
@@ -233,7 +242,7 @@ impl HashableElement for Expr {
                 break;
             }
             if !token.kind().is_trivia() {
-                Digest::update(hasher, token.text());
+                hash_text(hasher, token.text());
             }
         }
     }
@@ -243,7 +252,7 @@ impl HashableElement for InputSection {
     fn hash(&self, hasher: &mut Sha256) {
         for decl in self.declarations() {
             HashableElement::hash(&decl.ty(), hasher);
-            Digest::update(hasher, decl.name().text());
+            hash_text(hasher, decl.name().text());
             if let Some(expr) = decl.expr() {
                 HashableElement::hash(&expr, hasher);
             }
@@ -255,7 +264,7 @@ impl HashableElement for OutputSection {
     fn hash(&self, hasher: &mut Sha256) {
         for decl in self.declarations() {
             HashableElement::hash(&decl.ty(), hasher);
-            Digest::update(hasher, decl.name().text());
+            hash_text(hasher, decl.name().text());
             HashableElement::hash(&decl.expr(), hasher);
         }
     }
@@ -264,14 +273,14 @@ impl HashableElement for OutputSection {
 impl HashableElement for UnboundDecl {
     fn hash(&self, hasher: &mut Sha256) {
         HashableElement::hash(&self.ty(), hasher);
-        Digest::update(hasher, self.name().text());
+        hash_text(hasher, self.name().text());
     }
 }
 
 impl HashableElement for BoundDecl {
     fn hash(&self, hasher: &mut Sha256) {
         HashableElement::hash(&self.ty(), hasher);
-        Digest::update(hasher, self.name().text());
+        hash_text(hasher, self.name().text());
         HashableElement::hash(&self.expr(), hasher);
     }
 }
@@ -303,7 +312,7 @@ impl HashableElement for ParameterMetadataSection {
 
 impl HashableElement for MetadataObjectItem {
     fn hash(&self, hasher: &mut Sha256) {
-        Digest::update(hasher, self.name().text());
+        hash_text(hasher, self.name().text());
         HashableElement::hash(&self.value(), hasher);
     }
 }
@@ -312,19 +321,19 @@ impl HashableElement for MetadataValue {
     fn hash(&self, hasher: &mut Sha256) {
         match self {
             MetadataValue::Boolean(b) => {
-                Digest::update(hasher, b.inner().text().to_string());
+                hash_text(hasher, &b.inner().text().to_string());
             }
             MetadataValue::Integer(i) => {
-                Digest::update(hasher, i.inner().text().to_string());
+                hash_text(hasher, &i.inner().text().to_string());
             }
             MetadataValue::Float(f) => {
-                Digest::update(hasher, f.inner().text().to_string());
+                hash_text(hasher, &f.inner().text().to_string());
             }
             MetadataValue::String(s) => {
-                Digest::update(hasher, s.inner().text().to_string());
+                hash_text(hasher, &s.inner().text().to_string());
             }
             MetadataValue::Null(_) => {
-                Digest::update(hasher, "null");
+                hash_text(hasher, "null");
             }
             MetadataValue::Object(o) => {
                 for item in o.items() {
@@ -342,7 +351,7 @@ impl HashableElement for MetadataValue {
 
 impl HashableElement for ScatterStatement {
     fn hash(&self, hasher: &mut Sha256) {
-        Digest::update(hasher, self.variable().text());
+        hash_text(hasher, self.variable().text());
         HashableElement::hash(&self.expr(), hasher);
         for stmt in self.statements() {
             HashableElement::hash(&stmt, hasher);
@@ -353,16 +362,16 @@ impl HashableElement for ScatterStatement {
 impl HashableElement for CallStatement {
     fn hash(&self, hasher: &mut Sha256) {
         for name in self.target().names() {
-            Digest::update(hasher, name.text());
+            hash_text(hasher, name.text());
         }
         if let Some(alias) = self.alias() {
-            Digest::update(hasher, alias.name().text());
+            hash_text(hasher, alias.name().text());
         }
         for after in self.after() {
-            Digest::update(hasher, after.name().text());
+            hash_text(hasher, after.name().text());
         }
         for input in self.inputs() {
-            Digest::update(hasher, input.name().text());
+            hash_text(hasher, input.name().text());
             if let Some(expr) = input.expr() {
                 HashableElement::hash(&expr, hasher);
             }
@@ -373,7 +382,7 @@ impl HashableElement for CallStatement {
 impl HashableElement for WorkflowHintsSection {
     fn hash(&self, hasher: &mut Sha256) {
         for item in self.items() {
-            Digest::update(hasher, item.name().text());
+            hash_text(hasher, item.name().text());
             HashableElement::hash(&item.value(), hasher);
         }
     }
@@ -381,7 +390,7 @@ impl HashableElement for WorkflowHintsSection {
 
 impl HashableElement for WorkflowHintsObjectItem {
     fn hash(&self, hasher: &mut Sha256) {
-        Digest::update(hasher, self.name().text());
+        hash_text(hasher, self.name().text());
         HashableElement::hash(&self.value(), hasher);
     }
 }
@@ -390,16 +399,16 @@ impl HashableElement for WorkflowHintsItemValue {
     fn hash(&self, hasher: &mut Sha256) {
         match self {
             WorkflowHintsItemValue::Boolean(b) => {
-                Digest::update(hasher, b.inner().text().to_string());
+                hash_text(hasher, &b.inner().text().to_string());
             }
             WorkflowHintsItemValue::Integer(i) => {
-                Digest::update(hasher, i.inner().text().to_string());
+                hash_text(hasher, &i.inner().text().to_string());
             }
             WorkflowHintsItemValue::Float(f) => {
-                Digest::update(hasher, f.inner().text().to_string());
+                hash_text(hasher, &f.inner().text().to_string());
             }
             WorkflowHintsItemValue::String(s) => {
-                Digest::update(hasher, s.inner().text().to_string());
+                hash_text(hasher, &s.inner().text().to_string());
             }
             WorkflowHintsItemValue::Object(o) => {
                 for item in o.items() {
@@ -419,7 +428,7 @@ impl HashableElement for CommandSection {
     fn hash(&self, hasher: &mut Sha256) {
         for part in self.parts() {
             match part {
-                CommandPart::Text(t) => Digest::update(hasher, t.text()),
+                CommandPart::Text(t) => hash_text(hasher, t.text()),
                 CommandPart::Placeholder(p) => {
                     HashableElement::hash(&p.expr(), hasher);
                 }
@@ -431,7 +440,7 @@ impl HashableElement for CommandSection {
 impl HashableElement for RequirementsSection {
     fn hash(&self, hasher: &mut Sha256) {
         for item in self.items() {
-            Digest::update(hasher, item.name().text());
+            hash_text(hasher, item.name().text());
             HashableElement::hash(&item.expr(), hasher);
         }
     }
@@ -440,7 +449,7 @@ impl HashableElement for RequirementsSection {
 impl HashableElement for TaskHintsSection {
     fn hash(&self, hasher: &mut Sha256) {
         for item in self.items() {
-            Digest::update(hasher, item.name().text());
+            hash_text(hasher, item.name().text());
             HashableElement::hash(&item.expr(), hasher);
         }
     }
@@ -449,7 +458,7 @@ impl HashableElement for TaskHintsSection {
 impl HashableElement for RuntimeSection {
     fn hash(&self, hasher: &mut Sha256) {
         for item in self.items() {
-            Digest::update(hasher, item.name().text());
+            hash_text(hasher, item.name().text());
             HashableElement::hash(&item.expr(), hasher);
         }
     }

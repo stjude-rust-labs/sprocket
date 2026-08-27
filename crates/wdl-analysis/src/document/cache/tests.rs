@@ -1,5 +1,7 @@
 //! Tests for the analysis cache's internal state.
 
+use std::sync::LazyLock;
+
 use pretty_assertions::assert_eq;
 use url::Url;
 use wdl_ast::AstNode;
@@ -14,6 +16,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::UnusedDeclarationRule;
 
+#[derive(Debug)]
 struct DocumentHandle {
     version: i32,
     uri: Url,
@@ -42,16 +45,24 @@ impl DocumentHandle {
     }
 }
 
-async fn setup_analyzer(initial_file_content: &str) -> (DocumentHandle, Analyzer<()>) {
-    let uri: Url = "file:///main.wdl".parse().unwrap();
-    let config = Config::default();
+static MAIN_WDL: LazyLock<Url> = LazyLock::new(|| Url::parse("file:///main.wdl").unwrap());
+static FOO_WDL: LazyLock<Url> = LazyLock::new(|| Url::parse("file:///foo.wdl").unwrap());
+
+async fn setup_analyzer<const N: usize>(
+    config: Config,
+    files: [(Url, &str); N],
+) -> ([DocumentHandle; N], Analyzer<()>) {
     let analyzer = Analyzer::new(config, |_, _, _, _| async {});
-    analyzer.add_document(uri.clone()).await.unwrap();
+    let mut docs = Vec::new();
+    for (uri, content) in files {
+        analyzer.add_document(uri.clone()).await.unwrap();
 
-    let mut doc = DocumentHandle { version: 0, uri };
-    doc.edit(initial_file_content, &analyzer).await;
+        let mut doc = DocumentHandle { version: 0, uri };
+        doc.edit(content, &analyzer).await;
+        docs.push(doc);
+    }
 
-    (doc, analyzer)
+    (docs.try_into().unwrap(), analyzer)
 }
 
 #[tokio::test]
@@ -76,7 +87,8 @@ task baz {
 }
 "#;
 
-    let (mut doc_handle, analyzer) = setup_analyzer(initial_file).await;
+    let ([mut doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_file)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
@@ -200,16 +212,7 @@ async fn should_track_external_dependencies() {
     // Signature changes should always invalidate dependents, even across document
     // boundaries.
 
-    let foo_uri: Url = "file:///foo.wdl".parse().unwrap();
-    let main_uri: Url = "file:///main.wdl".parse().unwrap();
-    let config = Config::default();
-    let analyzer = Analyzer::new(config, |_, _, _, _| async {});
-
-    // Create the foo document
-    let mut doc_foo = {
-        analyzer.add_document(foo_uri.clone()).await.unwrap();
-
-        let initial_foo_content = r#"version 1.3
+    let initial_foo_content = r#"version 1.3
 
 task foo {
     command <<<
@@ -218,18 +221,7 @@ task foo {
 }
 "#;
 
-        let mut doc_foo = DocumentHandle {
-            version: 0,
-            uri: foo_uri.clone(),
-        };
-        doc_foo.edit(initial_foo_content, &analyzer).await;
-        doc_foo
-    };
-
-    // Create the main document
-    let doc_main = {
-        analyzer.add_document(main_uri.clone()).await.unwrap();
-        let initial_main_content = r#"version 1.3
+    let initial_main_content = r#"version 1.3
 
 import "foo.wdl"
 
@@ -238,14 +230,14 @@ workflow bar {
 }
 "#;
 
-        let mut doc_main = DocumentHandle {
-            version: 0,
-            uri: main_uri.clone(),
-        };
-        doc_main.edit(initial_main_content, &analyzer).await;
-        doc_main.analyze(&analyzer).await;
-        doc_main
-    };
+    let ([mut doc_foo, doc_main], analyzer) = setup_analyzer(
+        Config::default(),
+        [
+            (FOO_WDL.clone(), initial_foo_content),
+            (MAIN_WDL.clone(), initial_main_content),
+        ],
+    )
+    .await;
 
     // Now foo has a required input
     let foo_edit = r#"version 1.3
@@ -282,7 +274,8 @@ async fn should_drop_removed_items() {
 struct ToBeRemoved {}
 "#;
 
-    let (mut doc_handle, analyzer) = setup_analyzer(initial_file).await;
+    let ([mut doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_file)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
@@ -320,7 +313,8 @@ workflow bar {
 }
 "#;
 
-    let (mut doc_handle, analyzer) = setup_analyzer(initial_file).await;
+    let ([mut doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_file)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
@@ -392,7 +386,8 @@ workflow bar {
 }
 "#;
 
-    let (mut doc_handle, analyzer) = setup_analyzer(initial_file).await;
+    let ([mut doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_file)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
@@ -448,7 +443,8 @@ workflow stays_clean {
 }
 "#;
 
-    let (mut doc_handle, analyzer) = setup_analyzer(initial_file).await;
+    let ([mut doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_file)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
@@ -531,17 +527,7 @@ async fn should_invalidate_dependents_of_imported_structs() {
     // Imported structs/enums (using both the namespace and select/wildcard import
     // forms) should always invalidate their dependents on change.
 
-    let foo_uri: Url = "file:///foo.wdl".parse().unwrap();
-    let main_uri: Url = "file:///main.wdl".parse().unwrap();
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
-    let analyzer = Analyzer::new(config, |_, _, _, _| async {});
-
-    // Create the foo document
-    let mut doc_foo = {
-        analyzer.add_document(foo_uri.clone()).await.unwrap();
-
-        let initial_foo_content = r#"version 1.4
+    let initial_foo_content = r#"version 1.4
 
 struct Person {
     String name
@@ -553,18 +539,7 @@ struct Person2 {
 }
 "#;
 
-        let mut doc_foo = DocumentHandle {
-            version: 0,
-            uri: foo_uri.clone(),
-        };
-        doc_foo.edit(initial_foo_content, &analyzer).await;
-        doc_foo
-    };
-
-    // Create the main document
-    let mut doc_main = {
-        analyzer.add_document(main_uri.clone()).await.unwrap();
-        let initial_main_content = r#"version 1.4
+    let initial_main_content = r#"version 1.4
 
 import "foo.wdl"
 import { Person2 } from "foo.wdl"
@@ -575,14 +550,16 @@ workflow bar {
 }
 "#;
 
-        let mut doc_main = DocumentHandle {
-            version: 0,
-            uri: main_uri.clone(),
-        };
-        doc_main.edit(initial_main_content, &analyzer).await;
-        doc_main.analyze(&analyzer).await;
-        doc_main
-    };
+    let config =
+        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let ([mut doc_foo, mut doc_main], analyzer) = setup_analyzer(
+        config,
+        [
+            (FOO_WDL.clone(), initial_foo_content),
+            (MAIN_WDL.clone(), initial_main_content),
+        ],
+    )
+    .await;
 
     // Add `age` to `Person`, should invalidate the `bar` workflow
     let foo_edit = r#"version 1.4
@@ -678,7 +655,8 @@ task foo {
 }
 "#;
 
-    let (doc_handle, analyzer) = setup_analyzer(initial_content).await;
+    let ([doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
     let result = doc_handle.analyze(&analyzer).await;
 
     let unused_input = result
@@ -814,7 +792,8 @@ task foo {
 }
 "#;
 
-    let (doc_handle, analyzer) = setup_analyzer(initial_content).await;
+    let ([doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
     let result = doc_handle.analyze(&analyzer).await;
 
     assert!(result.document().diagnostics().next().is_none());
@@ -893,8 +872,79 @@ task foo {
 
     // A fresh analysis of the same contents should produce the same results
 
-    let (doc_handle2, analyzer2) = setup_analyzer(current_file).await;
+    let ([doc_handle2], analyzer2) = setup_analyzer(
+        Config::default(),
+        [("file:///fresh.wdl".parse().unwrap(), current_file)],
+    )
+    .await;
     let result = doc_handle2.analyze(&analyzer2).await;
 
     assert_eq!(result.document(), result3.document());
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn simple_collisions() {
+    // Items are hashed by their components, for example,
+    //
+    // enum Foo { Bar, Baz }
+    //
+    // Is hashed by its name and two variant names.
+    //
+    // We need to make sure we don't collide in cases like:
+    //
+    // enum FooBar { Baz }
+
+    let a_uri: Url = "file:///a.wdl".parse().unwrap();
+    let b_uri: Url = "file:///b.wdl".parse().unwrap();
+
+    let foo_content = r#"version 1.3
+
+struct A { String foo }
+struct C { String bar }
+struct AB { String baz }
+"#;
+
+    let a_content = r#"version 1.3
+
+import "foo.wdl" alias A as B, alias C as D
+
+enum Foo {
+    Bar,
+    Baz
+}
+"#;
+
+    let b_content = r#"version 1.4
+
+import "foo.wdl" alias AB as CD
+
+enum FooBar {
+    Baz
+}
+"#;
+
+    let ([_doc_foo, doc_a, doc_b], analyzer) = setup_analyzer(
+        Config::default(),
+        [
+            (FOO_WDL.clone(), foo_content),
+            (a_uri.clone(), a_content),
+            (b_uri.clone(), b_content),
+        ],
+    )
+    .await;
+
+    let result_a = doc_a.analyze(&analyzer).await;
+    let result_b = doc_b.analyze(&analyzer).await;
+
+    let data_a = result_a.document().data();
+    let data_b = result_b.document().data();
+
+    for enum_hash_a in data_a.cache.enums.keys() {
+        assert!(!data_b.cache.enums.contains_key(enum_hash_a));
+    }
+
+    for import_hash_a in data_a.cache.imports.keys() {
+        assert!(!data_b.cache.imports.contains_key(import_hash_a));
+    }
 }
