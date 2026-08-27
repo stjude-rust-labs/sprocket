@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Updated `cloud-copy` dependency to 0.10.1 to pick up an important fix for
+  downloading files from Azure Blob Storage ([#1155](https://github.com/stjude-rust-labs/sprocket/pull/1155)).
+
 ## 0.30.0 - 2026-08-26
 
 ### Added
