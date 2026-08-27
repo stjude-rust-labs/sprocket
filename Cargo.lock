@@ -5241,7 +5241,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.30.0"
+version = "0.30.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5336,7 +5336,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-test-types"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "indexmap 2.14.0",
@@ -6740,7 +6740,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.5"
+version = "0.23.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -6820,7 +6820,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "clap",
@@ -6862,7 +6862,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "anyhow",
  "approx",

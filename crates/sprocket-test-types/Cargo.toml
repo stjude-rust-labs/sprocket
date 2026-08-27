@@ -1,6 +1,6 @@
 [package]
 name = "sprocket-test-types"
-version = "0.1.0"
+version = "0.1.1"
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -21,7 +21,7 @@ serde-saphyr.workspace = true
 serde_json.workspace = true
 wdl-analysis = { path = "../wdl-analysis", version = "0.25.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.26.2" }
-wdl-engine = { path = "../wdl-engine", version = "0.17.2" }
+wdl-engine = { path = "../wdl-engine", version = "0.17.3" }
 
 [dev-dependencies]
 jsonschema.workspace = true
