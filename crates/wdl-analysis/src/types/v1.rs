@@ -116,6 +116,7 @@ use crate::diagnostics::not_a_previous_task_data_member;
 use crate::diagnostics::not_a_struct;
 use crate::diagnostics::not_a_struct_member;
 use crate::diagnostics::not_a_task_member;
+use crate::diagnostics::not_an_enum_choice;
 use crate::diagnostics::numeric_mismatch;
 use crate::diagnostics::string_concat_mismatch;
 use crate::diagnostics::too_few_arguments;
@@ -1784,14 +1785,20 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     .add_diagnostic(unknown_call_io(ty, &name, Io::Output));
                 return None;
             }
-            Type::TypeNameRef(custom_ty) => match custom_ty {
+            Type::TypeNameRef(ref_ty) => match ref_ty.ty() {
                 CustomType::Struct(_) => {
                     self.context
                         .add_diagnostic(cannot_access(&ty, target.span()));
                     return None;
                 }
-                CustomType::Enum(_) => {
-                    return Some(Type::from(CompoundType::Custom(custom_ty.clone())));
+                CustomType::Enum(ty) => {
+                    if !ty.choices().iter().any(|n| n == name.text()) {
+                        self.context
+                            .add_diagnostic(not_an_enum_choice(ref_ty.name(), &name));
+                        return None;
+                    }
+
+                    return Some(ref_ty.ty().clone().into());
                 }
             },
             _ => {}

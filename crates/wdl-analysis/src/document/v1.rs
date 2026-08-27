@@ -104,9 +104,9 @@ use crate::diagnostics::recursive_workflow_call;
 use crate::diagnostics::selected_import_conflict;
 use crate::diagnostics::selected_member_not_found;
 use crate::diagnostics::struct_conflicts_with_import;
-use crate::diagnostics::struct_not_in_document;
 use crate::diagnostics::type_is_not_array;
 use crate::diagnostics::type_mismatch;
+use crate::diagnostics::type_not_in_document;
 use crate::diagnostics::unknown_call_io;
 use crate::diagnostics::unknown_name;
 use crate::diagnostics::unknown_namespace;
@@ -138,6 +138,7 @@ use crate::types::Optional;
 use crate::types::PairType;
 use crate::types::PrimitiveType;
 use crate::types::Type;
+use crate::types::TypeNameRef;
 use crate::types::TypeNameResolver;
 use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
@@ -430,16 +431,21 @@ fn add_namespace(
         .aliases()
         .filter_map(|a| {
             let (from, to) = a.names();
-            if imported_doc
-                .data
-                .cache
-                .struct_by_name(from.text())
-                .is_none()
-            {
+
+            let is_struct = imported_doc.data.cache.struct_by_name(from.text());
+            let is_enum = imported_doc.data.cache.enum_by_name(from.text());
+
+            // Check to see if the type name exists in the document
+            if !is_struct && !is_enum {
                 document
                     .analysis_diagnostics
-                    .add(struct_not_in_document(&from));
+                    .add(type_not_in_document(&from));
                 failed = true;
+                return None;
+            }
+
+            if is_enum {
+                // We'll process enums below
                 return None;
             }
 
@@ -504,6 +510,7 @@ fn add_namespace(
 
             #[allow(clippy::question_mark)] // For clarity
             if imported_doc.data.cache.enum_by_name(from.text()).is_none() {
+                // Ignore structs or unknown type names (diagnostic added above)
                 return None;
             }
 
@@ -2953,16 +2960,7 @@ fn populate_types(document: &mut DocumentData) {
                         &choice_spans,
                     )
                 } else {
-                    EnumType::infer(
-                        document
-                            .cache
-                            .enum_by_index(index)
-                            .unwrap()
-                            .name()
-                            .to_string(),
-                        choices,
-                        &choice_spans,
-                    )
+                    EnumType::infer(e.name.clone(), choices, &choice_spans)
                 };
 
                 match result {
@@ -3151,8 +3149,14 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
             .and_then(|(_hash, s)| s.ty().cloned())
         {
             return Some(
-                s.type_name_ref()
-                    .expect("type name ref to be created from struct"),
+                TypeNameRef::new(
+                    name,
+                    s.as_struct()
+                        .expect("type should be a struct")
+                        .clone()
+                        .into(),
+                )
+                .into(),
             );
         }
 
@@ -3164,8 +3168,11 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
             .and_then(|(_hash, e)| e.ty().cloned())
         {
             return Some(
-                e.type_name_ref()
-                    .expect("type name ref to be created from enum"),
+                TypeNameRef::new(
+                    name,
+                    e.as_enum().expect("type should be an enum").clone().into(),
+                )
+                .into(),
             );
         }
 

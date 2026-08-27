@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.30.0 - 2026-08-26
+
 ### Added
 
 * Runs whose owning process stops reporting are marked `orphaned` after
@@ -64,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
 * `sprocket dev test` now produces spanned diagnostics for YAML files ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
 * `sprocket check --tag` to append a lint tag to the default set.
+* `run` and `dev test` now show status bars for container image pulls ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
 
 ### Changed
 
@@ -118,6 +121,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* `sep=` placeholders now evaluate typed empty primitive arrays as empty strings
+  instead of reporting a type-coercion error
+  ([#1147](https://github.com/stjude-rust-labs/sprocket/pull/1147)).
+* `sprocket run` now creates the default `sprocket.db` in its effective output
+  directory, whether selected with `-o` or `run.output_dir`, instead of the
+  server's configured output directory
+  ([#1151](https://github.com/stjude-rust-labs/sprocket/pull/1151)).
 * `dev server cancel` no longer reports success for a run this server instance
   is not tracking. Cancelling a run left behind by a previous server process
   silently did nothing while the run stayed `running`; it now returns

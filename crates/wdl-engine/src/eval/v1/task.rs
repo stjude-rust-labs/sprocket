@@ -63,6 +63,7 @@ use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use super::Evaluator;
+use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
@@ -73,6 +74,7 @@ use crate::EvaluationError;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::EvaluationResult;
+use crate::Events;
 use crate::GuestPath;
 use crate::HiddenValue;
 use crate::HostPath;
@@ -294,7 +296,11 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         }
 
         if let Some(ty) = self.state.document.get_custom_type(name) {
-            return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty)));
+            return Ok(TypeNameRefValue::new(
+                name,
+                ty.as_custom().expect("should be custom type").clone(),
+            )
+            .into());
         }
 
         Err(unknown_name(name, span))
@@ -357,7 +363,15 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn transferer(&self) -> &dyn Transferer {
-        self.state.transferer().as_ref()
+        self.state.evaluator.engine.transferer()
+    }
+
+    fn events(&self) -> &Events {
+        &self.state.evaluator.events
+    }
+
+    fn cancellation(&self) -> &CancellationContext {
+        &self.state.evaluator.cancellation
     }
 
     fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
@@ -431,11 +445,6 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    /// Get the [`Transferer`] for this evaluation.
-    fn transferer(&self) -> &Arc<dyn Transferer> {
-        &self.evaluator.transferer
-    }
-
     /// Constructs a new task evaluation state.
     fn new(
         evaluator: &'a Evaluator,
@@ -458,11 +467,12 @@ impl<'a> State<'a> {
             Scope::new(OUTPUT_SCOPE_INDEX),
         ];
 
-        let backend_inputs = if let Some(guest_inputs_dir) = evaluator.backend.guest_inputs_dir() {
-            InputTrie::new_with_guest_dir(guest_inputs_dir)
-        } else {
-            InputTrie::new()
-        };
+        let backend_inputs =
+            if let Some(guest_inputs_dir) = evaluator.engine.backend().guest_inputs_dir() {
+                InputTrie::new_with_guest_dir(guest_inputs_dir)
+            } else {
+                InputTrie::new()
+            };
 
         let document_path = document.uri();
         let base_dir = EvaluationPath::parent_of(document_path.as_str()).with_context(|| {
@@ -502,8 +512,6 @@ impl<'a> State<'a> {
         &mut self,
         is_optional: bool,
         value: &mut Value,
-        transferer: Arc<dyn Transferer>,
-        needs_local_inputs: bool,
         cacheable: bool,
     ) -> Result<()> {
         // For WDL 1.2 documents, start by ensuring paths exist.
@@ -518,7 +526,7 @@ impl<'a> State<'a> {
                 .resolve_paths(
                     is_optional,
                     self.base_dir.as_local(),
-                    Some(transferer.as_ref()),
+                    Some(self.evaluator.engine.transferer()),
                     &|path| Ok(path.clone()),
                 )
                 .await?;
@@ -539,7 +547,7 @@ impl<'a> State<'a> {
             )? {
                 // Check to see if there's no guest path for a remote URL that needs to be
                 // localized; if so, we must localize it now
-                if needs_local_inputs
+                if self.evaluator.engine.backend().needs_local_inputs()
                     && self.backend_inputs.as_slice()[index].guest_path().is_none()
                     && is_supported_url(path.as_str())
                     && !is_file_url(path.as_str())
@@ -558,13 +566,18 @@ impl<'a> State<'a> {
         // Download any necessary files
         let mut downloads = JoinSet::new();
         for (url, index) in urls {
-            let transferer = transferer.clone();
+            let engine = self.evaluator.engine.clone();
+            let events = self.evaluator.events.clone();
+            let cancellation = self.evaluator.cancellation.clone();
             downloads.spawn(async move {
-                transferer
+                engine
+                    .transferer()
                     .download(
                         &url.as_str()
                             .parse()
                             .with_context(|| format!("invalid URL `{url}`"))?,
+                        &events,
+                        &cancellation,
                     )
                     .await
                     .with_context(|| anyhow!("failed to localize `{url}`"))
@@ -777,10 +790,9 @@ impl<'a> State<'a> {
         self.add_backend_inputs(
             decl_ty.is_optional(),
             &mut value,
-            self.transferer().clone(),
-            self.evaluator.backend.needs_local_inputs(),
             self.evaluator
-                .cache
+                .engine
+                .call_cache()
                 .as_ref()
                 .map(|c| !c.is_input_excluded(name.text()))
                 .unwrap_or(true),
@@ -840,17 +852,11 @@ impl<'a> State<'a> {
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
 
         // Add any file or directory backend inputs
-        self.add_backend_inputs(
-            decl_ty.is_optional(),
-            &mut value,
-            self.transferer().clone(),
-            self.evaluator.backend.needs_local_inputs(),
-            true,
-        )
-        .await
-        .map_err(|e| {
-            decl_evaluation_failed(e, self.task.name(), true, name.text(), None, name.span())
-        })?;
+        self.add_backend_inputs(decl_ty.is_optional(), &mut value, true)
+            .await
+            .map_err(|e| {
+                decl_evaluation_failed(e, self.task.name(), true, name.text(), None, name.span())
+            })?;
 
         self.scopes[ROOT_SCOPE_INDEX.0].insert(name.text(), value.clone());
 
@@ -1202,7 +1208,8 @@ impl<'a> State<'a> {
         // Get the execution constraints
         let constraints = self
             .evaluator
-            .backend
+            .engine
+            .backend()
             .constraints(inputs, &requirements, &hints)
             .with_context(|| {
                 format!(
@@ -1216,7 +1223,7 @@ impl<'a> State<'a> {
         // command/output sections are evaluated.
         if version >= Some(SupportedVersion::V1(V1::Two)) {
             let max_retries =
-                requirements::max_retries(inputs, &requirements, &self.evaluator.config)?;
+                requirements::max_retries(inputs, &requirements, self.evaluator.engine.config())?;
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -1306,7 +1313,7 @@ impl<'a> State<'a> {
             .resolve_paths(
                 ty.is_optional(),
                 self.base_dir.as_local(),
-                Some(self.transferer().as_ref()),
+                Some(self.evaluator.engine.transferer()),
                 &|path| {
                     // To be a valid output, the output must be one of the following:
                     // * the path to the `stdout` file
@@ -1335,7 +1342,7 @@ impl<'a> State<'a> {
                     let joined = evaluated.result.work_dir.join(path.as_str())?;
 
                     // If the backend doesn't use containers, allow the path
-                    if self.evaluator.backend.guest_inputs_dir().is_none() {
+                    if self.evaluator.engine.backend().guest_inputs_dir().is_none() {
                         return Ok(HostPath::new(String::try_from(joined)?));
                     }
 
@@ -1383,7 +1390,7 @@ impl<'a> State<'a> {
     /// Localizes inputs for execution.
     async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<()> {
         // If the backend needs local inputs, download them now
-        if self.evaluator.backend.needs_local_inputs() {
+        if self.evaluator.engine.backend().needs_local_inputs() {
             let mut downloads = JoinSet::new();
 
             // Download any necessary files
@@ -1393,11 +1400,14 @@ impl<'a> State<'a> {
                 }
 
                 if let Some(url) = input.path().as_remote() {
-                    let transferer = self.evaluator.transferer.clone();
+                    let engine = self.evaluator.engine.clone();
                     let url = url.clone();
+                    let events = self.evaluator.events.clone();
+                    let cancellation = self.evaluator.cancellation.clone();
                     downloads.spawn(async move {
-                        transferer
-                            .download(&url)
+                        engine
+                            .transferer()
+                            .download(&url, &events, &cancellation)
                             .await
                             .map(|l| (idx, l))
                             .with_context(|| anyhow!("failed to localize `{url}`"))
@@ -1667,7 +1677,8 @@ impl Evaluator {
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = requirements::max_retries(&inputs, &requirements, &self.config)?;
+            let max_retries =
+                requirements::max_retries(&inputs, &requirements, self.engine.config())?;
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1681,9 +1692,9 @@ impl Evaluator {
 
             // Calculate the cache key on the first attempt only
             let mut key = if attempt == 0
-                && let Some(cache) = &self.cache
+                && let Some(cache) = self.engine.call_cache()
             {
-                if hints::cacheable(&inputs, &hints, &self.config) {
+                if hints::cacheable(&inputs, &hints, self.engine.config()) {
                     // The configured default container is only part of the cache key
                     // when the task has no `container` requirement of its own. When
                     // the task does specify `container`, the requirement is already
@@ -1694,23 +1705,23 @@ impl Evaluator {
                         if requirements::has_container_requirement(&inputs, &requirements) {
                             None
                         } else {
-                            Some(self.config.task.container.as_str())
+                            Some(self.engine.config().task.container.as_str())
                         };
                     let request = KeyRequest {
                         document_uri: &state.document.uri(),
-                        backend: self.backend.name(),
+                        backend: self.engine.backend().name(),
                         task_name: task.name(),
                         inputs: &state.inputs,
                         command: &command,
+                        default_container,
+                        shell: &self.engine.config().task.shell,
                         requirements: &requirements,
                         hints: &hints,
-                        default_container,
-                        shell: &self.config.task.shell,
-                        guest_inputs_dir: self.backend.guest_inputs_dir(),
+                        guest_inputs_dir: self.engine.backend().guest_inputs_dir(),
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
-                    match cache.key(&request).await {
+                    match cache.key(self.engine.transferer(), &request).await {
                         Ok(key) => {
                             debug!(
                                 task_id = id,
@@ -1732,7 +1743,7 @@ impl Evaluator {
                     }
                 } else {
                     // Task wasn't cacheable, explain why.
-                    match self.config.task.cache {
+                    match self.engine.config().task.cache {
                         CallCachingMode::Off => {
                             unreachable!("cache was used despite not being enabled")
                         }
@@ -1761,10 +1772,10 @@ impl Evaluator {
             cached = false;
             let result = if let Some(cache_key) = &key {
                 match self
-                    .cache
-                    .as_ref()
+                    .engine
+                    .call_cache()
                     .expect("should have cache")
-                    .get(cache_key)
+                    .get(self.engine.transferer(), cache_key)
                     .await
                 {
                     Ok(Some(results)) => {
@@ -1778,7 +1789,7 @@ impl Evaluator {
 
                         // Notify that we've reused a cached execution result.
                         cached = true;
-                        if let Some(sender) = &self.events {
+                        if let Some(sender) = self.events.engine() {
                             let _ = sender.send(EngineEvent::ReusedCachedExecutionResult {
                                 id: id.to_string(),
                                 name: state.task_name.clone(),
@@ -1821,23 +1832,24 @@ impl Evaluator {
                     attempt_dir.push(attempt.to_string());
 
                     match self
-                        .backend
-                        .execute(
-                            &self.transferer,
-                            ExecuteTaskRequest {
-                                name: &state.task_name,
-                                command: &command,
-                                inputs: &inputs,
-                                backend_inputs: state.backend_inputs.as_slice(),
-                                requirements: &requirements,
-                                hints: &hints,
-                                env: &state.env,
-                                constraints: &constraints,
-                                base_dir: &state.base_dir,
-                                attempt_dir: &attempt_dir,
-                                temp_dir: &temp_dir,
-                            },
-                        )
+                        .engine
+                        .backend()
+                        .execute(&ExecuteTaskRequest {
+                            engine: &self.engine,
+                            name: &state.task_name,
+                            command: &command,
+                            inputs: &inputs,
+                            backend_inputs: state.backend_inputs.as_slice(),
+                            requirements: &requirements,
+                            hints: &hints,
+                            env: &state.env,
+                            constraints: &constraints,
+                            base_dir: &state.base_dir,
+                            attempt_dir: &attempt_dir,
+                            temp_dir: &temp_dir,
+                            events: &self.events,
+                            cancellation: &self.cancellation,
+                        })
                         .await
                     {
                         Ok(None) => return Err(EvaluationError::Canceled),
@@ -1866,8 +1878,8 @@ impl Evaluator {
                         task = state.task.name()
                     )
                 })?);
-                if let Some(container) = &result.container {
-                    task.set_container(container.to_string());
+                if let Some(image) = &result.image {
+                    task.set_container(image.to_string());
                 }
                 task.set_return_code(result.exit_code);
             }
@@ -1876,9 +1888,7 @@ impl Evaluator {
             if Self::did_task_fail(&requirements, result.exit_code) {
                 // Too many retries, break out with the errored evaluated task
                 if attempt >= max_retries {
-                    let error =
-                        Self::task_failure_error(&state, id, &result, state.transferer().as_ref())
-                            .await;
+                    let error = self.task_failure_error(&state, id, &result).await;
                     break EvaluatedTask::new(cached, result, Some(error));
                 }
 
@@ -1910,10 +1920,10 @@ impl Evaluator {
             // Task execution succeeded; update the cache entry if we have a key
             if let Some(key) = key {
                 match self
-                    .cache
-                    .as_ref()
+                    .engine
+                    .call_cache()
                     .expect("should have cache")
-                    .put(key, &result)
+                    .put(self.engine.transferer(), key, &result)
                     .await
                 {
                     Ok(key) => {
@@ -2014,7 +2024,7 @@ impl Evaluator {
     /// tree, otherwise an error is returned.
     fn remap_links(&self, state: &State<'_>, work_dir: &EvaluationPath) -> Result<()> {
         // Don't remap links for backends that don't use guest paths
-        if self.backend.guest_inputs_dir().is_none() {
+        if self.engine.backend().guest_inputs_dir().is_none() {
             return Ok(());
         }
 
@@ -2066,7 +2076,7 @@ impl Evaluator {
 
             // Check for a host path that is a URL and use the localized path instead
             let base_host_path =
-                if self.backend.needs_local_inputs() && is_supported_url(host.as_str()) {
+                if self.engine.backend().needs_local_inputs() && is_supported_url(host.as_str()) {
                     state
                         .backend_inputs
                         .as_slice()
@@ -2154,16 +2164,18 @@ impl Evaluator {
 
     /// Creates a task failure error for the given execution result.
     async fn task_failure_error(
+        &self,
         state: &State<'_>,
         id: &str,
         result: &TaskExecutionResult,
-        transferer: &dyn Transferer,
     ) -> EvaluationError {
         // Read the last `MAX_STDERR_LINES` number of lines from stderr
         // If there's a problem reading stderr, don't output it
         let stderr = download_file(
-            transferer,
+            self.engine.transferer(),
             &result.work_dir,
+            &self.events,
+            &self.cancellation,
             result.stderr.as_file().unwrap(),
         )
         .await
@@ -2222,6 +2234,7 @@ mod tests {
     use wdl_analysis::DiagnosticsConfig;
 
     use crate::CancellationContext;
+    use crate::Engine;
     use crate::Events;
     use crate::TaskInputs;
     use crate::config::CallCachingMode;
@@ -2229,7 +2242,6 @@ mod tests {
     use crate::config::DockerBackendConfig;
     use crate::digest::test::clear_digest_cache;
     use crate::eval::EvaluatedTask;
-    use crate::v1::Evaluator;
 
     /// Creates a configuration for testing with the given mode and root test
     /// directory.
@@ -2263,16 +2275,9 @@ mod tests {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let document = results.first().expect("should have result").document();
-
-        let evaluator = Evaluator::new(
-            &root_dir.join("runs"),
-            config.into(),
-            CancellationContext::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
-
+        let engine = Engine::new(config).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
         let runs_dir = root_dir.join("runs");
         evaluator
             .evaluate_task(

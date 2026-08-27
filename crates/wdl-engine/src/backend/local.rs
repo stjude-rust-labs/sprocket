@@ -9,7 +9,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use crankshaft::events::Event;
+use crankshaft::events::Event as CrankshaftEvent;
 use crankshaft::events::next_task_id;
 use crankshaft::events::send_event;
 use futures::FutureExt;
@@ -17,16 +17,13 @@ use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::process::Command;
 use tokio::select;
-use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use crate::CancellationContext;
 use crate::EvaluationPath;
-use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
@@ -34,11 +31,11 @@ use crate::SYSTEM;
 use crate::TaskInputs;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionResult;
+use crate::backend::manager::ManagedTask;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
-use crate::http::Transferer;
 use crate::v1::requirements;
 
 /// Represents a local task request.
@@ -49,19 +46,18 @@ struct LocalTask<'a> {
     /// The engine configuration.
     config: Arc<Config>,
     /// The task execution request.
-    request: ExecuteTaskRequest<'a>,
+    request: &'a ExecuteTaskRequest<'a>,
     /// The name of the task.
     name: String,
-    /// The sender for events.
-    events: Option<broadcast::Sender<Event>>,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
 }
 
-impl<'a> LocalTask<'a> {
-    /// Runs the local task.
-    ///
-    /// Returns `Ok(None)` if the task was canceled.
+impl ManagedTask for LocalTask<'_> {
+    type Output = TaskExecutionResult;
+
+    fn request(&self) -> &ExecuteTaskRequest<'_> {
+        self.request
+    }
+
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
         let id = next_task_id();
         let work_dir = self.request.work_dir();
@@ -127,7 +123,10 @@ impl<'a> LocalTask<'a> {
             let mut child = command.spawn().context("failed to spawn shell")?;
 
             // Notify that the process has spawned
-            send_event!(self.events, Event::TaskStarted { id });
+            send_event!(
+                self.request.events.crankshaft(),
+                CrankshaftEvent::TaskStarted { id }
+            );
 
             let id = child.id().expect("should have id");
             info!(
@@ -159,8 +158,8 @@ impl<'a> LocalTask<'a> {
         // Send the created event
         let task_token = CancellationToken::new();
         send_event!(
-            self.events,
-            Event::TaskCreated {
+            self.request.events.crankshaft(),
+            CrankshaftEvent::TaskCreated {
                 id,
                 name: self.name.clone(),
                 tes_id: None,
@@ -168,28 +167,28 @@ impl<'a> LocalTask<'a> {
             }
         );
 
-        let token = self.cancellation.second();
+        let token = self.request.cancellation.second();
 
         select! {
             // Poll the cancellation tokens before the child future
             biased;
             _ = task_token.cancelled() => {
-                send_event!(self.events, Event::TaskCanceled { id });
+                send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCanceled { id });
                 Ok(None)
             }
             _ = token.cancelled() => {
-                send_event!(self.events, Event::TaskCanceled { id });
+                send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCanceled { id });
                 Ok(None)
             }
             result = run => {
                 match result {
                     Ok(status) => {
-                        send_event!(self.events, Event::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
+                        send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
 
                         let exit_code = status.code().expect("process should have exited");
                         info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
                         Ok(Some(TaskExecutionResult {
-                            container: None,
+                            image: None,
                             exit_code,
                             work_dir: EvaluationPath::from_local_path(work_dir),
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
@@ -197,7 +196,7 @@ impl<'a> LocalTask<'a> {
                         }))
                     }
                     Err(e) => {
-                        send_event!(self.events, Event::TaskFailed { id, message: format!("{e:#}") });
+                        send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskFailed { id, message: format!("{e:#}") });
                         Err(e)
                     }
                 }
@@ -215,16 +214,12 @@ impl<'a> LocalTask<'a> {
 pub struct LocalBackend {
     /// The engine configuration.
     config: Arc<Config>,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
     /// The total CPU of the host.
     cpu: f64,
     /// The total memory of the host.
     memory: u64,
     /// The underlying task manager.
     manager: TaskManager,
-    /// The sender for events.
-    events: Events,
 }
 
 impl LocalBackend {
@@ -232,11 +227,7 @@ impl LocalBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub fn new(
-        config: Arc<Config>,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Result<Self> {
+    pub fn new(config: Arc<Config>) -> Result<Self> {
         info!("initializing local backend");
 
         let backend_config = config.backend()?;
@@ -252,22 +243,13 @@ impl LocalBackend {
             .as_ref()
             .map(|s| convert_unit_string(s).expect("value should be valid"))
             .unwrap_or_else(|| SYSTEM.total_memory());
-        let manager = TaskManager::new(
-            cpu,
-            cpu,
-            memory,
-            memory,
-            events.clone(),
-            cancellation.clone(),
-        );
+        let manager = TaskManager::new(cpu, cpu, memory, memory);
 
         Ok(Self {
             config,
-            cancellation,
             cpu,
             memory,
             manager,
-            events,
         })
     }
 }
@@ -342,7 +324,7 @@ impl TaskExecutionBackend for LocalBackend {
         }
 
         Ok(TaskExecutionConstraints {
-            container: None,
+            sources: Vec::new(),
             cpu,
             memory,
             gpu: Default::default(),
@@ -358,8 +340,7 @@ impl TaskExecutionBackend for LocalBackend {
 
     fn execute<'a>(
         &'a self,
-        _: &'a Arc<dyn Transferer>,
-        request: ExecuteTaskRequest<'a>,
+        request: &'a ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let name = request.name.to_string();
@@ -371,11 +352,9 @@ impl TaskExecutionBackend for LocalBackend {
                 config: self.config.clone(),
                 request,
                 name,
-                events: self.events.crankshaft().clone(),
-                cancellation: self.cancellation.clone(),
             };
 
-            self.manager.run(cpu, memory, task.run()).await
+            self.manager.run(cpu, memory, task).await
         }
         .boxed()
     }

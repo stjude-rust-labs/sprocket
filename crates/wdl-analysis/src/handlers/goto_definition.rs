@@ -650,7 +650,15 @@ fn resolve_access_expression(
         return Ok(Some(location_from_span(&uri, span, def_lines)?));
     }
 
-    if let Type::TypeNameRef(CustomType::Enum(enum_ty)) = target_type {
+    if let Type::TypeNameRef(ty) = target_type {
+        let enum_ty = match ty.ty() {
+            CustomType::Struct(_) => {
+                // `Struct.member` is not currently valid in WDL.
+                return Ok(None);
+            }
+            CustomType::Enum(ty) => ty,
+        };
+
         let original_enum_name = enum_ty.name();
 
         // Check for enum definition in imported namespaces.
@@ -735,11 +743,6 @@ fn resolve_access_expression(
         let span = Span::new(choice_span.start() + enum_def.offset(), choice_span.len());
         // Returns found enum choice definition location.
         return Ok(Some(location_from_span(&uri, span, def_lines)?));
-    }
-
-    if let Type::TypeNameRef(CustomType::Struct(_)) = target_type {
-        // `Struct.member` is not currently valid in WDL.
-        return Ok(None);
     }
 
     if let Some(call_ty) = target_type.as_call() {

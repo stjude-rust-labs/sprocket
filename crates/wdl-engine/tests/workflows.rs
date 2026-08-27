@@ -34,10 +34,10 @@ use tracing::level_filters::LevelFilter;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
+use wdl_engine::Engine;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
-use wdl_engine::v1::Evaluator;
 
 mod common;
 
@@ -117,13 +117,9 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         } else {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
-        let evaluator = Evaluator::new(
-            dir.path(),
-            config.engine.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await?;
+
+        let engine = Engine::new(config.engine).await?;
+        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
         match evaluator
             .evaluate_workflow(result.document(), inputs.clone(), &dir)
             .await
