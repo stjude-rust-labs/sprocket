@@ -498,7 +498,7 @@ fn add_namespace(
                     span,
                     local_name: aliased_name.to_string(),
                     node: s.node().clone(),
-                    source: imported_doc.uri(),
+                    document: imported_doc.clone(),
                     ty: s.ty().cloned(),
                     offset: s.offset(),
                 });
@@ -562,7 +562,7 @@ fn add_namespace(
                     local_name: aliased_name.to_string(),
                     span,
                     node: e.node().clone(),
-                    source: imported_doc.uri(),
+                    document: imported_doc.clone(),
                     ty: e.ty().cloned(),
                     offset: e.offset(),
                 });
@@ -665,7 +665,7 @@ fn add_wildcard_import(
                 local_name: s.name().to_string(),
                 node: s.node.clone(),
                 span,
-                source: imported_doc.uri(),
+                document: imported_doc.clone(),
                 ty: s.ty().cloned(),
                 offset: s.offset,
             }),
@@ -684,7 +684,7 @@ fn add_wildcard_import(
                 local_name: e.name().to_string(),
                 node: e.node.clone(),
                 span,
-                source: imported_doc.uri(),
+                document: imported_doc.clone(),
                 ty: e.ty().cloned(),
                 offset: e.offset,
             }),
@@ -824,7 +824,7 @@ fn add_selected_import(
                     local_name,
                     node: s.item.node.clone(),
                     span: member_span,
-                    source: imported_doc.uri(),
+                    document: imported_doc.clone(),
                     ty: s.item.ty().cloned(),
                     offset: s.item.offset,
                 };
@@ -842,7 +842,7 @@ fn add_selected_import(
                     local_name,
                     node: s.node.clone(),
                     span: member_span,
-                    source: s.source.clone(),
+                    document: s.document.clone(),
                     ty: s.ty().cloned(),
                     offset: s.offset,
                 };
@@ -860,7 +860,7 @@ fn add_selected_import(
                     local_name,
                     node: e.item.node.clone(),
                     span: member_span,
-                    source: imported_doc.uri(),
+                    document: imported_doc.clone(),
                     ty: e.item.ty().cloned(),
                     offset: e.item.offset,
                 };
@@ -878,7 +878,7 @@ fn add_selected_import(
                     local_name,
                     node: e.node.clone(),
                     span: member_span,
-                    source: e.source.clone(),
+                    document: e.document.clone(),
                     ty: e.ty().cloned(),
                     offset: e.offset,
                 };

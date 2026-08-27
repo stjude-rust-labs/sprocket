@@ -19,6 +19,7 @@ use url::Url;
 use uuid::Uuid;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
+use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_ast::Span;
@@ -637,7 +638,7 @@ impl Workflow {
 }
 
 /// A struct imported into scope.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImportedStruct {
     /// The aliased name of the struct in the dependent document.
     pub local_name: String,
@@ -652,8 +653,8 @@ pub struct ImportedStruct {
     node: rowan::GreenNode,
     /// The span of the import statement that introduced this struct.
     pub span: Span,
-    /// The source URI the struct came from.
-    pub source: Arc<Url>,
+    /// The source document that defines the struct.
+    pub document: Document,
     /// The type of the struct.
     ///
     /// Initially this is `None` until a type check/coercion occurs.
@@ -673,7 +674,7 @@ impl ImportedStruct {
 
     /// Gets the URI of the document this struct was imported from.
     pub fn source(&self) -> Arc<Url> {
-        self.source.clone()
+        self.document.uri()
     }
 
     /// Reconstructs the AST definition from the stored green node.
@@ -694,7 +695,7 @@ impl ImportedStruct {
 }
 
 /// An enum imported into scope.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImportedEnum {
     /// The aliased name of the enum in the dependent document.
     pub local_name: String,
@@ -710,8 +711,8 @@ pub struct ImportedEnum {
     node: rowan::GreenNode,
     /// The span of the import statement.
     pub span: Span,
-    /// The source URI.
-    pub source: Arc<Url>,
+    /// The source document that defines the enum.
+    pub document: Document,
     /// The type of the enum.
     ///
     /// Initially this is `None` until a type check/coercion occurs.
@@ -731,7 +732,7 @@ impl ImportedEnum {
 
     /// Gets the URI of the document this enum was imported from.
     pub fn source(&self) -> Arc<Url> {
-        self.source.clone()
+        self.document.uri()
     }
 
     /// Reconstructs the AST definition from the stored green node.
@@ -1453,11 +1454,23 @@ impl Document {
 
     /// Gets a cache key for an enum choice lookup.
     pub fn get_choice_cache_key(&self, name: &str, choice: &str) -> Option<EnumChoiceCacheKey> {
-        let (enum_index, _, r#enum) = self.data.cache.local_enum_by_name(name)?;
+        let (source_uri, enum_index, r#enum) =
+            if let Some((enum_index, _, r#enum)) = self.data.cache.local_enum_by_name(name) {
+                (self.data.uri.clone(), enum_index, r#enum)
+            } else {
+                let (_, imported) = self.data.cache.imported_enum_by_name(name)?;
+                let (enum_index, _, r#enum) = imported
+                    .document
+                    .data
+                    .cache
+                    .local_enum_by_name(imported.definition().name().text())?;
+                (imported.document.uri(), enum_index, r#enum)
+            };
+
         let enum_ty = r#enum.ty()?.as_enum()?;
         let choice_index = enum_ty.choices().iter().position(|v| v == choice)?;
         Some(EnumChoiceCacheKey::new(
-            self.data.uri.clone(),
+            source_uri,
             enum_index,
             choice_index,
         ))
