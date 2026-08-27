@@ -383,6 +383,8 @@ pub enum EngineEvent {
 }
 
 /// Represents events that may be sent during WDL evaluation.
+///
+/// This type is cheaply cloned.
 #[derive(Debug, Clone, Default)]
 pub struct Events {
     /// The WDL engine events channel.
@@ -605,6 +607,12 @@ pub(crate) trait EvaluationContext: Send + Sync {
 
     /// Gets the transferer to use for evaluating expressions.
     fn transferer(&self) -> &dyn Transferer;
+
+    /// Gets the evaluation events.
+    fn events(&self) -> &Events;
+
+    /// Gets the cancellation context for evaluation.
+    fn cancellation(&self) -> &CancellationContext;
 
     /// Gets a guest path representation of a host path.
     ///

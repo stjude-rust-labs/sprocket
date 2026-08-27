@@ -31,6 +31,7 @@ use crate::diagnostics::no_common_type;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
+use crate::types::EnumChoiceCacheKey;
 use crate::types::Optional;
 use crate::types::Type;
 
@@ -176,7 +177,7 @@ pub struct Enum {
     source: Option<Arc<Url>>,
     /// The type of the enum.
     ///
-    /// Initially this is `None` until a type check/coercion occurs.
+    /// Initially this is `None` until types are populated for the document.
     ty: Option<Type>,
 }
 
@@ -1136,28 +1137,25 @@ impl Document {
     }
 
     /// Gets the custom type by name.
-    pub fn get_custom_type(&self, name: &str) -> Option<Type> {
+    pub fn get_custom_type(&self, name: &str) -> Option<&Type> {
         if let Some(s) = self.struct_by_name(name) {
-            return s.ty().cloned();
+            return s.ty();
         }
 
-        if let Some(s) = self.enum_by_name(name) {
-            return s.ty().cloned();
+        if let Some(e) = self.enum_by_name(name) {
+            return e.ty();
         }
 
         None
     }
 
     /// Gets a cache key for an enum choice lookup.
-    pub fn get_choice_cache_key(
-        &self,
-        name: &str,
-        choice: &str,
-    ) -> Option<crate::types::EnumChoiceCacheKey> {
+    pub fn get_choice_cache_key(&self, name: &str, choice: &str) -> Option<EnumChoiceCacheKey> {
         let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
         let choice_index = enum_ty.choices().iter().position(|v| v == choice)?;
-        Some(crate::types::EnumChoiceCacheKey::new(
+        Some(EnumChoiceCacheKey::new(
+            self.data.uri.clone(),
             enum_index,
             choice_index,
         ))

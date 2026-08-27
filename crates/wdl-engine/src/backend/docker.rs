@@ -31,29 +31,27 @@ use tracing::info;
 use tracing::warn;
 use url::Url;
 
-use super::PullResults;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
 #[cfg(unix)]
 use crate::CLEANUP_TASK_NAME_PREFIX;
-use crate::CancellationContext;
 use crate::EvaluationPath;
-use crate::Events;
 use crate::INITIAL_EXPECTED_NAMES;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
 use crate::backend::ExecuteTaskRequest;
+use crate::backend::PullResults;
+use crate::backend::manager::ManagedTask;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
-use crate::http::Transferer;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::hints;
 use crate::v1::requirements;
-use crate::v1::requirements::ContainerSource;
+use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -131,78 +129,27 @@ fn explain_missing_bind_source(e: anyhow::Error) -> anyhow::Error {
 /// Represents a task that runs with a Docker container.
 struct DockerTask<'a> {
     /// The engine configuration.
-    config: Arc<Config>,
+    config: &'a Config,
     /// The task execution request.
-    request: ExecuteTaskRequest<'a>,
+    request: &'a ExecuteTaskRequest<'a>,
     /// The underlying Crankshaft backend.
-    backend: Arc<docker::Backend>,
-    /// The name of the task.
-    name: String,
+    backend: &'a docker::Backend,
     /// The requested maximum CPU limit for the task.
     max_cpu: Option<f64>,
     /// The requested maximum memory limit for the task, in bytes.
     max_memory: Option<u64>,
     /// The requested GPU count for the task.
     gpu: Option<u64>,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
 }
 
-/// Filters out any non-Docker sources.
-fn collect_applicable_sources(sources: &[ContainerSource]) -> anyhow::Result<Vec<String>> {
-    let mut pull_results = PullResults::default();
-    for source in sources {
-        match source {
-            ContainerSource::Docker(s) => pull_results.push(source.clone(), Ok(s.clone())),
-            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
-                let err = anyhow!(
-                    "Docker backend does not support `{source:#}`; use a Docker registry image \
-                     instead"
-                );
-                warn!("{err:?}");
-                pull_results.push(source.clone(), Err(err));
-            }
-            ContainerSource::SifFile(_) => {
-                let err = anyhow!(
-                    "Docker backend does not support local SIF file `{source:#}`; use a Docker \
-                     registry image instead"
-                );
-                warn!("{err:?}");
-                pull_results.push(source.clone(), Err(err));
-            }
-            ContainerSource::Unknown(_) => {
-                let err = anyhow!(
-                    "Docker backend does not support unknown container source `{source:#}`"
-                );
-                warn!("{err:?}");
-                pull_results.push(source.clone(), Err(err));
-            }
-        }
+impl ManagedTask for DockerTask<'_> {
+    type Output = TaskExecutionResult;
+
+    fn request(&self) -> &ExecuteTaskRequest<'_> {
+        self.request
     }
 
-    if pull_results.successful_containers().next().is_none() {
-        return Err(anyhow!("{pull_results}"));
-    }
-
-    Ok(pull_results
-        .successful_containers()
-        .map(|(_, v)| v.clone())
-        .collect::<Vec<_>>())
-}
-
-impl<'a> DockerTask<'a> {
-    /// Runs the docker task.
-    ///
-    /// Returns `Ok(None)` if the task was canceled.
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
-        let candidate_images = collect_applicable_sources(
-            self.request
-                .constraints
-                .container
-                .as_ref()
-                .context("task does not use a container")?,
-        )?;
-
         // Create the working directory
         let work_dir = self.request.work_dir();
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -324,10 +271,12 @@ impl<'a> DockerTask<'a> {
         }
 
         let task = Task::builder()
-            .name(&self.name)
+            .name(self.request.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .images(candidate_images)?
+                    .images(collect_applicable_sources(
+                        &self.request.constraints.sources,
+                    )?)?
                     .program(&self.config.task.shell)
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
@@ -350,23 +299,25 @@ impl<'a> DockerTask<'a> {
             .volumes(volumes)
             .build();
 
-        let results = match self.backend.run(task, self.cancellation.second())?.await {
-            Ok(statuses) => statuses,
+        let results = match self
+            .backend
+            .run(
+                task,
+                self.request.events.crankshaft().cloned(),
+                self.request.cancellation.second(),
+            )?
+            .await
+        {
+            Ok(results) => results,
             Err(TaskRunError::Canceled) => return Ok(None),
             Err(e) => return Err(explain_missing_bind_source(e.into())),
         };
 
-        assert_eq!(results.len(), 1, "there should only be one result");
-        let result = results.first();
+        assert_eq!(results.len(), 1, "there should only be one exit status");
+        let result = results.into_iter().next().unwrap();
 
         Ok(Some(TaskExecutionResult {
-            container: Some(ContainerSource::Docker(
-                result
-                    .image
-                    .as_deref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
-            )),
+            image: result.image.map(ImageSource::Docker),
             exit_code: result.status.code().expect("should have exit code"),
             work_dir: EvaluationPath::from_local_path(work_dir),
             stdout: PrimitiveValue::new_file(
@@ -394,22 +345,25 @@ impl<'a> DockerTask<'a> {
 /// directory so that files created by a container user (e.g. `root`) are
 /// changed to be owned by the user performing evaluation.
 #[cfg(unix)]
-struct CleanupTask {
+struct CleanupTask<'a> {
+    /// The task execution request.
+    request: &'a ExecuteTaskRequest<'a>,
     /// The name of the task.
     name: String,
     /// The work directory to `chown`.
-    work_dir: EvaluationPath,
+    work_dir: &'a EvaluationPath,
     /// The underlying Crankshaft backend.
-    backend: Arc<docker::Backend>,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
+    backend: &'a docker::Backend,
 }
 
 #[cfg(unix)]
-impl CleanupTask {
-    /// Runs the cleanup task.
-    ///
-    /// Returns `Ok(None)` if the task was canceled.
+impl ManagedTask for CleanupTask<'_> {
+    type Output = ();
+
+    fn request(&self) -> &ExecuteTaskRequest<'_> {
+        self.request
+    }
+
     async fn run(self) -> Result<Option<()>> {
         use crankshaft::engine::service::runner::backend::TaskRunError;
         use tracing::debug;
@@ -425,6 +379,7 @@ impl CleanupTask {
             .name(&self.name)
             .executions(NonEmpty::new(
                 Execution::builder()
+                    // SAFETY: there is at least one image in the list
                     .images(["alpine:latest"])?
                     .program("chown")
                     .args([
@@ -457,7 +412,11 @@ impl CleanupTask {
 
         match self
             .backend
-            .run(task, self.cancellation.second())
+            .run(
+                task,
+                self.request.events.crankshaft().cloned(),
+                self.request.cancellation.second(),
+            )
             .context("failed to submit cleanup task")?
             .await
         {
@@ -478,14 +437,56 @@ impl CleanupTask {
     }
 }
 
+/// Collects only Docker image sources.
+///
+/// A warning is emitted for unsupported sources.
+fn collect_applicable_sources(sources: &[ImageSource]) -> anyhow::Result<Vec<String>> {
+    let mut results = PullResults::default();
+    for source in sources {
+        match source {
+            ImageSource::Docker(s) => results.push(source.clone(), Ok(s.clone())),
+            ImageSource::Library(_) | ImageSource::Oras(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support `{source:#}`; use a Docker registry image \
+                     instead"
+                );
+                warn!("{err:?}");
+                results.push(source.clone(), Err(err));
+            }
+            ImageSource::SifFile(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support local SIF file `{source:#}`; use a Docker \
+                     registry image instead"
+                );
+                warn!("{err:?}");
+                results.push(source.clone(), Err(err));
+            }
+            ImageSource::Unknown(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support unknown container source `{source:#}`"
+                );
+                warn!("{err:?}");
+                results.push(source.clone(), Err(err));
+            }
+        }
+    }
+
+    if results.successful_images().next().is_none() {
+        return Err(anyhow!("{results}"));
+    }
+
+    Ok(results
+        .successful_images()
+        .map(|(_, v)| v.clone())
+        .collect::<Vec<_>>())
+}
+
 /// Represents the Docker backend.
 pub struct DockerBackend {
     /// The engine configuration.
     config: Arc<Config>,
     /// The underlying Crankshaft backend.
     inner: Arc<docker::Backend>,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
     /// The maximum CPUs for any of one node.
     max_cpu: f64,
     /// The maximum memory for any of one node.
@@ -499,11 +500,7 @@ impl DockerBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub async fn new(
-        config: Arc<Config>,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Result<Self> {
+    pub async fn new(config: Arc<Config>) -> Result<Self> {
         info!("initializing Docker backend");
 
         let names = Arc::new(Mutex::new(GeneratorIterator::new(
@@ -521,7 +518,6 @@ impl DockerBackend {
                 .cleanup(backend_config.cleanup)
                 .build(),
             names.clone(),
-            events.crankshaft().cloned(),
         )
         .await
         .context("failed to initialize Docker backend")?;
@@ -538,20 +534,12 @@ impl DockerBackend {
         let manager = if resources.use_service() {
             TaskManager::new_unlimited(max_cpu, max_memory)
         } else {
-            TaskManager::new(
-                cpu,
-                max_cpu,
-                memory,
-                max_memory,
-                events,
-                cancellation.clone(),
-            )
+            TaskManager::new(cpu, max_cpu, memory, max_memory)
         };
 
         Ok(Self {
             config,
             inner: Arc::new(backend),
-            cancellation,
             max_cpu,
             max_memory,
             manager,
@@ -570,7 +558,7 @@ impl TaskExecutionBackend for DockerBackend {
         requirements: &Object,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
-        let containers = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(inputs, requirements, &self.config.task.container);
 
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {
@@ -645,7 +633,7 @@ impl TaskExecutionBackend for DockerBackend {
             .collect();
 
         Ok(TaskExecutionConstraints {
-            container: Some(containers),
+            sources,
             cpu,
             memory,
             gpu,
@@ -656,8 +644,7 @@ impl TaskExecutionBackend for DockerBackend {
 
     fn execute<'a>(
         &'a self,
-        _: &'a Arc<dyn Transferer>,
-        request: ExecuteTaskRequest<'a>,
+        request: &'a ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let cpu = request.constraints.cpu;
@@ -671,36 +658,35 @@ impl TaskExecutionBackend for DockerBackend {
                 .map(|i| (i as u64).min(self.max_memory));
             let gpu = requirements::gpu(request.inputs, request.requirements, request.hints);
 
-            let task_name = request.name.to_string();
-
             let task = DockerTask {
-                config: self.config.clone(),
+                config: self.config.as_ref(),
                 request,
-                backend: self.inner.clone(),
-                name: task_name.clone(),
+                backend: self.inner.as_ref(),
                 max_cpu,
                 max_memory,
                 gpu,
-                cancellation: self.cancellation.clone(),
             };
 
-            match self.manager.run(cpu, memory, task.run()).await? {
+            match self.manager.run(cpu, memory, task).await? {
                 Some(res) => {
                     // The task completed, perform cleanup on unix platforms
                     #[cfg(unix)]
                     {
-                        let name = format!("{CLEANUP_TASK_NAME_PREFIX}chown-{task_name}");
+                        let name = format!(
+                            "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
+                            name = request.name
+                        );
 
                         let task = CleanupTask {
+                            request,
                             name,
-                            work_dir: res.work_dir.clone(),
-                            backend: self.inner.clone(),
-                            cancellation: self.cancellation.clone(),
+                            work_dir: &res.work_dir.clone(),
+                            backend: self.inner.as_ref(),
                         };
 
                         if let Err(e) = self
                             .manager
-                            .run(CLEANUP_TASK_CPU, CLEANUP_TASK_MEMORY, task.run())
+                            .run(CLEANUP_TASK_CPU, CLEANUP_TASK_MEMORY, task)
                             .await
                         {
                             tracing::error!("Docker backend cleanup failed: {e:#}");

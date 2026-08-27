@@ -44,6 +44,7 @@ use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::Engine;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -902,6 +903,9 @@ pub async fn run(
     }
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    if let Some(output_dir) = &args.output_dir {
+        config.run.output_dir.clone_from(output_dir);
+    }
     args.apply_engine_config(&mut config.run.engine);
 
     // Bring a stale or missing module lockfile up to date before executing so
@@ -997,7 +1001,6 @@ pub async fn run(
     }
 
     let document = results.filter(&[&source]).next().unwrap().document();
-
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
     // Held for the rest of this function: dropping it stops the heartbeat and
@@ -1040,13 +1043,17 @@ pub async fn run(
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
 
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
         document.clone(),
-        config.run.engine,
-        cancellation.clone(),
+        engine,
         events,
+        cancellation.clone(),
         &target,
         inputs,
         &run_dir,
@@ -1191,11 +1198,7 @@ async fn setup_run_context(
     inputs: &Inputs,
 ) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
-    let output_dir = OutputDirectory::new(
-        args.output_dir
-            .clone()
-            .unwrap_or_else(|| config.run.output_dir.clone()),
-    );
+    let output_dir = OutputDirectory::new(config.run.output_dir.clone());
 
     // Acquire an exclusive lock on the output directory to serialize setup
     // operations across concurrent processes (e.g., database creation,
@@ -1221,7 +1224,7 @@ async fn setup_run_context(
     );
 
     // Open or create the database for provenance tracking
-    let db_path = config.server.database_url();
+    let db_path = config.server.database.resolve_url(output_dir.root());
     let db = open_database(&db_path).await?;
 
     // Create session and run records

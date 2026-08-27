@@ -5,6 +5,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use url::Url;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
@@ -194,7 +195,7 @@ pub enum Type {
     /// The type is a call output.
     Call(CallType),
     /// A reference to a custom type name (struct or enum).
-    TypeNameRef(CustomType),
+    TypeNameRef(TypeNameRef),
 }
 
 // NOTE: `Type` was optimized to `24` bytes as part of the type representation
@@ -288,9 +289,9 @@ impl Type {
     /// Converts the type to a type name reference.
     ///
     /// Returns `None` if the type is not a type name reference.
-    pub fn as_type_name_ref(&self) -> Option<&CustomType> {
+    pub fn as_type_name_ref(&self) -> Option<&TypeNameRef> {
         match self {
-            Self::TypeNameRef(custom_ty) => Some(custom_ty),
+            Self::TypeNameRef(ty) => Some(ty),
             _ => None,
         }
     }
@@ -378,16 +379,6 @@ impl Type {
         }
 
         None
-    }
-
-    /// Attempts to transform the type into the analogous type name reference.
-    ///
-    /// This is only supported for custom types (structs and enums).
-    pub fn type_name_ref(&self) -> Option<Type> {
-        match self {
-            Type::Compound(CompoundType::Custom(ty), _) => Some(Type::TypeNameRef(ty.clone())),
-            _ => None,
-        }
     }
 }
 
@@ -654,6 +645,18 @@ impl From<EnumType> for Type {
 impl From<CallType> for Type {
     fn from(value: CallType) -> Self {
         Self::Call(value)
+    }
+}
+
+impl From<CustomType> for Type {
+    fn from(value: CustomType) -> Self {
+        Self::Compound(CompoundType::Custom(value), false)
+    }
+}
+
+impl From<TypeNameRef> for Type {
+    fn from(value: TypeNameRef) -> Self {
+        Self::TypeNameRef(value)
     }
 }
 
@@ -1168,8 +1171,10 @@ impl Coercible for StructType {
 }
 
 /// Cache key for enum choice values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnumChoiceCacheKey {
+    /// The URI of the document containing the enum.
+    uri: Arc<Url>,
     /// The index of the enum in the document.
     enum_index: usize,
     /// The index of the choice within the enum.
@@ -1178,8 +1183,9 @@ pub struct EnumChoiceCacheKey {
 
 impl EnumChoiceCacheKey {
     /// Constructs a new enum choice cache key.
-    pub(crate) fn new(enum_index: usize, choice_index: usize) -> Self {
+    pub(crate) fn new(uri: Arc<Url>, enum_index: usize, choice_index: usize) -> Self {
         Self {
+            uri,
             enum_index,
             choice_index,
         }
@@ -1496,6 +1502,68 @@ impl fmt::Display for CallType {
 impl PartialEq for CallType {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+/// The inner type for [`TypeNameRef`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TypeNameRefInner {
+    /// The name used to refer to the type.
+    name: String,
+    /// The custom type that was referred to.
+    ty: CustomType,
+}
+
+/// Represents a reference to a custom type (struct or enum).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeNameRef(Arc<TypeNameRefInner>);
+
+impl TypeNameRef {
+    /// Constructs a new [`TypeNameRef`].
+    pub fn new(name: impl Into<String>, ty: CustomType) -> Self {
+        Self(
+            TypeNameRefInner {
+                name: name.into(),
+                ty,
+            }
+            .into(),
+        )
+    }
+
+    /// Gets the name used to reference the type.
+    pub fn name(&self) -> &str {
+        &self.0.name
+    }
+
+    /// Gets the referenced custom type.
+    pub fn ty(&self) -> &CustomType {
+        &self.0.ty
+    }
+
+    /// Converts the referenced custom type to a struct type.
+    ///
+    /// Returns `None` if the referenced custom type is not a struct.
+    pub fn as_struct(&self) -> Option<&StructType> {
+        match &self.0.ty {
+            CustomType::Struct(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the referenced custom type to an enum type.
+    ///
+    /// Returns `None` if the referenced custom type is not an enum.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        match &self.0.ty {
+            CustomType::Enum(ty) => Some(ty),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for TypeNameRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.name.fmt(f)
     }
 }
 
