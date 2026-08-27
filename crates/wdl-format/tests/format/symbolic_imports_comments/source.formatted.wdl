@@ -4,9 +4,12 @@ import {
     sort,  # explanation for sort
     cut,
     grep,  # explanation for grep
-} from openwdl/csvkit
+        } from openwdl/csvkit
 import {
     Foo,
     # explanation for Bar
     Bar as Baz,  # also explains Bar
-} from openwdl/widgets
+        } from openwdl/widgets
+
+workflow empty {
+}

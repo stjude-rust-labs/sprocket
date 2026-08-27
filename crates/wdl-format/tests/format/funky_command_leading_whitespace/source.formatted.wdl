@@ -73,14 +73,14 @@ task idempotent {
             ]))} \
             --clip3pAdapterSeq "~{clip_3p_adapter_seq.left}" ~{(if (length(read_twos) != 0
             )
-                    then "'" + clip_3p_adapter_seq.right + "'"
+                then "'" + clip_3p_adapter_seq.right + "'"
                 else "")} \
             --clip3pAdapterMMp ~{clip_3p_adapter_mmp.left} ~{(if (length(read_twos) != 0)
                 then clip_3p_adapter_mmp.right
                 else None)} \
             --alignEndsProtrude ~{align_ends_protrude.left} "~{(if (length(read_twos) != 0
             )
-                    then align_ends_protrude.right
+                then align_ends_protrude.right
                 else None)}" \
             --clip3pNbases ~{clip_3p_n_bases.left} ~{(if (length(read_twos) != 0)
                 then clip_3p_n_bases.right

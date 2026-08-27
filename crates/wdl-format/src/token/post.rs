@@ -591,6 +591,7 @@ impl Postprocessor {
                 PreToken::FitOrSplitEnd { .. } => {
                     if let Some(start) = fit_start.take()
                         && max_length.is_none_or(|max| post_buffer.last_line_width(config) < max)
+                        && !self.interrupted
                     {
                         fit_spans.push((start, i));
                     }
@@ -767,20 +768,25 @@ impl Postprocessor {
             } else if let PreToken::FitOrSplitStart { split_end_line, .. } = token {
                 if *split_end_line {
                     self.indent_level += 1;
+                    self.interrupted = false;
                 } else {
                     indent_on_first_split = true;
                 }
             }
-            if indent_on_first_split && matches!(token, PreToken::PotentialSplit) {
-                self.indent_level += 1;
-                indent_on_first_split = false;
+            if !self.fit_potential_splits && matches!(token, PreToken::PotentialSplit) {
+                self.interrupted = false;
+                if indent_on_first_split {
+                    self.indent_level += 1;
+                    indent_on_first_split = false;
+                }
             }
             let mut disable_fit_after_step = false;
             if fit_span.is_some_and(|(_start, end)| *end == i) {
                 disable_fit_after_step = true;
                 fit_span = fit_spans.next();
-            } else if matches!(token, PreToken::FitOrSplitEnd { .. }) {
+            } else if let PreToken::FitOrSplitEnd { split_end_line, .. } = token {
                 self.indent_level = self.indent_level.saturating_sub(1);
+                self.interrupted = false;
             }
 
             if let Some(max) = max_length {
