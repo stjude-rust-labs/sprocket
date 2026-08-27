@@ -321,14 +321,14 @@ workflow seaseq {
 
             call fastqc.fastqc as indv_fastqc { input:
                 inputfile = eachfastq,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", ""
-                ) + "/QC/FastQC",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/FastQC",
             }
 
             call util.basicfastqstats as indv_bfs { input:
                 fastqfile = eachfastq,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", ""
-                ) + "/QC/SummaryStats",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/SummaryStats",
             }
 
             call mapping.mapping as indv_mapping { input:
@@ -336,14 +336,14 @@ workflow seaseq {
                 index_files = actual_bowtie_index,
                 metricsfile = indv_bfs.metrics_out,
                 blacklist = blacklist,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", ""
-                ) + "/BAM_files",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/BAM_files",
             }
 
             call fastqc.fastqc as indv_bamfqc { input:
                 inputfile = indv_mapping.sorted_bam,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", ""
-                ) + "/QC/FastQC",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/FastQC",
             }
 
             call runspp.runspp as indv_runspp { input:
@@ -363,8 +363,8 @@ workflow seaseq {
                 rmdupflag = indv_mapping.mkdup_stats,
                 bkflag = indv_mapping.bklist_stats,
                 fastqmetrics = indv_bfs.metrics_out,
-                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", ""
-                ) + "/QC/SummaryStats",
+                default_location = "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
+                    "") + "/QC/SummaryStats",
             }
         }  # end scatter (for each sample fastq)
 

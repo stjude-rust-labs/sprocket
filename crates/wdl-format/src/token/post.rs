@@ -270,9 +270,10 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
         | SyntaxKind::LogicalOr
         | SyntaxKind::AfterKeyword
         | SyntaxKind::AsKeyword => Some(LineBreak::Before),
-        SyntaxKind::OpenParen | SyntaxKind::Colon | SyntaxKind::PlaceholderOpen => {
-            Some(LineBreak::After)
-        }
+        SyntaxKind::OpenParen
+        | SyntaxKind::Colon
+        | SyntaxKind::PlaceholderOpen
+        | SyntaxKind::Comma => Some(LineBreak::After),
         _ => None,
     }
 }
