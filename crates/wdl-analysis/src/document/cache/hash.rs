@@ -59,15 +59,45 @@ impl HashableCallable for TaskDefinition {
 
         for item in self.items() {
             match item {
-                TaskItem::Input(i) => HashableElement::hash(&i, &mut signature_hasher),
-                TaskItem::Output(o) => HashableElement::hash(&o, &mut signature_hasher),
-                TaskItem::Command(c) => HashableElement::hash(&c, &mut body_hasher),
-                TaskItem::Requirements(r) => HashableElement::hash(&r, &mut body_hasher),
-                TaskItem::Hints(h) => HashableElement::hash(&h, &mut body_hasher),
-                TaskItem::Runtime(r) => HashableElement::hash(&r, &mut body_hasher),
-                TaskItem::Metadata(m) => HashableElement::hash(&m, &mut body_hasher),
-                TaskItem::ParameterMetadata(p) => HashableElement::hash(&p, &mut body_hasher),
-                TaskItem::Declaration(d) => HashableElement::hash(&d, &mut body_hasher),
+                // Signature significant
+                TaskItem::Input(i) => {
+                    Digest::update(&mut signature_hasher, [1]);
+                    HashableElement::hash(&i, &mut signature_hasher)
+                }
+                TaskItem::Output(o) => {
+                    Digest::update(&mut signature_hasher, [2]);
+                    HashableElement::hash(&o, &mut signature_hasher)
+                }
+
+                // Body significant
+                TaskItem::Command(c) => {
+                    Digest::update(&mut signature_hasher, [3]);
+                    HashableElement::hash(&c, &mut body_hasher)
+                }
+                TaskItem::Requirements(r) => {
+                    Digest::update(&mut signature_hasher, [4]);
+                    HashableElement::hash(&r, &mut body_hasher)
+                }
+                TaskItem::Hints(h) => {
+                    Digest::update(&mut signature_hasher, [5]);
+                    HashableElement::hash(&h, &mut body_hasher)
+                }
+                TaskItem::Runtime(r) => {
+                    Digest::update(&mut signature_hasher, [6]);
+                    HashableElement::hash(&r, &mut body_hasher)
+                }
+                TaskItem::Metadata(m) => {
+                    Digest::update(&mut signature_hasher, [7]);
+                    HashableElement::hash(&m, &mut body_hasher)
+                }
+                TaskItem::ParameterMetadata(p) => {
+                    Digest::update(&mut signature_hasher, [8]);
+                    HashableElement::hash(&p, &mut body_hasher)
+                }
+                TaskItem::Declaration(d) => {
+                    Digest::update(&mut signature_hasher, [9]);
+                    HashableElement::hash(&d, &mut body_hasher)
+                }
             }
         }
 
@@ -88,15 +118,45 @@ impl HashableCallable for WorkflowDefinition {
 
         for item in self.items() {
             match item {
-                WorkflowItem::Input(i) => HashableElement::hash(&i, &mut signature_hasher),
-                WorkflowItem::Output(o) => HashableElement::hash(&o, &mut signature_hasher),
-                WorkflowItem::Conditional(c) => HashableElement::hash(&c, &mut body_hasher),
-                WorkflowItem::Scatter(s) => HashableElement::hash(&s, &mut body_hasher),
-                WorkflowItem::Call(c) => HashableElement::hash(&c, &mut body_hasher),
-                WorkflowItem::Metadata(m) => HashableElement::hash(&m, &mut body_hasher),
-                WorkflowItem::ParameterMetadata(p) => HashableElement::hash(&p, &mut body_hasher),
-                WorkflowItem::Hints(h) => HashableElement::hash(&h, &mut body_hasher),
-                WorkflowItem::Declaration(d) => HashableElement::hash(&d, &mut body_hasher),
+                // Signature significant
+                WorkflowItem::Input(i) => {
+                    Digest::update(&mut signature_hasher, [1]);
+                    HashableElement::hash(&i, &mut signature_hasher)
+                }
+                WorkflowItem::Output(o) => {
+                    Digest::update(&mut signature_hasher, [2]);
+                    HashableElement::hash(&o, &mut signature_hasher)
+                }
+
+                // Body significant
+                WorkflowItem::Conditional(c) => {
+                    Digest::update(&mut signature_hasher, [3]);
+                    HashableElement::hash(&c, &mut body_hasher)
+                }
+                WorkflowItem::Scatter(s) => {
+                    Digest::update(&mut signature_hasher, [4]);
+                    HashableElement::hash(&s, &mut body_hasher)
+                }
+                WorkflowItem::Call(c) => {
+                    Digest::update(&mut signature_hasher, [5]);
+                    HashableElement::hash(&c, &mut body_hasher)
+                }
+                WorkflowItem::Metadata(m) => {
+                    Digest::update(&mut signature_hasher, [6]);
+                    HashableElement::hash(&m, &mut body_hasher)
+                }
+                WorkflowItem::ParameterMetadata(p) => {
+                    Digest::update(&mut signature_hasher, [7]);
+                    HashableElement::hash(&p, &mut body_hasher)
+                }
+                WorkflowItem::Hints(h) => {
+                    Digest::update(&mut signature_hasher, [8]);
+                    HashableElement::hash(&h, &mut body_hasher)
+                }
+                WorkflowItem::Declaration(d) => {
+                    Digest::update(&mut signature_hasher, [9]);
+                    HashableElement::hash(&d, &mut body_hasher)
+                }
             }
         }
 
@@ -123,9 +183,10 @@ impl HashableItem for ImportStatement {
     fn hash(&self) -> SignatureHash {
         let mut signature_hasher = Sha256::default();
 
+        Digest::update(&mut signature_hasher, [self.form() as u8]);
         match self.source() {
             ImportSource::Uri(uri) => match uri.text() {
-                None => Digest::update(&mut signature_hasher, ""),
+                None => Digest::update(&mut signature_hasher, [1]),
                 Some(text) => hash_text(&mut signature_hasher, text.text()),
             },
             ImportSource::ModulePath(path) => {
@@ -294,8 +355,14 @@ impl HashableElement for BoundDecl {
 impl HashableElement for Decl {
     fn hash(&self, hasher: &mut Sha256) {
         match self {
-            Decl::Bound(decl) => HashableElement::hash(decl, hasher),
-            Decl::Unbound(decl) => HashableElement::hash(decl, hasher),
+            Decl::Bound(decl) => {
+                Digest::update(hasher, [1]);
+                HashableElement::hash(decl, hasher);
+            }
+            Decl::Unbound(decl) => {
+                Digest::update(hasher, [2]);
+                HashableElement::hash(decl, hasher);
+            }
         }
     }
 }
@@ -327,26 +394,33 @@ impl HashableElement for MetadataValue {
     fn hash(&self, hasher: &mut Sha256) {
         match self {
             MetadataValue::Boolean(b) => {
+                Digest::update(hasher, [1]);
                 hash_text(hasher, &b.inner().text().to_string());
             }
             MetadataValue::Integer(i) => {
+                Digest::update(hasher, [2]);
                 hash_text(hasher, &i.inner().text().to_string());
             }
             MetadataValue::Float(f) => {
+                Digest::update(hasher, [3]);
                 hash_text(hasher, &f.inner().text().to_string());
             }
             MetadataValue::String(s) => {
+                Digest::update(hasher, [4]);
                 hash_text(hasher, &s.inner().text().to_string());
             }
             MetadataValue::Null(_) => {
+                Digest::update(hasher, [5]);
                 hash_text(hasher, "null");
             }
             MetadataValue::Object(o) => {
+                Digest::update(hasher, [6]);
                 for item in o.items() {
                     HashableElement::hash(&item, hasher);
                 }
             }
             MetadataValue::Array(a) => {
+                Digest::update(hasher, [7]);
                 for element in a.elements() {
                     HashableElement::hash(&element, hasher);
                 }
