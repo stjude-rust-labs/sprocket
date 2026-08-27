@@ -1671,8 +1671,8 @@ workflow chip {
         # to override endedness definition for individual control
         #     ctl_paired_end will override ctl_paired_ends[i]
         Boolean ctl_paired_end_ = if !defined(ctl_paired_end) && i < length(
-                ctl_paired_ends
-            )
+            ctl_paired_ends
+        )
             then ctl_paired_ends[i]
             else select_first([
                 ctl_paired_end,

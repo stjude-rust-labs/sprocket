@@ -568,6 +568,9 @@ impl Postprocessor {
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
         let mut post_buffer = TokenStream::<PostToken>::default();
 
+        // If we encounter any potential splits, we use the first iteration to find any spans that
+        // will fit. If we don't find any potential splits, we can just push the result of the first
+        // iteration to the out stream and be done.
         self.fit_potential_splits = true;
         let mut fit_spans = Vec::new();
         let mut fit_start = None;
@@ -578,6 +581,8 @@ impl Postprocessor {
             match token {
                 PreToken::FitOrSplitStart { .. } => {
                     reprocess_needed = true;
+                    // overwrite any prior start. Only the innermost span is a candidate for
+                    // fitting.
                     fit_start = Some(i);
                 }
                 PreToken::PotentialSplit => {
@@ -749,6 +754,7 @@ impl Postprocessor {
         self.fit_potential_splits = false;
         let mut fit_spans = fit_spans.iter();
         let mut fit_span = fit_spans.next();
+        let mut indent_on_first_split = false;
 
         // Second iteration
         while let Some((i, token)) = pre_buffer.next() {
@@ -756,13 +762,21 @@ impl Postprocessor {
             let mut cached_self = None;
             let mut cached_on = None;
 
-            if Some(i) == fit_span.map(|(start, _end)| *start) {
+            if fit_span.is_some_and(|(start, _end)| *start == i) {
                 self.fit_potential_splits = true;
-            } else if matches!(token, PreToken::FitOrSplitStart { .. }) {
+            } else if let PreToken::FitOrSplitStart { split_end_line, .. } = token {
+                if *split_end_line {
+                    self.indent_level += 1;
+                } else {
+                    indent_on_first_split = true;
+                }
+            }
+            if indent_on_first_split && matches!(token, PreToken::PotentialSplit) {
                 self.indent_level += 1;
+                indent_on_first_split = false;
             }
             let mut disable_fit_after_step = false;
-            if Some(i) == fit_span.map(|(_start, end)| *end) {
+            if fit_span.is_some_and(|(_start, end)| *end == i) {
                 disable_fit_after_step = true;
                 fit_span = fit_spans.next();
             } else if matches!(token, PreToken::FitOrSplitEnd { .. }) {
@@ -902,10 +916,6 @@ impl Postprocessor {
         // Any tandem break still open at the end of the flush will never be
         // closed, so unwind the indentation it introduced.
         self.indent_level = self.indent_level.saturating_sub(break_stack.len());
-
-        // if self.fit_potential_splits {
-        //     self.indent_level = self.indent_level.saturating_sub(1);
-        // }
 
         out_stream.extend(post_buffer);
     }
