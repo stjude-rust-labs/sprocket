@@ -284,8 +284,8 @@ impl DocumentGraphNode {
     }
 
     /// Takes the analysis cache out of the node.
-    pub(crate) fn take_cache(&mut self) -> Option<AnalysisCache> {
-        self.cache.take().and_then(Arc::into_inner)
+    pub(crate) fn take_cache(&mut self) -> Option<Arc<AnalysisCache>> {
+        self.cache.take()
     }
 
     /// Gets the analysis error, if any
@@ -294,10 +294,8 @@ impl DocumentGraphNode {
     }
 
     /// Marks the analysis as completed.
-    pub(crate) fn analysis_completed(&mut self, mut document: Document, cache: AnalysisCache) {
-        let cache = Arc::new(cache);
-        document.attach_shared_cache(cache.clone());
-        self.cache = Some(cache);
+    pub(crate) fn analysis_completed(&mut self, document: Document) {
+        self.cache = Some(document.cache());
         self.document = Some(document);
         self.analysis_error = None;
     }

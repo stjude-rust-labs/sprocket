@@ -61,7 +61,6 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::config::Config;
 use crate::document::Document;
-use crate::document::cache::AnalysisCache;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::EdgeKind;
@@ -1320,8 +1319,8 @@ where
 
                         let node = graph.get_mut(index);
                         match result {
-                            Ok((_, document, cache)) => {
-                                node.analysis_completed(document, cache);
+                            Ok((_, document)) => {
+                                node.analysis_completed(document);
                                 (index, Ok(()))
                             }
                             Err(payload) => {
@@ -1835,7 +1834,7 @@ where
         graph: &mut DocumentGraph,
         index: NodeIndex,
         validator: &mut crate::Validator,
-    ) -> (NodeIndex, Document, AnalysisCache) {
+    ) -> (NodeIndex, Document) {
         let start = Instant::now();
         let mut document = Document::from_graph_node(config, graph, index);
 
@@ -1857,8 +1856,7 @@ where
             elapsed = start.elapsed()
         );
 
-        let cache = document.take_cache();
-        (index, document, cache)
+        (index, document)
     }
 
     /// Returns the [`Module`] that governs the document at `uri`.

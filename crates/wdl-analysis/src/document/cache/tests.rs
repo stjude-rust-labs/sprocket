@@ -92,8 +92,7 @@ task baz {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
-    let doc_data = doc.data();
-    let cache = doc_data.cache();
+    let cache = doc.cache();
 
     // We should have all 3 items in the cache
     assert_eq!(cache.len(), 3);
@@ -155,8 +154,7 @@ task baz {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc_post = result.document();
-    let doc_data_post = doc_post.data();
-    let cache_post = doc_data_post.cache();
+    let cache_post = doc_post.cache();
 
     // We should still have all 3 items in the cache
     let new_foo_hash = cache_post
@@ -279,8 +277,7 @@ struct ToBeRemoved {}
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
-    let doc_data = doc.data();
-    let cache = doc_data.cache();
+    let cache = doc.cache();
     assert_eq!(cache.len(), 1);
 
     // `ToBeRemoved` should be dropped from the cache
@@ -289,8 +286,7 @@ struct ToBeRemoved {}
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc_post = result.document();
-    let doc_data_post = doc_post.data();
-    let cache_post = doc_data_post.cache();
+    let cache_post = doc_post.cache();
     assert!(cache_post.is_empty());
 }
 
@@ -318,7 +314,7 @@ workflow bar {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
-    let cache = doc.data().cache();
+    let cache = doc.cache();
     let foo_hash = cache
         .item_by_name("foo")
         .expect("`foo` should exist")
@@ -329,7 +325,6 @@ workflow bar {
         .expect("`bar` should exist")
         .signature_hash()
         .expect("`bar` is locally defined");
-    drop(result);
 
     // Now change only the body of `foo`
     let edited_contents = initial_file.replace("Hello", "Goodbye");
@@ -337,7 +332,7 @@ workflow bar {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc_post = result.document();
-    let cache_post = doc_post.data().cache();
+    let cache_post = doc_post.cache();
 
     let new_foo_hash = cache_post
         .item_by_name("foo")
@@ -391,7 +386,7 @@ workflow bar {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
-    let cache = doc.data().cache();
+    let cache = doc.cache();
     let foo_hash = cache
         .item_by_name("foo")
         .expect("`foo` should exist")
@@ -402,7 +397,6 @@ workflow bar {
         .expect("`bar` should exist")
         .signature_hash()
         .expect("`bar` is locally defined");
-    drop(result);
 
     // Now drop `foo`
     let edited_contents = r#"version 1.3
@@ -415,7 +409,7 @@ workflow bar {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc_post = result.document();
-    let cache_post = doc_post.data().cache();
+    let cache_post = doc_post.cache();
 
     // `foo` should be signature-invalidated because it was dropped
     assert!(cache_post.tests.invalidated_signatures.contains(&foo_hash));
@@ -448,7 +442,7 @@ workflow stays_clean {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc = result.document();
-    let cache = doc.data().cache();
+    let cache = doc.cache();
     let stays_clean_hash = cache
         .item_by_name("stays_clean")
         .expect("`stays_clean` should exist")
@@ -464,8 +458,6 @@ workflow stays_clean {
     let highlight_initial_span = unused_decl_initial.labels().next().unwrap().span();
     assert_eq!(highlight_initial_span, Span::new(126, 4));
 
-    drop(result);
-
     // Now drop `taking_up_space`
     let edited_contents = r#"version 1.3
 
@@ -477,7 +469,7 @@ workflow stays_clean {
 
     let result = doc_handle.analyze(&analyzer).await;
     let doc_post = result.document();
-    let cache_post = doc_post.data().cache();
+    let cache_post = doc_post.cache();
 
     // `stays_clean_hash` shouldn't be invalidated
     assert!(
@@ -677,8 +669,6 @@ task foo {
     let initial_unused_decl_span = unused_decl.labels().next().unwrap().span();
     assert_eq!(initial_unused_decl_span, Span::new(82, 11));
 
-    drop(result);
-
     analyzer
         .notify_incremental_change(
             doc_handle.uri.clone(),
@@ -694,7 +684,7 @@ task foo {
         )
         .unwrap();
     let result2 = doc_handle.analyze(&analyzer).await;
-    let cache = result2.document().data().cache();
+    let cache = result2.document().cache();
     assert!(cache.tests.invalidated_signatures.is_empty());
     assert!(cache.tests.invalidated_bodies.is_empty());
 
@@ -731,8 +721,6 @@ task foo {
         )
     );
 
-    drop(result2);
-
     analyzer
         .notify_incremental_change(
             doc_handle.uri.clone(),
@@ -748,7 +736,7 @@ task foo {
         )
         .unwrap();
     let result3 = doc_handle.analyze(&analyzer).await;
-    let cache = result3.document().data().cache();
+    let cache = result3.document().cache();
     assert!(cache.tests.invalidated_signatures.is_empty());
     assert!(cache.tests.invalidated_bodies.is_empty());
 
@@ -797,7 +785,6 @@ task foo {
     let result = doc_handle.analyze(&analyzer).await;
 
     assert!(result.document().diagnostics().next().is_none());
-    drop(result);
 
     analyzer
         .notify_incremental_change(
@@ -826,7 +813,6 @@ task foo {
         .iter()
         .find(|d| d.rule().is_some_and(|r| r == "UnusedInput"))
         .expect("`foo` should produce an `UnusedInput` diagnostic");
-    drop(result2);
 
     analyzer
         .notify_incremental_change(
@@ -879,7 +865,7 @@ task foo {
     .await;
     let result = doc_handle2.analyze(&analyzer2).await;
 
-    assert_eq!(result.document(), result3.document());
+    assert_eq!(result.document().cache(), result3.document().cache());
 }
 
 #[tokio::test]
@@ -1032,7 +1018,6 @@ task foo {
             .iter()
             .any(|d| d.rule() == Some("MeaninglessLintDirective"))
     );
-    drop(result);
 
     // Throw in a random comment, which should trigger re-analysis, but not dirty
     // the cache

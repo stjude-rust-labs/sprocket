@@ -184,6 +184,7 @@ fn sort_scopes(scopes: &mut Vec<Scope>) {
 /// Creates a new document for a V1 AST with optional caching.
 pub(crate) fn populate_document(
     document: &mut DocumentData,
+    existing_cache: Option<Arc<AnalysisCache>>,
     config: &Config,
     graph: &mut DocumentGraph,
     index: NodeIndex,
@@ -198,13 +199,6 @@ pub(crate) fn populate_document(
         "expected a supported V1 version"
     );
 
-    let ast_items = AstItems::new(ast);
-    document.cache.intersect(&ast_items, edits, |import| {
-        resolve_import(graph, import, index)
-            .ok()
-            .and_then(|(_, cache)| cache.map(|c| c.exports_hash()))
-    });
-
     // Pre-populate all of the lint exceptions
     document.analysis_diagnostics.add_exceptions(
         std::iter::successors(ast.inner().first_token(), |t| t.next_token())
@@ -212,18 +206,33 @@ pub(crate) fn populate_document(
             .flatten(),
     );
 
-    let dirty_items: Vec<_> = document.cache.dirty(&ast_items).collect();
-    if dirty_items.is_empty() {
-        tracing::trace!(
-            document = document.uri.as_str(),
-            "already analyzed, nothing to do",
-        );
-        document
-            .analysis_diagnostics
-            .extend(document.cache.diagnostics());
-        return;
+    let ast_items = AstItems::new(ast);
+
+    let mut cache = AnalysisCache::default();
+    if let Some(existing_cache) = existing_cache {
+        let to_remove = existing_cache.intersect(&ast_items, |import| {
+            resolve_import(graph, import, index)
+                .ok()
+                .and_then(|(_, cache)| cache.map(|c| c.exports_hash()))
+        });
+
+        if edits.is_empty() && to_remove.is_empty() && ast_items.len() == existing_cache.len() {
+            tracing::trace!(
+                document = document.uri.as_str(),
+                "already analyzed, nothing to do",
+            );
+            document
+                .analysis_diagnostics
+                .extend(existing_cache.diagnostics());
+            document.cache = existing_cache;
+            return;
+        }
+
+        cache = Arc::unwrap_or_clone(existing_cache);
+        cache.invalidate(&ast_items, edits, to_remove);
     }
 
+    let dirty_items: Vec<_> = cache.dirty(&ast_items).collect();
     tracing::trace!(
         document = document.uri.as_str(),
         "cache dirty, re-analyzing {} items",
@@ -237,6 +246,7 @@ pub(crate) fn populate_document(
         match item {
             DocumentItem::Import(import) => {
                 add_import(
+                    &mut cache,
                     *signature_hash,
                     document,
                     graph,
@@ -246,26 +256,22 @@ pub(crate) fn populate_document(
                 );
             }
             DocumentItem::Struct(s) => {
-                add_struct(document, *signature_hash, s);
+                add_struct(&mut cache, document, *signature_hash, s);
             }
             DocumentItem::Enum(e) => {
-                add_enum(document, *signature_hash, e);
+                add_enum(&mut cache, document, *signature_hash, e);
             }
             DocumentItem::Task(_) | DocumentItem::Workflow(_) => continue,
         }
     }
 
     // Populate the types if any struct or enum is missing populated types
-    if document
-        .cache
+    if cache
         .local_structs()
         .any(|(_idx, _hash, s)| s.ty().is_none())
-        || document
-            .cache
-            .local_enums()
-            .any(|(_idx, _hash, e)| e.ty().is_none())
+        || cache.local_enums().any(|(_idx, _hash, e)| e.ty().is_none())
     {
-        populate_types(document);
+        populate_types(&mut cache, document);
     }
 
     // Second pass: tasks and workflows
@@ -274,6 +280,7 @@ pub(crate) fn populate_document(
         match item {
             DocumentItem::Task(task) => {
                 add_task(
+                    &mut cache,
                     config,
                     document,
                     *signature_hash,
@@ -283,7 +290,7 @@ pub(crate) fn populate_document(
             }
             DocumentItem::Workflow(ast_wf) => {
                 let body_hash = body_hash.expect("workflows should have a body hash");
-                if add_workflow(document, *signature_hash, body_hash, ast_wf) {
+                if add_workflow(&mut cache, document, *signature_hash, body_hash, ast_wf) {
                     workflow_to_populate = Some((*signature_hash, body_hash, ast_wf));
                 }
             }
@@ -292,8 +299,8 @@ pub(crate) fn populate_document(
     }
 
     if let Some((signature_hash, _body_hash, ast_wf)) = workflow_to_populate {
-        populate_workflow(config, document, ast_wf, signature_hash);
-        if let Some(item) = document.cache.workflow_item_mut() {
+        populate_workflow(&mut cache, config, document, ast_wf, signature_hash);
+        if let Some(item) = cache.workflow_item_mut() {
             item.diagnostics
                 .append(&mut document.analysis_diagnostics.diagnostics);
             item.shift_diagnostic_offsets();
@@ -301,7 +308,7 @@ pub(crate) fn populate_document(
     }
 
     if let Some(severity) = document.config.diagnostics_config().unused_import {
-        for item in document.cache.items_mut() {
+        for item in cache.items_mut() {
             let CachedItemRefMut::Import(import) = item else {
                 continue;
             };
@@ -324,20 +331,21 @@ pub(crate) fn populate_document(
                 &UnusedImportRule::EXCEPTABLE_NODES,
             );
 
-            import
-                .diagnostics
-                .append(&mut document.analysis_diagnostics.diagnostics);
+            import.extend_diagnostics(std::mem::take(
+                &mut document.analysis_diagnostics.diagnostics,
+            ));
         }
     }
 
     // Fold all item diagnostics together
-    document
-        .analysis_diagnostics
-        .extend(document.cache.diagnostics());
+    document.analysis_diagnostics.extend(cache.diagnostics());
+
+    document.cache = Arc::new(cache);
 }
 
 /// Add an import to the document.
 fn add_import(
+    cache: &mut AnalysisCache,
     ast_hash: SignatureHash,
     document: &mut DocumentData,
     graph: &DocumentGraph,
@@ -346,7 +354,7 @@ fn add_import(
     import_nodes_by_namespace: &mut HashMap<String, SyntaxNode>,
 ) {
     // Start by resolving the import to its document
-    let (imported_doc, cache) = match resolve_import(graph, import, importer_index) {
+    let (imported_doc, imported_cache) = match resolve_import(graph, import, importer_index) {
         Ok((doc, cache)) => (
             doc,
             cache.expect("imported document should be analyzed already"),
@@ -373,19 +381,40 @@ fn add_import(
 
     // The `BodyHash` of an import statement is the hash of the source document's
     // exported symbols.
-    let import_body_hash = cache.exports_hash();
+    let import_body_hash = imported_cache.exports_hash();
     match import.form() {
         ImportForm::Namespace => {
-            let added = add_namespace(ast_hash, import_body_hash, document, imported_doc, import);
+            let added = add_namespace(
+                cache,
+                ast_hash,
+                import_body_hash,
+                document,
+                imported_doc,
+                import,
+            );
             if added && let Some((ns, _span)) = import.namespace() {
                 import_nodes_by_namespace.insert(ns.to_string(), import.inner().clone());
             }
         }
         ImportForm::Wildcard => {
-            add_wildcard_import(ast_hash, import_body_hash, document, imported_doc, import);
+            add_wildcard_import(
+                cache,
+                ast_hash,
+                import_body_hash,
+                document,
+                imported_doc,
+                import,
+            );
         }
         ImportForm::Selected => {
-            add_selected_import(ast_hash, import_body_hash, document, imported_doc, import);
+            add_selected_import(
+                cache,
+                ast_hash,
+                import_body_hash,
+                document,
+                imported_doc,
+                import,
+            );
         }
     }
 }
@@ -395,6 +424,7 @@ fn add_import(
 /// Returns `true` if the namespace was added, otherwise a diagnostic was
 /// emitted.
 fn add_namespace(
+    cache: &mut AnalysisCache,
     signature_hash: SignatureHash,
     body_hash: BodyHash,
     document: &mut DocumentData,
@@ -403,8 +433,7 @@ fn add_namespace(
 ) -> bool {
     let (ns, span) = match import.namespace() {
         Some((ns, span)) => {
-            let existing = document
-                .cache
+            let existing = cache
                 .namespace_by_name(&ns)
                 .map(|(_, prev)| prev.span)
                 .or_else(|| document.failed_imports.get(&ns).copied());
@@ -476,7 +505,7 @@ fn add_namespace(
             .get(s.name())
             .map(|n| (n.span(), n.text(), true))
             .unwrap_or_else(|| (span, s.name(), false));
-        match document.cache.struct_by_name(aliased_name) {
+        match cache.struct_by_name(aliased_name) {
             Some((_hash, prev)) => {
                 let a = prev.definition();
                 let b = s.definition();
@@ -541,7 +570,7 @@ fn add_namespace(
             .get(e.name())
             .map(|n| (n.span(), n.text(), true))
             .unwrap_or_else(|| (span, e.name(), false));
-        match document.cache.enum_by_name(aliased_name) {
+        match cache.enum_by_name(aliased_name) {
             Some((_hash, prev)) => {
                 let a = prev.definition();
                 let b = e.definition();
@@ -584,7 +613,7 @@ fn add_namespace(
     }
 
     let offset = usize::from(import.inner().text_range().start());
-    document.cache.insert_import(CachedItem {
+    cache.insert_import(CachedItem {
         signature_hash,
         offset,
         item: WithBodyHash {
@@ -657,6 +686,7 @@ fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
 /// Imports all items from the resolved document into the importing document's
 /// scope.
 fn add_wildcard_import(
+    cache: &mut AnalysisCache,
     signature_hash: SignatureHash,
     body_hash: BodyHash,
     document: &mut DocumentData,
@@ -668,6 +698,7 @@ fn add_wildcard_import(
     let mut import = MergingImport::default();
 
     import_structs(
+        cache,
         &mut import.imported_structs,
         document,
         imported_doc
@@ -687,6 +718,7 @@ fn add_wildcard_import(
     );
 
     import_enums(
+        cache,
         &mut import.imported_enums,
         document,
         imported_doc
@@ -706,6 +738,7 @@ fn add_wildcard_import(
     );
 
     import_tasks(
+        cache,
         &mut import.imported_tasks,
         document,
         imported_doc
@@ -753,6 +786,7 @@ fn add_wildcard_import(
         )
     {
         insert_imported_workflow(
+            cache,
             &mut import.imported_workflows,
             document,
             ImportedWorkflow {
@@ -769,7 +803,7 @@ fn add_wildcard_import(
     }
 
     let offset = usize::from(import_statement.inner().text_range().start());
-    document.cache.insert_import(CachedItem {
+    cache.insert_import(CachedItem {
         signature_hash,
         offset,
         item: WithBodyHash {
@@ -798,6 +832,7 @@ fn record_failed_selected_imports(document: &mut DocumentData, import: &ImportSt
 
 /// Imports only the listed members from the resolved document.
 fn add_selected_import(
+    cache: &mut AnalysisCache,
     signature_hash: SignatureHash,
     body_hash: BodyHash,
     document: &mut DocumentData,
@@ -843,6 +878,7 @@ fn add_selected_import(
                 };
 
                 import_structs(
+                    cache,
                     &mut import.imported_structs,
                     document,
                     [entry],
@@ -861,6 +897,7 @@ fn add_selected_import(
                 };
 
                 import_structs(
+                    cache,
                     &mut import.imported_structs,
                     document,
                     [entry],
@@ -879,6 +916,7 @@ fn add_selected_import(
                 };
 
                 import_enums(
+                    cache,
                     &mut import.imported_enums,
                     document,
                     [entry],
@@ -897,6 +935,7 @@ fn add_selected_import(
                 };
 
                 import_enums(
+                    cache,
                     &mut import.imported_enums,
                     document,
                     [entry],
@@ -915,6 +954,7 @@ fn add_selected_import(
                 };
 
                 import_tasks(
+                    cache,
                     &mut import.imported_tasks,
                     document,
                     [entry],
@@ -933,6 +973,7 @@ fn add_selected_import(
                 };
 
                 import_tasks(
+                    cache,
                     &mut import.imported_tasks,
                     document,
                     [entry],
@@ -951,6 +992,7 @@ fn add_selected_import(
                 };
 
                 insert_imported_workflow(
+                    cache,
                     &mut import.imported_workflows,
                     document,
                     entry,
@@ -969,6 +1011,7 @@ fn add_selected_import(
                 };
 
                 insert_imported_workflow(
+                    cache,
                     &mut import.imported_workflows,
                     document,
                     entry,
@@ -982,7 +1025,7 @@ fn add_selected_import(
     }
 
     let offset = import_statement.span().start();
-    document.cache.insert_import(CachedItem {
+    cache.insert_import(CachedItem {
         signature_hash,
         offset,
         item: WithBodyHash {
@@ -999,6 +1042,7 @@ fn add_selected_import(
 /// diagnostic is emitted (highlighting `conflict_span` and the previous
 /// definition) and the entry is not inserted.
 fn import_structs(
+    cache: &AnalysisCache,
     map: &mut IndexMap<String, ImportedStruct>,
     document: &mut DocumentData,
     entries: impl IntoIterator<Item = ImportedStruct>,
@@ -1006,7 +1050,7 @@ fn import_structs(
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
 ) {
     for entry in entries {
-        if let Some((_hash, local_struct)) = document.cache.struct_by_name(&entry.local_name) {
+        if let Some((_hash, local_struct)) = cache.struct_by_name(&entry.local_name) {
             let a = local_struct.definition();
             let b = entry.definition();
             if !are_structs_equal(&a, &b) {
@@ -1029,6 +1073,7 @@ fn import_structs(
 /// diagnostic is emitted (highlighting `conflict_span` and the previous
 /// definition) and the entry is not inserted.
 fn import_enums(
+    cache: &AnalysisCache,
     map: &mut IndexMap<String, ImportedEnum>,
     document: &mut DocumentData,
     entries: impl IntoIterator<Item = ImportedEnum>,
@@ -1036,7 +1081,7 @@ fn import_enums(
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
 ) {
     for entry in entries {
-        if let Some((_hash, local_enum)) = document.cache.enum_by_name(&entry.local_name) {
+        if let Some((_hash, local_enum)) = cache.enum_by_name(&entry.local_name) {
             let a = local_enum.definition();
             let b = entry.definition();
             if !are_enums_equal(&a, &b) {
@@ -1059,6 +1104,7 @@ fn import_enums(
 /// diagnostic is emitted (highlighting `conflict_span` and the previous
 /// definition) and the entry is not inserted.
 fn import_tasks(
+    cache: &AnalysisCache,
     map: &mut IndexMap<String, ImportedTask>,
     document: &mut DocumentData,
     entries: impl IntoIterator<Item = ImportedTask>,
@@ -1070,14 +1116,14 @@ fn import_tasks(
         // declaration in the same resolved source document is not a
         // conflict; the two imports refer to that single declaration. This
         // keeps diamond-shaped import graphs usable without renames.
-        if let Some((_hash, existing)) = document.cache.imported_task_by_name(&entry.local_name)
+        if let Some((_hash, existing)) = cache.imported_task_by_name(&entry.local_name)
             && existing.source() == entry.source()
             && existing.name == entry.name
         {
             continue;
         }
 
-        if let Some(prev_span) = callable_conflict_span(document, &entry.local_name) {
+        if let Some(prev_span) = callable_conflict_span(cache, &entry.local_name) {
             document.analysis_diagnostics.add(conflict(
                 &entry.local_name,
                 conflict_span,
@@ -1102,6 +1148,7 @@ fn import_tasks(
 /// 3. The local name collides with a task or other callable; the `conflict`
 ///    callback is called (preserving the import-form-specific diagnostic).
 fn insert_imported_workflow(
+    cache: &AnalysisCache,
     map: &mut IndexMap<String, ImportedWorkflow>,
     document: &mut DocumentData,
     entry: ImportedWorkflow,
@@ -1110,7 +1157,7 @@ fn insert_imported_workflow(
 ) {
     // The same underlying declaration re-imported under the same name is
     // not a conflict; deduplicate silently.
-    if let Some((_hash, existing)) = document.cache.imported_workflow_by_name(&entry.local_name)
+    if let Some((_hash, existing)) = cache.imported_workflow_by_name(&entry.local_name)
         && existing.source() == entry.source()
         && existing.name == entry.name
     {
@@ -1118,14 +1165,9 @@ fn insert_imported_workflow(
     }
 
     // Only one distinct workflow may occupy local scope at a time.
-    if let Some((_hash, existing)) =
-        document
-            .cache
-            .imported_workflows()
-            .find(|(_hash, existing)| {
-                existing.source() != entry.source() || existing.name != entry.name
-            })
-    {
+    if let Some((_hash, existing)) = cache.imported_workflows().find(|(_hash, existing)| {
+        existing.source() != entry.source() || existing.name != entry.name
+    }) {
         document.analysis_diagnostics.add(workflow_conflict(
             &entry.name,
             conflict_span,
@@ -1136,7 +1178,7 @@ fn insert_imported_workflow(
     }
 
     // The local name collides with a task or other callable.
-    if let Some(prev_span) = callable_conflict_span(document, &entry.local_name) {
+    if let Some(prev_span) = callable_conflict_span(cache, &entry.local_name) {
         document
             .analysis_diagnostics
             .add(conflict(&entry.local_name, conflict_span, prev_span));
@@ -1147,21 +1189,24 @@ fn insert_imported_workflow(
 }
 
 /// Returns the span of a callable that already owns `name`.
-fn callable_conflict_span(document: &DocumentData, name: &str) -> Option<Span> {
-    document
-        .cache
+fn callable_conflict_span(cache: &AnalysisCache, name: &str) -> Option<Span> {
+    cache
         .task_by_name(name)
         .map(|(_hash, task)| task.name_span())
         .or_else(|| {
-            document
-                .cache
+            cache
                 .workflow_by_name(name)
                 .map(|(_hash, workflow)| workflow.name_span())
         })
 }
 
 /// Adds a struct to the document.
-fn add_struct(document: &mut DocumentData, hash: SignatureHash, definition: &StructDefinition) {
+fn add_struct(
+    cache: &mut AnalysisCache,
+    document: &mut DocumentData,
+    hash: SignatureHash,
+    definition: &StructDefinition,
+) {
     let name = definition.name();
     tracing::trace!(
         document = document.uri.as_str(),
@@ -1170,7 +1215,7 @@ fn add_struct(document: &mut DocumentData, hash: SignatureHash, definition: &Str
     );
 
     // Check for a conflict with imported struct first otherwise for any name
-    if let Some((_hash, prev)) = document.cache.imported_struct_by_name(name.text()) {
+    if let Some((_hash, prev)) = cache.imported_struct_by_name(name.text()) {
         let prev_def = prev.definition();
 
         if !are_structs_equal(definition, &prev_def) {
@@ -1183,7 +1228,7 @@ fn add_struct(document: &mut DocumentData, hash: SignatureHash, definition: &Str
                 ));
             return;
         }
-    } else if let Some(ctx) = document.context(name.text()) {
+    } else if let Some(ctx) = document.context(cache, name.text()) {
         document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Struct(name.span()),
@@ -1210,7 +1255,7 @@ fn add_struct(document: &mut DocumentData, hash: SignatureHash, definition: &Str
         }
     }
 
-    document.cache.insert_struct(CachedItem {
+    cache.insert_struct(CachedItem {
         signature_hash: hash,
         offset: definition.span().start(),
         item: Struct {
@@ -1225,7 +1270,12 @@ fn add_struct(document: &mut DocumentData, hash: SignatureHash, definition: &Str
 }
 
 /// Adds an enum definition to the document.
-fn add_enum(document: &mut DocumentData, hash: SignatureHash, definition: &EnumDefinition) {
+fn add_enum(
+    cache: &mut AnalysisCache,
+    document: &mut DocumentData,
+    hash: SignatureHash,
+    definition: &EnumDefinition,
+) {
     let name = definition.name();
     tracing::trace!(
         document = document.uri.as_str(),
@@ -1243,7 +1293,7 @@ fn add_enum(document: &mut DocumentData, hash: SignatureHash, definition: &EnumD
     }
 
     // Check for a conflict with imported enum first otherwise for any name
-    if let Some((_hash, prev)) = document.cache.imported_enum_by_name(name.text()) {
+    if let Some((_hash, prev)) = cache.imported_enum_by_name(name.text()) {
         let prev_def = prev.definition();
         if !are_enums_equal(definition, &prev_def) {
             document
@@ -1254,7 +1304,7 @@ fn add_enum(document: &mut DocumentData, hash: SignatureHash, definition: &EnumD
                     prev.span,
                 ))
         }
-    } else if let Some(ctx) = document.context(name.text()) {
+    } else if let Some(ctx) = document.context(cache, name.text()) {
         document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Enum(name.span()),
@@ -1282,7 +1332,7 @@ fn add_enum(document: &mut DocumentData, hash: SignatureHash, definition: &EnumD
     }
 
     let offset = definition.span().start();
-    document.cache.insert_enum(CachedItem {
+    cache.insert_enum(CachedItem {
         signature_hash: hash,
         offset,
         item: Enum {
@@ -1298,62 +1348,51 @@ fn add_enum(document: &mut DocumentData, hash: SignatureHash, definition: &EnumD
 
 /// Converts an AST type to an analysis type.
 fn convert_ast_type(
+    cache: &mut AnalysisCache,
     document: &mut DocumentData,
     ty: &wdl_ast::v1::Type,
     dependent: Option<SignatureHash>,
 ) -> Type {
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
-        document: &'a mut DocumentData,
+        cache: &'a mut AnalysisCache,
         dependent: Option<SignatureHash>,
     }
 
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-            if let Some((ty, dependency, uri)) =
-                self.document.cache.struct_by_name(name).map(|(hash, s)| {
-                    (
-                        s.ty().cloned().unwrap_or(Type::Union),
-                        hash,
-                        s.source().clone(),
-                    )
-                })
-            {
+            if let Some((ty, dependency, uri)) = self.cache.struct_by_name(name).map(|(hash, s)| {
+                (
+                    s.ty().cloned().unwrap_or(Type::Union),
+                    hash,
+                    s.source().clone(),
+                )
+            }) {
                 if let Some(dependent) = self.dependent {
-                    self.document.cache.add_dependency(dependent, dependency);
+                    self.cache.add_dependency(dependent, dependency);
                 }
 
                 if let Some(uri) = uri
-                    && let Some(resolved) = self
-                        .document
-                        .cache
-                        .namespaces_mut()
-                        .find(|n| n.source() == uri)
+                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
                 return Ok(ty);
             }
 
-            if let Some((ty, dependency, uri)) =
-                self.document.cache.enum_by_name(name).map(|(hash, e)| {
-                    (
-                        e.ty().cloned().unwrap_or(Type::Union),
-                        hash,
-                        e.source().clone(),
-                    )
-                })
-            {
+            if let Some((ty, dependency, uri)) = self.cache.enum_by_name(name).map(|(hash, e)| {
+                (
+                    e.ty().cloned().unwrap_or(Type::Union),
+                    hash,
+                    e.source().clone(),
+                )
+            }) {
                 if let Some(dependent) = self.dependent {
-                    self.document.cache.add_dependency(dependent, dependency);
+                    self.cache.add_dependency(dependent, dependency);
                 }
 
                 if let Some(uri) = uri
-                    && let Some(resolved) = self
-                        .document
-                        .cache
-                        .namespaces_mut()
-                        .find(|n| n.source() == uri)
+                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
@@ -1363,10 +1402,7 @@ fn convert_ast_type(
             Err(unknown_type(name, span))
         }
     }
-    let mut converter = crate::types::v1::AstTypeConverter::new(Resolver {
-        document,
-        dependent,
-    });
+    let mut converter = crate::types::v1::AstTypeConverter::new(Resolver { cache, dependent });
     match converter.convert_type(ty) {
         Ok(ty) => ty,
         Err(diagnostic) => {
@@ -1378,6 +1414,7 @@ fn convert_ast_type(
 
 /// Creates an input type map.
 fn create_input_type_map(
+    cache: &mut AnalysisCache,
     document: &mut DocumentData,
     declarations: impl Iterator<Item = Decl>,
     dependent: Option<SignatureHash>,
@@ -1390,7 +1427,7 @@ fn create_input_type_map(
             continue;
         }
 
-        let ty = convert_ast_type(document, &decl.ty(), dependent);
+        let ty = convert_ast_type(cache, document, &decl.ty(), dependent);
         let optional = ty.is_optional();
         map.insert(
             name.text().to_string(),
@@ -1406,6 +1443,7 @@ fn create_input_type_map(
 
 /// Creates an output type map.
 fn create_output_type_map(
+    cache: &mut AnalysisCache,
     document: &mut DocumentData,
     declarations: impl Iterator<Item = Decl>,
     dependent: Option<SignatureHash>,
@@ -1418,7 +1456,7 @@ fn create_output_type_map(
             continue;
         }
 
-        let ty = convert_ast_type(document, &decl.ty(), dependent);
+        let ty = convert_ast_type(cache, document, &decl.ty(), dependent);
         map.insert(name.text().to_string(), Output::new(ty, name.span()));
     }
 
@@ -1427,6 +1465,7 @@ fn create_output_type_map(
 
 /// Adds a task to the document.
 fn add_task(
+    cache: &mut AnalysisCache,
     config: &Config,
     document: &mut DocumentData,
     signature_hash: SignatureHash,
@@ -1477,7 +1516,7 @@ fn add_task(
         name.text()
     );
 
-    if let Some(ctx) = document.context(name.text()) {
+    if let Some(ctx) = document.context(cache, name.text()) {
         document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Task(name.span()),
@@ -1485,7 +1524,7 @@ fn add_task(
         ));
         return;
     }
-    if let Some(prev_span) = callable_conflict_span(document, name.text()) {
+    if let Some(prev_span) = callable_conflict_span(cache, name.text()) {
         document.analysis_diagnostics.add(selected_import_conflict(
             name.text(),
             prev_span,
@@ -1499,13 +1538,17 @@ fn add_task(
 
     // Populate type maps for the tasks's inputs and outputs
     let inputs = match definition.input() {
-        Some(section) => {
-            create_input_type_map(document, section.declarations(), Some(signature_hash))
-        }
+        Some(section) => create_input_type_map(
+            cache,
+            document,
+            section.declarations(),
+            Some(signature_hash),
+        ),
         None => Default::default(),
     };
     let outputs = match definition.output() {
         Some(section) => create_output_type_map(
+            cache,
             document,
             section.declarations().map(Decl::Bound),
             Some(signature_hash),
@@ -1518,10 +1561,7 @@ fn add_task(
         document.version.unwrap(),
         definition,
         &mut document.analysis_diagnostics,
-        |name| {
-            document.cache.struct_by_name(name).is_some()
-                || document.cache.enum_by_name(name).is_some()
-        },
+        |name| cache.struct_by_name(name).is_some() || cache.enum_by_name(name).is_some(),
     );
 
     let mut task = Task {
@@ -1556,11 +1596,12 @@ fn add_task(
         match graph[index].clone() {
             TaskGraphNode::Input(decl) => {
                 if !add_decl(
+                    cache,
                     config,
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
-                    |_, n, _| task.inputs[n].ty.clone(),
+                    |_, _, n, _| task.inputs[n].ty.clone(),
                 ) {
                     continue;
                 }
@@ -1600,11 +1641,14 @@ fn add_task(
                 }
 
                 if !add_decl(
+                    cache,
                     config,
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
-                    |doc, _, decl| convert_ast_type(doc, &decl.ty(), Some(signature_hash)),
+                    |cache, doc, _, decl| {
+                        convert_ast_type(cache, doc, &decl.ty(), Some(signature_hash))
+                    },
                 ) {
                     continue;
                 }
@@ -1645,11 +1689,12 @@ fn add_task(
                     )
                 });
                 add_decl(
+                    cache,
                     config,
                     document,
                     ScopeRefMut::new(&mut task.scopes, scope_index),
                     &decl,
-                    |_, n, _| task.outputs[n].ty.clone(),
+                    |_, _, n, _| task.outputs[n].ty.clone(),
                 );
             }
             TaskGraphNode::Command(section) => {
@@ -1670,6 +1715,7 @@ fn add_task(
                 });
 
                 let mut context = EvaluationContext::new(
+                    cache,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1696,6 +1742,7 @@ fn add_task(
 
                 // Perform type checking on the runtime section's expressions
                 let mut context = EvaluationContext::new(
+                    cache,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1720,6 +1767,7 @@ fn add_task(
 
                 // Perform type checking on the requirements section's expressions
                 let mut context = EvaluationContext::new(
+                    cache,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1744,6 +1792,7 @@ fn add_task(
 
                 // Perform type checking on the hints section's expressions
                 let mut context = EvaluationContext::new_for_task(
+                    cache,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1761,7 +1810,7 @@ fn add_task(
     sort_scopes(&mut task.scopes);
 
     let offset = definition.span().start();
-    document.cache.insert_task(CachedItem {
+    cache.insert_task(CachedItem {
         signature_hash,
         offset,
         item: WithBodyHash {
@@ -1774,11 +1823,12 @@ fn add_task(
 
 /// Adds a declaration to a scope.
 fn add_decl(
+    cache: &mut AnalysisCache,
     config: &Config,
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
     decl: &Decl,
-    ty: impl FnOnce(&mut DocumentData, &str, &Decl) -> Type,
+    ty: impl FnOnce(&mut AnalysisCache, &mut DocumentData, &str, &Decl) -> Type,
 ) -> bool {
     let (name, expr) = (decl.name(), decl.expr());
     if scope.lookup(name.text()).is_some() {
@@ -1786,11 +1836,12 @@ fn add_decl(
         return false;
     }
 
-    let ty = ty(document, name.text(), decl);
+    let ty = ty(cache, document, name.text(), decl);
     scope.insert(name.text(), name.span(), ty.clone());
 
     if let Some(expr) = expr {
         type_check_expr(
+            cache,
             config,
             document,
             scope.as_scope_ref(),
@@ -1808,6 +1859,7 @@ fn add_decl(
 /// Returns `true` if the workflow was added to the document or `false` if not
 /// (i.e. there was a conflict).
 fn add_workflow(
+    cache: &mut AnalysisCache,
     document: &mut DocumentData,
     signature_hash: SignatureHash,
     body_hash: BodyHash,
@@ -1821,7 +1873,7 @@ fn add_workflow(
         name.text()
     );
 
-    if let Some(prev) = document.cache.workflow() {
+    if let Some(prev) = cache.workflow() {
         document
             .analysis_diagnostics
             .add(duplicate_workflow(&name, prev.name_span));
@@ -1829,7 +1881,7 @@ fn add_workflow(
     }
 
     // An imported workflow already occupies local scope; reject this definition.
-    if let Some((_hash, imported)) = document.cache.imported_workflows().next() {
+    if let Some((_hash, imported)) = cache.imported_workflows().next() {
         document.analysis_diagnostics.add(workflow_conflict(
             name.text(),
             name.span(),
@@ -1840,7 +1892,7 @@ fn add_workflow(
     }
 
     // Check for a name conflict
-    if let Some(ctx) = document.context(name.text()) {
+    if let Some(ctx) = document.context(cache, name.text()) {
         document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Workflow(name.span()),
@@ -1848,7 +1900,7 @@ fn add_workflow(
         ));
         return false;
     }
-    if let Some(prev_span) = callable_conflict_span(document, name.text()) {
+    if let Some(prev_span) = callable_conflict_span(cache, name.text()) {
         document.analysis_diagnostics.add(selected_import_conflict(
             name.text(),
             prev_span,
@@ -1875,7 +1927,7 @@ fn add_workflow(
     };
 
     let offset = workflow.span().start();
-    document.cache.set_workflow(CachedItem {
+    cache.set_workflow(CachedItem {
         signature_hash,
         offset,
         item: WithBodyHash {
@@ -1890,6 +1942,7 @@ fn add_workflow(
 
 /// Finishes populating a workflow.
 fn populate_workflow(
+    cache: &mut AnalysisCache,
     config: &Config,
     document: &mut DocumentData,
     workflow_def: &WorkflowDefinition,
@@ -1903,13 +1956,17 @@ fn populate_workflow(
 
     // Populate type maps for the workflow's inputs and outputs
     let inputs = match workflow_def.input() {
-        Some(section) => {
-            create_input_type_map(document, section.declarations(), Some(signature_hash))
-        }
+        Some(section) => create_input_type_map(
+            cache,
+            document,
+            section.declarations(),
+            Some(signature_hash),
+        ),
         None => Default::default(),
     };
     let outputs = match workflow_def.output() {
         Some(section) => create_output_type_map(
+            cache,
             document,
             section.declarations().map(Decl::Bound),
             Some(signature_hash),
@@ -1935,21 +1992,19 @@ fn populate_workflow(
         workflow_def,
         &mut document.analysis_diagnostics,
         |_| false,
-        |name| {
-            document.cache.struct_by_name(name).is_some()
-                || document.cache.enum_by_name(name).is_some()
-        },
+        |name| cache.struct_by_name(name).is_some() || cache.enum_by_name(name).is_some(),
     );
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {
             WorkflowGraphNode::Input(decl) => {
                 if !add_decl(
+                    cache,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
                     &decl,
-                    |_, n, _| inputs[n].ty.clone(),
+                    |_, _, n, _| inputs[n].ty.clone(),
                 ) {
                     continue;
                 }
@@ -1977,11 +2032,14 @@ fn populate_workflow(
                     .unwrap_or(ScopeIndex(0));
 
                 if !add_decl(
+                    cache,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
-                    |doc, _, decl| convert_ast_type(doc, &decl.ty(), Some(signature_hash)),
+                    |cache, doc, _, decl| {
+                        convert_ast_type(cache, doc, &decl.ty(), Some(signature_hash))
+                    },
                 ) {
                     continue;
                 }
@@ -2017,11 +2075,12 @@ fn populate_workflow(
                     )
                 });
                 add_decl(
+                    cache,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
-                    |_, n, _| outputs[n].ty.clone(),
+                    |_, _, n, _| outputs[n].ty.clone(),
                 );
             }
             WorkflowGraphNode::Conditional(statement, _) => {
@@ -2030,6 +2089,7 @@ fn populate_workflow(
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_conditional_statement(
+                    cache,
                     config,
                     document,
                     &mut scopes,
@@ -2050,6 +2110,7 @@ fn populate_workflow(
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_scatter_statement(
+                    cache,
                     config,
                     document,
                     &mut scopes,
@@ -2064,6 +2125,7 @@ fn populate_workflow(
                     .copied()
                     .unwrap_or(ScopeIndex(0));
                 add_call_statement(
+                    cache,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
@@ -2162,8 +2224,7 @@ fn populate_workflow(
     sort_scopes(&mut scopes);
 
     // Finally, populate the workflow
-    let workflow = document
-        .cache
+    let workflow = cache
         .workflow_mut()
         .expect("workflow should exist in cache");
     workflow.scopes = scopes;
@@ -2174,6 +2235,7 @@ fn populate_workflow(
 
 /// Adds a conditional statement to the current scope.
 fn add_conditional_statement(
+    cache: &mut AnalysisCache,
     config: &Config,
     document: &mut DocumentData,
     scopes: &mut Vec<Scope>,
@@ -2228,8 +2290,12 @@ fn add_conditional_statement(
         let Some(expr) = clause.expr() else {
             continue;
         };
-        let mut context =
-            EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
+        let mut context = EvaluationContext::new(
+            cache,
+            document,
+            ScopeRef::new(scopes, scope_index),
+            config.clone(),
+        );
         let mut evaluator = ExprTypeEvaluator::new(&mut context);
         let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
 
@@ -2243,6 +2309,7 @@ fn add_conditional_statement(
 
 /// Adds a scatter statement to the current scope.
 fn add_scatter_statement(
+    cache: &mut AnalysisCache,
     config: &Config,
     document: &mut DocumentData,
     scopes: &mut Vec<Scope>,
@@ -2263,8 +2330,12 @@ fn add_scatter_statement(
 
     // Evaluate the statement expression; it is expected to be an array
     let expr = statement.expr();
-    let mut context =
-        EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
+    let mut context = EvaluationContext::new(
+        cache,
+        document,
+        ScopeRef::new(scopes, scope_index),
+        config.clone(),
+    );
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
     let element_ty = match ty {
@@ -2286,6 +2357,7 @@ fn add_scatter_statement(
 /// Adds a call statement to the current scope.
 #[allow(clippy::too_many_arguments)]
 fn add_call_statement(
+    cache: &mut AnalysisCache,
     config: &Config,
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
@@ -2309,7 +2381,7 @@ fn add_call_statement(
         .map(|a| a.name())
         .unwrap_or_else(|| target_name.clone());
 
-    let ty = match resolve_call_type(document, workflow_name, statement, dependent) {
+    let ty = match resolve_call_type(cache, document, workflow_name, statement, dependent) {
         Some(call_ty) => {
             // Type check the call inputs
             let mut seen = HashSet::new();
@@ -2342,6 +2414,7 @@ fn add_call_statement(
                 match input.expr() {
                     Some(expr) => {
                         type_check_expr(
+                            cache,
                             config,
                             document,
                             scope.as_scope_ref(),
@@ -2417,6 +2490,7 @@ fn add_call_statement(
 ///
 /// Returns `None` if the type could not be resolved.
 fn resolve_call_type(
+    cache: &mut AnalysisCache,
     document: &mut DocumentData,
     workflow_name: &str,
     statement: &CallStatement,
@@ -2444,14 +2518,11 @@ fn resolve_call_type(
             return None;
         }
 
-        let ns = document
-            .cache
-            .namespaces_mut()
-            .find(|ns| ns.name() == target.text());
+        let ns = cache.namespaces_mut().find(|ns| ns.name() == target.text());
         match ns {
             Some(ns) => {
                 ns.used = true;
-                let (hash, ns) = document.cache.namespace_by_name(target.text()).unwrap();
+                let (hash, ns) = cache.namespace_by_name(target.text()).unwrap();
                 namespace = Some(ns);
                 local_dep = Some(hash);
             }
@@ -2464,9 +2535,9 @@ fn resolve_call_type(
         }
     }
 
-    let target = namespace
-        .map(|ns| ns.document().data.as_ref())
-        .unwrap_or(document);
+    let target_cache = namespace
+        .map(|ns| &*ns.document().data.cache)
+        .unwrap_or(cache);
     let name = name.expect("should have name");
     let has_namespace = namespace.is_some();
     let namespace_span = namespace.map(|ns| ns.span());
@@ -2486,10 +2557,10 @@ fn resolve_call_type(
         return None;
     }
 
-    let (kind, inputs, outputs, local_dep) = match target.cache.task_by_name(name.text()) {
+    let (kind, inputs, outputs, local_dep) = match target_cache.task_by_name(name.text()) {
         Some((_hash, task)) => {
             let local_dep = if !has_namespace {
-                match document.cache.item_by_name(name.text()) {
+                match cache.item_by_name(name.text()) {
                     Some(Item::Local(item)) => Some(item.signature_hash()),
                     _ => None,
                 }
@@ -2498,10 +2569,10 @@ fn resolve_call_type(
             };
             (CallKind::Task, task.inputs(), task.outputs(), local_dep)
         }
-        _ => match target.cache.workflow() {
+        _ => match target_cache.workflow() {
             Some(workflow) if workflow.name == name.text() => {
                 let local_dep = if !has_namespace {
-                    match document.cache.item_by_name(name.text()) {
+                    match cache.item_by_name(name.text()) {
                         Some(Item::Local(item)) => Some(item.signature_hash()),
                         _ => None,
                     }
@@ -2518,17 +2589,14 @@ fn resolve_call_type(
             _ if !has_namespace => {
                 if document.failed_selected_imports.contains(name.text()) {
                     return None;
-                } else if let Some((hash, imported)) =
-                    document.cache.imported_task_by_name(name.text())
-                {
+                } else if let Some((hash, imported)) = cache.imported_task_by_name(name.text()) {
                     (
                         CallKind::Task,
                         imported.inputs.clone(),
                         imported.outputs.clone(),
                         Some(hash),
                     )
-                } else if let Some((hash, imported)) =
-                    document.cache.imported_workflow_by_name(name.text())
+                } else if let Some((hash, imported)) = cache.imported_workflow_by_name(name.text())
                 {
                     (
                         CallKind::Workflow,
@@ -2557,7 +2625,7 @@ fn resolve_call_type(
     };
 
     if let Some(dependency) = local_dep {
-        document.cache.add_dependency(dependent, dependency);
+        cache.add_dependency(dependent, dependency);
     }
 
     let specified = Arc::new(
@@ -2720,11 +2788,13 @@ fn resolve_import<'a>(
 }
 
 /// Populates struct and enum type information in the document.
-fn populate_types(document: &mut DocumentData) {
+fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
         /// The document to resolve the type name from.
         document: &'a mut DocumentData,
+        /// The document's analysis cache.
+        cache: &'a mut AnalysisCache,
         /// The offset to use to adjust the start of diagnostics.
         offset: usize,
         /// Dependent item hash
@@ -2733,50 +2803,38 @@ fn populate_types(document: &mut DocumentData) {
 
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-            if let Some((ty, dependency, uri)) =
-                self.document.cache.struct_by_name(name).map(|(hash, s)| {
-                    (
-                        s.ty().cloned().unwrap_or(Type::Union),
-                        hash,
-                        s.source().clone(),
-                    )
-                })
-            {
+            if let Some((ty, dependency, uri)) = self.cache.struct_by_name(name).map(|(hash, s)| {
+                (
+                    s.ty().cloned().unwrap_or(Type::Union),
+                    hash,
+                    s.source().clone(),
+                )
+            }) {
                 if let Some(dependent) = self.dependent {
-                    self.document.cache.add_dependency(dependent, dependency);
+                    self.cache.add_dependency(dependent, dependency);
                 }
 
                 if let Some(uri) = uri
-                    && let Some(resolved) = self
-                        .document
-                        .cache
-                        .namespaces_mut()
-                        .find(|n| n.source() == uri)
+                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
                 return Ok(ty);
             }
 
-            if let Some((ty, dependency, uri)) =
-                self.document.cache.enum_by_name(name).map(|(hash, e)| {
-                    (
-                        e.ty().cloned().unwrap_or(Type::Union),
-                        hash,
-                        e.source().clone(),
-                    )
-                })
-            {
+            if let Some((ty, dependency, uri)) = self.cache.enum_by_name(name).map(|(hash, e)| {
+                (
+                    e.ty().cloned().unwrap_or(Type::Union),
+                    hash,
+                    e.source().clone(),
+                )
+            }) {
                 if let Some(dependent) = self.dependent {
-                    self.document.cache.add_dependency(dependent, dependency);
+                    self.cache.add_dependency(dependent, dependency);
                 }
 
                 if let Some(uri) = uri
-                    && let Some(resolved) = self
-                        .document
-                        .cache
-                        .namespaces_mut()
-                        .find(|n| n.source() == uri)
+                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
@@ -2791,7 +2849,7 @@ fn populate_types(document: &mut DocumentData) {
         }
     }
 
-    if document.cache.local_structs().count() == 0 && document.cache.local_enums().count() == 0 {
+    if cache.local_structs().count() == 0 && cache.local_enums().count() == 0 {
         return; // No types to populate
     }
 
@@ -2822,7 +2880,7 @@ fn populate_types(document: &mut DocumentData) {
     let mut space = Default::default();
 
     // Map struct dependencies
-    for (from, _hash, s) in document.cache.local_structs() {
+    for (from, _hash, s) in cache.local_structs() {
         let from_idx = TypeIndex::Struct(from);
         graph.add_node(from_idx);
         let definition = s.definition();
@@ -2831,7 +2889,7 @@ fn populate_types(document: &mut DocumentData) {
             find_type_refs(&member.ty(), &mut deps);
 
             for dep in deps {
-                let Some(to_idx) = resolve_dep(&document.cache, dep.name().text()) else {
+                let Some(to_idx) = resolve_dep(cache, dep.name().text()) else {
                     continue;
                 };
 
@@ -2852,7 +2910,7 @@ fn populate_types(document: &mut DocumentData) {
     }
 
     // Map enum dependencies
-    for (from, _hash, e) in document.cache.local_enums() {
+    for (from, _hash, e) in cache.local_enums() {
         let from_idx = TypeIndex::Enum(from);
         graph.add_node(from_idx);
         let definition = e.definition();
@@ -2861,7 +2919,7 @@ fn populate_types(document: &mut DocumentData) {
             find_type_refs(&type_param.ty(), &mut deps);
 
             for dep in deps {
-                let Some(to_idx) = resolve_dep(&document.cache, dep.name().text()) else {
+                let Some(to_idx) = resolve_dep(cache, dep.name().text()) else {
                     continue;
                 };
 
@@ -2873,11 +2931,9 @@ fn populate_types(document: &mut DocumentData) {
                         Span::new(def_span.start() + e.offset, def_span.len()),
                         match to_idx {
                             TypeIndex::Struct(index) => {
-                                document.cache.struct_by_index(index).unwrap().name()
+                                cache.struct_by_index(index).unwrap().name()
                             }
-                            TypeIndex::Enum(index) => {
-                                document.cache.enum_by_index(index).unwrap().name()
-                            }
+                            TypeIndex::Enum(index) => cache.enum_by_index(index).unwrap().name(),
                         },
                     ));
                 } else {
@@ -2892,28 +2948,23 @@ fn populate_types(document: &mut DocumentData) {
     for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
         match index {
             TypeIndex::Struct(index) => {
-                let definition = document.cache.struct_by_index(index).unwrap().definition();
+                let definition = cache.struct_by_index(index).unwrap().definition();
 
-                let offset = document.cache.struct_by_index(index).unwrap().offset();
-                let struct_name = document
-                    .cache
-                    .struct_by_index(index)
-                    .unwrap()
-                    .name()
-                    .to_string();
-                let dependent = match document.cache.item_by_name(&struct_name) {
+                let offset = cache.struct_by_index(index).unwrap().offset();
+                let struct_name = cache.struct_by_index(index).unwrap().name().to_string();
+                let dependent = match cache.item_by_name(&struct_name) {
                     Some(Item::Local(item)) => Some(item.signature_hash()),
                     _ => None,
                 };
                 let mut converter = AstTypeConverter::new(Resolver {
                     document,
+                    cache,
                     offset,
                     dependent,
                 });
                 match converter.convert_struct_type(&definition) {
                     Ok(ty) => {
-                        let s = document.cache.struct_by_index_mut(index).unwrap();
-                        assert!(s.ty().is_none(), "type should not already be present");
+                        let s = cache.struct_by_index_mut(index).unwrap();
                         s.ty = Some(ty.into());
                     }
                     Err(mut diagnostic) => {
@@ -2926,7 +2977,7 @@ fn populate_types(document: &mut DocumentData) {
                 }
             }
             TypeIndex::Enum(index) => {
-                let e = document.cache.enum_by_index(index).unwrap().clone();
+                let e = cache.enum_by_index(index).unwrap().clone();
                 let definition = e.definition();
                 let mut choices = Vec::new();
                 let mut choice_spans = Vec::new();
@@ -2934,7 +2985,7 @@ fn populate_types(document: &mut DocumentData) {
                 for choice in definition.choices() {
                     let choice_name = choice.name().text().to_string();
                     let choice_type = if let Some(value_expr) = choice.value() {
-                        match parse_literal_value(&document.cache, &value_expr) {
+                        match parse_literal_value(cache, &value_expr) {
                             Some(ty) => ty,
                             None => {
                                 let span = value_expr.span();
@@ -2957,18 +3008,13 @@ fn populate_types(document: &mut DocumentData) {
                 }
 
                 let result = if let Some(type_param) = definition.type_parameter().map(|t| t.ty()) {
-                    let enum_name = document
-                        .cache
-                        .enum_by_index(index)
-                        .unwrap()
-                        .name()
-                        .to_string();
-                    let dependent = match document.cache.item_by_name(&enum_name) {
+                    let enum_name = cache.enum_by_index(index).unwrap().name().to_string();
+                    let dependent = match cache.item_by_name(&enum_name) {
                         Some(Item::Local(item)) => Some(item.signature_hash()),
                         _ => None,
                     };
-                    let type_param = convert_ast_type(document, &type_param, dependent);
-                    let e = document.cache.enum_by_index(index).unwrap();
+                    let type_param = convert_ast_type(cache, document, &type_param, dependent);
+                    let e = cache.enum_by_index(index).unwrap();
                     EnumType::new(
                         e.name().to_string(),
                         e.name_span(),
@@ -2982,7 +3028,7 @@ fn populate_types(document: &mut DocumentData) {
 
                 match result {
                     Ok(enum_ty) => {
-                        let e = document.cache.enum_by_index_mut(index).unwrap();
+                        let e = cache.enum_by_index_mut(index).unwrap();
                         e.ty = Some(enum_ty.into());
                     }
                     Err(diagnostic) => {
@@ -3105,6 +3151,8 @@ fn parse_literal_value(cache: &AnalysisCache, expr: &Expr) -> Option<Type> {
 struct EvaluationContext<'a> {
     /// The document data being evaluated.
     document: &'a mut DocumentData,
+    /// The document's analysis cache.
+    cache: &'a mut AnalysisCache,
     /// The current evaluation scope.
     scope: ScopeRef<'a>,
     /// The configuration to use for expression evaluation.
@@ -3117,9 +3165,15 @@ struct EvaluationContext<'a> {
 
 impl<'a> EvaluationContext<'a> {
     /// Constructs a new expression type evaluation context.
-    pub fn new(document: &'a mut DocumentData, scope: ScopeRef<'a>, config: Config) -> Self {
+    fn new(
+        cache: &'a mut AnalysisCache,
+        document: &'a mut DocumentData,
+        scope: ScopeRef<'a>,
+        config: Config,
+    ) -> Self {
         Self {
             document,
+            cache,
             scope,
             config,
             task: None,
@@ -3130,7 +3184,8 @@ impl<'a> EvaluationContext<'a> {
     ///
     /// This is used to evaluated the type of expressions inside of a task's
     /// `hints` section.
-    pub fn new_for_task(
+    fn new_for_task(
+        cache: &'a mut AnalysisCache,
         document: &'a mut DocumentData,
         scope: ScopeRef<'a>,
         config: Config,
@@ -3138,6 +3193,7 @@ impl<'a> EvaluationContext<'a> {
     ) -> Self {
         Self {
             document,
+            cache,
             scope,
             config,
             task: Some(task),
@@ -3160,7 +3216,6 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
         // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
         if let Some(s) = self
-            .document
             .cache
             .struct_by_name(name)
             .and_then(|(_hash, s)| s.ty().cloned())
@@ -3179,7 +3234,6 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
         // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
         if let Some(e) = self
-            .document
             .cache
             .enum_by_name(name)
             .and_then(|(_hash, e)| e.ty().cloned())
@@ -3198,17 +3252,12 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         if let Some((ty, uri)) = self
-            .document
             .cache
             .struct_by_name(name)
             .map(|(_hash, s)| (s.ty().expect("struct should have type").clone(), s.source()))
         {
             if let Some(uri) = uri
-                && let Some(resolved) = self
-                    .document
-                    .cache
-                    .namespaces_mut()
-                    .find(|n| n.source() == uri)
+                && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
             {
                 resolved.used = true;
             }
@@ -3217,17 +3266,12 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
         }
 
         if let Some((ty, uri)) = self
-            .document
             .cache
             .enum_by_name(name)
             .map(|(_hash, e)| (e.ty().expect("enum should have type").clone(), e.source()))
         {
             if let Some(uri) = uri
-                && let Some(resolved) = self
-                    .document
-                    .cache
-                    .namespaces_mut()
-                    .find(|n| n.source() == uri)
+                && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
             {
                 resolved.used = true;
             }
@@ -3264,6 +3308,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
 /// Performs a type check of an expression.
 fn type_check_expr(
+    cache: &mut AnalysisCache,
     config: &Config,
     document: &mut DocumentData,
     scope: ScopeRef<'_>,
@@ -3271,7 +3316,7 @@ fn type_check_expr(
     expected: &Type,
     expected_span: Span,
 ) {
-    let mut context = EvaluationContext::new(document, scope, config.clone());
+    let mut context = EvaluationContext::new(cache, document, scope, config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 

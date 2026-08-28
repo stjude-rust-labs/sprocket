@@ -452,6 +452,20 @@ pub struct CachedItem<T> {
 }
 
 impl<T> CachedItem<T> {
+    /// Add diagnostics to this item.
+    ///
+    /// NOTE: This expects diagnostics with absolute offsets.
+    pub(in crate::document) fn extend_diagnostics(
+        &mut self,
+        diagnostics: impl IntoIterator<Item = Diagnostic>,
+    ) {
+        self.diagnostics
+            .extend(diagnostics.into_iter().map(|mut d| {
+                d.offset(-(self.offset as isize));
+                d
+            }));
+    }
+
     /// Reposition the item's diagnostics to be relative to the item's offset,
     /// rather than the item's absolute offset in the document.
     pub(in crate::document) fn shift_diagnostic_offsets(&mut self) {
@@ -694,7 +708,7 @@ impl<'a> CachedItemRef<'a> {
 
 /// Extra data retained during test analysis runs.
 #[cfg(test)]
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 struct TestCache {
     /// The list of items whose signatures were invalidated in the last pass.
     invalidated_signatures: Vec<SignatureHash>,
@@ -724,7 +738,7 @@ pub(crate) struct AnalysisCache {
 
 impl PartialEq for AnalysisCache {
     fn eq(&self, other: &Self) -> bool {
-        if self.structs == other.structs
+        self.structs == other.structs
             && self.enums == other.enums
             && self.tasks == other.tasks
             && self.workflow == other.workflow
@@ -733,14 +747,6 @@ impl PartialEq for AnalysisCache {
                 .dependencies
                 .all_edges()
                 .all(|(a, b, _)| other.dependencies.contains_edge(a, b))
-        {
-            #[cfg(test)]
-            return self.tests == other.tests;
-            #[cfg(not(test))]
-            return true;
-        }
-
-        false
     }
 }
 
@@ -821,6 +827,28 @@ impl AnalysisCache {
         (struct, structs, struct_by_name, local_structs, local_struct_by_name, imported_structs, imported_struct_by_name) => (Struct, StructRef, ImportedStruct),
         (enum, enums, enum_by_name, local_enums, local_enum_by_name, imported_enums, imported_enum_by_name) => (Enum, EnumRef, ImportedEnum),
     );
+
+    /// Returns the number of items in the cache.
+    pub fn len(&self) -> usize {
+        let Self {
+            structs,
+            enums,
+            tasks,
+            workflow,
+            imports,
+            dependencies: _,
+            #[cfg(test)]
+                tests: _,
+        } = self;
+
+        structs.len() + enums.len() + tasks.len() + workflow.is_some() as usize + imports.len()
+    }
+
+    /// Returns whether the cache is empty.
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 
     /// Gets all imported structs in the document.
     ///
@@ -956,22 +984,6 @@ impl AnalysisCache {
         })
     }
 
-    /// Returns the number of items in the cache.
-    #[cfg(test)]
-    pub(in crate::document) fn len(&self) -> usize {
-        self.structs.len()
-            + self.enums.len()
-            + self.tasks.len()
-            + self.workflow.is_some() as usize
-            + self.imports.len()
-    }
-
-    /// Returns whether the cache is empty.
-    #[cfg(test)]
-    pub(in crate::document) fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     /// Gets all of the items in the cache.
     fn items(&self) -> impl Iterator<Item = CachedItemRef<'_>> {
         self.structs
@@ -1096,7 +1108,7 @@ impl AnalysisCache {
 
 /// The method for invalidating an existing cache item.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum InvalidationStrategy {
+pub(in crate::document) enum InvalidationStrategy {
     /// The item's signature needs to be invalidated.
     Signature,
     /// The item's body needs to be invalidated.
@@ -1198,8 +1210,10 @@ impl AnalysisCache {
     }
 
     /// Invalidates the given items and all of their dependents from the cache.
-    fn invalidate(
+    pub(in crate::document) fn invalidate(
         &mut self,
+        ast_items: &AstItems,
+        edits: &[AppliedEdit],
         hashes: impl IntoIterator<Item = (InvalidationStrategy, SignatureHash)>,
     ) {
         let mut dirty_set = std::collections::HashSet::new();
@@ -1243,16 +1257,26 @@ impl AnalysisCache {
             self.remove_item(&hash);
             self.dependencies.remove_node(hash);
         }
+
+        for ast_item in &ast_items.items {
+            let hash = ast_item.signature_hash;
+            let Some(mut item) = self.get_mut(&hash) else {
+                continue;
+            };
+
+            // Existing diagnostics need to be shifted
+            item.shift_existing_diagnostics(edits, ast_item.offset);
+            item.swap_offset(ast_item.offset);
+        }
     }
 
     /// Drop items and their dependents from the cache that are not present in
     /// `current_ast` or whose body hash has changed.
     pub(in crate::document) fn intersect(
-        &mut self,
+        &self,
         current_ast: &AstItems,
-        edits: &[AppliedEdit],
         mut resolve_import_body_hash: impl FnMut(&ImportStatement) -> Option<BodyHash>,
-    ) {
+    ) -> Vec<(InvalidationStrategy, SignatureHash)> {
         let mut to_remove = Vec::new();
         for cache_item in self.items() {
             let signature_hash = cache_item.signature_hash();
@@ -1282,18 +1306,7 @@ impl AnalysisCache {
             }
         }
 
-        self.invalidate(to_remove);
-
-        for ast_item in &current_ast.items {
-            let hash = ast_item.signature_hash;
-            let Some(mut item) = self.get_mut(&hash) else {
-                continue;
-            };
-
-            // Existing diagnostics need to be shifted
-            item.shift_existing_diagnostics(edits, ast_item.offset);
-            item.swap_offset(ast_item.offset);
-        }
+        to_remove
     }
 
     /// Gets a mutable reference to an enum in the document at the given cache
@@ -1347,6 +1360,11 @@ impl AstItems {
                 None
             }
         })
+    }
+
+    /// Get the number of items in the AST.
+    pub fn len(&self) -> usize {
+        self.items.len()
     }
 
     /// Gets all of the import statements in the document.

@@ -870,60 +870,6 @@ impl Callable<'_> {
     }
 }
 
-/// A potentially shared analysis cache for a document.
-///
-/// A [`DocumentData`] only owns the [`AnalysisCache`] during construction.
-/// Afterwards, it gets shared between the parent `DocumentGraphNode`
-/// and the document.
-#[derive(Debug, PartialEq)]
-pub(crate) enum DocumentAnalysisCache {
-    /// Owned cache during document construction.
-    Owned(Box<AnalysisCache>),
-    /// Shared reference to the cache.
-    Shared(Arc<AnalysisCache>),
-}
-
-impl DocumentAnalysisCache {
-    /// Creates a new shared document cache.
-    pub fn shared(cache: Arc<AnalysisCache>) -> Self {
-        Self::Shared(cache)
-    }
-
-    /// Takes the `AnalysisCache` out of an `Owned` variant.
-    fn take_owned(&mut self) -> AnalysisCache {
-        match std::mem::replace(self, Self::Shared(Arc::new(AnalysisCache::default()))) {
-            Self::Owned(cache) => *cache,
-            Self::Shared(_) => panic!("expected owned cache"),
-        }
-    }
-}
-
-impl Default for DocumentAnalysisCache {
-    fn default() -> Self {
-        Self::Owned(Box::default())
-    }
-}
-
-impl std::ops::Deref for DocumentAnalysisCache {
-    type Target = AnalysisCache;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Owned(cache) => cache,
-            Self::Shared(cache) => cache,
-        }
-    }
-}
-
-impl std::ops::DerefMut for DocumentAnalysisCache {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            Self::Owned(cache) => cache,
-            Self::Shared(_) => panic!("cannot mutate shared analysis cache"),
-        }
-    }
-}
-
 /// Represents analysis data about a WDL document.
 #[derive(Debug)]
 pub(crate) struct DocumentData {
@@ -948,7 +894,7 @@ pub(crate) struct DocumentData {
     /// diagnostics.
     failed_imports: IndexMap<String, Span>,
     /// The analysis cache for the document.
-    cache: DocumentAnalysisCache,
+    cache: Arc<AnalysisCache>,
     /// Whether a wildcard import failed to resolve.
     ///
     /// Unknown unqualified calls are suppressed in this case because they may
@@ -992,14 +938,6 @@ impl PartialEq for DocumentData {
 }
 
 impl DocumentData {
-    /// Gets the internal cache.
-    #[cfg(test)]
-    pub(crate) fn cache(&self) -> &DocumentAnalysisCache {
-        &self.cache
-    }
-}
-
-impl DocumentData {
     /// Constructs a new analysis document data.
     fn new(
         config: Config,
@@ -1007,7 +945,6 @@ impl DocumentData {
         root: Option<GreenNode>,
         version: Option<SupportedVersion>,
         parse_diagnostics: Vec<Diagnostic>,
-        cache: Option<AnalysisCache>,
     ) -> Self {
         Self {
             config,
@@ -1016,9 +953,7 @@ impl DocumentData {
             uri,
             version,
             failed_imports: Default::default(),
-            cache: cache
-                .map(|c| DocumentAnalysisCache::Owned(Box::new(c)))
-                .unwrap_or_default(),
+            cache: Default::default(), // Populated
             failed_wildcard_import: false,
             failed_selected_imports: Default::default(),
             parse_diagnostics,
@@ -1031,21 +966,21 @@ impl DocumentData {
     /// The name may be for a namespace, task, workflow, struct, or enum.
     ///
     /// Returns `None` if there is no context for the given name.
-    pub fn context(&self, name: &str) -> Option<Context> {
+    fn context(&self, cache: &AnalysisCache, name: &str) -> Option<Context> {
         // Look through the various data structures for the name
-        if let Some((_hash, ns)) = self.cache.namespace_by_name(name) {
+        if let Some((_hash, ns)) = cache.namespace_by_name(name) {
             Some(Context::Namespace(ns.span))
         } else if let Some(span) = self.failed_imports.get(name) {
             Some(Context::Namespace(*span))
-        } else if let Some((_idx, _hash, task)) = self.cache.local_task_by_name(name) {
+        } else if let Some((_idx, _hash, task)) = cache.local_task_by_name(name) {
             Some(Context::Task(task.name_span()))
-        } else if let Some(wf) = self.cache.workflow().filter(|w| w.name() == name) {
+        } else if let Some(wf) = cache.workflow().filter(|w| w.name() == name) {
             Some(Context::Workflow(wf.name_span()))
-        } else if let Some((_idx, _hash, s)) = self.cache.local_struct_by_name(name) {
+        } else if let Some((_idx, _hash, s)) = cache.local_struct_by_name(name) {
             Some(Context::Struct(s.name_span()))
         } else {
             // Finally, check the enums and failing that return `None`
-            self.cache
+            cache
                 .local_enum_by_name(name)
                 .map(|(_idx, _hash, e)| Context::Enum(e.name_span()))
         }
@@ -1079,7 +1014,6 @@ impl Document {
                 None,
                 None,
                 Default::default(),
-                None,
             )),
         }
     }
@@ -1091,7 +1025,6 @@ impl Document {
         index: NodeIndex,
     ) -> Self {
         let node = graph.get_mut(index);
-        let old_cache = node.take_cache();
         let (wdl_version, parse_diagnostics, edits) = match node.parse_state() {
             ParseState::NotParsed => panic!("node should have been parsed"),
             ParseState::Error(_) => {
@@ -1106,42 +1039,34 @@ impl Document {
         };
 
         let root = node.root().expect("node should have been parsed");
-        let (config, wdl_version) = match (root.version_statement(), wdl_version) {
-            (Some(stmt), Some(wdl_version)) => (
-                config.with_diagnostics_config(
-                    config.diagnostics_config().excepted_for_node(stmt.inner()),
-                ),
-                wdl_version,
-            ),
-            _ => {
-                // Don't process a document with a missing version statement or an unsupported
-                // version unless a fallback version is configured
-                return Self {
-                    data: Arc::new(DocumentData::new(
-                        config.clone(),
-                        node.uri().clone(),
-                        Some(root.inner().green().into()),
-                        None,
-                        parse_diagnostics,
-                        old_cache,
-                    )),
-                };
-            }
+        let config = if let Some(stmt) = root.version_statement() {
+            config.with_diagnostics_config(
+                config.diagnostics_config().excepted_for_node(stmt.inner()),
+            )
+        } else {
+            config.clone()
         };
+
+        let old_cache = node.take_cache();
 
         let mut data = DocumentData::new(
             config.clone(),
             node.uri().clone(),
             Some(root.inner().green().into()),
-            Some(wdl_version),
+            wdl_version,
             parse_diagnostics,
-            old_cache,
         );
 
         let _ = node;
         match root.ast_with_version_fallback(config.fallback_version()) {
-            Ast::Unsupported => {}
-            Ast::V1(ast) => v1::populate_document(&mut data, &config, graph, index, &ast, &edits),
+            Ast::Unsupported => {
+                // Don't process a document with a missing version statement or
+                // an unsupported version unless a fallback
+                // version is configured
+            }
+            Ast::V1(ast) => {
+                v1::populate_document(&mut data, old_cache, &config, graph, index, &ast, &edits)
+            }
         };
 
         Self {
@@ -1152,20 +1077,6 @@ impl Document {
     /// Gets the analysis configuration.
     pub fn config(&self) -> &Config {
         &self.data.config
-    }
-
-    /// Takes the analysis cache out of the document.
-    pub(crate) fn take_cache(&mut self) -> AnalysisCache {
-        Arc::get_mut(&mut self.data)
-            .map(|data| data.cache.take_owned())
-            .expect("we should be the only holder to references of the document")
-    }
-
-    /// Attaches a shared cache to the document data.
-    pub(crate) fn attach_shared_cache(&mut self, cache: Arc<AnalysisCache>) {
-        Arc::get_mut(&mut self.data)
-            .expect("we should be the only holder to references of the document")
-            .cache = DocumentAnalysisCache::shared(cache);
     }
 
     /// Gets the root AST document node.
@@ -1246,6 +1157,11 @@ impl Document {
     /// unsupported version.
     pub fn version(&self) -> Option<SupportedVersion> {
         self.data.version
+    }
+
+    /// Gets the analysis cache.
+    pub(crate) fn cache(&self) -> Arc<AnalysisCache> {
+        self.data.cache.clone()
     }
 
     /// Gets the successfully resolved namespaces in the document.
