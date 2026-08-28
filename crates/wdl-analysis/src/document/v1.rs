@@ -2948,10 +2948,14 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
     for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
         match index {
             TypeIndex::Struct(index) => {
-                let definition = cache.struct_by_index(index).unwrap().definition();
+                let s = cache.struct_by_index(index).unwrap();
+                if s.ty().is_some() {
+                    continue; // Already populated
+                }
 
-                let offset = cache.struct_by_index(index).unwrap().offset();
-                let struct_name = cache.struct_by_index(index).unwrap().name().to_string();
+                let definition = s.definition();
+                let offset = s.offset();
+                let struct_name = s.name().to_string();
                 let dependent = match cache.item_by_name(&struct_name) {
                     Some(Item::Local(item)) => Some(item.signature_hash()),
                     _ => None,
@@ -2977,7 +2981,11 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                 }
             }
             TypeIndex::Enum(index) => {
-                let e = cache.enum_by_index(index).unwrap().clone();
+                let e = cache.enum_by_index(index).unwrap();
+                if e.ty().is_some() {
+                    continue; // Already populated
+                }
+
                 let definition = e.definition();
                 let mut choices = Vec::new();
                 let mut choice_spans = Vec::new();
