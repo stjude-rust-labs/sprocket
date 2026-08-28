@@ -105,7 +105,7 @@ In order to build the API docs, you must have Python 3.12 or greater installed. 
 maturin develop --group docs
 
 # Build website.
-sphinx-build python/docs python/docs/_build
+sphinx-build --fail-on-warning python/docs python/docs/_build
 ```
 
 The API docs are built using [Sphinx](https://www.sphinx-doc.org/) with the [Read the Docs theme](https://sphinx-rtd-theme.readthedocs.io/). The source is in `python/docs`, and the output is in `python/docs/_build`. The API docs are hosted online at <https://sprocket-bio.readthedocs.io/>.
