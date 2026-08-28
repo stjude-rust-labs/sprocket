@@ -12,7 +12,7 @@ If you have the Python bindings installed, you can run the example yourself:
 
    $ python -m sprocket_bio.examples.emit_diagnostics
    error: this is an error
-      ┌─ /Users/bd/dev/gsoc/sprocket/python/sprocket_bio/examples/example.wdl:8:5
+      ┌─ sprocket_bio/examples/example.wdl:8:5
       │  
     8 │ ╭     command <<<
     9 │ │         echo "~{greeting}, world!"
@@ -20,7 +20,7 @@ If you have the Python bindings installed, you can run the example yourself:
       │ ╰───────^
    
    warning: this is a warning
-     ┌─ /Users/bd/dev/gsoc/sprocket/python/sprocket_bio/examples/example.wdl:1:1
+     ┌─ sprocket_bio/examples/example.wdl:1:1
      │
    1 │ version 1.3
      │ ^^^^^^^^^^^ additional details on the warning
