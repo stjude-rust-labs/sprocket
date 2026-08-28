@@ -102,7 +102,7 @@ impl Import {
     }
 
     /// Get the namespace of the import, if it has one.
-    pub(in crate) fn namespace(&self) -> Option<&Namespace> {
+    pub(crate) fn namespace(&self) -> Option<&Namespace> {
         match self {
             Import::Namespace(n) => Some(n),
             _ => None,

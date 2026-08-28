@@ -971,7 +971,7 @@ task foo {
         setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
 
     let result = doc_main.analyze(&analyzer).await;
-    assert!(dbg!(result.document().analysis_diagnostics()).is_empty());
+    assert!(result.document().analysis_diagnostics().is_empty());
 
     // Change `Array[Int]` to `Array[Int]+` and `Array[Int]?` to `Array[Int]`
     analyzer
@@ -998,4 +998,66 @@ task foo {
 
     let result2 = doc_main.analyze(&analyzer).await;
     assert!(!result2.document().analysis_diagnostics().is_empty());
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn exception_population() {
+    // Lint exceptions, regardless of cache state, should always be collected on
+    // re-analysis. Validation-time rules such as `MeaninglessLintDirective`
+    // rely on analysis to provide a list of all directives in the document.
+
+    let initial_content = r#"version 1.3
+
+task foo {
+    input {
+        #@ except: UnusedInput
+        String totally_used
+    }
+
+    command <<<
+        echo "~{totally_used}"
+    >>>
+}
+"#;
+
+    let ([doc_main], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
+
+    let result = doc_main.analyze(&analyzer).await;
+    assert!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .any(|d| d.rule() == Some("MeaninglessLintDirective"))
+    );
+    drop(result);
+
+    // Throw in a random comment, which should trigger re-analysis, but not dirty
+    // the cache
+    analyzer
+        .notify_incremental_change(
+            doc_main.uri.clone(),
+            IncrementalChange {
+                version: 1,
+                start: None,
+                edits: vec![SourceEdit::new(
+                    SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
+                    SourcePositionEncoding::UTF8,
+                    r#"# Hello, world!"#.to_string(),
+                )],
+            },
+        )
+        .unwrap();
+
+    // A clean cache should still collect exceptions
+    let result2 = doc_main.analyze(&analyzer).await;
+    assert!(
+        result2
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .any(|d| d.rule() == Some("MeaninglessLintDirective"))
+    );
 }

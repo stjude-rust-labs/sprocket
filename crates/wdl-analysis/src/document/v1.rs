@@ -65,7 +65,6 @@ use super::Struct;
 use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
-use crate::Diagnostics;
 use crate::Exceptable;
 use crate::MisleadingDeclarationOrderRule;
 use crate::UnusedCallRule;
@@ -206,6 +205,13 @@ pub(crate) fn populate_document(
             .and_then(|(_, cache)| cache.map(|c| c.exports_hash()))
     });
 
+    // Pre-populate all of the lint exceptions
+    document.analysis_diagnostics.add_exceptions(
+        std::iter::successors(ast.inner().first_token(), |t| t.next_token())
+            .filter_map(|t| Comment::cast(t)?.directive()?.into_except())
+            .flatten(),
+    );
+
     let dirty_items: Vec<_> = document.cache.dirty(&ast_items).collect();
     if dirty_items.is_empty() {
         tracing::trace!(
@@ -222,14 +228,6 @@ pub(crate) fn populate_document(
         document = document.uri.as_str(),
         "cache dirty, re-analyzing {} items",
         dirty_items.len()
-    );
-
-    // Pre-populate all of the lint exceptions
-    document.analysis_diagnostics = Diagnostics::default();
-    document.analysis_diagnostics.add_exceptions(
-        std::iter::successors(ast.inner().first_token(), |t| t.next_token())
-            .filter_map(|t| Comment::cast(t)?.directive()?.into_except())
-            .flatten(),
     );
 
     let mut import_nodes_by_namespace = HashMap::new();
