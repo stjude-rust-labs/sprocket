@@ -252,7 +252,8 @@ enum LineBreak {
 /// should be handled during [`PreToken`] processing.
 fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
     match kind {
-        SyntaxKind::CloseParen
+        SyntaxKind::CloseBracket
+        | SyntaxKind::CloseParen
         | SyntaxKind::Assignment
         | SyntaxKind::Plus
         | SyntaxKind::Minus
@@ -270,7 +271,8 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
         | SyntaxKind::LogicalOr
         | SyntaxKind::AfterKeyword
         | SyntaxKind::AsKeyword => Some(LineBreak::Before),
-        SyntaxKind::OpenParen
+        SyntaxKind::OpenBracket
+        | SyntaxKind::OpenParen
         | SyntaxKind::Colon
         | SyntaxKind::PlaceholderOpen
         | SyntaxKind::Comma => Some(LineBreak::After),

@@ -1673,8 +1673,9 @@ workflow chip {
                 paired_end,
             ])
 
-        Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[i]
-        ) > 0
+        Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[
+            i
+        ]) > 0
         Boolean has_output_of_align_ctl = i < length(ctl_bams)
         if (has_input_of_align_ctl && !has_output_of_align_ctl) {
             call align as align_ctl { input:
