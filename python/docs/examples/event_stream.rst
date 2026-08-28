@@ -7,7 +7,13 @@ terminal.
 .. literalinclude:: ../../sprocket_bio/examples/event_stream.py
    :caption: sprocket_bio/examples/event_stream.py
 
-If you have the Python bindings installed, you can run the example yourself:
+If you have the Python bindings installed, you can run the example yourself. First, create
+``example.wdl`` with the following contents:
+
+.. literalinclude:: ../../sprocket_bio/examples/example.wdl
+   :caption: example.wdl
+
+Then, run the following command:
 
 .. code-block:: console
 
@@ -97,9 +103,3 @@ If you have the Python bindings installed, you can run the example yourself:
                SyntaxKind.WHITESPACE@255..256 '\n'
                SyntaxKind.CLOSE_BRACE@256..257 '}'
              SyntaxKind.WHITESPACE@257..258 '\n'
-
-.. admonition:: Click to view ``example.wdl`` source
-   :collapsible: closed
-
-   .. literalinclude:: ../../sprocket_bio/examples/example.wdl
-      :caption: sprocket_bio/examples/example.wdl

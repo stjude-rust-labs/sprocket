@@ -6,13 +6,19 @@ This example shows how to use the event stream to make a WDL syntax highlighter 
 .. literalinclude:: ../../sprocket_bio/examples/syntax_highlighter.py
    :caption: sprocket_bio/examples/syntax_highlighter.py
 
-If you have the Python bindings installed, you can run the example yourself:
+If you have the Python bindings installed, you can run the example yourself. First, create
+``example.wdl`` with the following contents:
+
+.. literalinclude:: ../../sprocket_bio/examples/example.wdl
+   :caption: example.wdl
+
+Then, run the following command:
 
 .. code-block:: console
 
    $ python -m sprocket_bio.examples.syntax_highlighter example.wdl
 
-The emitted HTML renders as the following:
+The HTML is emitted to ``example.wdl.html``, and renders as the following:
 
 .. raw:: html
 
