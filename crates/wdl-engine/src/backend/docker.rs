@@ -2,8 +2,6 @@
 
 use std::fs;
 use std::path::Path;
-#[cfg(unix)]
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -342,102 +340,80 @@ impl ManagedTask for DockerTask<'_> {
     }
 }
 
-/// Represents a cleanup task that is run after a Docker task, whatever the
-/// outcome of that task was.
+/// Hands a task's work directory back to the user performing evaluation.
 ///
-/// On Unix systems, this is used to recursively run `chown` on the work
-/// directory so that files created by a container user (e.g. `root`) are
-/// changed to be owned by the user performing evaluation.
+/// On Unix systems, this recursively runs `chown` in a container so that files
+/// created by a container user (e.g. `root`) become owned by the user
+/// performing evaluation, which is the only user that can then remove them.
+///
+/// This runs after a Docker task whatever the outcome of that task was.
 #[cfg(unix)]
-struct CleanupTask<'a> {
-    /// The name of the task.
-    name: String,
-    /// The work directory to `chown`.
-    ///
-    /// The Docker backend always runs with a local work directory.
-    work_dir: PathBuf,
-    /// The underlying Crankshaft backend.
-    backend: &'a docker::Backend,
-    /// The token that cancels the cleanup.
-    ///
-    /// This is never the evaluation's cancellation token: the cleanup matters
-    /// most for a task that was canceled, and by then that token is canceled
-    /// and Docker would refuse to start the container.
-    token: CancellationToken,
-}
+async fn chown_work_dir(backend: &docker::Backend, name: &str, work_dir: &Path) -> Result<()> {
+    assert!(work_dir.is_absolute(), "work directory should be absolute");
 
-#[cfg(unix)]
-impl CleanupTask<'_> {
-    /// Runs the cleanup task.
-    async fn run(self) -> Result<()> {
-        assert!(
-            self.work_dir.is_absolute(),
-            "work directory should be absolute"
-        );
+    // SAFETY: `geteuid` and `getegid` are always safe to call and cannot fail.
+    let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
+    let ownership = format!("{uid}:{gid}");
 
-        // SAFETY: `geteuid` and `getegid` are always safe to call and cannot fail.
-        let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
-        let ownership = format!("{uid}:{gid}");
+    let task = Task::builder()
+        .name(name)
+        .executions(NonEmpty::new(
+            Execution::builder()
+                // SAFETY: there is at least one image in the list
+                .images(["alpine:latest"])?
+                .program("chown")
+                .args([
+                    "-R".to_string(),
+                    ownership.clone(),
+                    GUEST_WORK_DIR.to_string(),
+                ])
+                .build(),
+        ))
+        .inputs([Input::builder()
+            .path(GUEST_WORK_DIR)
+            .contents(Contents::Path(work_dir.to_path_buf()))
+            .ty(InputType::Directory)
+            // need write access to chown
+            .read_only(false)
+            .build()])
+        .resources(
+            Resources::builder()
+                .cpu(CLEANUP_TASK_CPU)
+                .ram(CLEANUP_TASK_MEMORY as f64 / ONE_GIBIBYTE)
+                .build(),
+        )
+        .build();
 
-        let task = Task::builder()
-            .name(&self.name)
-            .executions(NonEmpty::new(
-                Execution::builder()
-                    // SAFETY: there is at least one image in the list
-                    .images(["alpine:latest"])?
-                    .program("chown")
-                    .args([
-                        "-R".to_string(),
-                        ownership.clone(),
-                        GUEST_WORK_DIR.to_string(),
-                    ])
-                    .build(),
-            ))
-            .inputs([Input::builder()
-                .path(GUEST_WORK_DIR)
-                .contents(Contents::Path(self.work_dir.clone()))
-                .ty(InputType::Directory)
-                // need write access to chown
-                .read_only(false)
-                .build()])
-            .resources(
-                Resources::builder()
-                    .cpu(CLEANUP_TASK_CPU)
-                    .ram(CLEANUP_TASK_MEMORY as f64 / ONE_GIBIBYTE)
-                    .build(),
-            )
-            .build();
+    debug!(
+        "running cleanup task `{name}` to change ownership of `{path}` to `{ownership}`",
+        path = work_dir.display(),
+    );
 
-        debug!(
-            "running cleanup task `{name}` to change ownership of `{path}` to `{ownership}`",
-            name = self.name,
-            path = self.work_dir.display(),
-        );
-
-        // Passing no event sender keeps the cleanup off the event stream entirely, so
-        // no consumer can observe it, and none can cancel the token Crankshaft
-        // publishes with `TaskCreated` after the user has canceled evaluation.
-        match self
-            .backend
-            .run(task, None, self.token)
-            .context("failed to submit cleanup task")?
-            .await
-        {
-            Ok(results) => {
-                if results.first().status.success() {
-                    Ok(())
-                } else {
-                    bail!(
-                        "failed to chown task work directory `{path}`",
-                        path = self.work_dir.display()
-                    );
-                }
+    // The cleanup runs on a token of its own that nothing cancels: it matters most
+    // for a task that was canceled, and by then the evaluation's tokens are
+    // canceled and Docker would refuse to start the container. Dropping this
+    // future is the only way to stop waiting for the cleanup.
+    //
+    // Passing no event sender keeps the cleanup off the event stream entirely, so
+    // no consumer can observe it, and none can cancel the token Crankshaft
+    // publishes with `TaskCreated` after the user has canceled evaluation.
+    match backend
+        .run(task, None, CancellationToken::new())
+        .context("failed to submit cleanup task")?
+        .await
+    {
+        Ok(results) => {
+            if results.first().status.success() {
+                Ok(())
+            } else {
+                bail!(
+                    "failed to chown task work directory `{path}`",
+                    path = work_dir.display()
+                );
             }
-            Err(TaskRunError::Canceled) => {
-                bail!("cleanup task `{name}` was canceled", name = self.name)
-            }
-            Err(e) => Err(e).context("failed to run cleanup task"),
         }
+        Err(TaskRunError::Canceled) => bail!("cleanup task `{name}` was canceled"),
+        Err(e) => Err(e).context("failed to run cleanup task"),
     }
 }
 
@@ -497,13 +473,6 @@ pub struct DockerBackend {
     max_memory: u64,
     /// The task manager for the backend.
     manager: TaskManager,
-    /// The token that cancels work directory cleanup.
-    ///
-    /// Cleanup deliberately does not observe the evaluation's cancellation, as
-    /// a canceled task is exactly when its work directory needs handing back.
-    /// This token is canceled only by an explicit request to stop cleaning up.
-    #[cfg(unix)]
-    cleanup_token: CancellationToken,
 }
 
 impl DockerBackend {
@@ -554,8 +523,6 @@ impl DockerBackend {
             max_cpu,
             max_memory,
             manager,
-            #[cfg(unix)]
-            cleanup_token: CancellationToken::new(),
         })
     }
 }
@@ -695,17 +662,12 @@ impl TaskExecutionBackend for DockerBackend {
             {
                 let work_dir = request.work_dir();
                 if work_dir.exists() {
-                    let task = CleanupTask {
-                        name: format!(
-                            "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
-                            name = request.name
-                        ),
-                        work_dir,
-                        backend: self.inner.as_ref(),
-                        token: self.cleanup_token.clone(),
-                    };
+                    let name = format!(
+                        "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
+                        name = request.name
+                    );
 
-                    if let Err(e) = task.run().await {
+                    if let Err(e) = chown_work_dir(self.inner.as_ref(), &name, &work_dir).await {
                         tracing::error!("Docker backend cleanup failed: {e:#}");
                     }
                 }
