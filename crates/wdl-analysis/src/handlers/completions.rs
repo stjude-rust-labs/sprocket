@@ -181,7 +181,7 @@ pub fn completion(
     };
 
     if is_member_access {
-        add_member_access_completions(graph, document, &parent, &mut items)?;
+        add_member_access_completions(document, &parent, &mut items)?;
     } else {
         let mut visited_kinds = IndexSet::new();
         let mut current = Some(parent);
@@ -198,10 +198,10 @@ pub fn completion(
                         add_scope_completions(scope, &mut items);
                     }
                     add_stdlib_completions(document.version(), &mut items);
-                    add_struct_completions(graph, document, scope, &mut items);
-                    add_enum_type_completions(graph, document, scope, &mut items);
+                    add_struct_completions(document, scope, &mut items);
+                    add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, &mut items, graph);
+                    add_callable_completions(document, &mut items);
                     break;
                 }
                 SyntaxKind::ScatterStatementNode | SyntaxKind::ConditionalStatementNode => {
@@ -211,10 +211,10 @@ pub fn completion(
                         add_scope_completions(scope, &mut items);
                     }
                     add_stdlib_completions(document.version(), &mut items);
-                    add_struct_completions(graph, document, scope, &mut items);
-                    add_enum_type_completions(graph, document, scope, &mut items);
+                    add_struct_completions(document, scope, &mut items);
+                    add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, &mut items, graph);
+                    add_callable_completions(document, &mut items);
                     break;
                 }
 
@@ -225,14 +225,14 @@ pub fn completion(
                         add_scope_completions(scope, &mut items);
                     }
                     add_stdlib_completions(document.version(), &mut items);
-                    add_struct_completions(graph, document, scope, &mut items);
-                    add_enum_type_completions(graph, document, scope, &mut items);
+                    add_struct_completions(document, scope, &mut items);
+                    add_enum_type_completions(document, scope, &mut items);
                     break;
                 }
 
                 SyntaxKind::StructDefinitionNode => {
-                    add_struct_completions(graph, document, None, &mut items);
-                    add_enum_type_completions(graph, document, None, &mut items);
+                    add_struct_completions(document, None, &mut items);
+                    add_enum_type_completions(document, None, &mut items);
                     add_keyword_completions(&STRUCT_SECTION_KEYWORDS, &mut items);
                     break;
                 }
@@ -258,8 +258,8 @@ pub fn completion(
 
                 SyntaxKind::RootNode => {
                     add_keyword_completions(&ROOT_SECTION_KEYWORDS, &mut items);
-                    add_struct_completions(graph, document, None, &mut items);
-                    add_enum_type_completions(graph, document, None, &mut items);
+                    add_struct_completions(document, None, &mut items);
+                    add_enum_type_completions(document, None, &mut items);
                     add_namespace_completions(document, &mut items);
                     break;
                 }
@@ -320,7 +320,6 @@ fn add_keyword_completions(token_set: &TokenSet, items: &mut Vec<CompletionItem>
 /// not be fully-formed `AccessExprNode`. We find the expression to the left
 /// of the dot.
 fn add_member_access_completions(
-    graph: &DocumentGraph,
     document: &Document,
     node: &SyntaxNode,
     items: &mut Vec<CompletionItem>,
@@ -349,8 +348,7 @@ fn add_member_access_completions(
                 label: task.name().to_string(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some(format!("task {}", task.name())),
-                documentation: provide_task_documentation(&task, &ns_root, graph)
-                    .and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 ..Default::default()
             });
 
@@ -359,8 +357,7 @@ fn add_member_access_completions(
                 label: format!("{} {{...}}", task.name()),
                 kind: Some(CompletionItemKind::SNIPPET),
                 detail: Some(format!("call task {} with required inputs", task.name())),
-                documentation: provide_task_documentation(&task, &ns_root, graph)
-                    .and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 insert_text: Some(snippet),
                 filter_text: Some(task.name().to_string()),
@@ -635,11 +632,7 @@ fn add_member_access_completions(
 /// Adds completions for callable items available in the current document.
 ///
 /// Includes both local and imported tasks and workflows.
-fn add_callable_completions(
-    document: &Document,
-    items: &mut Vec<CompletionItem>,
-    graph: &DocumentGraph,
-) {
+fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>) {
     let root_node = document.root();
     let version = document.version();
 
@@ -649,8 +642,7 @@ fn add_callable_completions(
             label: name.to_string(),
             kind: Some(CompletionItemKind::FUNCTION),
             detail: Some(format!("task {}", name)),
-            documentation: provide_task_documentation(&task, &root_node, graph)
-                .and_then(make_md_docs),
+            documentation: provide_task_documentation(&task, &root_node).and_then(make_md_docs),
             ..Default::default()
         });
 
@@ -659,8 +651,7 @@ fn add_callable_completions(
             label: format!("{} {{...}}", name),
             kind: Some(CompletionItemKind::SNIPPET),
             detail: Some(format!("call task {} with required inputs", name)),
-            documentation: provide_task_documentation(&task, &root_node, graph)
-                .and_then(make_md_docs),
+            documentation: provide_task_documentation(&task, &root_node).and_then(make_md_docs),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             insert_text: Some(snippet),
             ..Default::default()
@@ -700,8 +691,7 @@ fn add_callable_completions(
                 label: label.clone(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some("task".to_string()),
-                documentation: provide_task_documentation(&task, &ns_root, graph)
-                    .and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 ..Default::default()
             });
 
@@ -710,8 +700,7 @@ fn add_callable_completions(
                 label: format!("{} {{...}}", label),
                 kind: Some(CompletionItemKind::SNIPPET),
                 detail: Some(format!("call task {} with required inputs", label)),
-                documentation: provide_task_documentation(&task, &ns_root, graph)
-                    .and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 insert_text: Some(snippet),
                 ..Default::default()
@@ -827,12 +816,10 @@ fn add_stdlib_completions(version: Option<SupportedVersion>, items: &mut Vec<Com
 /// If a scope is provided, filters out struct names that are shadowed by
 /// variables in that scope.
 fn add_struct_completions(
-    graph: &DocumentGraph,
     document: &Document,
     scope: Option<ScopeRef<'_>>,
     items: &mut Vec<CompletionItem>,
 ) {
-    let root = document.root();
     for s in document.structs() {
         // Skip if this struct name is shadowed by a variable in scope
         if let Some(scope) = scope
@@ -845,7 +832,7 @@ fn add_struct_completions(
             label: s.name().to_string(),
             kind: Some(CompletionItemKind::STRUCT),
             detail: Some(format!("struct {}", s.name())),
-            documentation: provide_struct_documentation(&s, &root, graph).and_then(make_md_docs),
+            documentation: make_md_docs(provide_struct_documentation(&s)),
             ..Default::default()
         });
 
@@ -860,8 +847,7 @@ fn add_struct_completions(
                     label,
                     kind: Some(CompletionItemKind::SNIPPET),
                     detail: Some(format!("struct {} with members", s.name())),
-                    documentation: provide_struct_documentation(&s, &root, graph)
-                        .and_then(make_md_docs),
+                    documentation: make_md_docs(provide_struct_documentation(&s)),
                     insert_text_format: Some(InsertTextFormat::SNIPPET),
                     insert_text: Some(snippet),
                     ..Default::default()
@@ -876,12 +862,10 @@ fn add_struct_completions(
 /// If a scope is provided, filters out enum names that are shadowed by
 /// variables in that scope.
 fn add_enum_type_completions(
-    graph: &DocumentGraph,
     document: &Document,
     scope: Option<ScopeRef<'_>>,
     items: &mut Vec<CompletionItem>,
 ) {
-    let root = document.root();
     for r#enum in document.enums() {
         // Skip if this enum name is shadowed by a variable in scope
         if let Some(scope) = scope
@@ -894,7 +878,7 @@ fn add_enum_type_completions(
             label: r#enum.name().to_string(),
             kind: Some(CompletionItemKind::ENUM),
             detail: Some(format!("enum {}", r#enum.name())),
-            documentation: provide_enum_documentation(&r#enum, &root, graph).and_then(make_md_docs),
+            documentation: make_md_docs(provide_enum_documentation(&r#enum)),
             ..Default::default()
         });
     }
