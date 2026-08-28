@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
+  terminating Sprocket leaves Docker containers running
+  ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
+
 ## 0.30.1 - 2026-08-27
 
 ### Fixed
