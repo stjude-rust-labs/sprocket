@@ -418,7 +418,7 @@ pub fn format_literal_array(
     if !empty {
         stream.fit_or_split_end(
             "".to_string().into(),
-            if trailing_comma_inserted {
+            if trailing_comma_inserted || !config.trailing_commas {
                 "".to_string().into()
             } else {
                 ",".to_string().into()

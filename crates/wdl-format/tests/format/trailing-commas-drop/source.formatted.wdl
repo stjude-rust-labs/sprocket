@@ -42,7 +42,7 @@ workflow test {
         Person {
             name: "John",
             age: 26
-        },
+        }
     ]
     Object person = object {
         name: "Jimmy",
