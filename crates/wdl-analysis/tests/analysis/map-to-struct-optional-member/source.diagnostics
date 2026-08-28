@@ -1,0 +1,23 @@
+error: type mismatch: expected an instance of struct `Outer`, but found type `Map[String, Inner]`
+   ┌─ tests/analysis/map-to-struct-optional-member/source.wdl:18:21
+   │
+18 │     Outer invalid = {"inner": inner, "label": inner}
+   │           -------   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[String, Inner]`
+   │           │
+   │           this expects an instance of struct `Outer`
+
+error: type mismatch: expected an instance of struct `Outer`, but found type `Map[String, String]`
+   ┌─ tests/analysis/map-to-struct-optional-member/source.wdl:19:30
+   │
+19 │     Outer missing_required = {"label": "x"}
+   │           ----------------   ^^^^^^^^^^^^^^ this is type `Map[String, String]`
+   │           │
+   │           this expects an instance of struct `Outer`
+
+error: type mismatch: expected an instance of struct `Outer`, but found type `Map[Union, Union]`
+   ┌─ tests/analysis/map-to-struct-optional-member/source.wdl:20:19
+   │
+20 │     Outer empty = {}
+   │           -----   ^^ this is type `Map[Union, Union]`
+   │           │
+   │           this expects an instance of struct `Outer`

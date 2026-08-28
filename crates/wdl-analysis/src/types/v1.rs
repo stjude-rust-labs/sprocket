@@ -813,6 +813,97 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         PairType::new(left, right).into()
     }
 
+    /// Evaluates a map expression in the context of a target struct.
+    pub(crate) fn evaluate_map_expr_as_struct<N: TreeNode + Exceptable>(
+        &mut self,
+        expr: &Expr<N>,
+        target: &StructType,
+    ) -> Option<(Type, bool)> {
+        match expr {
+            Expr::Literal(LiteralExpr::Map(map)) => {
+                self.evaluate_literal_map_as_struct(map, target)
+            }
+            Expr::Parenthesized(expr) => self.evaluate_map_expr_as_struct(&expr.expr(), target),
+            _ => None,
+        }
+    }
+
+    /// Evaluates a static-keyed map literal in the context of a target struct.
+    ///
+    /// Returns `None` when a key is not a static string, in which case ordinary
+    /// homogeneous map inference applies. Otherwise, the returned Boolean
+    /// indicates whether every entry matches its named member and every
+    /// required member is present.
+    fn evaluate_literal_map_as_struct<N: TreeNode + Exceptable>(
+        &mut self,
+        map: &LiteralMap<N>,
+        target: &StructType,
+    ) -> Option<(Type, bool)> {
+        if !map.items().all(|item| {
+            matches!(
+                item.key_value().0,
+                Expr::Literal(LiteralExpr::String(string)) if string.text().is_some()
+            )
+        }) {
+            return None;
+        }
+
+        let mut key = String::new();
+        let mut present = vec![false; target.members().len()];
+        let mut value_type: Option<Type> = None;
+        let mut values_have_common_type = true;
+        let mut valid = true;
+
+        for item in map.items() {
+            let (key_expr, value_expr) = item.key_value();
+            let Expr::Literal(LiteralExpr::String(string)) = key_expr else {
+                unreachable!("map keys were checked above");
+            };
+            let text = string.text().expect("map keys were checked above");
+            key.clear();
+            text.unescape_to(&mut key);
+
+            let actual = self.evaluate_expr(&value_expr).unwrap_or(Type::Union);
+            if values_have_common_type {
+                value_type = match value_type {
+                    Some(ref previous) => match previous.common_type(&actual) {
+                        Some(common) => Some(common),
+                        None => {
+                            values_have_common_type = false;
+                            Some(Type::Union)
+                        }
+                    },
+                    None => Some(actual.clone()),
+                };
+            }
+
+            match target.members().get_full(&key) {
+                Some((index, _, expected)) => {
+                    present[index] = true;
+                    valid &= actual.is_coercible_to(expected);
+                }
+                None => valid = false,
+            }
+        }
+
+        valid &= target
+            .members()
+            .iter()
+            .enumerate()
+            .all(|(index, (_, ty))| ty.is_optional() || present[index]);
+
+        let actual = MapType::new(
+            if value_type.is_some() {
+                Type::from(PrimitiveType::String)
+            } else {
+                Type::Union
+            },
+            value_type.unwrap_or(Type::Union),
+        )
+        .into();
+        Some((actual, valid))
+    }
+
     /// Evaluates the type of a literal map expression.
     fn evaluate_literal_map<N: TreeNode + Exceptable>(&mut self, expr: &LiteralMap<N>) -> Type {
         let map_item_type = |item: LiteralMapItem<N>| {

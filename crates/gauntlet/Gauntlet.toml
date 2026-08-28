@@ -2304,26 +2304,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0a
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:63:190: error: type mismatch: a type common to both type `String` and type `Int` does not exist"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/FunctionalEquivalence/FunctionalEquivalence.wdl/#L63"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:63:32: error: type mismatch: expected an instance of struct `VcfFile`, but found type `Map[String, String]`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/FunctionalEquivalence/FunctionalEquivalence.wdl/#L63"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:67:190: error: type mismatch: a type common to both type `String` and type `Int` does not exist"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/FunctionalEquivalence/FunctionalEquivalence.wdl/#L67"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:67:32: error: type mismatch: expected an instance of struct `VcfFile`, but found type `Map[String, String]`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/FunctionalEquivalence/FunctionalEquivalence.wdl/#L67"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
 message = "FunctionalEquivalence.wdl:95:64: error: type mismatch: a type common to both type `String` and type `Int` does not exist"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/FunctionalEquivalence/FunctionalEquivalence.wdl/#L95"
 

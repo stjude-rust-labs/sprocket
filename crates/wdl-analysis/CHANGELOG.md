@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Map-to-struct assignments may now omit optional struct members
+  ([#1156](https://github.com/stjude-rust-labs/sprocket/issues/1156)).
+
 ## 0.25.0 - 2026-08-26
 
 #### Added

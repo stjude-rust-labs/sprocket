@@ -2956,9 +2956,19 @@ fn type_check_expr(
 ) {
     let mut context = EvaluationContext::new(document, scope, config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
-    let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 
-    if !matches!(expected, Type::Union) && !actual.is_coercible_to(expected) {
+    let (actual, coercible) = expected
+        .as_struct()
+        // NOTE: there is a special case where map literals can be coerced to
+        // structs if all of the keys therein map to fields within the struct.
+        .and_then(|target| evaluator.evaluate_map_expr_as_struct(expr, target))
+        .unwrap_or_else(|| {
+            let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
+            let coercible = actual.is_coercible_to(expected);
+            (actual, coercible)
+        });
+
+    if !matches!(expected, Type::Union) && !coercible {
         document.analysis_diagnostics.add(type_mismatch(
             expected,
             expected_span,
