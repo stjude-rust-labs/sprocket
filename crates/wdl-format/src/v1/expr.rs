@@ -1009,10 +1009,7 @@ pub fn format_if_expr(
             }
             // only match on `else`; `then` could be considered for "chaining" but that
             // makes it harder to read IMO (a-frantz).
-            result = matches!(
-                cur.kind(),
-                SyntaxKind::ElseKeyword // | SyntaxKind::ThenKeyword
-            );
+            result = matches!(cur.kind(), SyntaxKind::ElseKeyword);
             break;
         }
         result

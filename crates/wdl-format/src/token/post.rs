@@ -759,7 +759,7 @@ impl Postprocessor {
         post_buffer.clear();
 
         self.fit_potential_splits = false;
-        let mut fit_spans = fit_spans.iter();
+        let mut fit_spans = fit_spans.into_iter();
         let mut fit_span = fit_spans.next();
         let mut indent_on_first_split = false;
 
@@ -769,7 +769,7 @@ impl Postprocessor {
             let mut cached_self = None;
             let mut cached_on = None;
 
-            if fit_span.is_some_and(|(start, _end)| *start == i) {
+            if fit_span.is_some_and(|(start, _end)| start == i) {
                 self.fit_potential_splits = true;
             } else if let PreToken::FitOrSplitStart { split_end_line, .. } = token {
                 if *split_end_line {
@@ -849,7 +849,7 @@ impl Postprocessor {
             let next = pre_buffer.peek().map(|(_, n)| *n);
             self.step(token.clone(), next, &mut post_buffer);
 
-            if fit_span.is_some_and(|(_start, end)| *end == i) {
+            if fit_span.is_some_and(|(_start, end)| end == i) {
                 fit_span = fit_spans.next();
                 self.fit_potential_splits = false;
             }
