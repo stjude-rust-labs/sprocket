@@ -50,9 +50,9 @@ pub fn uses_docker_backend(engine: &EngineConfig) -> bool {
 /// exit without waiting for executing tasks to cancel.
 pub fn warn_docker_termination() {
     warn!(
-        "terminating Sprocket does not remove Docker containers that are still running: files \
-         those containers created may be owned by another user (e.g. `root`) and require elevated \
-         privileges to remove"
+        "terminating Sprocket does not remove Docker containers that are still running; files \
+         that were created by containers may remain owned by another user (e.g. `root`) and \
+         require elevated privileges to remove"
     );
 }
 
