@@ -539,8 +539,14 @@ impl Postprocessor {
                 split_end_line,
             } => {
                 if self.fit_potential_splits {
+                    if fit_end.is_empty() {
+                        self.trim_last_line(stream);
+                    }
                     stream.push(PostToken::Literal(fit_end));
                 } else {
+                    if split_end.is_empty() {
+                        self.trim_last_line(stream);
+                    }
                     stream.push(PostToken::Literal(split_end));
                     if split_end_line {
                         self.end_line(stream);
