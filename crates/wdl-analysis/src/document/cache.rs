@@ -94,7 +94,7 @@ pub(crate) enum Import {
 impl Import {
     /// Get the [`MergingImport`] contents of the import if it's a merging
     /// import.
-    fn merging(&self) -> Option<&MergingImport> {
+    pub(crate) fn merging(&self) -> Option<&MergingImport> {
         match self {
             Import::Merging(i) => Some(i),
             _ => None,
@@ -102,7 +102,7 @@ impl Import {
     }
 
     /// Get the namespace of the import, if it has one.
-    fn namespace(&self) -> Option<&Namespace> {
+    pub(in crate) fn namespace(&self) -> Option<&Namespace> {
         match self {
             Import::Namespace(n) => Some(n),
             _ => None,
@@ -986,6 +986,22 @@ impl AnalysisCache {
                     .map(CachedItemRef::Workflow),
             )
             .chain(self.imports.values().map(CachedItemRef::Import))
+    }
+
+    /// Gets a mutable reference all of the items in the cache.
+    pub(in crate::document) fn items_mut(&mut self) -> impl Iterator<Item = CachedItemRefMut<'_>> {
+        self.structs
+            .values_mut()
+            .map(CachedItemRefMut::Struct)
+            .chain(self.enums.values_mut().map(CachedItemRefMut::Enum))
+            .chain(self.tasks.values_mut().map(CachedItemRefMut::Task))
+            .chain(
+                self.workflow
+                    .as_mut()
+                    .into_iter()
+                    .map(CachedItemRefMut::Workflow),
+            )
+            .chain(self.imports.values_mut().map(CachedItemRefMut::Import))
     }
 
     /// Gets all of the diagnostics in the cache.

@@ -303,17 +303,32 @@ pub(crate) fn populate_document(
     }
 
     if let Some(severity) = document.config.diagnostics_config().unused_import {
-        for ns in document.cache.namespaces().filter(|(_, ns)| !ns.used) {
-            let Some(node) = import_nodes_by_namespace.get(ns.1.name()) else {
+        for item in document.cache.items_mut() {
+            let CachedItemRefMut::Import(import) = item else {
                 continue;
             };
 
-            // TODO: Should go on the import item
+            let Some(ns) = import.item.item.namespace() else {
+                continue;
+            };
+
+            if ns.used {
+                continue;
+            }
+
+            let Some(node) = import_nodes_by_namespace.get(ns.name()) else {
+                continue;
+            };
+
             document.analysis_diagnostics.exceptable_add(
-                unused_import(ns.1.name(), ns.1.span).with_severity(severity),
+                unused_import(ns.name(), ns.span).with_severity(severity),
                 node,
                 &UnusedImportRule::EXCEPTABLE_NODES,
             );
+
+            import
+                .diagnostics
+                .append(&mut document.analysis_diagnostics.diagnostics);
         }
     }
 
