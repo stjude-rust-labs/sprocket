@@ -71,8 +71,7 @@ pub enum PreToken {
         /// If the block will be "fit", insert this literal string between each
         /// potential split.
         fit_delimiter: Rc<String>,
-        /// If the block will be split, end the line after inserting
-        /// `fit_start`.
+        /// If the block will be split, end the line immediately.
         split_end_line: bool,
     },
 
