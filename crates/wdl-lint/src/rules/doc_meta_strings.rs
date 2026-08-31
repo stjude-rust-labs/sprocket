@@ -200,8 +200,8 @@ impl Visitor for DocMetaStringsRule {
                 );
             }
 
-            // Recursively check any nested objects (handles "outputs" and other nested
-            // structures)
+            // Recursively check any nested objects (handles "outputs" and other
+            // nested structures)
             if let MetadataValue::Object(ref obj) = value {
                 check_object_items(obj, diagnostics, &self.exceptable_nodes());
             }

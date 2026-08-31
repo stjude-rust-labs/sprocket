@@ -169,10 +169,11 @@ async fn run_test(test: &Path) -> Result<()> {
     let json_path = test.join("inputs.json");
     let yaml_path = test.join("inputs.yaml");
 
-    // Special case for the "missing-file" test which intentionally tests missing
-    // input files
+    // Special case for the "missing-file" test which intentionally tests
+    // missing input files
     if test_name == "missing-file" {
-        // Always use the JSON path for consistency across platforms and pass as &Path
+        // Always use the JSON path for consistency across platforms and pass as
+        // &Path
         let result = match Inputs::parse(document, &json_path) {
             Ok(_) => String::new(),
             Err(e) => format!("{e:#}"),

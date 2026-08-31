@@ -316,7 +316,8 @@ impl MonitorState {
             match record.state.parse::<JobState>() {
                 Ok(job_state) => {
                     if job.state != job_state {
-                        // If the job state is now running, send the started event
+                        // If the job state is now running, send the started
+                        // event
                         if job_state == JobState::Running {
                             send_event!(
                                 job.events.crankshaft(),
@@ -327,7 +328,8 @@ impl MonitorState {
                         }
 
                         if job_state.terminated() {
-                            // If the job was not already in a running state, send the
+                            // If the job was not already in a running state,
+                            // send the
                             // started event now
                             if job.state != JobState::Running {
                                 send_event!(
@@ -460,8 +462,8 @@ impl Monitor {
             }
         }
 
-        // Format a name for the LSF job; job names do not have to be unique, but we
-        // should not truncate the prefix or tag
+        // Format a name for the LSF job; job names do not have to be unique,
+        // but we should not truncate the prefix or tag
         let job_name = format!(
             "{prefix}{sep}{tag}-{task_name}",
             prefix = config.job_name_prefix.as_deref().unwrap_or(""),
@@ -531,7 +533,8 @@ impl Monitor {
         let stdout =
             str::from_utf8(&output.stdout).map_err(|_| anyhow!("`bsub` output was not UTF-8"))?;
 
-        // Parse out the job id from the output, which is surrounded by `<` and `>`
+        // Parse out the job id from the output, which is surrounded by `<` and
+        // `>`
         let job_id: u64 = stdout
             .split(' ')
             .nth(1)
@@ -780,8 +783,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             .as_lsf_apptainer()
             .expect("configured backend is not LSF Apptainer");
 
-        // Determine whether CPU or memory limits are set for this queue, and clamp or
-        // deny them as appropriate if the limits are exceeded
+        // Determine whether CPU or memory limits are set for this queue, and
+        // clamp or deny them as appropriate if the limits are exceeded
         if let Some(queue) = backend_config.lsf_queue_for_task(requirements, hints) {
             if let Some(max_cpu) = queue.max_cpu_per_task
                 && required_cpu > max_cpu as f64

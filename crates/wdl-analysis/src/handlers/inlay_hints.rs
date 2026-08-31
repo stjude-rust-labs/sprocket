@@ -65,7 +65,8 @@ pub fn inlay_hints(
     for enum_entry in document.local_enums() {
         let definition = enum_entry.definition();
 
-        // Calculate the enum name end position (where the type hint would appear)
+        // Calculate the enum name end position (where the type hint would
+        // appear)
         let name_span = definition.name().span();
         let absolute_end = enum_entry.offset() + name_span.end();
         let enum_name_end_pos = position(&lines, TextSize::try_from(absolute_end)?)?;

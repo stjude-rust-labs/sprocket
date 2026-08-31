@@ -876,9 +876,10 @@ impl DocsTree {
         };
 
         // Local dependency module entrypoint documents are collapsed onto
-        // their module's root directory (see `WorkspaceMetadata::documentation_path`),
-        // so a node's directory (i.e. its path without a trailing
-        // `index.html`) can be looked up directly as a module root.
+        // their module's root directory (see
+        // `WorkspaceMetadata::documentation_path`), so a node's
+        // directory (i.e. its path without a trailing `index.html`) can
+        // be looked up directly as a module root.
         let node_module = |path: &Path| -> Option<&ModuleMetadata> {
             let dir = if path.file_name().expect("path should have a file name") == "index.html" {
                 path.parent().expect("path should have a parent")

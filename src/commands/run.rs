@@ -62,6 +62,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::uses_docker_backend;
+use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
@@ -1009,6 +1011,9 @@ pub async fn run(
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    // Determined here as the engine configuration is moved into evaluation
+    // below.
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let events = Events::new(
         config
             .run
@@ -1080,6 +1085,10 @@ pub async fn run(
                     },
                     CancellationContextState::Canceling => {
                         error!("waiting for executing tasks to cancel: use Ctrl-C to immediately terminate Sprocket");
+
+                        if uses_docker {
+                            warn_docker_termination();
+                        }
                     },
                 }
             },

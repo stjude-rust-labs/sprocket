@@ -380,7 +380,8 @@ impl DocumentGraphNode {
             return Ok(None);
         };
 
-        // The document has been edited; if there is start source, apply the edits to it
+        // The document has been edited; if there is start source, apply the
+        // edits to it
         let (mut source, mut lines) = if let Some(start) = &change.start {
             let source = start.clone();
             let lines = Arc::new(LineIndex::new(&source));
@@ -396,8 +397,8 @@ impl DocumentGraphNode {
             }
         };
 
-        // We keep track of the last line we've processed so we only rebuild the line
-        // index when there is a change that crosses a line
+        // We keep track of the last line we've processed so we only rebuild the
+        // line index when there is a change that crosses a line
         let mut last_line = !0u32;
         let mut applied_edits = Vec::new();
         for edit in &change.edits {
@@ -441,12 +442,15 @@ impl DocumentGraphNode {
             Some(IncrementalChange { start: None, .. }) => {
                 // TODO: implement incremental parsing
                 // For each edit:
-                //   * determine if the edit is to a token; if so, replace it in the tree
-                //   * otherwise, find a reparsable ancestor for the covering element and ask it
-                //     to reparse; if one is found, reparse and replace the node
-                //   * if a reparsable node can't be found, return an error to trigger a full
-                //     reparse
-                //   * incrementally update the parse diagnostics depending on the result
+                //   * determine if the edit is to a token; if so, replace it in
+                //     the tree
+                //   * otherwise, find a reparsable ancestor for the covering
+                //     element and ask it to reparse; if one is found, reparse
+                //     and replace the node
+                //   * if a reparsable node can't be found, return an error to
+                //     trigger a full reparse
+                //   * incrementally update the parse diagnostics depending on
+                //     the result
                 None
             }
         }
@@ -489,9 +493,9 @@ impl DocumentGraphNode {
         let mut diagnostics = Diagnostics::default();
         diagnostics.extend(parse_diagnostics);
 
-        // Apply version fallback logic at this point, so that appropriate diagnostics
-        // will prevent subsequent analysis from occurring on an unexpected
-        // version
+        // Apply version fallback logic at this point, so that appropriate
+        // diagnostics will prevent subsequent analysis from occurring
+        // on an unexpected version
         let mut wdl_version = None;
         if let Some(version_statement) = document.version_statement() {
             let version_token = version_statement.version();
@@ -665,7 +669,8 @@ impl DocumentGraph {
             Err(_) => return,
         };
 
-        // As the URI might be a directory containing WDL files, look for prefixed files
+        // As the URI might be a directory containing WDL files, look for
+        // prefixed files
         let mut removed = Vec::new();
         for (uri, index) in &self.indexes {
             let path = match uri.to_file_path() {
@@ -681,8 +686,9 @@ impl DocumentGraph {
         for index in removed {
             let node = &mut self.inner[index];
 
-            // We don't actually remove nodes from the graph, just remove it as a root.
-            // If the node has no outgoing edges, it will be collected in the next GC.
+            // We don't actually remove nodes from the graph, just remove it as
+            // a root. If the node has no outgoing edges, it will be
+            // collected in the next GC.
             if !self.roots.swap_remove(&index) {
                 debug!(
                     "document `{uri}` is no longer rooted in the graph",
@@ -860,8 +866,8 @@ impl DocumentGraph {
 
     /// Removes all dependency edges from the given node.
     pub fn remove_dependency_edges(&mut self, index: NodeIndex) {
-        // Retain all edges where the target isn't the given node (i.e. an incoming
-        // edge)
+        // Retain all edges where the target isn't the given node (i.e. an
+        // incoming edge)
         self.inner.retain_edges(|g, e| {
             let (_, target) = g.edge_endpoints(e).expect("edge should be valid");
             target != index
@@ -878,8 +884,8 @@ impl DocumentGraph {
         kind: EdgeKind,
         space: &mut DfsSpace,
     ) {
-        // Check to see if there is already a path between the nodes; if so, there's a
-        // cycle
+        // Check to see if there is already a path between the nodes; if so,
+        // there's a cycle
         if has_path_connecting(&self.inner, from, to, Some(space)) {
             // Adding the edge would cause a cycle, so record the cycle instead
             debug!(
@@ -895,8 +901,8 @@ impl DocumentGraph {
                 to = self.inner[to].uri
             );
 
-            // Note that we store inverse dependency edges in the graph, so the relationship
-            // is reversed
+            // Note that we store inverse dependency edges in the graph, so the
+            // relationship is reversed
             self.inner.add_edge(to, from, kind);
         }
     }
@@ -1035,8 +1041,8 @@ mod tests {
         let dep_uri = graph.get(dependency_index).uri().clone();
         graph.delete(&dep_uri);
 
-        // Deletion should retain the current source as a pending change and demote the
-        // dependent node to NotParsed
+        // Deletion should retain the current source as a pending change and
+        // demote the dependent node to NotParsed
         let dependent_graph_node = graph.get(dependent_index);
         assert!(matches!(
             dependent_graph_node.parse_state,

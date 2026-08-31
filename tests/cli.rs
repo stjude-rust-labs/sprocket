@@ -72,7 +72,8 @@ fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
             continue;
         }
         if path.is_dir() {
-            // The following tests require Docker, so skip if the Docker tests are disabled
+            // The following tests require Docker, so skip if the Docker tests
+            // are disabled
             #[cfg(docker_tests_disabled)]
             match path.file_name().and_then(|n| n.to_str()) {
                 Some("run") | Some("test") => continue,
@@ -243,10 +244,10 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
 fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     let mut config_overridden = false;
     let mut sprocket_config = sprocket::Config::default();
-    // For `run` tests, allow overriding the engine config. We restrict the override
-    // to this subset of tests in order to avoid messing with the expected output
-    // for commands that format the config and therefore expect the config to be
-    // exactly the default.
+    // For `run` tests, allow overriding the engine config. We restrict the
+    // override to this subset of tests in order to avoid messing with the
+    // expected output for commands that format the config and therefore
+    // expect the config to be exactly the default.
     if test_path.starts_with("tests/cli/run")
         && let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG")
     {
@@ -640,9 +641,10 @@ fn compare_test_results(
             )?;
             normalize_expected_outputs(&expected_output_dir)
                 .context("failed to normalize expected outputs")?;
-            // Normalize temp dir paths inside any text files copied into outputs/
-            // during BLESS. `recursive_copy` preserves file contents verbatim, so
-            // any file that captured the temp path will embed a one-run absolute
+            // Normalize temp dir paths inside any text files copied into
+            // outputs/ during BLESS. `recursive_copy` preserves
+            // file contents verbatim, so any file that captured the
+            // temp path will embed a one-run absolute
             // path that future comparisons will never match.
             normalize_output_files(&expected_output_dir, working_test_directory)
                 .context("failed to normalize output file contents")?;

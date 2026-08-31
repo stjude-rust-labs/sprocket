@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* The Docker backend now hands a task's work directory back to the user
+  performing evaluation after a canceled or failed task, not only a completed
+  one ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
+
+## 0.17.3 - 2026-08-27
+
 ## 0.17.2 - 2026-08-26
 
 #### Added

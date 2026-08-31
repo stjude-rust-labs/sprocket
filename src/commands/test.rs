@@ -70,6 +70,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::uses_docker_backend;
+use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
@@ -747,7 +749,8 @@ impl Runner {
                     {
                         Ok(res) => res,
                         Err(e) => {
-                            // TODO(serial): Spanned diagnostics would be nice here too
+                            // TODO(serial): Spanned diagnostics would be nice
+                            // here too
                             errors.push(Arc::new(e.context(format!(
                                 "converting to WDL inputs for test `{}` for WDL document `{}`",
                                 test.name,
@@ -1035,9 +1038,9 @@ pub async fn test(
         .map_err(CommandError::from)?;
 
     // Find and parse all YAML before beginning any executions.
-    // This is so that any totally invalid YAML is caught up-front before we start
-    // testing. Smaller issues with test definitions will later be collected and
-    // reported on after all tests execute.
+    // This is so that any totally invalid YAML is caught up-front before we
+    // start testing. Smaller issues with test definitions will later be
+    // collected and reported on after all tests execute.
     let mut documents = Vec::new();
     let mut counts = DiagnosticCounts::default();
     for analysis in analysis_results.filter(&[&source]) {
@@ -1136,6 +1139,9 @@ pub async fn test(
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.validate()?;
 
+    // Determined here as the engine configuration is moved into the engine
+    // below.
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let engine = Engine::new(config.run.engine)
         .await
         .context("failed to create WDL evaluation engine")?;
@@ -1183,6 +1189,10 @@ pub async fn test(
 
             _ = tokio::signal::ctrl_c() => {
                 if cancellation.state() == CancellationContextState::Canceling {
+                    if uses_docker {
+                        warn_docker_termination();
+                    }
+
                     return Err(anyhow!("evaluation was interrupted").into());
                 }
 

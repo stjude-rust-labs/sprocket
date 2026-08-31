@@ -608,8 +608,8 @@ where
         // walk at nested module boundaries: a subdirectory with its own
         // `module.json` is a separate (local-path dependency) module whose WDL
         // files reach the analyzer through symbolic-import materialization, not
-        // directory scanning. Outside an active module there is nothing to scope
-        // to, so scan everything.
+        // directory scanning. Outside an active module there is nothing to
+        // scope to, so scan everything.
         let stop_at_module_boundaries = self
             .resolution
             .module_root()
@@ -1445,8 +1445,8 @@ workflow something_else {
         let uri = path_to_uri(&path).expect("should convert to URI");
         analyzer.notify_change(uri.clone(), false).unwrap();
 
-        // Analyze again and ensure the analysis result id is changed and the issue
-        // fixed
+        // Analyze again and ensure the analysis result id is changed and the
+        // issue fixed
         let id = results[0].document.id().clone();
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
@@ -1520,8 +1520,8 @@ workflow test {
             )
             .unwrap();
 
-        // Analyze again and ensure the analysis result id is changed and the issue was
-        // fixed
+        // Analyze again and ensure the analysis result id is changed and the
+        // issue was fixed
         let id = results[0].document.id().clone();
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
@@ -1963,8 +1963,8 @@ workflow test {}
 
         // Now delete bar.wdl, which foo.wdl depends on.
         //
-        // Unlike removal, this should *force* the deletion of bar.wdl in the graph (and
-        // thus cause errors in foo.wdl)
+        // Unlike removal, this should *force* the deletion of bar.wdl in the
+        // graph (and thus cause errors in foo.wdl)
         fs::remove_file(&bar).expect("should delete file");
         analyzer
             .delete_documents(vec![path_to_uri(&bar).expect("should convert to URI")])

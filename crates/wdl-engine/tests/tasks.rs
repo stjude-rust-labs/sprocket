@@ -136,7 +136,8 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         let test_dir = absolute(test).expect("failed to get absolute directory");
         let test_dir_path = test_dir.as_path().into();
 
-        // Make any paths specified in the inputs file relative to the test directory
+        // Make any paths specified in the inputs file relative to the test
+        // directory
         let task = result
             .document()
             .local_task_by_name(&name)
@@ -344,8 +345,8 @@ fn compare_evaluation_results(
 }
 
 fn main() -> Result<(), anyhow::Error> {
-    // Default log level to off as some tests are designed to fail and we don't want
-    // to log errors during the test
+    // Default log level to off as some tests are designed to fail and we don't
+    // want to log errors during the test
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::builder()

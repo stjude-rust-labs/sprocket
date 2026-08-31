@@ -1309,11 +1309,13 @@ impl Config {
             Ok(())
         }
 
-        // Expand paths in the configuration for both the `run` and `server` sections
+        // Expand paths in the configuration for both the `run` and `server`
+        // sections
         self.run.output_dir = expand(&self.run.output_dir)?;
         self.server.output_dir = expand(&self.server.output_dir)?;
 
-        // Expand the paths in the engine configuration for both `run` and `server`
+        // Expand the paths in the engine configuration for both `run` and
+        // `server`
         expand_paths(&mut self.run.engine)?;
         expand_paths(&mut self.server.engine)?;
 
