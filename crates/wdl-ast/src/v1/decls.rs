@@ -1055,7 +1055,7 @@ impl<N: TreeNode> Decl<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::Document;
 

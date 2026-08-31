@@ -124,7 +124,7 @@ impl ManagedTask for LocalTask<'_> {
 
             // Notify that the process has spawned
             send_event!(
-                self.request.events.crankshaft(),
+                self.request.context.events().crankshaft(),
                 CrankshaftEvent::TaskStarted { id }
             );
 
@@ -158,7 +158,7 @@ impl ManagedTask for LocalTask<'_> {
         // Send the created event
         let task_token = CancellationToken::new();
         send_event!(
-            self.request.events.crankshaft(),
+            self.request.context.events().crankshaft(),
             CrankshaftEvent::TaskCreated {
                 id,
                 name: self.name.clone(),
@@ -167,23 +167,23 @@ impl ManagedTask for LocalTask<'_> {
             }
         );
 
-        let token = self.request.cancellation.second();
+        let token = self.request.context.cancellation().second();
 
         select! {
             // Poll the cancellation tokens before the child future
             biased;
             _ = task_token.cancelled() => {
-                send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCanceled { id });
+                send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskCanceled { id });
                 Ok(None)
             }
             _ = token.cancelled() => {
-                send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCanceled { id });
+                send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskCanceled { id });
                 Ok(None)
             }
             result = run => {
                 match result {
                     Ok(status) => {
-                        send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
+                        send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
 
                         let exit_code = status.code().expect("process should have exited");
                         info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
@@ -196,7 +196,7 @@ impl ManagedTask for LocalTask<'_> {
                         }))
                     }
                     Err(e) => {
-                        send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskFailed { id, message: format!("{e:#}") });
+                        send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskFailed { id, message: format!("{e:#}") });
                         Err(e)
                     }
                 }

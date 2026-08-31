@@ -50,7 +50,6 @@ use crate::config::Config;
 use crate::config::ContentDigestMode;
 use crate::config::TesBackendAuthConfig;
 use crate::digest::UrlDigestExt;
-use crate::digest::calculate_local_digest;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::hints;
@@ -244,13 +243,13 @@ impl TaskExecutionBackend for TesBackend {
                         // Input is local, spawn an upload of it
                         let kind = input.kind();
                         let path = path.to_path_buf();
-                        let engine = request.engine.clone();
-                        let events = request.events.clone();
+                        let client = request.context.http_client().clone();
+                        let digests = request.context.digests().clone();
                         let inputs_url = inputs_url.clone();
-                        let cancellation = request.cancellation.clone();
                         uploads.spawn(async move {
                             let url = inputs_url.join_digest(
-                                calculate_local_digest(&path, kind, ContentDigestMode::Strong)
+                                digests
+                                    .calculate_local_digest(&path, kind, ContentDigestMode::Strong)
                                     .await
                                     .with_context(|| {
                                         format!(
@@ -259,9 +258,8 @@ impl TaskExecutionBackend for TesBackend {
                                         )
                                     })?,
                             );
-                            engine
-                                .transferer()
-                                .upload(&path, &url, &events, &cancellation)
+                            client
+                                .upload(&path, &url)
                                 .await
                                 .with_context(|| {
                                     format!(
@@ -298,7 +296,7 @@ impl TaskExecutionBackend for TesBackend {
             // remote storage, which dominates the runtime of large
             // inputs
             if !uploads.is_empty()
-                && let Some(sender) = request.events.engine()
+                && let Some(sender) = request.context.events().engine()
             {
                 let _ = sender.send(EngineEvent::TaskLocalizing {
                     name: request.name.to_string(),
@@ -439,8 +437,8 @@ impl TaskExecutionBackend for TesBackend {
                     .inner
                     .run(
                         task,
-                        request.events.crankshaft().cloned(),
-                        request.cancellation.second(),
+                        request.context.events().crankshaft().cloned(),
+                        request.context.cancellation().second(),
                     )?
                     .await
                 {

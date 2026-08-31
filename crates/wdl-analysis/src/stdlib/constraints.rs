@@ -222,7 +222,7 @@ impl Constraint for EnumChoiceConstraint {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::types::ArrayType;
     use crate::types::MapType;

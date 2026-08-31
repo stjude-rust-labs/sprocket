@@ -3146,6 +3146,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.18.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d317b4b9eb398e6acce275758ec6125535505e7a146fb1a9b8bda2451b0ff4c"
+dependencies = [
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6881,6 +6890,7 @@ dependencies = [
  "itertools 0.15.0",
  "libc",
  "libtest-mimic",
+ "lru",
  "nonempty",
  "num_enum",
  "ordered-float",

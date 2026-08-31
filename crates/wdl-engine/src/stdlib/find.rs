@@ -9,7 +9,6 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
-use super::regex_cache::get_or_compile_regex;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -33,7 +32,8 @@ fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
-    let regex = get_or_compile_regex(pattern.as_str())
+    let regex = context
+        .compile_regex(pattern.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
 
     match regex.find(input.as_str()) {
@@ -57,12 +57,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn find() {

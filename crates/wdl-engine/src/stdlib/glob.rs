@@ -145,9 +145,9 @@ async fn glob_remote_path(
 ) -> Result<Vec<Value>, Diagnostic> {
     let mut matches: Vec<Value> = Vec::new();
 
-    // Use `Transferer::walk` to walk the URL looking for matches
+    // Walk the URL looking for matches
     let paths = context
-        .transferer()
+        .http_client()
         .walk(url)
         .await
         .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
@@ -175,19 +175,18 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
 
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn glob() {
         let env = TestEnv::default();
-
         let diagnostic = eval_v1_expr(&env, V1::Two, "glob('invalid{')")
             .await
             .unwrap_err();

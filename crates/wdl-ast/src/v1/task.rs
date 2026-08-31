@@ -1968,7 +1968,7 @@ impl<N: TreeNode> AstNode<N> for ParameterMetadataSection<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;

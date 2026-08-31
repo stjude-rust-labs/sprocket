@@ -5,14 +5,11 @@
 //!
 //! The entrypoint for both of these is [`ApptainerRuntime::generate_script`].
 
-use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::process::Stdio;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -23,7 +20,6 @@ use crankshaft::events::Event;
 use crankshaft::events::TaskId;
 use crankshaft::events::send_event;
 use tokio::process::Command;
-use tokio::sync::OnceCell;
 use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
@@ -69,8 +65,6 @@ pub struct ApptainerRuntime {
     _lock: LockedFile,
     /// The cache directory for `.sif` images.
     cache_dir: PathBuf,
-    /// The map of image source to `.sif` path.
-    images: Mutex<HashMap<ImageSource, Arc<OnceCell<PathBuf>>>>,
 }
 
 impl ApptainerRuntime {
@@ -103,11 +97,7 @@ impl ApptainerRuntime {
             .await?
             .unwrap();
 
-        Ok(Self {
-            _lock,
-            cache_dir,
-            images: Default::default(),
-        })
+        Ok(Self { _lock, cache_dir })
     }
 
     /// Generates the script to run the given task using the Apptainer runtime.
@@ -294,8 +284,8 @@ impl ApptainerRuntime {
         request: &ExecuteTaskRequest<'_>,
         task_id: TaskId,
     ) -> Result<Option<PathBuf>> {
-        let events = request.events;
-        let cancellation = request.cancellation.first();
+        let events = request.context.events();
+        let cancellation = request.context.cancellation().first();
 
         // For local SIF files, return the path directly.
         if let ImageSource::SifFile(path) = image {
@@ -308,90 +298,75 @@ impl ApptainerRuntime {
         }
 
         // For registry-based images, pull and cache.
-        let once = {
-            let mut map = self.images.lock().unwrap();
-            map.entry(image.clone())
-                .or_insert_with(|| Arc::new(OnceCell::new()))
-                .clone()
-        };
+        let uri = image.uri();
 
-        let pull_cancellation = cancellation.clone();
-        let result = once.get_or_try_init(|| async move {
-            let uri = image.uri();
+        // Hash the image's URI
+        let mut hasher = Hasher::new();
+        hasher.update(uri.as_bytes());
+        let key = hasher.finalize().to_hex();
 
-            // Hash the image's URI
-            let mut hasher = Hasher::new();
-            hasher.update(uri.as_bytes());
-            let key = hasher.finalize().to_hex();
+        // Format the path to the output image
+        let mut path = self.cache_dir.join(key.as_str());
+        path.add_extension("sif");
 
-            // Format the path to the output image
-            let mut path = self.cache_dir.join(key.as_str());
-            path.add_extension("sif");
+        // Take an exclusive lock to prevent another process from also
+        // attempting a pull for this cache entry
+        let _lock = LockedFile::acquire_exclusive(path.with_extension("lock")).await?;
 
-            // Take an exclusive lock to prevent another process from also attempting a pull for this cache entry
-            let _lock = LockedFile::acquire_exclusive(path.with_extension("lock")).await?;
-
-            // If the image already exists, then a previous pull was successful
-            if path.exists() {
-                debug!(path = %path.display(), "Apptainer image `{image:#}` already cached; using existing image");
-                return Ok(path);
-            }
-
-            debug!(path = %path.display(), "pulling Apptainer image `{image:#}`");
-
-            // Image doesn't exist, so pull it now
-            let executable = executable.to_string();
-
-            send_event!(
-                events.crankshaft(),
-                Event::ImagePullStarted {
-                    id: task_id,
-                    name: uri.clone()
-                }
-            );
-
-            let pull = Retry::spawn_notify(
-                // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
-                // with flakiness of the container registries. This is a
-                // finger-in-the-wind guess at some reasonable parameters that
-                // shouldn't lead to us making our own problems worse by
-                // overwhelming registries with repeated retries.
-                ExponentialBackoff::from_millis(50)
-                    .max_delay_millis(60_000)
-                    .take(10),
-                || Self::try_pull_image(&executable, image, &path),
-                {
-                    let executable = executable.clone();
-                    move |e: &anyhow::Error, _| {
-                        warn!(e = %e, "`{executable} pull` failed");
-                    }
-                },
-            );
-
-            tokio::select! {
-                _ = pull_cancellation.cancelled() => {
-                    send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: String::from("pull canceled") });
-                    Err(anyhow!("pull canceled"))
-                },
-                res = pull => match res.with_context(|| format!("failed pulling Apptainer image `{image:#}`")) {
-                    Ok(_) => {
-                        send_event!(events.crankshaft(), Event::ImagePullFinished { id: task_id, name: image.uri() });
-                        debug!(path = %path.display(), "Apptainer image `{image:#}` pulled successfully");
-                        Ok(path)
-                    },
-                    Err(e) => {
-                        send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: format!("{e:#}") });
-                        Err(e)
-                    },
-                },
-            }
-        }).await;
-
-        if cancellation.is_cancelled() {
-            return Ok(None);
+        // If the image already exists, then a previous pull was successful
+        if path.exists() {
+            debug!(path = %path.display(), "Apptainer image `{image:#}` already cached; using existing image");
+            return Ok(Some(path));
         }
 
-        Ok(Some(result?.clone()))
+        debug!(path = %path.display(), "pulling Apptainer image `{image:#}`");
+
+        // Image doesn't exist, so pull it now
+        let executable = executable.to_string();
+
+        send_event!(
+            events.crankshaft(),
+            Event::ImagePullStarted {
+                id: task_id,
+                name: uri.clone()
+            }
+        );
+
+        let pull = Retry::spawn_notify(
+            // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
+            // with flakiness of the container registries. This is a
+            // finger-in-the-wind guess at some reasonable parameters that
+            // shouldn't lead to us making our own problems worse by
+            // overwhelming registries with repeated retries.
+            ExponentialBackoff::from_millis(50)
+                .max_delay_millis(60_000)
+                .take(10),
+            || Self::try_pull_image(&executable, image, &path),
+            {
+                let executable = executable.clone();
+                move |e: &anyhow::Error, _| {
+                    warn!(e = %e, "`{executable} pull` failed");
+                }
+            },
+        );
+
+        tokio::select! {
+            _ = cancellation.cancelled() => {
+                send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: String::from("pull canceled") });
+                Ok(None)
+            },
+            res = pull => match res.with_context(|| format!("failed pulling Apptainer image `{image:#}`")) {
+                Ok(_) => {
+                    send_event!(events.crankshaft(), Event::ImagePullFinished { id: task_id, name: image.uri() });
+                    debug!(path = %path.display(), "Apptainer image `{image:#}` pulled successfully");
+                    Ok(Some(path))
+                },
+                Err(e) => {
+                    send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: format!("{e:#}") });
+                    Err(e)
+                },
+            },
+        }
     }
 
     /// Attempts to pull the first available image from a list of candidates.
@@ -517,9 +492,6 @@ mod tests {
     use url::Url;
 
     use super::*;
-    use crate::CancellationContext;
-    use crate::Config;
-    use crate::Engine;
     use crate::EvaluationPath;
     use crate::Events;
     use crate::ONE_GIBIBYTE;
@@ -527,6 +499,7 @@ mod tests {
     use crate::TaskInputs;
     use crate::backend::ExecuteTaskRequest;
     use crate::backend::TaskExecutionConstraints;
+    use crate::backend::tests::EvalContext;
     use crate::config::DEFAULT_TASK_SHELL;
 
     #[tokio::test]
@@ -540,12 +513,14 @@ mod tests {
         let runtime = ApptainerRuntime::new(root.path().join("cache"))
             .await
             .unwrap();
+
+        let context = EvalContext::new(Events::disabled(), Default::default()).await;
         let _ = runtime
             .generate_script(
                 &ApptainerConfig::default(),
                 DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
-                    engine: &Engine::new(Config::local()).await.unwrap(),
+                    context: &context,
                     name: "example-task-0",
                     command: "echo hello",
                     inputs: &TaskInputs::default(),
@@ -570,8 +545,6 @@ mod tests {
                     base_dir: &EvaluationPath::from_local_path(root.path().into()),
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
-                    events: &Events::disabled(),
-                    cancellation: &CancellationContext::default(),
                 },
                 next_task_id(),
             )
@@ -588,6 +561,8 @@ mod tests {
     async fn example_task_shellchecks() {
         use tokio::process::Command;
 
+        use crate::Events;
+
         let root = TempDir::new().unwrap();
 
         let mut env = IndexMap::new();
@@ -597,12 +572,14 @@ mod tests {
         let runtime = ApptainerRuntime::new(root.path().join("cache"))
             .await
             .unwrap();
+
+        let context = EvalContext::new(Events::disabled(), Default::default()).await;
         let (script, _) = runtime
             .generate_script(
                 &ApptainerConfig::default(),
                 DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
-                    engine: &Engine::new(Config::local()).await.unwrap(),
+                    context: &context,
                     name: "example-task-0",
                     command: "echo hello",
                     inputs: &TaskInputs::default(),
@@ -627,8 +604,6 @@ mod tests {
                     base_dir: &EvaluationPath::from_local_path(root.path().into()),
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
-                    events: &Events::disabled(),
-                    cancellation: &CancellationContext::default(),
                 },
                 next_task_id(),
             )

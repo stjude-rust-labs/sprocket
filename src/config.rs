@@ -1341,7 +1341,7 @@ impl Config {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use schemars::schema_for;
