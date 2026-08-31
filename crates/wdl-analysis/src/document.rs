@@ -100,7 +100,7 @@ pub struct Struct {
     /// The name of the struct.
     name: String,
     /// The span that introduced the struct.
-    name_span: Span,
+    pub(in crate::document) name_span: Span,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the struct
@@ -158,7 +158,7 @@ pub struct Enum {
     /// The name of the enum.
     name: String,
     /// The span that introduced the enum.
-    name_span: Span,
+    pub(in crate::document) name_span: Span,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the enum
@@ -214,7 +214,7 @@ impl Enum {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Name {
     /// The span of the name.
-    span: Span,
+    pub(in crate::document) span: Span,
     /// The type of the name.
     ty: Type,
 }
@@ -243,9 +243,9 @@ pub struct Scope {
     /// This is `None` for task and workflow scopes.
     parent: Option<ScopeIndex>,
     /// The span in the document where the names of the scope are visible.
-    span: Span,
+    pub(in crate::document) span: Span,
     /// The map of names in scope to their span and types.
-    names: IndexMap<String, Name>,
+    pub(in crate::document) names: IndexMap<String, Name>,
 }
 
 impl Scope {
@@ -498,7 +498,7 @@ pub struct Output {
     /// The type of the output.
     ty: Type,
     /// The span of the output name.
-    name_span: Span,
+    pub(in crate::document) name_span: Span,
 }
 
 impl Output {

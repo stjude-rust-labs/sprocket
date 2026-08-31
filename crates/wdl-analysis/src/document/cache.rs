@@ -188,6 +188,30 @@ impl<L, I> MaybeImported<L, I> {
     pub fn is_imported(&self) -> bool {
         matches!(self, Self::Imported(_))
     }
+
+    /// Returns the imported item.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the item was locally defined.
+    pub fn expect_imported(self) -> I {
+        match self {
+            Self::Imported(i) => i,
+            Self::Local(_) => panic!("expected an imported item"),
+        }
+    }
+
+    /// Returns the contained local item.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the item was imported.
+    pub fn expect_local(self) -> L {
+        match self {
+            Self::Local(l) => l,
+            Self::Imported(_) => panic!("expected a locally defined item"),
+        }
+    }
 }
 
 /// A reference to an item in the document's scope.
@@ -577,6 +601,35 @@ impl CachedItemRefMut<'_> {
     /// `foo` doesn't get invalidated. Instead, we're able to recalculate the
     /// new positions of the diagnostics based on the newly applied edits.
     fn shift_existing_diagnostics(&mut self, edits: &[AppliedEdit], new_item_offset: usize) {
+        /// Shift an absolutely position span based on the given `edits`.
+        fn shift_absolute_span(span: Span, edits: &[AppliedEdit]) -> Span {
+            let mut start = span.start();
+            let mut end = span.end();
+            for edit in edits {
+                let edit_start = edit.range.start;
+                let edit_end = edit.range.end;
+                let replacement_end = edit_start + edit.replacement_length;
+                let edit_diff = edit.replacement_length as isize - edit.range.len() as isize;
+
+                start = if start < edit_start {
+                    start
+                } else if start <= edit_end {
+                    replacement_end
+                } else {
+                    start.saturating_add_signed(edit_diff)
+                };
+
+                end = if end < edit_start {
+                    end
+                } else if end <= edit_end {
+                    replacement_end
+                } else {
+                    end.saturating_add_signed(edit_diff)
+                };
+            }
+            Span::new(start, end - start)
+        }
+
         if edits.is_empty() {
             // Nothing to do, might be from a full source replacement
             return;
@@ -585,37 +638,131 @@ impl CachedItemRefMut<'_> {
         let original_item_offset = self.offset();
         for diagnostic in self.diagnostics_mut() {
             for label in diagnostic.labels_mut() {
-                let mut start = original_item_offset + label.span().start();
-                let mut end = original_item_offset + label.span().end();
+                let start_absolute = original_item_offset + label.span().start();
+                let end_absolute = original_item_offset + label.span().end();
+                let new_span = shift_absolute_span(
+                    Span::new(start_absolute, end_absolute - start_absolute),
+                    edits,
+                );
 
-                for edit in edits {
-                    let edit_start = edit.range.start;
-                    let edit_end = edit.range.end;
-                    let replacement_end = edit_start + edit.replacement_length;
-                    let edit_diff = edit.replacement_length as isize - edit.range.len() as isize;
-
-                    start = if start < edit_start {
-                        start
-                    } else if start <= edit_end {
-                        replacement_end
-                    } else {
-                        start.saturating_add_signed(edit_diff)
-                    };
-
-                    end = if end < edit_start {
-                        end
-                    } else if end <= edit_end {
-                        replacement_end
-                    } else {
-                        end.saturating_add_signed(edit_diff)
-                    };
-                }
-
-                let new_relative_start = start.saturating_sub(new_item_offset);
-                let new_len = end.saturating_sub(start);
-
-                label.set_span(Span::new(new_relative_start, new_len));
+                // Shrink it back to be relative to the item's offset
+                let new_relative_start = new_span.start().saturating_sub(new_item_offset);
+                label.set_span(Span::new(new_relative_start, new_span.len()));
             }
+        }
+
+        // Shift the spans of the items themselves
+        match self {
+            Self::Struct(s) => {
+                let Struct {
+                    name: _,
+                    name_span,
+                    offset: _,
+                    node: _,
+                    ty: _,
+                } = &mut s.item;
+
+                *name_span = shift_absolute_span(*name_span, edits)
+            }
+            Self::Enum(e) => {
+                let Enum {
+                    name: _,
+                    name_span,
+                    offset: _,
+                    node: _,
+                    ty: _,
+                } = &mut e.item;
+
+                *name_span = shift_absolute_span(*name_span, edits)
+            }
+            Self::Task(t) => {
+                let Task {
+                    name: _,
+                    name_span,
+                    span,
+                    scopes,
+                    inputs: _,
+                    outputs,
+                } = &mut t.item.item;
+
+                *name_span = shift_absolute_span(*name_span, edits);
+                *span = shift_absolute_span(*span, edits);
+                for scope in scopes {
+                    scope.span = shift_absolute_span(scope.span, edits);
+                    for name in scope.names.values_mut() {
+                        name.span = shift_absolute_span(name.span, edits);
+                    }
+                }
+                for output in Arc::make_mut(outputs).values_mut() {
+                    output.name_span = shift_absolute_span(output.name_span, edits);
+                }
+            }
+            Self::Workflow(wf) => {
+                let Workflow {
+                    name: _,
+                    name_span,
+                    span,
+                    scopes,
+                    inputs: _,
+                    outputs,
+                    allows_nested_inputs: _,
+                    calls: _,
+                } = &mut wf.item.item;
+
+                *name_span = shift_absolute_span(*name_span, edits);
+                *span = shift_absolute_span(*span, edits);
+                for scope in scopes {
+                    scope.span = shift_absolute_span(scope.span, edits);
+                    for name in scope.names.values_mut() {
+                        name.span = shift_absolute_span(name.span, edits);
+                    }
+                }
+                for output in Arc::make_mut(outputs).values_mut() {
+                    output.name_span = shift_absolute_span(output.name_span, edits);
+                }
+            }
+            Self::Import(i) => match &mut i.item.item {
+                Import::Namespace(n) => {
+                    let Namespace {
+                        name: _,
+                        span,
+                        source: _,
+                        document: _,
+                        used: _,
+                        imported_structs,
+                        imported_enums,
+                    } = n;
+
+                    *span = shift_absolute_span(*span, edits);
+                    for s in imported_structs.values_mut() {
+                        s.span = shift_absolute_span(s.span, edits);
+                    }
+                    for e in imported_enums.values_mut() {
+                        e.span = shift_absolute_span(e.span, edits);
+                    }
+                }
+                Import::Merging(m) => {
+                    let MergingImport {
+                        imported_tasks,
+                        imported_workflows,
+                        imported_structs,
+                        imported_enums,
+                    } = m;
+
+                    for t in imported_tasks.values_mut() {
+                        t.span = shift_absolute_span(t.span, edits);
+                    }
+                    for w in imported_workflows.values_mut() {
+                        w.span = shift_absolute_span(w.span, edits);
+                    }
+                    for s in imported_structs.values_mut() {
+                        s.span = shift_absolute_span(s.span, edits);
+                    }
+                    for e in imported_enums.values_mut() {
+                        e.span = shift_absolute_span(e.span, edits);
+                    }
+                }
+            },
         }
     }
 

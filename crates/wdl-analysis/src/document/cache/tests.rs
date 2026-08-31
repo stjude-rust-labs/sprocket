@@ -792,6 +792,100 @@ task foo {
 
 #[tokio::test]
 #[test_log::test]
+async fn trivia_should_shift_spans() {
+    // Like `trivia_should_shift_diagnostics`, we need to verify that the spans
+    // of the items themselves also update when trivia shifts them.
+
+    let initial_content = r#"version 1.3
+
+task foo {
+    input {
+        String unused_input
+    }
+
+    String unused_decl = "Hello"
+}
+"#;
+
+    let ([mut doc_handle], analyzer) =
+        setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
+    let result = doc_handle.analyze(&analyzer).await;
+
+    let task = result.document().tasks().next().unwrap().expect_local();
+    let initial_task_span = task.span();
+    let initial_name_span = task.name_span();
+    let initial_scope_span = task.scope().span();
+
+    doc_handle
+        .change(
+            IncrementalChange {
+                version: 2,
+                start: None,
+                edits: vec![SourceEdit::new(
+                    SourcePosition::new(2, 0)..SourcePosition::new(2, 0),
+                    SourcePositionEncoding::UTF8,
+                    "    # This comment should shift both diagnostics and spans\n".to_string(),
+                )],
+            },
+            &analyzer,
+        )
+        .await;
+    let result2 = doc_handle.analyze(&analyzer).await;
+    let cache = result2.document().cache();
+    assert!(cache.tests.invalidated_signatures.is_empty());
+    assert!(cache.tests.invalidated_bodies.is_empty());
+
+    let comment_shift = 59;
+    let task2 = result2.document().tasks().next().unwrap().expect_local();
+    assert_eq!(
+        task2.span(),
+        Span::new(
+            initial_task_span.start() + comment_shift,
+            initial_task_span.len()
+        )
+    );
+    assert_eq!(
+        task2.name_span(),
+        Span::new(
+            initial_name_span.start() + comment_shift,
+            initial_name_span.len()
+        )
+    );
+    assert_eq!(
+        task2.scope().span(),
+        Span::new(
+            initial_scope_span.start() + comment_shift,
+            initial_scope_span.len()
+        )
+    );
+
+    doc_handle
+        .change(
+            IncrementalChange {
+                version: 3,
+                start: None,
+                edits: vec![SourceEdit::new(
+                    SourcePosition::new(2, 0)..SourcePosition::new(3, 0),
+                    SourcePositionEncoding::UTF8,
+                    "".to_string(),
+                )],
+            },
+            &analyzer,
+        )
+        .await;
+    let result3 = doc_handle.analyze(&analyzer).await;
+    let cache = result3.document().cache();
+    assert!(cache.tests.invalidated_signatures.is_empty());
+    assert!(cache.tests.invalidated_bodies.is_empty());
+
+    let task3 = result3.document().tasks().next().unwrap().expect_local();
+    assert_eq!(task3.span(), initial_task_span);
+    assert_eq!(task3.name_span(), initial_name_span);
+    assert_eq!(task3.scope().span(), initial_scope_span);
+}
+
+#[tokio::test]
+#[test_log::test]
 async fn cache_results_are_consistent() {
     // A file incrementally analyzed should produce the same results as analysis
     // over the final product.
