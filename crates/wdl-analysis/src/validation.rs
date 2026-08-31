@@ -242,8 +242,8 @@ impl Validator {
 
         let visitor_known_rules = self.rules();
 
-        // `ExceptDirectiveValid` does a different job of checking whether a lint
-        // exception is *ever* applicable to the applied node.
+        // `ExceptDirectiveValid` does a different job of checking whether a
+        // lint exception is *ever* applicable to the applied node.
         // `MeaninglessLintDirective` should only fire if the exception
         // comment is valid to begin with.
         let invalid_directives = diagnostics

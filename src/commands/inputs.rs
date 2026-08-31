@@ -443,7 +443,8 @@ impl InputProcessor {
                             &workflow,
                         )?;
 
-                        // Any inputs specified by the workflow itself cannot be overridden.
+                        // Any inputs specified by the workflow itself cannot be
+                        // overridden.
                         specified.iter().for_each(|s| {
                             let key = namespace.clone().push(s).join().expect("key to join");
                             self.results.remove(&key);

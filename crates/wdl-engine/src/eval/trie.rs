@@ -123,7 +123,8 @@ impl InputTrie {
     ) -> Result<Option<usize>> {
         match base_dir.join(path)?.into_kind() {
             EvaluationPathKind::Local(path) => {
-                // Check to see if the path being inserted is already a guest path
+                // Check to see if the path being inserted is already a guest
+                // path
                 if let Some(dir) = self.guest_inputs_dir
                     && path.starts_with(dir)
                 {

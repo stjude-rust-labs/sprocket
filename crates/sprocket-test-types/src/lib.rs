@@ -28,8 +28,8 @@ use crate::yaml::spanned_fields;
 
 /// Convert a [`serde_saphyr::Span`] to our [`Span`] type.
 pub(crate) fn convert_yaml_span(span: serde_saphyr::Span) -> Span {
-    // SAFETY: `serde-saphyr` guarantees that byte-level information is available
-    //         when parsing from a string, which we always do.
+    // SAFETY: `serde-saphyr` guarantees that byte-level information is
+    // available         when parsing from a string, which we always do.
     Span::new(
         span.byte_offset().expect("byte info should be available") as usize,
         span.byte_len().expect("byte info should be available") as usize,
@@ -89,7 +89,8 @@ impl DocumentTests {
         let raw: RawDocumentTests = match serde_saphyr::from_str(source) {
             Ok(map) => map,
             Err(_e) => {
-                // TODO(serial): create nice diagnostics from serde-saphyr errors
+                // TODO(serial): create nice diagnostics from serde-saphyr
+                // errors
                 diagnostics.add(Diagnostic::error(
                     "expected test document to be a YAML mapping from target names to test \
                      definitions",

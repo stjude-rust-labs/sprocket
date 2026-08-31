@@ -189,8 +189,10 @@ pub fn format_literal_string(
                             if let Some(next_c) = chars.peek()
                                 && *next_c == '\''
                             {
-                                // Do not write this backslash as single quotes don't need
-                                // escaping in a double-quoted string (and we format all
+                                // Do not write this backslash as single quotes
+                                // don't need
+                                // escaping in a double-quoted string (and we
+                                // format all
                                 // LiteralStrings as double-quoted strings).
                                 prev_c = Some(c);
                                 continue;
@@ -199,8 +201,10 @@ pub fn format_literal_string(
                         }
                         '"' => {
                             if prev_c.is_none_or(|c| c != '\\') {
-                                // This double quote sign is not escaped, so we need to escape
-                                // it. This happens when a single quoted string is re-formatted
+                                // This double quote sign is not escaped, so we
+                                // need to escape
+                                // it. This happens when a single quoted string
+                                // is re-formatted
                                 // as a double quoted string.
                                 replacement.push('\\');
                             }
@@ -999,8 +1003,8 @@ pub fn format_if_expr(
             if cur.kind().is_trivia() {
                 continue;
             }
-            // only match on `else`; `then` could be considered for "chaining" but that
-            // makes it harder to read IMO (a-frantz).
+            // only match on `else`; `then` could be considered for "chaining"
+            // but that makes it harder to read IMO (a-frantz).
             result = matches!(cur.kind(), SyntaxKind::ElseKeyword);
             break;
         }

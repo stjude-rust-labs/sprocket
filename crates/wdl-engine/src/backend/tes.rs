@@ -197,7 +197,8 @@ impl TaskExecutionBackend for TesBackend {
                 hints::max_memory(request.inputs, request.hints)?.map(|m| m as f64 / ONE_GIBIBYTE);
 
             // Write the evaluated command to disk
-            // This is done even for remote execution so that a copy exists locally
+            // This is done even for remote execution so that a copy exists
+            // locally
             let command_path = request.command_path();
             if let Some(parent) = command_path.parent() {
                 fs::create_dir_all(parent).with_context(|| {
@@ -215,8 +216,8 @@ impl TaskExecutionBackend for TesBackend {
                 )
             })?;
 
-            // SAFETY: currently `inputs` is required by configuration validation, so it
-            // should always unwrap
+            // SAFETY: currently `inputs` is required by configuration
+            // validation, so it should always unwrap
             let inputs_url = Arc::new(
                 backend_config
                     .inputs
@@ -234,8 +235,8 @@ impl TaskExecutionBackend for TesBackend {
                     .build(),
             ];
 
-            // Spawn upload tasks for inputs available locally, and apply authentication to
-            // the URLs for remote inputs.
+            // Spawn upload tasks for inputs available locally, and apply
+            // authentication to the URLs for remote inputs.
             let mut uploads = JoinSet::new();
             for (i, input) in request.backend_inputs.iter().enumerate() {
                 match input.path().kind() {
@@ -273,7 +274,8 @@ impl TaskExecutionBackend for TesBackend {
                         });
                     }
                     EvaluationPathKind::Remote(url) => {
-                        // Input is already remote, add it to the Crankshaft inputs list
+                        // Input is already remote, add it to the Crankshaft
+                        // inputs list
                         backend_inputs.push(
                             Input::builder()
                                 .path(
@@ -291,9 +293,10 @@ impl TaskExecutionBackend for TesBackend {
                 }
             }
 
-            // Notify that the task is transferring inputs; for TES this covers both
-            // digesting each local input and uploading it to remote storage, which
-            // dominates the runtime of large inputs
+            // Notify that the task is transferring inputs; for TES this covers
+            // both digesting each local input and uploading it to
+            // remote storage, which dominates the runtime of large
+            // inputs
             if !uploads.is_empty()
                 && let Some(sender) = request.events.engine()
             {
@@ -327,8 +330,8 @@ impl TaskExecutionBackend for TesBackend {
                 timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S")
             );
 
-            // SAFETY: currently `outputs` is required by configuration validation, so it
-            // should always unwrap
+            // SAFETY: currently `outputs` is required by configuration
+            // validation, so it should always unwrap
             let outputs_url = backend_config
                 .outputs
                 .as_ref()
@@ -340,8 +343,8 @@ impl TaskExecutionBackend for TesBackend {
             let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
             let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
 
-            // The TES backend will output three things: the working directory contents,
-            // stdout, and stderr.
+            // The TES backend will output three things: the working directory
+            // contents, stdout, and stderr.
             let outputs = vec![
                 Output::builder()
                     .path(GUEST_WORK_DIR)
@@ -360,8 +363,9 @@ impl TaskExecutionBackend for TesBackend {
                     .build(),
             ];
 
-            // Calculate the total size required for all disks as TES does not have a way of
-            // specifying volume sizes; a single disk will be created from which all volumes
+            // Calculate the total size required for all disks as TES does not
+            // have a way of specifying volume sizes; a single disk
+            // will be created from which all volumes
             // will be mounted
             let disks = &request.constraints.disks;
             let disk: f64 = if disks.is_empty() {
@@ -381,8 +385,8 @@ impl TaskExecutionBackend for TesBackend {
                 .keys()
                 .filter_map(|mp| {
                     // NOTE: the root mount point is already handled by the work
-                    // directory mount, so we filter it here to avoid duplicate volume
-                    // mapping.
+                    // directory mount, so we filter it here to avoid duplicate
+                    // volume mapping.
                     if mp == DEFAULT_DISK_MOUNT_POINT {
                         None
                     } else {
@@ -453,8 +457,8 @@ impl TaskExecutionBackend for TesBackend {
                 assert_eq!(results.len(), 1, "there should only be one output");
                 let result = results.into_iter().next().unwrap();
 
-                // Push an empty path segment so that future joins of the work directory URL
-                // treat it as a directory
+                // Push an empty path segment so that future joins of the work
+                // directory URL treat it as a directory
                 work_dir_url.path_segments_mut().unwrap().push("");
 
                 return Ok(Some(TaskExecutionResult {

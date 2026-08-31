@@ -69,8 +69,8 @@ pub fn format_call_input_item(
 
     let name = children.next().expect("call input item name");
     (&name).write(stream, config);
-    // Don't call end_word() here in case the name is alone in which case it should
-    // be followed by a comma.
+    // Don't call end_word() here in case the name is alone in which case it
+    // should be followed by a comma.
 
     if let Some(equals) = children.next() {
         stream.end_word();

@@ -105,8 +105,9 @@ impl TaskMonitorSvc {
         let mut engine_open = true;
 
         while crankshaft_open || engine_open {
-            // The receivers are only borrowed for the duration of the select, so
-            // that handling an event can take the monitor mutably.
+            // The receivers are only borrowed for the duration of the select,
+            // so that handling an event can take the monitor
+            // mutably.
             let incoming = select! {
                 biased;
                 _ = self.shutdown.cancelled() => Incoming::Shutdown,
@@ -145,9 +146,9 @@ impl TaskMonitorSvc {
             }
         }
 
-        // A shutdown can arrive while events are still buffered. Those events are
-        // the record of what actually happened, so they are consumed before any
-        // task is written off as unfinished.
+        // A shutdown can arrive while events are still buffered. Those events
+        // are the record of what actually happened, so they are
+        // consumed before any task is written off as unfinished.
         self.drain().await;
         self.reconcile().await;
     }
@@ -208,8 +209,9 @@ impl TaskMonitorSvc {
                 let _ = self.db.update_task_localizing(&name).await?;
             }
             EngineEvent::ReusedCachedExecutionResult { id: _, name } => {
-                // The task may never have been announced as initializing if that
-                // event is still in flight on the other channel.
+                // The task may never have been announced as initializing if
+                // that event is still in flight on the other
+                // channel.
                 self.db
                     .create_task(&name, self.run_id, TaskStatus::Initializing)
                     .await?;
@@ -235,12 +237,14 @@ impl TaskMonitorSvc {
                 tes_id: _,
                 token: _,
             } => {
-                // A backend may run a task on its own behalf rather than on behalf
-                // of a WDL task, such as the Docker backend's `chown` of a work
-                // directory. Crankshaft reports it like any other task, but it is
-                // an implementation detail of running a task rather than something
-                // a user submitted, so it is left out of the run's tasks entirely.
-                // Dropping its id here is enough: every later event is resolved
+                // A backend may run a task on its own behalf rather than on
+                // behalf of a WDL task, such as the Docker
+                // backend's `chown` of a work directory.
+                // Crankshaft reports it like any other task, but it is
+                // an implementation detail of running a task rather than
+                // something a user submitted, so it is left out
+                // of the run's tasks entirely. Dropping its id
+                // here is enough: every later event is resolved
                 // through `task_names`.
                 if name.starts_with(CLEANUP_TASK_NAME_PREFIX) {
                     return Ok(());

@@ -428,8 +428,8 @@ impl Diagnostic {
 
         if self.labels.is_empty() {
             // Codespan will treat this as a label at the end of the file
-            // We add this so that every diagnostic has at least one label with the file
-            // printed.
+            // We add this so that every diagnostic has at least one label with
+            // the file printed.
             diagnostic.labels.push(codespan::Label::new(
                 codespan::LabelStyle::Primary,
                 file_id,
