@@ -749,7 +749,8 @@ impl Runner {
                     {
                         Ok(res) => res,
                         Err(e) => {
-                            // TODO(serial): Spanned diagnostics would be nice here too
+                            // TODO(serial): Spanned diagnostics would be nice
+                            // here too
                             errors.push(Arc::new(e.context(format!(
                                 "converting to WDL inputs for test `{}` for WDL document `{}`",
                                 test.name,
@@ -1037,9 +1038,9 @@ pub async fn test(
         .map_err(CommandError::from)?;
 
     // Find and parse all YAML before beginning any executions.
-    // This is so that any totally invalid YAML is caught up-front before we start
-    // testing. Smaller issues with test definitions will later be collected and
-    // reported on after all tests execute.
+    // This is so that any totally invalid YAML is caught up-front before we
+    // start testing. Smaller issues with test definitions will later be
+    // collected and reported on after all tests execute.
     let mut documents = Vec::new();
     let mut counts = DiagnosticCounts::default();
     for analysis in analysis_results.filter(&[&source]) {
@@ -1138,7 +1139,8 @@ pub async fn test(
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.validate()?;
 
-    // Determined here as the engine configuration is moved into the engine below.
+    // Determined here as the engine configuration is moved into the engine
+    // below.
     let uses_docker = uses_docker_backend(&config.run.engine);
     let engine = Engine::new(config.run.engine)
         .await

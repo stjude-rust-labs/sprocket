@@ -642,7 +642,8 @@ fn map_shellcheck_lines(
                         continue;
                     }
 
-                    // The first line is removed entirely, UNLESS there is content on it.
+                    // The first line is removed entirely, UNLESS there is
+                    // content on it.
                     if !skipped_first_line && line.is_empty() {
                         skipped_first_line = true;
                         continue;
@@ -751,7 +752,8 @@ impl Visitor for ShellCheckRule {
         let Some(scope) = doc.find_scope_by_position(section.inner().text_range().start().into())
         else {
             // This is the case where the command section has not been analyzed
-            // e.g. it is in a task that has not been analyzed because it is a duplicate.
+            // e.g. it is in a task that has not been analyzed because it is a
+            // duplicate.
             return;
         };
         let mut context = CommandContext::new(doc.clone(), scope);

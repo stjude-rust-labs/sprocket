@@ -130,9 +130,10 @@ pub fn format_symbolic_module_path(
                 (&child).write(stream, config);
             }
             SyntaxKind::Slash => {
-                // `SyntaxKind::Slash` is a "linebreakable" token, but we don't want module
-                // paths to get line broken; so we push this token as a
-                // `LiteralStringText` to prevent that.
+                // `SyntaxKind::Slash` is a "linebreakable" token, but we don't
+                // want module paths to get line broken; so we
+                // push this token as a `LiteralStringText` to
+                // prevent that.
                 stream.push_ast_token_as(
                     child.element().as_token().expect("slash should be token"),
                     SyntaxKind::LiteralStringText,

@@ -173,7 +173,8 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
 /// Run a test either in whole-directory or single-document mode based on
 /// whether the test name appears in the `SINGLE_DOCUMENT_TESTS` list.
 async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
-    // Set up a new analyzer for this test, reading in a custom config if present.
+    // Set up a new analyzer for this test, reading in a custom config if
+    // present.
     let base = absolute(test).expect("should be made absolute").clean();
     let config_path = base.join("config.toml");
     let config = if config_path.exists() {
@@ -197,8 +198,8 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
                 .await
                 .context("analyzing document")?
         } else {
-            // If it's not specified as a single-document test, add and analyze the whole
-            // directory
+            // If it's not specified as a single-document test, add and analyze
+            // the whole directory
             analyzer
                 .add_directory(&base)
                 .await

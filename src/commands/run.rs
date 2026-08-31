@@ -1011,7 +1011,8 @@ pub async fn run(
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
-    // Determined here as the engine configuration is moved into evaluation below.
+    // Determined here as the engine configuration is moved into evaluation
+    // below.
     let uses_docker = uses_docker_backend(&config.run.engine);
     let events = Events::new(
         config

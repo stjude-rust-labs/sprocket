@@ -467,8 +467,8 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
     // We need to determine the minimum indentation that we can strip from each
     // paragraph line. Prior to this point, no lines have been trimmed.
     //
-    // In the most common case, we'll just be stripping a single space between the
-    // `##` and the comment text, as is convention.
+    // In the most common case, we'll just be stripping a single space between
+    // the `##` and the comment text, as is convention.
     let min_indent = paragraphs
         .iter()
         .map(|paragraph| {

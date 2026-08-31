@@ -97,7 +97,8 @@ impl ApptainerRuntime {
                 )
             })?;
 
-        // SAFETY: the lock file is requested to be created so `Some` is always returned
+        // SAFETY: the lock file is requested to be created so `Some` is always
+        // returned
         let _lock = LockedFile::acquire_shared(&cache_dir.join(LOCK_FILE_NAME), true)
             .await?
             .unwrap();
@@ -159,13 +160,14 @@ impl ApptainerRuntime {
         image_path: &Path,
         request: &ExecuteTaskRequest<'_>,
     ) -> Result<String> {
-        // Create a temp dir for the container's execution within the attempt dir
-        // hierarchy. On many HPC systems, `/tmp` is mapped to a relatively
-        // small, local scratch disk that can fill up easily. Mapping the
-        // container's `/tmp` and `/var/tmp` paths to the filesystem we're using
-        // for other inputs and outputs prevents this from being a capacity problem,
-        // though potentially at the expense of execution speed if the
-        // non-`/tmp` filesystem is significantly slower.
+        // Create a temp dir for the container's execution within the attempt
+        // dir hierarchy. On many HPC systems, `/tmp` is mapped to a
+        // relatively small, local scratch disk that can fill up easily.
+        // Mapping the container's `/tmp` and `/var/tmp` paths to the
+        // filesystem we're using for other inputs and outputs prevents
+        // this from being a capacity problem, though potentially at the
+        // expense of execution speed if the non-`/tmp` filesystem is
+        // significantly slower.
         let container_tmp_path = request.temp_dir.join("container_tmp");
         tokio::fs::DirBuilder::new()
             .recursive(true)
@@ -472,8 +474,9 @@ impl ApptainerRuntime {
         if !output.status.success() {
             let permanent = if let Ok(stderr) = str::from_utf8(&output.stderr) {
                 let mut permanent = false;
-                // A collection of strings observed in `apptainer pull` stderr in unrecoverable
-                // conditions. Finding one of these in the output marks the attempt as a
+                // A collection of strings observed in `apptainer pull` stderr
+                // in unrecoverable conditions. Finding one of
+                // these in the output marks the attempt as a
                 // permanent failure.
                 let needles = ["manifest unknown", "403 (Forbidden)"];
                 for needle in needles {
@@ -577,9 +580,9 @@ mod tests {
             .expect("example task script should generate");
     }
 
-    // `shellcheck` works quite differently on Windows, and since we're not going to
-    // run Apptainer on Windows anytime soon, we limit this test to Unixy
-    // systems
+    // `shellcheck` works quite differently on Windows, and since we're not
+    // going to run Apptainer on Windows anytime soon, we limit this test to
+    // Unixy systems
     #[cfg(unix)]
     #[tokio::test]
     async fn example_task_shellchecks() {

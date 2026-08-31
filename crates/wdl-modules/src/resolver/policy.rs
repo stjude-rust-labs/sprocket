@@ -276,16 +276,20 @@ impl ResolverPolicy {
                     // Resolve the hostname to IP addresses and reject if any
                     // resolved address is non-public.
                     //
-                    // Port 0 is passed only because `to_socket_addrs` requires a
-                    // port; the value is insignificant for the address lookup and
-                    // the DNS result is identical for any port. The policy does not
-                    // restrict which port the URL itself uses; that is left to the
+                    // Port 0 is passed only because `to_socket_addrs` requires
+                    // a port; the value is insignificant
+                    // for the address lookup and
+                    // the DNS result is identical for any port. The policy does
+                    // not restrict which port the URL
+                    // itself uses; that is left to the
                     // caller's URL.
                     //
-                    // Both DNS failure and empty results are treated as rejection
-                    // (fail-closed). This preflight check cannot bind libgit2's
-                    // later connection to the validated addresses, so preventing
-                    // DNS rebinding requires peer-IP validation in a custom
+                    // Both DNS failure and empty results are treated as
+                    // rejection (fail-closed). This
+                    // preflight check cannot bind libgit2's
+                    // later connection to the validated addresses, so
+                    // preventing DNS rebinding requires
+                    // peer-IP validation in a custom
                     // transport.
                     if url.scheme() != "file" {
                         let addrs: Vec<std::net::SocketAddr> =

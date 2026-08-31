@@ -161,9 +161,10 @@ impl ManagedTask for DockerTask<'_> {
             )
         })?;
 
-        // On Unix, the work directory must be group writable in case the container uses
-        // a different user/group; the Crankshaft docker backend will automatically add
-        // the current user's egid to the container
+        // On Unix, the work directory must be group writable in case the
+        // container uses a different user/group; the Crankshaft docker
+        // backend will automatically add the current user's egid to the
+        // container
         #[cfg(unix)]
         {
             use std::fs::Permissions;
@@ -187,8 +188,8 @@ impl ManagedTask for DockerTask<'_> {
             )
         })?;
 
-        // Allocate the inputs, which will always be, at most, the number of inputs plus
-        // the working directory and command
+        // Allocate the inputs, which will always be, at most, the number of
+        // inputs plus the working directory and command
         let mut inputs = Vec::with_capacity(self.request.backend_inputs.len() + 2);
         for input in self.request.backend_inputs.iter() {
             let guest_path = input.guest_path().expect("input should have guest path");
@@ -255,8 +256,8 @@ impl ManagedTask for DockerTask<'_> {
             .keys()
             .filter_map(|mp| {
                 // NOTE: the root mount point is already handled by the work
-                // directory mount, so we filter it here to avoid duplicate volume
-                // mapping.
+                // directory mount, so we filter it here to avoid duplicate
+                // volume mapping.
                 if mp == DEFAULT_DISK_MOUNT_POINT {
                     None
                 } else {
@@ -389,14 +390,15 @@ async fn chown_work_dir(backend: &docker::Backend, name: &str, work_dir: &Path) 
         path = work_dir.display(),
     );
 
-    // The cleanup runs on a token of its own that nothing cancels: it matters most
-    // for a task that was canceled, and by then the evaluation's tokens are
-    // canceled and Docker would refuse to start the container. Dropping this
-    // future is the only way to stop waiting for the cleanup.
+    // The cleanup runs on a token of its own that nothing cancels: it matters
+    // most for a task that was canceled, and by then the evaluation's
+    // tokens are canceled and Docker would refuse to start the container.
+    // Dropping this future is the only way to stop waiting for the cleanup.
     //
-    // Passing no event sender keeps the cleanup off the event stream entirely, so
-    // no consumer can observe it, and none can cancel the token Crankshaft
-    // publishes with `TaskCreated` after the user has canceled evaluation.
+    // Passing no event sender keeps the cleanup off the event stream entirely,
+    // so no consumer can observe it, and none can cancel the token
+    // Crankshaft publishes with `TaskCreated` after the user has canceled
+    // evaluation.
     match backend
         .run(task, None, CancellationToken::new())
         .context("failed to submit cleanup task")?
@@ -508,9 +510,9 @@ impl DockerBackend {
         let memory = resources.memory();
         let max_memory = resources.max_memory();
 
-        // If a service is being used, then we're going to be spawning into a cluster
-        // For the purposes of resource tracking, treat it as unlimited resources and
-        // let Docker handle resource allocation
+        // If a service is being used, then we're going to be spawning into a
+        // cluster For the purposes of resource tracking, treat it as
+        // unlimited resources and let Docker handle resource allocation
         let manager = if resources.use_service() {
             TaskManager::new_unlimited(max_cpu, max_memory)
         } else {
@@ -598,10 +600,11 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
-        // Generate GPU specification strings in the format "<type>-gpu-<index>".
-        // Each string represents one allocated GPU, indexed from 0. The type prefix
-        // (e.g., "nvidia", "amd", "intel") identifies the GPU vendor/driver.
-        // This is the first backend to populate the gpu field; other backends should
+        // Generate GPU specification strings in the format
+        // "<type>-gpu-<index>". Each string represents one allocated
+        // GPU, indexed from 0. The type prefix (e.g., "nvidia", "amd",
+        // "intel") identifies the GPU vendor/driver. This is the first
+        // backend to populate the gpu field; other backends should
         // follow this format for consistency.
         let gpu = requirements::gpu(inputs, requirements, hints)
             .map(|count| (0..count).map(|i| format!("nvidia-gpu-{i}")).collect())
@@ -649,15 +652,16 @@ impl TaskExecutionBackend for DockerBackend {
 
             let result = self.manager.run(cpu, memory, task).await;
 
-            // A container ordinarily runs as `root`, so on Unix the files it leaves in
-            // the work directory are owned by another user and cannot be removed by the
-            // user performing evaluation. Hand ownership back whatever the outcome of
-            // the task was: a task that was canceled or that failed leaves the same
-            // files behind as one that completed.
+            // A container ordinarily runs as `root`, so on Unix the files it
+            // leaves in the work directory are owned by another
+            // user and cannot be removed by the user performing
+            // evaluation. Hand ownership back whatever the outcome of
+            // the task was: a task that was canceled or that failed leaves the
+            // same files behind as one that completed.
             //
-            // This is awaited here rather than submitted to the task manager, which
-            // abandons a task that has to wait for resources once evaluation has been
-            // canceled.
+            // This is awaited here rather than submitted to the task manager,
+            // which abandons a task that has to wait for resources
+            // once evaluation has been canceled.
             #[cfg(unix)]
             {
                 let work_dir = request.work_dir();
@@ -727,8 +731,9 @@ mod tests {
 
     #[test]
     fn a_present_source_is_explained() {
-        // SAFETY: creating a temporary directory only fails if the system has no
-        // usable temporary directory, which would fail the test suite as a whole.
+        // SAFETY: creating a temporary directory only fails if the system has
+        // no usable temporary directory, which would fail the test
+        // suite as a whole.
         let dir = TempDir::new().unwrap();
         let path = dir.path().to_str().expect("path should be UTF-8");
 
@@ -820,8 +825,8 @@ mod tests {
         };
 
         let work_dir = request.work_dir();
-        // The container creates this before it sleeps, so its presence means there is
-        // something for the cleanup to hand back
+        // The container creates this before it sleeps, so its presence means
+        // there is something for the cleanup to hand back
         let marker = work_dir.join("testdir").join("hello.txt");
 
         let mut execute = std::pin::pin!(backend.execute(&request));
@@ -847,7 +852,8 @@ mod tests {
             "the container should have created its file before the cancellation"
         );
 
-        // SAFETY: `geteuid` and `getegid` are always safe to call and cannot fail.
+        // SAFETY: `geteuid` and `getegid` are always safe to call and cannot
+        // fail.
         let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
         let mut dirs = vec![work_dir];
         while let Some(dir) = dirs.pop() {
@@ -870,9 +876,10 @@ mod tests {
             }
         }
 
-        // The cleanup is the backend's own bookkeeping, so it emits no events at all:
-        // every event on the stream belongs to the task itself. Requiring the task's
-        // own events keeps this from passing on a stream that carried nothing.
+        // The cleanup is the backend's own bookkeeping, so it emits no events
+        // at all: every event on the stream belongs to the task itself.
+        // Requiring the task's own events keeps this from passing on a
+        // stream that carried nothing.
         let mut task_id = None;
         while let Ok(event) = receiver.try_recv() {
             let id = match &event {

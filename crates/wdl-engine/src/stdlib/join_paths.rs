@@ -80,9 +80,9 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             ));
         }
 
-        // For consistency with `PathBuf::push`, push an empty segment so that we treat
-        // the last segment as a directory; otherwise, `Url::join` will treat it as a
-        // file.
+        // For consistency with `PathBuf::push`, push an empty segment so that
+        // we treat the last segment as a directory; otherwise,
+        // `Url::join` will treat it as a file.
         if let Ok(mut segments) = url.path_segments_mut() {
             segments.pop_if_empty();
             segments.push("");
@@ -199,9 +199,9 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 ));
             }
 
-            // For consistency with `PathBuf::push`, push an empty segment so that we treat
-            // the last segment as a directory; otherwise, `Url::join` will treat it as a
-            // file.
+            // For consistency with `PathBuf::push`, push an empty segment so
+            // that we treat the last segment as a directory;
+            // otherwise, `Url::join` will treat it as a file.
             if let Ok(mut segments) = url.path_segments_mut() {
                 segments.pop_if_empty();
                 segments.push("");

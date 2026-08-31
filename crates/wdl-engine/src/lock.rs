@@ -41,8 +41,8 @@ impl LockedFile {
                     format!("failed to create file `{path}`", path = path.display())
                 })?;
 
-                // Re-open the file as readable as the lock is shared and we don't want the file
-                // to be writable
+                // Re-open the file as readable as the lock is shared and we
+                // don't want the file to be writable
                 fs::File::open(path).with_context(|| {
                     format!("failed to open file `{path}`", path = path.display())
                 })?
@@ -89,8 +89,8 @@ impl LockedFile {
     /// If the file does not exist, it is created.
     pub async fn acquire_exclusive(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
-        // Create or open the file, but do not truncate it if it exists before the lock
-        // is acquired
+        // Create or open the file, but do not truncate it if it exists before
+        // the lock is acquired
         let mut options = fs::OpenOptions::new();
         options.create(true).write(true);
         let file = options
