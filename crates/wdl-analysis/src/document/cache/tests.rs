@@ -5,16 +5,39 @@ use std::sync::LazyLock;
 use pretty_assertions::assert_eq;
 use url::Url;
 use wdl_ast::AstNode;
+use wdl_grammar::Diagnostic;
 use wdl_grammar::Span;
 
 use crate::AnalysisResult;
 use crate::Analyzer;
 use crate::Config;
 use crate::IncrementalChange;
+use crate::MeaninglessLintDirective;
 use crate::SourceEdit;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::UnusedDeclarationRule;
+use crate::UnusedInputRule;
+
+trait AnalysisResultExt {
+    /// Find the [`Diagnostic`] for the given `rule`.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if analysis didn't produce a diagnostic for the given
+    /// `rule`.
+    fn expect_diagnostic(&self, rule: &str) -> &Diagnostic;
+}
+
+impl AnalysisResultExt for AnalysisResult {
+    fn expect_diagnostic(&self, rule: &str) -> &Diagnostic {
+        self.document()
+            .analysis_diagnostics()
+            .iter()
+            .find(|d| d.rule() == Some(rule))
+            .unwrap_or_else(|| panic!("should produce a `{rule}` diagnostic"))
+    }
+}
 
 #[derive(Debug)]
 struct DocumentHandle {
@@ -33,6 +56,13 @@ impl DocumentHandle {
 
         analyzer
             .notify_incremental_change(self.uri.clone(), initial_edit)
+            .unwrap();
+    }
+
+    async fn change(&mut self, change: IncrementalChange, analyzer: &Analyzer<()>) {
+        self.version += 1;
+        analyzer
+            .notify_incremental_change(self.uri.clone(), change)
             .unwrap();
     }
 
@@ -452,12 +482,7 @@ workflow stays_clean {
         .signature_hash()
         .expect("`stays_clean` is locally defined");
 
-    let unused_decl_initial = result
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == UnusedDeclarationRule::ID))
-        .expect("`stays_clean` should produce an unused declaration diagnostic");
+    let unused_decl_initial = result.expect_diagnostic(UnusedDeclarationRule::ID);
     let highlight_initial_span = unused_decl_initial.labels().next().unwrap().span();
     assert_eq!(highlight_initial_span, Span::new(126, 4));
 
@@ -489,12 +514,7 @@ workflow stays_clean {
     );
 
     // The diagnostic should shift back with `stays_clean`
-    let unused_decl_post = result
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == UnusedDeclarationRule::ID))
-        .expect("`stays_clean` should produce an unused declaration diagnostic");
+    let unused_decl_post = result.expect_diagnostic(UnusedDeclarationRule::ID);
     let highlight_post = unused_decl_post.labels().next().unwrap();
     assert_eq!(highlight_post.span(), Span::new(47, 4));
 
@@ -502,12 +522,7 @@ workflow stays_clean {
     doc_handle.edit(initial_file, &analyzer).await;
 
     let result = doc_handle.analyze(&analyzer).await;
-    let unused_decl_post = result
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == UnusedDeclarationRule::ID))
-        .expect("`stays_clean` should produce an unused declaration diagnostic");
+    let unused_decl_post = result.expect_diagnostic(UnusedDeclarationRule::ID);
     let highlight_post = unused_decl_post.labels().next().unwrap();
     assert_eq!(
         highlight_post.span(),
@@ -650,42 +665,32 @@ task foo {
 }
 "#;
 
-    let ([doc_handle], analyzer) =
+    let ([mut doc_handle], analyzer) =
         setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
     let result = doc_handle.analyze(&analyzer).await;
 
-    let unused_input = result
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == "UnusedInput"))
-        .expect("`foo` should produce an `UnusedInput` diagnostic");
+    let unused_input = result.expect_diagnostic(UnusedInputRule::ID);
     let initial_unused_input_span = unused_input.labels().next().unwrap().span();
     assert_eq!(initial_unused_input_span, Span::new(51, 12));
 
-    let unused_decl = result
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == "UnusedDeclaration"))
-        .expect("`foo` should produce an `UnusedDeclaration` diagnostic");
+    let unused_decl = result.expect_diagnostic(UnusedDeclarationRule::ID);
     let initial_unused_decl_span = unused_decl.labels().next().unwrap().span();
     assert_eq!(initial_unused_decl_span, Span::new(82, 11));
 
-    analyzer
-        .notify_incremental_change(
-            doc_handle.uri.clone(),
+    doc_handle
+        .change(
             IncrementalChange {
                 version: 2,
                 start: None,
                 edits: vec![SourceEdit::new(
-                    SourcePosition::new(3, 0)..SourcePosition::new(3, 0),
+                    SourcePosition::new(2, 0)..SourcePosition::new(2, 0),
                     SourcePositionEncoding::UTF8,
                     "    # This comment should shift both diagnostics\n".to_string(),
                 )],
             },
+            &analyzer,
         )
-        .unwrap();
+        .await;
     let result2 = doc_handle.analyze(&analyzer).await;
     let cache = result2.document().cache();
     assert!(cache.tests.invalidated_signatures.is_empty());
@@ -693,12 +698,7 @@ task foo {
 
     // The new comment should shift the diagnostics by 49 bytes
     let comment_shift = 49;
-    let unused_input = result2
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule() == Some("UnusedInput"))
-        .expect("`foo` should produce an `UnusedInput` diagnostic");
+    let unused_input = result2.expect_diagnostic(UnusedInputRule::ID);
 
     let unused_input_span2 = unused_input.labels().next().unwrap().span();
     assert_eq!(
@@ -709,12 +709,7 @@ task foo {
         )
     );
 
-    let unused_decl = result2
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule() == Some("UnusedDeclaration"))
-        .expect("`foo` should produce an `UnusedDeclaration` diagnostic");
+    let unused_decl = result2.expect_diagnostic(UnusedDeclarationRule::ID);
     let unused_decl_span2 = unused_decl.labels().next().unwrap().span();
     assert_eq!(
         unused_decl_span2,
@@ -724,9 +719,8 @@ task foo {
         )
     );
 
-    analyzer
-        .notify_incremental_change(
-            doc_handle.uri.clone(),
+    doc_handle
+        .change(
             IncrementalChange {
                 version: 3,
                 start: None,
@@ -736,30 +730,21 @@ task foo {
                     "    # This should shift the `UnusedDeclaration` diagnostic\n".to_string(),
                 )],
             },
+            &analyzer,
         )
-        .unwrap();
+        .await;
     let result3 = doc_handle.analyze(&analyzer).await;
     let cache = result3.document().cache();
     assert!(cache.tests.invalidated_signatures.is_empty());
     assert!(cache.tests.invalidated_bodies.is_empty());
 
-    let unused_input = result3
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == "UnusedInput"))
-        .expect("`foo` should produce an `UnusedInput` diagnostic");
+    let unused_input = result3.expect_diagnostic(UnusedInputRule::ID);
     let unused_input_span3 = unused_input.labels().next().unwrap().span();
     assert_eq!(unused_input_span2, unused_input_span3);
 
     // The new comment should shift the diagnostic by 59 bytes
     let comment_shift = 59;
-    let unused_decl = result3
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule() == Some("UnusedDeclaration"))
-        .expect("`foo` should produce an `UnusedDeclaration` diagnostic");
+    let unused_decl = result3.expect_diagnostic(UnusedDeclarationRule::ID);
     let unused_decl_span3 = unused_decl.labels().next().unwrap().span();
     assert_eq!(
         unused_decl_span3,
@@ -768,6 +753,41 @@ task foo {
             unused_decl_span2.len()
         )
     );
+
+    // Dropping the comments should get us back to the original spans
+    doc_handle
+        .change(
+            IncrementalChange {
+                version: 4,
+                start: None,
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(7, 0)..SourcePosition::new(8, 0),
+                        SourcePositionEncoding::UTF8,
+                        "".to_string(),
+                    ),
+                    SourceEdit::new(
+                        SourcePosition::new(2, 0)..SourcePosition::new(3, 0),
+                        SourcePositionEncoding::UTF8,
+                        "".to_string(),
+                    ),
+                ],
+            },
+            &analyzer,
+        )
+        .await;
+    let result4 = doc_handle.analyze(&analyzer).await;
+    let cache = result4.document().cache();
+    assert!(cache.tests.invalidated_signatures.is_empty());
+    assert!(cache.tests.invalidated_bodies.is_empty());
+
+    let unused_input = result4.expect_diagnostic(UnusedInputRule::ID);
+    let unused_input_span4 = unused_input.labels().next().unwrap().span();
+    assert_eq!(unused_input_span4, initial_unused_input_span);
+
+    let unused_decl = result4.expect_diagnostic(UnusedDeclarationRule::ID);
+    let unused_decl_span4 = unused_decl.labels().next().unwrap().span();
+    assert_eq!(unused_decl_span4, initial_unused_decl_span);
 }
 
 #[tokio::test]
@@ -783,15 +803,14 @@ task foo {
 }
 "#;
 
-    let ([doc_handle], analyzer) =
+    let ([mut doc_handle], analyzer) =
         setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
     let result = doc_handle.analyze(&analyzer).await;
 
     assert!(result.document().diagnostics().next().is_none());
 
-    analyzer
-        .notify_incremental_change(
-            doc_handle.uri.clone(),
+    doc_handle
+        .change(
             IncrementalChange {
                 version: 1,
                 start: None,
@@ -806,20 +825,15 @@ task foo {
                     .to_string(),
                 )],
             },
+            &analyzer,
         )
-        .unwrap();
+        .await;
     let result2 = doc_handle.analyze(&analyzer).await;
 
-    result2
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == "UnusedInput"))
-        .expect("`foo` should produce an `UnusedInput` diagnostic");
+    result2.expect_diagnostic(UnusedInputRule::ID);
 
-    analyzer
-        .notify_incremental_change(
-            doc_handle.uri.clone(),
+    doc_handle
+        .change(
             IncrementalChange {
                 version: 2,
                 start: None,
@@ -832,16 +846,12 @@ task foo {
                     .to_string(),
                 )],
             },
+            &analyzer,
         )
-        .unwrap();
+        .await;
     let result3 = doc_handle.analyze(&analyzer).await;
 
-    result3
-        .document()
-        .analysis_diagnostics()
-        .iter()
-        .find(|d| d.rule().is_some_and(|r| r == "UnusedDeclaration"))
-        .expect("`foo` should produce an `UnusedDeclaration` diagnostic");
+    result3.expect_diagnostic(UnusedDeclarationRule::ID);
 
     let current_file = r#"version 1.3
 
@@ -956,16 +966,15 @@ task foo {
 }
 "#;
 
-    let ([doc_main], analyzer) =
+    let ([mut doc_main], analyzer) =
         setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
 
     let result = doc_main.analyze(&analyzer).await;
     assert!(result.document().analysis_diagnostics().is_empty());
 
     // Change `Array[Int]` to `Array[Int]+` and `Array[Int]?` to `Array[Int]`
-    analyzer
-        .notify_incremental_change(
-            doc_main.uri.clone(),
+    doc_main
+        .change(
             IncrementalChange {
                 version: 1,
                 start: None,
@@ -982,8 +991,9 @@ task foo {
                     ),
                 ],
             },
+            &analyzer,
         )
-        .unwrap();
+        .await;
 
     let result2 = doc_main.analyze(&analyzer).await;
     assert!(!result2.document().analysis_diagnostics().is_empty());
@@ -1010,23 +1020,16 @@ task foo {
 }
 "#;
 
-    let ([doc_main], analyzer) =
+    let ([mut doc_main], analyzer) =
         setup_analyzer(Config::default(), [(MAIN_WDL.clone(), initial_content)]).await;
 
     let result = doc_main.analyze(&analyzer).await;
-    assert!(
-        result
-            .document()
-            .analysis_diagnostics()
-            .iter()
-            .any(|d| d.rule() == Some("MeaninglessLintDirective"))
-    );
+    result.expect_diagnostic(MeaninglessLintDirective::ID);
 
     // Throw in a random comment, which should trigger re-analysis, but not
     // dirty the cache
-    analyzer
-        .notify_incremental_change(
-            doc_main.uri.clone(),
+    doc_main
+        .change(
             IncrementalChange {
                 version: 1,
                 start: None,
@@ -1036,16 +1039,11 @@ task foo {
                     r#"# Hello, world!"#.to_string(),
                 )],
             },
+            &analyzer,
         )
-        .unwrap();
+        .await;
 
     // A clean cache should still collect exceptions
     let result2 = doc_main.analyze(&analyzer).await;
-    assert!(
-        result2
-            .document()
-            .analysis_diagnostics()
-            .iter()
-            .any(|d| d.rule() == Some("MeaninglessLintDirective"))
-    );
+    result2.expect_diagnostic(MeaninglessLintDirective::ID);
 }

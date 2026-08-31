@@ -585,38 +585,34 @@ impl CachedItemRefMut<'_> {
         let original_item_offset = self.offset();
         for diagnostic in self.diagnostics_mut() {
             for label in diagnostic.labels_mut() {
-                let start = original_item_offset + label.span().start();
-                let end = original_item_offset + label.span().end();
-
-                let mut start_diff = 0isize;
-                let mut end_diff = 0isize;
+                let mut start = original_item_offset + label.span().start();
+                let mut end = original_item_offset + label.span().end();
 
                 for edit in edits {
                     let edit_start = edit.range.start;
-                    let edit_end = edit.range.start + edit.replacement_length;
+                    let edit_end = edit.range.end;
+                    let replacement_end = edit_start + edit.replacement_length;
                     let edit_diff = edit.replacement_length as isize - edit.range.len() as isize;
 
-                    if edit_end <= start {
-                        start_diff += edit_diff;
-                    } else if edit_start < start {
-                        let overlap = start - edit_start;
-                        start_diff += edit_diff.max(-(overlap as isize));
-                    }
+                    start = if start < edit_start {
+                        start
+                    } else if start <= edit_end {
+                        replacement_end
+                    } else {
+                        start.saturating_add_signed(edit_diff)
+                    };
 
-                    if edit_end <= end {
-                        end_diff += edit_diff;
-                    } else if edit_start < end {
-                        let overlap = end - edit_start;
-                        end_diff += edit_diff.max(-(overlap as isize));
-                    }
+                    end = if end < edit_start {
+                        end
+                    } else if end <= edit_end {
+                        replacement_end
+                    } else {
+                        end.saturating_add_signed(edit_diff)
+                    };
                 }
 
-                let new_absolute_start = (start as isize + start_diff).max(0) as usize;
-                let new_absolute_end =
-                    (end as isize + end_diff).max(new_absolute_start as isize) as usize;
-
-                let new_relative_start = new_absolute_start.saturating_sub(new_item_offset);
-                let new_len = new_absolute_end - new_absolute_start;
+                let new_relative_start = start.saturating_sub(new_item_offset);
+                let new_len = end.saturating_sub(start);
 
                 label.set_span(Span::new(new_relative_start, new_len));
             }
