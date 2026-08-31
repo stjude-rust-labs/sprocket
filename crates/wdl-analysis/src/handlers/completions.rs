@@ -821,6 +821,7 @@ fn add_struct_completions(
     scope: Option<ScopeRef<'_>>,
     items: &mut Vec<CompletionItem>,
 ) {
+    let root = document.root();
     for s in document.structs() {
         // Skip if this struct name is shadowed by a variable in scope
         if let Some(scope) = scope
@@ -833,7 +834,7 @@ fn add_struct_completions(
             label: s.name().to_string(),
             kind: Some(CompletionItemKind::STRUCT),
             detail: Some(format!("struct {}", s.name())),
-            documentation: make_md_docs(provide_struct_documentation(&s)),
+            documentation: provide_struct_documentation(&s, &root).and_then(make_md_docs),
             ..Default::default()
         });
 
@@ -848,7 +849,7 @@ fn add_struct_completions(
                     label,
                     kind: Some(CompletionItemKind::SNIPPET),
                     detail: Some(format!("struct {} with members", s.name())),
-                    documentation: make_md_docs(provide_struct_documentation(&s)),
+                    documentation: provide_struct_documentation(&s, &root).and_then(make_md_docs),
                     insert_text_format: Some(InsertTextFormat::SNIPPET),
                     insert_text: Some(snippet),
                     ..Default::default()
@@ -867,6 +868,7 @@ fn add_enum_type_completions(
     scope: Option<ScopeRef<'_>>,
     items: &mut Vec<CompletionItem>,
 ) {
+    let root = document.root();
     for r#enum in document.enums() {
         // Skip if this enum name is shadowed by a variable in scope
         if let Some(scope) = scope
@@ -879,7 +881,7 @@ fn add_enum_type_completions(
             label: r#enum.name().to_string(),
             kind: Some(CompletionItemKind::ENUM),
             detail: Some(format!("enum {}", r#enum.name())),
-            documentation: make_md_docs(provide_enum_documentation(&r#enum)),
+            documentation: provide_enum_documentation(&r#enum, &root).and_then(make_md_docs),
             ..Default::default()
         });
     }

@@ -339,15 +339,31 @@ pub fn provide_workflow_documentation(
 }
 
 /// Provides documentation for structs.
-pub fn provide_struct_documentation(struct_info: &StructRef<'_>) -> String {
-    render_struct_doc(&struct_info.definition())
+pub fn provide_struct_documentation(
+    struct_info: &StructRef<'_>,
+    root: &wdl_ast::Document,
+) -> Option<String> {
+    let ast = root.ast();
+    let target = ast
+        .as_v1()?
+        .structs()
+        .find(|s| s.name().text() == struct_info.name())?;
+    Some(render_struct_doc(&target))
 }
 
 /// Provides documentation for enums.
-pub fn provide_enum_documentation(enum_info: &EnumRef<'_>) -> String {
+pub fn provide_enum_documentation(
+    enum_info: &EnumRef<'_>,
+    root: &wdl_ast::Document,
+) -> Option<String> {
+    let ast = root.ast();
+    let target = ast
+        .as_v1()?
+        .enums()
+        .find(|e| e.name().text() == enum_info.name())?;
     let computed_type = enum_info
         .ty()
         .and_then(|ty| ty.as_enum())
         .map(|enum_ty| enum_ty.inner_value_type().to_string());
-    render_enum_doc(&enum_info.definition(), computed_type.as_deref())
+    Some(render_enum_doc(&target, computed_type.as_deref()))
 }

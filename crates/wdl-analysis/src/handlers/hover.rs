@@ -223,10 +223,30 @@ fn resolve_hover_by_context(
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
-                return Ok(Some(provide_struct_documentation(&s)));
+                let root = if let Some(source) = s.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(&source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
+                    node.document().unwrap().root()
+                } else {
+                    document.root()
+                };
+                return Ok(provide_struct_documentation(&s, &root));
             }
             if let Some(e) = document.enum_by_name(token.text()) {
-                return Ok(Some(provide_enum_documentation(&e)));
+                let root = if let Some(source) = e.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(&source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
+                    node.document().unwrap().root()
+                } else {
+                    document.root()
+                };
+                return Ok(provide_enum_documentation(&e, &root));
             }
         }
         SyntaxKind::EnumChoiceNode => {
@@ -496,10 +516,10 @@ fn resolve_hover_by_context(
 /// Finds hover information for a globally defined symbol within a [`Document`].
 fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<Option<String>> {
     if let Some(s) = document.struct_by_name(token.text()) {
-        return Ok(Some(provide_struct_documentation(&s)));
+        return Ok(provide_struct_documentation(&s, &document.root()));
     }
     if let Some(e) = document.enum_by_name(token.text()) {
-        return Ok(Some(provide_enum_documentation(&e)));
+        return Ok(provide_enum_documentation(&e, &document.root()));
     }
     if let Some(t) = document.task_by_name(token.text()) {
         return Ok(provide_task_documentation(&t, &document.root()));
