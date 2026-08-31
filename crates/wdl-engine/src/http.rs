@@ -13,7 +13,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use cloud_copy::ContentDigest;
 use cloud_copy::HttpClient;
-use cloud_copy::TransferEvent;
 use cloud_copy::UrlExt;
 use futures::FutureExt;
 use futures::future::BoxFuture;
@@ -21,11 +20,11 @@ use tempfile::NamedTempFile;
 use tempfile::TempPath;
 use tokio::sync::OnceCell;
 use tokio::sync::Semaphore;
-use tokio::sync::broadcast;
-use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use url::Url;
 
+use crate::CancellationContext;
+use crate::Events;
 use crate::config::Config;
 
 /// Represents a location of a downloaded file.
@@ -60,7 +59,12 @@ impl AsRef<Path> for Location {
 /// Represents a file transferer.
 pub trait Transferer: Send + Sync {
     /// Downloads a file or directory to a temporary path.
-    fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>>;
+    fn download<'a>(
+        &'a self,
+        source: &'a Url,
+        events: &'a Events,
+        cancellation: &'a CancellationContext,
+    ) -> BoxFuture<'a, Result<Location>>;
 
     /// Uploads a local file or directory to a cloud storage URL.
     ///
@@ -68,7 +72,13 @@ pub trait Transferer: Send + Sync {
     /// specific to the content being uploaded).
     ///
     /// Returns the destination URL with any Azure authentication applied.
-    fn upload<'a>(&'a self, source: &'a Path, destination: &'a Url) -> BoxFuture<'a, Result<()>>;
+    fn upload<'a>(
+        &'a self,
+        source: &'a Path,
+        destination: &'a Url,
+        events: &'a Events,
+        cancellation: &'a CancellationContext,
+    ) -> BoxFuture<'a, Result<()>>;
 
     /// Gets the size of a resource at a given URL.
     ///
@@ -111,7 +121,7 @@ struct Cache {
     walks: HashMap<Url, Arc<OnceCell<Arc<[String]>>>>,
     /// Stores the results of checking for URL existence.
     exists: HashMap<Url, Arc<OnceCell<bool>>>,
-    /// Stores the results of retrieving content digests a URL.
+    /// Stores the results of retrieving content digests for a URL.
     digests: HashMap<Url, Arc<OnceCell<Option<Arc<ContentDigest>>>>>,
 }
 
@@ -125,10 +135,6 @@ struct HttpTransfererInner {
     cache: Mutex<Cache>,
     /// The path to the temporary directory for links/copies.
     temp_dir: PathBuf,
-    /// The cancellation token for canceling transfers.
-    cancel: CancellationToken,
-    /// The events sender to use for transfer events.
-    events: Option<broadcast::Sender<TransferEvent>>,
     /// Limits the number of concurrent transfers.
     semaphore: Semaphore,
 }
@@ -139,11 +145,7 @@ pub struct HttpTransferer(Arc<HttpTransfererInner>);
 
 impl HttpTransferer {
     /// Constructs a new HTTP transferer with the given configuration.
-    pub fn new(
-        config: Arc<Config>,
-        cancel: CancellationToken,
-        events: Option<broadcast::Sender<TransferEvent>>,
-    ) -> Result<Self> {
+    pub fn new(config: &Config) -> Result<Self> {
         let cache_dir = config.http.cache_dir()?;
 
         let temp_dir = cache_dir.join("tmp");
@@ -213,15 +215,18 @@ impl HttpTransferer {
             client,
             cache: Default::default(),
             temp_dir,
-            cancel,
-            events,
             semaphore: Semaphore::new(config.http.parallelism.into()),
         })))
     }
 }
 
 impl Transferer for HttpTransferer {
-    fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>> {
+    fn download<'a>(
+        &'a self,
+        source: &'a Url,
+        events: &'a Events,
+        cancellation: &'a CancellationContext,
+    ) -> BoxFuture<'a, Result<Location>> {
         async move {
             // File URLs don't need to be downloaded
             if source.scheme() == "file" {
@@ -254,14 +259,15 @@ impl Transferer for HttpTransferer {
                             .context("failed to create temporary file")?
                             .into_temp_path();
 
-                        // Perform the download (always overwrite the local temp file)
+                        // Perform the download (always overwrite the local temp
+                        // file)
                         cloud_copy::copy(
                             self.0.config.clone(),
                             self.0.client.clone(),
                             source,
                             &*temp_path,
-                            self.0.cancel.clone(),
-                            self.0.events.clone(),
+                            cancellation.first(),
+                            events.transfer().cloned(),
                         )
                         .await
                         .with_context(|| {
@@ -276,7 +282,13 @@ impl Transferer for HttpTransferer {
         .boxed()
     }
 
-    fn upload<'a>(&'a self, source: &'a Path, destination: &'a Url) -> BoxFuture<'a, Result<()>> {
+    fn upload<'a>(
+        &'a self,
+        source: &'a Path,
+        destination: &'a Url,
+        events: &'a Events,
+        cancellation: &'a CancellationContext,
+    ) -> BoxFuture<'a, Result<()>> {
         async move {
             let upload = {
                 let mut cache = self.0.cache.lock().expect("failed to lock cache");
@@ -307,8 +319,8 @@ impl Transferer for HttpTransferer {
                             self.0.client.clone(),
                             source,
                             destination,
-                            self.0.cancel.clone(),
-                            self.0.events.clone(),
+                            cancellation.first(),
+                            events.transfer().cloned(),
                         )
                         .await
                         {

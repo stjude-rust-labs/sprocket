@@ -974,11 +974,9 @@
           "default": "apptainer"
         },
         "image_cache_dir": {
-          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nWhen set, pulled images are stored in this directory and shared\nacross runs. When unset, images are stored in a per-run directory\nthat is not shared.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nDefaults to an operating system specific cache directory for the user.",
+          "type": "string",
+          "default": "system"
         },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",
@@ -1202,7 +1200,7 @@
         },
         "database": {
           "description": "Database configuration.",
-          "$ref": "#/$defs/ServerDatabaseConfig"
+          "$ref": "#/$defs/DatabaseConfig"
         },
         "output_dir": {
           "description": "Directory for workflow outputs.",
@@ -1243,8 +1241,8 @@
       },
       "additionalProperties": false
     },
-    "ServerDatabaseConfig": {
-      "description": "Server database configuration.",
+    "DatabaseConfig": {
+      "description": "Database configuration.",
       "type": "object",
       "properties": {
         "url": {

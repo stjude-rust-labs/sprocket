@@ -2,8 +2,11 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map::Entry;
+use std::fmt::Write as _;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
+use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -15,7 +18,10 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
+use colored::Colorize as _;
+use crankshaft::events::Event;
 use indexmap::IndexMap;
+use indicatif::ProgressStyle;
 use nonempty::NonEmpty;
 use path_clean::PathClean;
 use regex::Regex;
@@ -27,13 +33,19 @@ use sprocket_test_types::TestDefinition;
 use sprocket_test_types::yaml::Spanned;
 use tokio::fs::remove_dir_all;
 use tokio::select;
+use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
+use tracing::Level;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
 use tracing::instrument::WithSubscriber;
+use tracing::span;
 use tracing::subscriber::NoSubscriber;
+use tracing_indicatif::IndicatifWriter;
+use tracing_indicatif::span_ext::IndicatifSpanExt;
+use tracing_indicatif::writer::Stdout;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
@@ -42,6 +54,7 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -57,6 +70,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::uses_docker_backend;
+use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
@@ -287,7 +302,12 @@ struct TestIteration {
 }
 
 impl TestIteration {
-    pub async fn evaluate(self, clean: bool, quiet: bool) -> Result<IterationResult> {
+    pub async fn evaluate(
+        self,
+        clean: bool,
+        quiet: bool,
+        mut indicatif_writer: IndicatifWriter<Stdout>,
+    ) -> Result<IterationResult> {
         let id = format!(
             "{doc}::{target}::{test} (iteration #{num})",
             doc = self.id.doc_name,
@@ -421,13 +441,13 @@ impl TestIteration {
         if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
-                    println!("{id}: ✅")
+                    writeln!(&mut indicatif_writer, "{id}: ✅")?;
                 }
                 Ok(IterationResult::Fail(_)) => {
-                    println!("{id}: ❌")
+                    writeln!(&mut indicatif_writer, "{id}: ❌")?;
                 }
                 Err(_) => {
-                    println!("{id}: ☠️")
+                    writeln!(&mut indicatif_writer, "{id}: ☠️")?;
                 }
             }
         }
@@ -458,10 +478,139 @@ struct TestTask {
     inputs: EngineInputs,
 }
 
+struct StatusBarState {
+    /// The images currently being pulled.
+    pulling_images: HashMap<String, usize>,
+    style: ProgressStyle,
+    span: tracing::Span,
+}
+
+#[derive(Clone)]
+struct StatusBar {
+    disabled: bool,
+    state: Arc<Mutex<StatusBarState>>,
+}
+
+impl StatusBar {
+    /// Create a disabled status bar.
+    fn disabled() -> Self {
+        Self {
+            disabled: true,
+            state: Arc::new(Mutex::new(StatusBarState {
+                pulling_images: HashMap::new(),
+                style: ProgressStyle::default_bar(),
+                span: tracing::Span::none(),
+            })),
+        }
+    }
+
+    /// Create a new status bar.
+    fn new(colorize: bool) -> Self {
+        let template = if colorize {
+            "[{elapsed_precise:.cyan/blue}] {spinner:.cyan/blue} {msg}"
+        } else {
+            "[{elapsed_precise}] {spinner} {msg}"
+        };
+
+        let status_bar = span!(Level::WARN, "status bar");
+
+        Self {
+            disabled: false,
+            state: Arc::new(Mutex::new(StatusBarState {
+                pulling_images: HashMap::new(),
+                style: ProgressStyle::with_template(template).unwrap(),
+                span: status_bar,
+            })),
+        }
+    }
+
+    fn update_image_pull_status(state: &mut StatusBarState) {
+        const MAX_PULLING_IMAGES: usize = 3;
+
+        if state.pulling_images.is_empty() {
+            state.span = tracing::Span::none();
+            return;
+        }
+
+        state.span = span!(Level::WARN, "status bar");
+        state.span.pb_set_style(&state.style);
+        state.span.pb_start();
+
+        if state.pulling_images.len() == 1 {
+            state.span.pb_set_message(&format!(
+                "pulling image '{}'",
+                state.pulling_images.keys().next().unwrap().green()
+            ));
+            return;
+        }
+
+        let mut msg = String::from("pulling images: ");
+
+        let shown_images = std::cmp::min(MAX_PULLING_IMAGES, state.pulling_images.len());
+        for (idx, image) in state
+            .pulling_images
+            .keys()
+            .take(MAX_PULLING_IMAGES)
+            .enumerate()
+        {
+            write!(msg, "'{}'", image.green()).expect("String writes won't fail");
+            if idx == shown_images - 1 {
+                if state.pulling_images.len() > MAX_PULLING_IMAGES {
+                    write!(
+                        msg,
+                        ", and {} more...",
+                        state.pulling_images.len() - MAX_PULLING_IMAGES
+                    )
+                    .expect("String writes won't fail");
+                }
+            } else {
+                write!(msg, ", ").expect("String writes won't fail");
+            }
+        }
+
+        state.span.pb_set_message(&msg);
+    }
+
+    /// Indicate the start of an image pull.
+    async fn image_pull(&self, name: String) {
+        if self.disabled {
+            return;
+        }
+
+        let mut state = self.state.lock().await;
+        state
+            .pulling_images
+            .entry(name)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+        Self::update_image_pull_status(&mut state);
+    }
+
+    /// Indicate the end of an image pull.
+    async fn image_pull_finish(&self, name: String) {
+        if self.disabled {
+            return;
+        }
+
+        let mut state = self.state.lock().await;
+        if let Entry::Occupied(entry) = state
+            .pulling_images
+            .entry(name)
+            .and_modify(|count| *count -= 1)
+            && *entry.get() == 0
+        {
+            entry.remove();
+        }
+        Self::update_image_pull_status(&mut state);
+    }
+}
+
 struct Runner {
     root: PathBuf,
     fixtures: Arc<EvaluationPath>,
-    engine_config: Arc<wdl::engine::Config>,
+    engine: Engine,
+    status_bar: StatusBar,
+    indicatif_writer: IndicatifWriter<Stdout>,
     permits: usize,
     throttle: u64,
     cancellation: CancellationContext,
@@ -600,7 +749,8 @@ impl Runner {
                     {
                         Ok(res) => res,
                         Err(e) => {
-                            // TODO(serial): Spanned diagnostics would be nice here too
+                            // TODO(serial): Spanned diagnostics would be nice
+                            // here too
                             errors.push(Arc::new(e.context(format!(
                                 "converting to WDL inputs for test `{}` for WDL document `{}`",
                                 test.name,
@@ -663,7 +813,9 @@ impl Runner {
             .get_mut(&*test_iteration.id.test_name)
             .expect("should have test results");
 
-        let evaluation = test_iteration.evaluate(clean, quiet).await;
+        let evaluation = test_iteration
+            .evaluate(clean, quiet, self.indicatif_writer.clone())
+            .await;
         test_results.push(evaluation);
 
         Ok(())
@@ -680,30 +832,56 @@ impl Runner {
     ) {
         let is_workflow = matches!(inputs, EngineInputs::Workflow(_));
         let fixtures = self.fixtures.clone();
-        let engine = self.engine_config.clone();
+        let engine = self.engine.clone();
         let run_dir = root.join(id.iteration_num.to_string());
-        let events = Events::disabled();
+        let events = Events::new(1024);
         let target = id.target.clone();
         let cancellation = self.cancellation.child(FailureMode::Fast);
+        let status_bar = self.status_bar.clone();
         futures.spawn(
             async move {
-                let evaluator =
-                    Evaluator::new(&document, &target, inputs, &fixtures, engine, &run_dir);
-                TestIteration {
-                    id,
-                    result: if is_workflow {
-                        RunResult::Workflow(evaluator.run(cancellation.clone(), events).await)
+                let mut crankshaft_events = events.subscribe_crankshaft().expect("should have Crankshaft events");
+
+                let run_dir_clone = run_dir.clone();
+                let cancellation_clone = cancellation.clone();
+                let mut task = Box::pin(async move {
+                    let evaluator =
+                        Evaluator::new(&document, &target, inputs, &fixtures, &engine, &run_dir_clone);
+
+                    if is_workflow {
+                        RunResult::Workflow(evaluator.run(events, cancellation_clone).await)
                     } else {
                         RunResult::Task(Box::new(
-                            evaluator.evaluate_task(cancellation.clone(), events).await,
+                            evaluator.evaluate_task(events, cancellation_clone).await,
                         ))
-                    },
-                    assertions,
-                    run_dir,
-                    cancellation,
+                    }
+                }.with_subscriber(NoSubscriber::new()));
+
+                loop {
+                    tokio::select! {
+                        e = crankshaft_events.recv() => {
+                            match e {
+                                Ok(Event::ImagePullStarted { name, .. }) => {
+                                    status_bar.image_pull(name).await;
+                                },
+                                Ok(Event::ImagePullFinished { name, .. } | Event::ImagePullFailed { name, .. }) => {
+                                    status_bar.image_pull_finish(name).await;
+                                },
+                                Ok(_) | Err(_) => {}
+                            }
+                        }
+                        result = &mut task => {
+                            return TestIteration {
+                                id,
+                                result,
+                                assertions,
+                                run_dir,
+                                cancellation,
+                            };
+                        }
+                    }
                 }
-            }
-            .with_subscriber(NoSubscriber::new()),
+            },
         );
     }
 }
@@ -805,7 +983,12 @@ async fn clean_all_run_root(run_root: &Path) -> Result<()> {
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn test(
+    args: Args,
+    mut config: Config,
+    colorize: bool,
+    indicatif_writer: IndicatifWriter<Stdout>,
+) -> CommandResult<()> {
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
         let schema_pretty =
@@ -855,9 +1038,9 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
         .map_err(CommandError::from)?;
 
     // Find and parse all YAML before beginning any executions.
-    // This is so that any totally invalid YAML is caught up-front before we start
-    // testing. Smaller issues with test definitions will later be collected and
-    // reported on after all tests execute.
+    // This is so that any totally invalid YAML is caught up-front before we
+    // start testing. Smaller issues with test definitions will later be
+    // collected and reported on after all tests execute.
     let mut documents = Vec::new();
     let mut counts = DiagnosticCounts::default();
     for analysis in analysis_results.filter(&[&source]) {
@@ -956,11 +1139,23 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.validate()?;
 
+    // Determined here as the engine configuration is moved into the engine
+    // below.
+    let uses_docker = uses_docker_backend(&config.run.engine);
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
     let cancellation = CancellationContext::new(FailureMode::Fast);
     let runner = Runner {
         root: run_dir,
         fixtures: fixture_origins.into(),
-        engine_config: config.run.engine.into(),
+        engine,
+        status_bar: if args.no_status {
+            StatusBar::disabled()
+        } else {
+            StatusBar::new(colorize)
+        },
+        indicatif_writer,
         permits: parallelism,
         throttle: config.test.throttle,
         cancellation: cancellation.clone(),
@@ -994,6 +1189,10 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
 
             _ = tokio::signal::ctrl_c() => {
                 if cancellation.state() == CancellationContextState::Canceling {
+                    if uses_docker {
+                        warn_docker_termination();
+                    }
+
                     return Err(anyhow!("evaluation was interrupted").into());
                 }
 

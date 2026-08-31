@@ -69,8 +69,8 @@ pub fn format_call_input_item(
 
     let name = children.next().expect("call input item name");
     (&name).write(stream, config);
-    // Don't call end_word() here in case the name is alone in which case it should
-    // be followed by a comma.
+    // Don't call end_word() here in case the name is alone in which case it
+    // should be followed by a comma.
 
     if let Some(equals) = children.next() {
         stream.end_word();
@@ -178,6 +178,7 @@ pub fn format_call_statement(
             (&colon.expect("colon")).write(stream, config);
         }
         stream.increment_indent();
+        stream.end_line();
 
         let mut inputs = inputs.iter().peekable();
         let mut commas = commas.iter();
@@ -196,6 +197,7 @@ pub fn format_call_statement(
         }
 
         stream.decrement_indent();
+        stream.end_line();
         (&close_brace.expect("close brace")).write(stream, config);
     }
     stream.end_line();

@@ -532,7 +532,8 @@ pub fn items(parser: &mut Parser<'_>) {
 
     parser.pop_recovery_set();
 
-    // This call to `next` is important as `next` adds any remaining buffered events
+    // This call to `next` is important as `next` adds any remaining buffered
+    // events
     assert!(parser.next().is_none(), "parser is not finished");
 }
 
@@ -2206,8 +2207,9 @@ fn call_statement(
     }
 
     if let Some((Token::OpenBrace, _)) = parser.peek() {
-        // Given the optional `input:` that we need to parse after the open brace, we
-        // unfortunately can't use `Parser::matching_delimited` here
+        // Given the optional `input:` that we need to parse after the open
+        // brace, we unfortunately can't use
+        // `Parser::matching_delimited` here
         let open_span = parser.require(Token::OpenBrace);
 
         if parser.next_if(Token::InputKeyword) {
@@ -2342,7 +2344,8 @@ fn expr_with_precedence(
         // Check for either an infix or postfix operation
         match parser.peek() {
             Some((token, _)) if INFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
-                // The operation is an infix operation; check the precedence level
+                // The operation is an infix operation; check the precedence
+                // level
                 let (precedence, kind, associativity) = infix_precedence(token);
                 if precedence < min_precedence {
                     break;
@@ -2369,7 +2372,8 @@ fn expr_with_precedence(
                 lhs = infix.complete(&mut parser, kind);
             }
             Some((token, _)) if POSTFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
-                // The operation is a postfix operation; check the precedence level
+                // The operation is a postfix operation; check the precedence
+                // level
                 let precedence = postfix_precedence(token);
                 if precedence < min_precedence {
                     break;

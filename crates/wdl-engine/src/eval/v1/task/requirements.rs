@@ -45,19 +45,20 @@ const DOCKER_PROTOCOL: &str = "docker://";
 const LIBRARY_PROTOCOL: &str = "library://";
 /// The OCI Registry as Storage protocol prefix.
 const ORAS_PROTOCOL: &str = "oras://";
-/// The file protocol prefix for local container files.
+/// The file protocol prefix for local image files.
 const FILE_PROTOCOL: &str = "file://";
 
 /// The expected extension for local SIF files.
 const SIF_EXTENSION: &str = "sif";
 
-/// The WDL wildcard container value (`*`), meaning any container is acceptable.
+/// The WDL wildcard container value (`*`), meaning any image source is
+/// acceptable.
 const WILDCARD_CONTAINER: &str = "*";
 
 /// Represents the source of a container image.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ContainerSource {
+pub enum ImageSource {
     /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
     /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
@@ -66,14 +67,14 @@ pub enum ContainerSource {
     Oras(String),
     /// A local SIF file (e.g., `file:///path/to/image.sif`).
     SifFile(PathBuf),
-    /// An unknown container source that could not be parsed.
+    /// An unknown image source that could not be parsed.
     Unknown(String),
 }
 
-impl ContainerSource {
-    /// Gets the scheme of the container source.
+impl ImageSource {
+    /// Gets the scheme of the image source.
     ///
-    /// Returns `None` for unknown container sources.
+    /// Returns `None` for unknown image sources.
     pub fn scheme(&self) -> Option<&'static str> {
         match self {
             Self::Docker(_) => Some("docker"),
@@ -84,7 +85,7 @@ impl ContainerSource {
         }
     }
 
-    /// Gets the display name of the container source.
+    /// Gets the display name of the image source.
     ///
     /// Returns `None` if the source is a file or an unknown source.
     pub fn name(&self) -> Option<&str> {
@@ -93,9 +94,20 @@ impl ContainerSource {
             Self::SifFile(_) | Self::Unknown(_) => None,
         }
     }
+
+    /// Gets the full URI ([`Self::scheme()`] + [`Self::name()`]) for display.
+    ///
+    /// This is used for user-facing events.
+    pub fn uri(&self) -> String {
+        match self {
+            ImageSource::SifFile(path) => format!("file://{}", path.display()),
+            ImageSource::Unknown(unknown) => unknown.clone(),
+            _ => format!("{}://{}", self.scheme().unwrap(), self.name().unwrap()),
+        }
+    }
 }
 
-impl FromStr for ContainerSource {
+impl FromStr for ImageSource {
     type Err = std::convert::Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -129,7 +141,7 @@ impl FromStr for ContainerSource {
     }
 }
 
-impl std::fmt::Display for ContainerSource {
+impl std::fmt::Display for ImageSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.alternate() {
             // Pretty format includes protocol prefix.
@@ -164,21 +176,21 @@ pub(crate) fn has_container_requirement(inputs: &TaskInputs, requirements: &Obje
 
 /// Gets the `container` requirement from a requirements map.
 ///
-/// Returns a list of [`ContainerSource`] candidates to try in order.
-/// Any [`ContainerSource::Any`] entries (from the WDL `*` wildcard) are
+/// Returns a list of [`ImageSource`] candidates to try in order.
+/// Any [`ImageSource::Any`] entries (from the WDL `*` wildcard) are
 /// resolved to the configured default container.
 pub(crate) fn container(
     inputs: &TaskInputs,
     requirements: &Object,
     default: &str,
-) -> Vec<ContainerSource> {
+) -> Vec<ImageSource> {
     let entry = find_key_value(
         &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
         |key| inputs.requirement(key).or_else(|| requirements.get(key)),
     );
 
     let Some((_, value)) = entry else {
-        // SAFETY: `FromStr` for `ContainerSource` is infallible.
+        // SAFETY: `FromStr` for `ImageSource` is infallible.
         return vec![default.parse().unwrap()];
     };
 
@@ -193,7 +205,7 @@ pub(crate) fn container(
                     .as_string()
                     .expect("container array element should be a `String`");
                 let s = s.as_ref();
-                // SAFETY: `FromStr` for `ContainerSource` is infallible.
+                // SAFETY: `FromStr` for `ImageSource` is infallible.
                 if s == WILDCARD_CONTAINER { default } else { s }
                     .parse()
                     .unwrap()
@@ -211,7 +223,7 @@ pub(crate) fn container(
             .clone()
             .into();
 
-        // SAFETY: `FromStr` for `ContainerSource` is infallible.
+        // SAFETY: `FromStr` for `ImageSource` is infallible.
         vec![
             if *s == *WILDCARD_CONTAINER {
                 default
@@ -271,7 +283,8 @@ pub(crate) fn gpu(inputs: &TaskInputs, requirements: &Object, hints: &Object) ->
         return Some(DEFAULT_GPU_COUNT);
     };
 
-    // A string `gpu` hint is allowed by the spec, but we do not support them yet.
+    // A string `gpu` hint is allowed by the spec, but we do not support them
+    // yet.
     //
     // TODO(clay): support string hints for GPU specifications.
     if let Some(hint) = hint.as_string() {
@@ -295,8 +308,8 @@ pub(crate) fn gpu(inputs: &TaskInputs, requirements: &Object, hints: &Object) ->
             None
         }
         None => {
-            // Typechecking should have already validated that the hint is an integer or
-            // a string.
+            // Typechecking should have already validated that the hint is an
+            // integer or a string.
             unreachable!("`{TASK_HINT_GPU}` hint must be an integer or string")
         }
     }
@@ -361,8 +374,8 @@ pub(crate) fn disks<'a>(
             }
 
             if let Some(map) = v.as_map() {
-                // Find the corresponding key; we have to scan the keys because the map is
-                // storing primitive values
+                // Find the corresponding key; we have to scan the keys because
+                // the map is storing primitive values
                 if let Some((_, v)) = map.iter().find(|(k, _)| match (k, mount_point) {
                     (_, None) => false,
                     (k, Some(mount_point)) => k
@@ -412,15 +425,17 @@ pub(crate) fn disks<'a>(
                 Some((size.parse().ok()?, None))
             }
             (Some(first), Some(second), None) => {
-                // Check for `<size> <unit>`; convert from the specified unit to GiB
+                // Check for `<size> <unit>`; convert from the specified unit to
+                // GiB
                 if let Ok(size) = first.parse() {
                     let unit: StorageUnit = second.parse().ok()?;
                     let size = unit.bytes(size)? / (ONE_GIBIBYTE as u64);
                     return Some((size.try_into().ok()?, None));
                 }
 
-                // Specification is `<mount-point> <size>` (where size is already in GiB)
-                // The mount point must be absolute, i.e. start with `/`
+                // Specification is `<mount-point> <size>` (where size is
+                // already in GiB) The mount point must be
+                // absolute, i.e. start with `/`
                 if !first.starts_with('/') {
                     return None;
                 }
@@ -537,7 +552,7 @@ mod tests {
 
     use indexmap::IndexMap;
 
-    use super::ContainerSource;
+    use super::ImageSource;
     use super::*;
     use crate::PrimitiveValue;
     use crate::Value;
@@ -573,26 +588,26 @@ mod tests {
 
     #[test]
     fn parses_bare_docker_image() {
-        let source: ContainerSource = "ubuntu:22.04".parse().unwrap();
-        assert_eq!(source, ContainerSource::Docker("ubuntu:22.04".to_string()));
+        let source: ImageSource = "ubuntu:22.04".parse().unwrap();
+        assert_eq!(source, ImageSource::Docker("ubuntu:22.04".to_string()));
         assert_eq!(source.to_string(), "ubuntu:22.04");
         assert_eq!(format!("{source:#}"), "docker://ubuntu:22.04");
     }
 
     #[test]
     fn parses_docker_protocol() {
-        let source: ContainerSource = "docker://ubuntu:latest".parse().unwrap();
-        assert_eq!(source, ContainerSource::Docker("ubuntu:latest".to_string()));
+        let source: ImageSource = "docker://ubuntu:latest".parse().unwrap();
+        assert_eq!(source, ImageSource::Docker("ubuntu:latest".to_string()));
         assert_eq!(source.to_string(), "ubuntu:latest");
         assert_eq!(format!("{source:#}"), "docker://ubuntu:latest");
     }
 
     #[test]
     fn parses_library_protocol() {
-        let source: ContainerSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
+        let source: ImageSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
         assert_eq!(
             source,
-            ContainerSource::Library("sylabs/default/alpine:3.18".to_string())
+            ImageSource::Library("sylabs/default/alpine:3.18".to_string())
         );
         assert_eq!(source.to_string(), "sylabs/default/alpine:3.18");
         assert_eq!(
@@ -603,10 +618,10 @@ mod tests {
 
     #[test]
     fn parses_oras_protocol() {
-        let source: ContainerSource = "oras://ghcr.io/org/image:tag".parse().unwrap();
+        let source: ImageSource = "oras://ghcr.io/org/image:tag".parse().unwrap();
         assert_eq!(
             source,
-            ContainerSource::Oras("ghcr.io/org/image:tag".to_string())
+            ImageSource::Oras("ghcr.io/org/image:tag".to_string())
         );
         assert_eq!(source.to_string(), "ghcr.io/org/image:tag");
         assert_eq!(format!("{source:#}"), "oras://ghcr.io/org/image:tag");
@@ -614,10 +629,10 @@ mod tests {
 
     #[test]
     fn parses_file_protocol_sif() {
-        let source: ContainerSource = "file:///path/to/image.sif".parse().unwrap();
+        let source: ImageSource = "file:///path/to/image.sif".parse().unwrap();
         assert_eq!(
             source,
-            ContainerSource::SifFile(PathBuf::from("/path/to/image.sif"))
+            ImageSource::SifFile(PathBuf::from("/path/to/image.sif"))
         );
         assert_eq!(source.to_string(), "/path/to/image.sif");
         assert_eq!(format!("{source:#}"), "file:///path/to/image.sif");
@@ -625,10 +640,10 @@ mod tests {
 
     #[test]
     fn parses_file_protocol_unknown_extension() {
-        let source: ContainerSource = "file:///path/to/image.tar".parse().unwrap();
+        let source: ImageSource = "file:///path/to/image.tar".parse().unwrap();
         assert_eq!(
             source,
-            ContainerSource::Unknown("file:///path/to/image.tar".to_string())
+            ImageSource::Unknown("file:///path/to/image.tar".to_string())
         );
         assert_eq!(source.to_string(), "file:///path/to/image.tar");
         assert_eq!(format!("{source:#}"), "file:///path/to/image.tar");
@@ -636,10 +651,10 @@ mod tests {
 
     #[test]
     fn parses_unknown_protocol() {
-        let source: ContainerSource = "ftp://example.com/image".parse().unwrap();
+        let source: ImageSource = "ftp://example.com/image".parse().unwrap();
         assert_eq!(
             source,
-            ContainerSource::Unknown("ftp://example.com/image".to_string())
+            ImageSource::Unknown("ftp://example.com/image".to_string())
         );
         assert_eq!(source.to_string(), "ftp://example.com/image");
         assert_eq!(format!("{source:#}"), "ftp://example.com/image");
@@ -647,19 +662,19 @@ mod tests {
 
     #[test]
     fn parses_complex_docker_image() {
-        let source: ContainerSource = "ghcr.io/stjude/sprocket:v1.0.0".parse().unwrap();
+        let source: ImageSource = "ghcr.io/stjude/sprocket:v1.0.0".parse().unwrap();
         assert_eq!(
             source,
-            ContainerSource::Docker("ghcr.io/stjude/sprocket:v1.0.0".to_string())
+            ImageSource::Docker("ghcr.io/stjude/sprocket:v1.0.0".to_string())
         );
     }
 
     #[test]
     fn parses_docker_image_with_digest() {
-        let source: ContainerSource = "ubuntu@sha256:abcdef1234567890".parse().unwrap();
+        let source: ImageSource = "ubuntu@sha256:abcdef1234567890".parse().unwrap();
         assert_eq!(
             source,
-            ContainerSource::Docker("ubuntu@sha256:abcdef1234567890".to_string())
+            ImageSource::Docker("ubuntu@sha256:abcdef1234567890".to_string())
         );
     }
 
@@ -673,7 +688,7 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(
             result[0],
-            ContainerSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
+            ImageSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
         );
     }
 
@@ -681,10 +696,7 @@ mod tests {
     fn container_returns_custom_default_when_unset() {
         let result = container(&TaskInputs::default(), &Object::empty(), "alpine:3.18");
         assert_eq!(result.len(), 1);
-        assert_eq!(
-            result[0],
-            ContainerSource::Docker("alpine:3.18".to_string())
-        );
+        assert_eq!(result[0], ImageSource::Docker("alpine:3.18".to_string()));
     }
 
     #[test]
@@ -699,7 +711,7 @@ mod tests {
             DEFAULT_TASK_CONTAINER,
         );
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], ContainerSource::Docker("foo:bar".to_string()));
+        assert_eq!(result[0], ImageSource::Docker("foo:bar".to_string()));
     }
 
     #[test]
@@ -716,7 +728,7 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(
             result[0],
-            ContainerSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
+            ImageSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
         );
     }
 
@@ -728,7 +740,7 @@ mod tests {
         );
         let result = container(&TaskInputs::default(), &requirements, "debian:12");
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], ContainerSource::Docker("debian:12".to_string()));
+        assert_eq!(result[0], ImageSource::Docker("debian:12".to_string()));
     }
 
     #[test]
@@ -755,9 +767,9 @@ mod tests {
             DEFAULT_TASK_CONTAINER,
         );
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0], ContainerSource::Docker("foo:1.0".to_string()));
-        assert_eq!(result[1], ContainerSource::Docker("bar:2.0".to_string()));
-        assert_eq!(result[2], ContainerSource::Docker("baz:3.0".to_string()));
+        assert_eq!(result[0], ImageSource::Docker("foo:1.0".to_string()));
+        assert_eq!(result[1], ImageSource::Docker("bar:2.0".to_string()));
+        assert_eq!(result[2], ImageSource::Docker("baz:3.0".to_string()));
     }
 
     #[test]
@@ -784,12 +796,12 @@ mod tests {
             DEFAULT_TASK_CONTAINER,
         );
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0], ContainerSource::Docker("foo:1.0".to_string()));
+        assert_eq!(result[0], ImageSource::Docker("foo:1.0".to_string()));
         assert_eq!(
             result[1],
-            ContainerSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
+            ImageSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
         );
-        assert_eq!(result[2], ContainerSource::Docker("bar:2.0".to_string()));
+        assert_eq!(result[2], ImageSource::Docker("bar:2.0".to_string()));
     }
 
     #[test]
@@ -811,11 +823,8 @@ mod tests {
 
         let result = container(&TaskInputs::default(), &requirements, "alpine:3.18");
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0], ContainerSource::Docker("foo:1.0".to_string()));
-        assert_eq!(
-            result[1],
-            ContainerSource::Docker("alpine:3.18".to_string())
-        );
+        assert_eq!(result[0], ImageSource::Docker("foo:1.0".to_string()));
+        assert_eq!(result[1], ImageSource::Docker("alpine:3.18".to_string()));
     }
 
     #[test]

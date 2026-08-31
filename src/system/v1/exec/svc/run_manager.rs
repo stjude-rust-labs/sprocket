@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use anyhow::Result;
 use chrono::Utc;
 use thiserror::Error;
@@ -19,6 +20,7 @@ use tracing::warn;
 use uuid::Uuid;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::Engine;
 use wdl::engine::Events;
 
 use crate::analysis::Source;
@@ -64,6 +66,8 @@ type Rx = mpsc::Receiver<RunManagerCmd>;
 pub struct RunManagerSvc {
     /// The configuration for execution.
     config: ServerConfig,
+    /// The WDL evaluation engine for evaluating tasks and workflows.
+    engine: Engine,
     /// The fallback WDL version for documents with unrecognized versions.
     fallback_version: FallbackVersion,
     /// Feature flags used during analysis.
@@ -102,25 +106,28 @@ pub struct RunManagerSvc {
 
 impl RunManagerSvc {
     /// Create a new run manager.
-    pub fn new(
+    pub async fn new(
         config: Config,
         report_mode: Mode,
         colorize: bool,
         db: Arc<dyn Database>,
         rx: Rx,
-    ) -> Self {
+    ) -> Result<Self> {
         let fallback_version = config.common.wdl.fallback_version;
         let feature_flags = config.common.wdl.feature_flags;
         let no_ignore = config.common.no_ignore;
         let modules_config = config.modules.clone();
-        let config = config.server;
+        let mut config = config.server;
         let semaphore =
             Option::<usize>::from(config.max_concurrent_runs).map(|n| Arc::new(Semaphore::new(n)));
-
         let output_dir = OutputDirectory::new(&config.output_dir);
+        let engine = Engine::new(std::mem::take(&mut config.engine))
+            .await
+            .context("failed to create WDL evaluation engine")?;
 
-        Self {
+        Ok(Self {
             config,
+            engine,
             fallback_version,
             feature_flags,
             no_ignore,
@@ -134,7 +141,7 @@ impl RunManagerSvc {
             runs: Default::default(),
             report_mode,
             colorize,
-        }
+        })
     }
 
     /// Runs the event loop.
@@ -375,17 +382,17 @@ impl RunManagerSvc {
     ///
     /// - the join handle of the event loop, and
     /// - the sender channel
-    pub fn spawn(
+    pub async fn spawn(
         channel_buffer_size: usize,
         config: Config,
         report_mode: Mode,
         colorize: bool,
         db: Arc<dyn Database>,
-    ) -> (JoinHandle<()>, mpsc::Sender<RunManagerCmd>) {
+    ) -> Result<(JoinHandle<()>, mpsc::Sender<RunManagerCmd>)> {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
-        let manager = Self::new(config, report_mode, colorize, db, rx);
+        let manager = Self::new(config, report_mode, colorize, db, rx).await?;
         let handle = tokio::spawn(manager.run());
-        (handle, tx)
+        Ok((handle, tx))
     }
 
     /// Submits a new run for execution.
@@ -412,16 +419,14 @@ impl RunManagerSvc {
         )
         .await?;
 
-        let engine_config = self.config.engine.clone();
-        let cancellation = CancellationContext::new(engine_config.failure_mode);
         let events = Events::new(EVENTS_CHANNEL_CAPACITY);
-
+        let cancellation = CancellationContext::new(self.engine.config().failure_mode);
         let executor = RunnableExecutor::builder()
             .db(self.db.clone())
             .output_dir(self.output_dir.clone())
-            .engine_config(engine_config)
-            .cancellation(cancellation.clone())
+            .engine(self.engine.clone())
             .events(events.clone())
+            .cancellation(cancellation.clone())
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
@@ -440,8 +445,9 @@ impl RunManagerSvc {
         let semaphore = self.semaphore.clone();
         let handle = tokio::spawn(async move {
             let _permit = if let Some(ref sem) = semaphore {
-                // SAFETY: the semaphore is Arc-wrapped and held by the manager for its
-                // entire lifetime. It is never explicitly closed. If this fails, it
+                // SAFETY: the semaphore is Arc-wrapped and held by the manager
+                // for its entire lifetime. It is never
+                // explicitly closed. If this fails, it
                 // indicates a catastrophic programming error.
                 Some(sem.acquire().await.unwrap())
             } else {
@@ -590,8 +596,9 @@ async fn cancel_run(
             // `Canceled` in the database.
             CancellationContextState::Canceling => {
                 db.cancel_run(id, Utc::now()).await?;
-                // NOTE: when a run is actually canceled, remove it from the runs
-                // map, as it won't remove itself at the end of execution.
+                // NOTE: when a run is actually canceled, remove it from the
+                // runs map, as it won't remove itself at the
+                // end of execution.
                 runs_guard.remove(&id);
             }
         }

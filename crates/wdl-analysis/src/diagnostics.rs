@@ -351,13 +351,13 @@ pub fn selected_import_conflict(name: &str, import_span: Span, prev_span: Span) 
     .with_label("previous definition", prev_span)
 }
 
-/// Creates a "struct not in document" diagnostic.
-pub fn struct_not_in_document<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
+/// Creates a "type not in document" diagnostic.
+pub fn type_not_in_document<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
-        "a struct named `{name}` does not exist in the imported document",
+        "a struct or enum named `{name}` does not exist in the imported document",
         name = name.text()
     ))
-    .with_label("this struct does not exist", name.span())
+    .with_label("this type name does not exist", name.span())
 }
 
 /// Creates an "imported struct conflict" diagnostic.
@@ -441,9 +441,9 @@ pub fn recursive_struct(name: &str, span: Span, member: Span) -> Diagnostic {
 
 /// Creates a "recursive enum" diagnostic.
 pub fn recursive_enum(name: &str, span: Span, ty: &str) -> Diagnostic {
-    // Unlike `recursive_struct`, which labels individual members, an `enum` has a
-    // single type for all of its choices. Just highlight the `enum` name, as
-    // its type as a *whole* is recursive.
+    // Unlike `recursive_struct`, which labels individual members, an `enum` has
+    // a single type for all of its choices. Just highlight the `enum` name,
+    // as its type as a *whole* is recursive.
     Diagnostic::error(format!("enum `{name}` has a recursive definition"))
         .with_highlight(span)
         .with_help(format!("the type `{ty}` participates in the recursion"))

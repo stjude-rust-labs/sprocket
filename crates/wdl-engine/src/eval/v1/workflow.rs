@@ -61,12 +61,14 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
+use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationPath;
 use crate::EvaluationResult;
+use crate::Events;
 use crate::Inputs;
 use crate::Outputs;
 use crate::TypeNameRefValue;
@@ -162,7 +164,11 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         }
 
         if let Some(ty) = self.state.document.get_custom_type(name) {
-            return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty)));
+            return Ok(TypeNameRefValue::new(
+                name,
+                ty.as_custom().expect("should be custom type").clone(),
+            )
+            .into());
         }
 
         Err(unknown_name(name, span))
@@ -209,7 +215,15 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn transferer(&self) -> &dyn Transferer {
-        self.state.transferer()
+        self.state.evaluator.engine.transferer()
+    }
+
+    fn events(&self) -> &Events {
+        &self.state.evaluator.events
+    }
+
+    fn cancellation(&self) -> &CancellationContext {
+        &self.state.evaluator.cancellation
     }
 }
 
@@ -502,8 +516,8 @@ impl Subgraph {
                 assert!(prev.is_none());
             }
 
-            // Decrement the indegree the nodes connected to the entry as we're not
-            // including it in the subgraph
+            // Decrement the indegree the nodes connected to the entry as we're
+            // not including it in the subgraph
             for edge in graph.edges_directed(entry, Direction::Outgoing) {
                 if edge.target() != exit {
                     *nodes
@@ -512,7 +526,8 @@ impl Subgraph {
                 }
             }
 
-            // Set the exit node to an indegree of 1 (incoming from the entry node)
+            // Set the exit node to an indegree of 1 (incoming from the entry
+            // node)
             *parent.get_mut(&exit).expect("should have exit node") = 1;
             nodes
         }
@@ -594,13 +609,6 @@ struct State {
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
-}
-
-impl State {
-    /// Get the [`Transferer`] for this evaluation.
-    fn transferer(&self) -> &dyn Transferer {
-        self.evaluator.transferer.as_ref()
-    }
 }
 
 impl Evaluator {
@@ -686,8 +694,9 @@ impl Evaluator {
         // Build an evaluation graph for the workflow
         let mut diagnostics = Diagnostics::default();
 
-        // We need to provide inputs to the workflow graph builder to avoid adding
-        // dependency edges from the default expressions if a value was provided
+        // We need to provide inputs to the workflow graph builder to avoid
+        // adding dependency edges from the default expressions if a
+        // value was provided
         let graph = WorkflowGraphBuilder::default().build(
             &definition,
             &mut diagnostics,
@@ -703,7 +712,8 @@ impl Evaluator {
         let mut subgraph = Subgraph::new(&graph);
         let subgraphs = subgraph.split(&graph);
 
-        // Create the temp directory now as it may be needed for workflow evaluation
+        // Create the temp directory now as it may be needed for workflow
+        // evaluation
         let temp_dir = eval_root_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
             format!(
@@ -792,7 +802,8 @@ impl State {
                     Ok(())
                 }
                 Err(e) => {
-                    // Perform a cancellation and wait for the futures to complete
+                    // Perform a cancellation and wait for the futures to
+                    // complete
                     cancellation.error(&e);
                     futures.join_all().await;
                     Err(e)
@@ -881,8 +892,8 @@ impl State {
                 awaiting.remove(&node);
                 subgraph.remove_node(&self.graph, node);
 
-                // Continue to see if we can progress further in the subgraph; if not we'll
-                // await more futures
+                // Continue to see if we can progress further in the subgraph;
+                // if not we'll await more futures
                 continue;
             }
 
@@ -935,7 +946,8 @@ impl State {
                                     Ok(node)
                                 }
                                 Err(e) => {
-                                    // Perform a cancellation and wait for the futures to complete
+                                    // Perform a cancellation and wait for the
+                                    // futures to complete
                                     cancellation.error(&e);
                                     futures.join_all().await;
                                     Err(e)
@@ -957,7 +969,8 @@ impl State {
                     WorkflowGraphNode::ConditionalClause(..)
                     | WorkflowGraphNode::ExitConditional(_)
                     | WorkflowGraphNode::ExitScatter(_) => {
-                        // Handled directly in `evaluate_conditional` and `evaluate_scatter`
+                        // Handled directly in `evaluate_conditional` and
+                        // `evaluate_scatter`
                         continue;
                     }
                 }
@@ -1047,7 +1060,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.transferer()),
+                    Some(self.evaluator.engine.transferer()),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1116,7 +1129,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.transferer()),
+                    Some(self.evaluator.engine.transferer()),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1173,7 +1186,7 @@ impl State {
             .resolve_paths(
                 expected_ty.is_optional(),
                 self.base_dir.as_local(),
-                Some(self.transferer()),
+                Some(self.evaluator.engine.transferer()),
                 &|path| {
                     if path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
@@ -1353,8 +1366,8 @@ impl State {
             "no conditional statement branch was taken"
         );
 
-        // All conditionals evaluated to false; set the expected names to `None` in the
-        // parent scope.
+        // All conditionals evaluated to false; set the expected names to `None`
+        // in the parent scope.
         let mut scopes = self.scopes.write().await;
         let parent = scopes.get_mut(parent);
 
@@ -1404,8 +1417,8 @@ impl State {
                 .expect("should have a future to wait on")
                 .expect("failed to join future")?;
 
-            // Append the result to the gather (the first two variables in scope are always
-            // the scatter index and variable)
+            // Append the result to the gather (the first two variables in scope
+            // are always the scatter index and variable)
             let mut scopes = scopes.write().await;
             for (name, value) in scopes.get_mut(scope).local().skip(2) {
                 match gathers.get_mut(name) {
@@ -1451,12 +1464,13 @@ impl State {
             })?
             .as_slice();
 
-        // If the array is empty, evaluate it specially to promote empty arrays/calls
+        // If the array is empty, evaluate it specially to promote empty
+        // arrays/calls
         if array.is_empty() {
             return self.evaluate_empty_scatter(stmt, parent).await;
         }
 
-        let max_concurrency = self.evaluator.config.workflow.scatter.concurrency;
+        let max_concurrency = self.evaluator.engine.config().workflow.scatter.concurrency;
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
@@ -1489,7 +1503,8 @@ impl State {
                 });
             }
 
-            // If we've reached the concurrency limit, await one of the futures to complete
+            // If we've reached the concurrency limit, await one of the futures
+            // to complete
             if futures.len() as u64 >= max_concurrency {
                 await_next(futures, &self.scopes, &mut gathers, array.len()).await?;
             }
@@ -1500,7 +1515,8 @@ impl State {
             await_next(futures, &self.scopes, &mut gathers, array.len()).await?;
         }
 
-        // Return an error if all the tasks completed but there was a cancellation
+        // Return an error if all the tasks completed but there was a
+        // cancellation
         if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
             return Err(EvaluationError::Canceled);
         }
@@ -1536,11 +1552,12 @@ impl State {
         let mut scopes = self.scopes.write().await;
         let scope = scopes.get_mut(parent);
 
-        // Iterate through the names, skipping the first which is always the scatter
-        // variable
+        // Iterate through the names, skipping the first which is always the
+        // scatter variable
         for (name, local) in stmt_scope.names().skip(1) {
             let value: Value = if let Type::Call(call_ty) = local.ty() {
-                // Value is a call; promote all of the call's output as empty arrays
+                // Value is a call; promote all of the call's output as empty
+                // arrays
                 CallValue::new_unchecked(
                     call_ty.clone(),
                     Outputs::from_iter(call_ty.outputs().iter().map(|(n, o)| {
@@ -1675,7 +1692,8 @@ impl State {
             ));
         }
 
-        // Determine the inputs and evaluator to use for the task or workflow call
+        // Determine the inputs and evaluator to use for the task or workflow
+        // call
         let inputs = self.inputs.calls().get(alias.text()).cloned();
         let mut document = namespace
             .as_ref()
@@ -1866,7 +1884,7 @@ mod test {
     use crate::Events;
     use crate::config::Config;
     use crate::config::FailureMode;
-    use crate::config::LocalBackendConfig;
+    use crate::v1::Engine;
 
     #[tokio::test]
     async fn it_writes_input_and_output_files() {
@@ -1936,20 +1954,12 @@ workflow test {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
-        // Evaluate the `test` workflow in `source.wdl` using the default local backend
+        // Evaluate the `test` workflow in `source.wdl` using the default local
+        // backend
         let mut inputs = WorkflowInputs::default();
         inputs.set("a", "qux".to_string());
         inputs.set("b", 1234);
@@ -2074,18 +2084,9 @@ workflow test {
             .expect("expected `source.wdl` analysis result")
             .document();
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2177,18 +2178,9 @@ workflow test {
             .expect("expected `source.wdl` analysis result")
             .document();
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2279,19 +2271,9 @@ workflow foo {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            experimental_features_enabled: true,
-            ..Default::default()
-        };
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
 
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
@@ -2434,8 +2416,8 @@ workflow foo {
 
     #[tokio::test]
     async fn it_reports_progress() {
-        // Create two test WDL files: one with a no-op workflow to be called and another
-        // with a no-op task to be called
+        // Create two test WDL files: one with a no-op workflow to be called and
+        // another with a no-op task to be called
         let root_dir = TempDir::new().expect("failed to create temporary directory");
         fs::write(
             root_dir.path().join("other.wdl"),
@@ -2494,11 +2476,8 @@ workflow w {
             tasks_completed: AtomicUsize,
         }
 
-        // Use a progress callback that simply increments the appropriate counter
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
+        // Use a progress callback that simply increments the appropriate
+        // counter
         let state = Arc::<State>::default();
         let events_state = state.clone();
         let events = Events::new(100);
@@ -2528,9 +2507,8 @@ workflow w {
             }
         });
 
-        let evaluator = Evaluator::new(root_dir.path(), config.into(), Default::default(), events)
-            .await
-            .unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend
@@ -2548,6 +2526,7 @@ workflow w {
             .map_err(|e| e.to_string())
             .expect("failed to evaluate workflow");
 
+        drop(engine);
         drop(evaluator);
         task.await.expect("failed to await events task");
 
@@ -2596,19 +2575,9 @@ workflow w {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
 
-        let config = Config {
-            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
+        let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = Evaluator::new(
-            root_dir.path(),
-            config.into(),
-            cancellation.clone(),
-            Events::disabled(),
-        )
-        .await
-        .unwrap();
+        let evaluator = engine.create_v1_evaluator(Events::disabled(), cancellation.clone());
 
         let mut evaluation = evaluator
             .evaluate_workflow(

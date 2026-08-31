@@ -108,9 +108,9 @@ pub(crate) trait Runnable: DefinitionMeta {
             // The Unix/Windows toggle only changes the path separator in the
             // shown `sprocket run --target <path>` command, so it is only
             // meaningful when the path actually contains a separator. Detect
-            // both separators explicitly rather than via `MAIN_SEPARATOR`, which
-            // would miss the `/` in WDL import paths when the host OS is
-            // Windows.
+            // both separators explicitly rather than via `MAIN_SEPARATOR`,
+            // which would miss the `/` in WDL import paths when the
+            // host OS is Windows.
             let has_separator = raw_path.contains('/') || raw_path.contains('\\');
             html! {
                 div class="main__run-with-container" data-pagefind-ignore="all" {
@@ -322,7 +322,8 @@ fn meta_to_description(value: &MetaMapValueSource) -> Option<MetaMap> {
                 value.clone(),
             )])),
             _ => {
-                // If it's not an object or string, we don't know how to handle it.
+                // If it's not an object or string, we don't know how to handle
+                // it.
                 None
             }
         },

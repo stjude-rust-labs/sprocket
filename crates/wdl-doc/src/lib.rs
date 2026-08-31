@@ -358,13 +358,15 @@ impl<T: AsRef<str>> Render for Markdown<T> {
             .clean(&unsafe_html)
             .to_string();
 
-        // Remove the outer `<p>` tag that `pulldown_cmark` wraps single lines in
+        // Remove the outer `<p>` tag that `pulldown_cmark` wraps single lines
+        // in
         let safe_html = if safe_html.starts_with("<p>") && safe_html.ends_with("</p>\n") {
             let trimmed = &safe_html[3..safe_html.len() - 5];
             if trimmed.contains("<p>") {
                 // If the trimmed string contains another `<p>` tag, it means
-                // that the original string was more complicated than a single-line paragraph,
-                // so we should keep the outer `<p>` tag.
+                // that the original string was more complicated than a
+                // single-line paragraph, so we should keep the
+                // outer `<p>` tag.
                 safe_html
             } else {
                 trimmed.to_string()
@@ -540,9 +542,11 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     (path.to_path_buf(), false)
                 }
                 Err(_) => {
-                    // URI was successfully converted to a file path, but it is not in the
-                    // workspace. This must be an imported WDL file and the
-                    // documentation will be generated in the `external/` directory.
+                    // URI was successfully converted to a file path, but it is
+                    // not in the workspace. This must be an
+                    // imported WDL file and the
+                    // documentation will be generated in the `external/`
+                    // directory.
                     let external = PathBuf::from("external").join(
                         path.components()
                             .skip_while(|c| !matches!(c, Component::Normal(_)))

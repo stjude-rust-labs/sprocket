@@ -415,11 +415,9 @@ impl Postprocessor {
             }
             PreToken::IndentStart => {
                 self.indent_level += 1;
-                self.end_line(stream);
             }
             PreToken::IndentEnd => {
                 self.indent_level = self.indent_level.saturating_sub(1);
-                self.end_line(stream);
             }
             PreToken::LineSpacingPolicy(policy) => {
                 self.line_spacing_policy = policy;
@@ -591,8 +589,9 @@ impl Postprocessor {
             let next = pre_buffer.peek().copied();
             self.step(token.clone(), next, &mut post_buffer);
 
-            // If we cached before the step and the line is now too long, revert, line
-            // break, then repeat the step we just took.
+            // If we cached before the step and the line is now too long,
+            // revert, line break, then repeat the step we just
+            // took.
             if max_length.is_some_and(|max| post_buffer.last_line_width(config) > max)
                 && let Some(cache) = cache.take()
                 && let Some(cached_self) = cached_self.take()

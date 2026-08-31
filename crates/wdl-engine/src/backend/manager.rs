@@ -13,10 +13,22 @@ use futures::channel::oneshot;
 use ordered_float::OrderedFloat;
 use tracing::debug;
 
-use crate::CancellationContext;
-use crate::CancellationContextState;
 use crate::EngineEvent;
-use crate::Events;
+use crate::backend::ExecuteTaskRequest;
+
+/// Implemented by tasks dispatched to the manager.
+pub trait ManagedTask {
+    /// The output type of the task.
+    type Output;
+
+    /// Gets the execution request associated with the managed task.
+    fn request(&self) -> &ExecuteTaskRequest<'_>;
+
+    /// Runs the managed task with the given output type.
+    ///
+    /// Returns `Ok(None)` if the task was canceled.
+    async fn run(self) -> Result<Option<Self::Output>>;
+}
 
 /// Represents a parked task.
 struct ParkedTask {
@@ -31,14 +43,7 @@ struct ParkedTask {
 }
 
 /// Represents a limits for a task manager.
-struct Limits {
-    /// The mutable limits state.
-    state: Arc<Mutex<LimitsState>>,
-    /// The engine events.
-    events: Events,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
-}
+struct Limits(Arc<Mutex<LimitsState>>);
 
 /// Represents state used by a limited task manager.
 struct LimitsState {
@@ -77,11 +82,11 @@ impl LimitsState {
 
         // This algorithm is intended to unpark the greatest number of tasks.
         //
-        // It first finds the greatest subset of tasks that are constrained by CPU and
-        // then by memory.
+        // It first finds the greatest subset of tasks that are constrained by
+        // CPU and then by memory.
         //
-        // Next it finds the greatest subset of tasks that are constrained by memory and
-        // then by CPU.
+        // Next it finds the greatest subset of tasks that are constrained by
+        // memory and then by CPU.
         //
         // It then unparks whichever subset is greater.
         //
@@ -90,21 +95,21 @@ impl LimitsState {
             let parked = self.parked.make_contiguous();
 
             let cpu_by_memory_len = {
-                // Start by finding the longest range in the parked set that could run based on
-                // CPU reservation
+                // Start by finding the longest range in the parked set that
+                // could run based on CPU reservation
                 let range = fit_longest_range(parked, self.cpu, |task| OrderedFloat(task.cpu));
 
-                // Next, find the longest subset of that subset that could run based on memory
-                // reservation
+                // Next, find the longest subset of that subset that could run
+                // based on memory reservation
                 fit_longest_range(&mut parked[range], self.memory, |task| task.memory).len()
             };
 
-            // Next, find the longest range in the parked set that could run based on memory
-            // reservation
+            // Next, find the longest range in the parked set that could run
+            // based on memory reservation
             let memory_by_cpu = fit_longest_range(parked, self.memory, |task| task.memory);
 
-            // Next, find the longest subset of that subset that could run based on CPU
-            // reservation
+            // Next, find the longest subset of that subset that could run based
+            // on CPU reservation
             let memory_by_cpu = fit_longest_range(&mut parked[memory_by_cpu], self.cpu, |task| {
                 OrderedFloat(task.cpu)
             });
@@ -114,13 +119,13 @@ impl LimitsState {
                 break;
             }
 
-            // Check to see which subset is greater (for equivalence, use the one we don't
-            // need to refit for)
+            // Check to see which subset is greater (for equivalence, use the
+            // one we don't need to refit for)
             let range = if memory_by_cpu.len() >= cpu_by_memory_len {
                 memory_by_cpu
             } else {
-                // We need to refit because the above calculation of `memory_by_cpu` mutated the
-                // parked list
+                // We need to refit because the above calculation of
+                // `memory_by_cpu` mutated the parked list
                 let range = fit_longest_range(parked, self.cpu, |task| OrderedFloat(task.cpu));
                 fit_longest_range(&mut parked[range], self.memory, |task| task.memory)
             };
@@ -166,22 +171,11 @@ pub struct TaskManager {
 impl TaskManager {
     /// Constructs a new task manager with the given total CPU, maximum CPU per
     /// task, total memory, and maximum memory per task.
-    pub fn new(
-        cpu: f64,
-        max_cpu: f64,
-        memory: u64,
-        max_memory: u64,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Self {
+    pub fn new(cpu: f64, max_cpu: f64, memory: u64, max_memory: u64) -> Self {
         Self {
             max_cpu,
             max_memory,
-            limits: Some(Limits {
-                state: Arc::new(Mutex::new(LimitsState::new(cpu, memory))),
-                events,
-                cancellation,
-            }),
+            limits: Some(Limits(Arc::new(Mutex::new(LimitsState::new(cpu, memory))))),
         }
     }
 
@@ -201,9 +195,11 @@ impl TaskManager {
     ///
     /// If there are not enough local resources available for running the task,
     /// it will be parked until the requested resources become available.
-    pub async fn run<T, O>(&self, cpu: f64, memory: u64, task: T) -> Result<Option<O>>
+    ///
+    /// Returns `Ok(None)` if the task was canceled.
+    pub async fn run<T>(&self, cpu: f64, memory: u64, task: T) -> Result<Option<T::Output>>
     where
-        T: Future<Output = Result<Option<O>>>,
+        T: ManagedTask,
     {
         // Ensure the task does not exceed the maximum CPU
         if cpu > self.max_cpu {
@@ -226,10 +222,11 @@ impl TaskManager {
         match &self.limits {
             Some(limits) => {
                 let mut parked = {
-                    let mut state = limits.state.lock().expect("failed to lock state");
+                    let mut state = limits.0.lock().expect("failed to lock state");
 
-                    // If the task can't run due to unavailable resources, park the task until
-                    // resources are available
+                    // If the task can't run due to unavailable resources, park
+                    // the task until resources are
+                    // available
                     if cpu > state.cpu.into() || memory > state.memory {
                         debug!(
                             "parking task due to insufficient resources: task requests {cpu} \
@@ -254,7 +251,8 @@ impl TaskManager {
 
                         Some((notify_rx, id))
                     } else {
-                        // Decrement the resource counts now and continue on to run the task
+                        // Decrement the resource counts now and continue on to
+                        // run the task
                         state.cpu -= cpu;
                         state.memory -= memory;
 
@@ -271,12 +269,12 @@ impl TaskManager {
                 // Run the task, waiting for it to be unparked if necessary
                 let res = match &mut parked {
                     Some((notify, _)) => {
-                        if let Some(sender) = limits.events.engine() {
+                        if let Some(sender) = task.request().events.engine() {
                             let _ = sender.send(EngineEvent::TaskParked);
                         }
 
                         // Wait for cancellation or notice of being unparked
-                        let token = limits.cancellation.first();
+                        let token = task.request().cancellation.first();
                         let canceled = tokio::select! {
                             biased;
                             _ = token.cancelled() => true,
@@ -286,43 +284,40 @@ impl TaskManager {
                             }
                         };
 
-                        if let Some(sender) = limits.events.engine() {
+                        if let Some(sender) = task.request().events.engine() {
                             let _ = sender.send(EngineEvent::TaskUnparked { canceled });
                         }
 
-                        if canceled { Ok(None) } else { task.await }
+                        if canceled { Ok(None) } else { task.run().await }
                     }
-                    None => task.await,
+                    None => task.run().await,
                 };
 
-                let mut state = limits.state.lock().expect("failed to lock state");
+                let mut state = limits.0.lock().expect("failed to lock state");
                 match parked {
-                    Some((_, id)) if state.parked.iter().any(|t| t.id == id) => {
-                        // Task is still parked, it must have been canceled; don't increment the
-                        // resource counts
+                    Some((_, id))
+                        if let Some(index) = state.parked.iter().position(|t| t.id == id) =>
+                    {
+                        // Task is still parked; remove it from set and do not
+                        // increment the resource counts
                         assert!(matches!(res, Ok(None)), "task should be canceled");
+                        state.parked.swap_remove_back(index);
                     }
                     _ => {
-                        // Task was either not parked or previously unparked, increment the resource
-                        // counts
+                        // Task was either not parked or previously unparked,
+                        // increment the resource counts
                         state.cpu += cpu;
                         state.memory += memory;
                     }
                 }
 
-                // If a cancellation has occurred, clear the parked tasks; otherwise, unpark
-                // what tasks we can
-                if limits.cancellation.state() != CancellationContextState::NotCanceled {
-                    state.parked.clear();
-                } else {
-                    state.unpark_tasks();
-                }
-
+                // Unpark what tasks we can
+                state.unpark_tasks();
                 res
             }
             None => {
                 // Task manager is unlimited, just await the task
-                task.await
+                task.run().await
             }
         }
     }
@@ -387,7 +382,8 @@ where
     {
         assert!(low < high);
 
-        // Swap a random element (the pivot) in the remaining range with the high
+        // Swap a random element (the pivot) in the remaining range with the
+        // high
         slice.swap(high, rand::random_range(low..high));
 
         let pivot_weight = weight_fn(&slice[high]);
@@ -443,8 +439,8 @@ where
                 // Recurse on the right side
                 recurse_fit_maximal_range(slice, remaining_weight, weight_fn, pivot + 1, high, end);
             } else if pivot > 0 {
-                // Otherwise, we can completely disregard the right side (including the pivot)
-                // and recurse on the left
+                // Otherwise, we can completely disregard the right side
+                // (including the pivot) and recurse on the left
                 recurse_fit_maximal_range(slice, remaining_weight, weight_fn, low, pivot - 1, end);
             }
         }

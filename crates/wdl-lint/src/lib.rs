@@ -170,8 +170,8 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::InlineInstall>::default(),
     ];
 
-    // Ensure all the rule IDs are unique and pascal case and that related rules are
-    // valid, exist and not self-referential.
+    // Ensure all the rule IDs are unique and pascal case and that related rules
+    // are valid, exist and not self-referential.
     #[cfg(debug_assertions)]
     {
         use std::collections::HashSet;

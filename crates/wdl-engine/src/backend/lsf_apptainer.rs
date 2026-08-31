@@ -31,6 +31,7 @@ use anyhow::bail;
 use bytesize::ByteSize;
 use cloud_copy::Alphanumeric;
 use crankshaft::events::Event as CrankshaftEvent;
+use crankshaft::events::TaskId;
 use crankshaft::events::send_event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
@@ -50,7 +51,6 @@ use tracing::trace;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
-use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -64,7 +64,6 @@ use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::http::Transferer;
 use crate::v1::requirements;
 
 /// The name of the file where the Apptainer command invocation will be written.
@@ -219,9 +218,11 @@ struct Job {
     /// The current tick count of the job.
     tick: u64,
     /// The Crankshaft identifier for the job.
-    crankshaft_id: u64,
+    crankshaft_id: TaskId,
     /// The last known state of the job.
     state: JobState,
+    /// The events associated with the job.
+    events: Events,
     /// The channel to notify of the completion of the job; provides the job's
     /// exit code.
     completed: oneshot::Sender<Result<u8>>,
@@ -266,7 +267,13 @@ impl MonitorState {
     }
 
     /// Adds a new job to the monitor state.
-    fn add_job(&mut self, job_id: u64, crankshaft_id: u64, completed: oneshot::Sender<Result<u8>>) {
+    fn add_job(
+        &mut self,
+        job_id: u64,
+        crankshaft_id: u64,
+        events: &Events,
+        completed: oneshot::Sender<Result<u8>>,
+    ) {
         let tick = self.tick;
         let prev = self.jobs.insert(
             job_id,
@@ -274,6 +281,7 @@ impl MonitorState {
                 tick,
                 crankshaft_id,
                 state: JobState::Pending,
+                events: events.clone(),
                 completed,
             },
         );
@@ -288,7 +296,7 @@ impl MonitorState {
     /// Update the jobs based on the current job records.
     ///
     /// This is also responsible for sending "task started" events.
-    fn update_jobs(&mut self, records: Vec<JobRecord>, events: &Events) {
+    fn update_jobs(&mut self, records: Vec<JobRecord>) {
         let tick = self.tick;
 
         for record in records {
@@ -308,10 +316,11 @@ impl MonitorState {
             match record.state.parse::<JobState>() {
                 Ok(job_state) => {
                     if job.state != job_state {
-                        // If the job state is now running, send the started event
+                        // If the job state is now running, send the started
+                        // event
                         if job_state == JobState::Running {
                             send_event!(
-                                events.crankshaft(),
+                                job.events.crankshaft(),
                                 CrankshaftEvent::TaskStarted {
                                     id: job.crankshaft_id
                                 },
@@ -319,11 +328,12 @@ impl MonitorState {
                         }
 
                         if job_state.terminated() {
-                            // If the job was not already in a running state, send the
+                            // If the job was not already in a running state,
+                            // send the
                             // started event now
                             if job.state != JobState::Running {
                                 send_event!(
-                                    events.crankshaft(),
+                                    job.events.crankshaft(),
                                     CrankshaftEvent::TaskStarted {
                                         id: job.crankshaft_id
                                     },
@@ -383,10 +393,6 @@ impl MonitorState {
 struct SubmittedJob {
     /// The identifier for the LSF job.
     id: u64,
-    /// The task name for Crankshaft events.
-    ///
-    /// Note: this name differs from the job name used in `bsub`.
-    task_name: String,
     /// The receiver for when the job completes.
     completed: oneshot::Receiver<Result<u8>>,
 }
@@ -403,16 +409,10 @@ struct Monitor {
 
 impl Monitor {
     /// Constructs a new LSF monitor using the given update interval.
-    fn new(interval: Duration, job_name_prefix: Option<String>, events: Events) -> Self {
+    fn new(interval: Duration, job_name_prefix: Option<String>) -> Self {
         let (tx, rx) = oneshot::channel();
         let state = Arc::new(Mutex::new(MonitorState::new()));
-        tokio::spawn(Self::monitor(
-            state.clone(),
-            interval,
-            job_name_prefix,
-            events,
-            rx,
-        ));
+        tokio::spawn(Self::monitor(state.clone(), interval, job_name_prefix, rx));
 
         Self {
             state,
@@ -427,9 +427,8 @@ impl Monitor {
         &self,
         config: &LsfApptainerBackendConfig,
         request: &ExecuteTaskRequest<'_>,
-        crankshaft_id: u64,
+        crankshaft_id: TaskId,
         command_path: &Path,
-        transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
         let task_name = request.name.to_string();
         let tag = self
@@ -457,14 +456,14 @@ impl Monitor {
         // Evaluate the conditional args
         // First one that evaluates to `true` wins
         for conditional in &config.bsub.conditional {
-            if conditional.condition.evaluate(request, transferer).await? {
+            if conditional.condition.evaluate(request).await? {
                 command.args(&conditional.args);
                 break;
             }
         }
 
-        // Format a name for the LSF job; job names do not have to be unique, but we
-        // should not truncate the prefix or tag
+        // Format a name for the LSF job; job names do not have to be unique,
+        // but we should not truncate the prefix or tag
         let job_name = format!(
             "{prefix}{sep}{tag}-{task_name}",
             prefix = config.job_name_prefix.as_deref().unwrap_or(""),
@@ -534,7 +533,8 @@ impl Monitor {
         let stdout =
             str::from_utf8(&output.stdout).map_err(|_| anyhow!("`bsub` output was not UTF-8"))?;
 
-        // Parse out the job id from the output, which is surrounded by `<` and `>`
+        // Parse out the job id from the output, which is surrounded by `<` and
+        // `>`
         let job_id: u64 = stdout
             .split(' ')
             .nth(1)
@@ -552,12 +552,11 @@ impl Monitor {
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");
-        state.add_job(job_id, crankshaft_id, tx);
+        state.add_job(job_id, crankshaft_id, request.events, tx);
         drop(state);
 
         Ok(SubmittedJob {
             id: job_id,
-            task_name,
             completed: rx,
         })
     }
@@ -567,7 +566,6 @@ impl Monitor {
         state: Arc<Mutex<MonitorState>>,
         interval: Duration,
         job_name_prefix: Option<String>,
-        events: Events,
         mut drop: oneshot::Receiver<()>,
     ) {
         debug!(
@@ -611,7 +609,6 @@ impl Monitor {
                     // Read the records using `bjobs` and then update the state
                     Self::handle_query_result(
                         state.as_ref(),
-                        &events,
                         Self::read_job_records(&search_prefix).await,
                     );
                 }
@@ -622,16 +619,12 @@ impl Monitor {
     }
 
     /// Handles the result of querying job status with bjobs.
-    fn handle_query_result(
-        state: &Mutex<MonitorState>,
-        events: &Events,
-        result: Result<Vec<JobRecord>>,
-    ) {
+    fn handle_query_result(state: &Mutex<MonitorState>, result: Result<Vec<JobRecord>>) {
         match result {
             Ok(records) => state
                 .lock()
                 .expect("failed to lock state")
-                .update_jobs(records, events),
+                .update_jobs(records),
             Err(error) => {
                 error!("failed to query job status using `bjobs`: {error:#}");
             }
@@ -695,10 +688,6 @@ impl Monitor {
 pub struct LsfApptainerBackend {
     /// The shared engine configuration.
     config: Arc<Config>,
-    /// The engine events.
-    events: Events,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
     /// The Apptainer runtime.
     apptainer: ApptainerRuntime,
     /// The LSF task monitor.
@@ -714,12 +703,7 @@ impl LsfApptainerBackend {
     /// duration of the entire top-level evaluation. It is used to store
     /// Apptainer images which should only be created once per container per
     /// run.
-    pub fn new(
-        config: Arc<Config>,
-        run_root_dir: &Path,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Result<Self> {
+    pub async fn new(config: Arc<Config>) -> Result<Self> {
         // Ensure the configured backend is LSF Apptainer
         let backend_config = config.backend()?;
 
@@ -730,7 +714,6 @@ impl LsfApptainerBackend {
         let monitor = Monitor::new(
             Duration::from_secs(backend_config.interval.unwrap_or(DEFAULT_MONITOR_INTERVAL)),
             backend_config.job_name_prefix.clone(),
-            events.clone(),
         );
 
         let permits = Semaphore::new(
@@ -739,15 +722,10 @@ impl LsfApptainerBackend {
                 .unwrap_or(DEFAULT_MAX_CONCURRENCY) as usize,
         );
 
-        let apptainer = ApptainerRuntime::new(
-            run_root_dir,
-            backend_config.apptainer.image_cache_dir.as_deref(),
-        )?;
+        let apptainer = ApptainerRuntime::new(backend_config.apptainer.image_cache_dir()?).await?;
 
         Ok(Self {
             config,
-            events,
-            cancellation,
             apptainer,
             monitor,
             permits,
@@ -805,8 +783,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             .as_lsf_apptainer()
             .expect("configured backend is not LSF Apptainer");
 
-        // Determine whether CPU or memory limits are set for this queue, and clamp or
-        // deny them as appropriate if the limits are exceeded
+        // Determine whether CPU or memory limits are set for this queue, and
+        // clamp or deny them as appropriate if the limits are exceeded
         if let Some(queue) = backend_config.lsf_queue_for_task(requirements, hints) {
             if let Some(max_cpu) = queue.max_cpu_per_task
                 && required_cpu > max_cpu as f64
@@ -864,10 +842,10 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let containers = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(inputs, requirements, &self.config.task.container);
 
         Ok(TaskExecutionConstraints {
-            container: Some(containers),
+            sources,
             cpu: required_cpu,
             memory: required_memory.as_u64(),
             // TODO ACF 2025-10-16: these are almost certainly wrong
@@ -879,8 +857,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
     fn execute<'a>(
         &'a self,
-        transferer: &'a Arc<dyn Transferer>,
-        request: ExecuteTaskRequest<'a>,
+        request: &'a ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
@@ -888,96 +865,14 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .as_lsf_apptainer()
                 .expect("configured backend is not LSF Apptainer");
 
-            // Create the host directory that will be mapped to the working directory.
-            let work_dir = request.work_dir();
-            fs::create_dir_all(&work_dir).await.with_context(|| {
-                format!(
-                    "failed to create working directory `{path}`",
-                    path = work_dir.display()
-                )
-            })?;
-
-            // Create an empty file for the task's stdout.
-            let stdout_path = request.stdout_path();
-            let _ = File::create(&stdout_path).await.with_context(|| {
-                format!(
-                    "failed to create stdout file `{path}`",
-                    path = stdout_path.display()
-                )
-            })?;
-
-            // Create an empty file for the task's stderr
-            let stderr_path = request.stderr_path();
-            let _ = File::create(&stderr_path).await.with_context(|| {
-                format!(
-                    "failed to create stderr file `{path}`",
-                    path = stderr_path.display()
-                )
-            })?;
-
-            // Write the evaluated command section to a host file.
-            let command_path = request.command_path();
-            fs::write(&command_path, request.command)
-                .await
-                .with_context(|| {
-                    format!(
-                        "failed to write command contents to `{path}`",
-                        path = command_path.display()
-                    )
-                })?;
-
-            let Some((apptainer_script, container)) = self
-                .apptainer
-                .generate_script(
-                    &backend_config.apptainer,
-                    &self.config.task.shell,
-                    &request,
-                    self.cancellation.first(),
-                )
-                .await?
-            else {
-                return Ok(None);
-            };
-
-            let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
-            fs::write(&apptainer_command_path, apptainer_script)
-                .await
-                .with_context(|| {
-                    format!(
-                        "failed to write Apptainer command file `{}`",
-                        apptainer_command_path.display()
-                    )
-                })?;
-
-            // Ensure the command files are executable
-            #[cfg(unix)]
-            {
-                use std::fs::Permissions;
-                use std::os::unix::fs::PermissionsExt;
-
-                fs::set_permissions(&command_path, Permissions::from_mode(0o770)).await?;
-                fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o770)).await?;
-            }
-
             let crankshaft_id = crankshaft::events::next_task_id();
-
-            let permit = self
-                .permits
-                .acquire()
-                .await
-                .context("failed to acquire permit for submitting job")?;
-
-            let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
-            drop(permit);
-
-            let name = job.task_name;
-            let job_id = job.id;
+            let name = request.name.to_string();
 
             // Create a task-specific cancellation token that is independent of the overall
             // cancellation context
             let task_token = CancellationToken::new();
             send_event!(
-                self.events.crankshaft(),
+                request.events.crankshaft(),
                 CrankshaftEvent::TaskCreated {
                     id: crankshaft_id,
                     name: name.clone(),
@@ -986,90 +881,185 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 },
             );
 
-            let cancelled = async {
+            let run = async {
+                // Create the host directory that will be mapped to the working directory.
+                let work_dir = request.work_dir();
+                fs::create_dir_all(&work_dir).await.with_context(|| {
+                    format!(
+                        "failed to create working directory `{path}`",
+                        path = work_dir.display()
+                    )
+                })?;
+
+                // Create an empty file for the task's stdout.
+                let stdout_path = request.stdout_path();
+                let _ = File::create(&stdout_path).await.with_context(|| {
+                    format!(
+                        "failed to create stdout file `{path}`",
+                        path = stdout_path.display()
+                    )
+                })?;
+
+                // Create an empty file for the task's stderr
+                let stderr_path = request.stderr_path();
+                let _ = File::create(&stderr_path).await.with_context(|| {
+                    format!(
+                        "failed to create stderr file `{path}`",
+                        path = stderr_path.display()
+                    )
+                })?;
+
+                // Write the evaluated command section to a host file.
+                let command_path = request.command_path();
+                fs::write(&command_path, request.command)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to write command contents to `{path}`",
+                            path = command_path.display()
+                        )
+                    })?;
+
+                let Some((apptainer_script, image)) = self
+                    .apptainer
+                    .generate_script(
+                        &backend_config.apptainer,
+                        &self.config.task.shell,
+                        request,
+                        crankshaft_id,
+                    )
+                    .await?
+                else {
+                    send_event!(
+                        request.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled {
+                            id: crankshaft_id,
+                        },
+                    );
+
+                    return Ok(None);
+                };
+
+                let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
+                fs::write(&apptainer_command_path, apptainer_script)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to write Apptainer command file `{}`",
+                            apptainer_command_path.display()
+                        )
+                    })?;
+
+                // Ensure the command files are executable
+                #[cfg(unix)]
+                {
+                    use std::fs::Permissions;
+                    use std::os::unix::fs::PermissionsExt;
+
+                    fs::set_permissions(&command_path, Permissions::from_mode(0o770)).await?;
+                    fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o770)).await?;
+                }
+
+                let permit = self
+                    .permits
+                    .acquire()
+                    .await
+                    .context("failed to acquire permit for submitting job")?;
+
+                let job = self.monitor.submit_job(backend_config, request, crankshaft_id, &apptainer_command_path).await?;
+                drop(permit);
+
+                let job_id = job.id;
+
+                let cancelled = async {
+                    send_event!(
+                        request.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled { id: crankshaft_id },
+                    );
+
+                    self.kill_job(job_id).await
+                };
+
+                let token = request.cancellation.second();
+                let exit_code = tokio::select! {
+                    _ = task_token.cancelled() => {
+                        if let Err(e) = cancelled.await {
+                            error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
+                        }
+
+                        return Ok(None);
+                    }
+                    _ = token.cancelled() => {
+                        if let Err(e) = cancelled.await {
+                            error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
+                        }
+
+                        return Ok(None);
+                    }
+                    result = job.completed => match result.context("failed to wait for task to complete")? {
+                        Ok(exit_code) => {
+                            // See WEXITSTATUS from wait(2) to explain the shift and masking here
+                            #[cfg(unix)]
+                            let status = if exit_code >= 128 {
+                                // Treat it as a signal
+                                ExitStatus::from_raw((exit_code as i32 - 128) & 0x7f)
+                            } else {
+                                ExitStatus::from_raw((exit_code as i32) << 8)
+                            };
+
+                            #[cfg(windows)]
+                            let status = ExitStatus::from_raw(exit_code as u32);
+
+                            send_event!(
+                                request.events.crankshaft(),
+                                CrankshaftEvent::TaskCompleted {
+                                    id: crankshaft_id,
+                                    exit_statuses: NonEmpty::new(status),
+                                }
+                            );
+
+                            exit_code
+                        },
+                        Err(e) => {
+                            return Err(e);
+                        }
+                    }
+                };
+
+                Ok(Some(TaskExecutionResult {
+                    image: Some(image),
+                    exit_code: exit_code as i32,
+                    work_dir: EvaluationPath::from_local_path(work_dir),
+                    stdout: PrimitiveValue::new_file(
+                        stdout_path
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                        .into(),
+                    stderr: PrimitiveValue::new_file(
+                        stderr_path
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                        .into(),
+                }))
+            };
+
+            let result = run.await;
+            if let Err(e) = &result {
                 send_event!(
-                    self.events.crankshaft(),
-                    CrankshaftEvent::TaskCanceled { id: crankshaft_id },
-                );
-
-                self.kill_job(job_id).await
-            };
-
-            let token = self.cancellation.second();
-            let exit_code = tokio::select! {
-                _ = task_token.cancelled() => {
-                    if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
-                    }
-
-                    return Ok(None);
-                }
-                _ = token.cancelled() => {
-                    if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
-                    }
-
-                    return Ok(None);
-                }
-                result = job.completed => match result.context("failed to wait for task to complete")? {
-                    Ok(exit_code) => {
-                        // See WEXITSTATUS from wait(2) to explain the shift and masking here
-                        #[cfg(unix)]
-                        let status = if exit_code >= 128 {
-                            // Treat it as a signal
-                            ExitStatus::from_raw((exit_code as i32 - 128) & 0x7f)
-                        } else {
-                            ExitStatus::from_raw((exit_code as i32) << 8)
-                        };
-
-                        #[cfg(windows)]
-                        let status = ExitStatus::from_raw(exit_code as u32);
-
-                        send_event!(
-                            self.events.crankshaft(),
-                            CrankshaftEvent::TaskCompleted {
-                                id: crankshaft_id,
-                                exit_statuses: NonEmpty::new(status),
-                            }
-                        );
-
-                        exit_code
+                    request.events.crankshaft(),
+                    CrankshaftEvent::TaskFailed {
+                        id: crankshaft_id,
+                        message: e.to_string(),
                     },
-                    Err(e) => {
-                        send_event!(
-                            self.events.crankshaft(),
-                            CrankshaftEvent::TaskFailed {
-                                id: crankshaft_id,
-                                message: format!("{e:#}"),
-                            },
-                        );
+                );
+            }
 
-                        return Err(e);
-                    }
-                }
-            };
-
-            Ok(Some(TaskExecutionResult {
-                container: Some(container),
-                exit_code: exit_code as i32,
-                work_dir: EvaluationPath::from_local_path(work_dir),
-                stdout: PrimitiveValue::new_file(
-                    stdout_path
-                        .into_os_string()
-                        .into_string()
-                        .expect("path should be UTF-8"),
-                )
-                .into(),
-                stderr: PrimitiveValue::new_file(
-                    stderr_path
-                        .into_os_string()
-                        .into_string()
-                        .expect("path should be UTF-8"),
-                )
-                .into(),
-            }))
-        }
-        .boxed()
+            result
+        }.boxed()
     }
 }
 
@@ -1085,12 +1075,11 @@ mod tests {
     fn monitor_continues_after_bjobs_error() {
         let mut state = MonitorState::new();
         let (completed_tx, mut completed_rx) = oneshot::channel();
-        state.add_job(42, 0, completed_tx);
+        state.add_job(42, 0, &Events::disabled(), completed_tx);
         let state = Mutex::new(state);
 
         Monitor::handle_query_result(
             &state,
-            &Events::disabled(),
             Err(anyhow!("Permission denied (os error 13)")
                 .context("failed to spawn `bjobs` command")),
         );
@@ -1110,7 +1099,6 @@ mod tests {
 
         Monitor::handle_query_result(
             &state,
-            &Events::disabled(),
             Ok(vec![JobRecord {
                 job_id: "42".to_string(),
                 state: "DONE".to_string(),

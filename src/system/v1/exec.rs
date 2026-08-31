@@ -30,7 +30,7 @@ use wdl::analysis::FeatureFlags;
 use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
-use wdl::engine::Config as WdlConfig;
+use wdl::engine::Engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
@@ -38,7 +38,6 @@ use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
-use wdl::engine::v1::Evaluator;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -359,14 +358,14 @@ pub struct RunContext {
 pub struct RunnableExecutor {
     /// Database handle for persisting run state.
     db: Arc<dyn Database>,
+    /// The WDL evaluation engine for the run.
+    engine: Engine,
     /// Output directory manager.
     output_dir: OutputDirectory,
-    /// WDL engine configuration.
-    engine_config: WdlConfig,
+    /// The events for this run.
+    events: Events,
     /// Cancellation context for this run.
     cancellation: CancellationContext,
-    /// Events broadcaster for progress reporting.
-    events: Events,
     /// Shared mapping of active runs for cleanup on completion.
     runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
     /// Unique identifier for this run.
@@ -598,9 +597,9 @@ impl RunnableExecutor {
             self.db.clone(),
             &ctx,
             result.document().clone(),
-            self.engine_config,
-            self.cancellation,
+            self.engine,
             self.events,
+            self.cancellation,
             &resolved_target,
             inputs,
             &run_dir,
@@ -617,9 +616,10 @@ impl RunnableExecutor {
             );
         }
 
-        // Evaluation is over, so no further events can be emitted. Let the monitor
-        // consume what is left and reconcile any task that never reached a
-        // terminal status before the run is considered finished.
+        // Evaluation is over, so no further events can be emitted. Let the
+        // monitor consume what is left and reconcile any task that
+        // never reached a terminal status before the run is considered
+        // finished.
         monitor_shutdown.cancel();
         if let Err(e) = task_monitor.await {
             tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
@@ -783,9 +783,9 @@ async fn execute_workflow_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
-    config: Arc<WdlConfig>,
-    cancellation: CancellationContext,
+    engine: Engine,
     events: Events,
+    cancellation: CancellationContext,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
@@ -823,9 +823,7 @@ async fn execute_workflow_target(
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
-        .await
-        .context("failed to create workflow evaluator")?;
+    let evaluator = engine.create_v1_evaluator(events, cancellation);
 
     match evaluator
         .evaluate_workflow(document, inputs, run_dir.root())
@@ -851,9 +849,9 @@ async fn execute_task_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
-    config: Arc<WdlConfig>,
-    cancellation: CancellationContext,
+    engine: Engine,
     events: Events,
+    cancellation: CancellationContext,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
@@ -883,10 +881,7 @@ async fn execute_task_target(
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
-        .await
-        .context("failed to create task evaluator")?;
-
+    let evaluator = engine.create_v1_evaluator(events, cancellation);
     let evaluated_task = match evaluator
         .evaluate_task(document, task, inputs, run_dir.root())
         .await
@@ -928,21 +923,19 @@ pub async fn execute_target(
     db: Arc<dyn Database>,
     ctx: &RunContext,
     document: AnalysisDocument,
-    config: WdlConfig,
-    cancellation: CancellationContext,
+    engine: Engine,
     events: Events,
+    cancellation: CancellationContext,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
     index_on: Option<&IndexPath>,
 ) -> Result<(), EvaluationError> {
-    let config = Arc::new(config);
-    let cancellation_status = cancellation.clone();
     db.start_run(ctx.run_id, ctx.started_at)
         .await
         .map_err(anyhow::Error::from)?;
-
+    let cancellation_status = cancellation.clone();
     let result: Result<Option<Outputs>, EvaluationError> = async {
         match target {
             Target::Task(_) => {
@@ -950,9 +943,9 @@ pub async fn execute_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config,
-                    cancellation,
+                    engine,
                     events,
+                    cancellation.clone(),
                     target,
                     inputs,
                     run_dir,
@@ -965,9 +958,9 @@ pub async fn execute_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config,
-                    cancellation,
+                    engine,
                     events,
+                    cancellation,
                     inputs,
                     run_dir,
                     base_dir,
@@ -990,10 +983,11 @@ pub async fn execute_target(
             Ok(())
         }
         Err(e) => {
-            // Cancelling a run aborts whatever it is doing, and work that is not a
-            // task execution reports that abort as an ordinary evaluation error.
-            // Localizing a large input is the common case: the transfer is torn
-            // down by the cancellation token and fails. The run was canceled, not
+            // Cancelling a run aborts whatever it is doing, and work that is
+            // not a task execution reports that abort as an
+            // ordinary evaluation error. Localizing a large input
+            // is the common case: the transfer is torn down by the
+            // cancellation token and fails. The run was canceled, not
             // failed, and only the user's own cancellation counts here — a
             // cancellation triggered by an error must still be recorded as a
             // failure.

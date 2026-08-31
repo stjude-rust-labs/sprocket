@@ -136,9 +136,10 @@ pub fn completion(
             return Ok(items);
         }
 
-        // NOTE: Custom handling for version completion. If the token to the immediate
-        // left of the cursor (ignoring whitespace) is the `version` keyword, we are
-        // very likely completing the version number.
+        // NOTE: Custom handling for version completion. If the token to the
+        // immediate left of the cursor (ignoring whitespace) is the
+        // `version` keyword, we are very likely completing the version
+        // number.
         let mut non_trivia = token.clone();
         if non_trivia.kind().is_trivia()
             && let Some(prev) = non_trivia.prev_token()
@@ -500,16 +501,17 @@ fn add_member_access_completions(
                 ..Default::default()
             });
         }
-        (SyntaxKind::Dot, Type::TypeNameRef(CustomType::Enum(e))) => {
-            if let Some(version) = document.version()
+        (SyntaxKind::Dot, Type::TypeNameRef(ty)) => {
+            if let Some(ty) = ty.as_enum()
+                && let Some(version) = document.version()
                 && version >= SupportedVersion::V1(V1::Three)
             {
-                let enum_type = e.inner_value_type();
-                for choice_name in e.choices() {
+                let enum_type = ty.inner_value_type();
+                for choice_name in ty.choices() {
                     items.push(CompletionItem {
                         label: choice_name.to_string(),
                         kind: Some(CompletionItemKind::ENUM_MEMBER),
-                        detail: Some(format!("{}[{}]", e.name(), enum_type)),
+                        detail: Some(format!("{}[{}]", ty.name(), enum_type)),
                         ..Default::default()
                     });
                 }

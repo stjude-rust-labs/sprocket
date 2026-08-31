@@ -57,6 +57,7 @@ pub fn format_import_members(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -93,6 +94,7 @@ pub fn format_import_members(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("import members close brace")).write(stream, config);
 }
 
@@ -128,9 +130,10 @@ pub fn format_symbolic_module_path(
                 (&child).write(stream, config);
             }
             SyntaxKind::Slash => {
-                // `SyntaxKind::Slash` is a "linebreakable" token, but we don't want module
-                // paths to get line broken; so we push this token as a
-                // `LiteralStringText` to prevent that.
+                // `SyntaxKind::Slash` is a "linebreakable" token, but we don't
+                // want module paths to get line broken; so we
+                // push this token as a `LiteralStringText` to
+                // prevent that.
                 stream.push_ast_token_as(
                     child.element().as_token().expect("slash should be token"),
                     SyntaxKind::LiteralStringText,
