@@ -269,12 +269,12 @@ impl TaskManager {
                 // Run the task, waiting for it to be unparked if necessary
                 let res = match &mut parked {
                     Some((notify, _)) => {
-                        if let Some(sender) = task.request().events.engine() {
+                        if let Some(sender) = task.request().context.events().engine() {
                             let _ = sender.send(EngineEvent::TaskParked);
                         }
 
                         // Wait for cancellation or notice of being unparked
-                        let token = task.request().cancellation.first();
+                        let token = task.request().context.cancellation().first();
                         let canceled = tokio::select! {
                             biased;
                             _ = token.cancelled() => true,
@@ -284,7 +284,7 @@ impl TaskManager {
                             }
                         };
 
-                        if let Some(sender) = task.request().events.engine() {
+                        if let Some(sender) = task.request().context.events().engine() {
                             let _ = sender.send(EngineEvent::TaskUnparked { canceled });
                         }
 
@@ -469,7 +469,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

@@ -1,4 +1,10 @@
-//! Implementation of the call and digest caches.
+//! Implementation of the call cache.
+//!
+//! The call cache provides caching of WDL task invocations (i.e. a "call" from
+//! a workflow).
+//!
+//! For the generic LRU cache implementation used in various places, see
+//! [`Cache`](crate::Cache).
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -29,7 +35,7 @@ use crate::backend::Input;
 use crate::backend::TaskExecutionResult;
 use crate::cache::hash::hash_sequence;
 use crate::config::ContentDigestMode;
-use crate::http::Transferer;
+use crate::digest::DigestCalculator;
 use crate::lock::LockedFile;
 use crate::v1::requirements::ImageSource;
 
@@ -192,12 +198,12 @@ impl Content {
     ///
     /// The content digest of the path will be calculated.
     async fn from_evaluation_path(
-        transferer: &dyn Transferer,
         path: EvaluationPath,
         kind: ContentKind,
         mode: ContentDigestMode,
+        digests: &DigestCalculator,
     ) -> Result<Self> {
-        let digest = path.calculate_digest(transferer, kind, mode).await?;
+        let digest = digests.calculate_digest(&path, kind, mode).await?;
         Ok(Self {
             location: path.try_into()?,
             digest: digest.to_hex(),
@@ -211,12 +217,12 @@ impl Content {
     /// digest.
     async fn to_evaluation_path(
         &self,
-        transferer: &dyn Transferer,
         kind: ContentKind,
         mode: ContentDigestMode,
+        digests: &DigestCalculator,
     ) -> Result<EvaluationPath> {
         let path: EvaluationPath = self.location.parse()?;
-        let digest = path.calculate_digest(transferer, kind, mode).await?;
+        let digest = digests.calculate_digest(&path, kind, mode).await?;
         if digest.to_hex() != self.digest {
             bail!(
                 "cached content `{location}` was modified",
@@ -457,8 +463,7 @@ pub struct KeyRequest<'a> {
 pub struct CallCache(Arc<State>);
 
 impl CallCache {
-    /// Creates a new call cache for the given cache directory and file
-    /// transferer to use.
+    /// Creates a new call cache for the given cache directory.
     pub async fn new(
         cache_dir: impl Into<PathBuf>,
         mode: ContentDigestMode,
@@ -492,7 +497,7 @@ impl CallCache {
     ///
     /// This will calculate digests for the command, requirements, hints, and
     /// inputs.
-    pub async fn key(&self, transferer: &dyn Transferer, request: &KeyRequest<'_>) -> Result<Key> {
+    pub async fn key(&self, request: &KeyRequest<'_>, digests: &DigestCalculator) -> Result<Key> {
         // Calculate the requirement digests
         let requirement_digests = request
             .requirements
@@ -518,12 +523,12 @@ impl CallCache {
         // Calculate the digests of the backend inputs
         let mut inputs = Vec::with_capacity(request.backend_inputs.len());
         for input in request.backend_inputs.iter().filter(|i| i.cacheable()) {
-            let digest = input
-                .path()
-                .calculate_digest(transferer, input.kind(), self.0.mode)
-                .await?;
-
-            inputs.push(digest.to_hex());
+            inputs.push(
+                digests
+                    .calculate_digest(input.path(), input.kind(), self.0.mode)
+                    .await?
+                    .to_hex(),
+            );
         }
 
         // Calculate the command digest
@@ -573,8 +578,8 @@ impl CallCache {
     /// longer valid.
     pub async fn get(
         &self,
-        transferer: &dyn Transferer,
         key: &Key,
+        digests: &DigestCalculator,
     ) -> Result<Option<TaskExecutionResult>> {
         // Take a shared lock on the entry file
         let path = self.0.entry_path(key);
@@ -592,15 +597,15 @@ impl CallCache {
 
         let stdout = entry
             .stdout
-            .to_evaluation_path(transferer, ContentKind::File, self.0.mode)
+            .to_evaluation_path(ContentKind::File, self.0.mode, digests)
             .await?;
         let stderr = entry
             .stderr
-            .to_evaluation_path(transferer, ContentKind::File, self.0.mode)
+            .to_evaluation_path(ContentKind::File, self.0.mode, digests)
             .await?;
         let work = entry
             .work
-            .to_evaluation_path(transferer, ContentKind::Directory, self.0.mode)
+            .to_evaluation_path(ContentKind::Directory, self.0.mode, digests)
             .await?;
 
         Ok(Some(TaskExecutionResult {
@@ -618,9 +623,9 @@ impl CallCache {
     /// [`ArrayString`].
     pub async fn put(
         &self,
-        transferer: &dyn Transferer,
         key: Key,
         result: &TaskExecutionResult,
+        digests: &DigestCalculator,
     ) -> Result<ArrayString<64>> {
         let path = self.0.entry_path(&key);
         let file = LockedFile::acquire_exclusive(&path).await?;
@@ -645,7 +650,6 @@ impl CallCache {
             inputs: key.inputs,
             exit: result.exit_code,
             stdout: Content::from_evaluation_path(
-                transferer,
                 result
                     .stdout
                     .as_file()
@@ -654,10 +658,10 @@ impl CallCache {
                     .parse()?,
                 ContentKind::File,
                 self.0.mode,
+                digests,
             )
             .await?,
             stderr: Content::from_evaluation_path(
-                transferer,
                 result
                     .stderr
                     .as_file()
@@ -666,13 +670,14 @@ impl CallCache {
                     .parse()?,
                 ContentKind::File,
                 self.0.mode,
+                digests,
             )
             .await?,
             work: Content::from_evaluation_path(
-                transferer,
                 result.work_dir.clone(),
                 ContentKind::Directory,
                 self.0.mode,
+                digests,
             )
             .await?,
         };
@@ -702,8 +707,7 @@ mod tests {
 
     use super::*;
     use crate::GuestPath;
-    use crate::digest::test::DigestTransferer;
-    use crate::digest::test::clear_digest_cache;
+    use crate::digest::tests::digests;
 
     /// Stores a call cache for testing
     struct TestCache {
@@ -785,19 +789,19 @@ mod tests {
 
         /// Populates a dummy execution result into the cache for the given key
         /// request.
-        async fn populate(&self, transferer: &dyn Transferer, request: &KeyRequest<'_>) {
+        async fn populate(&self, request: &KeyRequest<'_>, digests: &DigestCalculator) {
             // Get a key for the cache (should not exist)
-            let key = self.inner.key(transferer, request).await.unwrap();
-            assert!(self.inner.get(transferer, &key).await.unwrap().is_none());
+            let key = self.inner.key(request, digests).await.unwrap();
+            assert!(self.inner.get(&key, digests).await.unwrap().is_none());
 
             // Cache a dummy execution result
             self.inner
-                .put(transferer, key, &self.create_execution_result().await)
+                .put(key, &self.create_execution_result().await, digests)
                 .await
                 .unwrap();
 
             // Get the entry we just put and ensure it is returned
-            self.inner.key(transferer, request).await.unwrap();
+            self.inner.key(request, digests).await.unwrap();
         }
     }
 
@@ -824,25 +828,25 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Check for modified command
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     command: "modified!",
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -881,8 +885,8 @@ mod tests {
             )],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Change the input's guest path, but keep the file name the same
         // The entry should be valid as the input's contents and file name
@@ -890,7 +894,6 @@ mod tests {
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     command: "cat /mnt/task/inputs/100/input",
                     backend_inputs: &[Input::new(
@@ -900,16 +903,16 @@ mod tests {
                     )],
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
-        cache.inner.get(&transferer, &key).await.unwrap().unwrap();
+        cache.inner.get(&key, &digests).await.unwrap().unwrap();
 
         // Change the input's file name
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     command: "cat /mnt/task/inputs/0/foo",
                     backend_inputs: &[Input::new(
@@ -919,13 +922,14 @@ mod tests {
                     )],
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -964,8 +968,8 @@ mod tests {
             )],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Change the input's file name doesn't invalidate the entry because the
         // file contents remained the same and file names are ignored
@@ -973,7 +977,6 @@ mod tests {
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     command: "cat /mnt/task/inputs/0/foo",
                     backend_inputs: &[Input::new(
@@ -983,21 +986,22 @@ mod tests {
                     )],
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
-        cache.inner.get(&transferer, &key).await.unwrap().unwrap();
+        cache.inner.get(&key, &digests).await.unwrap().unwrap();
 
         // Changing the temp file's contents invalidates the entry
         fs::write(&input_file_path, "changed!").await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
         assert_eq!(
             cache
                 .inner
                 .get(
-                    &transferer,
-                    &cache.inner.key(&transferer, &request).await.unwrap()
+                    &cache.inner.key(&request, &digests).await.unwrap(),
+                    &digests
                 )
                 .await
                 .unwrap_err()
@@ -1029,24 +1033,24 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     default_container: Some("ubuntu:cthulhu"),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1077,24 +1081,24 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     shell: "zsh",
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1128,24 +1132,24 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     requirements: &Object::default(),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1176,13 +1180,12 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     requirements: &Object::new(IndexMap::from_iter([(
                         "container".into(),
@@ -1190,13 +1193,14 @@ mod tests {
                     )])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1230,13 +1234,12 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     requirements: &Object::new(IndexMap::from_iter([(
                         "container".into(),
@@ -1244,13 +1247,14 @@ mod tests {
                     )])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1284,24 +1288,24 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     hints: &Object::default(),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1332,13 +1336,12 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     hints: &Object::new(IndexMap::from_iter([(
                         "foo".into(),
@@ -1346,13 +1349,14 @@ mod tests {
                     )])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1386,13 +1390,12 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     hints: &Object::new(IndexMap::from_iter([(
                         "foo".into(),
@@ -1400,13 +1403,14 @@ mod tests {
                     )])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1445,24 +1449,24 @@ mod tests {
             )],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     backend_inputs: &[],
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1497,13 +1501,12 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     backend_inputs: &[Input::new(
                         ContentKind::File,
@@ -1512,13 +1515,14 @@ mod tests {
                     )],
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1557,18 +1561,18 @@ mod tests {
             )],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Changing the file's contents invalidates the entry
         fs::write(&input_file_path, "changed!").await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1599,18 +1603,18 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Changing the stdout file invalidates the entry
         fs::write(&cache.stdout, "changed!").await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1644,18 +1648,18 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Deleting the stdout file invalidates the entry
         fs::remove_file(&cache.stdout).await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1689,18 +1693,18 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Changing the stderr file invalidates the entry
         fs::write(&cache.stderr, "changed!").await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1734,18 +1738,18 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Deleting the stderr file invalidates the entry
         fs::remove_file(&cache.stderr).await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1779,20 +1783,20 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Changing the work directory (by adding a file) invalidates the entry
         fs::write(&cache.work_dir.join("foo"), "added!")
             .await
             .unwrap();
-        clear_digest_cache();
+        digests.clear();
 
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1826,18 +1830,18 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Deleting the working directory invalidates the entry
         fs::remove_dir_all(&cache.work_dir).await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1882,14 +1886,13 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Modify the memory requirement; this should not affect the entry
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     requirements: &Object::new(IndexMap::from_iter([
                         (
@@ -1900,16 +1903,16 @@ mod tests {
                     ])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
-        cache.inner.get(&transferer, &key).await.unwrap().unwrap();
+        cache.inner.get(&key, &digests).await.unwrap().unwrap();
 
         // Modify the container requirement; this should affect the entry
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     requirements: &Object::new(IndexMap::from_iter([
                         (
@@ -1920,13 +1923,14 @@ mod tests {
                     ])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1965,15 +1969,14 @@ mod tests {
             backend_inputs: &[],
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Modify the `localization_optional` hint; this should not affect the
         // entry
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     hints: &Object::new(IndexMap::from_iter([
                         ("foo".into(), PrimitiveValue::new_string("bar").into()),
@@ -1981,16 +1984,16 @@ mod tests {
                     ])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
-        cache.inner.get(&transferer, &key).await.unwrap().unwrap();
+        cache.inner.get(&key, &digests).await.unwrap().unwrap();
 
         // Modify the `foo` hint; this should affect the entry
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     hints: &Object::new(IndexMap::from_iter([
                         ("foo".into(), PrimitiveValue::new_string("baz").into()),
@@ -1998,13 +2001,14 @@ mod tests {
                     ])),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&transferer, &key)
+                .get(&key, &digests)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -2058,14 +2062,13 @@ mod tests {
             backend_inputs: &backend_inputs,
         };
 
-        let transferer = DigestTransferer::default();
-        cache.populate(&transferer, &request).await;
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests).await;
 
         // Modify the `foo` input; this should not affect the entry
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     inputs: &BTreeMap::from_iter([
                         ("foo".into(), 1.into()),
@@ -2073,26 +2076,26 @@ mod tests {
                     ]),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
-        cache.inner.get(&transferer, &key).await.unwrap().unwrap();
+        cache.inner.get(&key, &digests).await.unwrap().unwrap();
 
         // Changing the file's contents should not invalidate the entry
         fs::write(&input_file_path, "changed!").await.unwrap();
-        clear_digest_cache();
+        digests.clear();
 
         // Modify the `foo` input; this should not affect the entry as the
         // backend input was excluded
-        let key = cache.inner.key(&transferer, &request).await.unwrap();
-        cache.inner.get(&transferer, &key).await.unwrap().unwrap();
+        let key = cache.inner.key(&request, &digests).await.unwrap();
+        cache.inner.get(&key, &digests).await.unwrap().unwrap();
 
         // Modify the `bar` input; the key should change and the entry should
         // not exist
         let key = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     inputs: &BTreeMap::from_iter([
                         (
@@ -2105,10 +2108,11 @@ mod tests {
                     ]),
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();
-        assert!(cache.inner.get(&transferer, &key).await.unwrap().is_none());
+        assert!(cache.inner.get(&key, &digests).await.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -2135,18 +2139,18 @@ mod tests {
         };
 
         // Compute the cache key
-        let transferer = DigestTransferer::default();
-        let original = cache.inner.key(&transferer, &request).await.unwrap();
+        let digests = digests(Default::default()).await;
+        let original = cache.inner.key(&request, &digests).await.unwrap();
 
         // Compute a key with a different backend
         let modified = cache
             .inner
             .key(
-                &transferer,
                 &KeyRequest {
                     backend: "different",
                     ..request
                 },
+                &digests,
             )
             .await
             .unwrap();

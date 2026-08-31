@@ -42,7 +42,6 @@ use wdl_analysis::diagnostics::unknown_call_io;
 use wdl_analysis::diagnostics::unknown_function;
 use wdl_analysis::diagnostics::unknown_task_io;
 use wdl_analysis::diagnostics::unsupported_function;
-use wdl_analysis::document::Enum;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::v1::infer_type_from_literal;
 use wdl_analysis::stdlib::FunctionBindError;
@@ -123,7 +122,6 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::diagnostics::unknown_enum_choice;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -1567,7 +1565,7 @@ macro_rules! match_literal_value {
 /// Panics if any of the expressions do not match their expected literal type
 /// _or_ if the provided value does not coerce to the inner enum type. Both of
 /// these issues should be caught at analysis time.
-fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
+pub(super) fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     let value = match target_ty {
         Type::Primitive(PrimitiveType::Boolean, _) => {
             match_literal_value!(expr, Boolean(b), PrimitiveType::Boolean);
@@ -1682,49 +1680,21 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     Some(value.coerce(None, target_ty).unwrap())
 }
 
-/// Resolves the value of an enum choice by looking up the choice's expression
-/// in the AST and resolving it to its literal value.
-///
-/// # Panics
-///
-/// The function panics if the choice value cannot be parsed as a literal or if
-/// the choice's value does not coerce to the enum's inner value type.
-///
-/// All of these should be caught by `wdl-analysis` checks.
-pub(crate) fn resolve_enum_choice_value(
-    r#enum: &Enum,
-    choice_name: &str,
-) -> Result<Value, Diagnostic> {
-    // SAFETY: we can assume that any type associated with an [`Enum`] entry is
-    // an [`EnumType`] at this point in analysis.
-    let enum_ty = r#enum.ty().unwrap().as_enum().unwrap();
-
-    let choice = r#enum
-        .definition()
-        .choices()
-        .find(|choice| choice.name().text() == choice_name)
-        .ok_or(unknown_enum_choice(enum_ty.name(), choice_name))?;
-
-    if let Some(value_expr) = choice.value() {
-        // SAFETY: see the panic notice for this function.
-        Ok(parse_constant_value(enum_ty.inner_value_type(), &value_expr).unwrap())
-    } else {
-        // NOTE: when no expression is provided, the default is the
-        // choice name as a string.
-        Ok(Value::Primitive(PrimitiveValue::new_string(choice_name)))
-    }
-}
-
 #[cfg(test)]
-pub(crate) mod test {
+pub(crate) mod tests {
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
+    use std::path::PathBuf;
     use std::sync::Arc;
 
     use anyhow::Result;
+    use cloud_copy::ContentDigest;
+    use cloud_copy::TransferEvent;
     use pretty_assertions::assert_eq;
+    use regex::Regex;
     use tempfile::TempDir;
+    use tokio::sync::broadcast;
     use url::Url;
     use wdl_analysis::diagnostics::unknown_name;
     use wdl_analysis::diagnostics::unknown_type;
@@ -1735,14 +1705,18 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
+    use crate::Cache;
     use crate::CancellationContext;
+    use crate::Config;
+    use crate::Engine;
+    use crate::EvaluationHttpClient;
     use crate::EvaluationPath;
     use crate::Events;
     use crate::TypeNameRefValue;
     use crate::eval::Scope;
     use crate::eval::ScopeRef;
+    use crate::http::HttpClient;
     use crate::http::Location;
-    use crate::http::Transferer;
 
     /// Represents a test environment.
     pub(crate) struct TestEnv {
@@ -1806,20 +1780,24 @@ pub(crate) mod test {
         }
     }
 
-    impl Transferer for TestEnv {
+    /// A test HTTP client that supports URLs that use `example.com` as the host
+    /// name.
+    struct TestHttpClient(PathBuf);
+
+    impl HttpClient for TestHttpClient {
         fn download<'a>(
             &'a self,
             source: &'a Url,
-            _: &'a Events,
+            _: Option<broadcast::Sender<TransferEvent>>,
             _: &'a CancellationContext,
+            _: &'a Cache<Url, Location>,
         ) -> BoxFuture<'a, Result<Location>> {
             async {
                 // For tests, redirect requests to example.com to files relative
                 // to the work dir
                 if source.authority() == "example.com" {
                     return Ok(Location::Path(
-                        self.test_dir
-                            .path()
+                        self.0
                             .join(source.path().strip_prefix('/').unwrap_or(source.path())),
                     ));
                 }
@@ -1833,56 +1811,85 @@ pub(crate) mod test {
             &'a self,
             _: &'a Path,
             _: &'a Url,
-            _: &'a Events,
+            _: Option<broadcast::Sender<TransferEvent>>,
             _: &'a CancellationContext,
+            _: &'a Cache<Url, ()>,
         ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
         }
 
-        fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
+        fn size<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, Option<u64>>,
+        ) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
             std::future::ready(Ok(Some(1234))).boxed()
         }
 
-        fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
+        fn walk<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, Arc<[String]>>,
+        ) -> BoxFuture<'a, Result<Arc<[String]>>> {
             unimplemented!()
         }
 
-        fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
+        fn exists<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, bool>,
+        ) -> BoxFuture<'a, Result<bool>> {
             unimplemented!()
         }
 
         fn digest<'a>(
             &'a self,
             _: &'a Url,
-        ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, Option<Arc<ContentDigest>>>,
+        ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
             unimplemented!()
         }
     }
 
     /// Represents test evaluation context to an expression evaluator.
     pub struct TestEvaluationContext<'a> {
+        /// The test environment.
         env: &'a TestEnv,
+        /// The evaluation HTTP client.
+        client: EvaluationHttpClient,
         /// The supported version of WDL being evaluated.
         version: SupportedVersion,
         /// The stdout value from a task's execution.
         stdout: Option<Value>,
         /// The stderr value from a task's execution.
         stderr: Option<Value>,
-        /// The evaluation events.
-        events: Events,
-        /// The cancellation context to use for the test.
-        cancellation: CancellationContext,
     }
 
     impl<'a> TestEvaluationContext<'a> {
-        pub fn new(env: &'a TestEnv, version: SupportedVersion) -> Self {
+        pub async fn new(env: &'a TestEnv, version: SupportedVersion) -> Self {
+            let engine = Engine::new_with_http_client(
+                Config::default(),
+                TestHttpClient(env.test_dir.path().into()),
+            )
+            .await
+            .unwrap();
+
+            let client = EvaluationHttpClient::new(
+                &engine,
+                &Events::disabled(),
+                CancellationContext::default(),
+            );
+
             Self {
                 env,
+                client,
                 version,
                 stdout: None,
                 stderr: None,
-                events: Events::disabled(),
-                cancellation: Default::default(),
             }
         }
 
@@ -1966,16 +1973,12 @@ pub(crate) mod test {
             self.stderr.as_ref()
         }
 
-        fn transferer(&self) -> &dyn Transferer {
-            self.env
+        fn http_client(&self) -> &EvaluationHttpClient {
+            &self.client
         }
 
-        fn events(&self) -> &Events {
-            &self.events
-        }
-
-        fn cancellation(&self) -> &CancellationContext {
-            &self.cancellation
+        fn compile_regex(&self, pattern: &str) -> Result<Regex, regex::Error> {
+            Regex::new(pattern)
         }
     }
 
@@ -1985,7 +1988,7 @@ pub(crate) mod test {
         source: &str,
     ) -> Result<Value, Diagnostic> {
         eval_v1_expr_with_context(
-            TestEvaluationContext::new(env, SupportedVersion::V1(version)),
+            TestEvaluationContext::new(env, SupportedVersion::V1(version)).await,
             source,
         )
         .await
@@ -2000,6 +2003,7 @@ pub(crate) mod test {
     ) -> Result<Value, Diagnostic> {
         eval_v1_expr_with_context(
             TestEvaluationContext::new(env, SupportedVersion::V1(version))
+                .await
                 .with_stdout(stdout)
                 .with_stderr(stderr),
             source,

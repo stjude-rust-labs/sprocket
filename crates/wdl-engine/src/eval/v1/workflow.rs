@@ -61,14 +61,13 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
-use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::EvaluationResult;
-use crate::Events;
 use crate::Inputs;
 use crate::Outputs;
 use crate::TypeNameRefValue;
@@ -77,18 +76,15 @@ use crate::WorkflowInputs;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::diagnostics::unknown_enum;
 use crate::eval::Scope;
 use crate::eval::ScopeIndex;
 use crate::eval::ScopeRef;
-use crate::http::Transferer;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
 use crate::v1::Evaluator;
 use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
-use crate::v1::resolve_enum_choice_value;
 use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
@@ -179,31 +175,9 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
-        let cache_key = self
-            .state
-            .document
-            .get_choice_cache_key(enum_name, choice_name)
-            .ok_or_else(|| unknown_enum(enum_name))?;
-
-        let cache = self.state.evaluator.choice_cache.lock().unwrap();
-        if let Some(cached_value) = cache.get(&cache_key) {
-            return Ok(cached_value.clone());
-        }
-
-        drop(cache);
-
-        let r#enum = self
-            .state
-            .document
-            .enum_by_name(enum_name)
-            .ok_or(unknown_enum(enum_name))?;
-        let value = resolve_enum_choice_value(r#enum, choice_name)?;
-
-        let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
-        cache.insert(cache_key, value.clone());
-        drop(cache);
-
-        Ok(value)
+        self.state
+            .evaluator
+            .enum_choice_value(&self.state.document, enum_name, choice_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -214,16 +188,12 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         &self.state.temp_dir
     }
 
-    fn transferer(&self) -> &dyn Transferer {
-        self.state.evaluator.engine.transferer()
+    fn http_client(&self) -> &EvaluationHttpClient {
+        self.state.evaluator.http_client()
     }
 
-    fn events(&self) -> &Events {
-        &self.state.evaluator.events
-    }
-
-    fn cancellation(&self) -> &CancellationContext {
-        &self.state.evaluator.cancellation
+    fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
+        self.state.evaluator.compile_regex(pattern)
     }
 }
 
@@ -634,8 +604,8 @@ impl Evaluator {
             .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
             .await;
 
-        if self.cancellation.user_canceled()
-            && self.cancellation.state() == CancellationContextState::Canceling
+        if self.cancellation().user_canceled()
+            && self.cancellation().state() == CancellationContextState::Canceling
         {
             return Err(EvaluationError::Canceled);
         }
@@ -790,7 +760,7 @@ impl State {
         id: Arc<String>,
     ) -> BoxFuture<'static, EvaluationResult<()>> {
         async move {
-            let cancellation = self.evaluator.cancellation.clone();
+            let cancellation = self.evaluator.cancellation().clone();
             let mut futures = JoinSet::new();
             match self
                 .perform_subgraph_evaluation(scope, subgraph, id, &mut futures)
@@ -934,7 +904,7 @@ impl State {
                         let state = self.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
-                            let cancellation = state.evaluator.cancellation.clone();
+                            let cancellation = state.evaluator.cancellation().clone();
                             let mut futures = JoinSet::new();
                             match state
                                 .evaluate_scatter(id, scope, node, &stmt, &mut futures)
@@ -1060,7 +1030,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.evaluator.engine.transferer()),
+                    Some(self.evaluator.http_client()),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1129,7 +1099,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.evaluator.engine.transferer()),
+                    Some(self.evaluator.http_client()),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1186,7 +1156,7 @@ impl State {
             .resolve_paths(
                 expected_ty.is_optional(),
                 self.base_dir.as_local(),
-                Some(self.evaluator.engine.transferer()),
+                Some(self.evaluator.http_client()),
                 &|path| {
                     if path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
@@ -1470,11 +1440,17 @@ impl State {
             return self.evaluate_empty_scatter(stmt, parent).await;
         }
 
-        let max_concurrency = self.evaluator.engine.config().workflow.scatter.concurrency;
+        let max_concurrency = self
+            .evaluator
+            .engine()
+            .config()
+            .workflow
+            .scatter
+            .concurrency;
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
-            if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
+            if self.evaluator.cancellation().state() != CancellationContextState::NotCanceled {
                 break;
             }
 
@@ -1517,7 +1493,7 @@ impl State {
 
         // Return an error if all the tasks completed but there was a
         // cancellation
-        if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
+        if self.evaluator.cancellation().state() != CancellationContextState::NotCanceled {
             return Err(EvaluationError::Canceled);
         }
 
@@ -1866,7 +1842,7 @@ impl State {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs::read_to_string;
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;

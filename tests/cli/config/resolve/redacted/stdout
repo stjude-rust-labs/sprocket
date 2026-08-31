@@ -29,12 +29,16 @@ backend = "first"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
+digest_cache_capacity = 1000
+choice_cache_capacity = 1000
+regex_cache_capacity = 1000
 
 [run.http]
 cache_dir = "system"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
+response_cache_capacity = 1000
 
 [run.workflow]
 
@@ -109,12 +113,16 @@ backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
+digest_cache_capacity = 1000
+choice_cache_capacity = 1000
+regex_cache_capacity = 1000
 
 [server.engine.http]
 cache_dir = "system"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
+response_cache_capacity = 1000
 
 [server.engine.workflow]
 

@@ -1,11 +1,19 @@
 //! Execution engine for Workflow Description Language (WDL) documents.
 
+use std::borrow::Borrow;
+use std::hash::Hash;
+use std::num::NonZeroUsize;
+use std::sync::Arc;
 use std::sync::LazyLock;
+use std::sync::Mutex;
 
+use lru::LruCache;
 use num_enum::IntoPrimitive;
 use sysinfo::CpuRefreshKind;
 use sysinfo::MemoryRefreshKind;
 use sysinfo::System;
+use tokio::select;
+use tokio::sync::OnceCell;
 use wdl_analysis::Document;
 use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::types::Type;
@@ -16,7 +24,7 @@ use wdl_ast::Span;
 use wdl_ast::TreeNode;
 
 mod backend;
-mod cache;
+pub(crate) mod cache;
 pub mod config;
 mod diagnostics;
 mod digest;
@@ -122,5 +130,127 @@ impl From<ContentKind> for crankshaft::engine::task::input::Type {
             ContentKind::File | ContentKind::TempFile => Self::File,
             ContentKind::Directory => Self::Directory,
         }
+    }
+}
+
+/// Represents an LRU cache that supports asynchronous initialization of
+/// entries.
+struct Cache<K, V>(Mutex<LruCache<K, Arc<OnceCell<V>>>>);
+
+impl<K, V> Cache<K, V>
+where
+    K: Hash + Eq,
+{
+    /// Constructs a new cache with the given capacity
+    fn new(capacity: NonZeroUsize) -> Self {
+        Self(Mutex::new(LruCache::new(capacity)))
+    }
+
+    /// Gets an entry from a cache with a reference to a key.
+    ///
+    /// If the entry already exists in the cache, the existing entry is cloned
+    /// and returned.
+    ///
+    /// If the entry does not exist in the cache, the initialization function is
+    /// called to create a new value and the returned value is inserted into the
+    /// cache.
+    ///
+    /// When the cache is at capacity, the least recently used entry is evicted
+    /// prior to inserting a new entry.
+    ///
+    /// If an entry of the same key is currently being initialized by another
+    /// call to `get`, another call to `get` wil wait for the initialization to
+    /// complete; the given cancellation token can be used to cancel the wait.
+    ///
+    /// Returns `Ok(None)` if the operation was canceled.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the cache's inner mutex was poisoned.
+    pub async fn get_by_ref<Q, F, E>(
+        &self,
+        key: &Q,
+        cancellation: &CancellationContext,
+        init: F,
+    ) -> Result<Option<V>, E>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = K>,
+        V: Clone,
+        F: AsyncFnOnce() -> Result<V, E>,
+    {
+        let value = {
+            let mut cache = self.0.lock().expect("failed to lock cache");
+            cache.get_or_insert_ref(key, Default::default).clone()
+        };
+
+        let token = cancellation.first();
+        select! {
+            biased;
+            _ = token.cancelled() => {
+                Ok(None)
+            }
+            r = value.get_or_try_init(|| async { init().await }) => {
+                r.map(|v| Some(v.clone()))
+            }
+        }
+    }
+
+    /// Gets an entry from a cache by an owned key.
+    ///
+    /// If the entry already exists in the cache, the existing entry is cloned
+    /// and returned.
+    ///
+    /// If the entry does not exist in the cache, the initialization function is
+    /// called to create a new value and the returned value is inserted into the
+    /// cache.
+    ///
+    /// When the cache is at capacity, the least recently used entry is evicted
+    /// prior to inserting a new entry.
+    ///
+    /// If an entry of the same key is currently being initialized by another
+    /// call to `get`, another call to `get` wil wait for the initialization to
+    /// complete; the given cancellation token can be used to cancel the wait.
+    ///
+    /// Returns `Ok(None)` if the operation was canceled.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the cache's inner mutex was poisoned.
+    pub async fn get<F, E>(
+        &self,
+        key: K,
+        cancellation: &CancellationContext,
+        init: F,
+    ) -> Result<Option<V>, E>
+    where
+        V: Clone,
+        F: AsyncFnOnce() -> Result<V, E>,
+    {
+        let value = {
+            let mut cache = self.0.lock().expect("failed to lock cache");
+            cache.get_or_insert(key, Default::default).clone()
+        };
+
+        let token = cancellation.first();
+        select! {
+            biased;
+            _ = token.cancelled() => {
+                Ok(None)
+            }
+            r = value.get_or_try_init(|| async { init().await }) => {
+                r.map(|v| Some(v.clone()))
+            }
+        }
+    }
+
+    /// Clears the cache.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the cache's internal mutex was poisoned.
+    #[allow(unused)]
+    pub fn clear(&self) {
+        self.0.lock().expect("failed to lock the cache").clear();
     }
 }
