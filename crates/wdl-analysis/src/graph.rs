@@ -411,8 +411,9 @@ impl DocumentGraphNode {
             last_line = range.start.line;
             let range = edit.apply(&mut source, &lines)?;
 
-            // We only track applied edits if they apply to existing CST. Otherwise, it'll
-            // be treated as a full source replacement.
+            // We only track applied edits if they apply to existing CST.
+            // Otherwise, it'll be treated as a full source
+            // replacement.
             //
             // The distinction is important for incremental analysis, see
             // `AnalysisCache::intersect()`.

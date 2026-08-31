@@ -126,8 +126,8 @@ task baz {
         "foo should NOT depend on baz"
     );
 
-    // Now `foo` has a required input. Both it and `bar` should be re-analyzed, with
-    // `bar` getting a diagnostic for the missing input.
+    // Now `foo` has a required input. Both it and `bar` should be re-analyzed,
+    // with `bar` getting a diagnostic for the missing input.
     let edited_contents = r#"version 1.3
 
 task foo {
@@ -207,8 +207,8 @@ task baz {
 #[tokio::test]
 #[test_log::test]
 async fn should_track_external_dependencies() {
-    // Signature changes should always invalidate dependents, even across document
-    // boundaries.
+    // Signature changes should always invalidate dependents, even across
+    // document boundaries.
 
     let initial_foo_content = r#"version 1.3
 
@@ -345,7 +345,8 @@ workflow bar {
         .signature_hash()
         .expect("`bar` is locally defined");
 
-    // The signature hashes should be identical since the signatures haven't changed
+    // The signature hashes should be identical since the signatures haven't
+    // changed
     assert_eq!(foo_hash, new_foo_hash);
     assert_eq!(bar_hash, new_bar_hash);
 
@@ -414,7 +415,8 @@ workflow bar {
     // `foo` should be signature-invalidated because it was dropped
     assert!(cache_post.tests.invalidated_signatures.contains(&foo_hash));
 
-    // `bar` should also be signature-invalidated because its dependency was dropped
+    // `bar` should also be signature-invalidated because its dependency was
+    // dropped
     assert!(cache_post.tests.invalidated_signatures.contains(&bar_hash));
 }
 
@@ -422,7 +424,8 @@ workflow bar {
 #[test_log::test]
 async fn should_shift_clean_item_diagnostics() {
     // Cached items store their diagnostics and reuse them between requests.
-    // We should be updating the diagnostic offsets regardless if the item is dirty.
+    // We should be updating the diagnostic offsets regardless if the item is
+    // dirty.
 
     let initial_file = r#"version 1.3
 
@@ -516,8 +519,8 @@ workflow stays_clean {
 #[tokio::test]
 #[test_log::test]
 async fn should_invalidate_dependents_of_imported_structs() {
-    // Imported structs/enums (using both the namespace and select/wildcard import
-    // forms) should always invalidate their dependents on change.
+    // Imported structs/enums (using both the namespace and select/wildcard
+    // import forms) should always invalidate their dependents on change.
 
     let initial_foo_content = r#"version 1.4
 
@@ -1019,8 +1022,8 @@ task foo {
             .any(|d| d.rule() == Some("MeaninglessLintDirective"))
     );
 
-    // Throw in a random comment, which should trigger re-analysis, but not dirty
-    // the cache
+    // Throw in a random comment, which should trigger re-analysis, but not
+    // dirty the cache
     analyzer
         .notify_incremental_change(
             doc_main.uri.clone(),

@@ -152,9 +152,9 @@ fn resolve_hover_content(
     }
 
     for ns in document.namespaces() {
-        // SAFETY: we know `get_index` will return `Some` as `ns.source` comes from
-        // `document.namespaces` which only contains namespaces for documents that
-        // are guaranteed to be present in the graph.
+        // SAFETY: we know `get_index` will return `Some` as `ns.source` comes
+        // from `document.namespaces` which only contains namespaces for
+        // documents that are guaranteed to be present in the graph.
         let node = graph.get(graph.get_index(&ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
@@ -177,8 +177,8 @@ fn resolve_hover_by_context(
     document: &Document,
     graph: &DocumentGraph,
 ) -> Result<Option<String>> {
-    // Hovering doc comments of an item produces the same content as hovering the
-    // identifier of the item
+    // Hovering doc comments of an item produces the same content as hovering
+    // the identifier of the item
     if token.kind() == SyntaxKind::Comment {
         let comment = Comment::cast(token.clone()).expect("should cast");
         if comment.kind() != CommentKind::Documentation {
@@ -325,7 +325,8 @@ fn resolve_hover_by_context(
                     };
 
                     if enum_ty.choices().iter().any(|text| text == member.text()) {
-                        // Try to find the enum definition to get the actual value
+                        // Try to find the enum definition to get the actual
+                        // value
                         if let Some(enum_entry) = document.enum_by_name(ty.name()) {
                             let definition = enum_entry.definition();
 
@@ -390,7 +391,8 @@ fn resolve_hover_by_context(
                 },
                 Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
                     if e.choices().iter().any(|text| text == member.text()) {
-                        // Try to find the enum definition to get the actual value
+                        // Try to find the enum definition to get the actual
+                        // value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 

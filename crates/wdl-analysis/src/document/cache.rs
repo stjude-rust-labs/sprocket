@@ -675,9 +675,9 @@ impl<'a> CachedItemRef<'a> {
             Self::Import(i) => (i.offset, i.diagnostics.iter()),
         };
 
-        // We need to shift the diagnostics back to their absolute positions within the
-        // document. `CachedItemRef` stores diagnostics relative to the start of
-        // the item.
+        // We need to shift the diagnostics back to their absolute positions
+        // within the document. `CachedItemRef` stores diagnostics
+        // relative to the start of the item.
         diagnostics.cloned().map(move |mut d| {
             d.offset(offset as isize);
             d
@@ -966,9 +966,11 @@ impl AnalysisCache {
                     };
 
                     let Some(new_body_hash) = ast_item.body_hash else {
-                        // This is only ever the case for imports. The `BodyHash` of imports is
-                        // calculated separately in `Self::intersect()`. If it's still in the
-                        // cache at this point, it isn't dirty.
+                        // This is only ever the case for imports. The
+                        // `BodyHash` of imports is
+                        // calculated separately in `Self::intersect()`. If it's
+                        // still in the cache at this
+                        // point, it isn't dirty.
                         return None;
                     };
 
@@ -1094,8 +1096,9 @@ impl AnalysisCache {
     pub(in crate::document) fn exports_hash(&self) -> BodyHash {
         let mut hasher = Sha256::default();
 
-        // Invalidation, on both the signature and body level, will shift around the
-        // keys in the cache. We need to sort them here to keep the hash stable.
+        // Invalidation, on both the signature and body level, will shift around
+        // the keys in the cache. We need to sort them here to keep the
+        // hash stable.
         let mut keys: Vec<_> = self.keys().collect();
         keys.sort_unstable();
 
@@ -1158,8 +1161,9 @@ impl AnalysisCache {
 
     /// Inserts a workflow into the cache.
     pub(in crate::document) fn set_workflow(&mut self, item: CachedItem<WithBodyHash<Workflow>>) {
-        // NOTE: We don't shift the diagnostics here. Workflow addition and population
-        // are different steps. Diagnostics are shifted *after* `populate_workflow()`.
+        // NOTE: We don't shift the diagnostics here. Workflow addition and
+        // population are different steps. Diagnostics are shifted
+        // *after* `populate_workflow()`.
         let hash = item.signature_hash;
         self.workflow = Some(item);
         self.dependencies.add_node(hash);
