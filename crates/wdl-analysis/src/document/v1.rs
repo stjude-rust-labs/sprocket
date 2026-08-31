@@ -153,8 +153,8 @@ fn add_scope(scopes: &mut Vec<Scope>, scope: Scope) -> ScopeIndex {
 ///
 /// This handles remapping any parent indexes in each scope.
 fn sort_scopes(scopes: &mut Vec<Scope>) {
-    // To sort the scopes, we need to start by mapping the old indexes to scope span
-    // start
+    // To sort the scopes, we need to start by mapping the old indexes to scope
+    // span start
     let mut remapped = scopes
         .iter()
         .enumerate()
@@ -207,9 +207,10 @@ pub(crate) fn populate_document(
             .flatten(),
     );
 
-    // First start by processing imports, struct definitions, and enum definitions
-    // This needs to be performed before processing tasks and workflows as
-    // declarations might reference an imported or locally-defined struct or enum
+    // First start by processing imports, struct definitions, and enum
+    // definitions This needs to be performed before processing tasks and
+    // workflows as declarations might reference an imported or
+    // locally-defined struct or enum
     let mut import_nodes_by_namespace = HashMap::new();
     for item in ast.items() {
         match item {
@@ -251,8 +252,9 @@ pub(crate) fn populate_document(
                 add_task(config, document, &task);
             }
             DocumentItem::Workflow(w) => {
-                // Note that this doesn't populate the workflow; we delay that until after
-                // we've seen every task in the document so that we can resolve call targets
+                // Note that this doesn't populate the workflow; we delay that
+                // until after we've seen every task in the
+                // document so that we can resolve call targets
                 if add_workflow(document, &w) {
                     workflow = Some(w.clone());
                 }
@@ -337,8 +339,9 @@ fn add_namespace(
             }
         }
         None => {
-            // Invalid import namespaces are caught during validation, so there is already a
-            // diagnostic for this issue; ignore the import here
+            // Invalid import namespaces are caught during validation, so there
+            // is already a diagnostic for this issue; ignore the
+            // import here
             return false;
         }
     };
@@ -1404,8 +1407,9 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 if let Some(severity) = config.diagnostics_config().unused_input
                     && decl.env().is_none()
                 {
-                    // For any input that isn't an environment variable, check to see if there's
-                    // a single implicit dependency edge; if so, it might be unused
+                    // For any input that isn't an environment variable, check
+                    // to see if there's a single implicit
+                    // dependency edge; if so, it might be unused
                     let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
                     if edges.all(|e| *e.weight()) {
@@ -1451,7 +1455,8 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
                 let name = decl.name();
 
-                // Don't warn for environment variables as they are always implicitly used
+                // Don't warn for environment variables as they are always
+                // implicitly used
                 if decl.env().is_none()
                     && graph
                         .edges_directed(index, Direction::Outgoing)
@@ -1553,7 +1558,8 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     )
                 });
 
-                // Perform type checking on the requirements section's expressions
+                // Perform type checking on the requirements section's
+                // expressions
                 let mut context = EvaluationContext::new(
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
@@ -1643,7 +1649,8 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
         return false;
     }
 
-    // An imported workflow already occupies local scope; reject this definition.
+    // An imported workflow already occupies local scope; reject this
+    // definition.
     if let Some(imported) = document.imported_workflows.values().next() {
         document.analysis_diagnostics.add(workflow_conflict(
             name.text(),
@@ -1675,9 +1682,9 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
         return false;
     }
 
-    // Note: we delay populating the workflow until later on so that we can populate
-    // all tasks in the document first; it is done this way so we can resolve local
-    // task call targets.
+    // Note: we delay populating the workflow until later on so that we can
+    // populate all tasks in the document first; it is done this way so we
+    // can resolve local task call targets.
 
     document.workflow = Some(Workflow {
         name_span: name.span(),
@@ -1708,8 +1715,8 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
         None => Default::default(),
     };
 
-    // Keep a map of scopes from syntax node that introduced the scope to the scope
-    // index
+    // Keep a map of scopes from syntax node that introduced the scope to the
+    // scope index
     let mut scope_indexes: HashMap<SyntaxNode, ScopeIndex> = HashMap::new();
     let mut scopes = vec![Scope::new(
         None,
@@ -1719,8 +1726,8 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
     )];
     let mut output_scope = None;
 
-    // For static analysis, we don't need to provide inputs to the workflow graph
-    // builder
+    // For static analysis, we don't need to provide inputs to the workflow
+    // graph builder
     let graph = WorkflowGraphBuilder::default().build(
         workflow,
         &mut document.analysis_diagnostics,
@@ -1826,8 +1833,9 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                 );
             }
             WorkflowGraphNode::ConditionalClause(..) => {
-                // Conditional clause nodes are intermediate nodes used for subgraph splitting
-                // during evaluation. They don't need to be processed here as the
+                // Conditional clause nodes are intermediate nodes used for
+                // subgraph splitting during evaluation. They
+                // don't need to be processed here as the
                 // conditional node already handles all clauses.
                 continue;
             }
@@ -1923,9 +1931,11 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     .expect("should have scope");
                 let variable = statement.variable();
 
-                // We need to split the scopes as we want to read from one part of the slice and
-                // write to another; the left side will contain the parent at its index and the
-                // right side will contain the child scope at its index minus the parent's
+                // We need to split the scopes as we want to read from one part
+                // of the slice and write to another; the left
+                // side will contain the parent at its index and the
+                // right side will contain the child scope at its index minus
+                // the parent's
                 let parent = scopes[scope_index.0]
                     .parent
                     .expect("should have a parent scope");
@@ -2528,8 +2538,8 @@ fn populate_types(document: &mut DocumentData) {
         }
     }
 
-    // Populate a type dependency graph; any edges that would form cycles are turned
-    // into diagnostics.
+    // Populate a type dependency graph; any edges that would form cycles are
+    // turned into diagnostics.
     let mut graph: DiGraphMap<_, _, RandomState> = DiGraphMap::new();
     let mut space = Default::default();
 
@@ -2608,8 +2618,8 @@ fn populate_types(document: &mut DocumentData) {
         }
     }
 
-    // At this point the graph is guaranteed acyclic; now calculate the struct and
-    // enum types in topological order
+    // At this point the graph is guaranteed acyclic; now calculate the struct
+    // and enum types in topological order
     for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
         match index {
             TypeIndex::Struct(index) => {
@@ -2859,7 +2869,8 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
             return Some(var);
         }
 
-        // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+        // If the name is a reference to a struct, return it as a
+        // [`Type::TypeNameRef`].
         if let Some(s) = self.document.structs.get(name).and_then(|s| s.ty()) {
             return Some(
                 TypeNameRef::new(
@@ -2873,7 +2884,8 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
             );
         }
 
-        // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+        // If the name is a reference to an enum, return it as a
+        // [`Type::TypeNameRef`].
         if let Some(e) = self.document.enums.get(name).and_then(|e| e.ty()) {
             return Some(
                 TypeNameRef::new(
@@ -3007,10 +3019,10 @@ mod tests {
         //   String always_available = "baz"
         // }
         //
-        // Both `a` and `b` can be `None` or unevaluated, so they both promote as a
-        // `String?`. `c` is missing from the first scope, so it must also be
-        // marked as `String?`. `always_available` is always available, so it
-        // will be promoted as a `String`.
+        // Both `a` and `b` can be `None` or unevaluated, so they both promote
+        // as a `String?`. `c` is missing from the first scope, so it
+        // must also be marked as `String?`. `always_available` is
+        // always available, so it will be promoted as a `String`.
         vec![
             example_scope(vec![
                 ("a", Type::Primitive(PrimitiveType::String, false)),
@@ -3070,7 +3082,8 @@ mod tests {
             Type::Primitive(PrimitiveType::String, true)
         );
 
-        // `always_available` is in all clauses with the same type, so it's non-optional
+        // `always_available` is in all clauses with the same type, so it's
+        // non-optional
         assert_eq!(
             results["always_available"].ty,
             Type::Primitive(PrimitiveType::String, false)
@@ -3086,8 +3099,8 @@ mod tests {
         //   String bad = "baz"
         // }
         //
-        // `bad` will return an error, as there is no common type between a `String`
-        // and an `Int`.
+        // `bad` will return an error, as there is no common type between a
+        // `String` and an `Int`.
         let bad_scopes = vec![
             example_scope(vec![(
                 "bad",

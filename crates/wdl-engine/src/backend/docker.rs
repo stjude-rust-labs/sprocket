@@ -26,6 +26,8 @@ use crankshaft::engine::task::output::Type as OutputType;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
+#[cfg(unix)]
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -159,9 +161,10 @@ impl ManagedTask for DockerTask<'_> {
             )
         })?;
 
-        // On Unix, the work directory must be group writable in case the container uses
-        // a different user/group; the Crankshaft docker backend will automatically add
-        // the current user's egid to the container
+        // On Unix, the work directory must be group writable in case the
+        // container uses a different user/group; the Crankshaft docker
+        // backend will automatically add the current user's egid to the
+        // container
         #[cfg(unix)]
         {
             use std::fs::Permissions;
@@ -185,8 +188,8 @@ impl ManagedTask for DockerTask<'_> {
             )
         })?;
 
-        // Allocate the inputs, which will always be, at most, the number of inputs plus
-        // the working directory and command
+        // Allocate the inputs, which will always be, at most, the number of
+        // inputs plus the working directory and command
         let mut inputs = Vec::with_capacity(self.request.backend_inputs.len() + 2);
         for input in self.request.backend_inputs.iter() {
             let guest_path = input.guest_path().expect("input should have guest path");
@@ -253,8 +256,8 @@ impl ManagedTask for DockerTask<'_> {
             .keys()
             .filter_map(|mp| {
                 // NOTE: the root mount point is already handled by the work
-                // directory mount, so we filter it here to avoid duplicate volume
-                // mapping.
+                // directory mount, so we filter it here to avoid duplicate
+                // volume mapping.
                 if mp == DEFAULT_DISK_MOUNT_POINT {
                     None
                 } else {
@@ -338,102 +341,81 @@ impl ManagedTask for DockerTask<'_> {
     }
 }
 
-/// Represents a cleanup task that is run upon successful completion of a Docker
-/// task.
+/// Hands a task's work directory back to the user performing evaluation.
 ///
-/// On Unix systems, this is used to recursively run `chown` on the work
-/// directory so that files created by a container user (e.g. `root`) are
-/// changed to be owned by the user performing evaluation.
+/// On Unix systems, this recursively runs `chown` in a container so that files
+/// created by a container user (e.g. `root`) become owned by the user
+/// performing evaluation, which is the only user that can then remove them.
+///
+/// This runs after a Docker task whatever the outcome of that task was.
 #[cfg(unix)]
-struct CleanupTask<'a> {
-    /// The task execution request.
-    request: &'a ExecuteTaskRequest<'a>,
-    /// The name of the task.
-    name: String,
-    /// The work directory to `chown`.
-    work_dir: &'a EvaluationPath,
-    /// The underlying Crankshaft backend.
-    backend: &'a docker::Backend,
-}
+async fn chown_work_dir(backend: &docker::Backend, name: &str, work_dir: &Path) -> Result<()> {
+    assert!(work_dir.is_absolute(), "work directory should be absolute");
 
-#[cfg(unix)]
-impl ManagedTask for CleanupTask<'_> {
-    type Output = ();
+    // SAFETY: `geteuid` and `getegid` are always safe to call and cannot fail.
+    let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
+    let ownership = format!("{uid}:{gid}");
 
-    fn request(&self) -> &ExecuteTaskRequest<'_> {
-        self.request
-    }
+    let task = Task::builder()
+        .name(name)
+        .executions(NonEmpty::new(
+            Execution::builder()
+                // SAFETY: there is at least one image in the list
+                .images(["alpine:latest"])?
+                .program("chown")
+                .args([
+                    "-R".to_string(),
+                    ownership.clone(),
+                    GUEST_WORK_DIR.to_string(),
+                ])
+                .build(),
+        ))
+        .inputs([Input::builder()
+            .path(GUEST_WORK_DIR)
+            .contents(Contents::Path(work_dir.to_path_buf()))
+            .ty(InputType::Directory)
+            // need write access to chown
+            .read_only(false)
+            .build()])
+        .resources(
+            Resources::builder()
+                .cpu(CLEANUP_TASK_CPU)
+                .ram(CLEANUP_TASK_MEMORY as f64 / ONE_GIBIBYTE)
+                .build(),
+        )
+        .build();
 
-    async fn run(self) -> Result<Option<()>> {
-        use crankshaft::engine::service::runner::backend::TaskRunError;
-        use tracing::debug;
+    debug!(
+        "running cleanup task `{name}` to change ownership of `{path}` to `{ownership}`",
+        path = work_dir.display(),
+    );
 
-        // SAFETY: the work directory is always local for the Docker backend
-        let work_dir = self.work_dir.as_local().expect("path should be local");
-        assert!(work_dir.is_absolute(), "work directory should be absolute");
-
-        let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
-        let ownership = format!("{uid}:{gid}");
-
-        let task = Task::builder()
-            .name(&self.name)
-            .executions(NonEmpty::new(
-                Execution::builder()
-                    // SAFETY: there is at least one image in the list
-                    .images(["alpine:latest"])?
-                    .program("chown")
-                    .args([
-                        "-R".to_string(),
-                        ownership.clone(),
-                        GUEST_WORK_DIR.to_string(),
-                    ])
-                    .build(),
-            ))
-            .inputs([Input::builder()
-                .path(GUEST_WORK_DIR)
-                .contents(Contents::Path(work_dir.to_path_buf()))
-                .ty(InputType::Directory)
-                // need write access to chown
-                .read_only(false)
-                .build()])
-            .resources(
-                Resources::builder()
-                    .cpu(CLEANUP_TASK_CPU)
-                    .ram(CLEANUP_TASK_MEMORY as f64 / ONE_GIBIBYTE)
-                    .build(),
-            )
-            .build();
-
-        debug!(
-            "running cleanup task `{name}` to change ownership of `{path}` to `{ownership}`",
-            name = self.name,
-            path = work_dir.display(),
-        );
-
-        match self
-            .backend
-            .run(
-                task,
-                self.request.events.crankshaft().cloned(),
-                self.request.cancellation.second(),
-            )
-            .context("failed to submit cleanup task")?
-            .await
-        {
-            Ok(results) => {
-                let result = results.first();
-                if result.status.success() {
-                    Ok(Some(()))
-                } else {
-                    bail!(
-                        "failed to chown task work directory `{path}`",
-                        path = work_dir.display()
-                    );
-                }
+    // The cleanup runs on a token of its own that nothing cancels: it matters
+    // most for a task that was canceled, and by then the evaluation's
+    // tokens are canceled and Docker would refuse to start the container.
+    // Dropping this future is the only way to stop waiting for the cleanup.
+    //
+    // Passing no event sender keeps the cleanup off the event stream entirely,
+    // so no consumer can observe it, and none can cancel the token
+    // Crankshaft publishes with `TaskCreated` after the user has canceled
+    // evaluation.
+    match backend
+        .run(task, None, CancellationToken::new())
+        .context("failed to submit cleanup task")?
+        .await
+    {
+        Ok(results) => {
+            if results.first().status.success() {
+                Ok(())
+            } else {
+                bail!(
+                    "failed to chown task work directory `{path}`",
+                    path = work_dir.display()
+                );
             }
-            Err(TaskRunError::Canceled) => Ok(None),
-            Err(e) => Err(e).context("failed to run cleanup task"),
         }
+        Err(TaskRunError::Canceled) => bail!("cleanup task `{name}` was canceled"),
+        Err(e) => Err(e).context("failed to run cleanup task"),
     }
 }
 
@@ -528,9 +510,9 @@ impl DockerBackend {
         let memory = resources.memory();
         let max_memory = resources.max_memory();
 
-        // If a service is being used, then we're going to be spawning into a cluster
-        // For the purposes of resource tracking, treat it as unlimited resources and
-        // let Docker handle resource allocation
+        // If a service is being used, then we're going to be spawning into a
+        // cluster For the purposes of resource tracking, treat it as
+        // unlimited resources and let Docker handle resource allocation
         let manager = if resources.use_service() {
             TaskManager::new_unlimited(max_cpu, max_memory)
         } else {
@@ -618,10 +600,11 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
-        // Generate GPU specification strings in the format "<type>-gpu-<index>".
-        // Each string represents one allocated GPU, indexed from 0. The type prefix
-        // (e.g., "nvidia", "amd", "intel") identifies the GPU vendor/driver.
-        // This is the first backend to populate the gpu field; other backends should
+        // Generate GPU specification strings in the format
+        // "<type>-gpu-<index>". Each string represents one allocated
+        // GPU, indexed from 0. The type prefix (e.g., "nvidia", "amd",
+        // "intel") identifies the GPU vendor/driver. This is the first
+        // backend to populate the gpu field; other backends should
         // follow this format for consistency.
         let gpu = requirements::gpu(inputs, requirements, hints)
             .map(|count| (0..count).map(|i| format!("nvidia-gpu-{i}")).collect())
@@ -667,36 +650,34 @@ impl TaskExecutionBackend for DockerBackend {
                 gpu,
             };
 
-            match self.manager.run(cpu, memory, task).await? {
-                Some(res) => {
-                    // The task completed, perform cleanup on unix platforms
-                    #[cfg(unix)]
-                    {
-                        let name = format!(
-                            "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
-                            name = request.name
-                        );
+            let result = self.manager.run(cpu, memory, task).await;
 
-                        let task = CleanupTask {
-                            request,
-                            name,
-                            work_dir: &res.work_dir.clone(),
-                            backend: self.inner.as_ref(),
-                        };
+            // A container ordinarily runs as `root`, so on Unix the files it
+            // leaves in the work directory are owned by another
+            // user and cannot be removed by the user performing
+            // evaluation. Hand ownership back whatever the outcome of
+            // the task was: a task that was canceled or that failed leaves the
+            // same files behind as one that completed.
+            //
+            // This is awaited here rather than submitted to the task manager,
+            // which abandons a task that has to wait for resources
+            // once evaluation has been canceled.
+            #[cfg(unix)]
+            {
+                let work_dir = request.work_dir();
+                if work_dir.exists() {
+                    let name = format!(
+                        "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
+                        name = request.name
+                    );
 
-                        if let Err(e) = self
-                            .manager
-                            .run(CLEANUP_TASK_CPU, CLEANUP_TASK_MEMORY, task)
-                            .await
-                        {
-                            tracing::error!("Docker backend cleanup failed: {e:#}");
-                        }
+                    if let Err(e) = chown_work_dir(self.inner.as_ref(), &name, &work_dir).await {
+                        tracing::error!("Docker backend cleanup failed: {e:#}");
                     }
-
-                    Ok(Some(res))
                 }
-                None => Ok(None),
             }
+
+            result
         }
         .boxed()
     }
@@ -750,8 +731,9 @@ mod tests {
 
     #[test]
     fn a_present_source_is_explained() {
-        // SAFETY: creating a temporary directory only fails if the system has no
-        // usable temporary directory, which would fail the test suite as a whole.
+        // SAFETY: creating a temporary directory only fails if the system has
+        // no usable temporary directory, which would fail the test
+        // suite as a whole.
         let dir = TempDir::new().unwrap();
         let path = dir.path().to_str().expect("path should be UTF-8");
 
@@ -761,5 +743,181 @@ mod tests {
         assert!(message.contains("File Sharing"));
         // The underlying Docker error is preserved for diagnosis.
         assert!(message.contains("status code 400"));
+    }
+
+    /// Cancels a task while its container is running and confirms that the
+    /// ownership cleanup still ran, and that it stayed off the event stream.
+    ///
+    /// Without the cleanup, the container's files remain owned by `root` and
+    /// the user performing evaluation cannot delete them.
+    ///
+    /// The ownership assertion only distinguishes a missing cleanup where the
+    /// host sees the ownership the container wrote, which is the case on Linux.
+    /// Docker Desktop remaps a bind mount to the calling user, so on macOS this
+    /// test checks the cancellation result and the absence of cleanup events
+    /// but cannot observe whether ownership was handed back.
+    #[cfg(all(unix, not(docker_tests_disabled)))]
+    #[tokio::test]
+    async fn cleanup_runs_after_a_cancellation() {
+        use std::os::unix::fs::MetadataExt;
+        use std::time::Duration;
+
+        use crankshaft::events::Event as CrankshaftEvent;
+        use indexmap::IndexMap;
+
+        use crate::CancellationContext;
+        use crate::Engine;
+        use crate::Events;
+        use crate::config::FailureMode;
+
+        let root = TempDir::new().unwrap();
+        let attempt_dir = root.path().join("attempts").join("0");
+        let temp_dir = root.path().join("tmp");
+        fs::create_dir_all(&attempt_dir).unwrap();
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut config = Config::default();
+        // `alpine` has no `bash`
+        config.task.shell = "/bin/sh".to_string();
+
+        let engine = Engine::new(config.clone())
+            .await
+            .expect("engine should initialize");
+        let backend = DockerBackend::new(Arc::new(config))
+            .await
+            .expect("Docker backend should initialize");
+
+        let events = Events::new(1024);
+        let mut receiver = events
+            .subscribe_crankshaft()
+            .expect("Crankshaft events should be enabled");
+        let cancellation = CancellationContext::new(FailureMode::Fast);
+
+        let env = IndexMap::new();
+        let inputs = TaskInputs::default();
+        let requirements = Object::empty();
+        let hints = Object::empty();
+        let base_dir = EvaluationPath::from_local_path(root.path().into());
+        let constraints = TaskExecutionConstraints {
+            sources: vec!["docker://alpine:latest".parse().unwrap()],
+            cpu: 1.0,
+            memory: ONE_GIBIBYTE as u64,
+            gpu: Default::default(),
+            fpga: Default::default(),
+            disks: Default::default(),
+        };
+
+        let request = ExecuteTaskRequest {
+            engine: &engine,
+            name: "cleanup-after-cancellation-0",
+            command: "mkdir -p testdir && echo hello > testdir/hello.txt && sleep 60",
+            inputs: &inputs,
+            backend_inputs: &[],
+            requirements: &requirements,
+            hints: &hints,
+            env: &env,
+            constraints: &constraints,
+            base_dir: &base_dir,
+            attempt_dir: &attempt_dir,
+            temp_dir: &temp_dir,
+            events: &events,
+            cancellation: &cancellation,
+        };
+
+        let work_dir = request.work_dir();
+        // The container creates this before it sleeps, so its presence means
+        // there is something for the cleanup to hand back
+        let marker = work_dir.join("testdir").join("hello.txt");
+
+        let mut execute = std::pin::pin!(backend.execute(&request));
+        let result = tokio::time::timeout(Duration::from_secs(300), async {
+            loop {
+                tokio::select! {
+                    result = &mut execute => break result,
+                    _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                        if marker.exists() {
+                            let _ = cancellation.cancel();
+                        }
+                    }
+                }
+            }
+        })
+        .await
+        .expect("the task should be canceled well within the timeout")
+        .expect("execution should not fail");
+
+        assert!(result.is_none(), "the task should have been canceled");
+        assert!(
+            marker.exists(),
+            "the container should have created its file before the cancellation"
+        );
+
+        // SAFETY: `geteuid` and `getegid` are always safe to call and cannot
+        // fail.
+        let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
+        let mut dirs = vec![work_dir];
+        while let Some(dir) = dirs.pop() {
+            for entry in fs::read_dir(&dir).expect("work directory should be readable") {
+                let path = entry.expect("directory entry should be readable").path();
+                let metadata = path
+                    .symlink_metadata()
+                    .expect("entry metadata should be readable");
+
+                assert_eq!(
+                    (metadata.uid(), metadata.gid()),
+                    (uid, gid),
+                    "`{path}` should be owned by the user performing evaluation",
+                    path = path.display()
+                );
+
+                if metadata.is_dir() {
+                    dirs.push(path);
+                }
+            }
+        }
+
+        // The cleanup is the backend's own bookkeeping, so it emits no events
+        // at all: every event on the stream belongs to the task itself.
+        // Requiring the task's own events keeps this from passing on a
+        // stream that carried nothing.
+        let mut task_id = None;
+        while let Ok(event) = receiver.try_recv() {
+            let id = match &event {
+                CrankshaftEvent::TaskCreated { id, name, .. } => {
+                    assert!(
+                        !name.starts_with(CLEANUP_TASK_NAME_PREFIX),
+                        "cleanup task `{name}` should not appear on the event stream"
+                    );
+
+                    assert_eq!(name, request.name, "an unexpected task was reported");
+                    task_id = Some(*id);
+                    *id
+                }
+                CrankshaftEvent::TaskStarted { id }
+                | CrankshaftEvent::TaskContainerCreated { id, .. }
+                | CrankshaftEvent::TaskContainerExited { id, .. }
+                | CrankshaftEvent::TaskCompleted { id, .. }
+                | CrankshaftEvent::TaskFailed { id, .. }
+                | CrankshaftEvent::TaskCanceled { id }
+                | CrankshaftEvent::TaskPreempted { id }
+                | CrankshaftEvent::TaskStdout { id, .. }
+                | CrankshaftEvent::TaskStderr { id, .. }
+                | CrankshaftEvent::ImagePullStarted { id, .. }
+                | CrankshaftEvent::ImagePullFailed { id, .. }
+                | CrankshaftEvent::ImagePullFinished { id, .. } => *id,
+            };
+
+            assert_eq!(
+                Some(id),
+                task_id,
+                "an event was reported for a task other than `{name}`: {event:?}",
+                name = request.name
+            );
+        }
+
+        assert!(
+            task_id.is_some(),
+            "the task itself should have been reported on the event stream"
+        );
     }
 }

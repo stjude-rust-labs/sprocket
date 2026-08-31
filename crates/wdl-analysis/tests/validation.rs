@@ -128,8 +128,8 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<(), anyho
 
 /// Run a single test.
 async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
-    // Add this test's directory to a new analyzer, reading in a custom config if
-    // present.
+    // Add this test's directory to a new analyzer, reading in a custom config
+    // if present.
     let base = absolute(test).expect("should be made absolute").clean();
     let source_path = base.join("source.wdl");
     let errors_path = base.join("source.errors");

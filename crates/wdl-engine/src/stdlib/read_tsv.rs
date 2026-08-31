@@ -156,8 +156,8 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
         let mut lines = BufReader::new(file).lines();
 
-        // Read the file header if there is one; ignore it if the header was directly
-        // specified.
+        // Read the file header if there is one; ignore it if the header was
+        // directly specified.
         let file_has_header = context
             .coerce_argument(1, PrimitiveType::Boolean)
             .unwrap_boolean();

@@ -76,7 +76,8 @@ fn normalize_uri_path(uri: &mut Url) {
 
     // Call `to_file_path` which will automatically decode any encoded sequences
     if let Ok(path) = uri.to_file_path() {
-        // On windows we need to normalize any drive letter prefixes to uppercase
+        // On windows we need to normalize any drive letter prefixes to
+        // uppercase
         let path = if cfg!(windows) {
             let mut comps = path.components();
             match comps.next() {
@@ -499,8 +500,8 @@ impl ServerOptions {
         all_rules.sort_unstable();
         all_rules.dedup();
 
-        // TODO ACF 2025-07-07: add configurability around the fallback behavior; see
-        // https://github.com/stjude-rust-labs/wdl/issues/517
+        // TODO ACF 2025-07-07: add configurability around the fallback
+        // behavior; see https://github.com/stjude-rust-labs/wdl/issues/517
         let analyzer_config = AnalysisConfig::default()
             .with_fallback_version(Some(Default::default()))
             .with_diagnostics_config(DiagnosticsConfig::new(

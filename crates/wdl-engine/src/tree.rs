@@ -115,9 +115,10 @@ impl SyntaxNode {
     ///
     /// Returns `None` if there is no sibling node.
     pub fn next_sibling(&self) -> Option<SyntaxNode> {
-        // This should also be a constant-time access rather than having to iterate.
-        // We need the offset relative to the start of the parent from the green node to
-        // do that; currently that information is private in `rowan`.
+        // This should also be a constant-time access rather than having to
+        // iterate. We need the offset relative to the start of the
+        // parent from the green node to do that; currently that
+        // information is private in `rowan`.
 
         let parent = self.parent()?;
         let mut children = parent.children();
@@ -135,9 +136,10 @@ impl SyntaxNode {
     ///
     /// Returns `None` if there is no sibling node or token.
     pub fn next_sibling_or_token(&self) -> Option<SyntaxElement> {
-        // This should also be a constant-time access rather than having to iterate.
-        // We need the offset relative to the start of the parent from the green node to
-        // do that; currently that information is private in `rowan`.
+        // This should also be a constant-time access rather than having to
+        // iterate. We need the offset relative to the start of the
+        // parent from the green node to do that; currently that
+        // information is private in `rowan`.
 
         let parent = self.parent()?;
         let mut children = parent.children_with_tokens();
@@ -246,9 +248,10 @@ impl TreeNode for SyntaxNode {
     }
 
     fn last_token(&self) -> Option<Self::Token> {
-        // Unfortunately `rowan` does not expose the relative offset of each green
-        // child. If it did, we could easily just look at the last child here
-        // instead of iterating to find the last child's start.
+        // Unfortunately `rowan` does not expose the relative offset of each
+        // green child. If it did, we could easily just look at the last
+        // child here instead of iterating to find the last child's
+        // start.
         let mut last: Option<(usize, NodeOrToken<&GreenNodeData, &GreenTokenData>)> = None;
         let mut start = self.0.offset;
 
@@ -343,9 +346,9 @@ impl SyntaxToken {
     ///
     /// Returns `None` if there is no next sibling node or token.
     pub fn next_sibling_or_token(&self) -> Option<SyntaxElement> {
-        // This should also be a constant-time access rather than having to iterate.
-        // We need the offset relative to the start of the parent from the green node to
-        // do that.
+        // This should also be a constant-time access rather than having to
+        // iterate. We need the offset relative to the start of the
+        // parent from the green node to do that.
 
         let parent = self.parent();
         let mut children = parent.children_with_tokens();

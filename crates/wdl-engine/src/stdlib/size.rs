@@ -69,12 +69,14 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         // directory and treat it as such.
         let value = match context.arguments[0].value.as_string() {
             Some(_) => {
-                // Coerce the string to a file to ensure we do any guest-to-host translation
+                // Coerce the string to a file to ensure we do any guest-to-host
+                // translation
                 let path = context
                     .coerce_argument(0, PrimitiveType::File)
                     .unwrap_file();
 
-                // If the path is a URL that isn't `file` schemed, treat as a file
+                // If the path is a URL that isn't `file` schemed, treat as a
+                // file
                 if !is_file_url(path.as_str()) && is_supported_url(path.as_str()) {
                     PrimitiveValue::File(path).into()
                 } else {

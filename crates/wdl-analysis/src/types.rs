@@ -321,7 +321,8 @@ impl Type {
     /// For most types, this wraps them in an array. For call types, this
     /// promotes each output type into an array.
     pub fn promote_scatter(&self) -> Self {
-        // For calls, the outputs of the call are promoted instead of the call itself
+        // For calls, the outputs of the call are promoted instead of the call
+        // itself
         if let Self::Call(ty) = self {
             return Self::Call(ty.promote_scatter());
         }
@@ -343,13 +344,14 @@ impl Type {
             return Some(other.clone());
         }
 
-        // If the other type is `None`, then the common type would be an optional this
-        // type
+        // If the other type is `None`, then the common type would be an
+        // optional this type
         if other.is_none() {
             return Some(self.optional());
         }
 
-        // If this type is `None`, then the common type would be an optional other type
+        // If this type is `None`, then the common type would be an optional
+        // other type
         if self.is_none() {
             return Some(other.optional());
         }
@@ -570,7 +572,8 @@ impl Coercible for Type {
                         Type::from(PrimitiveType::String).is_coercible_to(target.key_type())
                     }
                     CompoundType::Custom(CustomType::Struct(_)) => {
-                        // Note: checking object keys and values is a runtime constraint
+                        // Note: checking object keys and values is a runtime
+                        // constraint
                         true
                     }
                     _ => false,
@@ -799,8 +802,8 @@ impl CompoundType {
     /// This method does not attempt coercion; it only attempts to find common
     /// inner types for the same outer type.
     fn common_type(&self, other: &Self) -> Option<CompoundType> {
-        // Check to see if the types are both `Array`, `Pair`, or `Map`; if so, attempt
-        // to find a common type for their inner types
+        // Check to see if the types are both `Array`, `Pair`, or `Map`; if so,
+        // attempt to find a common type for their inner types
         match (self, other) {
             (Self::Array(this), Self::Array(other)) => {
                 let element_type = this.element_type().common_type(other.element_type())?;
@@ -869,7 +872,8 @@ impl Coercible for CompoundType {
                     return false;
                 }
 
-                // Ensure the value type is coercible to every struct member type
+                // Ensure the value type is coercible to every struct member
+                // type
                 if !target
                     .members()
                     .values()
@@ -1005,7 +1009,8 @@ impl fmt::Display for ArrayType {
 
 impl Coercible for ArrayType {
     fn is_coercible_to(&self, target: &Self) -> bool {
-        // Note: non-empty constraints are enforced at runtime and are not checked here.
+        // Note: non-empty constraints are enforced at runtime and are not
+        // checked here.
         self.0.element_type.is_coercible_to(&target.0.element_type)
     }
 }
@@ -1710,8 +1715,8 @@ mod test {
 
     #[test_log::test]
     fn primitive_type_coercion() {
-        // All types should be coercible to self, and required should coerce to optional
-        // (but not vice versa)
+        // All types should be coercible to self, and required should coerce to
+        // optional (but not vice versa)
         for ty in [
             Type::from(PrimitiveType::Boolean),
             PrimitiveType::Directory.into(),
@@ -2464,7 +2469,8 @@ mod test {
 
     #[test_log::test]
     fn enum_type_new_with_explicit_type() {
-        // Create enum with explicit `String` type, all choices coerce to `String`.
+        // Create enum with explicit `String` type, all choices coerce to
+        // `String`.
         let status = EnumType::new(
             "Status",
             Span::new(0, 0),

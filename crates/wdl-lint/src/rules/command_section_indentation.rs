@@ -186,7 +186,8 @@ impl Visitor for CommandSectionIndentationRule {
                                     let current = IndentationKind::from(*b);
                                     let kind = kind.get_or_insert(current);
                                     if current != *kind {
-                                        // Mixed indentation, store the span of the first mixed
+                                        // Mixed indentation, store the span of
+                                        // the first mixed
                                         // character
                                         mixed_span =
                                             Some(Span::new(text.span().start() + start + i, 1));
@@ -199,8 +200,8 @@ impl Visitor for CommandSectionIndentationRule {
                     }
                 }
                 CommandPart::Placeholder(_) => {
-                    // Encountered a placeholder, skip the next line of text as it's
-                    // really a part of the same line
+                    // Encountered a placeholder, skip the next line of text as
+                    // it's really a part of the same line
                     skip_next_line = true;
                 }
             }

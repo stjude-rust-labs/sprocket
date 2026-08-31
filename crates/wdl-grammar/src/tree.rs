@@ -755,8 +755,9 @@ pub fn construct_tree(source: &str, mut events: Vec<Event>) -> SyntaxNode {
                     };
                 }
 
-                // As the current node was pushed first and then its ancestors, walk
-                // the list in reverse to start the "oldest" ancestor first
+                // As the current node was pushed first and then its ancestors,
+                // walk the list in reverse to start the
+                // "oldest" ancestor first
                 for kind in ancestors.drain(..).rev() {
                     if kind != SyntaxKind::Abandoned {
                         builder.start_node(kind.into());

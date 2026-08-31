@@ -135,8 +135,8 @@ impl UiTest for CodeBlock {
 
         let code_text = info["codeText"].as_str().unwrap_or_default().to_string();
 
-        // Install a clipboard stub so we can capture the copied text, then click
-        // the copy control.
+        // Install a clipboard stub so we can capture the copied text, then
+        // click the copy control.
         driver
             .execute(
                 r#"

@@ -99,14 +99,15 @@ fn bench_analyze_workflows_document<M: Measurement>(
 /// Benchmarks of `wdl-analysis` functions.
 pub fn bench(c: &mut Criterion) {
     let workflows_repo = get_workflows_repo().unwrap();
-    // NOTE ACF 2025-12-03: these "analyze the whole repo" benchmarks are disabled
-    // for now, as the inclusion of `import https://` statements means the runtime is dominated by fetching those
+    // NOTE ACF 2025-12-03: these "analyze the whole repo" benchmarks are
+    // disabled for now, as the inclusion of `import https://` statements means the runtime is dominated by fetching those
     // resources. In the future, if these dependencies change or some caching
     // mechanism is introduced for remote imports, this would be a decent metric
     // for "analyze as much real WDL as possible".
     if false {
-        // Analyze the whole workflows repo with a varying number of Tokio worker
-        // threads and the system default number of blocking threads.
+        // Analyze the whole workflows repo with a varying number of Tokio
+        // worker threads and the system default number of blocking
+        // threads.
         let mut workers_group = c.benchmark_group("analyze_workflows_with_worker_threads");
         for worker_threads in 1..=std::thread::available_parallelism().unwrap().get() {
             let analyze = AnalyzeWorkflows::new(&workflows_repo, Some(worker_threads), None);
@@ -117,8 +118,8 @@ pub fn bench(c: &mut Criterion) {
         workers_group.finish();
     }
     if false {
-        // Analyze the whole workflows repo with a single worker thread and a varying
-        // number of Tokio blocking threads.
+        // Analyze the whole workflows repo with a single worker thread and a
+        // varying number of Tokio blocking threads.
         let mut blocking_group = c.benchmark_group("analyze_workflows_with_blocking_threads");
         for blocking_threads_exponent in 0..10 {
             let blocking_threads = 2usize.pow(blocking_threads_exponent);
@@ -136,9 +137,9 @@ pub fn bench(c: &mut Criterion) {
     // Add a bench target to analyze each WDL file in the workflows repo.
     //
     // This includes WDL files that directly or transitively `import https://` documents. The timing
-    // of these benchmarks should not be considered stable. The time to fetch remote
-    // resources dominates the overall benchmark time, and can vary dramatically
-    // based on whether they're run on wifi, with a VPN, etc.
+    // of these benchmarks should not be considered stable. The time to fetch
+    // remote resources dominates the overall benchmark time, and can vary
+    // dramatically based on whether they're run on wifi, with a VPN, etc.
     let mut standalone_documents = c.benchmark_group("analyze_standalone_documents");
     for entry in walkdir::WalkDir::new(workflows_repo.path()) {
         if let Ok(e) = entry
