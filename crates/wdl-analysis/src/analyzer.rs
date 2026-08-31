@@ -353,8 +353,8 @@ impl IncrementalChange {
 
     /// Attempts to apply the changes to the given `source`.
     pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<()> {
-        // We keep track of the last line we've processed so we only rebuild the line
-        // index when there is a change that crosses a line
+        // We keep track of the last line we've processed so we only rebuild the
+        // line index when there is a change that crosses a line
         let mut last_line = !0u32;
         for edit in &self.edits {
             let range = edit.range();

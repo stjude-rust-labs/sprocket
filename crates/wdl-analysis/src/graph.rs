@@ -358,7 +358,8 @@ impl DocumentGraphNode {
             return Ok(None);
         };
 
-        // The document has been edited; if there is start source, apply the edits to it
+        // The document has been edited; if there is start source, apply the
+        // edits to it
         let (source, lines) = if change.start.is_some() {
             change.apply()?
         } else {
