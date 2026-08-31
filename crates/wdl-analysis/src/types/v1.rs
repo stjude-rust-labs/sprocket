@@ -720,8 +720,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     ) {
         self.placeholders += 1;
 
-        // Evaluate the placeholder expression and check that the resulting type is
-        // coercible to string for interpolation
+        // Evaluate the placeholder expression and check that the resulting type
+        // is coercible to string for interpolation
         let expr = placeholder.expr();
         if let Some(ty) = self.evaluate_expr(&expr) {
             if let Some(option) = placeholder.option() {
@@ -851,7 +851,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     if let Some(actual_key) = self.evaluate_expr(&key)
                         && let Some(actual_value) = self.evaluate_expr(&value)
                     {
-                        // The key must be a non-optional primitive type or union
+                        // The key must be a non-optional primitive type or
+                        // union
                         match actual_key {
                             Type::Primitive(_, false) | Type::Union => {
                                 match expected_key.common_type(&actual_key) {
@@ -1011,14 +1012,15 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     ) {
         let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
 
-        // The `cpu`, `gpu`, `disks`, `maxRetries`, and `returnCodes` keys are not
-        // formally typed until WDL 1.1 (see the WDL 1.0 specification's runtime
-        // section, which only gives recommended conventions for `docker` and
-        // `memory`). Some of these names are shared with differently-typed
-        // `hints` keys (e.g. `gpu` and `disks`), so simply letting the
-        // `task_requirement_types` lookup fail for WDL 1.0 documents isn't
-        // sufficient; doing so would incorrectly fall through to checking
-        // against the `hints` types below. Instead, skip type checking for
+        // The `cpu`, `gpu`, `disks`, `maxRetries`, and `returnCodes` keys are
+        // not formally typed until WDL 1.1 (see the WDL 1.0
+        // specification's runtime section, which only gives recommended
+        // conventions for `docker` and `memory`). Some of these names
+        // are shared with differently-typed `hints` keys (e.g. `gpu`
+        // and `disks`), so simply letting the `task_requirement_types`
+        // lookup fail for WDL 1.0 documents isn't sufficient; doing so
+        // would incorrectly fall through to checking against the
+        // `hints` types below. Instead, skip type checking for
         // these keys entirely when the document version is older than 1.1.
         // See https://github.com/stjude-rust-labs/sprocket/issues/811.
         if self.context.version() < SupportedVersion::V1(V1::One)
@@ -1035,8 +1037,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         }
 
         if !self.evaluate_requirement(name, expr, &expr_ty) {
-            // Always use object types for `runtime` section `inputs` and `outputs` keys as
-            // only `hints` sections can use input/output hidden types
+            // Always use object types for `runtime` section `inputs` and
+            // `outputs` keys as only `hints` sections can use
+            // input/output hidden types
             if let Some(expected) = task_hint_types(self.context.version(), name.text(), false)
                 && !expected
                     .iter()
@@ -1170,8 +1173,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         let mut names = names.enumerate().peekable();
         let expr_ty = self.evaluate_expr(&expr).unwrap_or(Type::Union);
 
-        // The first name should be an input/output and then the remainder should be a
-        // struct member
+        // The first name should be an input/output and then the remainder
+        // should be a struct member
         let mut span = None;
         let mut s: Option<&StructType> = None;
         while let Some((i, name)) = names.next() {
@@ -1317,7 +1320,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         if !ty.is_coercible_to(&PrimitiveType::Float.into()) {
             self.context
                 .add_diagnostic(negation_mismatch(&ty, operand.span()));
-            // Type is indeterminate as the expression may evaluate to more than one type
+            // Type is indeterminate as the expression may evaluate to more than
+            // one type
             return None;
         }
 
@@ -1386,7 +1390,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             return Some(PrimitiveType::Boolean.into());
         }
 
-        // Check LHS and RHS for being coercible to one of the supported primitive types
+        // Check LHS and RHS for being coercible to one of the supported
+        // primitive types
         for expected in [
             Type::from(PrimitiveType::Boolean),
             PrimitiveType::Integer.into(),
@@ -1395,7 +1400,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             PrimitiveType::File.into(),
             PrimitiveType::Directory.into(),
         ] {
-            // Only support equality/inequality comparisons for `File` and `Directory`
+            // Only support equality/inequality comparisons for `File` and
+            // `Directory`
             if op != ComparisonOperator::Equality
                 && op != ComparisonOperator::Inequality
                 && (matches!(
@@ -1419,7 +1425,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             }
         }
 
-        // For equality comparisons, check LHS and RHS being object and compound types
+        // For equality comparisons, check LHS and RHS being object and compound
+        // types
         if op == ComparisonOperator::Equality || op == ComparisonOperator::Inequality {
             // Check for object
             if (lhs_ty.is_coercible_to(&Type::Object) && rhs_ty.is_coercible_to(&Type::Object))
@@ -1496,9 +1503,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             return Some(PrimitiveType::Float.into());
         }
 
-        // For addition, also support `String` on one or both sides of any primitive
-        // type that isn't `Boolean`; in placeholder expressions, allow the
-        // other side to also be optional
+        // For addition, also support `String` on one or both sides of any
+        // primitive type that isn't `Boolean`; in placeholder
+        // expressions, allow the other side to also be optional
         if op == NumericOperator::Addition {
             let allow_optional = self.placeholders > 0;
             let other = if (!lhs_ty.is_optional() || allow_optional)
@@ -1804,8 +1811,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             _ => {}
         }
 
-        // Check to see if it's coercible to object; if so, treat as `Union` as it's
-        // indeterminate
+        // Check to see if it's coercible to object; if so, treat as `Union` as
+        // it's indeterminate
         if ty.is_coercible_to(&Type::OptionalObject) {
             return Some(Type::Union);
         }

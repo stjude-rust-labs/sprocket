@@ -301,8 +301,8 @@ async fn rebuild_index_skips_entries_outside_of_output_directory(pool: SqlitePoo
     let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
     fs::write(run_dir.root().join("result.txt"), "result")?;
 
-    // A database written before index paths were validated can hold entries that
-    // escape the index directory and even the output directory itself.
+    // A database written before index paths were validated can hold entries
+    // that escape the index directory and even the output directory itself.
     db.create_index_log_entry(
         run_id,
         "./index/../../escape/result.txt",

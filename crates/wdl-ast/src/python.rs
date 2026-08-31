@@ -206,8 +206,8 @@ mod tests {
 
     use super::*;
 
-    // Assert `ThreadSafeSyntaxNode` and `ThreadSafeSyntaxToken` are actually thread
-    // safe.
+    // Assert `ThreadSafeSyntaxNode` and `ThreadSafeSyntaxToken` are actually
+    // thread safe.
     const _: () = {
         const fn assert_send<T: Send>() {}
         const fn assert_sync<T: Sync>() {}

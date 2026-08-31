@@ -616,9 +616,10 @@ impl RunnableExecutor {
             );
         }
 
-        // Evaluation is over, so no further events can be emitted. Let the monitor
-        // consume what is left and reconcile any task that never reached a
-        // terminal status before the run is considered finished.
+        // Evaluation is over, so no further events can be emitted. Let the
+        // monitor consume what is left and reconcile any task that
+        // never reached a terminal status before the run is considered
+        // finished.
         monitor_shutdown.cancel();
         if let Err(e) = task_monitor.await {
             tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
@@ -982,10 +983,11 @@ pub async fn execute_target(
             Ok(())
         }
         Err(e) => {
-            // Cancelling a run aborts whatever it is doing, and work that is not a
-            // task execution reports that abort as an ordinary evaluation error.
-            // Localizing a large input is the common case: the transfer is torn
-            // down by the cancellation token and fails. The run was canceled, not
+            // Cancelling a run aborts whatever it is doing, and work that is
+            // not a task execution reports that abort as an
+            // ordinary evaluation error. Localizing a large input
+            // is the common case: the transfer is torn down by the
+            // cancellation token and fails. The run was canceled, not
             // failed, and only the user's own cancellation counts here — a
             // cancellation triggered by an error must still be recorded as a
             // failure.

@@ -283,7 +283,8 @@ pub(crate) fn gpu(inputs: &TaskInputs, requirements: &Object, hints: &Object) ->
         return Some(DEFAULT_GPU_COUNT);
     };
 
-    // A string `gpu` hint is allowed by the spec, but we do not support them yet.
+    // A string `gpu` hint is allowed by the spec, but we do not support them
+    // yet.
     //
     // TODO(clay): support string hints for GPU specifications.
     if let Some(hint) = hint.as_string() {
@@ -307,8 +308,8 @@ pub(crate) fn gpu(inputs: &TaskInputs, requirements: &Object, hints: &Object) ->
             None
         }
         None => {
-            // Typechecking should have already validated that the hint is an integer or
-            // a string.
+            // Typechecking should have already validated that the hint is an
+            // integer or a string.
             unreachable!("`{TASK_HINT_GPU}` hint must be an integer or string")
         }
     }
@@ -373,8 +374,8 @@ pub(crate) fn disks<'a>(
             }
 
             if let Some(map) = v.as_map() {
-                // Find the corresponding key; we have to scan the keys because the map is
-                // storing primitive values
+                // Find the corresponding key; we have to scan the keys because
+                // the map is storing primitive values
                 if let Some((_, v)) = map.iter().find(|(k, _)| match (k, mount_point) {
                     (_, None) => false,
                     (k, Some(mount_point)) => k
@@ -424,15 +425,17 @@ pub(crate) fn disks<'a>(
                 Some((size.parse().ok()?, None))
             }
             (Some(first), Some(second), None) => {
-                // Check for `<size> <unit>`; convert from the specified unit to GiB
+                // Check for `<size> <unit>`; convert from the specified unit to
+                // GiB
                 if let Ok(size) = first.parse() {
                     let unit: StorageUnit = second.parse().ok()?;
                     let size = unit.bytes(size)? / (ONE_GIBIBYTE as u64);
                     return Some((size.try_into().ok()?, None));
                 }
 
-                // Specification is `<mount-point> <size>` (where size is already in GiB)
-                // The mount point must be absolute, i.e. start with `/`
+                // Specification is `<mount-point> <size>` (where size is
+                // already in GiB) The mount point must be
+                // absolute, i.e. start with `/`
                 if !first.starts_with('/') {
                     return None;
                 }

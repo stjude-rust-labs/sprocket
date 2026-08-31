@@ -1991,14 +1991,15 @@ impl Condition {
             }
 
             fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
-                // If the object being accessed is not the hint object, let the access proceed
-                // normally
+                // If the object being accessed is not the hint object, let the
+                // access proceed normally
                 if !Arc::ptr_eq(&object.members, &self.0.hints.members) {
                     return None;
                 }
 
-                // Access to the hints object first checks for a hint override in the inputs and
-                // then falls back to the task's hints; if the name is not present in either, a
+                // Access to the hints object first checks for a hint override
+                // in the inputs and then falls back to the
+                // task's hints; if the name is not present in either, a
                 // `None` value is returned instead of an error
                 Some(
                     self.0
@@ -2073,12 +2074,13 @@ impl<'de> FromToml<'de> for Condition {
                     mapping[i].1
                 }
                 Err(i) => {
-                    // Not in the map, need to potentially offset the unescaped position
-                    // based on a preceding map entry
+                    // Not in the map, need to potentially offset the unescaped
+                    // position based on a preceding map
+                    // entry
                     unescaped
                         + if i == 0 {
-                            // No need to offset as this position comes before any
-                            // escape sequences
+                            // No need to offset as this position comes before
+                            // any escape sequences
                             0
                         } else {
                             // Offset by the last delta
@@ -2360,7 +2362,8 @@ impl LsfApptainerBackendConfig {
         // environment. These are a bit fraught, particularly if the behavior of
         // the external tools changes based on where a job gets dispatched, but
         // querying from the perspective of the current node allows
-        // us to get better error messages in circumstances typical to a cluster.
+        // us to get better error messages in circumstances typical to a
+        // cluster.
         if let Some(queue) = &self.default_lsf_queue {
             queue.validate("default").await?;
         }
@@ -2430,8 +2433,8 @@ impl LsfApptainerBackendConfig {
             return Some(queue);
         }
 
-        // Finally the default queue. If this is `None`, `bsub` gets run without a queue
-        // argument and the cluster's default is used.
+        // Finally the default queue. If this is `None`, `bsub` gets run without
+        // a queue argument and the cluster's default is used.
         self.default_lsf_queue.as_ref()
     }
 }
@@ -2590,7 +2593,8 @@ impl SlurmApptainerBackendConfig {
         // environment. These are a bit fraught, particularly if the behavior of
         // the external tools changes based on where a job gets dispatched, but
         // querying from the perspective of the current node allows
-        // us to get better error messages in circumstances typical to a cluster.
+        // us to get better error messages in circumstances typical to a
+        // cluster.
         if let Some(partition) = &self.default_slurm_partition {
             partition.validate("default").await?;
         }
@@ -2623,8 +2627,9 @@ impl SlurmApptainerBackendConfig {
         hints: &Object,
     ) -> Option<&SlurmPartitionConfig> {
         // TODO ACF 2025-09-26: what's the relationship between this code and
-        // `TaskExecutionConstraints`? Should this be there instead, or be pulling
-        // values from that instead of directly from `requirements` and `hints`?
+        // `TaskExecutionConstraints`? Should this be there instead, or be
+        // pulling values from that instead of directly from
+        // `requirements` and `hints`?
 
         // Specialized hardware gets priority.
         if let Some(partition) = self.fpga_slurm_partition.as_ref()
@@ -2652,8 +2657,9 @@ impl SlurmApptainerBackendConfig {
             return Some(partition);
         }
 
-        // Finally the default partition. If this is `None`, `sbatch` gets run without a
-        // partition argument and the cluster's default is used.
+        // Finally the default partition. If this is `None`, `sbatch` gets run
+        // without a partition argument and the cluster's default is
+        // used.
         self.default_slurm_partition.as_ref()
     }
 }
@@ -2936,8 +2942,8 @@ impl<T> ConfigBuilder<T> {
         // Merge the documents as TOML tables
         let mut merged_table: Table<'_> = Table::new();
         for (index, mut document) in documents.into_iter().enumerate() {
-            // Start by deserializing the document to ensure it is a valid standalone
-            // configuration
+            // Start by deserializing the document to ensure it is a valid
+            // standalone configuration
             document.to::<T>().map_err(|e| {
                 let (path, source) = &sources[index];
                 BuilderError::Deserialize {
@@ -3644,8 +3650,8 @@ type = 'lsf_apptainer'
         // Check a string with no escape sequences
         assert!(escape_mapping("hello world!").is_empty());
 
-        // Check for a string containing only an escape sequences (should contain an
-        // exclusive-end mapping)
+        // Check for a string containing only an escape sequences (should
+        // contain an exclusive-end mapping)
         assert_eq!(escape_mapping(r#"\"\""#), &[(1, 2), (2, 4)]);
         assert_eq!(escape_mapping(r#"\u0022\u0022"#), &[(1, 6), (2, 12)]);
         assert_eq!(

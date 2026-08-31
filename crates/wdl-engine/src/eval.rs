@@ -93,7 +93,8 @@ impl CancellationContextState {
         // Update the provided state with the new state
         let previous_state = state
             .try_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
-                // If updating for an error and there has been a cancellation, bail out
+                // If updating for an error and there has been a cancellation,
+                // bail out
                 if error && state != CANCELLATION_STATE_NOT_CANCELED {
                     return None;
                 }

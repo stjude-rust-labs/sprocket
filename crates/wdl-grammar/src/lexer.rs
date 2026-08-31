@@ -295,9 +295,9 @@ where
     where
         T2: Logos<'a, Source = str, Error = (), Extras = ()> + Copy,
     {
-        // If the lexer has peeked, we need to "reset" the lexer so that it is no longer
-        // peeked; this allows the morphed lexer to lex the previously peeked
-        // span
+        // If the lexer has peeked, we need to "reset" the lexer so that it is
+        // no longer peeked; this allows the morphed lexer to lex the
+        // previously peeked span
         let lexer = match self.peeked {
             Some(peeked) => {
                 let mut lexer = T2::lexer(self.lexer.source());

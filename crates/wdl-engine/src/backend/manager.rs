@@ -82,11 +82,11 @@ impl LimitsState {
 
         // This algorithm is intended to unpark the greatest number of tasks.
         //
-        // It first finds the greatest subset of tasks that are constrained by CPU and
-        // then by memory.
+        // It first finds the greatest subset of tasks that are constrained by
+        // CPU and then by memory.
         //
-        // Next it finds the greatest subset of tasks that are constrained by memory and
-        // then by CPU.
+        // Next it finds the greatest subset of tasks that are constrained by
+        // memory and then by CPU.
         //
         // It then unparks whichever subset is greater.
         //
@@ -95,21 +95,21 @@ impl LimitsState {
             let parked = self.parked.make_contiguous();
 
             let cpu_by_memory_len = {
-                // Start by finding the longest range in the parked set that could run based on
-                // CPU reservation
+                // Start by finding the longest range in the parked set that
+                // could run based on CPU reservation
                 let range = fit_longest_range(parked, self.cpu, |task| OrderedFloat(task.cpu));
 
-                // Next, find the longest subset of that subset that could run based on memory
-                // reservation
+                // Next, find the longest subset of that subset that could run
+                // based on memory reservation
                 fit_longest_range(&mut parked[range], self.memory, |task| task.memory).len()
             };
 
-            // Next, find the longest range in the parked set that could run based on memory
-            // reservation
+            // Next, find the longest range in the parked set that could run
+            // based on memory reservation
             let memory_by_cpu = fit_longest_range(parked, self.memory, |task| task.memory);
 
-            // Next, find the longest subset of that subset that could run based on CPU
-            // reservation
+            // Next, find the longest subset of that subset that could run based
+            // on CPU reservation
             let memory_by_cpu = fit_longest_range(&mut parked[memory_by_cpu], self.cpu, |task| {
                 OrderedFloat(task.cpu)
             });
@@ -119,13 +119,13 @@ impl LimitsState {
                 break;
             }
 
-            // Check to see which subset is greater (for equivalence, use the one we don't
-            // need to refit for)
+            // Check to see which subset is greater (for equivalence, use the
+            // one we don't need to refit for)
             let range = if memory_by_cpu.len() >= cpu_by_memory_len {
                 memory_by_cpu
             } else {
-                // We need to refit because the above calculation of `memory_by_cpu` mutated the
-                // parked list
+                // We need to refit because the above calculation of
+                // `memory_by_cpu` mutated the parked list
                 let range = fit_longest_range(parked, self.cpu, |task| OrderedFloat(task.cpu));
                 fit_longest_range(&mut parked[range], self.memory, |task| task.memory)
             };
@@ -224,8 +224,9 @@ impl TaskManager {
                 let mut parked = {
                     let mut state = limits.0.lock().expect("failed to lock state");
 
-                    // If the task can't run due to unavailable resources, park the task until
-                    // resources are available
+                    // If the task can't run due to unavailable resources, park
+                    // the task until resources are
+                    // available
                     if cpu > state.cpu.into() || memory > state.memory {
                         debug!(
                             "parking task due to insufficient resources: task requests {cpu} \
@@ -250,7 +251,8 @@ impl TaskManager {
 
                         Some((notify_rx, id))
                     } else {
-                        // Decrement the resource counts now and continue on to run the task
+                        // Decrement the resource counts now and continue on to
+                        // run the task
                         state.cpu -= cpu;
                         state.memory -= memory;
 
@@ -296,14 +298,14 @@ impl TaskManager {
                     Some((_, id))
                         if let Some(index) = state.parked.iter().position(|t| t.id == id) =>
                     {
-                        // Task is still parked; remove it from set and do not increment the
-                        // resource counts
+                        // Task is still parked; remove it from set and do not
+                        // increment the resource counts
                         assert!(matches!(res, Ok(None)), "task should be canceled");
                         state.parked.swap_remove_back(index);
                     }
                     _ => {
-                        // Task was either not parked or previously unparked, increment the resource
-                        // counts
+                        // Task was either not parked or previously unparked,
+                        // increment the resource counts
                         state.cpu += cpu;
                         state.memory += memory;
                     }
@@ -380,7 +382,8 @@ where
     {
         assert!(low < high);
 
-        // Swap a random element (the pivot) in the remaining range with the high
+        // Swap a random element (the pivot) in the remaining range with the
+        // high
         slice.swap(high, rand::random_range(low..high));
 
         let pivot_weight = weight_fn(&slice[high]);
@@ -436,8 +439,8 @@ where
                 // Recurse on the right side
                 recurse_fit_maximal_range(slice, remaining_weight, weight_fn, pivot + 1, high, end);
             } else if pivot > 0 {
-                // Otherwise, we can completely disregard the right side (including the pivot)
-                // and recurse on the left
+                // Otherwise, we can completely disregard the right side
+                // (including the pivot) and recurse on the left
                 recurse_fit_maximal_range(slice, remaining_weight, weight_fn, low, pivot - 1, end);
             }
         }

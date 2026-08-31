@@ -459,7 +459,8 @@ impl<'a> ScopeUnion<'a> {
                     continue;
                 }
 
-                // If this name is not in the current clause's scope, mark as optional
+                // If this name is not in the current clause's scope, mark as
+                // optional
                 if scope_ref.local(name).is_none() {
                     info.ty = info.ty.optional();
                 }
@@ -937,8 +938,9 @@ impl Document {
                 *wdl_version,
             ),
             _ => {
-                // Don't process a document with a missing version statement or an unsupported
-                // version unless a fallback version is configured
+                // Don't process a document with a missing version statement or
+                // an unsupported version unless a fallback
+                // version is configured
                 return Self {
                     data: Arc::new(DocumentData::new(
                         config.clone(),
@@ -1211,7 +1213,8 @@ impl Document {
             let mut index = match scopes.binary_search_by_key(&position, |s| s.span.start()) {
                 Ok(index) => index,
                 Err(index) => {
-                    // This indicates that we couldn't find a match and the match would go _before_
+                    // This indicates that we couldn't find a match and the
+                    // match would go _before_
                     // the first scope, so there is no containing scope.
                     if index == 0 {
                         return None;
@@ -1222,7 +1225,8 @@ impl Document {
             };
 
             // We now have the index to start looking up the list of scopes
-            // We walk up the list to try to find a span that contains the position
+            // We walk up the list to try to find a span that contains the
+            // position
             loop {
                 let scope = &scopes[index];
                 if scope.span.contains(position) {
@@ -1252,8 +1256,9 @@ impl Document {
         {
             Ok(index) => &self.data.tasks[index],
             Err(index) => {
-                // This indicates that we couldn't find a match and the match would go _before_
-                // the first task, so there is no containing task.
+                // This indicates that we couldn't find a match and the match
+                // would go _before_ the first task, so there is
+                // no containing task.
                 if index == 0 {
                     return None;
                 }

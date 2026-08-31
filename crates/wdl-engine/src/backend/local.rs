@@ -113,8 +113,8 @@ impl ManagedTask for LocalTask<'_> {
                 )
                 .kill_on_drop(true);
 
-            // Set the PATH variable for the child on Windows to get consistent PATH
-            // searching. See: https://github.com/rust-lang/rust/issues/122660
+            // Set the PATH variable for the child on Windows to get consistent
+            // PATH searching. See: https://github.com/rust-lang/rust/issues/122660
             #[cfg(windows)]
             if let Ok(path) = std::env::var("PATH") {
                 command.env("PATH", path);

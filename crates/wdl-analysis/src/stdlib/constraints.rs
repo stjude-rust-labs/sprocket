@@ -61,7 +61,8 @@ impl Constraint for SizeableConstraint {
                 Type::Primitive(ty, _) => primitive_type_is_sizable(*ty),
                 Type::Compound(ty, _) => compound_type_is_sizable(ty),
                 Type::Object | Type::OptionalObject => {
-                    // Note: checking the types of an object's members is a runtime constraint
+                    // Note: checking the types of an object's members is a
+                    // runtime constraint
                     true
                 }
                 // Treat unions as sizable as they can only be checked at runtime

@@ -69,8 +69,8 @@ fn write_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagno
             .expect("expected an array type for the argument")
             .element_type();
 
-        // If it's an array of objects, we need to ensure each object has the exact same
-        // member names
+        // If it's an array of objects, we need to ensure each object has the
+        // exact same member names
         let mut empty = array.is_empty();
         if matches!(element_type, Type::Object) {
             let mut iter = array.as_slice().iter();

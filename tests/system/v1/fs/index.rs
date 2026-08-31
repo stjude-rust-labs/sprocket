@@ -375,8 +375,8 @@ async fn create_index_with_partial_db_failure(pool: SqlitePool) -> Result<()> {
     let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
     fs::write(run_dir.root().join("outputs.json"), "{}")?;
 
-    // Create one file that exists and one that doesn't (`styling_metrics.json` is
-    // missing)
+    // Create one file that exists and one that doesn't (`styling_metrics.json`
+    // is missing)
     let outputs: Outputs = [
         make_file_output(
             run_dir.root(),
@@ -397,7 +397,8 @@ async fn create_index_with_partial_db_failure(pool: SqlitePool) -> Result<()> {
 
     assert!(result.is_err());
 
-    // Verify that the successful symlinks were created even though operation failed
+    // Verify that the successful symlinks were created even though operation
+    // failed
     let index_dir = output_dir.index_dir(&index_path("yak"));
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("satisfaction_survey.tsv").exists());
@@ -786,8 +787,8 @@ async fn create_index_skips_outputs_outside_of_output_directory(pool: SqlitePool
     let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
     fs::write(run_dir.outputs_file(), "{}")?;
 
-    // An input that a task passes straight through to an output lives outside of
-    // the output directory.
+    // An input that a task passes straight through to an output lives outside
+    // of the output directory.
     let inputs = TempDir::new()?;
     let input_file = inputs.path().join("reads.bam");
     fs::write(&input_file, "reads")?;
