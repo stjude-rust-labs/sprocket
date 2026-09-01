@@ -792,16 +792,16 @@ fn add_stdlib_completions(version: Option<SupportedVersion>, items: &mut Vec<Com
                 })
             }
             Function::Polymorphic(p) => {
+                let docs = p.definition(v).and_then(|d| make_md_docs(d.to_string()));
                 for sig in p.signatures().iter().filter(|s| s.minimum_version() <= v) {
                     let params = TypeParameters::new(sig.type_parameters());
                     let detail = Some(format!("{name}{}", sig.display(&params)));
-                    let docs = sig.definition().and_then(|d| make_md_docs(d.to_string()));
                     let snippet = build_function_snippet(name, sig);
                     items.push(CompletionItem {
                         label: name.to_string(),
                         kind: Some(CompletionItemKind::FUNCTION),
                         detail,
-                        documentation: docs,
+                        documentation: docs.clone(),
                         insert_text_format: Some(InsertTextFormat::SNIPPET),
                         insert_text: Some(snippet),
                         ..Default::default()
