@@ -10,7 +10,6 @@ use std::sync::Arc;
 use arrayvec::ArrayString;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
-use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
 use rowan::TextRange;
@@ -1490,7 +1489,7 @@ impl Document {
                     None
                 }
             })
-            .find_or_last(|t| t.scope().span().start() == position)?;
+            .max_by_key(|t| t.scope().span().start())?;
 
         if task.scope().span().contains(position) {
             return find_scope(&task.scopes, position);
