@@ -14,6 +14,7 @@ use wdl::engine::EvaluationPath;
 use wdl::engine::JsonMap;
 
 use super::JsonInputMap;
+use crate::analysis::is_supported_source_url;
 use crate::inputs::LocatedJsonValue;
 
 /// Helper for formatting an unsupported file format error.
@@ -33,6 +34,45 @@ enum Format {
     Yaml,
 }
 
+/// Determines the input file format from an evaluation path.
+fn format_for_path(path: &EvaluationPath) -> Option<Format> {
+    if let Some(path) = path.as_local() {
+        return match path.extension().and_then(OsStr::to_str) {
+            Some("json") => Some(Format::Json),
+            Some("yml") | Some("yaml") => Some(Format::Yaml),
+            _ => None,
+        };
+    }
+
+    let path = path.as_remote()?.path();
+    if path.ends_with(".json") {
+        Some(Format::Json)
+    } else if path.ends_with(".yml") || path.ends_with(".yaml") {
+        Some(Format::Yaml)
+    } else {
+        None
+    }
+}
+
+/// Returns whether an unprefixed CLI value looks like an input file.
+pub(super) fn looks_like_input_file(value: &str) -> bool {
+    let Ok(path) = value.parse::<EvaluationPath>() else {
+        return false;
+    };
+
+    if let Some(path) = path.as_local()
+        && !path.is_file()
+    {
+        return false;
+    }
+
+    if path.is_remote() && !is_supported_source_url(value) {
+        return false;
+    }
+
+    format_for_path(&path).is_some()
+}
+
 /// Read an input file into an input map.
 ///
 /// The file is attempted to be parsed based on its extension.
@@ -47,6 +87,7 @@ pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
                 origin: origin.clone(),
                 value,
                 from_file: true,
+                unprefixed_input_file: None,
             });
         }
 
@@ -88,43 +129,42 @@ pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
     }
 
     if path.is_local() {
-        let path = path.as_local().expect("path should be local");
-        if path.is_dir() {
+        let local_path = path.as_local().expect("path should be local");
+        if local_path.is_dir() {
             bail!(
                 "an inputs file cannot be read from directory `{path}`",
-                path = path.display()
+                path = local_path.display()
             );
         }
 
-        let format = match path.extension().and_then(OsStr::to_str) {
-            Some("json") => Format::Json,
-            Some("yml") | Some("yaml") => Format::Yaml,
-            _ => return Err(unsupported_file_extension(path.display())),
+        let Some(format) = format_for_path(path) else {
+            return Err(unsupported_file_extension(local_path.display()));
         };
 
         // Get the absolute path for the origin
-        let absolute_path = absolute(path).with_context(|| {
+        let absolute_path = absolute(local_path).with_context(|| {
             format!(
                 "cannot make origin path `{path}` absolute",
-                path = path.display()
+                path = local_path.display()
             )
         })?;
 
         let origin = absolute_path.parent().unwrap_or(&absolute_path);
 
         // Read the contents from the local file
-        let contents = tokio::fs::read_to_string(&path).await.with_context(|| {
-            format!("failed to read inputs file `{path}`", path = path.display())
-        })?;
+        let contents = tokio::fs::read_to_string(local_path)
+            .await
+            .with_context(|| {
+                format!(
+                    "failed to read inputs file `{path}`",
+                    path = local_path.display()
+                )
+            })?;
 
-        parse(format, &contents, path.display(), origin.into())
+        parse(format, &contents, local_path.display(), origin.into())
     } else {
         let url = path.as_remote().expect("path should be remote");
-        let format = if url.path().ends_with(".json") {
-            Format::Json
-        } else if url.path().ends_with(".yml") || url.path().ends_with(".yaml") {
-            Format::Yaml
-        } else {
+        let Some(format) = format_for_path(path) else {
             return Err(unsupported_file_extension(url));
         };
 
@@ -183,6 +223,27 @@ mod tests {
             err.to_string().replace("\\", "/"),
             "input file `tests/fixtures/nonmap_inputs.yml` did not contain a map from strings to \
              values at the root"
+        );
+    }
+
+    #[test]
+    fn unprefixed_input_file_candidates_use_supported_urls() {
+        assert!(looks_like_input_file("https://example.com/inputs.json"));
+        assert!(!looks_like_input_file("az://container/inputs.json"));
+        assert!(!looks_like_input_file("s3://bucket/inputs.yaml"));
+        assert!(!looks_like_input_file("gs://bucket/inputs.yml"));
+    }
+
+    #[tokio::test]
+    async fn directory_reports_directory_error_before_format_error() {
+        let directory = tempfile::TempDir::new().unwrap();
+        let path: EvaluationPath = directory.path().into();
+        let error = read_input_file(&path).await.unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .starts_with("an inputs file cannot be read from directory")
         );
     }
 

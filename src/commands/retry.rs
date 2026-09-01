@@ -1,14 +1,10 @@
 //! Implementation of the `retry` subcommand.
 
-use std::collections::BTreeMap;
-
 use anyhow::Context;
 use clap::Parser;
 use serde_json::Value as JsonValue;
 use wdl::analysis::Document;
 use wdl::diagnostics::Mode;
-use wdl::engine::EvaluationPath;
-use wdl::engine::Inputs as EngineInputs;
 
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -21,6 +17,7 @@ use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::ensure_no_analysis_errors;
 use crate::config::Config;
+use crate::inputs::FlattenedInputs;
 use crate::inputs::Invocation;
 use crate::inputs::join_paths_for_target;
 use crate::server::RunResponse;
@@ -210,17 +207,17 @@ async fn merge_overrides_into(
         .await
         .context("failed to parse override inputs")?;
 
-    let (origins, override_map) = invocation.into_json_with_origins();
+    let override_inputs = invocation.into_json_with_origins();
 
-    if override_map.is_empty() {
+    if override_inputs.is_empty() {
         return Ok(());
     }
 
     // Resolve paths via wdl-engine when a document is available.
     let resolved_map = if let Some(document) = document {
-        resolve_override_paths(document, override_map, origins).await?
+        resolve_override_paths(document, &override_inputs).await?
     } else {
-        override_map
+        override_inputs.into_values()
     };
 
     for (key, value) in resolved_map {
@@ -241,17 +238,16 @@ async fn merge_overrides_into(
 /// subset.
 async fn resolve_override_paths(
     document: &Document,
-    overrides: serde_json::Map<String, JsonValue>,
-    origins: BTreeMap<String, Vec<EvaluationPath>>,
+    overrides: &FlattenedInputs,
 ) -> CommandResult<serde_json::Map<String, JsonValue>> {
-    let Some((target, mut inputs)) =
-        EngineInputs::parse_json_object(document, overrides.clone())
-            .context("failed to parse override inputs against the WDL document")?
+    let Some((target, mut inputs)) = overrides
+        .parse_engine_inputs(document)
+        .context("failed to parse override inputs against the WDL document")?
     else {
-        return Ok(overrides);
+        return Ok(overrides.values().clone());
     };
 
-    join_paths_for_target(document, &target, &mut inputs, &origins).await?;
+    join_paths_for_target(document, &target, &mut inputs, overrides.origins()).await?;
 
     let json_str =
         inputs_to_json(&target, &inputs).context("failed to serialize override inputs")?;
@@ -507,5 +503,50 @@ task t {
         .await;
 
         assert!(result.is_err(), "expected error for unknown override key");
+    }
+
+    #[tokio::test]
+    async fn merge_unprefixed_input_file_reports_missing_at_prefix() {
+        let wdl = r#"
+version 1.2
+
+task t {
+    input {
+        Array[File] jsons
+        Int threads
+    }
+    command <<< >>>
+}
+"#;
+        let (document, _wdl_dir) = analyze(wdl).await;
+        let input_dir = TempDir::new().unwrap();
+        let input_file = input_dir.path().join("inputs.json");
+        let first_json = input_dir.path().join("first.json");
+        let second_json = input_dir.path().join("second.json");
+        std::fs::write(&input_file, "{}").unwrap();
+        std::fs::write(&first_json, "{}").unwrap();
+        std::fs::write(&second_json, "{}").unwrap();
+
+        let mut base = base();
+        let error = merge_overrides_into(
+            &mut base,
+            &overrides(&[
+                &format!("t.jsons={}", first_json.display()),
+                second_json.to_str().unwrap(),
+                "t.threads=20",
+                input_file.to_str().unwrap(),
+            ]),
+            Some("t".to_string()),
+            Some(&document),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("looks like an input file"));
+        assert!(error.contains("prefix input files with `@`"));
+        assert!(error.contains(input_file.to_str().unwrap()));
+        assert!(!error.contains(second_json.to_str().unwrap()));
+        assert!(error.contains("invalid input value for key `t.threads`"));
     }
 }
