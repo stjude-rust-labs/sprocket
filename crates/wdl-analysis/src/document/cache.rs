@@ -13,6 +13,7 @@ use petgraph::prelude::DiGraphMap;
 use sha2::Digest;
 use sha2::Sha256;
 use url::Url;
+use wdl_ast::TreeNode;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::EnumDefinition;
@@ -20,8 +21,11 @@ use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_grammar::Diagnostic;
 use wdl_grammar::Span;
+use wdl_grammar::SyntaxKind;
 
 use crate::AppliedEdit;
+use crate::Diagnostics;
+use crate::Exceptable;
 use crate::document::Enum;
 use crate::document::ImportedEnum;
 use crate::document::ImportedStruct;
@@ -463,37 +467,78 @@ pub struct WithBodyHash<T> {
 }
 
 /// A cached, analyzed document item.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CachedItem<T> {
     /// The hash for this item's signature.
-    pub signature_hash: SignatureHash,
+    signature_hash: SignatureHash,
     /// The offset of the item in the document's CST.
-    pub offset: usize,
+    offset: usize,
     /// The analyzed item.
-    pub(in crate::document) item: T,
+    item: T,
     /// Diagnostics produced during the analysis of this item.
-    pub diagnostics: Vec<Diagnostic>,
+    diagnostics: Diagnostics,
 }
 
 impl<T> CachedItem<T> {
-    /// Add diagnostics to this item.
+    /// Create a new cached item.
+    pub(in crate::document) fn new(
+        signature_hash: SignatureHash,
+        offset: usize,
+        item: T,
+        diagnostics: Diagnostics,
+    ) -> Self {
+        Self {
+            signature_hash,
+            offset,
+            item,
+            diagnostics,
+        }
+    }
+
+    /// Get the item that this cached item represents.
+    pub fn item(&self) -> &T {
+        &self.item
+    }
+
+    /// Get a mutable reference to the item that this cached item represents.
+    pub fn item_mut(&mut self) -> &mut T {
+        &mut self.item
+    }
+
+    /// Overwrite the diagnostics for this cached item.
     ///
     /// NOTE: This expects diagnostics with absolute offsets.
-    pub(in crate::document) fn extend_diagnostics(
+    pub fn set_diagnostics(&mut self, diagnostics: Diagnostics) {
+        self.diagnostics = diagnostics;
+        self.shift_diagnostic_offsets();
+    }
+
+    /// Adds a diagnostic to this item.
+    ///
+    /// NOTE: This expects diagnostics with absolute offsets.
+    pub(in crate::document) fn add_diagnostic(&mut self, mut diagnostic: Diagnostic) {
+        diagnostic.offset(-(self.offset as isize));
+        self.diagnostics.add(diagnostic);
+    }
+
+    /// See [`Diagnostics::exceptable_add()`]
+    ///
+    /// NOTE: This expects diagnostics with absolute offsets.
+    pub(in crate::document) fn exceptable_add<N: TreeNode + Exceptable>(
         &mut self,
-        diagnostics: impl IntoIterator<Item = Diagnostic>,
+        mut diagnostic: Diagnostic,
+        element: &N,
+        exceptable_nodes: &Option<&'static [SyntaxKind]>,
     ) {
+        diagnostic.offset(-(self.offset as isize));
         self.diagnostics
-            .extend(diagnostics.into_iter().map(|mut d| {
-                d.offset(-(self.offset as isize));
-                d
-            }));
+            .exceptable_add(diagnostic, element, exceptable_nodes);
     }
 
     /// Reposition the item's diagnostics to be relative to the item's offset,
     /// rather than the item's absolute offset in the document.
-    pub(in crate::document) fn shift_diagnostic_offsets(&mut self) {
-        for diagnostic in &mut self.diagnostics {
+    fn shift_diagnostic_offsets(&mut self) {
+        for diagnostic in &mut self.diagnostics.diagnostics {
             diagnostic.offset(-(self.offset as isize))
         }
     }
@@ -550,11 +595,11 @@ impl CachedItemRefMut<'_> {
     /// Gets a mutable reference to the diagnostics of the item.
     fn diagnostics_mut(&mut self) -> &mut Vec<Diagnostic> {
         match self {
-            Self::Struct(s) => &mut s.diagnostics,
-            Self::Enum(e) => &mut e.diagnostics,
-            Self::Task(t) => &mut t.diagnostics,
-            Self::Workflow(w) => &mut w.diagnostics,
-            Self::Import(i) => &mut i.diagnostics,
+            Self::Struct(s) => &mut s.diagnostics.diagnostics,
+            Self::Enum(e) => &mut e.diagnostics.diagnostics,
+            Self::Task(t) => &mut t.diagnostics.diagnostics,
+            Self::Workflow(w) => &mut w.diagnostics.diagnostics,
+            Self::Import(i) => &mut i.diagnostics.diagnostics,
         }
     }
 
@@ -1319,13 +1364,6 @@ impl AnalysisCache {
             .flat_map(|i| i.item.item.namespace_mut())
     }
 
-    /// Gets a mutable reference to the workflow in the document.
-    ///
-    /// Returns `None` if the document did not contain a workflow.
-    pub(crate) fn workflow_mut(&mut self) -> Option<&mut Workflow> {
-        self.workflow.as_mut().map(|i| &mut i.item.item)
-    }
-
     /// Gets a mutable reference to the cached item for the workflow in the
     /// document.
     pub(in crate::document) fn workflow_item_mut(
@@ -1334,10 +1372,12 @@ impl AnalysisCache {
         self.workflow.as_mut()
     }
 
-    /// Gets a mutable reference to a struct in the document at the given cache
-    /// index.
-    pub(in crate::document) fn struct_by_index_mut(&mut self, index: usize) -> Option<&mut Struct> {
-        Some(&mut self.structs.get_index_mut(index)?.1.item)
+    /// Gets a mutable reference to a `struct` `CachedItem` at the given index.
+    pub(in crate::document) fn struct_item_mut(
+        &mut self,
+        index: usize,
+    ) -> Option<&mut CachedItem<Struct>> {
+        Some(self.structs.get_index_mut(index)?.1)
     }
 
     /// Remove an item by its [`SignatureHash`].
@@ -1456,10 +1496,12 @@ impl AnalysisCache {
         to_remove
     }
 
-    /// Gets a mutable reference to an enum in the document at the given cache
-    /// index.
-    pub(in crate::document) fn enum_by_index_mut(&mut self, index: usize) -> Option<&mut Enum> {
-        Some(&mut self.enums.get_index_mut(index)?.1.item)
+    /// Gets a mutable reference to an `enum` `CachedItem` at the given index.
+    pub(in crate::document) fn enum_item_mut(
+        &mut self,
+        index: usize,
+    ) -> Option<&mut CachedItem<Enum>> {
+        Some(self.enums.get_index_mut(index)?.1)
     }
 
     /// Adds a dependency edge to the graph.

@@ -65,6 +65,7 @@ use super::Struct;
 use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
+use crate::Diagnostics;
 use crate::Exceptable;
 use crate::MisleadingDeclarationOrderRule;
 use crate::UnusedCallRule;
@@ -200,7 +201,7 @@ pub(crate) fn populate_document(
     );
 
     // Pre-populate all of the lint exceptions
-    document.analysis_diagnostics.add_exceptions(
+    document.analysis_diagnostics.set_exceptions(
         std::iter::successors(ast.inner().first_token(), |t| t.next_token())
             .filter_map(|t| Comment::cast(t)?.directive()?.into_except())
             .flatten(),
@@ -290,21 +291,26 @@ pub(crate) fn populate_document(
             }
             DocumentItem::Workflow(ast_wf) => {
                 let body_hash = body_hash.expect("workflows should have a body hash");
-                if add_workflow(&mut cache, document, *signature_hash, body_hash, ast_wf) {
-                    workflow_to_populate = Some((*signature_hash, body_hash, ast_wf));
+                if let Some(wf_diagnostics) =
+                    add_workflow(&mut cache, document, *signature_hash, body_hash, ast_wf)
+                {
+                    workflow_to_populate =
+                        Some((wf_diagnostics, *signature_hash, body_hash, ast_wf));
                 }
             }
             DocumentItem::Import(_) | DocumentItem::Struct(_) | DocumentItem::Enum(_) => continue,
         }
     }
 
-    if let Some((signature_hash, _body_hash, ast_wf)) = workflow_to_populate {
-        populate_workflow(&mut cache, config, document, ast_wf, signature_hash);
-        if let Some(item) = cache.workflow_item_mut() {
-            item.diagnostics
-                .append(&mut document.analysis_diagnostics.diagnostics);
-            item.shift_diagnostic_offsets();
-        }
+    if let Some((wf_diagnostics, signature_hash, _body_hash, ast_wf)) = workflow_to_populate {
+        populate_workflow(
+            &mut cache,
+            wf_diagnostics,
+            config,
+            document,
+            ast_wf,
+            signature_hash,
+        );
     }
 
     if let Some(severity) = document.config.diagnostics_config().unused_import {
@@ -313,7 +319,7 @@ pub(crate) fn populate_document(
                 continue;
             };
 
-            let Some(ns) = import.item.item.namespace() else {
+            let Some(ns) = import.item().item.namespace() else {
                 continue;
             };
 
@@ -325,15 +331,11 @@ pub(crate) fn populate_document(
                 continue;
             };
 
-            document.analysis_diagnostics.exceptable_add(
+            import.exceptable_add(
                 unused_import(ns.name(), ns.span).with_severity(severity),
                 node,
                 &UnusedImportRule::EXCEPTABLE_NODES,
             );
-
-            import.extend_diagnostics(std::mem::take(
-                &mut document.analysis_diagnostics.diagnostics,
-            ));
         }
     }
 
@@ -458,6 +460,7 @@ fn add_namespace(
         }
     };
 
+    let mut diagnostics = document.analysis_diagnostics.child();
     let mut cache_item = Import::Namespace(Namespace {
         name: ns,
         span,
@@ -484,9 +487,7 @@ fn add_namespace(
 
             // Check to see if the type name exists in the document
             if !is_struct && !is_enum {
-                document
-                    .analysis_diagnostics
-                    .add(type_not_in_document(&from));
+                diagnostics.add(type_not_in_document(&from));
                 failed = true;
                 return None;
             }
@@ -514,16 +515,14 @@ fn add_namespace(
                     match prev {
                         // Import conflicts with a struct defined in this document
                         StructRef::Local(prev) => {
-                            document
-                                .analysis_diagnostics
-                                .add(struct_conflicts_with_import(
-                                    aliased_name,
-                                    prev.name_span,
-                                    span,
-                                ));
+                            diagnostics.add(struct_conflicts_with_import(
+                                aliased_name,
+                                prev.name_span,
+                                span,
+                            ));
                         }
                         StructRef::Imported(prev) => {
-                            document.analysis_diagnostics.add(imported_struct_conflict(
+                            diagnostics.add(imported_struct_conflict(
                                 aliased_name,
                                 span,
                                 prev.span,
@@ -579,16 +578,14 @@ fn add_namespace(
                     match prev {
                         // Import conflicts with an enum defined in this document
                         EnumRef::Local(prev) => {
-                            document
-                                .analysis_diagnostics
-                                .add(enum_conflicts_with_import(
-                                    aliased_name,
-                                    prev.name_span,
-                                    span,
-                                ));
+                            diagnostics.add(enum_conflicts_with_import(
+                                aliased_name,
+                                prev.name_span,
+                                span,
+                            ));
                         }
                         EnumRef::Imported(prev) => {
-                            document.analysis_diagnostics.add(imported_enum_conflict(
+                            diagnostics.add(imported_enum_conflict(
                                 aliased_name,
                                 span,
                                 prev.span,
@@ -614,15 +611,15 @@ fn add_namespace(
     }
 
     let offset = usize::from(import.inner().text_range().start());
-    cache.insert_import(CachedItem {
+    cache.insert_import(CachedItem::new(
         signature_hash,
         offset,
-        item: WithBodyHash {
+        WithBodyHash {
             body_hash,
             item: cache_item,
         },
-        diagnostics: std::mem::take(&mut document.analysis_diagnostics.diagnostics),
-    });
+        diagnostics,
+    ));
 
     !failed
 }
@@ -696,12 +693,13 @@ fn add_wildcard_import(
 ) {
     let span = import_statement.source().span();
 
+    let mut diagnostics = document.analysis_diagnostics.child();
     let mut import = MergingImport::default();
 
     import_structs(
         cache,
+        &mut diagnostics,
         &mut import.imported_structs,
-        document,
         imported_doc
             .data
             .cache
@@ -720,8 +718,8 @@ fn add_wildcard_import(
 
     import_enums(
         cache,
+        &mut diagnostics,
         &mut import.imported_enums,
-        document,
         imported_doc
             .data
             .cache
@@ -740,8 +738,8 @@ fn add_wildcard_import(
 
     import_tasks(
         cache,
+        &mut diagnostics,
         &mut import.imported_tasks,
-        document,
         imported_doc
             .data
             .cache
@@ -788,8 +786,8 @@ fn add_wildcard_import(
     {
         insert_imported_workflow(
             cache,
+            &mut diagnostics,
             &mut import.imported_workflows,
-            document,
             ImportedWorkflow {
                 local_name: name.to_string(),
                 name: name.to_string(),
@@ -804,15 +802,15 @@ fn add_wildcard_import(
     }
 
     let offset = usize::from(import_statement.inner().text_range().start());
-    cache.insert_import(CachedItem {
+    cache.insert_import(CachedItem::new(
         signature_hash,
         offset,
-        item: WithBodyHash {
+        WithBodyHash {
             body_hash,
             item: Import::Merging(import),
         },
-        diagnostics: std::mem::take(&mut document.analysis_diagnostics.diagnostics),
-    });
+        diagnostics,
+    ));
 }
 
 /// Records selected import names whose source import failed to resolve.
@@ -844,6 +842,7 @@ fn add_selected_import(
         return;
     };
 
+    let mut diagnostics = document.analysis_diagnostics.child();
     let mut import = MergingImport::default();
 
     for member in members.members() {
@@ -859,7 +858,7 @@ fn add_selected_import(
 
         let Some(item) = imported_doc.data.cache.item_by_name(member_name.text()) else {
             document.failed_selected_imports.insert(local_name);
-            document.analysis_diagnostics.add(selected_member_not_found(
+            diagnostics.add(selected_member_not_found(
                 member_name.text(),
                 member_name.span(),
             ));
@@ -871,17 +870,17 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
-                    node: s.item.node.clone(),
+                    node: s.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
-                    ty: s.item.ty().cloned(),
-                    offset: s.item.offset,
+                    ty: s.item().ty().cloned(),
+                    offset: s.item().offset,
                 };
 
                 import_structs(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_structs,
-                    document,
                     [entry],
                     member_span,
                     selected_import_conflict,
@@ -899,8 +898,8 @@ fn add_selected_import(
 
                 import_structs(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_structs,
-                    document,
                     [entry],
                     member_span,
                     selected_import_conflict,
@@ -909,17 +908,17 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
-                    node: e.item.node.clone(),
+                    node: e.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
-                    ty: e.item.ty().cloned(),
-                    offset: e.item.offset,
+                    ty: e.item().ty().cloned(),
+                    offset: e.item().offset,
                 };
 
                 import_enums(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_enums,
-                    document,
                     [entry],
                     member_span,
                     selected_import_conflict,
@@ -937,8 +936,8 @@ fn add_selected_import(
 
                 import_enums(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_enums,
-                    document,
                     [entry],
                     member_span,
                     selected_import_conflict,
@@ -947,17 +946,17 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Task(t)) => {
                 let entry = ImportedTask {
                     local_name,
-                    name: t.item.item.name.clone(),
+                    name: t.item().item.name.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
-                    inputs: t.item.item.inputs.clone(),
-                    outputs: t.item.item.outputs.clone(),
+                    inputs: t.item().item.inputs.clone(),
+                    outputs: t.item().item.outputs.clone(),
                 };
 
                 import_tasks(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_tasks,
-                    document,
                     [entry],
                     member_span,
                     selected_import_conflict,
@@ -975,8 +974,8 @@ fn add_selected_import(
 
                 import_tasks(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_tasks,
-                    document,
                     [entry],
                     member_span,
                     selected_import_conflict,
@@ -985,17 +984,17 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Workflow(wf)) => {
                 let entry = ImportedWorkflow {
                     local_name,
-                    name: wf.item.item.name.clone(),
+                    name: wf.item().item.name.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
-                    inputs: wf.item.item.inputs.clone(),
-                    outputs: wf.item.item.outputs.clone(),
+                    inputs: wf.item().item.inputs.clone(),
+                    outputs: wf.item().item.outputs.clone(),
                 };
 
                 insert_imported_workflow(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_workflows,
-                    document,
                     entry,
                     member_span,
                     selected_import_conflict,
@@ -1013,8 +1012,8 @@ fn add_selected_import(
 
                 insert_imported_workflow(
                     cache,
+                    &mut diagnostics,
                     &mut import.imported_workflows,
-                    document,
                     entry,
                     member_span,
                     selected_import_conflict,
@@ -1026,15 +1025,15 @@ fn add_selected_import(
     }
 
     let offset = import_statement.span().start();
-    cache.insert_import(CachedItem {
+    cache.insert_import(CachedItem::new(
         signature_hash,
         offset,
-        item: WithBodyHash {
+        WithBodyHash {
             body_hash,
             item: Import::Merging(import),
         },
-        diagnostics: std::mem::take(&mut document.analysis_diagnostics.diagnostics),
-    });
+        diagnostics,
+    ));
 }
 
 /// Inserts a re-exported struct into `document` under `local_name`.
@@ -1044,8 +1043,8 @@ fn add_selected_import(
 /// definition) and the entry is not inserted.
 fn import_structs(
     cache: &AnalysisCache,
+    diagnostics: &mut Diagnostics,
     map: &mut IndexMap<String, ImportedStruct>,
-    document: &mut DocumentData,
     entries: impl IntoIterator<Item = ImportedStruct>,
     conflict_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
@@ -1055,7 +1054,7 @@ fn import_structs(
             let a = local_struct.definition();
             let b = entry.definition();
             if !are_structs_equal(&a, &b) {
-                document.analysis_diagnostics.add(conflict(
+                diagnostics.add(conflict(
                     &entry.local_name,
                     conflict_span,
                     local_struct.name_span(),
@@ -1075,8 +1074,8 @@ fn import_structs(
 /// definition) and the entry is not inserted.
 fn import_enums(
     cache: &AnalysisCache,
+    diagnostics: &mut Diagnostics,
     map: &mut IndexMap<String, ImportedEnum>,
-    document: &mut DocumentData,
     entries: impl IntoIterator<Item = ImportedEnum>,
     conflict_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
@@ -1086,7 +1085,7 @@ fn import_enums(
             let a = local_enum.definition();
             let b = entry.definition();
             if !are_enums_equal(&a, &b) {
-                document.analysis_diagnostics.add(conflict(
+                diagnostics.add(conflict(
                     &entry.local_name,
                     conflict_span,
                     local_enum.name_span(),
@@ -1106,8 +1105,8 @@ fn import_enums(
 /// definition) and the entry is not inserted.
 fn import_tasks(
     cache: &AnalysisCache,
+    diagnostics: &mut Diagnostics,
     map: &mut IndexMap<String, ImportedTask>,
-    document: &mut DocumentData,
     entries: impl IntoIterator<Item = ImportedTask>,
     conflict_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
@@ -1125,11 +1124,7 @@ fn import_tasks(
         }
 
         if let Some(prev_span) = callable_conflict_span(cache, &entry.local_name) {
-            document.analysis_diagnostics.add(conflict(
-                &entry.local_name,
-                conflict_span,
-                prev_span,
-            ));
+            diagnostics.add(conflict(&entry.local_name, conflict_span, prev_span));
             continue;
         }
 
@@ -1150,8 +1145,8 @@ fn import_tasks(
 ///    callback is called (preserving the import-form-specific diagnostic).
 fn insert_imported_workflow(
     cache: &AnalysisCache,
+    diagnostics: &mut Diagnostics,
     map: &mut IndexMap<String, ImportedWorkflow>,
-    document: &mut DocumentData,
     entry: ImportedWorkflow,
     conflict_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
@@ -1169,7 +1164,7 @@ fn insert_imported_workflow(
     if let Some((_hash, existing)) = cache.imported_workflows().find(|(_hash, existing)| {
         existing.source() != entry.source() || existing.name != entry.name
     }) {
-        document.analysis_diagnostics.add(workflow_conflict(
+        diagnostics.add(workflow_conflict(
             &entry.name,
             conflict_span,
             existing.name(),
@@ -1180,9 +1175,7 @@ fn insert_imported_workflow(
 
     // The local name collides with a task or other callable.
     if let Some(prev_span) = callable_conflict_span(cache, &entry.local_name) {
-        document
-            .analysis_diagnostics
-            .add(conflict(&entry.local_name, conflict_span, prev_span));
+        diagnostics.add(conflict(&entry.local_name, conflict_span, prev_span));
         return;
     }
 
@@ -1215,6 +1208,8 @@ fn add_struct(
         name.text()
     );
 
+    let mut diagnostics = document.analysis_diagnostics.child();
+
     // Check for a conflict with imported struct first otherwise for any name
     if let Some((_hash, prev)) = cache.imported_struct_by_name(name.text()) {
         let prev_def = prev.definition();
@@ -1244,7 +1239,7 @@ fn add_struct(
         let name = decl.name();
         match members.get(name.text()) {
             Some(prev_span) => {
-                document.analysis_diagnostics.add(name_conflict(
+                diagnostics.add(name_conflict(
                     name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
@@ -1256,18 +1251,18 @@ fn add_struct(
         }
     }
 
-    cache.insert_struct(CachedItem {
-        signature_hash: hash,
-        offset: definition.span().start(),
-        item: Struct {
+    cache.insert_struct(CachedItem::new(
+        hash,
+        definition.span().start(),
+        Struct {
             name_span: name.span(),
             name: name.text().to_string(),
             offset: definition.span().start(),
             node: definition.inner().green().into(),
             ty: None,
         },
-        diagnostics: std::mem::take(&mut document.analysis_diagnostics.diagnostics),
-    });
+        diagnostics,
+    ));
 }
 
 /// Adds an enum definition to the document.
@@ -1293,17 +1288,17 @@ fn add_enum(
         return;
     }
 
+    let mut diagnostics = document.analysis_diagnostics.child();
+
     // Check for a conflict with imported enum first otherwise for any name
     if let Some((_hash, prev)) = cache.imported_enum_by_name(name.text()) {
         let prev_def = prev.definition();
         if !are_enums_equal(definition, &prev_def) {
-            document
-                .analysis_diagnostics
-                .add(enum_conflicts_with_import(
-                    name.text(),
-                    name.span(),
-                    prev.span,
-                ))
+            diagnostics.add(enum_conflicts_with_import(
+                name.text(),
+                name.span(),
+                prev.span,
+            ))
         }
     } else if let Some(ctx) = document.context(cache, name.text()) {
         document.analysis_diagnostics.add(name_conflict(
@@ -1320,7 +1315,7 @@ fn add_enum(
         let name = choice.name();
         match choices.get(name.text()) {
             Some(prev_span) => {
-                document.analysis_diagnostics.add(name_conflict(
+                diagnostics.add(name_conflict(
                     name.text(),
                     Context::EnumChoice(name.span()),
                     Context::EnumChoice(*prev_span),
@@ -1333,24 +1328,24 @@ fn add_enum(
     }
 
     let offset = definition.span().start();
-    cache.insert_enum(CachedItem {
-        signature_hash: hash,
+    cache.insert_enum(CachedItem::new(
+        hash,
         offset,
-        item: Enum {
+        Enum {
             name_span: name.span(),
             name: name.text().to_string(),
             offset: definition.span().start(),
             node: definition.inner().green().into(),
             ty: None,
         },
-        diagnostics: std::mem::take(&mut document.analysis_diagnostics.diagnostics),
-    });
+        diagnostics,
+    ));
 }
 
 /// Converts an AST type to an analysis type.
 fn convert_ast_type(
     cache: &mut AnalysisCache,
-    document: &mut DocumentData,
+    diagnostics: &mut Diagnostics,
     ty: &wdl_ast::v1::Type,
     dependent: Option<SignatureHash>,
 ) -> Type {
@@ -1407,7 +1402,7 @@ fn convert_ast_type(
     match converter.convert_type(ty) {
         Ok(ty) => ty,
         Err(diagnostic) => {
-            document.analysis_diagnostics.add(diagnostic);
+            diagnostics.add(diagnostic);
             Type::Union
         }
     }
@@ -1416,7 +1411,7 @@ fn convert_ast_type(
 /// Creates an input type map.
 fn create_input_type_map(
     cache: &mut AnalysisCache,
-    document: &mut DocumentData,
+    diagnostics: &mut Diagnostics,
     declarations: impl Iterator<Item = Decl>,
     dependent: Option<SignatureHash>,
 ) -> Arc<IndexMap<String, Input>> {
@@ -1428,7 +1423,7 @@ fn create_input_type_map(
             continue;
         }
 
-        let ty = convert_ast_type(cache, document, &decl.ty(), dependent);
+        let ty = convert_ast_type(cache, diagnostics, &decl.ty(), dependent);
         let optional = ty.is_optional();
         map.insert(
             name.text().to_string(),
@@ -1445,7 +1440,7 @@ fn create_input_type_map(
 /// Creates an output type map.
 fn create_output_type_map(
     cache: &mut AnalysisCache,
-    document: &mut DocumentData,
+    diagnostics: &mut Diagnostics,
     declarations: impl Iterator<Item = Decl>,
     dependent: Option<SignatureHash>,
 ) -> Arc<IndexMap<String, Output>> {
@@ -1457,7 +1452,7 @@ fn create_output_type_map(
             continue;
         }
 
-        let ty = convert_ast_type(cache, document, &decl.ty(), dependent);
+        let ty = convert_ast_type(cache, diagnostics, &decl.ty(), dependent);
         map.insert(name.text().to_string(), Output::new(ty, name.span()));
     }
 
@@ -1537,11 +1532,13 @@ fn add_task(
         return;
     }
 
+    let mut diagnostics = document.analysis_diagnostics.child();
+
     // Populate type maps for the tasks's inputs and outputs
     let inputs = match definition.input() {
         Some(section) => create_input_type_map(
             cache,
-            document,
+            &mut diagnostics,
             section.declarations(),
             Some(signature_hash),
         ),
@@ -1550,7 +1547,7 @@ fn add_task(
     let outputs = match definition.output() {
         Some(section) => create_output_type_map(
             cache,
-            document,
+            &mut diagnostics,
             section.declarations().map(Decl::Bound),
             Some(signature_hash),
         ),
@@ -1561,7 +1558,7 @@ fn add_task(
     let graph = TaskGraphBuilder::default().build(
         document.version.unwrap(),
         definition,
-        &mut document.analysis_diagnostics,
+        &mut diagnostics,
         |name| cache.struct_by_name(name).is_some() || cache.enum_by_name(name).is_some(),
     );
 
@@ -1598,6 +1595,7 @@ fn add_task(
             TaskGraphNode::Input(decl) => {
                 if !add_decl(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
@@ -1619,7 +1617,7 @@ fn add_task(
                     if edges.all(|e| *e.weight()) {
                         let name = decl.name();
 
-                        document.analysis_diagnostics.exceptable_add(
+                        diagnostics.exceptable_add(
                             unused_input(name.text(), name.span()).with_severity(severity),
                             decl.inner(),
                             &UnusedInputRule::EXCEPTABLE_NODES,
@@ -1634,7 +1632,7 @@ fn add_task(
                     && decl.inner().span().start() > command_section_span.end()
                     && let Some(severity) = config.diagnostics_config().misleading_declaration_order
                 {
-                    document.analysis_diagnostics.exceptable_add(
+                    diagnostics.exceptable_add(
                         misleading_declaration_order(name.text(), name.span())
                             .with_severity(severity),
                         decl.inner(),
@@ -1644,12 +1642,13 @@ fn add_task(
 
                 if !add_decl(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
-                    |cache, doc, _, decl| {
-                        convert_ast_type(cache, doc, &decl.ty(), Some(signature_hash))
+                    |cache, diagnostics, _, decl| {
+                        convert_ast_type(cache, diagnostics, &decl.ty(), Some(signature_hash))
                     },
                 ) {
                     continue;
@@ -1670,7 +1669,7 @@ fn add_task(
                         .next()
                         .is_none()
                 {
-                    document.analysis_diagnostics.exceptable_add(
+                    diagnostics.exceptable_add(
                         unused_declaration(name.text(), name.span()).with_severity(severity),
                         decl.inner(),
                         &UnusedDeclarationRule::EXCEPTABLE_NODES,
@@ -1693,6 +1692,7 @@ fn add_task(
                 });
                 add_decl(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     ScopeRefMut::new(&mut task.scopes, scope_index),
@@ -1719,6 +1719,7 @@ fn add_task(
 
                 let mut context = EvaluationContext::new(
                     cache,
+                    &mut diagnostics,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1746,6 +1747,7 @@ fn add_task(
                 // Perform type checking on the runtime section's expressions
                 let mut context = EvaluationContext::new(
                     cache,
+                    &mut diagnostics,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1772,6 +1774,7 @@ fn add_task(
                 // expressions
                 let mut context = EvaluationContext::new(
                     cache,
+                    &mut diagnostics,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1797,6 +1800,7 @@ fn add_task(
                 // Perform type checking on the hints section's expressions
                 let mut context = EvaluationContext::new_for_task(
                     cache,
+                    &mut diagnostics,
                     document,
                     ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
@@ -1814,25 +1818,26 @@ fn add_task(
     sort_scopes(&mut task.scopes);
 
     let offset = definition.span().start();
-    cache.insert_task(CachedItem {
+    cache.insert_task(CachedItem::new(
         signature_hash,
         offset,
-        item: WithBodyHash {
+        WithBodyHash {
             body_hash,
             item: task,
         },
-        diagnostics: std::mem::take(&mut document.analysis_diagnostics.diagnostics),
-    });
+        diagnostics,
+    ));
 }
 
 /// Adds a declaration to a scope.
 fn add_decl(
     cache: &mut AnalysisCache,
+    diagnostics: &mut Diagnostics,
     config: &Config,
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
     decl: &Decl,
-    ty: impl FnOnce(&mut AnalysisCache, &mut DocumentData, &str, &Decl) -> Type,
+    ty: impl FnOnce(&mut AnalysisCache, &mut Diagnostics, &str, &Decl) -> Type,
 ) -> bool {
     let (name, expr) = (decl.name(), decl.expr());
     if scope.lookup(name.text()).is_some() {
@@ -1840,12 +1845,13 @@ fn add_decl(
         return false;
     }
 
-    let ty = ty(cache, document, name.text(), decl);
+    let ty = ty(cache, diagnostics, name.text(), decl);
     scope.insert(name.text(), name.span(), ty.clone());
 
     if let Some(expr) = expr {
         type_check_expr(
             cache,
+            diagnostics,
             config,
             document,
             scope.as_scope_ref(),
@@ -1860,15 +1866,15 @@ fn add_decl(
 
 /// Adds a workflow to the document.
 ///
-/// Returns `true` if the workflow was added to the document or `false` if not
-/// (i.e. there was a conflict).
+/// Returns `Some(Diagnostics)` if the workflow was added to the document or
+/// `None` if not (i.e. there was a conflict).
 fn add_workflow(
     cache: &mut AnalysisCache,
     document: &mut DocumentData,
     signature_hash: SignatureHash,
     body_hash: BodyHash,
     workflow: &WorkflowDefinition,
-) -> bool {
+) -> Option<Diagnostics> {
     // Check for duplicate workflow first
     let name = workflow.name();
     tracing::trace!(
@@ -1881,7 +1887,7 @@ fn add_workflow(
         document
             .analysis_diagnostics
             .add(duplicate_workflow(&name, prev.name_span));
-        return false;
+        return None;
     }
 
     // An imported workflow already occupies local scope; reject this
@@ -1893,7 +1899,7 @@ fn add_workflow(
             &imported.name,
             imported.span,
         ));
-        return false;
+        return None;
     }
 
     // Check for a name conflict
@@ -1903,7 +1909,7 @@ fn add_workflow(
             Context::Workflow(name.span()),
             ctx,
         ));
-        return false;
+        return None;
     }
     if let Some(prev_span) = callable_conflict_span(cache, name.text()) {
         document.analysis_diagnostics.add(selected_import_conflict(
@@ -1914,9 +1920,10 @@ fn add_workflow(
         document
             .failed_selected_imports
             .insert(name.text().to_string());
-        return false;
+        return None;
     }
 
+    let diagnostics = document.analysis_diagnostics.child();
     let workflow_item = Workflow {
         name_span: name.span(),
         name: name.text().to_string(),
@@ -1932,22 +1939,23 @@ fn add_workflow(
     };
 
     let offset = workflow.span().start();
-    cache.set_workflow(CachedItem {
+    cache.set_workflow(CachedItem::new(
         signature_hash,
         offset,
-        item: WithBodyHash {
+        WithBodyHash {
             body_hash,
             item: workflow_item,
         },
-        diagnostics: std::mem::take(&mut document.analysis_diagnostics.diagnostics),
-    });
+        Diagnostics::default(), // Filled in later
+    ));
 
-    true
+    Some(diagnostics)
 }
 
 /// Finishes populating a workflow.
 fn populate_workflow(
     cache: &mut AnalysisCache,
+    mut diagnostics: Diagnostics,
     config: &Config,
     document: &mut DocumentData,
     workflow_def: &WorkflowDefinition,
@@ -1963,7 +1971,7 @@ fn populate_workflow(
     let inputs = match workflow_def.input() {
         Some(section) => create_input_type_map(
             cache,
-            document,
+            &mut diagnostics,
             section.declarations(),
             Some(signature_hash),
         ),
@@ -1972,7 +1980,7 @@ fn populate_workflow(
     let outputs = match workflow_def.output() {
         Some(section) => create_output_type_map(
             cache,
-            document,
+            &mut diagnostics,
             section.declarations().map(Decl::Bound),
             Some(signature_hash),
         ),
@@ -1995,7 +2003,7 @@ fn populate_workflow(
     // graph builder
     let graph = WorkflowGraphBuilder::default().build(
         workflow_def,
-        &mut document.analysis_diagnostics,
+        &mut diagnostics,
         |_| false,
         |name| cache.struct_by_name(name).is_some() || cache.enum_by_name(name).is_some(),
     );
@@ -2005,6 +2013,7 @@ fn populate_workflow(
             WorkflowGraphNode::Input(decl) => {
                 if !add_decl(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
@@ -2023,7 +2032,7 @@ fn populate_workflow(
                 {
                     let name = decl.name();
 
-                    document.analysis_diagnostics.exceptable_add(
+                    diagnostics.exceptable_add(
                         unused_input(name.text(), name.span()).with_severity(severity),
                         decl.inner(),
                         &UnusedInputRule::EXCEPTABLE_NODES,
@@ -2038,12 +2047,13 @@ fn populate_workflow(
 
                 if !add_decl(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
-                    |cache, doc, _, decl| {
-                        convert_ast_type(cache, doc, &decl.ty(), Some(signature_hash))
+                    |cache, diagnostics, _, decl| {
+                        convert_ast_type(cache, diagnostics, &decl.ty(), Some(signature_hash))
                     },
                 ) {
                     continue;
@@ -2057,7 +2067,7 @@ fn populate_workflow(
                         .next()
                         .is_none()
                     {
-                        document.analysis_diagnostics.exceptable_add(
+                        diagnostics.exceptable_add(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
                             decl.inner(),
                             &UnusedDeclarationRule::EXCEPTABLE_NODES,
@@ -2081,6 +2091,7 @@ fn populate_workflow(
                 });
                 add_decl(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
@@ -2095,6 +2106,7 @@ fn populate_workflow(
                     .unwrap_or(ScopeIndex(0));
                 add_conditional_statement(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     &mut scopes,
@@ -2117,6 +2129,7 @@ fn populate_workflow(
                     .unwrap_or(ScopeIndex(0));
                 add_scatter_statement(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     &mut scopes,
@@ -2132,6 +2145,7 @@ fn populate_workflow(
                     .unwrap_or(ScopeIndex(0));
                 add_call_statement(
                     cache,
+                    &mut diagnostics,
                     config,
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
@@ -2183,7 +2197,7 @@ fn populate_workflow(
                                     entry.insert(info);
                                 }
                                 IndexMapEntry::Occupied(entry) => {
-                                    document.analysis_diagnostics.add(name_conflict(
+                                    diagnostics.add(name_conflict(
                                         &name,
                                         Context::Name(NameContext::Decl(info.span)),
                                         Context::Name(NameContext::Decl(entry.get().span)),
@@ -2192,7 +2206,7 @@ fn populate_workflow(
                             }
                         }
                     }
-                    Err(diagnostics) => document.analysis_diagnostics.extend(diagnostics),
+                    Err(e) => diagnostics.extend(e),
                 }
             }
             WorkflowGraphNode::ExitScatter(statement) => {
@@ -2233,17 +2247,20 @@ fn populate_workflow(
 
     // Finally, populate the workflow
     let workflow = cache
-        .workflow_mut()
+        .workflow_item_mut()
         .expect("workflow should exist in cache");
-    workflow.scopes = scopes;
-    workflow.inputs = inputs;
-    workflow.outputs = outputs;
-    workflow.calls = calls;
+    workflow.item_mut().item.scopes = scopes;
+    workflow.item_mut().item.inputs = inputs;
+    workflow.item_mut().item.outputs = outputs;
+    workflow.item_mut().item.calls = calls;
+    workflow.set_diagnostics(diagnostics);
 }
 
 /// Adds a conditional statement to the current scope.
+#[allow(clippy::too_many_arguments)]
 fn add_conditional_statement(
     cache: &mut AnalysisCache,
+    diagnostics: &mut Diagnostics,
     config: &Config,
     document: &mut DocumentData,
     scopes: &mut Vec<Scope>,
@@ -2265,18 +2282,14 @@ fn add_conditional_statement(
                         .expect("should have `if` keyword")
                         .span();
                     let span = Span::new(else_span.start(), if_span.end() - else_span.start());
-                    document
-                        .analysis_diagnostics
-                        .add(else_if_not_supported(version, span));
+                    diagnostics.add(else_if_not_supported(version, span));
                 }
                 ConditionalStatementClauseKind::Else => {
                     let span = clause
                         .else_keyword()
                         .expect("should have `else` keyword")
                         .span();
-                    document
-                        .analysis_diagnostics
-                        .add(else_not_supported(version, span));
+                    diagnostics.add(else_not_supported(version, span));
                 }
                 ConditionalStatementClauseKind::If => {}
             }
@@ -2300,6 +2313,7 @@ fn add_conditional_statement(
         };
         let mut context = EvaluationContext::new(
             cache,
+            diagnostics,
             document,
             ScopeRef::new(scopes, scope_index),
             config.clone(),
@@ -2308,16 +2322,16 @@ fn add_conditional_statement(
         let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
 
         if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
-            document
-                .analysis_diagnostics
-                .add(if_conditional_mismatch(&ty, expr.span()));
+            diagnostics.add(if_conditional_mismatch(&ty, expr.span()));
         }
     }
 }
 
 /// Adds a scatter statement to the current scope.
+#[allow(clippy::too_many_arguments)]
 fn add_scatter_statement(
     cache: &mut AnalysisCache,
+    diagnostics: &mut Diagnostics,
     config: &Config,
     document: &mut DocumentData,
     scopes: &mut Vec<Scope>,
@@ -2340,6 +2354,7 @@ fn add_scatter_statement(
     let expr = statement.expr();
     let mut context = EvaluationContext::new(
         cache,
+        diagnostics,
         document,
         ScopeRef::new(scopes, scope_index),
         config.clone(),
@@ -2350,9 +2365,7 @@ fn add_scatter_statement(
         Type::Union => Type::Union,
         Type::Compound(CompoundType::Array(ty), _) => ty.element_type().clone(),
         _ => {
-            document
-                .analysis_diagnostics
-                .add(type_is_not_array(&ty, expr.span()));
+            diagnostics.add(type_is_not_array(&ty, expr.span()));
             Type::Union
         }
     };
@@ -2366,6 +2379,7 @@ fn add_scatter_statement(
 #[allow(clippy::too_many_arguments)]
 fn add_call_statement(
     cache: &mut AnalysisCache,
+    diagnostics: &mut Diagnostics,
     config: &Config,
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
@@ -2389,7 +2403,14 @@ fn add_call_statement(
         .map(|a| a.name())
         .unwrap_or_else(|| target_name.clone());
 
-    let ty = match resolve_call_type(cache, document, workflow_name, statement, dependent) {
+    let ty = match resolve_call_type(
+        cache,
+        diagnostics,
+        document,
+        workflow_name,
+        statement,
+        dependent,
+    ) {
         Some(call_ty) => {
             // Type check the call inputs
             let mut seen = HashSet::new();
@@ -2401,11 +2422,7 @@ fn add_call_statement(
                     .get(input_name.text())
                     .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
-                        document.analysis_diagnostics.add(unknown_call_io(
-                            &call_ty,
-                            &input_name,
-                            Io::Input,
-                        ));
+                        diagnostics.add(unknown_call_io(&call_ty, &input_name, Io::Input));
                         (Type::Union, true)
                     });
 
@@ -2423,6 +2440,7 @@ fn add_call_statement(
                     Some(expr) => {
                         type_check_expr(
                             cache,
+                            diagnostics,
                             config,
                             document,
                             scope.as_scope_ref(),
@@ -2436,7 +2454,7 @@ fn add_call_statement(
                             if !matches!(expected_input_ty, Type::Union)
                                 && !name.ty.is_coercible_to(&expected_input_ty)
                             {
-                                document.analysis_diagnostics.add(call_input_type_mismatch(
+                                diagnostics.add(call_input_type_mismatch(
                                     &input_name,
                                     &expected_input_ty,
                                     &name.ty,
@@ -2444,9 +2462,7 @@ fn add_call_statement(
                             }
                         }
                         None => {
-                            document
-                                .analysis_diagnostics
-                                .add(unknown_name(input_name.text(), input_name.span()));
+                            diagnostics.add(unknown_name(input_name.text(), input_name.span()));
                         }
                     },
                 }
@@ -2456,7 +2472,7 @@ fn add_call_statement(
 
             for (name, input) in call_ty.inputs() {
                 if input.required && !seen.contains(name.as_str()) {
-                    document.analysis_diagnostics.add(missing_call_input(
+                    diagnostics.add(missing_call_input(
                         call_ty.kind(),
                         &target_name,
                         name,
@@ -2483,7 +2499,7 @@ fn add_call_statement(
             && let Some(ty) = ty.as_call()
             && !ty.outputs().is_empty()
         {
-            document.analysis_diagnostics.exceptable_add(
+            diagnostics.exceptable_add(
                 unused_call(name.text(), name.span()).with_severity(severity),
                 statement.inner(),
                 &UnusedCallRule::EXCEPTABLE_NODES,
@@ -2499,6 +2515,7 @@ fn add_call_statement(
 /// Returns `None` if the type could not be resolved.
 fn resolve_call_type(
     cache: &mut AnalysisCache,
+    diagnostics: &mut Diagnostics,
     document: &mut DocumentData,
     workflow_name: &str,
     statement: &CallStatement,
@@ -2516,9 +2533,7 @@ fn resolve_call_type(
         }
 
         if namespace.is_some() {
-            document
-                .analysis_diagnostics
-                .add(only_one_namespace(target.span()));
+            diagnostics.add(only_one_namespace(target.span()));
             return None;
         }
 
@@ -2535,9 +2550,7 @@ fn resolve_call_type(
                 local_dep = Some(hash);
             }
             None => {
-                document
-                    .analysis_diagnostics
-                    .add(unknown_namespace(&target));
+                diagnostics.add(unknown_namespace(&target));
                 return None;
             }
         }
@@ -2550,9 +2563,7 @@ fn resolve_call_type(
     let has_namespace = namespace.is_some();
     let namespace_span = namespace.map(|ns| ns.span());
     if !has_namespace && name.text() == workflow_name {
-        document
-            .analysis_diagnostics
-            .add(recursive_workflow_call(name.text(), name.span()));
+        diagnostics.add(recursive_workflow_call(name.text(), name.span()));
         return None;
     }
 
@@ -2613,16 +2624,12 @@ fn resolve_call_type(
                         Some(hash),
                     )
                 } else {
-                    document.analysis_diagnostics.add(unknown_task_or_workflow(
-                        None,
-                        name.text(),
-                        name.span(),
-                    ));
+                    diagnostics.add(unknown_task_or_workflow(None, name.text(), name.span()));
                     return None;
                 }
             }
             _ => {
-                document.analysis_diagnostics.add(unknown_task_or_workflow(
+                diagnostics.add(unknown_task_or_workflow(
                     namespace_span,
                     name.text(),
                     name.span(),
@@ -2799,8 +2806,8 @@ fn resolve_import<'a>(
 fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
-        /// The document to resolve the type name from.
-        document: &'a mut DocumentData,
+        /// The type error diagnostics.
+        diagnostics: &'a mut Vec<Diagnostic>,
         /// The document's analysis cache.
         cache: &'a mut AnalysisCache,
         /// The offset to use to adjust the start of diagnostics.
@@ -2849,7 +2856,7 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                 return Ok(ty);
             }
 
-            self.document.analysis_diagnostics.add(unknown_type(
+            self.diagnostics.push(unknown_type(
                 name,
                 Span::new(span.start() + self.offset, span.len()),
             ));
@@ -2886,6 +2893,7 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
     // turned into diagnostics.
     let mut graph: DiGraphMap<_, _, RandomState> = DiGraphMap::new();
     let mut space = Default::default();
+    let mut cycles = Vec::new();
 
     // Map struct dependencies
     for (from, _hash, s) in cache.local_structs() {
@@ -2905,10 +2913,13 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                     let def_name = definition.name();
                     let def_span = def_name.span();
                     let member_span = member.name().span();
-                    document.analysis_diagnostics.add(recursive_struct(
-                        def_name.text(),
-                        Span::new(def_span.start() + s.offset, def_span.len()),
-                        Span::new(member_span.start() + s.offset, member_span.len()),
+                    cycles.push((
+                        from_idx,
+                        recursive_struct(
+                            def_name.text(),
+                            Span::new(def_span.start() + s.offset(), def_span.len()),
+                            Span::new(member_span.start() + s.offset(), member_span.len()),
+                        ),
                     ));
                 } else {
                     graph.add_edge(to_idx, from_idx, ());
@@ -2934,20 +2945,32 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                 if has_path_connecting(&graph, from_idx, to_idx, Some(&mut space)) {
                     let def_name = definition.name();
                     let def_span = def_name.span();
-                    document.analysis_diagnostics.add(recursive_enum(
-                        def_name.text(),
-                        Span::new(def_span.start() + e.offset, def_span.len()),
-                        match to_idx {
-                            TypeIndex::Struct(index) => {
-                                cache.struct_by_index(index).unwrap().name()
-                            }
-                            TypeIndex::Enum(index) => cache.enum_by_index(index).unwrap().name(),
-                        },
+                    cycles.push((
+                        from_idx,
+                        recursive_enum(
+                            def_name.text(),
+                            Span::new(def_span.start() + e.offset(), def_span.len()),
+                            match to_idx {
+                                TypeIndex::Struct(index) => {
+                                    cache.struct_by_index(index).unwrap().name()
+                                }
+                                TypeIndex::Enum(index) => {
+                                    cache.enum_by_index(index).unwrap().name()
+                                }
+                            },
+                        ),
                     ));
                 } else {
                     graph.add_edge(to_idx, from_idx, ());
                 }
             }
+        }
+    }
+
+    for (index, diagnostic) in cycles {
+        match index {
+            TypeIndex::Struct(i) => cache.struct_item_mut(i).unwrap().add_diagnostic(diagnostic),
+            TypeIndex::Enum(i) => cache.enum_item_mut(i).unwrap().add_diagnostic(diagnostic),
         }
     }
 
@@ -2968,23 +2991,34 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                     Some(Item::Local(item)) => Some(item.signature_hash()),
                     _ => None,
                 };
+
+                // Fine to use a `Vec` here, since none of the resolver
+                // diagnostics are exceptable
+                let mut diagnostics = Vec::new();
                 let mut converter = AstTypeConverter::new(Resolver {
-                    document,
+                    diagnostics: &mut diagnostics,
                     cache,
                     offset,
                     dependent,
                 });
-                match converter.convert_struct_type(&definition) {
+
+                let result = converter.convert_struct_type(&definition);
+                let s = cache.struct_item_mut(index).unwrap();
+
+                for diagnostic in diagnostics {
+                    s.add_diagnostic(diagnostic);
+                }
+
+                match result {
                     Ok(ty) => {
-                        let s = cache.struct_by_index_mut(index).unwrap();
-                        s.ty = Some(ty.into());
+                        s.item_mut().ty = Some(ty.into());
                     }
                     Err(mut diagnostic) => {
                         for label in diagnostic.labels_mut() {
                             let span = label.span();
                             label.set_span(Span::new(span.start() + offset, span.len()));
                         }
-                        document.analysis_diagnostics.add(diagnostic);
+                        s.add_diagnostic(diagnostic);
                     }
                 }
             }
@@ -2997,6 +3031,7 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                 let definition = e.definition();
                 let mut choices = Vec::new();
                 let mut choice_spans = Vec::new();
+                let mut diagnostics = Vec::new();
 
                 for choice in definition.choices() {
                     let choice_name = choice.name().text().to_string();
@@ -3005,10 +3040,9 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                             Some(ty) => ty,
                             None => {
                                 let span = value_expr.span();
-                                let adjusted_span = Span::new(span.start() + e.offset, span.len());
-                                document
-                                    .analysis_diagnostics
-                                    .add(non_literal_enum_value(adjusted_span));
+                                let adjusted_span =
+                                    Span::new(span.start() + e.offset(), span.len());
+                                diagnostics.push(non_literal_enum_value(adjusted_span));
                                 Type::Union
                             }
                         }
@@ -3029,7 +3063,18 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                         Some(Item::Local(item)) => Some(item.signature_hash()),
                         _ => None,
                     };
-                    let type_param = convert_ast_type(cache, document, &type_param, dependent);
+
+                    let mut type_param_diagnostics = document.analysis_diagnostics.child();
+                    let type_param = convert_ast_type(
+                        cache,
+                        &mut type_param_diagnostics,
+                        &type_param,
+                        dependent,
+                    );
+                    for diag in type_param_diagnostics.diagnostics {
+                        diagnostics.push(diag);
+                    }
+
                     let e = cache.enum_by_index(index).unwrap();
                     EnumType::new(
                         e.name().to_string(),
@@ -3039,16 +3084,21 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
                         &choice_spans,
                     )
                 } else {
-                    EnumType::infer(e.name.clone(), choices, &choice_spans)
+                    let e = cache.enum_by_index(index).unwrap();
+                    EnumType::infer(e.name().to_string(), choices, &choice_spans)
                 };
+
+                let e = cache.enum_item_mut(index).unwrap();
+                for diagnostic in diagnostics {
+                    e.add_diagnostic(diagnostic);
+                }
 
                 match result {
                     Ok(enum_ty) => {
-                        let e = cache.enum_by_index_mut(index).unwrap();
-                        e.ty = Some(enum_ty.into());
+                        e.item_mut().ty = Some(enum_ty.into());
                     }
                     Err(diagnostic) => {
-                        document.analysis_diagnostics.add(diagnostic);
+                        e.add_diagnostic(diagnostic);
                     }
                 }
             }
@@ -3165,6 +3215,8 @@ fn parse_literal_value(cache: &AnalysisCache, expr: &Expr) -> Option<Type> {
 /// Represents context to an expression type evaluator.
 #[derive(Debug)]
 struct EvaluationContext<'a> {
+    /// Diagnostics for the current context.
+    diagnostics: &'a mut Diagnostics,
     /// The document data being evaluated.
     document: &'a mut DocumentData,
     /// The document's analysis cache.
@@ -3183,11 +3235,13 @@ impl<'a> EvaluationContext<'a> {
     /// Constructs a new expression type evaluation context.
     fn new(
         cache: &'a mut AnalysisCache,
+        diagnostics: &'a mut Diagnostics,
         document: &'a mut DocumentData,
         scope: ScopeRef<'a>,
         config: Config,
     ) -> Self {
         Self {
+            diagnostics,
             document,
             cache,
             scope,
@@ -3202,12 +3256,14 @@ impl<'a> EvaluationContext<'a> {
     /// `hints` section.
     fn new_for_task(
         cache: &'a mut AnalysisCache,
+        diagnostics: &'a mut Diagnostics,
         document: &'a mut DocumentData,
         scope: ScopeRef<'a>,
         config: Config,
         task: &'a Task,
     ) -> Self {
         Self {
+            diagnostics,
             document,
             cache,
             scope,
@@ -3309,7 +3365,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-        self.document.analysis_diagnostics.add(diagnostic);
+        self.diagnostics.add(diagnostic);
     }
 
     fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
@@ -3318,15 +3374,16 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
         element: &N,
         exceptable_nodes: &Option<&'static [SyntaxKind]>,
     ) {
-        self.document
-            .analysis_diagnostics
+        self.diagnostics
             .exceptable_add(diagnostic, element, exceptable_nodes);
     }
 }
 
 /// Performs a type check of an expression.
+#[allow(clippy::too_many_arguments)]
 fn type_check_expr(
     cache: &mut AnalysisCache,
+    diagnostics: &mut Diagnostics,
     config: &Config,
     document: &mut DocumentData,
     scope: ScopeRef<'_>,
@@ -3334,17 +3391,12 @@ fn type_check_expr(
     expected: &Type,
     expected_span: Span,
 ) {
-    let mut context = EvaluationContext::new(cache, document, scope, config.clone());
+    let mut context = EvaluationContext::new(cache, diagnostics, document, scope, config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 
     if !matches!(expected, Type::Union) && !actual.is_coercible_to(expected) {
-        document.analysis_diagnostics.add(type_mismatch(
-            expected,
-            expected_span,
-            &actual,
-            expr.span(),
-        ));
+        diagnostics.add(type_mismatch(expected, expected_span, &actual, expr.span()));
     }
     // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
     // flag these as errors; otherwise, non-empty array constraints are checked at runtime
@@ -3352,9 +3404,7 @@ fn type_check_expr(
         && ty.is_non_empty()
         && expr.is_empty_array_literal()
     {
-        document
-            .analysis_diagnostics
-            .add(non_empty_array_assignment(expected_span, expr.span()));
+        diagnostics.add(non_empty_array_assignment(expected_span, expr.span()));
     }
 }
 
