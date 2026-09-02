@@ -1,4 +1,5 @@
 Sprocket test result summary:
+
 Passed `foo::add::valid_types` (1 successful test execution)
 Passed `foo::add::partially_invalid` (0 successful test execution)
 Passed `foo::add::fully_invalid_types` (0 successful test execution)

@@ -1,3 +1,4 @@
 Sprocket test result summary:
+
 Passed `source::failing_workflow::failing_workflow` (1 successful test execution)
 Passed `source::super_slow_task::super_slow_task` (1 successful test execution)

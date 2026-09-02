@@ -1,4 +1,5 @@
 Sprocket test result summary:
+
 Passed `foo::say_hello::loose1` (1 successful test execution)
 Passed `foo::say_hello::loose2` (1 successful test execution)
 Passed `foo::say_hello::stillloose3` (1 successful test execution)

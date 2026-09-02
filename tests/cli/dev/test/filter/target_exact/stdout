@@ -1,2 +1,3 @@
 Sprocket test result summary:
+
 Passed `foo::say_hello::should_run` (1 successful test execution)

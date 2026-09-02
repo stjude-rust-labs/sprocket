@@ -898,6 +898,7 @@ async fn summarize_results(
     output: CommandOutput,
 ) {
     output.payload("Sprocket test result summary:");
+    output.payload("");
 
     let mut any_results = false;
     for (document_name, target_results) in results {

@@ -1,2 +1,3 @@
 Sprocket test result summary:
+
 Passed `foo::say_hello::greeting` (1 successful test execution)
