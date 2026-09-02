@@ -1,8 +1,5 @@
 ## This is a test of the `DeprecatedPlaceholder` lint.
 
-#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, MetaDescription
-#@ except: ShellCheck
-
 version 1.1
 
 task a_failing_task {

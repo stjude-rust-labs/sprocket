@@ -6,6 +6,7 @@ task test_runtime_scope {
         echo "test"
     >>>
 
+    #@ except: DeprecatedRuntimeSection
     runtime {
         # Pre-evaluation fields are available in runtime section.
         # task.name - the name of the task

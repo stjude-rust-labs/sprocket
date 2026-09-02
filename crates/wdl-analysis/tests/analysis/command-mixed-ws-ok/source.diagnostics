@@ -1,0 +1,7 @@
+warning[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option
+   ┌─ tests/analysis/command-mixed-ws-ok/source.wdl:30:22
+   │
+30 │         this line is ${(
+   │                      ^
+   │
+   = fix: replace the opening token `$` with `~`

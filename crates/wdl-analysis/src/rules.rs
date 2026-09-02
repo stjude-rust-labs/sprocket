@@ -90,6 +90,9 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<KnownRulesRule>::default(),
         Box::<ExceptDirectiveValidRule>::default(),
         Box::<CommandSectionIndentationRule>::default(),
+        Box::<DeprecatedObjectRule>::default(),
+        Box::<DeprecatedPlaceholderRule>::default(),
+        Box::<DeprecatedRuntimeSectionRule>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -992,6 +995,296 @@ task say_greetings {
         # this line is prefixed with spaces
         echo "Goodbye, ~{name}!"
     >>>
+}
+"#,
+            }),
+        }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Detects the use of the deprecated `Object` types.
+#[derive(Debug, Clone, Copy)]
+pub struct DeprecatedObjectRule(Severity);
+
+impl DeprecatedObjectRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::TaskDefinitionNode,
+        SyntaxKind::WorkflowDefinitionNode,
+        SyntaxKind::BoundDeclNode,
+        SyntaxKind::UnboundDeclNode,
+    ]);
+    /// The rule identifier for deprecated object warnings.
+    pub const ID: &str = "DeprecatedObject";
+
+    /// Creates a new "deprecated object" rule.
+    pub fn new() -> Self {
+        Self(Severity::Warning)
+    }
+}
+
+impl Default for DeprecatedObjectRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for DeprecatedObjectRule {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Ensures that the deprecated `Object` types are not used."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "WDL `Object` types are officially deprecated and will be removed in the next major WDL release.
+
+`Object`s existed prior to better containers, such as `Map`s and `Struct`s, being \
+introduced into the language. Unfortunately, though these better alternatives did exist at \
+the time of the v1.0 release, the type was not removed. It was later decided \
+that `Object`s overlapped with `Map`s and `Struct`s in functionality, and the type was marked for removal.
+
+See this issue for more details: <https://github.com/openwdl/wdl/pull/228>."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+workflow example {
+    Object person = object {
+        name: "Jimmy",
+        age: 55,
+    }
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider switching to a `Struct` or `Map`"),
+                snippet: r#"version 1.2
+
+struct Person {
+    String name
+    Int age
+}
+
+workflow example {
+    Person person = Person {
+        name: "Jimmy",
+        age: 55,
+    }
+}
+"#,
+            }),
+        }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Detects the use of a deprecated placeholder option.
+#[derive(Debug, Clone, Copy)]
+pub struct DeprecatedPlaceholderRule(Severity);
+
+impl DeprecatedPlaceholderRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::TaskDefinitionNode,
+        SyntaxKind::WorkflowDefinitionNode,
+        SyntaxKind::PlaceholderNode,
+    ]);
+    /// The rule identifier for deprecated placeholder option warnings.
+    pub const ID: &str = "DeprecatedPlaceholder";
+
+    /// Creates a new "deprecated placeholder option" rule.
+    pub fn new() -> Self {
+        Self(Severity::Warning)
+    }
+}
+
+impl Default for DeprecatedPlaceholderRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for DeprecatedPlaceholderRule {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Ensures that deprecated expression placeholder options are not used."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "Expression placeholder options were deprecated in WDL v1.1 and will be removed in the \
+         next major WDL version.
+
+         - `sep` placeholder options should be replaced by the `sep()` standard library function.
+         - `true/false` placeholder options should be replaced with `if`/`else` statements.
+         - `default` placeholder options should be replaced by the `select_first()` standard \
+         library function.
+         - `${}` interpolation placeholders should be replaced by `~{}` interpolation placeholders.
+
+
+This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this was the \
+         version where the deprecation was introduced."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+workflow example {
+    Array[String] names = [
+        "James",
+        "Jimmy",
+        "John",
+    ]
+    String names_separated = "~{sep="," names}"
+    String names_interpolated = "${names_separated}"
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+workflow example {
+    Array[String] names = [
+        "James",
+        "Jimmy",
+        "John",
+    ]
+    String names_separated = "~{sep(",", names)}"
+    String names_interpolated = "~{names_separated}"
+}
+"#,
+            }),
+        }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Detects deprecated `runtime` sections.
+#[derive(Debug, Clone, Copy)]
+pub struct DeprecatedRuntimeSectionRule(Severity);
+
+impl DeprecatedRuntimeSectionRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::TaskDefinitionNode,
+        SyntaxKind::RuntimeSectionNode,
+    ]);
+    /// The rule identifier for deprecated runtime section warnings.
+    pub const ID: &str = "DeprecatedRuntimeSection";
+
+    /// Creates a new "deprecated runtime section" rule.
+    pub fn new() -> Self {
+        Self(Severity::Warning)
+    }
+}
+
+impl Default for DeprecatedRuntimeSectionRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for DeprecatedRuntimeSectionRule {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Detects deprecated `runtime` sections."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "The `runtime` section is deprecated in WDL v1.2 and later. Replace it with a \
+         `requirements` section."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu:latest"
+    }
 }
 "#,
             }),

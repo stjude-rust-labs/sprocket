@@ -1,13 +1,10 @@
 ## This is a test of the `DeprecatedPlaceholder` lint.
 
-#@ except: BashSetSyntax, EmptyOutputs
-
 version 1.0
 
 # None of these lints other than the $ interpolation rule should trigger
 # as the version is WDL v1.0 (prior to placeholder options being deprecated).
 task a_task {
-    #@ except: MetaDescription
     meta {}
 
     Array[String] numbers = ["1", "2", "3"]
@@ -19,7 +16,6 @@ task a_task {
     String bad_default_option = "~{default="false" bar}"
     String bad_interpolation_option = "${bar}"
 
-    #@ except: ShellCheck
     command <<<
         python script.py ~{sep=" " numbers}
         example-command ~{true="--enable-foo" false="" allow_foo}
@@ -28,6 +24,5 @@ task a_task {
 
     output {}
 
-    #@ except: ExpectedRuntimeKeys
     runtime {}
 }
