@@ -298,6 +298,7 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
         .replace(temp_dir.as_ref(), "_TEMP_DIR_")
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
+        .replace(env!("CARGO_PKG_VERSION"), "_VERSION_")
         .replace("sprocket.exe", "sprocket");
 
     // Normalize Windows OS error messages to their Unix equivalents.
