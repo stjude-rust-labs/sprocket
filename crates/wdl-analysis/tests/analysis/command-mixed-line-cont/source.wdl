@@ -1,5 +1,3 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, EmptyOutputs, BashSetSyntax
-
 ## This is a test of having mixed indentation in a line continuation.
 
 version 1.1
@@ -24,7 +22,6 @@ task test2 {
 
     parameter_meta {}
 
-    #@ except: HereDocCommands
     command {
         this line has a continuation \
  		   and should be a warning

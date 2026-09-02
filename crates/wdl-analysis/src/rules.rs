@@ -1,5 +1,7 @@
 //! Implementation of analysis rules.
 
+pub mod util;
+
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
@@ -87,6 +89,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<MeaninglessLintDirective>::default(),
         Box::<KnownRulesRule>::default(),
         Box::<ExceptDirectiveValidRule>::default(),
+        Box::<CommandSectionIndentationRule>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -895,6 +898,100 @@ workflow example {
 version 1.3
 
 workflow example {
+}
+"#,
+            }),
+        }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Detects mixed indentation within command sections.
+#[derive(Debug, Clone, Copy)]
+pub struct CommandSectionIndentationRule(Severity);
+
+impl CommandSectionIndentationRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::CommandSectionNode,
+    ]);
+    /// The rule identifier for mixed command section indentation warnings.
+    pub const ID: &str = "CommandSectionIndentation";
+
+    /// Creates a new "mixed command section indentation" rule.
+    pub fn new() -> Self {
+        Self(Severity::Warning)
+    }
+}
+
+impl Default for CommandSectionIndentationRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for CommandSectionIndentationRule {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Ensures consistent indentation (no mixed spaces/tabs) within command sections."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "Mixing indentation (tab and space) characters within the command line causes leading \
+         whitespace stripping to be skipped. Commands may be whitespace sensitive, and skipping \
+         the whitespace stripping step may cause unexpected behavior."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
+
+task say_greetings {
+    input {
+        String name
+    }
+
+    command <<<
+        # this line is prefixed with tabs
+		echo "Hello, ~{name}!"
+        # this line is prefixed with spaces
+        echo "Goodbye, ~{name}!"
+    >>>
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
+
+task say_greetings {
+    input {
+        String name
+    }
+
+    command <<<
+        # this line is prefixed with spaces
+        echo "Hello, ~{name}!"
+        # this line is prefixed with spaces
+        echo "Goodbye, ~{name}!"
+    >>>
 }
 "#,
             }),

@@ -2938,6 +2938,11 @@ message = "CreateIGVSession.wdl:53:60: error: type mismatch for placeholder opti
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/Utilities/WDLs/CreateIGVSession.wdl/#L53"
 
 [[diagnostics]]
+document = "broadinstitute/palantir-workflows:/Utilities/WDLs/Dipcall.wdl"
+message = "Dipcall.wdl:147:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/Utilities/WDLs/Dipcall.wdl/#L147"
+
+[[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/DownsampleAndCollectCoverage.wdl"
 message = "DownsampleAndCollectCoverage.wdl:152:14: warning[UnusedInput]: unused input `ref_fasta_index`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/636e05e0ab00515124f9ff74f3566f4f2ea0537f/Utilities/WDLs/DownsampleAndCollectCoverage.wdl/#L152"
@@ -3389,6 +3394,11 @@ permalink = "https://github.com/broadinstitute/warp/blob/ebaaf9d31752fba351ec1cd
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/hla/HLAGenotyping.wdl"
+message = "HLAGenotyping.wdl:459:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/broadinstitute/warp/blob/ebaaf9d31752fba351ec1cdb95e889b2ffaecbdd/all_of_us/hla/HLAGenotyping.wdl/#L459"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/all_of_us/hla/HLAGenotyping.wdl"
 message = "HLAGenotyping.wdl:5:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/ebaaf9d31752fba351ec1cdb95e889b2ffaecbdd/all_of_us/hla/HLAGenotyping.wdl/#L5"
 
@@ -3401,6 +3411,11 @@ permalink = "https://github.com/broadinstitute/warp/blob/ebaaf9d31752fba351ec1cd
 document = "broadinstitute/warp:/all_of_us/hla/MakeTable.wdl"
 message = "MakeTable.wdl:5:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/ebaaf9d31752fba351ec1cdb95e889b2ffaecbdd/all_of_us/hla/MakeTable.wdl/#L5"
+
+[[diagnostics]]
+document = "broadinstitute/warp:/all_of_us/hla/MakeTable.wdl"
+message = "MakeTable.wdl:63:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/broadinstitute/warp/blob/ebaaf9d31752fba351ec1cdb95e889b2ffaecbdd/all_of_us/hla/MakeTable.wdl/#L63"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/local_ancestry/SubsetPhasedVcfsForFLARE.wdl"
@@ -7419,8 +7434,23 @@ permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:347:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L347"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
 message = "run.wdl:440:16: warning[UnusedInput]: unused input `prefix`"
 permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L440"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:449:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L449"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:494:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L494"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
@@ -7434,13 +7464,43 @@ permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:598:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L598"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:634:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L634"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
 message = "run.wdl:69:33: error: type mismatch: expected type `String`, but found type `Boolean`"
 permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L69"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:705:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L705"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:745:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L745"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:778:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L778"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
 message = "run.wdl:794:16: warning[UnusedInput]: unused input `prefix`"
 permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L794"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:807:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L807"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
@@ -7461,6 +7521,11 @@ permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404
 document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
 message = "run.wdl:877:13: warning[UnusedInput]: unused input `threads`"
 permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L877"
+
+[[diagnostics]]
+document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"
+message = "run.wdl:917:1: warning[CommandSectionIndentation]: mixed indentation within a command"
+permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404b5c39f9a11704196da955c804d5/workflows/consensus-genome/run.wdl/#L917"
 
 [[diagnostics]]
 document = "chanzuckerberg/czid-workflows:/workflows/consensus-genome/run.wdl"

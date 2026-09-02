@@ -1,5 +1,3 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, DeprecatedPlaceholder, EmptyOutputs, BashSetSyntax
-
 ## This is a test of having mixed indentation inside of a placeholder.
 ## This should not cause a warning for the `CommandSectionIndentation` rule.
 
@@ -28,7 +26,6 @@ task test2 {
 
     parameter_meta {}
 
-    #@ except: HereDocCommands
     command {
         this line is ${(
 		    if true

@@ -160,14 +160,12 @@ impl TestContext {
         let id = rule.id();
         let examples = rule.examples();
 
-        let validator = Validator::empty;
-
         let analyzer = Analyzer::new_with_validator(
             AnalysisConfig::default()
                 .with_diagnostics_config(DiagnosticsConfig::new(std::iter::once(rule)))
                 .with_fallback_version(Some(FALLBACK_VERSION)),
             |_, _, _, _| async {},
-            validator,
+            Validator::default,
         );
 
         self.add_rule(&analyzer, id, examples).await?;
