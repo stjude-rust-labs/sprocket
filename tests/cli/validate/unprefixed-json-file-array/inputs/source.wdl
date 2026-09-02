@@ -1,0 +1,9 @@
+version 1.3
+
+task collect {
+  input {
+    Array[File] jsons
+  }
+
+  command <<<>>>
+}
