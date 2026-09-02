@@ -55,6 +55,11 @@ fn format_for_path(path: &EvaluationPath) -> Option<Format> {
 }
 
 /// Returns whether an unprefixed CLI value looks like an input file.
+///
+/// Remote values are only considered input files when their URL scheme is
+/// supported by [`is_supported_source_url`]. If [`read_input_file`] gains
+/// support for another URL scheme, [`is_supported_source_url`] must also be
+/// updated.
 pub(super) fn looks_like_input_file(value: &str) -> bool {
     let Ok(path) = value.parse::<EvaluationPath>() else {
         return false;
