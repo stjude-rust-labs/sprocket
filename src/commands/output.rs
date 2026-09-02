@@ -61,13 +61,23 @@ pub struct CommandOutput {
 
 impl CommandOutput {
     /// Creates command output using the resolved color mode.
-    pub(crate) fn new(colorize: bool) -> Self {
+    pub fn new(colorize: bool) -> Self {
         Self { colorize }
+    }
+
+    /// Returns whether user-facing output should be colorized.
+    pub(crate) fn colorize(self) -> bool {
+        self.colorize
     }
 
     /// Prints a completed operation.
     pub(crate) fn completed(self, action: Action, subject: impl fmt::Display) {
         self.action(action.completed, subject, ActionColor::Green);
+    }
+
+    /// Prints a completed operation to stderr.
+    pub(crate) fn completed_diagnostic(self, action: Action, subject: impl fmt::Display) {
+        self.diagnostic_action(action.completed, subject, ActionColor::Green);
     }
 
     /// Prints an operation that would occur without mutation.
@@ -103,17 +113,27 @@ impl CommandOutput {
         }
     }
 
-    /// Prints command payload to stdout without decoration.
+    /// Prints an undecorated payload to stdout.
     pub(crate) fn payload(self, value: impl fmt::Display) {
         println!("{value}");
     }
 
-    /// Prints interactive context to stderr without decoration.
+    /// Prints an undecorated payload to stdout without appending a newline.
+    pub(crate) fn payload_raw(self, value: impl fmt::Display) {
+        print!("{value}");
+    }
+
+    /// Prints an undecorated diagnostic to stderr.
     pub(crate) fn diagnostic(self, value: impl fmt::Display) {
         eprintln!("{value}");
     }
 
-    /// Prints a blank interactive-context line to stderr.
+    /// Prints an undecorated diagnostic to stderr without appending a newline.
+    pub(crate) fn diagnostic_raw(self, value: impl fmt::Display) {
+        eprint!("{value}");
+    }
+
+    /// Prints a blank diagnostic line to stderr.
     pub(crate) fn diagnostic_blank(self) {
         eprintln!();
     }
@@ -151,6 +171,15 @@ impl CommandOutput {
             println!("{} {rest}", color.apply(verb));
         } else {
             println!("{verb} {rest}");
+        }
+    }
+
+    /// Prints an action line to stderr with only the verb colored.
+    fn diagnostic_action(self, verb: &str, rest: impl fmt::Display, color: ActionColor) {
+        if self.colorize {
+            eprintln!("{} {rest}", color.apply(verb));
+        } else {
+            eprintln!("{verb} {rest}");
         }
     }
 }

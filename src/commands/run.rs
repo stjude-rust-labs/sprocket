@@ -62,6 +62,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::output::CommandOutput;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
@@ -885,10 +886,11 @@ pub fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
 pub async fn run(
     args: Args,
     mut config: Config,
-    colorize: bool,
+    output: CommandOutput,
     handle: FileReloadHandle,
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
+    let colorize = output.colorize();
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
@@ -1108,8 +1110,11 @@ pub async fn run(
                         if outputs_file.exists() {
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
-                            println!("{outputs_json}");
-                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
+                            output.payload(outputs_json);
+                            output.diagnostic(format!(
+                                "outputs were also written to `{path}`",
+                                path = outputs_file.display()
+                            ));
                         }
                         Ok(())
                     }

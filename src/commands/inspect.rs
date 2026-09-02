@@ -15,6 +15,7 @@ use crate::commands::client::fetch_server_info;
 use crate::commands::client::fetch_task_counts;
 use crate::commands::client::get_json;
 use crate::commands::client::resolve_run_id;
+use crate::commands::output::CommandOutput;
 use crate::config::Config;
 use crate::server::RunResponse;
 use crate::server::RunStatus;
@@ -225,7 +226,8 @@ pub fn task_detail_line(task: &Task, colorize: bool) -> String {
 /// Handles the `inspect` subcommand.
 ///
 /// Fetches and displays detailed information about a single run.
-pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn inspect(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
@@ -271,9 +273,8 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
                 );
             }
         }
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?
+        output.payload(
+            serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?,
         );
         return Ok(());
     }
@@ -287,7 +288,12 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
 
     macro_rules! field {
         ($label:expr, $value:expr) => {
-            println!("{:>width$}  {}", $label, $value, width = LABEL_WIDTH);
+            output.payload(format!(
+                "{:>width$}  {}",
+                $label,
+                $value,
+                width = LABEL_WIDTH
+            ));
         };
     }
 
@@ -357,20 +363,17 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
 
     // When requested, append a per-task breakdown below the run summary.
     if let Some(tasks) = &tasks {
-        println!();
+        output.payload("");
 
         if tasks.is_empty() {
             let note = "No tasks.";
-            println!(
-                "{}",
-                if colorize {
-                    note.dimmed().to_string()
-                } else {
-                    note.to_string()
-                }
-            );
+            output.payload(if colorize {
+                note.dimmed().to_string()
+            } else {
+                note.to_string()
+            });
         } else {
-            println!(
+            output.payload(format!(
                 "  {name:<name_w$}  {status:<status_w$}  {dur:<dur_w$}  DETAIL",
                 name = "NAME",
                 status = "STATUS",
@@ -378,10 +381,10 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
                 name_w = TASK_NAME_WIDTH,
                 status_w = TASK_STATUS_WIDTH,
                 dur_w = TASK_DURATION_WIDTH,
-            );
+            ));
 
             for task in tasks {
-                println!("{}", task_detail_line(task, colorize));
+                output.payload(task_detail_line(task, colorize));
             }
         }
     }

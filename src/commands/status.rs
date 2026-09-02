@@ -13,6 +13,7 @@ use crate::commands::client::resolve_run_id;
 use crate::commands::client::send_json;
 use crate::commands::inspect::status_color;
 use crate::commands::inspect::task_counts_summary;
+use crate::commands::output::CommandOutput;
 use crate::config::Config;
 use crate::server::ListRunsResponse;
 use crate::server::Run;
@@ -61,7 +62,7 @@ pub struct Args {
 ///
 /// With a `RUN`, prints a brief summary of that run. Without one, lists all
 /// runs one per line.
-pub async fn status(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn status(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let base_url = args.client_args.base_url(&config);
 
     // Parse the optional status filter string into a RunStatus.
@@ -75,9 +76,9 @@ pub async fn status(args: Args, config: Config, colorize: bool) -> CommandResult
         .transpose()?;
 
     if let Some(run_id) = &args.run_id {
-        status_single(run_id, &base_url, args.json, colorize).await
+        status_single(run_id, &base_url, args.json, output).await
     } else {
-        status_list(&base_url, status_filter, args.limit, args.json, colorize).await
+        status_list(&base_url, status_filter, args.limit, args.json, output).await
     }
 }
 
@@ -86,8 +87,9 @@ async fn status_single(
     run_id: &str,
     base_url: &str,
     json: bool,
-    colorize: bool,
+    output: CommandOutput,
 ) -> CommandResult<()> {
+    let colorize = output.colorize();
     let uuid = resolve_run_id(run_id, base_url).await?;
 
     let url = format!("{base_url}{path}", path = paths::get_run(uuid));
@@ -101,9 +103,8 @@ async fn status_single(
                 serde_json::to_value(&counts).context("failed to serialize task counts")?,
             );
         }
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?
+        output.payload(
+            serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?,
         );
         return Ok(());
     }
@@ -136,20 +137,20 @@ async fn status_single(
     };
 
     let name_display = &run.name;
-    println!(
+    output.payload(format!(
         "{short_uuid}  {name:<45}  {status}{elapsed}",
         short_uuid = &run.uuid.to_string()[..8],
         name = name_display,
         status = status_display,
         elapsed = elapsed,
-    );
+    ));
 
     if let Some(target) = &run.target {
-        println!("{:>14}  {target}", "Target:");
+        output.payload(format!("{:>14}  {target}", "Target:"));
     }
 
     if let Some(summary) = task_counts_summary(&counts, colorize) {
-        println!("{:>14}  {summary}", "Tasks:");
+        output.payload(format!("{:>14}  {summary}", "Tasks:"));
     }
 
     Ok(())
@@ -167,16 +168,16 @@ async fn status_list(
     status_filter: Option<RunStatus>,
     limit: Option<i64>,
     json: bool,
-    colorize: bool,
+    output: CommandOutput,
 ) -> CommandResult<()> {
+    let colorize = output.colorize();
     let client = reqwest::Client::new();
     let (runs, total_runs) = fetch_run_list(&client, base_url, status_filter, limit).await?;
 
     if json {
         let value = serde_json::json!({ "runs": runs, "total": total_runs });
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&value).context("failed to pretty-print response")?
+        output.payload(
+            serde_json::to_string_pretty(&value).context("failed to pretty-print response")?,
         );
         return Ok(());
     }
@@ -216,7 +217,7 @@ async fn status_list(
             target_full
         };
 
-        println!(
+        output.payload(format!(
             "{short_uuid}  {name:<45}  {status:<status_pad$}  {target:<22}  {timestamp}",
             short_uuid = &run.uuid.to_string()[..8],
             name = name_display,
@@ -224,7 +225,7 @@ async fn status_list(
             status_pad = status_pad,
             target = target,
             timestamp = timestamp,
-        );
+        ));
     }
 
     // The footer distinguishes between "total in the system" (no filter) and
@@ -232,9 +233,13 @@ async fn status_list(
     // because the server's `total` reflects the applied filter, so reporting
     // it as a global count would be misleading when the filter is set.
     if status_filter.is_some() {
-        println!("{total} run(s) shown. {total_runs} total matching run(s).");
+        output.payload(format!(
+            "{total} run(s) shown. {total_runs} total matching run(s)."
+        ));
     } else {
-        println!("{total} run(s) shown. {total_runs} total run(s) in the system.");
+        output.payload(format!(
+            "{total} run(s) shown. {total_runs} total run(s) in the system."
+        ));
     }
 
     Ok(())

@@ -6,6 +6,7 @@ use clap::Subcommand;
 
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
 /// The [Taplo schema directive] for `sprocket.toml`.
@@ -50,14 +51,14 @@ pub struct ResolveArgs {
 }
 
 /// Runs the `config` command.
-pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
+pub fn config(args: Args, mut config: Config, output: CommandOutput) -> CommandResult<()> {
     let mut include_schema_directive = false;
     let config = match args.command {
         ConfigSubcommand::Schema => {
             let schema = schemars::schema_for!(Config);
             let schema_pretty =
                 serde_json::to_string_pretty(&schema).context("serializing config schema")?;
-            println!("{schema_pretty}");
+            output.payload(schema_pretty);
             return Ok(());
         }
         ConfigSubcommand::Init => {
@@ -74,7 +75,7 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
         }
     };
 
-    println!(
+    output.payload(format!(
         "{}{}",
         if include_schema_directive {
             format!("{SCHEMA_DIRECTIVE}\n\n")
@@ -84,6 +85,6 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
         toml_spanner::to_string(&config)
             .context("failed to serialize configuration")
             .map_err(CommandError::Single)?
-    );
+    ));
     Ok(())
 }

@@ -30,6 +30,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
 
 /// The [`Tag`]s which will run with the default `lint` configuration.
 const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
@@ -41,6 +43,8 @@ const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
     Tag::Deprecated,
     Tag::Documentation,
 ]);
+/// Baseline generation action.
+const GENERATE: Action = Action::new("Generated", "generate");
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -146,7 +150,8 @@ pub struct LintArgs {
 }
 
 /// Performs the `check` subcommand.
-pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn check(args: CheckArgs, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     let mut except = args.common.except;
     except.extend(config.check.except.iter().cloned());
 
@@ -332,10 +337,13 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         new_baseline
             .write(&baseline_path)
             .context("failed to write baseline file")?;
-        eprintln!(
-            "generated baseline with {} diagnostic(s) at `{}`",
-            new_baseline.entries().len(),
-            baseline_path.display()
+        output.completed_diagnostic(
+            GENERATE,
+            format!(
+                "baseline with {} diagnostic(s) at `{}`",
+                new_baseline.entries().len(),
+                baseline_path.display()
+            ),
         );
         return Ok(());
     }
@@ -449,14 +457,14 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 }
 
 /// Performs the `lint` subcommand.
-pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn lint(args: LintArgs, config: Config, output: CommandOutput) -> CommandResult<()> {
     check(
         CheckArgs {
             common: args.common,
             lint: true,
         },
         config,
-        colorize,
+        output,
     )
     .await
 }
