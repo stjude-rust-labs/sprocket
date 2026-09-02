@@ -9,6 +9,27 @@ Various CI features have been implemented to ease the release process, but some 
 Before cutting a release, review every entry under `## Unreleased` in each
 `CHANGELOG.md` and verify that every item links to its originating pull request.
 
+Review user-facing changes against [`COMPATIBILITY.md`](./COMPATIBILITY.md):
+
+- Confirm every stable-interface change is classified as compatible,
+  deprecated, or an approved exception.
+- Search this repository and the pending `sprocket.bio` `next` branch for each
+  deprecation's "next release" markers, including changelogs, documentation,
+  and runtime warnings. Replace them with this release number and date, then
+  record the earliest eligible removal release and date.
+- Confirm a removal has passed both the 90-day and two-minor-release minimums.
+- Confirm a feature graduating from `dev` lists the commands, formats, schemas,
+  and behavior that become stable.
+- Confirm a breaking HTTP API uses a new `/api/vN` prefix and retains the
+  previous version through its deprecation period.
+- Confirm database schema changes include a tested forward migration that
+  preserves data needed by supported commands.
+- Confirm an exception has the required rationale, impact assessment,
+  migration instructions, and release notes.
+- Confirm the version proposed for the `sprocket` package matches this policy.
+  Conventional commit markers and release automation do not choose the
+  executable's major version; edit the release pull request when needed.
+
 The following steps are handled automatically by the [release-plz](./.github/workflows/release-plz.yml) workflow.
 In the event it fails, they can be performed manually.
 
