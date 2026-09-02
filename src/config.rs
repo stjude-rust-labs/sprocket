@@ -406,6 +406,8 @@ mod feature_flags {
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
     /// Rule IDs or tags to except from running.
+    ///
+    /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
     #[schemars(default)]
     pub except: Vec<String>,
@@ -447,10 +449,6 @@ pub struct AnalyzerConfig {
     #[toml(default)]
     #[schemars(default)]
     pub lint: bool,
-    /// Rule IDs to except from running.
-    #[toml(default)]
-    #[schemars(default)]
-    pub except: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `run` command.
