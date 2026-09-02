@@ -350,11 +350,10 @@ impl<T: AsRef<str>> Render for Markdown<T> {
         options.insert(Options::ENABLE_DEFINITION_LIST);
         let parser = Parser::new_ext(self.0.as_ref(), options);
         pulldown_cmark::html::push_html(&mut unsafe_html, parser);
-        // Sanitize it with ammonia, preserving the `class` attribute on fenced
-        // code blocks so the theme's manual highlighter can detect the
-        // `language-*` hint that `pulldown-cmark` emits.
+        // Sanitize it with ammonia while preserving CSS classes authored in
+        // Markdown, including the `language-*` hint on fenced code blocks.
         let safe_html = ammonia::Builder::default()
-            .add_tag_attributes("code", ["class"])
+            .add_generic_attributes(["class"])
             .clean(&unsafe_html)
             .to_string();
 
@@ -768,6 +767,25 @@ mod tests {
             rendered.contains("class=\"language-json\""),
             "expected the fenced code block to keep its language class, got: {rendered}"
         );
+    }
+
+    #[test]
+    fn authored_html_retains_classes_without_disabling_sanitization() {
+        let rendered = Markdown(
+            r#"<div class="wdl-tests-dark" style="color: red" onclick="alert('unsafe')">
+                <span class="wdl-tests-light">Homepage content</span>
+                <script>alert('unsafe')</script>
+            </div>"#,
+        )
+        .render()
+        .into_string();
+
+        assert!(rendered.contains("class=\"wdl-tests-dark\""));
+        assert!(rendered.contains("class=\"wdl-tests-light\""));
+        assert!(!rendered.contains("style="));
+        assert!(!rendered.contains("onclick="));
+        assert!(!rendered.contains("<script"));
+        assert!(!rendered.contains("alert("));
     }
 
     #[test]
