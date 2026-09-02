@@ -2276,32 +2276,8 @@ workflow test_split {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#string-basenamestring
     const BASENAME_DEFINITION_V1_0: &str = r#"
-Returns the "basename" of a file - the name after the last directory separator in the file's path.
-
-The optional second parameter specifies a literal suffix to remove from the file name. If the file name does not end with the specified suffix then it is ignored.
-
-**Parameters**
-
-1. `File`: Path of the file to read.
-2. `String`: (Optional) Suffix to remove from the file name.
-
-**Returns**: The file's basename as a `String`.
-
-Example: test_basename.wdl
-
-```wdl
-version 1.0
-
-workflow test_basename {
-  input {
-    File file
-  }
-
-  output {
-    Boolean unchanged = basename(file, ".txt") == basename(file)
-  }
-}
-```
+- This function returns the basename of a file path passed to it: `basename("/path/to/file.txt")` returns `"file.txt"`.
+- Also supports an optional parameter, suffix to remove: `basename("/path/to/file.txt", ".txt")` returns `"file"`.
 "#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
@@ -2556,36 +2532,38 @@ task gen_files {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#float-sizefile-string
     const SIZE_DEFINITION_V1_0: &str = r#"
-Determines the size of a file or the sum of the file sizes contained within a compound value. Files may be optional; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument specifies a [unit](#units-of-storage).
-
-If the size cannot be represented in the specified unit because the resulting value is too large to fit in a `Float`, an error is raised.
-
-**Parameters**
-
-1. `File|File?|X`: A file or compound value containing files for which to determine the size.
-2. `String`: (Optional) The unit of storage; defaults to `B`.
-
-**Returns**: The size of the files as a `Float`.
-
-Example: file_sizes_task.wdl
+Given a `File` and a `String` (optional), returns the size of the file in Bytes or in the unit specified by the second argument.
 
 ```wdl
 version 1.0
 
-task file_sizes {
+task example {
   input {
-    Array[File?] files
+    File input_file
   }
 
-  command <<<
-    true
-  >>>
+  command {
+    echo "this file is 22 bytes" > created_file
+  }
 
   output {
-    Float total_bytes = size(files)
+    Float input_file_size = size(input_file)
+    Float created_file_size = size("created_file") # 22.0
+    Float created_file_size_in_KB = size("created_file", "K") # 0.022
   }
 }
 ```
+
+Supported units are KiloByte ("K", "KB"), MegaByte ("M", "MB"), GigaByte ("G", "GB"), TeraByte ("T", "TB") as well as their [binary version](https://en.wikipedia.org/wiki/Binary_prefix) "Ki" ("KiB"), "Mi" ("MiB"), "Gi" ("GiB"), "Ti" ("TiB").
+Default unit is Bytes ("B").
+
+### Acceptable compound input types
+
+Varieties of the `size` function also exist for the following compound types. The `String` unit is always treated the same as above. Note that to avoid numerical overflow, very long arrays of files should probably favor larger units.
+
+- `Float size(File?, [String])`: Returns the size of the file, if specified, or 0.0 otherwise.
+- `Float size(Array[File], [String])`: Returns the sum of sizes of the files in the array.
+- `Float size(Array[File?], [String])`: Returns the sum of sizes of all specified files in the array.
 "#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
@@ -3104,35 +3082,31 @@ task write_lines {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#arrayarraystring-read_tsvstringfile
     const READ_TSV_DEFINITION_V1_0: &str = r#"
-Reads a tab-separated value (TSV) file as an `Array[Array[String]]` representing a table of values. Trailing end-of-line characters (`\r` and `\n`) are removed from each line. There is no requirement that all rows have the same length.
+The `read_tsv()` function takes one parameter, which is a file-like object (`String`, `File`) and returns an `Array[Array[String]]` representing the table from the TSV file.
 
-If the file is empty, an empty array is returned.
+If the parameter is a `String`, this is assumed to be a local file path relative to the current working directory of the task.
 
-**Parameters**
-
-1. `File`: The TSV file to read.
-
-**Returns**: An `Array` of rows in the TSV file, where each row is an `Array[String]` of fields.
-
-Example: read_tsv_task.wdl
+For example, if I write a task that outputs a file to `./results/file_list.tsv`, and my task is defined as:
 
 ```wdl
 version 1.0
 
-task read_tsv {
+task do_stuff {
   input {
-    File data
+    File file
   }
-
-  command <<<
-    true
-  >>>
-
+  command {
+    python do_stuff.py ${file}
+  }
   output {
-    Array[Array[String]] table = read_tsv(data)
+    Array[Array[String]] output_table = read_tsv("./results/file_list.tsv")
   }
 }
 ```
+
+Then when the task finishes, to fulfill the `outputs_table` variable, `./results/file_list.tsv` must be a valid TSV file or an error will be reported.
+
+If the entire contents of the file can not be read for any reason, the calling task or workflow will be considered to have failed. Examples of failure include but are not limited to not having access to the file, resource limitations (e.g. memory) when reading the file, and implementation-imposed file size limits.
 "#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
@@ -3234,28 +3208,30 @@ task read_tsv {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#file-write_tsvarrayarraystring
     const WRITE_TSV_DEFINITION_V1_0: &str = r#"
-Writes a tab-separated value (TSV) file with one line for each element in an `Array[Array[String]]`. Each row is joined with tab characters and terminated by a newline (`\n`). If the array is empty, an empty file is written.
-
-**Parameters**
-
-1. `Array[Array[String]]`: An array of rows, where each row is an array of column values.
-
-**Returns**: A `File`.
-
-Example: write_tsv_task.wdl
+Given something that's compatible with `Array[Array[String]]`, this writes a TSV file of the data structure.
 
 ```wdl
 version 1.0
 
-task write_tsv {
-  input {
-    Array[Array[String]] rows
+task example {
+  Array[String] array = [["one", "two", "three"], ["un", "deux", "trois"]]
+  command {
+    ./script --tsv=${write_tsv(array)}
   }
-
-  command <<<
-    cat ~{write_tsv(rows)}
-  >>>
 }
+```
+
+If this task were run, the command might look like:
+
+```
+./script --tsv=/local/fs/tmp/array.tsv
+```
+
+And `/local/fs/tmp/array.tsv` would contain:
+
+```
+one\ttwo\tthree
+un\tdeux\ttrois
 ```
 "#;
 
@@ -3748,38 +3724,41 @@ task read_objects {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#file-write_objectobject
     const WRITE_OBJECT_DEFINITION_V1_0: &str = r#"
-Writes a tab-separated value (TSV) file representing the names and values of the members of an `Object`. The file will contain exactly two rows. The first row specifies the object member names. The second row specifies the object member values corresponding to the names in the first row.
-
-Each line is terminated by the newline (`\n`) character.
-
-The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
-
-If the entire contents of the file can not be written for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, insufficient disk space to write the file.
-
-**Parameters**
-
-1. `Object`: An `Object` whose members will be written to the file.
-
-**Returns**: A `File`.
-
-Example: write_object_task.wdl
+Given any `Object`, this will write out a 2-row, n-column TSV file with the object's attributes and values.
 
 ```wdl
 version 1.0
 
-task write_object {
-  input {
-    Object my_obj = {"key_0": "value_A0", "key_1": "value_A1", "key_2": "value_A2"}
-  }
-
+task test {
+  Object input
   command <<<
-    cat ~{write_object(my_obj)}
+    /bin/do_work --obj=~{write_object(input)}
   >>>
-
   output {
-    Object new_obj = read_object(stdout())
+    File results = stdout()
   }
 }
+```
+
+If `input` were to have the value:
+
+|Attribute|Value|
+|---------|-----|
+|key_1    |"value_1"|
+|key_2    |"value_2"|
+|key_3    |"value_3"|
+
+The command would instantiate to:
+
+```
+/bin/do_work --obj=/path/to/input.tsv
+```
+
+Where `/path/to/input.tsv` would contain:
+
+```
+key_1\tkey_2\tkey_3
+value_1\tvalue_2\tvalue_3
 ```
 "#;
 
@@ -3846,42 +3825,51 @@ task write_object {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#file-write_objectsarrayobject
     const WRITE_OBJECTS_DEFINITION_V1_0: &str = r#"
-Writes a tab-separated value (TSV) file representing the names and values of the members of any number of `Object`s. The first line of the file will be a header row with the names of the object members. There will be one additional row for each element in the input array, where each additional row contains the values of an object corresponding to the member names.
-
-Each line is terminated by the newline (`\n`) character.
-
-The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
-
-If the entire contents of the file can not be written for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, insufficient disk space to write the file.
-
-**Parameters**
-
-1. `Array[Object]`: An `Array[Object]` whose elements will be written to the file.
-
-**Returns**: A `File`.
-
-Example: write_objects_task.wdl
+Given any `Array[Object]`, this will write out a 2+ row, n-column TSV file with each object's attributes and values.
 
 ```wdl
 version 1.0
 
-task write_objects {
+task test {
   input {
-    Array[Object] my_objs = [
-      {"key_0": "value_A0", "key_1": "value_A1", "key_2": "value_A2"},
-      {"key_0": "value_B0", "key_1": "value_B1", "key_2": "value_B2"},
-      {"key_0": "value_C0", "key_1": "value_C1", "key_2": "value_C2"}
-    ]
+    Array[Object] in
   }
-
   command <<<
-    cat ~{write_objects(my_objs)}
+    /bin/do_work --obj=~{write_objects(in)}
   >>>
-
   output {
-    Array[Object] new_objs = read_objects(stdout())
+    File results = stdout()
   }
 }
+```
+
+If `in` were to have the value:
+
+|Index|Attribute|Value|
+|-----|---------|-----|
+|0    |key_1    |"value_1"|
+|     |key_2    |"value_2"|
+|     |key_3    |"value_3"|
+|1    |key_1    |"value_4"|
+|     |key_2    |"value_5"|
+|     |key_3    |"value_6"|
+|2    |key_1    |"value_7"|
+|     |key_2    |"value_8"|
+|     |key_3    |"value_9"|
+
+The command would instantiate to:
+
+```
+/bin/do_work --obj=/path/to/input.tsv
+```
+
+Where `/path/to/input.tsv` would contain:
+
+```
+key_1\tkey_2\tkey_3
+value_1\tvalue_2\tvalue_3
+value_4\tvalue_5\tvalue_6
+value_7\tvalue_8\tvalue_9
 ```
 "#;
 
@@ -5562,12 +5550,12 @@ mod test {
         let v1_2 = V1::Two;
         let v1_3 = V1::Three;
 
-        assert!(definition("basename", v1_0).contains("basename\" of a file -"));
+        assert!(definition("basename", v1_0).contains("basename of a file path passed to it"));
         assert!(!definition("basename", v1_0).contains("file or directory"));
         assert_eq!(definition("basename", v1_0), definition("basename", v1_1));
         assert!(definition("basename", v1_2).contains("file or directory"));
 
-        assert!(definition("size", v1_0).contains("sum of the file sizes"));
+        assert!(definition("size", v1_0).contains("Given a `File` and a `String`"));
         assert!(!definition("size", v1_0).contains("files/directories"));
         assert_eq!(definition("size", v1_0), definition("size", v1_1));
         assert!(definition("size", v1_2).contains("file, directory"));

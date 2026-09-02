@@ -206,8 +206,7 @@ async fn should_hover_version_filtering_v1_0() {
         &response,
         "basename(path: Directory, <suffix: String>) -> String",
     );
-    assert_hover_content(&response, "Returns the \"basename\" of a file -");
-    assert_hover_content(&response, "version 1.0");
+    assert_hover_content(&response, "basename of a file path passed to it");
     assert_hover_not_content(&response, "file or directory");
     // Position of `split`
     let response = hover_request(&mut ctx, wdl, Position::new(12, 23))

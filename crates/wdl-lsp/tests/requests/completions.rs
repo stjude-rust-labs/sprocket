@@ -403,7 +403,11 @@ async fn should_complete_scope_variables_v1_0_stdlib() {
         let Some(Documentation::MarkupContent(documentation)) = &item.documentation else {
             panic!("basename completion should have markdown documentation");
         };
-        assert!(documentation.value.contains("version 1.0"));
+        assert!(
+            documentation
+                .value
+                .contains("basename of a file path passed to it")
+        );
         assert!(!documentation.value.contains("file or directory"));
     }
 }
