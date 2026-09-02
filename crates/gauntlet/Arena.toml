@@ -318,11 +318,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:198:24: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L198"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:47:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L47"
 
@@ -2198,18 +2193,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:22:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:22:20: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:25:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L25"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
@@ -2220,11 +2205,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:31:15: note[DeclarationName]: declaration identifier 'cram_directory' contains type name 'Directory'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:34:3: note[DeprecatedRuntimeSection]: task `create_cram_directory` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L34"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
@@ -2288,11 +2268,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:155:3: note[DeprecatedRuntimeSection]: task `glimpse2_split_reference` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L155"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:198:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L198"
 
@@ -2305,11 +2280,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:212:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:237:3: note[DeprecatedRuntimeSection]: task `glimpse2_phase` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L237"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2348,11 +2318,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:361:3: note[DeprecatedRuntimeSection]: task `glimpse2_phase_cram` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L361"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:410:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L410"
 
@@ -2368,22 +2333,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:421:21: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L421"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:421:25: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L421"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:422:20: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L422"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:422:22: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L422"
 
 [[diagnostics]]
@@ -2395,11 +2350,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:427:12: note[ShellCheck]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L427"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:447:3: note[DeprecatedRuntimeSection]: task `glimpse2_ligate` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L447"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2418,11 +2368,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:528:3: note[DeprecatedRuntimeSection]: task `glimpse2_concordance` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L528"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:568:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L568"
 
@@ -2435,16 +2380,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:580:19: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L580"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:584:3: note[DeprecatedRuntimeSection]: task `parse_chunks_file` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L584"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:79:3: note[DeprecatedRuntimeSection]: task `glimpse2_chunk` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
@@ -2468,36 +2403,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:157:20: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L157"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:158:17: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L158"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:159:28: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L159"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:160:31: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L160"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:161:25: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L161"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:162:19: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:27:3: note[ParameterMetaMatched]: parameter metadata in task `readcounter_wig` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L27"
 
@@ -2510,11 +2415,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:56:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:61:22: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L61"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -3098,11 +2998,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:76:53: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
 message = "ww-shapemapper.wdl:82:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L82"
 
@@ -3175,21 +3070,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:89:39: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L89"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:106:14: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L106"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:56:26: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:57:32: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
@@ -3998,18 +3878,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:22:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:22:20: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:25:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L25"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
@@ -4020,11 +3890,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:31:15: note[DeclarationName]: declaration identifier 'cram_directory' contains type name 'Directory'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:34:3: note[DeprecatedRuntimeSection]: task `create_cram_directory` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L34"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
