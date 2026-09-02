@@ -925,7 +925,6 @@ impl CommandSectionIndentationRule {
     /// See [`Self::exceptable_nodes()`].
     pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
         SyntaxKind::VersionStatementNode,
-        SyntaxKind::TaskDefinitionNode,
         SyntaxKind::CommandSectionNode,
     ]);
     /// The rule identifier for mixed command section indentation warnings.
