@@ -270,10 +270,7 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
         | SyntaxKind::LogicalAnd
         | SyntaxKind::LogicalOr
         | SyntaxKind::AfterKeyword
-        | SyntaxKind::AsKeyword
-        | SyntaxKind::IfKeyword
-        | SyntaxKind::ElseKeyword
-        | SyntaxKind::ThenKeyword => Some(LineBreak::Before),
+        | SyntaxKind::AsKeyword => Some(LineBreak::Before),
         SyntaxKind::OpenBracket
         | SyntaxKind::OpenParen
         | SyntaxKind::Colon
@@ -359,6 +356,12 @@ pub struct Postprocessor {
 
     /// Temporary indentation to add.
     temp_indent: Option<Rc<String>>,
+
+    /// Whether potential splits should be linebroken or not.
+    fit_potential_splits: bool,
+
+    /// The delimiter to use when "fitting" a potential split.
+    fit_delimiter: Option<Rc<String>>,
 }
 
 impl Postprocessor {
@@ -508,6 +511,49 @@ impl Postprocessor {
             PreToken::TempIndentEnd => {
                 self.temp_indent = None;
             }
+            PreToken::FitOrSplitStart {
+                fit_start,
+                fit_delimiter,
+                split_end_line,
+            } => {
+                if self.fit_potential_splits {
+                    stream.push(PostToken::Literal(fit_start));
+                    self.fit_delimiter = Some(fit_delimiter);
+                } else if split_end_line {
+                    self.end_line(stream);
+                }
+            }
+            PreToken::PotentialSplit => {
+                if self.fit_potential_splits
+                    && let Some(delim) = &self.fit_delimiter
+                {
+                    self.trim_last_line(stream);
+                    stream.push(PostToken::Literal(delim.clone()));
+                } else {
+                    self.end_line(stream);
+                }
+            }
+            PreToken::FitOrSplitEnd {
+                fit_end,
+                split_end,
+                split_end_line,
+            } => {
+                if self.fit_potential_splits {
+                    if fit_end.is_empty() {
+                        self.trim_last_line(stream);
+                    }
+                    stream.push(PostToken::Literal(fit_end));
+                } else {
+                    if split_end.is_empty() {
+                        self.trim_last_line(stream);
+                    }
+                    stream.push(PostToken::Literal(split_end));
+                    if split_end_line {
+                        self.end_line(stream);
+                    }
+                }
+                self.fit_delimiter = None;
+            }
         }
     }
 
@@ -523,21 +569,56 @@ impl Postprocessor {
             self.position == LinePosition::StartOfLine,
             "`flush()` must be called from the start of a line"
         );
+        let init_self = self.clone();
 
         let max_length = config.max_line_length.get();
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
         let mut prev_kind = None;
 
-        let mut pre_buffer = in_stream.iter().peekable();
+        let mut pre_buffer = in_stream.iter().enumerate().peekable();
         let mut post_buffer = TokenStream::<PostToken>::default();
 
-        while let Some(token) = pre_buffer.next() {
+        // If we encounter any potential splits, we use the first iteration to find any
+        // spans that will fit. If we don't find any potential splits, we can
+        // just push the result of the first iteration to the out stream and be
+        // done.
+        self.fit_potential_splits = true;
+        let mut fit_spans = Vec::new();
+        let mut fit_start = None;
+        let mut reprocess_needed = false;
+
+        // First iteration
+        while let Some((i, token)) = pre_buffer.next() {
+            match token {
+                PreToken::FitOrSplitStart { .. } => {
+                    reprocess_needed = true;
+                    // overwrite any prior start. Only the innermost span is a candidate for
+                    // fitting.
+                    fit_start = Some(i);
+                }
+                PreToken::PotentialSplit => {
+                    reprocess_needed = true;
+                }
+                PreToken::FitOrSplitEnd { .. } => {
+                    if let Some(start) = fit_start.take()
+                        && max_length.is_none_or(|max| post_buffer.last_line_width(config) < max)
+                        && !self.interrupted
+                    {
+                        fit_spans.push((start, i));
+                    }
+                    reprocess_needed = true;
+                }
+                _ => {}
+            }
+
             let mut cache = None;
             let mut cached_self = None;
             let mut cached_on = None;
 
-            if let Some(max) = max_length {
+            if let Some(max) = max_length
+                && !reprocess_needed
+            {
                 if let PreToken::Literal(_, kind) = token {
                     // Check if we need a break to match a prior tandem break
                     if let Some(top_of_stack) = break_stack.last_mut() {
@@ -586,12 +667,201 @@ impl Postprocessor {
                 prev_kind = None;
             }
 
-            let next = pre_buffer.peek().copied();
+            let next = pre_buffer.peek().map(|(_, n)| *n);
             self.step(token.clone(), next, &mut post_buffer);
 
             // If we cached before the step and the line is now too long,
             // revert, line break, then repeat the step we just
             // took.
+            if max_length.is_some_and(|max| post_buffer.last_line_width(config) > max)
+                && let Some(cache) = cache.take()
+                && let Some(cached_self) = cached_self.take()
+                && let Some(cached_on) = cached_on.take()
+                && !reprocess_needed
+            {
+                // revert
+                post_buffer = cache;
+                // reset self
+                *self = cached_self;
+
+                // line break
+                self.interrupted = true;
+                self.end_line(&mut post_buffer);
+                if let Some(also_break_on) = tandem_line_break(cached_on) {
+                    self.indent_level += 1;
+                    self.interrupted = false;
+                    let tandem_break = TandemBreak {
+                        open: cached_on,
+                        close: also_break_on,
+                        depth: 0,
+                    };
+                    break_stack.push(tandem_break);
+                }
+
+                // repeat step
+                self.step(token.clone(), next, &mut post_buffer);
+            }
+
+            // check if we should line break now, after the step has been taken
+            if let Some(max) = max_length
+                && let PreToken::Literal(_, kind) = token
+                && !reprocess_needed
+            {
+                // will be cleared to `None` if a linebreak is added this pass
+                prev_kind = Some(*kind);
+
+                // Check if we need a break to match a prior tandem break
+                if let Some(top_of_stack) = break_stack.last_mut() {
+                    if *kind == top_of_stack.close {
+                        if top_of_stack.depth > 0 {
+                            top_of_stack.depth -= 1;
+                        } else {
+                            break_stack.pop();
+                            self.indent_level -= 1;
+                            self.end_line(&mut post_buffer);
+
+                            prev_kind = None;
+                        }
+                    } else if *kind == top_of_stack.open {
+                        top_of_stack.depth += 1;
+                    }
+                }
+
+                if let Some(LineBreak::After) = can_be_line_broken(*kind)
+                    && post_buffer.last_line_width(config) > max
+                {
+                    self.interrupted = true;
+                    self.end_line(&mut post_buffer);
+                    if let Some(also_break_on) = tandem_line_break(*kind) {
+                        self.indent_level += 1;
+                        self.interrupted = false;
+                        let tandem_break = TandemBreak {
+                            open: *kind,
+                            close: also_break_on,
+                            depth: 0,
+                        };
+                        break_stack.push(tandem_break);
+                    }
+
+                    prev_kind = None;
+                }
+            }
+        }
+
+        // Any tandem break still open at the end of the flush will never be
+        // closed, so unwind the indentation it introduced.
+        self.indent_level = self.indent_level.saturating_sub(break_stack.len());
+
+        if !reprocess_needed {
+            out_stream.extend(post_buffer);
+            return;
+        }
+
+        *self = init_self;
+
+        break_stack.clear();
+        prev_kind = None;
+
+        pre_buffer = in_stream.iter().enumerate().peekable();
+        post_buffer.clear();
+
+        self.fit_potential_splits = false;
+        let mut fit_spans = fit_spans.into_iter();
+        let mut fit_span = fit_spans.next();
+        let mut indent_on_first_split = false;
+
+        // Second iteration
+        while let Some((i, token)) = pre_buffer.next() {
+            let mut cache = None;
+            let mut cached_self = None;
+            let mut cached_on = None;
+
+            if fit_span.is_some_and(|(start, _end)| start == i) {
+                self.fit_potential_splits = true;
+            } else if let PreToken::FitOrSplitStart { split_end_line, .. } = token {
+                if *split_end_line {
+                    self.indent_level += 1;
+                    self.interrupted = false;
+                } else {
+                    indent_on_first_split = true;
+                }
+            }
+            if !self.fit_potential_splits && matches!(token, PreToken::PotentialSplit) {
+                self.interrupted = false;
+                if indent_on_first_split {
+                    self.indent_level += 1;
+                    indent_on_first_split = false;
+                }
+            }
+            if !self.fit_potential_splits
+                && let PreToken::FitOrSplitEnd { split_end_line, .. } = token
+            {
+                self.indent_level -= 1;
+                if *split_end_line {
+                    self.interrupted = false;
+                }
+            }
+
+            if let Some(max) = max_length
+                && !self.fit_potential_splits
+            {
+                if let PreToken::Literal(_, kind) = token {
+                    // Check if we need a break to match a prior tandem break
+                    if let Some(top_of_stack) = break_stack.last_mut() {
+                        if *kind == top_of_stack.close {
+                            if top_of_stack.depth > 0 {
+                                top_of_stack.depth -= 1;
+                            } else {
+                                break_stack.pop();
+                                self.indent_level -= 1;
+                                self.end_line(&mut post_buffer);
+                            }
+                        } else if *kind == top_of_stack.open {
+                            top_of_stack.depth += 1;
+                        }
+                    }
+                    if let Some(LineBreak::Before) = can_be_line_broken(*kind) {
+                        if post_buffer.last_line_width(config) > max {
+                            // the line is already too long
+                            self.interrupted = true;
+                            self.end_line(&mut post_buffer);
+                            if let Some(also_break_on) = tandem_line_break(*kind) {
+                                self.indent_level += 1;
+                                self.interrupted = false;
+                                let tandem_break = TandemBreak {
+                                    open: *kind,
+                                    close: also_break_on,
+                                    depth: 0,
+                                };
+                                break_stack.push(tandem_break);
+                            }
+                        } else {
+                            // cache the current state so we can revert to it if
+                            // the line is too long after the next step.
+                            cache = Some(post_buffer.clone());
+                            cached_self = Some(self.clone());
+                            cached_on = Some(*kind);
+                        }
+                    } else if let Some(k) = prev_kind.take()
+                        && matches!(can_be_line_broken(k), Some(LineBreak::After))
+                    {
+                        cache = Some(post_buffer.clone());
+                        cached_self = Some(self.clone());
+                        cached_on = Some(k);
+                    }
+                }
+                prev_kind = None;
+            }
+
+            let next = pre_buffer.peek().map(|(_, n)| *n);
+            self.step(token.clone(), next, &mut post_buffer);
+
+            if fit_span.is_some_and(|(_start, end)| end == i) {
+                fit_span = fit_spans.next();
+                self.fit_potential_splits = false;
+            }
+            // If we cached before the step and the line is now too long, revert, line
+            // break, then repeat the step we just took.
             if max_length.is_some_and(|max| post_buffer.last_line_width(config) > max)
                 && let Some(cache) = cache.take()
                 && let Some(cached_self) = cached_self.take()
@@ -623,6 +893,7 @@ impl Postprocessor {
             // check if we should line break now, after the step has been taken
             if let Some(max) = max_length
                 && let PreToken::Literal(_, kind) = token
+                && !self.fit_potential_splits
             {
                 // will be cleared to `None` if a linebreak is added this pass
                 prev_kind = Some(*kind);

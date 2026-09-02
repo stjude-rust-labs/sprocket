@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Short literal arrays, if/then/else clauses, and symbolic import clauses are kept on the same line instead of being unconditionally line split ([#1154](https://github.com/stjude-rust-labs/sprocket/pull/1154)).
+
 ## 0.20.2 - 2026-08-26
 
 #### Added
