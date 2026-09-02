@@ -36,7 +36,6 @@ use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::MetadataObject;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
-use wdl_ast::v1::StructDefinition;
 use wdl_grammar::SupportedVersion;
 use wdl_grammar::SyntaxElement;
 
@@ -152,11 +151,11 @@ fn resolve_hover_content(
         return Ok(Some(content));
     }
 
-    for (_, ns) in document.namespaces() {
+    for ns in document.namespaces() {
         // SAFETY: we know `get_index` will return `Some` as `ns.source` comes
         // from `document.namespaces` which only contains namespaces for
         // documents that are guaranteed to be present in the graph.
-        let node = graph.get(graph.get_index(ns.source()).unwrap());
+        let node = graph.get(graph.get_index(&ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
         };
@@ -227,27 +226,27 @@ fn resolve_hover_by_context(
                 let root = if let Some(source) = s.source() {
                     // SAFETY: `source` is the URI the import resolved to,
                     // which is guaranteed to be present in the graph.
-                    let node = graph.get(graph.get_index(source).unwrap());
+                    let node = graph.get(graph.get_index(&source).unwrap());
                     // SAFETY: we successfully resolved the node above; it is
                     // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
                 };
-                return Ok(provide_struct_documentation(s, &root));
+                return Ok(provide_struct_documentation(&s, &root));
             }
             if let Some(e) = document.enum_by_name(token.text()) {
                 let root = if let Some(source) = e.source() {
                     // SAFETY: `source` is the URI the import resolved to,
                     // which is guaranteed to be present in the graph.
-                    let node = graph.get(graph.get_index(source).unwrap());
+                    let node = graph.get(graph.get_index(&source).unwrap());
                     // SAFETY: we successfully resolved the node above; it is
                     // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
                 };
-                return Ok(provide_enum_documentation(e, &root));
+                return Ok(provide_enum_documentation(&e, &root));
             }
         }
         SyntaxKind::EnumChoiceNode => {
@@ -297,16 +296,18 @@ fn resolve_hover_by_context(
             };
 
             let target_doc = if let Some(ns_name) = ns_name {
-                let ns = document.namespace(ns_name.text()).unwrap();
+                let Some(ns) = document.namespace(ns_name.text()) else {
+                    return Ok(None);
+                };
 
-                let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let node = graph.get(graph.get_index(&ns.source()).unwrap());
                 node.document().unwrap()
             } else {
                 document
             };
 
             if let Some(task) = target_doc.task_by_name(callee_name.text()) {
-                return Ok(provide_task_documentation(task, &target_doc.root()));
+                return Ok(provide_task_documentation(&task, &target_doc.root()));
             }
 
             if let Some(workflow) = target_doc
@@ -385,7 +386,7 @@ fn resolve_hover_by_context(
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
                         if let Some(source) = s.source() {
-                            let node = graph.get(graph.get_index(source).unwrap());
+                            let node = graph.get(graph.get_index(&source).unwrap());
                             node.document().unwrap()
                         } else {
                             document
@@ -394,7 +395,7 @@ fn resolve_hover_by_context(
                         bail!("struct not found in document");
                     };
                     let doc = target_doc.struct_by_name(s.name()).and_then(|s| {
-                        let def = StructDefinition::cast(SyntaxNode::new_root(s.node().clone()))?;
+                        let def = s.definition();
                         def.members()
                             .find(|m| m.name().text() == member.text())
                             .and_then(|decl| find_parameter_meta_documentation(decl.name().inner()))
@@ -493,8 +494,7 @@ fn resolve_hover_by_context(
 
             let struct_name = struct_literal.name();
             if let Some(s) = document.struct_by_name(struct_name.text()) {
-                let def = StructDefinition::cast(SyntaxNode::new_root(s.node().clone()))
-                    .expect("should cast to StructDefinition");
+                let def = s.definition();
                 if let Some(member) = def.members().find(|m| m.name().text() == name.text()) {
                     let doc = find_parameter_meta_documentation(member.name().inner());
                     let mut content =
@@ -516,13 +516,13 @@ fn resolve_hover_by_context(
 /// Finds hover information for a globally defined symbol within a [`Document`].
 fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<Option<String>> {
     if let Some(s) = document.struct_by_name(token.text()) {
-        return Ok(provide_struct_documentation(s, &document.root()));
+        return Ok(provide_struct_documentation(&s, &document.root()));
     }
     if let Some(e) = document.enum_by_name(token.text()) {
-        return Ok(provide_enum_documentation(e, &document.root()));
+        return Ok(provide_enum_documentation(&e, &document.root()));
     }
     if let Some(t) = document.task_by_name(token.text()) {
-        return Ok(provide_task_documentation(t, &document.root()));
+        return Ok(provide_task_documentation(&t, &document.root()));
     }
     if let Some(w) = document.workflow().filter(|w| w.name() == token.text()) {
         return Ok(provide_workflow_documentation(w, &document.root()));

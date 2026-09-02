@@ -395,7 +395,7 @@ pub async fn join_paths_for_target(
     match inputs {
         EngineInputs::Task(task_inputs) => {
             let task = document
-                .task_by_name(target)
+                .local_task_by_name(target)
                 .with_context(|| format!("task `{target}` was not found"))?;
             task_inputs
                 .join_paths(task, origin)

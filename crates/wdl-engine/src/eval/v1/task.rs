@@ -329,7 +329,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        let value = resolve_enum_choice_value(r#enum, choice_name)?;
+        let value = resolve_enum_choice_value(&r#enum, choice_name)?;
 
         let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
         cache.insert(cache_key, value.clone());
@@ -750,7 +750,7 @@ impl<'a> State<'a> {
                     debug!(
                         task_id = id,
                         task_name = self.task.name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression"
                     );
@@ -767,7 +767,7 @@ impl<'a> State<'a> {
                     debug!(
                         task_id = id,
                         task_name = self.task.name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression"
                     );
@@ -837,7 +837,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             decl_name = name.text(),
             "evaluating private declaration",
         );
@@ -890,7 +890,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating runtimes section",
         );
 
@@ -970,7 +970,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating requirements",
         );
 
@@ -1030,7 +1030,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating hints section",
         );
 
@@ -1077,7 +1077,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating command section",
         );
 
@@ -1294,7 +1294,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             output_name = name.text(),
             "evaluating output",
         );
@@ -1460,7 +1460,7 @@ impl<'a> State<'a> {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` mapped to `{guest_path}`",
                             path = input.path(),
                         );
@@ -1470,7 +1470,7 @@ impl<'a> State<'a> {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` downloaded to `{local_path}`",
                             path = input.path(),
                             local_path = local_path.display()
@@ -1481,7 +1481,7 @@ impl<'a> State<'a> {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` mapped to `{guest_path}`",
                             path = input.path(),
                         );
@@ -1491,7 +1491,7 @@ impl<'a> State<'a> {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` downloaded to `{local_path}` and mapped to \
                              `{guest_path}`",
                             path = input.path(),
@@ -1594,7 +1594,7 @@ impl Evaluator {
         debug!(
             task_id = id,
             task_name = task.name(),
-            document = document.uri().as_str(),
+            document = %document.uri(),
             "evaluating task"
         );
 
@@ -1719,7 +1719,7 @@ impl Evaluator {
                             Some(self.engine.config().task.container.as_str())
                         };
                     let request = KeyRequest {
-                        document_uri: state.document.uri().as_ref(),
+                        document_uri: &state.document.uri(),
                         backend: self.engine.backend().name(),
                         task_name: task.name(),
                         inputs: &state.inputs,
@@ -1737,7 +1737,7 @@ impl Evaluator {
                             debug!(
                                 task_id = id,
                                 task_name = state.task.name(),
-                                document = state.document.uri().as_str(),
+                                document = %state.document.uri(),
                                 "task cache key is `{key}`"
                             );
                             Some(key)
@@ -1746,7 +1746,7 @@ impl Evaluator {
                             warn!(
                                 task_id = id,
                                 task_name = state.task.name(),
-                                document = state.document.uri().as_str(),
+                                document = %state.document.uri(),
                                 "call caching disabled due to cache key calculation failure: {e:#}"
                             );
                             None
@@ -1761,13 +1761,13 @@ impl Evaluator {
                         CallCachingMode::On => debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "task is not cacheable due to `cacheable` hint being set to `false`"
                         ),
                         CallCachingMode::Explicit => debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "task is not cacheable due to `cacheable` hint not being explicitly \
                              set to `true`"
                         ),
@@ -1793,7 +1793,7 @@ impl Evaluator {
                         info!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "task execution was skipped due to previous result being present in \
                              the call cache"
                         );
@@ -1817,7 +1817,7 @@ impl Evaluator {
                         debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "call cache miss for key `{cache_key}`"
                         );
                         None
@@ -1826,7 +1826,7 @@ impl Evaluator {
                         info!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "ignoring call cache entry: {e:#}"
                         );
                         None
@@ -1943,7 +1943,7 @@ impl Evaluator {
                         debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "updated call cache entry for key `{key}`"
                         );
                     }
@@ -2296,7 +2296,9 @@ mod tests {
         evaluator
             .evaluate_task(
                 document,
-                document.task_by_name("test").expect("should have task"),
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
                 TaskInputs::default(),
                 &runs_dir,
             )

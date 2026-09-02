@@ -269,6 +269,10 @@ zip = { workspace = true, features = ["deflate"] }
 [lints]
 workspace = true
 
+[profile.bench]
+inherits = "release"
+debug = true
+
 [[test]]
 name = "cli"
 harness = false

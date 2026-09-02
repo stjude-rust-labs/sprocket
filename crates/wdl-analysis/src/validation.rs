@@ -1,6 +1,9 @@
 //! Validator for WDL documents.
 
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 use strsim::levenshtein;
 use wdl_ast::AstNode;
@@ -71,10 +74,25 @@ pub struct Diagnostics {
     /// `#@ except:` directives discovered during traversal.
     ///
     /// `HashMap<Rule, applied>`
-    exceptions: HashMap<ExceptRule, bool>,
+    pub(crate) exceptions: Arc<HashMap<ExceptRule, AtomicBool>>,
+}
+
+impl PartialEq for Diagnostics {
+    fn eq(&self, other: &Self) -> bool {
+        self.diagnostics == other.diagnostics
+    }
 }
 
 impl Diagnostics {
+    /// Creates a new empty [`Diagnostics`] collection that shares exceptions
+    /// state with the parent.
+    pub(crate) fn child(&self) -> Self {
+        Self {
+            diagnostics: Vec::new(),
+            exceptions: Arc::clone(&self.exceptions),
+        }
+    }
+
     /// Adds a diagnostic to the collection.
     ///
     /// NOTE: This is intended for diagnostics that cannot be suppressed.
@@ -83,11 +101,14 @@ impl Diagnostics {
         self.diagnostics.push(diagnostic);
     }
 
-    /// Adds rule exceptions to the collection.
-    pub fn add_exceptions(&mut self, exceptions: impl IntoIterator<Item = ExceptRule>) {
-        for e in exceptions {
-            self.exceptions.entry(e).or_insert(false);
-        }
+    /// Sets the rule exceptions collection.
+    pub fn set_exceptions(&mut self, exceptions: impl IntoIterator<Item = ExceptRule>) {
+        self.exceptions = Arc::new(
+            exceptions
+                .into_iter()
+                .map(|rule| (rule, AtomicBool::new(false)))
+                .collect(),
+        );
     }
 
     /// Adds a diagnostic to the collection, unless the diagnostic is for an
@@ -114,12 +135,12 @@ impl Diagnostics {
             for rule in node
                 .rule_exceptions()
                 .into_iter()
-                .filter(|rule| rule.name == target_rule)
+                .filter(|rule| &*rule.name == target_rule)
             {
                 rule_excepted = true;
-                self.exceptions
-                    .entry(rule)
-                    .and_modify(|applied| *applied = true);
+                if let Some(applied) = self.exceptions.get(&rule) {
+                    applied.store(true, Ordering::Relaxed);
+                }
             }
 
             if rule_excepted {
@@ -257,12 +278,12 @@ impl Validator {
             })
             .collect::<Vec<_>>();
 
-        for (exception, applied) in &diagnostics.exceptions {
-            if *applied
-                // Try not to clash with `ExceptDirectiveValid`
-                || invalid_directives.contains(&exception.span)
-                // If none of the visitors know the rule, it can't ever fire
-                || (!ALL_RULE_IDS.iter().any(|r| r == &exception.name) && !visitor_known_rules.contains_key(&exception.name))
+        for (exception, applied) in &*diagnostics.exceptions {
+            if applied.load(Ordering::Relaxed)
+                    // Try not to clash with `ExceptDirectiveValid`
+                    || invalid_directives.contains(&exception.span)
+                    // If none of the visitors know the rule, it can't ever fire
+                    || (!ALL_RULE_IDS.iter().any(|r| r == &*exception.name) && !visitor_known_rules.contains_key(&*exception.name))
             {
                 continue;
             }
@@ -284,6 +305,7 @@ impl Validator {
 
     /// Validates the given document and returns the validation errors upon
     /// failure.
+    #[tracing::instrument(name = "validation", skip_all)]
     pub fn validate(&mut self, document: &Document, config: &Config) -> Result<(), Diagnostics> {
         let mut diagnostics = Diagnostics {
             exceptions: document.analysis_diagnostics().exceptions.clone(),
@@ -396,9 +418,9 @@ impl Visitor for Validator {
     ) {
         if reason == VisitReason::Enter {
             // Global exceptions are always considered applied
-            for (rule, applied) in &mut diagnostics.exceptions {
+            for (rule, applied) in &*diagnostics.exceptions {
                 if rule.span < stmt.span() {
-                    *applied = true;
+                    applied.store(true, Ordering::Relaxed);
                 }
             }
         }

@@ -35,6 +35,8 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 use wdl_ast::version::V1;
 
+use crate::AnalysisCache;
+use crate::AppliedEdit;
 use crate::Config;
 use crate::Diagnostics;
 use crate::IncrementalChange;
@@ -84,6 +86,8 @@ pub enum ParseState {
         lines: Arc<LineIndex>,
         /// The diagnostics from the parse.
         diagnostics: Vec<Diagnostic>,
+        /// The edits that were applied to reach this parse state from the last.
+        edits: Arc<[AppliedEdit]>,
     },
 }
 
@@ -143,6 +147,9 @@ pub struct DocumentGraphNode {
     /// If `None`, an analysis does not exist for the current state of the node.
     /// This will also be `None` if analysis panicked
     document: Option<Document>,
+    /// The analysis cache for the node, retained across re-analysis passes for
+    /// incremental cache recycling.
+    cache: Option<Arc<AnalysisCache>>,
     /// An error that occurred during the analysis phase for this node
     analysis_error: Option<Arc<anyhow::Error>>,
     /// Symbolic imports that this node attempted but failed to resolve, keyed
@@ -159,6 +166,7 @@ impl DocumentGraphNode {
             change: None,
             parse_state: ParseState::NotParsed,
             document: None,
+            cache: None,
             failed_symbolic_imports: HashMap::new(),
             analysis_error: None,
         }
@@ -174,7 +182,7 @@ impl DocumentGraphNode {
         trace!("document `{uri}` has incrementally changed", uri = self.uri);
 
         // Clear the analyzed document as there has been a change
-        self.document = None;
+        self.reanalyze();
 
         // Attempt to merge the edits of the change
         if let Some(IncrementalChange {
@@ -215,7 +223,7 @@ impl DocumentGraphNode {
 
         // Try to retain the pending changes
         let mut new_change = None;
-        if let Ok(Some((version, source, _))) = self.apply_changes() {
+        if let Ok(Some((version, source, ..))) = self.apply_changes() {
             if let Some(v) = version {
                 new_change = Some(IncrementalChange {
                     version: v,
@@ -270,20 +278,32 @@ impl DocumentGraphNode {
         self.document.as_ref()
     }
 
+    /// Gets the analysis cache for this node, if one exists.
+    pub(crate) fn cache(&self) -> Option<&AnalysisCache> {
+        self.cache.as_deref()
+    }
+
+    /// Takes the analysis cache out of the node.
+    pub(crate) fn take_cache(&mut self) -> Option<Arc<AnalysisCache>> {
+        self.cache.take()
+    }
+
     /// Gets the analysis error, if any
     pub fn analysis_error(&self) -> Option<&Arc<anyhow::Error>> {
         self.analysis_error.as_ref()
     }
 
     /// Marks the analysis as completed.
-    pub fn analysis_completed(&mut self, document: Document) {
+    pub(crate) fn analysis_completed(&mut self, document: Document) {
+        self.cache = Some(document.cache());
         self.document = Some(document);
         self.analysis_error = None;
     }
 
     /// Marks the analysis as failed with an error
-    pub fn analysis_failed(&mut self, error: Arc<anyhow::Error>) {
+    pub(crate) fn analysis_failed(&mut self, error: Arc<anyhow::Error>) {
         self.document = None;
+        self.cache = None;
         self.analysis_error = Some(error);
     }
 
@@ -351,9 +371,11 @@ impl DocumentGraphNode {
 
     /// Applies any pending changes to the document.
     ///
-    /// Returns `(version, full source string, line index)`
+    /// Returns `(version, full source string, line index, edits)`
     #[allow(clippy::type_complexity)]
-    pub(crate) fn apply_changes(&self) -> Result<Option<(Option<i32>, String, Arc<LineIndex>)>> {
+    pub(crate) fn apply_changes(
+        &self,
+    ) -> Result<Option<(Option<i32>, String, Arc<LineIndex>, Vec<AppliedEdit>)>> {
         let Some(change) = &self.change else {
             return Ok(None);
         };
@@ -378,6 +400,7 @@ impl DocumentGraphNode {
         // We keep track of the last line we've processed so we only rebuild the
         // line index when there is a change that crosses a line
         let mut last_line = !0u32;
+        let mut applied_edits = Vec::new();
         for edit in &change.edits {
             let range = edit.range();
             if last_line <= range.end.line {
@@ -386,7 +409,20 @@ impl DocumentGraphNode {
             }
 
             last_line = range.start.line;
-            edit.apply(&mut source, &lines)?;
+            let range = edit.apply(&mut source, &lines)?;
+
+            // We only track applied edits if they apply to existing CST.
+            // Otherwise, it'll be treated as a full source
+            // replacement.
+            //
+            // The distinction is important for incremental analysis, see
+            // `AnalysisCache::intersect()`.
+            if change.start.is_none() {
+                applied_edits.push(AppliedEdit {
+                    range,
+                    replacement_length: edit.text().len(),
+                });
+            }
         }
 
         if !change.edits.is_empty() {
@@ -394,7 +430,7 @@ impl DocumentGraphNode {
             lines = Arc::new(LineIndex::new(&source));
         }
 
-        Ok(Some((Some(change.version), source, lines)))
+        Ok(Some((Some(change.version), source, lines, applied_edits)))
     }
 
     /// Performs an incremental parse of the document.
@@ -423,7 +459,7 @@ impl DocumentGraphNode {
 
     /// Performs a full parse of the node.
     fn full_parse(&self, tokio: &Handle, client: &Client) -> Result<ParseState> {
-        let (version, source, lines) = match self.apply_changes()? {
+        let (version, source, lines, edits) = match self.apply_changes()? {
             Some(res) => res,
             None => {
                 // Fetch the source
@@ -438,7 +474,7 @@ impl DocumentGraphNode {
                 match result {
                     Ok(source) => {
                         let lines = Arc::new(LineIndex::new(&source));
-                        (None, source, lines)
+                        (None, source, lines, Vec::new())
                     }
                     Err(e) => return Ok(ParseState::Error(e.into())),
                 }
@@ -507,6 +543,7 @@ impl DocumentGraphNode {
             root: document.inner().green().into(),
             lines,
             diagnostics: diagnostics.into(),
+            edits: edits.into(),
         })
     }
 
@@ -998,6 +1035,7 @@ mod tests {
                 root,
                 lines: Arc::new(LineIndex::new(source)),
                 diagnostics: vec![],
+                edits: Arc::default(),
             };
         }
 
@@ -1041,6 +1079,7 @@ mod tests {
                 root,
                 lines: Arc::new(LineIndex::new(source)),
                 diagnostics: vec![],
+                edits: Arc::default(),
             };
 
             node.change = Some(IncrementalChange {

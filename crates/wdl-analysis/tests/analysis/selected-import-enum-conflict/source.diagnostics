@@ -1,8 +1,10 @@
-error: import of `Status` conflicts with an existing definition
-  ┌─ tests/analysis/selected-import-enum-conflict/source.wdl:7:10
+error: conflicting enum name `Status`
+  ┌─ tests/analysis/selected-import-enum-conflict/source.wdl:3:6
   │
 3 │ enum Status {
-  │      ------ previous definition
+  │      ^^^^^^ this name conflicts with an imported enum
   ·
 7 │ import { Status } from "lib.wdl"
-  │          ^^^^^^ imported here
+  │          ------ the import that introduced the enum is here
+  │
+  = fix: either rename the enum or use an `alias` clause on the import with a different name

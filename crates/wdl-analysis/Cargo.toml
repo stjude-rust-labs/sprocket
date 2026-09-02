@@ -22,6 +22,7 @@ itertools = { workspace = true }
 line-index = { workspace = true }
 lsp-types = { workspace = true }
 parking_lot = { workspace = true }
+paste = { workspace = true }
 path-clean = { workspace = true }
 petgraph = { workspace = true }
 rayon = { workspace = true }
@@ -29,6 +30,7 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
 schemars = { workspace = true }
+sha2 = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }

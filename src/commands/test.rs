@@ -715,7 +715,7 @@ impl Runner {
                 }
 
                 let callable = wdl_document
-                    .callable_by_name(&target)
+                    .local_callable_by_name(&target)
                     .expect("verified during parse");
                 let is_workflow = callable.is_workflow();
 
