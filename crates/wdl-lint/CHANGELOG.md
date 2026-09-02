@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+- Fixed false-positive `ShellCheck` diagnostics for quoted placeholders in nested conditional expressions.
+
 ## 0.27.0 - 2026-08-26
 
 #### Added
@@ -378,4 +382,3 @@ _A patch bump was required because an error was made during the release of `wdl`
 * Ported the `NoCurlyCommands` rule to `wdl-lint` ([#69](https://github.com/stjude-rust-labs/wdl/pull/69)).
 * Added the `wdl-lint` as the crate implementing linting rules for the future
   ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
-

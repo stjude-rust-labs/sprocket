@@ -44,6 +44,7 @@ use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::StringPart;
+use wdl_ast::v1::StringText;
 use wdl_ast::v1::StrippedCommandPart;
 
 use crate::Rule;
@@ -441,57 +442,106 @@ impl<'a> CommandContext<'a> {
     }
 }
 
-/// Detect embedded quotes surrounding an expression in a string.
-///
-/// This is a utility function called by `evaluates_to_bash_literal`. Only
-/// `expr` that are addition or strings with potentially embedded placeholders
-/// are valid input. For a given expression, it checks through all descendants
-/// to see if there are any name references (variables) that are surrounded by
-/// escaped quotes. In WDL, the parent expression is either an addition
-/// (concatenation, e.g. `~{"foo " + bar + " baz"}`) operation or a string with
-/// an embedded placeholder (e.g. `~{"foo ~{bar} baz"`). So the escaped quotes
-/// are not in a single string literal. The descendant expressions must be
-/// traversed to check for quoting.
-fn is_quoted(expr: &Expr) -> bool {
-    let mut opened = false;
-    let mut name = false;
+/// The shell quote state while scanning a WDL expression.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct QuoteState {
+    /// The quote character currently open, if any.
+    quote: Option<char>,
+}
 
-    let mut placeholders = Vec::new();
-    for c in expr.descendants::<Expr>() {
-        match c {
-            Expr::Literal(LiteralExpr::String(ref s)) => {
-                for p in s.parts() {
-                    match p {
-                        StringPart::Text(t) => {
-                            let mut buffer = String::new();
-                            t.unescape_to(&mut buffer);
-                            buffer.match_indices(&['\'', '"']).for_each(|(..)| {
-                                if opened && name {
-                                    name = false;
-                                }
-                                opened = !opened;
-                            });
-                        }
-                        StringPart::Placeholder(placeholder) => {
-                            placeholders.push(placeholder.expr());
-                            if !opened {
-                                return false;
-                            }
-                            name = true;
+/// Updates a quote state with text emitted by a WDL string.
+fn scan_quote_text(text: &StringText, state: &mut QuoteState) {
+    let mut buffer = String::new();
+    text.unescape_to(&mut buffer);
+    for quote in buffer.chars().filter(|c| matches!(c, '\'' | '"')) {
+        match state.quote {
+            Some(open_quote) if open_quote == quote => state.quote = None,
+            Some(_) => {}
+            None => state.quote = Some(quote),
+        }
+    }
+}
+
+/// Scans an expression for quote-safe dynamic values.
+///
+/// The returned states represent every possible quote state after rendering
+/// the expression. A `None` result means that at least one possible path
+/// contains an unquoted dynamic value.
+fn scan_quote_states(expr: &Expr, states: &HashSet<QuoteState>) -> Option<HashSet<QuoteState>> {
+    match expr {
+        Expr::Literal(LiteralExpr::String(string)) => {
+            let mut result = states.clone();
+            for part in string.parts() {
+                match part {
+                    StringPart::Text(text) => {
+                        result = result
+                            .into_iter()
+                            .map(|mut state| {
+                                scan_quote_text(&text, &mut state);
+                                state
+                            })
+                            .collect();
+                    }
+                    StringPart::Placeholder(_) => {
+                        if result.iter().any(|state| state.quote.is_none()) {
+                            return None;
                         }
                     }
                 }
             }
-            Expr::NameRef(_) if !placeholders.contains(&c) => {
-                if !opened {
-                    return false;
-                }
-                name = true;
+            Some(result)
+        }
+        Expr::Literal(_) => Some(states.clone()),
+        Expr::NameRef(_) => {
+            if states.iter().any(|state| state.quote.is_none()) {
+                None
+            } else {
+                Some(states.clone())
             }
-            _ => {}
+        }
+        Expr::Call(call) => match call.target().text() {
+            // These functions produce strings from their second argument.
+            "sep" | "prefix" | "suffix" => call
+                .arguments()
+                .nth(1)
+                .and_then(|argument| scan_quote_states(&argument, states)),
+            // These functions quote their result themselves.
+            "quote" | "squote" => Some(states.clone()),
+            _ => {
+                if states.iter().any(|state| state.quote.is_none()) {
+                    None
+                } else {
+                    Some(states.clone())
+                }
+            }
+        },
+        Expr::Parenthesized(parenthesized) => scan_quote_states(&parenthesized.expr(), states),
+        Expr::If(if_expr) => {
+            let (_, true_expr, false_expr) = if_expr.exprs();
+            let true_states = scan_quote_states(&true_expr, states)?;
+            let false_states = scan_quote_states(&false_expr, states)?;
+            Some(true_states.into_iter().chain(false_states).collect())
+        }
+        Expr::Addition(addition) => {
+            let (left, right) = addition.operands();
+            let states = scan_quote_states(&left, states)?;
+            scan_quote_states(&right, &states)
+        }
+        _ => {
+            if states.iter().any(|state| state.quote.is_none()) {
+                None
+            } else {
+                Some(states.clone())
+            }
         }
     }
-    !name
+}
+
+/// Detects whether all dynamic values in an expression are quoted.
+fn is_quoted(expr: &Expr) -> bool {
+    let states = HashSet::from([QuoteState { quote: None }]);
+    scan_quote_states(expr, &states)
+        .is_some_and(|states| states.iter().all(|state| state.quote.is_none()))
 }
 
 /// Evaluate an expression to determine if it can be simplified to a literal.
@@ -515,11 +565,10 @@ fn evaluates_to_bash_literal(expr: &Expr) -> bool {
             // `prefix` and `suffix` add a prefix or suffix to the argument.
             // So we check the array argument to see if it evaluates to a
             // bash literal.
-            "sep" | "prefix" | "suffix" => evaluates_to_bash_literal(
-                &c.arguments()
-                    .nth(1)
-                    .expect("`sep`/`prefix`/`suffix` call should have two arguments"),
-            ),
+            "sep" | "prefix" | "suffix" => c
+                .arguments()
+                .nth(1)
+                .is_some_and(|argument| evaluates_to_bash_literal(&argument)),
             // `quote` and `squote` both return quoted strings, so they can be treated as bash
             // literals.
             "quote" | "squote" => true,
@@ -902,7 +951,11 @@ task test {{
 }}
 "#
         );
-        let (document, _diagnostics) = Document::parse(&source, None);
+        let (document, diagnostics) = Document::parse(&source, None);
+        assert!(
+            diagnostics.is_empty(),
+            "unexpected parse diagnostics: {diagnostics:?}"
+        );
         document
             .ast()
             .as_v1()
@@ -996,9 +1049,55 @@ task test {{
     }
     #[test]
     fn test_evaluates_to_bash_literal7() {
-        // This contains a quoted placeholder.
+        // This contains a quoted placeholder in one branch and an empty
+        // alternative.
+        assert!(super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{if 1 == 1 then "hello '~{foo}' world" else ""}"#)
+        ));
+    }
+
+    #[test]
+    fn test_evaluates_to_bash_literal_nested_if() {
+        // The quote is opened before the nested `if` and closed by both
+        // branches.
+        assert!(super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(
+                r#"echo ~{if output_fastq then "-o '" + if defined(read_two_fastq) then "~{prefix}.R1.fastq.gz'" else "~{prefix}.fastq.gz'" else ""}"#
+            )
+        ));
+    }
+
+    #[test]
+    fn test_evaluates_to_bash_literal_nested_if_with_sep() {
+        // The placeholder inside `sep` must not be scanned as a separate
+        // expression.
+        assert!(super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(
+                r#"echo ~{if length(contigs) > 0 then "--ctg_name='~{sep(",", contigs)}'" else ""}"#
+            )
+        ));
+    }
+
+    #[test]
+    fn test_evaluates_to_bash_literal_nested_if_unquoted() {
         assert!(!super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{if 1=1 then "hello '~{foo}' world" else ""}"#)
+            &parse_placeholder_as_expr(
+                r#"echo ~{if output_fastq then "-o " + if defined(read_two_fastq) then "~{prefix}.R1.fastq.gz" else "~{prefix}.fastq.gz" else ""}"#
+            )
+        ));
+    }
+
+    #[test]
+    fn test_is_quoted_unbalanced_quote() {
+        assert!(!super::is_quoted(&parse_placeholder_as_expr(
+            r#"echo ~{"prefix '~{foo}"}"#,
+        )));
+    }
+
+    #[test]
+    fn test_evaluates_to_bash_literal_invalid_helper_arity() {
+        assert!(!super::evaluates_to_bash_literal(
+            &parse_placeholder_as_expr(r#"echo ~{sep(",")}"#)
         ));
     }
 }
