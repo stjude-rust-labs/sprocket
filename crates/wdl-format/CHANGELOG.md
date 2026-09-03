@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Formatting no longer panics when an `input` hints item has a value that is not a `hints` literal.
+
 ## 0.20.2 - 2026-08-26
 
 #### Added
