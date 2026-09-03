@@ -33,6 +33,7 @@ use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
+use parking_lot::Mutex;
 use parking_lot::RwLock;
 use petgraph::Direction;
 use petgraph::graph::NodeIndex;
@@ -70,6 +71,71 @@ use crate::rayon::RayonHandle;
 
 /// A validator constructor function.
 pub(crate) type ValidatorFn = Arc<dyn Fn() -> crate::Validator + Send + Sync + 'static>;
+
+/// A pool of validators that belong to one analyzer configuration.
+struct ValidatorPool {
+    /// The constructor to use when no validator is available.
+    factory: ValidatorFn,
+    /// Validators that are ready to be reused.
+    available: Mutex<Vec<crate::Validator>>,
+}
+
+impl ValidatorPool {
+    /// Creates an empty validator pool.
+    fn new(factory: ValidatorFn) -> Self {
+        Self {
+            factory,
+            available: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Checks out a validator from this pool.
+    fn checkout(self: &Arc<Self>) -> ValidatorGuard {
+        let validator = { self.available.lock().pop() }.unwrap_or_else(|| (self.factory)());
+
+        ValidatorGuard {
+            pool: self.clone(),
+            validator: Some(validator),
+            reusable: false,
+        }
+    }
+}
+
+/// A checked-out validator that returns to its originating pool after success.
+struct ValidatorGuard {
+    /// The pool generation that owns the validator.
+    pool: Arc<ValidatorPool>,
+    /// The checked-out validator.
+    validator: Option<crate::Validator>,
+    /// Whether validation completed without panicking.
+    reusable: bool,
+}
+
+impl ValidatorGuard {
+    /// Gets the checked-out validator.
+    fn get_mut(&mut self) -> &mut crate::Validator {
+        self.validator
+            .as_mut()
+            .expect("checked-out validator should be present")
+    }
+
+    /// Marks the validator for return to its pool.
+    fn recycle(mut self) {
+        self.reusable = true;
+    }
+}
+
+impl Drop for ValidatorGuard {
+    fn drop(&mut self) {
+        if self.reusable {
+            self.pool.available.lock().push(
+                self.validator
+                    .take()
+                    .expect("reusable validator should be present"),
+            );
+        }
+    }
+}
 
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;
@@ -471,8 +537,8 @@ pub struct AnalysisQueue<Progress, Context, Return> {
     module_root_cache: parking_lot::Mutex<HashMap<PathBuf, bool>>,
     /// The progress callback to use.
     progress: Arc<Progress>,
-    /// The validator callback to use.
-    validator: Arc<RwLock<ValidatorFn>>,
+    /// The active validator pool.
+    validators: RwLock<Arc<ValidatorPool>>,
     /// A marker for the `Context` and `Return` types.
     marker: PhantomData<(Context, Return)>,
 }
@@ -508,7 +574,7 @@ where
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
-            validator: Arc::new(RwLock::new(validator)),
+            validators: RwLock::new(Arc::new(ValidatorPool::new(validator))),
         }
     }
 
@@ -1299,7 +1365,7 @@ where
 
             let tasks = {
                 let graph = self.graph.read();
-                let validator = self.validator.read().clone();
+                let validators = self.validators.read().clone();
 
                 let handles = FuturesUnordered::new();
                 for index in set.iter().copied() {
@@ -1313,10 +1379,18 @@ where
 
                     let graph = self.graph.clone();
                     let config = self.config.clone();
-                    let validator = validator.clone();
+                    let validators = validators.clone();
                     handles.push(RayonHandle::spawn(move || {
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                            let mut validator = validators.checkout();
+                            let result = Self::analyze_node(
+                                &config,
+                                graph.clone(),
+                                index,
+                                validator.get_mut(),
+                            );
+                            validator.recycle();
+                            result
                         }));
 
                         let mut graph = graph.write();
@@ -1927,7 +2001,7 @@ where
 
     /// Replace the current validator function.
     fn swap_validator(&self, validator: ValidatorFn) {
-        *self.validator.write() = validator;
+        *self.validators.write() = Arc::new(ValidatorPool::new(validator));
 
         // Invalidate the *entire* graph
         self.graph.write().reanalyze_all();
@@ -1942,5 +2016,72 @@ pub(crate) fn format_panic_payload(payload: &Box<dyn std::any::Any + Send>) -> S
         s.clone()
     } else {
         "unknown panic payload".to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
+
+    use super::*;
+
+    /// Creates a validator factory that tracks its invocation count.
+    fn counting_factory(constructions: Arc<AtomicUsize>) -> ValidatorFn {
+        Arc::new(move || {
+            constructions.fetch_add(1, Ordering::SeqCst);
+            crate::Validator::default()
+        })
+    }
+
+    #[test]
+    fn successful_checkout_returns_validator_to_originating_pool() {
+        let constructions = Arc::new(AtomicUsize::new(0));
+        let pool = Arc::new(ValidatorPool::new(counting_factory(constructions.clone())));
+
+        pool.checkout().recycle();
+        pool.checkout().recycle();
+
+        assert_eq!(constructions.load(Ordering::SeqCst), 1);
+        assert_eq!(pool.available.lock().len(), 1);
+    }
+
+    #[test]
+    fn panicked_checkout_discards_validator() {
+        let constructions = Arc::new(AtomicUsize::new(0));
+        let pool = Arc::new(ValidatorPool::new(counting_factory(constructions.clone())));
+
+        let result = panic::catch_unwind(AssertUnwindSafe({
+            let pool = pool.clone();
+            move || {
+                let _validator = pool.checkout();
+                panic!("validation failed");
+            }
+        }));
+        assert!(result.is_err());
+
+        pool.checkout().recycle();
+        assert_eq!(constructions.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn checkout_returns_only_to_originating_pool_generation() {
+        let original_constructions = Arc::new(AtomicUsize::new(0));
+        let original = Arc::new(ValidatorPool::new(counting_factory(
+            original_constructions.clone(),
+        )));
+        let validator = original.checkout();
+
+        let replacement_constructions = Arc::new(AtomicUsize::new(0));
+        let replacement = Arc::new(ValidatorPool::new(counting_factory(
+            replacement_constructions.clone(),
+        )));
+        validator.recycle();
+
+        assert_eq!(original.available.lock().len(), 1);
+        assert!(replacement.available.lock().is_empty());
+        replacement.checkout().recycle();
+        assert_eq!(original_constructions.load(Ordering::SeqCst), 1);
+        assert_eq!(replacement_constructions.load(Ordering::SeqCst), 1);
     }
 }

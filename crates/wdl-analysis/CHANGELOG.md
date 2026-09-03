@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `Visitor` implementations must now implement `Send` so validators can be
+  reused across analysis worker threads
+  ([#1175](https://github.com/stjude-rust-labs/sprocket/pull/1175)).
+
+#### Fixed
+
+* `Analyzer` now reuses validators from a per-analyzer pool without sharing
+  validator configuration between analyzer instances
+  ([#1175](https://github.com/stjude-rust-labs/sprocket/pull/1175)).
+
 ## 0.25.0 - 2026-08-26
 
 #### Added
