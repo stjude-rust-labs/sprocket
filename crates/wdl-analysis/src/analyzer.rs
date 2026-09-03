@@ -469,8 +469,8 @@ where
     ///
     /// The provided progress callback will be invoked during analysis.
     ///
-    /// This validator function will be called once per worker thread to
-    /// initialize a thread-local validator.
+    /// The validator function constructs validators when none are available in
+    /// this analyzer's pool.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
     pub fn new_with_validator<Progress, Return, Validator>(
@@ -496,8 +496,8 @@ where
     ///
     /// The provided progress callback will be invoked during analysis.
     ///
-    /// This validator function will be called once per worker thread to
-    /// initialize a thread-local validator.
+    /// The validator function constructs validators when none are available in
+    /// this analyzer's pool.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
     pub fn new_with_validator_and_resolution<Progress, Return, Validator>(
@@ -534,7 +534,7 @@ where
         }
     }
 
-    /// Replace the current validator function.
+    /// Replaces the current validator function and starts a new validator pool.
     ///
     /// This will mark all documents for re-analysis.
     pub async fn swap_validator<Validator>(&self, validator: Validator) -> Result<()>
@@ -1294,12 +1294,31 @@ const _: () = {
 #[cfg(test)]
 mod test {
     use std::fs;
+    use std::path::Path;
     use std::path::PathBuf;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
 
     use tempfile::TempDir;
     use wdl_ast::Severity;
 
     use super::*;
+
+    /// Writes a valid task document to the given path.
+    fn write_task(path: &Path, name: &str) {
+        fs::write(
+            path,
+            format!(
+                r#"version 1.1
+
+task {name} {{
+    command <<<>>>
+}}
+"#
+            ),
+        )
+        .expect("failed to create test file");
+    }
 
     #[tokio::test]
     #[test_log::test]
@@ -1369,6 +1388,137 @@ workflow test {
             results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
+    }
+
+    #[tokio::test]
+    #[test_log::test]
+    async fn it_reuses_validators_across_analysis_requests() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let first = dir.path().join("first.wdl");
+        let second = dir.path().join("second.wdl");
+        write_task(&first, "same_name");
+        fs::write(
+            &second,
+            r#"version 1.1
+
+task same_name {
+}
+"#,
+        )
+        .expect("failed to create second test file");
+
+        let constructions = Arc::new(AtomicUsize::new(0));
+        let factory_constructions = constructions.clone();
+        let analyzer = Analyzer::new_with_validator(
+            Config::default(),
+            |(), _, _, _| async {},
+            move || {
+                factory_constructions.fetch_add(1, Ordering::SeqCst);
+                crate::Validator::default()
+            },
+        );
+
+        analyzer
+            .add_document(path_to_uri(&first).expect("should convert to URI"))
+            .await
+            .expect("should add first document");
+        let results = analyzer.analyze(()).await.expect("analysis should succeed");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].document().diagnostics().next().is_none());
+
+        analyzer
+            .add_document(path_to_uri(&second).expect("should convert to URI"))
+            .await
+            .expect("should add second document");
+        let results = analyzer.analyze(()).await.expect("analysis should succeed");
+        assert_eq!(results.len(), 2);
+        let second = results
+            .iter()
+            .find(|result| result.document().uri().to_file_path().unwrap() == second)
+            .expect("should find second document");
+        assert_eq!(
+            second
+                .document()
+                .diagnostics()
+                .map(|diagnostic| diagnostic.message())
+                .collect::<Vec<_>>(),
+            ["task `same_name` is missing a command section"]
+        );
+        assert_eq!(constructions.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    #[test_log::test]
+    async fn validator_pool_is_bounded_by_rayon_workers() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let worker_count = rayon::current_num_threads();
+        let document_count = worker_count + 1;
+        for index in 0..document_count {
+            write_task(
+                &dir.path().join(format!("{index}.wdl")),
+                &format!("task_{index}"),
+            );
+        }
+
+        let constructions = Arc::new(AtomicUsize::new(0));
+        let factory_constructions = constructions.clone();
+        let analyzer = Analyzer::new_with_validator(
+            Config::default(),
+            |(), _, _, _| async {},
+            move || {
+                factory_constructions.fetch_add(1, Ordering::SeqCst);
+                crate::Validator::default()
+            },
+        );
+        analyzer
+            .add_directory(dir.path())
+            .await
+            .expect("should add documents");
+
+        let results = analyzer.analyze(()).await.expect("analysis should succeed");
+        assert_eq!(results.len(), document_count);
+        let constructions = constructions.load(Ordering::SeqCst);
+        assert!(constructions <= worker_count);
+        assert!(constructions < document_count);
+    }
+
+    #[tokio::test]
+    #[test_log::test]
+    async fn swapping_validator_discards_the_existing_pool() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let path = dir.path().join("source.wdl");
+        write_task(&path, "test");
+
+        let original_constructions = Arc::new(AtomicUsize::new(0));
+        let factory_constructions = original_constructions.clone();
+        let analyzer = Analyzer::new_with_validator(
+            Config::default(),
+            |(), _, _, _| async {},
+            move || {
+                factory_constructions.fetch_add(1, Ordering::SeqCst);
+                crate::Validator::default()
+            },
+        );
+        analyzer
+            .add_document(path_to_uri(&path).expect("should convert to URI"))
+            .await
+            .expect("should add document");
+        analyzer.analyze(()).await.expect("analysis should succeed");
+        assert_eq!(original_constructions.load(Ordering::SeqCst), 1);
+
+        let replacement_constructions = Arc::new(AtomicUsize::new(0));
+        let factory_constructions = replacement_constructions.clone();
+        analyzer
+            .swap_validator(move || {
+                factory_constructions.fetch_add(1, Ordering::SeqCst);
+                crate::Validator::default()
+            })
+            .await
+            .expect("validator should be replaced");
+        analyzer.analyze(()).await.expect("analysis should succeed");
+
+        assert_eq!(original_constructions.load(Ordering::SeqCst), 1);
+        assert_eq!(replacement_constructions.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
