@@ -15,6 +15,7 @@ use crate::Config;
 use crate::commands::CommandResult;
 use crate::commands::cancel;
 use crate::commands::inspect;
+use crate::commands::output::CommandOutput;
 use crate::commands::retry;
 use crate::commands::status;
 use crate::commands::submit;
@@ -113,7 +114,7 @@ impl StartArgs {
 }
 
 /// Starts the HTTP API server.
-async fn start(args: StartArgs, mut config: Config, colorize: bool) -> CommandResult<()> {
+async fn start(args: StartArgs, mut config: Config, output: CommandOutput) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or_default();
     args.apply(&mut config);
     config
@@ -128,19 +129,19 @@ async fn start(args: StartArgs, mut config: Config, colorize: bool) -> CommandRe
         .into());
     }
 
-    crate::server::run(config, report_mode, colorize)
+    crate::server::run(config, report_mode, output.colorize())
         .await
         .map_err(Into::into)
 }
 
 /// The main function for the `server` subcommand.
-pub async fn server(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn server(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     match args.command {
-        ServerSubcommand::Start(args) => start(args, config, colorize).await,
-        ServerSubcommand::Submit(args) => submit::submit(args, config, colorize).await,
-        ServerSubcommand::Status(args) => status::status(args, config, colorize).await,
-        ServerSubcommand::Inspect(args) => inspect::inspect(args, config, colorize).await,
-        ServerSubcommand::Cancel(args) => cancel::cancel(args, config).await,
-        ServerSubcommand::Retry(args) => retry::retry(args, config, colorize).await,
+        ServerSubcommand::Start(args) => start(args, config, output).await,
+        ServerSubcommand::Submit(args) => submit::submit(args, config, output).await,
+        ServerSubcommand::Status(args) => status::status(args, config, output).await,
+        ServerSubcommand::Inspect(args) => inspect::inspect(args, config, output).await,
+        ServerSubcommand::Cancel(args) => cancel::cancel(args, config, output).await,
+        ServerSubcommand::Retry(args) => retry::retry(args, config, output).await,
     }
 }

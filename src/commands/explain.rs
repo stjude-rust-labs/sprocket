@@ -25,6 +25,7 @@ use wdl::lint::Config;
 use wdl::lint::Tag as WdlLintTag;
 
 use crate::commands::CommandResult;
+use crate::commands::output::CommandOutput;
 
 /// Usage string for the `explain` subcommand.
 const USAGE: &str = "sprocket explain [RULE]
@@ -387,15 +388,15 @@ pub fn list_all_tags() -> String {
 }
 
 /// Explains a lint rule.
-pub fn explain(args: Args) -> CommandResult<()> {
+pub fn explain(args: Args, output: CommandOutput) -> CommandResult<()> {
     if args.list_all_rules {
         match args.format {
-            Format::Default => println!("{}", list_all_rules()),
+            Format::Default => output.payload(list_all_rules()),
             Format::Json => {
                 let value =
                     serde_json::to_value(wdl_lint().chain(wdl_analysis()).collect::<Vec<_>>())
                         .map_err(anyhow::Error::from)?;
-                println!("{value}")
+                output.payload(value)
             }
         }
 
@@ -405,7 +406,7 @@ pub fn explain(args: Args) -> CommandResult<()> {
     if args.list_all_tags {
         match args.format {
             Format::Default => {
-                println!("{}", list_all_tags());
+                output.payload(list_all_tags());
             }
             Format::Json => {
                 let mut all_tags = collect_all_tags().into_values().collect::<Vec<_>>();
@@ -416,7 +417,7 @@ pub fn explain(args: Args) -> CommandResult<()> {
                         .map(|tag| serde_json::to_value(&tag).unwrap())
                         .collect(),
                 );
-                println!("{value}")
+                output.payload(value)
             }
         }
 
@@ -424,13 +425,13 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     if args.definitions {
-        println!("{}", lint::DEFINITIONS_TEXT);
+        output.payload(lint::DEFINITIONS_TEXT);
         return Ok(());
     };
 
     if let Some(tag) = args.tag {
         let target = tag.parse::<WdlLintTag>().map_err(|_| {
-            println!("{}", list_all_tags());
+            output.payload(list_all_tags());
             anyhow!("invalid tag `{tag}`")
         })?;
 
@@ -440,14 +441,14 @@ pub fn explain(args: Args) -> CommandResult<()> {
 
         match args.format {
             Format::Default => {
-                println!("Rules with the tag `{}`:", tag.name);
+                output.payload(format!("Rules with the tag `{}`:", tag.name));
                 for id in tag.applicable_lints {
-                    println!("  - {id}");
+                    output.payload(format!("  - {id}"));
                 }
             }
             Format::Json => {
                 let value = serde_json::to_value(&tag).map_err(anyhow::Error::from)?;
-                println!("{value}");
+                output.payload(value);
             }
         }
 
@@ -462,10 +463,10 @@ pub fn explain(args: Args) -> CommandResult<()> {
             .find(|rule| rule.id.to_lowercase() == lowercase_name)
         {
             Some(rule) => {
-                print!("{}", rule.format(args.format));
+                output.payload_raw(rule.format(args.format));
             }
             None => {
-                println!("{rules}\n", rules = list_all_rules());
+                output.payload(format!("{rules}\n", rules = list_all_rules()));
                 return Err(anyhow!("no rule found with the name `{rule_name}`").into());
             }
         }
