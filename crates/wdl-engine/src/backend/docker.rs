@@ -306,8 +306,8 @@ impl ManagedTask for DockerTask<'_> {
             .backend
             .run(
                 task,
-                self.request.events.crankshaft().cloned(),
-                self.request.cancellation.second(),
+                self.request.context.events().crankshaft().cloned(),
+                self.request.context.cancellation().second(),
             )?
             .await
         {
@@ -766,8 +766,8 @@ mod tests {
         use indexmap::IndexMap;
 
         use crate::CancellationContext;
-        use crate::Engine;
         use crate::Events;
+        use crate::backend::tests::EvalContext;
         use crate::config::FailureMode;
 
         let root = TempDir::new().unwrap();
@@ -780,9 +780,6 @@ mod tests {
         // `alpine` has no `bash`
         config.task.shell = "/bin/sh".to_string();
 
-        let engine = Engine::new(config.clone())
-            .await
-            .expect("engine should initialize");
         let backend = DockerBackend::new(Arc::new(config))
             .await
             .expect("Docker backend should initialize");
@@ -807,8 +804,9 @@ mod tests {
             disks: Default::default(),
         };
 
+        let context = EvalContext::new(events.clone(), cancellation.clone()).await;
         let request = ExecuteTaskRequest {
-            engine: &engine,
+            context: &context,
             name: "cleanup-after-cancellation-0",
             command: "mkdir -p testdir && echo hello > testdir/hello.txt && sleep 60",
             inputs: &inputs,
@@ -820,8 +818,6 @@ mod tests {
             base_dir: &base_dir,
             attempt_dir: &attempt_dir,
             temp_dir: &temp_dir,
-            events: &events,
-            cancellation: &cancellation,
         };
 
         let work_dir = request.work_dir();

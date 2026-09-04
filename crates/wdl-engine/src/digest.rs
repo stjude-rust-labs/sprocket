@@ -2,15 +2,13 @@
 //!
 //! This is used by the call cache and for uploading inputs for remote backends.
 
-use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::io::copy;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::LazyLock;
-use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
 
 use anyhow::Context;
@@ -22,15 +20,19 @@ use blake3::Hasher;
 use cloud_copy::ContentDigest;
 use cloud_copy::UrlExt;
 use futures::FutureExt;
-use tokio::sync::OnceCell;
+use futures::future::BoxFuture;
 use tokio::task::spawn_blocking;
 use tracing::debug;
 use url::Url;
 
+use crate::Cache;
+use crate::CancellationContext;
 use crate::ContentKind;
+use crate::EvaluationHttpClient;
+use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::cache::Hashable;
 use crate::config::ContentDigestMode;
-use crate::http::Transferer;
 
 /// Represents a calculated [Blake3](https://github.com/BLAKE3-team/BLAKE3) digest of a file or directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,24 +52,6 @@ impl Digest {
         }
     }
 }
-
-/// Represents a map of (digest mode, local path) to digest.
-type LocalDigestMap = HashMap<(ContentDigestMode, PathBuf), Arc<OnceCell<Digest>>>;
-
-/// Represents a map of remote URL to digest.
-type RemoteDigestMap = HashMap<Url, Arc<OnceCell<Digest>>>;
-
-/// Keeps track of previously calculated local digests.
-///
-/// As WDL evaluation cannot write to existing files, it is assumed that files
-/// and directories are not modified during evaluation.
-///
-/// We check for changes to files and directories when we get a cache hit and
-/// error if the source has been modified.
-static LOCAL_DIGESTS: LazyLock<Mutex<LocalDigestMap>> = LazyLock::new(Mutex::default);
-
-/// Keeps track of previously calculated remote digests.
-static REMOTE_DIGESTS: LazyLock<Mutex<RemoteDigestMap>> = LazyLock::new(Mutex::default);
 
 /// An extension trait for joining a digest to a URL.
 pub trait UrlDigestExt: Sized {
@@ -122,362 +106,431 @@ impl UrlDigestExt for Url {
 /// only the first 10 MiB of a file's contents.
 const STRONGISH_DIGEST_PREFIX_LEN: u64 = 10 * 1024 * 1024;
 
-/// Helper for retrieving the content digest of a URL.
-async fn get_content_digest(transferer: &dyn Transferer, url: &Url) -> Result<Arc<ContentDigest>> {
-    match transferer.digest(url).await.with_context(|| {
-        format!(
-            "failed to get content digest of URL `{url}`",
-            url = url.display()
-        )
-    })? {
-        Some(digest) => Ok(digest),
-        None => bail!("URL `{url}` does not have a known content digest"),
-    }
+/// The inner state of [`DigestCalculator`].
+struct DigestCalculatorInner {
+    /// The evaluation HTTP client to use for digesting.
+    client: EvaluationHttpClient,
+    /// The cancellation context for the evaluation.
+    cancellation: CancellationContext,
+    /// The cache of digests for local files.
+    local_digests: Cache<(ContentDigestMode, PathBuf), Digest>,
+    /// The cache of digests for remote URLs.
+    remote_digests: Cache<Url, Digest>,
 }
 
-/// Calculates the digest of a local file.
-async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<Digest> {
-    match mode {
-        ContentDigestMode::Strong => {
-            // Calculate a Blake3 digest for the file's contents
-            let path = path.to_path_buf();
-            spawn_blocking(move || {
-                let mut hasher = Hasher::new();
-                hasher.update_mmap_rayon(&path).with_context(|| {
-                    format!(
-                        "failed to calculate digest of `{path}`",
+/// Represents a calculator of Blake3 digests for files and directories.
+///
+/// This type is cheaply cloned.
+#[derive(Clone)]
+pub struct DigestCalculator(Arc<DigestCalculatorInner>);
+
+impl DigestCalculator {
+    /// Constructs a new [`DigestCalculator`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided cache capacity is zero.
+    pub fn new(
+        client: EvaluationHttpClient,
+        cancellation: CancellationContext,
+        capacity: usize,
+    ) -> Self {
+        let capacity = NonZeroUsize::new(capacity).expect("the cache capacity cannot be zero");
+
+        Self(
+            DigestCalculatorInner {
+                client,
+                cancellation,
+                local_digests: Cache::new(capacity),
+                remote_digests: Cache::new(capacity),
+            }
+            .into(),
+        )
+    }
+
+    /// Calculates the content digest of the given evaluation path.
+    pub async fn calculate_digest(
+        &self,
+        path: &EvaluationPath,
+        kind: ContentKind,
+        mode: ContentDigestMode,
+    ) -> Result<Digest> {
+        match path.kind() {
+            EvaluationPathKind::Local(path) => self.calculate_local_digest(path, kind, mode).await,
+            EvaluationPathKind::Remote(url) => self.calculate_remote_digest(url, kind).await,
+        }
+    }
+
+    /// Calculates the content digest of a local path.
+    ///
+    /// If the path is a file, a [blake3](blake3) digest is calculated for the
+    /// file's content.
+    ///
+    /// If the path is a directory, a consistent, recursive walk of the
+    /// directory is performed and a digest calculated based on the
+    /// directory's entries.
+    ///
+    /// The hash of a directory entry consist of:
+    ///
+    /// * The relative path to the entry.
+    /// * Whether or not the entry is a file or a directory.
+    /// * If the entry is a file, the hash of the file's contents as noted
+    ///   above.
+    ///
+    /// [blake3]: https://github.com/BLAKE3-team/BLAKE3
+    pub async fn calculate_local_digest(
+        &self,
+        path: &Path,
+        kind: ContentKind,
+        mode: ContentDigestMode,
+    ) -> Result<Digest> {
+        match self
+            .0
+            .local_digests
+            .get(
+                (mode, path.to_path_buf()),
+                &self.0.cancellation,
+                async || {
+                    let metadata = path.metadata().with_context(|| {
+                        format!("failed to read metadata of `{path}`", path = path.display())
+                    })?;
+
+                    debug!(
+                        "calculating content digest of `{path}`",
                         path = path.display()
+                    );
+
+                    match kind {
+                        ContentKind::File | ContentKind::TempFile => {
+                            if !metadata.is_file() {
+                                bail!("expected path `{path}` to be a file", path = path.display());
+                            }
+
+                            // Always use a strong digest mode for temporary
+                            // files
+                            // This will ensure that the file metadata is _not_
+                            // considered for the
+                            // digest
+                            Self::calculate_file_digest(
+                                path,
+                                if kind == ContentKind::TempFile {
+                                    ContentDigestMode::Strong
+                                } else {
+                                    mode
+                                },
+                            )
+                            .await
+                        }
+                        ContentKind::Directory => {
+                            if metadata.is_file() {
+                                bail!(
+                                    "expected path `{path}` to be a directory",
+                                    path = path.display()
+                                );
+                            }
+
+                            self.calculate_directory_digest(path, mode).await
+                        }
+                    }
+                },
+            )
+            .await?
+        {
+            Some(digest) => Ok(digest),
+            None => bail!(
+                "failed to calculate digest of `{path}`: the operation was cancelled",
+                path = path.display()
+            ),
+        }
+    }
+
+    /// Calculates the content digest of a remote URL.
+    ///
+    /// If the URL is to a remote file, a `HEAD` request is made and the
+    /// response must have an associated content digest header; the header's
+    /// value is hashed to produce the content digest of the file.
+    ///
+    /// If the URL is a "directory", a consistent, recursive walk of the
+    /// directory is performed and a digest calculated based on the
+    /// directory's entries.
+    ///
+    /// The hash of a directory entry consist of:
+    ///
+    /// * The relative path to the entry.
+    /// * The content digest of the entry.
+    pub async fn calculate_remote_digest(&self, url: &Url, kind: ContentKind) -> Result<Digest> {
+        match self
+            .0
+            .remote_digests
+            .get_by_ref(url, &self.0.cancellation, async || {
+                debug!("calculating content digest of `{url}`", url = url.display());
+
+                // If there were no entries, treat the URL as a file
+                if kind == ContentKind::File {
+                    let digest = self.get_content_digest(url).await?;
+                    let mut hasher = Hasher::new();
+                    digest.hash(&mut hasher);
+                    return anyhow::Ok(Digest::File(hasher.finalize()));
+                }
+
+                assert_eq!(
+                    kind,
+                    ContentKind::Directory,
+                    "expected a directory for the content kind"
+                );
+
+                // Walk the URL; the returned entries are in lexicographical
+                // order
+                let entries =
+                    self.0.client.walk(url).await.with_context(|| {
+                        format!("failed to walk URL `{url}`", url = url.display())
+                    })?;
+
+                let mut hasher = Hasher::new();
+                for entry in entries.iter() {
+                    let mut url = url.clone();
+
+                    {
+                        // Append the entry to the url; we must pop the last
+                        // segment if it is empty
+                        // as otherwise `push` will append another empty
+                        // segment
+                        let mut segments = url.path_segments_mut().expect("URL should have a path");
+                        segments.pop_if_empty();
+                        for segment in entry.split('/') {
+                            segments.push(segment);
+                        }
+                    }
+
+                    let digest = self.get_content_digest(&url).await?;
+                    entry.hash(&mut hasher);
+                    digest.hash(&mut hasher);
+                }
+
+                hasher.update(&(entries.len() as u32).to_le_bytes());
+                Ok(Digest::Directory(hasher.finalize()))
+            })
+            .await?
+        {
+            Some(digest) => Ok(digest),
+            None => bail!(
+                "failed to calculate digest of `{url}`: the operation was cancelled",
+                url = url.display()
+            ),
+        }
+    }
+
+    /// Clears the digest caches.
+    #[allow(unused)]
+    pub fn clear(&self) {
+        self.0.local_digests.clear();
+        self.0.remote_digests.clear();
+    }
+
+    /// Calculates the digest of a local directory.
+    ///
+    /// This is a recursive operation where every file and directory recursively
+    /// contained in the directory will have their content digests calculated.
+    ///
+    /// Returns a boxed future to break the type recursion.
+    fn calculate_directory_digest<'a>(
+        &'a self,
+        path: &'a Path,
+        mode: ContentDigestMode,
+    ) -> BoxFuture<'a, Result<Digest>> {
+        async move {
+            let mut dir = tokio::fs::read_dir(&path).await.with_context(|| {
+                format!("failed to read directory `{path}`", path = path.display())
+            })?;
+
+            let mut entries = Vec::new();
+            while let Some(entry) = dir.next_entry().await.with_context(|| {
+                format!("failed to read directory `{path}`", path = path.display())
+            })? {
+                entries.push(entry);
+            }
+
+            // Sort the entries by name so that the digest order is consistent
+            drop(dir);
+            entries.sort_by_key(|e| e.file_name());
+
+            let mut count: u32 = 0;
+            let mut hasher = Hasher::new();
+            for entry in &entries {
+                let entry_path = entry.path();
+                let mut metadata = entry.metadata().await.with_context(|| {
+                    format!(
+                        "failed to read metadata for path `{path}`",
+                        path = entry_path.display()
                     )
                 })?;
 
-                anyhow::Ok(Digest::File(hasher.finalize()))
-            })
-            .await
-            .context("file digest task panicked")?
+                // For symlink entries, ensure the link isn't broken by
+                // retrieving the target's metadata; if it is
+                // broken, ignore it by not including it
+                if metadata.is_symlink() {
+                    match fs::metadata(&entry_path) {
+                        Ok(m) => metadata = m,
+                        Err(_) => continue,
+                    }
+                }
+
+                let kind = if metadata.is_file() {
+                    ContentKind::File
+                } else {
+                    ContentKind::Directory
+                };
+
+                // Hash the relative path to the entry
+                let entry_rel_path = entry_path
+                    .strip_prefix(path)
+                    .expect("entry path should be relative")
+                    .to_str()
+                    .with_context(|| {
+                        format!("path `{path}` is not UTF-8", path = entry_path.display())
+                    })?;
+                entry_rel_path.hash(&mut hasher);
+
+                // Recursively calculate the entry's digest
+                let digest = self.calculate_local_digest(&entry_path, kind, mode).await?;
+                digest.hash(&mut hasher);
+                count += 1;
+            }
+
+            hasher.update(&count.to_le_bytes());
+            Ok(Digest::Directory(hasher.finalize()))
         }
-        ContentDigestMode::Strongish => {
-            // Calculate a digest off of file metadata and a hash of only the
-            // first `STRONGISH_DIGEST_PREFIX_LEN` bytes of the
-            // file's contents
-            let path = path.to_path_buf();
-            spawn_blocking(move || {
-                let mut hasher = Hasher::new();
-                hash_file_metadata(&path, &mut hasher)?;
+        .boxed()
+    }
 
-                let file = fs::File::open(&path)
-                    .with_context(|| format!("failed to open `{path}`", path = path.display()))?;
-
-                copy(&mut file.take(STRONGISH_DIGEST_PREFIX_LEN), &mut hasher).with_context(
-                    || format!("failed to read contents of `{path}`", path = path.display()),
-                )?;
-
-                anyhow::Ok(Digest::File(hasher.finalize()))
-            })
-            .await
-            .context("file digest task panicked")?
-        }
-        ContentDigestMode::Weak => {
-            // Calculate a digest solely off of file metadata
-            let mut hasher = Hasher::new();
-            hash_file_metadata(path, &mut hasher)?;
-            Ok(Digest::File(hasher.finalize()))
+    /// Helper for retrieving the content digest of a URL.
+    async fn get_content_digest(&self, url: &Url) -> Result<Arc<ContentDigest>> {
+        match self.0.client.digest(url).await.with_context(|| {
+            format!(
+                "failed to get content digest of URL `{url}`",
+                url = url.display()
+            )
+        })? {
+            Some(digest) => Ok(digest),
+            None => bail!("URL `{url}` does not have a known content digest"),
         }
     }
-}
 
-/// Hashes a file's metadata (size and last modified time) into the given
-/// hasher.
-///
-/// This is shared between the `weak` and `strongish` content digest modes.
-fn hash_file_metadata(path: &Path, hasher: &mut Hasher) -> Result<()> {
-    let metadata = path
-        .metadata()
-        .with_context(|| format!("failed to read metadata of `{path}`", path = path.display()))?;
-    let mtime = metadata
-        .modified()
-        .with_context(|| {
-            format!(
-                "failed to determine last modified time of `{path}`",
-                path = path.display()
-            )
-        })?
-        .duration_since(UNIX_EPOCH)
-        .with_context(|| {
-            format!(
-                "last modified time of `{path}` occurs is before UNIX epoch",
-                path = path.display()
-            )
-        })?;
+    /// Calculates the digest of a local file.
+    async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<Digest> {
+        match mode {
+            ContentDigestMode::Strong => {
+                // Calculate a Blake3 digest for the file's contents
+                let path = path.to_path_buf();
+                spawn_blocking(move || {
+                    let mut hasher = Hasher::new();
+                    hasher.update_mmap_rayon(&path).with_context(|| {
+                        format!(
+                            "failed to calculate digest of `{path}`",
+                            path = path.display()
+                        )
+                    })?;
 
-    hasher.update(&metadata.len().to_le_bytes());
-    hasher.update(&mtime.as_secs().to_le_bytes());
-    hasher.update(&mtime.as_millis().to_le_bytes());
-    hasher.update(&mtime.as_micros().to_le_bytes());
-    hasher.update(&mtime.as_nanos().to_le_bytes());
-    Ok(())
-}
+                    anyhow::Ok(Digest::File(hasher.finalize()))
+                })
+                .await
+                .context("file digest task panicked")?
+            }
+            ContentDigestMode::Strongish => {
+                // Calculate a digest off of file metadata and a hash of only
+                // the first `STRONGISH_DIGEST_PREFIX_LEN` bytes
+                // of the file's contents
+                let path = path.to_path_buf();
+                spawn_blocking(move || {
+                    let mut hasher = Hasher::new();
+                    Self::hash_file_metadata(&path, &mut hasher)?;
 
-/// Calculates the digest of a local directory.
-///
-/// This is a recursive operation where every file and directory recursively
-/// contained in the directory will have their content digests calculated.
-///
-/// Returns a boxed future to break the type recursion.
-fn calculate_directory_digest(
-    path: &Path,
-    mode: ContentDigestMode,
-) -> impl Future<Output = Result<Digest>> + Send {
-    async move {
-        let mut dir = tokio::fs::read_dir(&path)
-            .await
-            .with_context(|| format!("failed to read directory `{path}`", path = path.display()))?;
+                    let file = fs::File::open(&path).with_context(|| {
+                        format!("failed to open `{path}`", path = path.display())
+                    })?;
 
-        let mut entries = Vec::new();
-        while let Some(entry) = dir
-            .next_entry()
-            .await
-            .with_context(|| format!("failed to read directory `{path}`", path = path.display()))?
-        {
-            entries.push(entry);
+                    copy(&mut file.take(STRONGISH_DIGEST_PREFIX_LEN), &mut hasher).with_context(
+                        || format!("failed to read contents of `{path}`", path = path.display()),
+                    )?;
+
+                    anyhow::Ok(Digest::File(hasher.finalize()))
+                })
+                .await
+                .context("file digest task panicked")?
+            }
+            ContentDigestMode::Weak => {
+                // Calculate a digest solely off of file metadata
+                let mut hasher = Hasher::new();
+                Self::hash_file_metadata(path, &mut hasher)?;
+                Ok(Digest::File(hasher.finalize()))
+            }
         }
+    }
 
-        // Sort the entries by name so that the digest order is consistent
-        drop(dir);
-        entries.sort_by_key(|e| e.file_name());
-
-        let mut count: u32 = 0;
-        let mut hasher = Hasher::new();
-        for entry in &entries {
-            let entry_path = entry.path();
-            let mut metadata = entry.metadata().await.with_context(|| {
+    /// Hashes a file's metadata (size and last modified time) into the given
+    /// hasher.
+    ///
+    /// This is shared between the `weak` and `strongish` content digest modes.
+    fn hash_file_metadata(path: &Path, hasher: &mut Hasher) -> Result<()> {
+        let metadata = path.metadata().with_context(|| {
+            format!("failed to read metadata of `{path}`", path = path.display())
+        })?;
+        let mtime = metadata
+            .modified()
+            .with_context(|| {
                 format!(
-                    "failed to read metadata for path `{path}`",
-                    path = entry_path.display()
+                    "failed to determine last modified time of `{path}`",
+                    path = path.display()
+                )
+            })?
+            .duration_since(UNIX_EPOCH)
+            .with_context(|| {
+                format!(
+                    "last modified time of `{path}` occurs is before UNIX epoch",
+                    path = path.display()
                 )
             })?;
 
-            // For symlink entries, ensure the link isn't broken by retrieving
-            // the target's metadata; if it is broken, ignore it by
-            // not including it
-            if metadata.is_symlink() {
-                match fs::metadata(&entry_path) {
-                    Ok(m) => metadata = m,
-                    Err(_) => continue,
-                }
-            }
-
-            let kind = if metadata.is_file() {
-                ContentKind::File
-            } else {
-                ContentKind::Directory
-            };
-
-            // Hash the relative path to the entry
-            let entry_rel_path = entry_path
-                .strip_prefix(path)
-                .expect("entry path should be relative")
-                .to_str()
-                .with_context(|| {
-                    format!("path `{path}` is not UTF-8", path = entry_path.display())
-                })?;
-            entry_rel_path.hash(&mut hasher);
-
-            // Recursively calculate the entry's digest
-            let digest = calculate_local_digest(&entry_path, kind, mode).await?;
-            digest.hash(&mut hasher);
-            count += 1;
-        }
-
-        hasher.update(&count.to_le_bytes());
-        Ok(Digest::Directory(hasher.finalize()))
+        hasher.update(&metadata.len().to_le_bytes());
+        hasher.update(&mtime.as_secs().to_le_bytes());
+        hasher.update(&mtime.as_millis().to_le_bytes());
+        hasher.update(&mtime.as_micros().to_le_bytes());
+        hasher.update(&mtime.as_nanos().to_le_bytes());
+        Ok(())
     }
-    .boxed()
-}
-
-/// Calculates the content digest of a local path.
-///
-/// If the path is a file, a [blake3](blake3) digest is calculated for the
-/// file's content.
-///
-/// If the path is a directory, a consistent, recursive walk of the directory is
-/// performed and a digest calculated based on the directory's entries.
-///
-/// The hash of a directory entry consist of:
-///
-/// * The relative path to the entry.
-/// * Whether or not the entry is a file or a directory.
-/// * If the entry is a file, the hash of the file's contents as noted above.
-///
-/// [blake3]: https://github.com/BLAKE3-team/BLAKE3
-pub async fn calculate_local_digest(
-    path: &Path,
-    kind: ContentKind,
-    mode: ContentDigestMode,
-) -> Result<Digest> {
-    let digest = {
-        let mut digests = LOCAL_DIGESTS.lock().expect("failed to lock digests");
-        digests
-            .entry((mode, path.to_path_buf()))
-            .or_default()
-            .clone()
-    };
-
-    // Get an existing result or initialize a new one exactly once
-    Ok(*digest
-        .get_or_try_init(|| async move {
-            let metadata = path.metadata().with_context(|| {
-                format!("failed to read metadata of `{path}`", path = path.display())
-            })?;
-
-            debug!(
-                "calculating content digest of `{path}`",
-                path = path.display()
-            );
-
-            match kind {
-                ContentKind::File | ContentKind::TempFile => {
-                    if !metadata.is_file() {
-                        bail!("expected path `{path}` to be a file", path = path.display());
-                    }
-
-                    // Always use a strong digest mode for temporary files
-                    // This will ensure that the file metadata is _not_
-                    // considered for the digest
-                    calculate_file_digest(
-                        path,
-                        if kind == ContentKind::TempFile {
-                            ContentDigestMode::Strong
-                        } else {
-                            mode
-                        },
-                    )
-                    .await
-                }
-                ContentKind::Directory => {
-                    if metadata.is_file() {
-                        bail!(
-                            "expected path `{path}` to be a directory",
-                            path = path.display()
-                        );
-                    }
-
-                    calculate_directory_digest(path, mode).await
-                }
-            }
-        })
-        .await?)
-}
-
-/// Calculates the content digest of a remote URL.
-///
-/// If the URL is to a remote file, a `HEAD` request is made and the response
-/// must have an associated content digest header; the header's value is hashed
-/// to produce the content digest of the file.
-///
-/// If the URL is a "directory", a consistent, recursive walk of the directory
-/// is performed and a digest calculated based on the directory's entries.
-///
-/// The hash of a directory entry consist of:
-///
-/// * The relative path to the entry.
-/// * The content digest of the entry.
-pub async fn calculate_remote_digest(
-    transferer: &dyn Transferer,
-    url: &Url,
-    kind: ContentKind,
-) -> Result<Digest> {
-    let digest = {
-        let mut digests = REMOTE_DIGESTS.lock().expect("failed to lock digests");
-        digests.entry(url.clone()).or_default().clone()
-    };
-
-    // Get an existing result or initialize a new one exactly once
-    Ok(*digest
-        .get_or_try_init(|| async {
-            debug!("calculating content digest of `{url}`", url = url.display());
-
-            // If there were no entries, treat the URL as a file
-            if kind == ContentKind::File {
-                let digest = get_content_digest(transferer, url).await?;
-                let mut hasher = Hasher::new();
-                digest.hash(&mut hasher);
-                return anyhow::Ok(Digest::File(hasher.finalize()));
-            }
-
-            assert_eq!(
-                kind,
-                ContentKind::Directory,
-                "expected a directory for the content kind"
-            );
-
-            // Walk the URL; the returned entries are in lexicographical order
-            let entries = transferer
-                .walk(url)
-                .await
-                .with_context(|| format!("failed to walk URL `{url}`", url = url.display()))?;
-
-            let mut hasher = Hasher::new();
-            for entry in entries.iter() {
-                let mut url = url.clone();
-
-                {
-                    // Append the entry to the url; we must pop the last segment
-                    // if it is empty as otherwise `push`
-                    // will append another empty segment
-                    let mut segments = url.path_segments_mut().expect("URL should have a path");
-                    segments.pop_if_empty();
-                    for segment in entry.split('/') {
-                        segments.push(segment);
-                    }
-                }
-
-                let digest = get_content_digest(transferer, &url).await?;
-                entry.hash(&mut hasher);
-                digest.hash(&mut hasher);
-            }
-
-            hasher.update(&(entries.len() as u32).to_le_bytes());
-            Ok(Digest::Directory(hasher.finalize()))
-        })
-        .await?)
 }
 
 #[cfg(test)]
-pub(crate) mod test {
+pub(crate) mod tests {
+    use std::collections::HashMap;
     use std::fs;
     use std::io::Write;
     use std::time::Duration;
     use std::time::SystemTime;
 
     use anyhow::anyhow;
+    use cloud_copy::TransferEvent;
     use futures::FutureExt;
     use futures::future::BoxFuture;
     use pretty_assertions::assert_eq;
     use tempfile::NamedTempFile;
     use tempfile::tempdir;
+    use tokio::sync::broadcast;
 
     use super::*;
+    use crate::Cache;
     use crate::CancellationContext;
+    use crate::Config;
     use crate::ContentKind;
+    use crate::Engine;
     use crate::Events;
+    use crate::http::HttpClient;
     use crate::http::Location;
 
-    /// Helper for clearing the cached digests for tests
-    pub fn clear_digest_cache() {
-        LOCAL_DIGESTS
-            .lock()
-            .expect("failed to lock digests")
-            .clear();
-        REMOTE_DIGESTS
-            .lock()
-            .expect("failed to lock digests")
-            .clear();
-    }
-
     #[derive(Default)]
-    pub struct DigestTransferer(HashMap<&'static str, Option<Arc<ContentDigest>>>);
+    pub struct DigestHttpClient(HashMap<&'static str, Option<Arc<ContentDigest>>>);
 
-    impl DigestTransferer {
+    impl DigestHttpClient {
         pub fn new<C>(c: C) -> Self
         where
             C: IntoIterator<Item = (&'static str, Option<ContentDigest>)>,
@@ -488,12 +541,13 @@ pub(crate) mod test {
         }
     }
 
-    impl Transferer for DigestTransferer {
+    impl HttpClient for DigestHttpClient {
         fn download<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a Events,
+            _: Option<broadcast::Sender<TransferEvent>>,
             _: &'a CancellationContext,
+            _: &'a Cache<Url, Location>,
         ) -> BoxFuture<'a, Result<Location>> {
             unimplemented!()
         }
@@ -502,17 +556,28 @@ pub(crate) mod test {
             &'a self,
             _: &'a Path,
             _: &'a Url,
-            _: &'a Events,
+            _: Option<broadcast::Sender<TransferEvent>>,
             _: &'a CancellationContext,
+            _: &'a Cache<Url, ()>,
         ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
         }
 
-        fn size<'a>(&'a self, _url: &'a Url) -> BoxFuture<'a, Result<Option<u64>>> {
+        fn size<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, Option<u64>>,
+        ) -> BoxFuture<'a, Result<Option<u64>>> {
             unimplemented!()
         }
 
-        fn walk<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
+        fn walk<'a>(
+            &'a self,
+            url: &'a Url,
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, Arc<[String]>>,
+        ) -> BoxFuture<'a, Result<Arc<[String]>>> {
             async {
                 let mut entries = Vec::new();
                 for k in self.0.keys() {
@@ -528,11 +593,21 @@ pub(crate) mod test {
             .boxed()
         }
 
-        fn exists<'a>(&'a self, _url: &'a Url) -> BoxFuture<'a, Result<bool>> {
+        fn exists<'a>(
+            &'a self,
+            _url: &'a Url,
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, bool>,
+        ) -> BoxFuture<'a, Result<bool>> {
             unimplemented!()
         }
 
-        fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
+        fn digest<'a>(
+            &'a self,
+            url: &'a Url,
+            _: &'a CancellationContext,
+            _: &'a Cache<Url, Option<Arc<ContentDigest>>>,
+        ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
             async {
                 Ok(self
                     .0
@@ -544,15 +619,29 @@ pub(crate) mod test {
         }
     }
 
+    /// Creates a digest calculator for the tests.
+    pub async fn digests(client: DigestHttpClient) -> DigestCalculator {
+        let engine = Engine::new_with_http_client(Config::local(), client)
+            .await
+            .unwrap();
+
+        let cancellation = CancellationContext::default();
+        let client = EvaluationHttpClient::new(&engine, &Events::disabled(), cancellation.clone());
+        DigestCalculator::new(client, cancellation, 1000)
+    }
+
     #[tokio::test]
     async fn local_file_digest_strong() {
         let mut file = NamedTempFile::new().unwrap();
         file.write_all(b"hello world!").unwrap();
 
-        let digest =
-            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strong)
-                .await
-                .unwrap();
+        let digests = digests(Default::default()).await;
+
+        let digest = digests
+            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strong)
+            .await
+            .unwrap();
+
         // Digest of `hello world!` from https://emn178.github.io/online-tools/blake3/
         assert_eq!(
             *digest.to_hex(),
@@ -565,15 +654,17 @@ pub(crate) mod test {
         let mut file = NamedTempFile::new().unwrap();
         file.write_all(b"hello world!").unwrap();
 
-        let digest =
-            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
-                .await
-                .unwrap();
+        let digests = digests(Default::default()).await;
+
+        let digest = digests
+            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+            .await
+            .unwrap();
 
         // It should match the digest returned by `calculate_file_digest`
         assert_eq!(
             digest,
-            calculate_file_digest(file.path(), ContentDigestMode::Weak)
+            DigestCalculator::calculate_file_digest(file.path(), ContentDigestMode::Weak)
                 .await
                 .unwrap()
         );
@@ -582,12 +673,12 @@ pub(crate) mod test {
         file.write_all(b"!").unwrap();
         file.flush().unwrap();
 
-        clear_digest_cache();
+        digests.clear();
 
-        let changed =
-            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
-                .await
-                .unwrap();
+        let changed = digests
+            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+            .await
+            .unwrap();
 
         assert!(digest != changed, "expected digest to change");
 
@@ -602,12 +693,12 @@ pub(crate) mod test {
             )
             .unwrap();
 
-        clear_digest_cache();
+        digests.clear();
 
-        let changed =
-            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
-                .await
-                .unwrap();
+        let changed = digests
+            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+            .await
+            .unwrap();
 
         assert!(digest != changed, "expected digest to change");
     }
@@ -617,15 +708,17 @@ pub(crate) mod test {
         let mut file = NamedTempFile::new().unwrap();
         file.write_all(b"hello world!").unwrap();
 
-        let digest =
-            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
-                .await
-                .unwrap();
+        let digests = digests(Default::default()).await;
+
+        let digest = digests
+            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+            .await
+            .unwrap();
 
         // It should match the digest returned by `calculate_file_digest`
         assert_eq!(
             digest,
-            calculate_file_digest(file.path(), ContentDigestMode::Strongish)
+            DigestCalculator::calculate_file_digest(file.path(), ContentDigestMode::Strongish)
                 .await
                 .unwrap()
         );
@@ -634,12 +727,12 @@ pub(crate) mod test {
         file.write_all(b"!").unwrap();
         file.flush().unwrap();
 
-        clear_digest_cache();
+        digests.clear();
 
-        let changed =
-            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
-                .await
-                .unwrap();
+        let changed = digests
+            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+            .await
+            .unwrap();
 
         assert!(digest != changed, "expected digest to change");
 
@@ -654,12 +747,12 @@ pub(crate) mod test {
             )
             .unwrap();
 
-        clear_digest_cache();
+        digests.clear();
 
-        let changed =
-            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
-                .await
-                .unwrap();
+        let changed = digests
+            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+            .await
+            .unwrap();
 
         assert!(digest != changed, "expected digest to change");
     }
@@ -686,12 +779,14 @@ pub(crate) mod test {
         a.as_file().set_modified(mtime).unwrap();
         b.as_file().set_modified(mtime).unwrap();
 
-        let digest_a = calculate_file_digest(a.path(), ContentDigestMode::Strongish)
-            .await
-            .unwrap();
-        let digest_b = calculate_file_digest(b.path(), ContentDigestMode::Strongish)
-            .await
-            .unwrap();
+        let digest_a =
+            DigestCalculator::calculate_file_digest(a.path(), ContentDigestMode::Strongish)
+                .await
+                .unwrap();
+        let digest_b =
+            DigestCalculator::calculate_file_digest(b.path(), ContentDigestMode::Strongish)
+                .await
+                .unwrap();
 
         assert_eq!(
             digest_a, digest_b,
@@ -700,10 +795,10 @@ pub(crate) mod test {
 
         // A strong digest, on the other hand, should be able to tell the
         // difference
-        let digest_a = calculate_file_digest(a.path(), ContentDigestMode::Strong)
+        let digest_a = DigestCalculator::calculate_file_digest(a.path(), ContentDigestMode::Strong)
             .await
             .unwrap();
-        let digest_b = calculate_file_digest(b.path(), ContentDigestMode::Strong)
+        let digest_b = DigestCalculator::calculate_file_digest(b.path(), ContentDigestMode::Strong)
             .await
             .unwrap();
 
@@ -721,23 +816,26 @@ pub(crate) mod test {
         a.flush().unwrap();
         b.flush().unwrap();
 
+        let digests = digests(Default::default()).await;
+
         // Regardless of the content digest mode, temporary files should
         // _always_ use a strong digest
-        let digest_a =
-            calculate_local_digest(a.path(), ContentKind::TempFile, ContentDigestMode::Weak)
-                .await
-                .unwrap();
-        let digest_b = calculate_local_digest(
-            b.path(),
-            ContentKind::TempFile,
-            ContentDigestMode::Strongish,
-        )
-        .await
-        .unwrap();
-        let digest_c =
-            calculate_local_digest(b.path(), ContentKind::TempFile, ContentDigestMode::Strong)
-                .await
-                .unwrap();
+        let digest_a = digests
+            .calculate_local_digest(a.path(), ContentKind::TempFile, ContentDigestMode::Weak)
+            .await
+            .unwrap();
+        let digest_b = digests
+            .calculate_local_digest(
+                b.path(),
+                ContentKind::TempFile,
+                ContentDigestMode::Strongish,
+            )
+            .await
+            .unwrap();
+        let digest_c = digests
+            .calculate_local_digest(b.path(), ContentKind::TempFile, ContentDigestMode::Strong)
+            .await
+            .unwrap();
 
         assert_eq!(
             digest_a, digest_b,
@@ -762,13 +860,16 @@ pub(crate) mod test {
         fs::write(subdir.join("y"), b"y").unwrap();
         fs::write(subdir.join("x"), b"x").unwrap();
 
-        let digest = calculate_local_digest(
-            dir.path(),
-            ContentKind::Directory,
-            ContentDigestMode::Strong,
-        )
-        .await
-        .unwrap();
+        let digests = digests(Default::default()).await;
+
+        let digest = digests
+            .calculate_local_digest(
+                dir.path(),
+                ContentKind::Directory,
+                ContentDigestMode::Strong,
+            )
+            .await
+            .unwrap();
 
         // Calculate the digest of the `subdir`
         let mut hasher = Hasher::new();
@@ -853,7 +954,7 @@ pub(crate) mod test {
             Hash::from_hex("7509e5bda0c762d2bac7f90d758b5b2263fa01ccbc542ab5e3df163be08e6ca9")
                 .unwrap();
 
-        let transferer = DigestTransferer::new([
+        let digests = digests(DigestHttpClient::new([
             (
                 "http://example.com/foo",
                 Some(ContentDigest::Hash {
@@ -866,16 +967,17 @@ pub(crate) mod test {
                 Some(ContentDigest::ETag("etag".into())),
             ),
             ("http://example.com/baz", None),
-        ]);
+        ]))
+        .await;
 
         // URL with Content-Digest header
-        let digest = calculate_remote_digest(
-            &transferer,
-            &"http://example.com/foo".parse().unwrap(),
-            ContentKind::File,
-        )
-        .await
-        .unwrap();
+        let digest = digests
+            .calculate_remote_digest(
+                &"http://example.com/foo".parse().unwrap(),
+                ContentKind::File,
+            )
+            .await
+            .unwrap();
 
         let mut hasher = Hasher::new();
         hasher.update(&[0]); // Hash tag
@@ -886,13 +988,13 @@ pub(crate) mod test {
         assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
 
         // URL with ETag header
-        let digest = calculate_remote_digest(
-            &transferer,
-            &"http://example.com/bar".parse().unwrap(),
-            ContentKind::File,
-        )
-        .await
-        .unwrap();
+        let digest = digests
+            .calculate_remote_digest(
+                &"http://example.com/bar".parse().unwrap(),
+                ContentKind::File,
+            )
+            .await
+            .unwrap();
 
         let mut hasher = Hasher::new();
         hasher.update(&[1]); // ETag tag
@@ -902,14 +1004,14 @@ pub(crate) mod test {
 
         // URL with no digest
         assert_eq!(
-            calculate_remote_digest(
-                &transferer,
-                &"http://example.com/baz".parse().unwrap(),
-                ContentKind::File,
-            )
-            .await
-            .unwrap_err()
-            .to_string(),
+            digests
+                .calculate_remote_digest(
+                    &"http://example.com/baz".parse().unwrap(),
+                    ContentKind::File,
+                )
+                .await
+                .unwrap_err()
+                .to_string(),
             "URL `http://example.com/baz` does not have a known content digest"
         );
 
@@ -917,13 +1019,13 @@ pub(crate) mod test {
         assert_eq!(
             format!(
                 "{:#}",
-                calculate_remote_digest(
-                    &transferer,
-                    &"http://example.com/nope".parse().unwrap(),
-                    ContentKind::File,
-                )
-                .await
-                .unwrap_err()
+                digests
+                    .calculate_remote_digest(
+                        &"http://example.com/nope".parse().unwrap(),
+                        ContentKind::File,
+                    )
+                    .await
+                    .unwrap_err()
             ),
             "failed to get content digest of URL `http://example.com/nope`: does not exist"
         );
@@ -936,7 +1038,7 @@ pub(crate) mod test {
             Hash::from_hex("7509e5bda0c762d2bac7f90d758b5b2263fa01ccbc542ab5e3df163be08e6ca9")
                 .unwrap();
 
-        let transferer = DigestTransferer::new([
+        let digests = digests(DigestHttpClient::new([
             (
                 "http://example.com/dir/foo",
                 Some(ContentDigest::Hash {
@@ -949,16 +1051,17 @@ pub(crate) mod test {
                 Some(ContentDigest::ETag("etag".into())),
             ),
             ("http://example.com/missing/baz", None),
-        ]);
+        ]))
+        .await;
 
         // Digest of a remote "directory"
-        let digest = calculate_remote_digest(
-            &transferer,
-            &"http://example.com/dir".parse().unwrap(),
-            ContentKind::Directory,
-        )
-        .await
-        .unwrap();
+        let digest = digests
+            .calculate_remote_digest(
+                &"http://example.com/dir".parse().unwrap(),
+                ContentKind::Directory,
+            )
+            .await
+            .unwrap();
 
         let mut hasher = Hasher::new();
         hasher.update(&7u32.to_le_bytes()); // Path length
@@ -977,25 +1080,25 @@ pub(crate) mod test {
         assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
 
         // Digest of a remote "directory" with a trailing slash
-        let trailing_digest = calculate_remote_digest(
-            &transferer,
-            &"http://example.com/dir/".parse().unwrap(),
-            ContentKind::Directory,
-        )
-        .await
-        .unwrap();
+        let trailing_digest = digests
+            .calculate_remote_digest(
+                &"http://example.com/dir/".parse().unwrap(),
+                ContentKind::Directory,
+            )
+            .await
+            .unwrap();
         assert_eq!(digest, trailing_digest);
 
         // Digest of a remote "directory" that is "empty"
         // We can't distinguish between a non-existent directory and an empty
         // one
-        let digest = calculate_remote_digest(
-            &transferer,
-            &"http://example.com/empty".parse().unwrap(),
-            ContentKind::Directory,
-        )
-        .await
-        .unwrap();
+        let digest = digests
+            .calculate_remote_digest(
+                &"http://example.com/empty".parse().unwrap(),
+                ContentKind::Directory,
+            )
+            .await
+            .unwrap();
 
         let mut hasher = Hasher::new();
         hasher.update(&0u32.to_le_bytes()); // Number of entries
@@ -1006,13 +1109,13 @@ pub(crate) mod test {
         assert_eq!(
             format!(
                 "{:#}",
-                calculate_remote_digest(
-                    &transferer,
-                    &"http://example.com/missing".parse().unwrap(),
-                    ContentKind::Directory,
-                )
-                .await
-                .unwrap_err()
+                digests
+                    .calculate_remote_digest(
+                        &"http://example.com/missing".parse().unwrap(),
+                        ContentKind::Directory,
+                    )
+                    .await
+                    .unwrap_err()
             ),
             "URL `http://example.com/missing/baz` does not have a known content digest"
         );
@@ -1034,8 +1137,11 @@ pub(crate) mod test {
         let link = dir.path().join("b");
         symlink(&target, &link).expect("failed to create symlink");
 
+        let digests = digests(Default::default()).await;
+
         // Digest the directory with the file
-        let digest = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+        let digest = digests
+            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
             .await
             .expect("failed to calculate digest");
 
@@ -1043,7 +1149,8 @@ pub(crate) mod test {
         fs::remove_file(&target).expect("failed to delete file");
 
         // Digest again; the link should be ignored and the digest changed
-        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+        let modified = digests
+            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
             .await
             .expect("failed to calculate digest");
         assert_ne!(digest, modified);
@@ -1052,7 +1159,8 @@ pub(crate) mod test {
         fs::write(&target, b"hello world!").expect("failed to create temporary file");
 
         // Digest again; the digest should match the original
-        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+        let modified = digests
+            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
             .await
             .expect("failed to calculate digest");
         assert_eq!(digest, modified);

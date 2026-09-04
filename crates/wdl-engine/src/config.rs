@@ -58,10 +58,9 @@ use wdl_grammar::construct_tree;
 use wdl_grammar::grammar::v1;
 use wdl_grammar::grammar::v1::Parser;
 
-use crate::CancellationContext;
 use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
-use crate::Events;
 use crate::NoneValue;
 use crate::Object;
 use crate::SYSTEM;
@@ -69,7 +68,6 @@ use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::convert_unit_string;
 use crate::diagnostics::unknown_enum_choice;
-use crate::http::Transferer;
 use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
@@ -110,11 +108,31 @@ const fn cache_dir_sentinel() -> &'static str {
     "system"
 }
 
+/// The default for runtime digest cache capacity.
+const fn default_digest_cache_capacity() -> u32 {
+    1000
+}
+
+/// The default for runtime choice cache capacity.
+const fn default_choice_cache_capacity() -> u32 {
+    1000
+}
+
+/// The default for runtime regex cache capacity.
+const fn default_regex_cache_capacity() -> u32 {
+    1000
+}
+
 /// The default for HTTP retries.
 ///
 /// Same default as defined in `cloud_copy`
 const fn default_http_retries() -> u32 {
     5
+}
+
+/// The default for evaluation HTTP response cache capacity.
+const fn default_http_response_cache_capacity() -> u32 {
+    1000
 }
 
 /// The default Apptainer executable name.
@@ -454,6 +472,43 @@ pub struct Config {
     #[toml(default, rename = "fail")]
     #[schemars(default, rename = "fail")]
     pub failure_mode: FailureMode,
+    /// The capacity for runtime digest caches.
+    ///
+    /// The file and directory digests calculated during evaluation are stored
+    /// in LRU caches with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_digest_cache_capacity())]
+    #[schemars(default = "default_digest_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub digest_cache_capacity: u32,
+    /// The capacity for the runtime enum choice cache.
+    ///
+    /// The values created for enums during evaluation are stored in an LRU
+    /// cache with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_choice_cache_capacity())]
+    #[schemars(default = "default_choice_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub choice_cache_capacity: u32,
+    /// The capacity for the runtime compiled regular expression cache.
+    ///
+    /// When a WDL stdlib function that takes a regular expression is called, a
+    /// newly seen regular expression is compiled and stored in an LRU cache
+    /// with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_regex_cache_capacity())]
+    #[schemars(default = "default_regex_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub regex_cache_capacity: u32,
 }
 
 impl Default for Config {
@@ -468,6 +523,9 @@ impl Default for Config {
             suppress_env_specific_output: Default::default(),
             experimental_features_enabled: Default::default(),
             failure_mode: Default::default(),
+            digest_cache_capacity: default_digest_cache_capacity(),
+            choice_cache_capacity: default_choice_cache_capacity(),
+            regex_cache_capacity: default_regex_cache_capacity(),
         }
     }
 }
@@ -509,6 +567,18 @@ impl Config {
 
         if self.suppress_env_specific_output && !self.experimental_features_enabled {
             bail!("`suppress_env_specific_output` requires enabling experimental features");
+        }
+
+        if self.digest_cache_capacity == 0 {
+            bail!("configuration value `digest_cache_capacity` cannot be zero");
+        }
+
+        if self.choice_cache_capacity == 0 {
+            bail!("configuration value `choice_cache_capacity` cannot be zero");
+        }
+
+        if self.regex_cache_capacity == 0 {
+            bail!("configuration value `regex_cache_capacity` cannot be zero");
         }
 
         Ok(())
@@ -640,6 +710,21 @@ pub struct HttpConfig {
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default, with = "String")]
     pub hash_algorithm: cloud_copy::HashAlgorithm,
+    /// The capacity for the in-memory HTTP response cache.
+    ///
+    /// Each HTTP operation performed in evaluation gets its own LRU response
+    /// cache with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Note: this capacity affects only in-memory caches; it does not affect
+    /// the download cache.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_http_response_cache_capacity())]
+    #[schemars(default = "default_http_response_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub response_cache_capacity: u32,
 }
 
 impl Default for HttpConfig {
@@ -649,6 +734,7 @@ impl Default for HttpConfig {
             retries: default_http_retries(),
             parallelism: Default::default(),
             hash_algorithm: Default::default(),
+            response_cache_capacity: default_http_response_cache_capacity(),
         }
     }
 }
@@ -661,6 +747,11 @@ impl HttpConfig {
         {
             bail!("configuration value `http.parallelism` cannot be zero");
         }
+
+        if self.response_cache_capacity == 0 {
+            bail!("configuration value `http.response_cache_capacity` cannot be zero");
+        }
+
         Ok(())
     }
 
@@ -1978,16 +2069,8 @@ impl Condition {
                 self.0.temp_dir
             }
 
-            fn transferer(&self) -> &dyn Transferer {
-                self.0.engine.transferer()
-            }
-
-            fn events(&self) -> &Events {
-                self.0.events
-            }
-
-            fn cancellation(&self) -> &CancellationContext {
-                self.0.cancellation
+            fn http_client(&self) -> &EvaluationHttpClient {
+                self.0.context.http_client()
             }
 
             fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
@@ -2009,6 +2092,10 @@ impl Condition {
                         .cloned()
                         .unwrap_or_else(|| NoneValue::untyped().into()),
                 )
+            }
+
+            fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
+                self.0.context.compile_regex(pattern)
             }
         }
 
@@ -3018,7 +3105,7 @@ impl<T> ConfigBuilder<T> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
     use std::io::Write;
 
@@ -3026,19 +3113,16 @@ mod test {
     use codespan_reporting::term::DisplayStyle;
     use codespan_reporting::term::emit_into_string;
     use codespan_reporting::term::{self};
-    use futures::future::BoxFuture;
     use pretty_assertions::assert_eq;
     use tempfile::TempPath;
     use tempfile::tempdir;
 
     use super::*;
-    use crate::CancellationContext;
-    use crate::Engine;
     use crate::Events;
     use crate::ONE_GIBIBYTE;
     use crate::TaskInputs;
     use crate::backend::TaskExecutionConstraints;
-    use crate::http::Location;
+    use crate::backend::tests::EvalContext;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_MEMORY;
@@ -3148,6 +3232,36 @@ mod test {
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "configuration value `workflow.scatter.concurrency` cannot be zero"
+        );
+
+        // Test invalid digest cache capacity
+        let config = Config {
+            digest_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `digest_cache_capacity` cannot be zero"
+        );
+
+        // Test invalid choice cache capacity
+        let config = Config {
+            choice_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `choice_cache_capacity` cannot be zero"
+        );
+
+        // Test invalid regex cache capacity
+        let config = Config {
+            regex_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `regex_cache_capacity` cannot be zero"
         );
 
         // Test invalid backend name
@@ -3365,6 +3479,14 @@ mod test {
         let mut config = Config::default();
         config.http.parallelism = Parallelism::default();
         assert!(config.validate().await.is_ok(), "should pass for default");
+
+        // Test invalid HTTP response cache capacity
+        let mut config = Config::default();
+        config.http.response_cache_capacity = 0;
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `http.response_cache_capacity` cannot be zero"
+        );
 
         // Test invalid LSF job name prefix
         #[cfg(unix)]
@@ -3770,57 +3892,16 @@ type = 'lsf_apptainer'
             }
         }
 
-        struct Transferer;
-
-        impl crate::http::Transferer for Transferer {
-            fn download<'a>(
-                &'a self,
-                _: &'a Url,
-                _: &'a Events,
-                _: &'a CancellationContext,
-            ) -> BoxFuture<'a, Result<Location>> {
-                unimplemented!()
-            }
-
-            fn upload<'a>(
-                &'a self,
-                _: &'a Path,
-                _: &'a Url,
-                _: &'a Events,
-                _: &'a CancellationContext,
-            ) -> BoxFuture<'a, Result<()>> {
-                unimplemented!()
-            }
-
-            fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
-                unimplemented!()
-            }
-
-            fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
-                unimplemented!()
-            }
-
-            fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
-                unimplemented!()
-            }
-
-            fn digest<'a>(
-                &'a self,
-                _: &'a Url,
-            ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
-                unimplemented!()
-            }
-        }
-
         /// Helper for evaluating `Condition` from a WDL expression string.
         ///
         /// The string is expected to be a valid WDL expression.
         async fn eval(context: Context, expression: &str) -> Result<bool> {
             let dir = tempdir().context("failed to create temporary directory")?;
+            let eval_context = EvalContext::new(Events::disabled(), Default::default()).await;
             let condition = Condition::new(expression).expect("invalid expression");
             condition
                 .evaluate(&ExecuteTaskRequest {
-                    engine: &Engine::new_with_transferer(Config::local(), Transferer).await?,
+                    context: &eval_context,
                     name: "test",
                     command: "",
                     inputs: &context.inputs,
@@ -3847,8 +3928,6 @@ type = 'lsf_apptainer'
                     base_dir: &EvaluationPath::from_local_path(dir.path().into()),
                     attempt_dir: &dir.path().join("0"),
                     temp_dir: &dir.path().join("tmp"),
-                    events: &Events::disabled(),
-                    cancellation: &CancellationContext::default(),
                 })
                 .await
         }

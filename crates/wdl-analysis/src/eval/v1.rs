@@ -1291,7 +1291,7 @@ impl<N: TreeNode> Default for CommonAncestorFinder<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use wdl_ast::Document;
 
     use super::*;

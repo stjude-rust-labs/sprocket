@@ -44,7 +44,7 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::Arc;
 
     use pretty_assertions::assert_eq;
@@ -56,8 +56,8 @@ mod test {
     use crate::CompoundValue;
     use crate::PrimitiveValue;
     use crate::Value;
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
     use crate::value::EnumChoice;
 
     #[tokio::test]

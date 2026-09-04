@@ -13,6 +13,7 @@ use super::Signature;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::stdlib::download_file;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_string";
@@ -32,8 +33,7 @@ fn read_string(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let file_path = context
-            .download_file(&path)
+        let file_path = download_file(context.http_client(), context.base_dir(), &path)
             .await
             .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
@@ -69,13 +69,13 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
     use crate::PrimitiveValue;
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn read_string() {

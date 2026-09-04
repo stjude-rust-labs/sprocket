@@ -239,7 +239,7 @@ impl<N: TreeNode> StructItem<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::AstToken;
