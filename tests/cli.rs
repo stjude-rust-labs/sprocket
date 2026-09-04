@@ -64,7 +64,12 @@ const BINARY_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
 const EXISTENCE_ONLY_FILES: &[&str] = &["metrics.json"];
 
 /// Transient file suffixes that should be removed during `BLESS`.
-const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal"];
+///
+/// `-journal` covers SQLite's rollback-journal file: under the `PERSIST`
+/// journal mode (see `sqlite.rs`), this file is left on disk (with its
+/// header zeroed) between transactions rather than being deleted, so its
+/// mere presence is expected and not test-worthy.
+const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal", "-journal"];
 
 /// Finds tests at the given root directory.
 fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
