@@ -110,7 +110,7 @@ shlex = "2.0.1"
 similar = "3.1.1"
 smallvec = "1.15.1"
 spdx = "0.13.4"
-sprocket-test-types = { version = "0.1.1", path = "crates/sprocket-test-types" }
+sprocket-test-types = { version = "0.1.2", path = "crates/sprocket-test-types" }
 sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate"] }
 ssh-key = "0.6.7"
 strsim = "0.11.1"
@@ -140,8 +140,8 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.6", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.3.2", path = "crates/wdl-modules", features = ["git-resolver"] }
+wdl = { version = "0.23.7", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.3.3", path = "crates/wdl-modules", features = ["git-resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
 windows-sys = "0.61"
@@ -171,7 +171,7 @@ manual_assert_eq = "warn"
 
 [package]
 name = "sprocket"
-version = "0.30.1"
+version = "0.31.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
