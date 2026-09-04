@@ -7,6 +7,8 @@ use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::format_infix_expr;
+use crate::v1::write_comma_separated_items;
 
 /// Formats a [`SepOption`](wdl_ast::v1::SepOption).
 ///
@@ -401,22 +403,7 @@ pub fn format_literal_array(
         stream.increment_indent();
         stream.end_line();
     }
-
-    let mut items = items.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(&items, &commas, stream, config);
 
     if !empty {
         stream.decrement_indent();
@@ -485,22 +472,7 @@ pub fn format_literal_map(
         }
     }
 
-    let mut items = items.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(&items, &commas, stream, config);
 
     stream.decrement_indent();
     stream.end_line();
@@ -573,22 +545,7 @@ pub fn format_literal_object(
         }
     }
 
-    let mut items = members.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(&members, &commas, stream, config);
 
     stream.decrement_indent();
     stream.end_line();
@@ -653,16 +610,7 @@ pub fn format_addition_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("addition expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Plus;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Plus);
 }
 
 /// Formats a [`SubtractionExpr`](wdl_ast::v1::SubtractionExpr).
@@ -675,16 +623,7 @@ pub fn format_subtraction_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("subtraction expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Minus;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Minus);
 }
 
 /// Formats a [`MultiplicationExpr`](wdl_ast::v1::MultiplicationExpr).
@@ -697,16 +636,7 @@ pub fn format_multiplication_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("multiplication expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Asterisk;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Asterisk);
 }
 
 /// Formats a [`DivisionExpr`](wdl_ast::v1::DivisionExpr).
@@ -719,16 +649,7 @@ pub fn format_division_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("division expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Slash;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Slash);
 }
 
 /// Formats a [`ModuloExpr`](wdl_ast::v1::ModuloExpr).
@@ -741,16 +662,7 @@ pub fn format_modulo_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("modulo expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Percent;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Percent);
 }
 
 /// Formats an [`ExponentiationExpr`](wdl_ast::v1::ExponentiationExpr).
@@ -763,16 +675,7 @@ pub fn format_exponentiation_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("exponentiation expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Exponentiation;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Exponentiation);
 }
 
 /// Formats a [`LogicalAndExpr`](wdl_ast::v1::LogicalAndExpr).
@@ -785,16 +688,7 @@ pub fn format_logical_and_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("logical and expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::LogicalAnd;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::LogicalAnd);
 }
 
 /// Formats a [`LogicalNotExpr`](wdl_ast::v1::LogicalNotExpr).
@@ -826,16 +720,7 @@ pub fn format_logical_or_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("logical or expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::LogicalOr;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::LogicalOr);
 }
 
 /// Formats an [`EqualityExpr`](wdl_ast::v1::EqualityExpr).
@@ -848,16 +733,7 @@ pub fn format_equality_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("equality expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Equal;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Equal);
 }
 
 /// Formats a [`InequalityExpr`](wdl_ast::v1::InequalityExpr).
@@ -870,16 +746,7 @@ pub fn format_inequality_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("inequality expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::NotEqual;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::NotEqual);
 }
 
 /// Formats a [`LessExpr`](wdl_ast::v1::LessExpr).
@@ -892,16 +759,7 @@ pub fn format_less_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("less expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Less;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Less);
 }
 
 /// Formats a [`LessEqualExpr`](wdl_ast::v1::LessEqualExpr).
@@ -914,16 +772,7 @@ pub fn format_less_equal_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("less equal expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::LessEqual;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::LessEqual);
 }
 
 /// Formats a [`GreaterExpr`](wdl_ast::v1::GreaterExpr).
@@ -936,16 +785,7 @@ pub fn format_greater_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("greater expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::Greater;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::Greater);
 }
 
 /// Formats a [`GreaterEqualExpr`](wdl_ast::v1::GreaterEqualExpr).
@@ -958,16 +798,7 @@ pub fn format_greater_equal_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("greater equal expr children") {
-        let whitespace_wrapped = child.element().kind() == SyntaxKind::GreaterEqual;
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-        (&child).write(stream, config);
-        if whitespace_wrapped {
-            stream.end_word();
-        }
-    }
+    format_infix_expr(element, stream, config, SyntaxKind::GreaterEqual);
 }
 
 /// Formats a [`ParenthesizedExpr`](wdl_ast::v1::ParenthesizedExpr).

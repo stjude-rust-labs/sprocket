@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Extraneous tokens (e.g. trailing commas and empty call input blocks) are dropped from the output ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
 
+#### Changed
+
+* Deduplicated repeated comma-list and infix-expression formatting patterns in the `v1` module via shared helpers ([#1098](https://github.com/stjude-rust-labs/sprocket/issues/1098)).
+
 #### Fixed
 
 * Commas and closing delimiters are no longer dangled after multiline if/then/else expressions ([#1056](https://github.com/stjude-rust-labs/sprocket/pull/1056)).

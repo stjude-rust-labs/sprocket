@@ -39,6 +39,57 @@ pub(crate) fn write_sections(
     }
 }
 
+/// Writes comma-separated items, one per line when more than one remains.
+///
+/// Prefers commas from the source AST so associated trivia is preserved.
+/// Extraneous trailing commas are dropped unless they carry a comment. When an
+/// item has no corresponding source comma (or the source comma was dropped),
+/// inserts a trailing comma if `config.trailing_commas` is enabled.
+pub(crate) fn write_comma_separated_items<'a>(
+    items: impl IntoIterator<Item = &'a FormatElement>,
+    commas: impl IntoIterator<Item = &'a FormatElement>,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    let mut items = items.into_iter().peekable();
+    let mut commas = commas.into_iter();
+    while let Some(item) = items.next() {
+        item.write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
+            comma.write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
+        } else if config.trailing_commas {
+            stream.push_literal(",".into(), SyntaxKind::Comma);
+        }
+    }
+}
+
+/// Formats an infix expression whose operator token is whitespace-wrapped.
+///
+/// Each child is written in order. When a child matches `operator`, a word
+/// boundary is inserted on both sides so the operator is spaced like `a + b`.
+pub(crate) fn format_infix_expr(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+    operator: SyntaxKind,
+) {
+    for child in element.children().expect("infix expression children") {
+        let wrap = child.element().kind() == operator;
+        if wrap {
+            stream.end_word();
+        }
+        (&child).write(stream, config);
+        if wrap {
+            stream.end_word();
+        }
+    }
+}
+
 pub mod decl;
 pub mod r#enum;
 pub mod expr;
@@ -366,21 +417,12 @@ pub fn format_literal_input(
         }
     }
 
-    let mut items = items.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(
+        items.iter().copied(),
+        commas.iter().copied(),
+        stream,
+        config,
+    );
 
     stream.decrement_indent();
     stream.end_line();
@@ -450,21 +492,12 @@ pub fn format_literal_hints(
         }
     }
 
-    let mut items = items.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(
+        items.iter().copied(),
+        commas.iter().copied(),
+        stream,
+        config,
+    );
 
     stream.decrement_indent();
     stream.end_line();
@@ -536,21 +569,12 @@ pub fn format_literal_output(
         }
     }
 
-    let mut items = items.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(
+        items.iter().copied(),
+        commas.iter().copied(),
+        stream,
+        config,
+    );
 
     stream.decrement_indent();
     stream.end_line();
