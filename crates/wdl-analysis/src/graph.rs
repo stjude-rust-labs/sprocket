@@ -360,41 +360,23 @@ impl DocumentGraphNode {
 
         // The document has been edited; if there is start source, apply the
         // edits to it
-        let (mut source, mut lines) = if let Some(start) = &change.start {
-            let source = start.clone();
-            let lines = Arc::new(LineIndex::new(&source));
-            (source, lines)
+        let (source, lines) = if change.start.is_some() {
+            change.apply()?
         } else {
             // Otherwise, apply the edits to the last parse
-            match &self.parse_state {
+            let (mut source, mut lines) = match &self.parse_state {
                 ParseState::Parsed { root, lines, .. } => (
                     SyntaxNode::new_root(root.clone()).text().to_string(),
-                    lines.clone(),
+                    (**lines).clone(),
                 ),
                 _ => bail!("cannot apply edits to a document that was not previously parsed"),
-            }
+            };
+
+            change.apply_to(&mut source, &mut lines)?;
+            (source, lines)
         };
 
-        // We keep track of the last line we've processed so we only rebuild the
-        // line index when there is a change that crosses a line
-        let mut last_line = !0u32;
-        for edit in &change.edits {
-            let range = edit.range();
-            if last_line <= range.end.line {
-                // Only rebuild the line index if the edit has changed lines
-                lines = Arc::new(LineIndex::new(&source));
-            }
-
-            last_line = range.start.line;
-            edit.apply(&mut source, &lines)?;
-        }
-
-        if !change.edits.is_empty() {
-            // Rebuild the line index after all edits have been applied
-            lines = Arc::new(LineIndex::new(&source));
-        }
-
-        Ok(Some((Some(change.version), source, lines)))
+        Ok(Some((Some(change.version), source, Arc::new(lines))))
     }
 
     /// Performs an incremental parse of the document.
@@ -1046,11 +1028,14 @@ mod tests {
             node.change = Some(IncrementalChange {
                 version: 2,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
-                    SourcePositionEncoding::UTF8,
-                    "task foo {}\n",
-                )],
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
+                        SourcePositionEncoding::UTF8,
+                        "task foo {}\n",
+                    )
+                    .unwrap(),
+                ],
             });
         }
 
