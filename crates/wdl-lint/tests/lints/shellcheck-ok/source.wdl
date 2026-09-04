@@ -104,3 +104,32 @@ task test4 {
 
     runtime {}
 }
+
+task nested_quoted_placeholders {
+    meta {}
+
+    parameter_meta {}
+
+    input {
+        Array[String] contigs
+        Boolean output_fastq
+        File? read_two_fastq
+        String prefix
+    }
+
+    command <<<
+        somecommand ~{if output_fastq
+            then "-o '" + if defined(read_two_fastq)
+                then "~{prefix}.R1.fastq.gz'"
+                else "~{prefix}.fastq.gz'"
+            else ""}
+
+        somecommand ~{if length(contigs) > 0
+            then "--ctg_name='~{sep(",", contigs)}'"
+            else ""}
+    >>>
+
+    output {}
+
+    runtime {}
+}
