@@ -72,6 +72,7 @@ libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
+lru = "0.18.3"
 lsp-types = "=0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
@@ -135,7 +136,6 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-test = "0.2.5"
 unicode-normalization = "0.1.25"
 url = "2.5.8"
-lru = "0.18.3"
 urlencoding = "2.1.3"
 utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
