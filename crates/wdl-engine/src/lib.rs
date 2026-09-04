@@ -159,8 +159,9 @@ where
     /// prior to inserting a new entry.
     ///
     /// If an entry of the same key is currently being initialized by another
-    /// call to `get`, another call to `get` wil wait for the initialization to
-    /// complete; the given cancellation token can be used to cancel the wait.
+    /// call to `get` or `get_by_ref`, the call will wait for the initialization
+    /// to complete; the given cancellation token can be used to cancel the
+    /// wait.
     ///
     /// Returns `Ok(None)` if the operation was canceled.
     ///
@@ -209,8 +210,9 @@ where
     /// prior to inserting a new entry.
     ///
     /// If an entry of the same key is currently being initialized by another
-    /// call to `get`, another call to `get` wil wait for the initialization to
-    /// complete; the given cancellation token can be used to cancel the wait.
+    /// call to `get` or `get_by_ref`, the call will wait for the initialization
+    /// to complete; the given cancellation token can be used to cancel the
+    /// wait.
     ///
     /// Returns `Ok(None)` if the operation was canceled.
     ///
