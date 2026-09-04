@@ -1,0 +1,35 @@
+warning[DeprecatedObject]: use of a deprecated `Object` type
+  ┌─ tests/analysis/deprecated-object/source.wdl:9:9
+  │
+9 │         Object an_unbound_literal_object
+  │         ^^^^^^
+  │
+  = fix: replace the `Object` with a `Map` or a `Struct`
+
+warning[UnusedInput]: unused input `an_unbound_literal_object`
+  ┌─ tests/analysis/deprecated-object/source.wdl:9:16
+  │
+9 │         Object an_unbound_literal_object
+  │                ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning[DeprecatedObject]: use of a deprecated `Object` type
+   ┌─ tests/analysis/deprecated-object/source.wdl:12:5
+   │
+12 │     Object a_bound_literal_object = object {
+   │     ^^^^^^
+   │
+   = fix: replace the `Object` with a `Map` or a `Struct`
+
+warning[UnusedDeclaration]: unused declaration `a_bound_literal_object`
+   ┌─ tests/analysis/deprecated-object/source.wdl:12:12
+   │
+12 │     Object a_bound_literal_object = object {
+   │            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning[DeprecatedObject]: use of a deprecated `Object` type
+   ┌─ tests/analysis/deprecated-object/source.wdl:18:9
+   │
+18 │         Object another_bound_literal_object = object {
+   │         ^^^^^^
+   │
+   = fix: replace the `Object` with a `Map` or a `Struct`

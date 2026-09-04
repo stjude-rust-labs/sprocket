@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Removed
+
+* The `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules were promoted to `wdl-analysis` ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
+
 ## 0.27.0 - 2026-08-26
 
 #### Added

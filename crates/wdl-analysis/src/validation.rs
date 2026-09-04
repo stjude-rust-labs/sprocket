@@ -29,6 +29,7 @@ use crate::rules::RULE_MAP;
 
 mod commands;
 mod counts;
+mod deprecated;
 mod env;
 mod exceptions;
 mod exprs;
@@ -340,6 +341,7 @@ impl Default for Validator {
             Box::<imports::ImportsVisitor>::default(),
             Box::<env::EnvVisitor>::default(),
             Box::<commands::CommandSectionVisitor>::default(),
+            Box::<deprecated::Deprecated>::default(),
         ]);
         validator
     }

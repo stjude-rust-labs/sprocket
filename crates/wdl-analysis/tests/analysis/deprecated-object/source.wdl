@@ -2,9 +2,7 @@
 
 version 1.1
 
-#@ except: DeclarationName, MatchingOutputMeta, MetaSections
 workflow test {
-    #@ except: MetaDescription
     meta {}
 
     input {
