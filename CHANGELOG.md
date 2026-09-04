@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added configuration setting `run.digest_cache_capacity` and
+  `server.engine.digest_cache_capacity` for specifying the evaluation digest
+  cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* Added configuration setting `run.choice_cache_capacity` and
+  `server.engine.choice_cache_capacity` for specifying the enum choice cache
+  capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* Added configuration setting `run.regex_cache_capacity` and
+  `server.engine.regex_cache_capacity` for specifying the compiled regular
+  expression cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* Added configuration setting `run.http.response_cache_capacity` and
+  `server.engine.http.response_cache_capacity` for specifying the HTTP response
+  cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+
 ### Changed
 
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
