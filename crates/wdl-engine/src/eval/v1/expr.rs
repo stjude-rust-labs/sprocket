@@ -1872,7 +1872,7 @@ pub(crate) mod tests {
     impl<'a> TestEvaluationContext<'a> {
         pub async fn new(env: &'a TestEnv, version: SupportedVersion) -> Self {
             let engine = Engine::new_with_http_client(
-                Config::default(),
+                Config::local(),
                 TestHttpClient(env.test_dir.path().into()),
             )
             .await
