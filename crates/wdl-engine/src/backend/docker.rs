@@ -473,6 +473,9 @@ pub struct DockerBackend {
     max_cpu: f64,
     /// The maximum memory for any of one node.
     max_memory: u64,
+    /// Whether the Docker daemon is running in rootless mode.
+    #[cfg(unix)]
+    rootless: bool,
     /// The task manager for the backend.
     manager: TaskManager,
 }
@@ -504,6 +507,14 @@ impl DockerBackend {
         .await
         .context("failed to initialize Docker backend")?;
 
+        #[cfg(unix)]
+        let rootless = {
+            let client_info = backend.client().info().await?;
+            client_info
+                .security_options
+                .is_some_and(|options| options.iter().any(|opt| *opt == "name=rootless"))
+        };
+
         let resources = *backend.resources();
         let cpu = resources.cpu() as f64;
         let max_cpu = resources.max_cpu() as f64;
@@ -524,6 +535,8 @@ impl DockerBackend {
             inner: Arc::new(backend),
             max_cpu,
             max_memory,
+            #[cfg(unix)]
+            rootless,
             manager,
         })
     }
@@ -663,17 +676,25 @@ impl TaskExecutionBackend for DockerBackend {
             // which abandons a task that has to wait for resources
             // once evaluation has been canceled.
             #[cfg(unix)]
-            {
-                let work_dir = request.work_dir();
-                if work_dir.exists() {
-                    let name = format!(
-                        "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
-                        name = request.name
-                    );
+            'cleanup: {
+                if self.rootless {
+                    // Under rootless Docker, the `work_dir` is already owned by
+                    // the user. Nothing to do.
+                    break 'cleanup;
+                }
 
-                    if let Err(e) = chown_work_dir(self.inner.as_ref(), &name, &work_dir).await {
-                        tracing::error!("Docker backend cleanup failed: {e:#}");
-                    }
+                let work_dir = request.work_dir();
+                if !work_dir.exists() {
+                    break 'cleanup;
+                }
+
+                let name = format!(
+                    "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
+                    name = request.name
+                );
+
+                if let Err(e) = chown_work_dir(self.inner.as_ref(), &name, &work_dir).await {
+                    tracing::error!("Docker backend cleanup failed: {e:#}");
                 }
             }
 
