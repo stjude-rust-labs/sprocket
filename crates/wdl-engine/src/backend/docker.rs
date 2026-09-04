@@ -474,6 +474,7 @@ pub struct DockerBackend {
     /// The maximum memory for any of one node.
     max_memory: u64,
     /// Whether the Docker daemon is running in rootless mode.
+    #[cfg(unix)]
     rootless: bool,
     /// The task manager for the backend.
     manager: TaskManager,
@@ -506,10 +507,13 @@ impl DockerBackend {
         .await
         .context("failed to initialize Docker backend")?;
 
-        let client_info = backend.client().info().await?;
-        let rootless = client_info
-            .security_options
-            .is_some_and(|options| options.iter().any(|opt| *opt == "name=rootless"));
+        #[cfg(unix)]
+        let rootless = {
+            let client_info = backend.client().info().await?;
+            client_info
+                .security_options
+                .is_some_and(|options| options.iter().any(|opt| *opt == "name=rootless"))
+        };
 
         let resources = *backend.resources();
         let cpu = resources.cpu() as f64;
@@ -531,6 +535,7 @@ impl DockerBackend {
             inner: Arc::new(backend),
             max_cpu,
             max_memory,
+            #[cfg(unix)]
             rootless,
             manager,
         })
