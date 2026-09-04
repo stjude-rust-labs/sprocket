@@ -43,9 +43,7 @@ use tracing::info;
 use tracing::instrument::WithSubscriber;
 use tracing::span;
 use tracing::subscriber::NoSubscriber;
-use tracing_indicatif::IndicatifWriter;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
-use tracing_indicatif::writer::Stdout;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
@@ -66,6 +64,7 @@ use wdl::engine::config::FailureMode;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::Config;
+use crate::Stdout;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -306,7 +305,7 @@ impl TestIteration {
         self,
         clean: bool,
         quiet: bool,
-        mut indicatif_writer: IndicatifWriter<Stdout>,
+        mut stdout: Stdout,
     ) -> Result<IterationResult> {
         let id = format!(
             "{doc}::{target}::{test} (iteration #{num})",
@@ -441,13 +440,13 @@ impl TestIteration {
         if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
-                    writeln!(&mut indicatif_writer, "{id}: ✅")?;
+                    writeln!(&mut stdout, "{id}: ✅")?;
                 }
                 Ok(IterationResult::Fail(_)) => {
-                    writeln!(&mut indicatif_writer, "{id}: ❌")?;
+                    writeln!(&mut stdout, "{id}: ❌")?;
                 }
                 Err(_) => {
-                    writeln!(&mut indicatif_writer, "{id}: ☠️")?;
+                    writeln!(&mut stdout, "{id}: ☠️")?;
                 }
             }
         }
@@ -610,7 +609,7 @@ struct Runner {
     fixtures: Arc<EvaluationPath>,
     engine: Engine,
     status_bar: StatusBar,
-    indicatif_writer: IndicatifWriter<Stdout>,
+    stdout: Stdout,
     permits: usize,
     throttle: u64,
     cancellation: CancellationContext,
@@ -814,7 +813,7 @@ impl Runner {
             .expect("should have test results");
 
         let evaluation = test_iteration
-            .evaluate(clean, quiet, self.indicatif_writer.clone())
+            .evaluate(clean, quiet, self.stdout.clone())
             .await;
         test_results.push(evaluation);
 
@@ -987,7 +986,7 @@ pub async fn test(
     args: Args,
     mut config: Config,
     colorize: bool,
-    indicatif_writer: IndicatifWriter<Stdout>,
+    stdout: Stdout,
 ) -> CommandResult<()> {
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
@@ -1155,7 +1154,7 @@ pub async fn test(
         } else {
             StatusBar::new(colorize)
         },
-        indicatif_writer,
+        stdout,
         permits: parallelism,
         throttle: config.test.throttle,
         cancellation: cancellation.clone(),
