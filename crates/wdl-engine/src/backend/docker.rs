@@ -689,7 +689,6 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::backend::tests::EvalContext;
 
     /// Builds the error Docker produces when a bind mount source is missing.
     fn bind_error(path: &str) -> anyhow::Error {
@@ -768,6 +767,7 @@ mod tests {
 
         use crate::CancellationContext;
         use crate::Events;
+        use crate::backend::tests::EvalContext;
         use crate::config::FailureMode;
 
         let root = TempDir::new().unwrap();

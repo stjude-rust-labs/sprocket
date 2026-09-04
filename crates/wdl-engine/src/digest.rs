@@ -621,7 +621,7 @@ pub(crate) mod tests {
 
     /// Creates a digest calculator for the tests.
     pub async fn digests(client: DigestHttpClient) -> DigestCalculator {
-        let engine = Engine::new_with_http_client(Config::default(), client)
+        let engine = Engine::new_with_http_client(Config::local(), client)
             .await
             .unwrap();
 

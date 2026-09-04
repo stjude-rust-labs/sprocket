@@ -383,7 +383,7 @@ pub(crate) mod tests {
 
     impl EvalContext {
         pub async fn new(events: Events, cancellation: CancellationContext) -> Self {
-            let engine = Engine::new_with_http_client(Config::default(), NotImplementedHttpClient)
+            let engine = Engine::new_with_http_client(Config::local(), NotImplementedHttpClient)
                 .await
                 .unwrap();
 
