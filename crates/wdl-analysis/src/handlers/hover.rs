@@ -568,12 +568,7 @@ fn get_function_hover_content(
                 .collect::<Vec<_>>()
                 .join("\n---\n");
 
-            let docs = p
-                .signatures()
-                .iter()
-                .find(|s| s.minimum_version() <= v)
-                .and_then(|s| s.definition())
-                .unwrap_or("");
+            let docs = p.definition(v).unwrap_or("");
             (detail, docs)
         }
     };

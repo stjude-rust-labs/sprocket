@@ -1,12 +1,16 @@
 //! Integration tests for the `textDocument/signatureHelp` request.
 
+use async_lsp::lsp_types::DidChangeTextDocumentParams;
 use async_lsp::lsp_types::ParameterLabel;
 use async_lsp::lsp_types::Position;
 use async_lsp::lsp_types::SignatureHelp;
 use async_lsp::lsp_types::SignatureHelpParams;
 use async_lsp::lsp_types::SignatureHelpTriggerKind;
+use async_lsp::lsp_types::TextDocumentContentChangeEvent;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
+use async_lsp::lsp_types::VersionedTextDocumentIdentifier;
+use async_lsp::lsp_types::notification::DidChangeTextDocument;
 use async_lsp::lsp_types::request::SignatureHelpRequest;
 use pretty_assertions::assert_eq;
 
@@ -116,4 +120,61 @@ async fn should_provide_signature_help_for_polymorphic_function() {
     let param_info = &sig_info.parameters.as_ref().unwrap();
     assert_eq!(param_info[0].label, ParameterLabel::LabelOffsets([5, 17]));
     assert_eq!(param_info[1].label, ParameterLabel::LabelOffsets([20, 32]));
+}
+
+#[tokio::test]
+async fn should_filter_signature_help_by_version() {
+    let mut ctx = setup().await;
+
+    let response = signature_help_request(&mut ctx, "source_v1_0.wdl", Position::new(7, 24))
+        .await
+        .expect("request should succeed");
+    let help = response.expect("should have a signature help response");
+
+    assert_eq!(help.signatures.len(), 2);
+    assert!(
+        help.signatures
+            .iter()
+            .all(|signature| !signature.label.contains("Directory"))
+    );
+    assert!(help.signatures.iter().all(|signature| {
+        let Some(async_lsp::lsp_types::Documentation::MarkupContent(documentation)) =
+            &signature.documentation
+        else {
+            return false;
+        };
+        documentation.value.contains("version 1.0")
+            && !documentation.value.contains("files/directories")
+    }));
+
+    let response = signature_help_request(&mut ctx, "source_v1_0.wdl", Position::new(8, 36))
+        .await
+        .expect("request should succeed");
+    assert!(response.is_none());
+}
+
+#[tokio::test]
+async fn should_provide_signature_help_during_incremental_change() {
+    let mut ctx = setup().await;
+    let path = "source.wdl";
+    let mut text = std::fs::read_to_string(ctx.doc_path(path)).expect("source should be readable");
+    text.push('\n');
+
+    ctx.notify::<DidChangeTextDocument>(DidChangeTextDocumentParams {
+        text_document: VersionedTextDocumentIdentifier {
+            uri: ctx.doc_uri(path),
+            version: 1,
+        },
+        content_changes: vec![TextDocumentContentChangeEvent {
+            range: None,
+            range_length: None,
+            text,
+        }],
+    })
+    .expect("notification should succeed");
+
+    let response = signature_help_request(&mut ctx, path, Position::new(7, 24))
+        .await
+        .expect("request should succeed");
+    assert!(response.is_some());
 }

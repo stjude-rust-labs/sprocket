@@ -359,7 +359,7 @@ pub const fn descriptor() -> Function {
                 ),
                 Signature::new(
                     "(value: X, <unit: String>) -> Float where `X`: any compound type that \
-                     recursively contains a `File` or `Directory`",
+                     recursively contains a file system path",
                     Callback::Async(size),
                 ),
             ]
