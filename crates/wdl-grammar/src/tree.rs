@@ -2,7 +2,6 @@
 
 pub mod dive;
 
-use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
@@ -816,7 +815,7 @@ impl SyntaxTree {
     }
 
     /// Gets a copy of the underlying root green node for the tree.
-    pub fn green(&self) -> Cow<'_, GreenNodeData> {
+    pub fn green(&self) -> &GreenNodeData {
         self.0.green()
     }
 

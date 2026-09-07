@@ -1120,7 +1120,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
             name: name.text().to_string(),
             source: None,
             offset: definition.span().start(),
-            node: definition.inner().green().into(),
+            node: definition.inner().green().to_owned(),
             ty: None,
         },
     );
@@ -1187,7 +1187,7 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
             name: name.text().to_string(),
             source: None,
             offset: definition.span().start(),
-            node: definition.inner().green().into(),
+            node: definition.inner().green().to_owned(),
             ty: None,
         },
     );
