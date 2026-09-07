@@ -1,7 +1,6 @@
 //! A lint rule for matching parameter metadata.
 
-use std::collections::HashMap;
-
+use indexmap::IndexMap;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::Example;
@@ -11,6 +10,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Documented;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -29,26 +29,49 @@ use crate::TagSet;
 const ID: &str = "ParameterMetaMatched";
 
 /// Creates a "missing param meta" diagnostic.
-fn missing_param_meta(parent: &SectionParent, missing: &str, span: Span) -> Diagnostic {
-    let (context, parent) = match parent {
-        SectionParent::Task(t) => ("task", t.name()),
-        SectionParent::Workflow(w) => ("workflow", w.name()),
-        SectionParent::Struct(s) => ("struct", s.name()),
+fn missing_param_meta(
+    parent: &SectionParent,
+    missing: &str,
+    span: Span,
+    suggest_doc_comments: bool,
+) -> Diagnostic {
+    let (context, decl_type, parent) = match parent {
+        SectionParent::Task(t) => ("task", "input", t.name()),
+        SectionParent::Workflow(w) => ("workflow", "input", w.name()),
+        SectionParent::Struct(s) => ("struct", "field", s.name()),
     };
 
-    Diagnostic::warning(format!(
-        "{context} `{parent}` is missing a parameter metadata key for input `{missing}`",
+    let suggestion = if suggest_doc_comments {
+        "doc comment"
+    } else {
+        "parameter metadata key"
+    };
+
+    let mut diagnostic = Diagnostic::warning(format!(
+        "{context} `{parent}` is missing a {suggestion} for {decl_type} `{missing}`",
         parent = parent.text(),
     ))
     .with_rule(ID)
     .with_label(
-        "this input does not have an entry in the parameter metadata section",
+        format!(
+            "this input does not have {}",
+            if suggest_doc_comments {
+                "a doc comment"
+            } else {
+                "an entry in the parameter metadata section"
+            }
+        ),
         span,
-    )
-    .with_fix(format!(
-        "add a `{missing}` key to the `parameter_meta` section with a detailed description of the \
-         input.",
-    ))
+    );
+
+    if !suggest_doc_comments {
+        diagnostic = diagnostic.with_fix(format!(
+            "add a `{missing}` key to the `parameter_meta` section with a detailed description of \
+             the input.",
+        ));
+    }
+
+    diagnostic
 }
 
 /// Creates an "extra param meta" diagnostic.
@@ -191,50 +214,101 @@ task say_hello {
 /// along with the order of the items.
 fn check_parameter_meta(
     parent: &SectionParent,
-    expected: Vec<Decl>,
-    param_meta: ParameterMetadataSection,
+    decls: Vec<Decl>,
+    param_meta: Option<ParameterMetadataSection>,
     diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
-    let expected_map: HashMap<_, _> = expected
+    let decls_map: IndexMap<_, _> = decls
         .iter()
-        .map(|decl| (decl.name().text().to_string(), decl.name().span()))
-        .collect();
-    let actual_map: HashMap<_, _> = param_meta
-        .items()
-        .map(|m| {
-            let name = m.name();
-            (name.text().to_string(), name.span())
+        .map(|decl| {
+            (
+                decl.name().text().to_string(),
+                (
+                    decl.name().span(),
+                    decl.inner(),
+                    decl.doc_comments().is_some_and(|docs| !docs.is_empty()),
+                ),
+            )
         })
         .collect();
 
-    // We determine the intersection of expected and actual parameter names.
-    // Using these we next check for missing and extraneous parameters
-    // separately.
-    let expected_order: Vec<_> = expected
+    if param_meta.is_none()
+        && decls_map
+            .iter()
+            .all(|(_, (_, _, has_doc_comments))| !has_doc_comments)
+    {
+        // Leave the case of no `parameter_meta` or doc comments for
+        // `MetaSections`
+        return;
+    }
+
+    let parameter_meta_map: IndexMap<_, _> =
+        param_meta
+            .as_ref()
+            .map_or_else(IndexMap::default, |param_meta| {
+                param_meta
+                    .items()
+                    .map(|m| {
+                        let name = m.name();
+                        (name.text().to_string(), name.span())
+                    })
+                    .collect()
+            });
+
+    // The suggestion depends on whatever we find first, a doc comment or a
+    // `parameter_meta` entry
+    let suggest_doc_comments = decls_map
         .iter()
-        .map(|decl| decl.name().text().to_string())
-        .filter(|name| actual_map.contains_key(name))
-        .collect();
+        .find_map(|(name, (_, _, has_doc_comments))| {
+            if *has_doc_comments {
+                Some(true)
+            } else if parameter_meta_map.contains_key(name) {
+                Some(false)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(false);
 
-    let actual_order: Vec<_> = param_meta
-        .items()
-        .map(|m| m.name().text().to_string())
-        .filter(|name| expected_map.contains_key(name))
-        .collect();
-
-    for (name, span) in &expected_map {
-        if !actual_map.contains_key(name) {
+    for (name, (span, decl_node, has_doc_comments)) in &decls_map {
+        if !has_doc_comments && !parameter_meta_map.contains_key(name) {
             diagnostics.exceptable_add(
-                missing_param_meta(parent, name, *span),
-                param_meta.inner(),
+                missing_param_meta(parent, name, *span, suggest_doc_comments),
+                param_meta
+                    .as_ref()
+                    .map_or(*decl_node, |param_meta| param_meta.inner()),
                 exceptable_nodes,
             );
         }
     }
 
-    for (name, span) in &actual_map {
-        if !expected_map.contains_key(name) {
+    let Some(param_meta) = param_meta else {
+        return;
+    };
+
+    // We determine the intersection of expected and actual parameter names.
+    // Using these we next check for missing and extraneous parameters
+    // separately.
+    let expected_order: Vec<_> = decls_map
+        .iter()
+        .filter_map(|(name, (_, _, has_doc_comments))| {
+            if parameter_meta_map.contains_key(name) && !has_doc_comments {
+                Some(name.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let actual_order: Vec<_> = parameter_meta_map
+        .keys()
+        .filter(|name| decls_map.contains_key(&**name))
+        .cloned()
+        .collect();
+
+    for (name, span) in &parameter_meta_map {
+        if !decls_map.contains_key(name) {
             diagnostics.exceptable_add(
                 extra_param_meta(parent, name, *span),
                 param_meta.inner(),
@@ -290,21 +364,13 @@ impl Visitor for ParameterMetaMatchedRule {
         // Note that only the first input and parameter_meta sections are
         // checked as any additional sections is considered a validation
         // error
-        match task.parameter_metadata() {
-            Some(param_meta) => {
-                check_parameter_meta(
-                    &SectionParent::Task(task.clone()),
-                    task.input().iter().flat_map(|i| i.declarations()).collect(),
-                    param_meta,
-                    diagnostics,
-                    &self.exceptable_nodes(),
-                );
-            }
-            None => {
-                // If there is no parameter_meta section, then let the
-                // MetaSections rule handle it
-            }
-        }
+        check_parameter_meta(
+            &SectionParent::Task(task.clone()),
+            task.input().iter().flat_map(|i| i.declarations()).collect(),
+            task.parameter_metadata(),
+            diagnostics,
+            &self.exceptable_nodes(),
+        );
     }
 
     fn workflow_definition(
@@ -320,25 +386,17 @@ impl Visitor for ParameterMetaMatchedRule {
         // Note that only the first input and parameter_meta sections are
         // checked as any additional sections is considered a validation
         // error
-        match workflow.parameter_metadata() {
-            Some(param_meta) => {
-                check_parameter_meta(
-                    &SectionParent::Workflow(workflow.clone()),
-                    workflow
-                        .input()
-                        .iter()
-                        .flat_map(|i| i.declarations())
-                        .collect(),
-                    param_meta,
-                    diagnostics,
-                    &self.exceptable_nodes(),
-                );
-            }
-            None => {
-                // If there is no parameter_meta section, then let the
-                // MetaSections rule handle it
-            }
-        }
+        check_parameter_meta(
+            &SectionParent::Workflow(workflow.clone()),
+            workflow
+                .input()
+                .iter()
+                .flat_map(|i| i.declarations())
+                .collect(),
+            workflow.parameter_metadata(),
+            diagnostics,
+            &self.exceptable_nodes(),
+        );
     }
 
     fn struct_definition(
@@ -359,20 +417,12 @@ impl Visitor for ParameterMetaMatchedRule {
         // Note that only the first input and parameter_meta sections are
         // checked as any additional sections is considered a validation
         // error
-        match def.parameter_metadata().next() {
-            Some(param_meta) => {
-                check_parameter_meta(
-                    &SectionParent::Struct(def.clone()),
-                    def.members().map(Decl::Unbound).collect(),
-                    param_meta,
-                    diagnostics,
-                    &self.exceptable_nodes(),
-                );
-            }
-            None => {
-                // If there is no parameter_meta section, then let the
-                // MetaSections rule handle it
-            }
-        }
+        check_parameter_meta(
+            &SectionParent::Struct(def.clone()),
+            def.members().map(Decl::Unbound).collect(),
+            def.parameter_metadata().next(),
+            diagnostics,
+            &self.exceptable_nodes(),
+        );
     }
 }

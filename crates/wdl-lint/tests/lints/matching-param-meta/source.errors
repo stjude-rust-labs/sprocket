@@ -1,42 +1,58 @@
 note[ParameterMetaMatched]: workflow `w` has an extraneous parameter metadata key named `extra`
-   ┌─ tests/lints/matching-param-meta/source.wdl:24:9
+   ┌─ tests/lints/matching-param-meta/source.wdl:22:9
    │
-24 │         extra: "this should not be here"
+22 │         extra: "this should not be here"
    │         ^^^^^ this key does not correspond to any input declaration
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
 warning[ParameterMetaMatched]: workflow `w` is missing a parameter metadata key for input `does_not_exist`
-   ┌─ tests/lints/matching-param-meta/source.wdl:29:16
+   ┌─ tests/lints/matching-param-meta/source.wdl:27:16
    │
-29 │         String does_not_exist
+27 │         String does_not_exist
    │                ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
 warning[ParameterMetaMatched]: task `foo` is missing a parameter metadata key for input `does_not_exist`
-   ┌─ tests/lints/matching-param-meta/source.wdl:52:16
+   ┌─ tests/lints/matching-param-meta/source.wdl:46:16
    │
-52 │         String does_not_exist
+46 │         String does_not_exist
    │                ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
 note[ParameterMetaMatched]: task `bar` has an extraneous parameter metadata key named `does_not_exist`
-   ┌─ tests/lints/matching-param-meta/source.wdl:73:9
+   ┌─ tests/lints/matching-param-meta/source.wdl:63:9
    │
-73 │         does_not_exist: "this should not be here"
+63 │         does_not_exist: "this should not be here"
    │         ^^^^^^^^^^^^^^ this key does not correspond to any input declaration
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
 note[ParameterMetaMatched]: parameter metadata in task `baz` is out of order
-   ┌─ tests/lints/matching-param-meta/source.wdl:89:5
+   ┌─ tests/lints/matching-param-meta/source.wdl:75:5
    │
-89 │     parameter_meta {
+75 │     parameter_meta {
    │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
    │
    = fix: based on the current `input` order, order the parameter metadata as:
      first
      second
+
+note[ParameterMetaMatched]: parameter metadata in task `quux` is out of order
+    ┌─ tests/lints/matching-param-meta/source.wdl:113:5
+    │
+113 │     parameter_meta {
+    │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+    │
+    = fix: based on the current `input` order, order the parameter metadata as:
+      first
+      third
+
+warning[ParameterMetaMatched]: task `corge` is missing a doc comment for input `second`
+    ┌─ tests/lints/matching-param-meta/source.wdl:125:16
+    │
+125 │         String second
+    │                ^^^^^^ this input does not have a doc comment
 

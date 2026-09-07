@@ -6,7 +6,7 @@ note[ParameterMetaMatched]: struct `Text` has an extraneous parameter metadata k
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
-warning[ParameterMetaMatched]: struct `Text` is missing a parameter metadata key for input `does_not_exist`
+warning[ParameterMetaMatched]: struct `Text` is missing a parameter metadata key for field `does_not_exist`
    ┌─ tests/lints/struct-matching-param-meta/source.wdl:27:12
    │
 27 │     String does_not_exist
