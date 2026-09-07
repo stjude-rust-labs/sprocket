@@ -11,9 +11,16 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Documented;
 use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
+use wdl_ast::SyntaxTokenExt;
+use wdl_ast::doc_comments;
+use wdl_ast::v1::InputSection;
+use wdl_ast::v1::MetadataSection;
+use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
@@ -40,6 +47,7 @@ impl fmt::Display for Section {
 }
 
 /// The context for which section is missing.
+#[derive(PartialEq, Eq)]
 enum Context {
     /// A task.
     Task,
@@ -181,6 +189,58 @@ task say_hello {
     }
 }
 
+impl MetaSectionsRule {
+    /// The actual rule logic.
+    #[allow(clippy::too_many_arguments)]
+    fn check_meta_sections(
+        &self,
+        diagnostics: &mut Diagnostics,
+        name: Ident,
+        node: &SyntaxNode,
+        inputs: Option<InputSection>,
+        parameter_meta: Option<ParameterMetadataSection>,
+        meta: Option<MetadataSection>,
+        context: Context,
+    ) {
+        let self_documented = node.first_token().is_some_and(|t| {
+            doc_comments::<SyntaxNode>(t.preceding_trivia(), false)
+                .next()
+                .is_some()
+        });
+
+        let inputs_present = inputs.is_some();
+        let inputs_documented = inputs.is_some_and(|i| {
+            i.declarations()
+                .any(|d| d.doc_comments().is_some_and(|c| !c.is_empty()))
+        });
+
+        let needs_meta = meta.is_none() && !self_documented;
+        let needs_parameter_meta = (inputs_present && !inputs_documented
+            || context == Context::Struct)
+            && parameter_meta.is_none();
+
+        if needs_meta && needs_parameter_meta {
+            diagnostics.exceptable_add(
+                missing_sections(name, context),
+                node,
+                &self.exceptable_nodes(),
+            );
+        } else if needs_meta {
+            diagnostics.exceptable_add(
+                missing_section(name, Section::Meta, context),
+                node,
+                &self.exceptable_nodes(),
+            );
+        } else if needs_parameter_meta {
+            diagnostics.exceptable_add(
+                missing_section(name, Section::ParameterMeta, context),
+                node,
+                &self.exceptable_nodes(),
+            );
+        }
+    }
+}
+
 impl Visitor for MetaSectionsRule {
     fn reset(&mut self) {
         *self = Default::default();
@@ -210,27 +270,15 @@ impl Visitor for MetaSectionsRule {
             return;
         }
 
-        let inputs_present = task.input().is_some();
-
-        if inputs_present && task.metadata().is_none() && task.parameter_metadata().is_none() {
-            diagnostics.exceptable_add(
-                missing_sections(task.name(), Context::Task),
-                task.inner(),
-                &self.exceptable_nodes(),
-            );
-        } else if task.metadata().is_none() {
-            diagnostics.exceptable_add(
-                missing_section(task.name(), Section::Meta, Context::Task),
-                task.inner(),
-                &self.exceptable_nodes(),
-            );
-        } else if inputs_present && task.parameter_metadata().is_none() {
-            diagnostics.exceptable_add(
-                missing_section(task.name(), Section::ParameterMeta, Context::Task),
-                task.inner(),
-                &self.exceptable_nodes(),
-            );
-        }
+        self.check_meta_sections(
+            diagnostics,
+            task.name(),
+            task.inner(),
+            task.input(),
+            task.parameter_metadata(),
+            task.metadata(),
+            Context::Task,
+        );
     }
 
     fn workflow_definition(
@@ -243,30 +291,15 @@ impl Visitor for MetaSectionsRule {
             return;
         }
 
-        let inputs_present = workflow.input().is_some();
-
-        if inputs_present
-            && workflow.metadata().is_none()
-            && workflow.parameter_metadata().is_none()
-        {
-            diagnostics.exceptable_add(
-                missing_sections(workflow.name(), Context::Workflow),
-                workflow.inner(),
-                &self.exceptable_nodes(),
-            );
-        } else if workflow.metadata().is_none() {
-            diagnostics.exceptable_add(
-                missing_section(workflow.name(), Section::Meta, Context::Workflow),
-                workflow.inner(),
-                &self.exceptable_nodes(),
-            );
-        } else if inputs_present && workflow.parameter_metadata().is_none() {
-            diagnostics.exceptable_add(
-                missing_section(workflow.name(), Section::ParameterMeta, Context::Workflow),
-                workflow.inner(),
-                &self.exceptable_nodes(),
-            );
-        }
+        self.check_meta_sections(
+            diagnostics,
+            workflow.name(),
+            workflow.inner(),
+            workflow.input(),
+            workflow.parameter_metadata(),
+            workflow.metadata(),
+            Context::Workflow,
+        );
     }
 
     fn struct_definition(
@@ -284,24 +317,14 @@ impl Visitor for MetaSectionsRule {
             return;
         }
 
-        if def.metadata().next().is_none() && def.parameter_metadata().next().is_none() {
-            diagnostics.exceptable_add(
-                missing_sections(def.name(), Context::Struct),
-                def.inner(),
-                &self.exceptable_nodes(),
-            );
-        } else if def.metadata().next().is_none() {
-            diagnostics.exceptable_add(
-                missing_section(def.name(), Section::Meta, Context::Struct),
-                def.inner(),
-                &self.exceptable_nodes(),
-            );
-        } else if def.parameter_metadata().next().is_none() {
-            diagnostics.exceptable_add(
-                missing_section(def.name(), Section::ParameterMeta, Context::Struct),
-                def.inner(),
-                &self.exceptable_nodes(),
-            );
-        }
+        self.check_meta_sections(
+            diagnostics,
+            def.name(),
+            def.inner(),
+            None,
+            def.parameter_metadata().next(),
+            def.metadata().next(),
+            Context::Struct,
+        );
     }
 }

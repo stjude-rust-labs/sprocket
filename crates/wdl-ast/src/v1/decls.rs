@@ -811,8 +811,11 @@ impl Documented<SyntaxNode> for UnboundDecl<SyntaxNode> {
         }
 
         Some(
-            crate::doc_comments::<SyntaxNode>(self.inner().first_token()?.preceding_trivia())
-                .collect(),
+            crate::doc_comments::<SyntaxNode>(
+                self.inner().first_token()?.preceding_trivia(),
+                false,
+            )
+            .collect(),
         )
     }
 }
@@ -876,8 +879,11 @@ impl Documented<SyntaxNode> for BoundDecl<SyntaxNode> {
         }
 
         Some(
-            crate::doc_comments::<SyntaxNode>(self.inner().first_token()?.preceding_trivia())
-                .collect(),
+            crate::doc_comments::<SyntaxNode>(
+                self.inner().first_token()?.preceding_trivia(),
+                false,
+            )
+            .collect(),
         )
     }
 }
@@ -890,6 +896,15 @@ pub enum Decl<N: TreeNode = SyntaxNode> {
     Bound(BoundDecl<N>),
     /// The declaration is unbound.
     Unbound(UnboundDecl<N>),
+}
+
+impl Documented<SyntaxNode> for Decl<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        match self {
+            Decl::Bound(bound) => bound.doc_comments(),
+            Decl::Unbound(unbound) => unbound.doc_comments(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]

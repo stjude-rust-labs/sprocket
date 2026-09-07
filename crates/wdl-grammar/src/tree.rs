@@ -840,7 +840,7 @@ impl fmt::Debug for SyntaxTree {
 /// An extension trait for [`SyntaxToken`]s.
 pub trait SyntaxTokenExt {
     /// Gets all of the substantial preceding trivia for an element.
-    fn preceding_trivia(&self) -> impl Iterator<Item = SyntaxToken>;
+    fn preceding_trivia(&self) -> impl DoubleEndedIterator<Item = SyntaxToken>;
 
     /// Get any inline comment directly following an element on the
     /// same line.
@@ -848,7 +848,7 @@ pub trait SyntaxTokenExt {
 }
 
 impl SyntaxTokenExt for SyntaxToken {
-    fn preceding_trivia(&self) -> impl Iterator<Item = SyntaxToken> {
+    fn preceding_trivia(&self) -> impl DoubleEndedIterator<Item = SyntaxToken> {
         let mut tokens = VecDeque::new();
         let mut cur = self.prev_token();
         while let Some(token) = cur {
