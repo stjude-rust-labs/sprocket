@@ -945,7 +945,7 @@ impl Document {
                     data: Arc::new(DocumentData::new(
                         config.clone(),
                         node.uri().clone(),
-                        Some(root.inner().green().into()),
+                        Some(root.inner().green().to_owned()),
                         None,
                         diagnostics.to_vec(),
                     )),
@@ -956,7 +956,7 @@ impl Document {
         let mut data = DocumentData::new(
             config.clone(),
             node.uri().clone(),
-            Some(root.inner().green().into()),
+            Some(root.inner().green().to_owned()),
             Some(wdl_version),
             diagnostics.to_vec(),
         );

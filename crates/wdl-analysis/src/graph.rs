@@ -504,7 +504,7 @@ impl DocumentGraphNode {
         Ok(ParseState::Parsed {
             version,
             wdl_version,
-            root: document.inner().green().into(),
+            root: document.inner().green().to_owned(),
             lines,
             diagnostics: diagnostics.into(),
         })
@@ -988,7 +988,7 @@ mod tests {
         // Parsed document with no pending changes
         let source = "version 1.1\n";
         let document = wdl_ast::Document::parse(source, None).0;
-        let root = document.inner().green().into();
+        let root = document.inner().green().to_owned();
 
         {
             let node = graph.get_mut(dependent_index);
@@ -1031,7 +1031,7 @@ mod tests {
 
         let source = "version 1.1\n";
         let document = wdl_ast::Document::parse(source, None).0;
-        let root = document.inner().green().into();
+        let root = document.inner().green().to_owned();
 
         {
             let node = graph.get_mut(dependent_index);
