@@ -2,6 +2,8 @@
 
 use std::ffi::OsStr;
 use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
@@ -211,8 +213,6 @@ pub enum SourcePositionEncoding {
 #[derive(Debug, Clone)]
 pub struct SourceEdit {
     /// The range of the edit.
-    ///
-    /// Note that invalid ranges will cause the edit to be ignored.
     range: Range<SourcePosition>,
     /// The encoding of the edit positions.
     encoding: SourcePositionEncoding,
@@ -220,18 +220,38 @@ pub struct SourceEdit {
     text: String,
 }
 
+/// Arises when creating [`SourceEdit`]s with invalid [`SourcePosition`] ranges.
+#[derive(Debug)]
+pub struct RangeError(pub Range<SourcePosition>);
+
+impl Display for RangeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "range `{:?}` has a start bound greater than its end",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for RangeError {}
+
 impl SourceEdit {
     /// Creates a new source edit for the given range and replacement text.
     pub fn new(
         range: Range<SourcePosition>,
         encoding: SourcePositionEncoding,
         text: impl Into<String>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, RangeError> {
+        if range.start > range.end {
+            return Err(RangeError(range));
+        }
+
+        Ok(Self {
             range,
             encoding,
             text: text.into(),
-        }
+        })
     }
 
     /// Gets the range of the edit.
@@ -313,6 +333,47 @@ pub struct IncrementalChange {
     pub start: Option<String>,
     /// The source edits to apply.
     pub edits: Vec<SourceEdit>,
+}
+
+impl IncrementalChange {
+    /// Attempts to apply the changes to the change's `start`.
+    ///
+    /// # Errors
+    ///
+    /// This will error if the `IncrementalChange` does not have a `start`
+    /// source.
+    pub fn apply(&self) -> Result<(String, LineIndex)> {
+        let Some(mut source) = self.start.clone() else {
+            bail!("no start source provided");
+        };
+        let mut lines = LineIndex::new(&source);
+        self.apply_to(&mut source, &mut lines)?;
+        Ok((source, lines))
+    }
+
+    /// Attempts to apply the changes to the given `source`.
+    pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<()> {
+        // We keep track of the last line we've processed so we only rebuild the
+        // line index when there is a change that crosses a line
+        let mut last_line = !0u32;
+        for edit in &self.edits {
+            let range = edit.range();
+            if last_line <= range.end.line {
+                // Only rebuild the line index if the edit has changed lines
+                *lines = LineIndex::new(source);
+            }
+
+            last_line = range.start.line;
+            edit.apply(source, lines)?;
+        }
+
+        if !self.edits.is_empty() {
+            // Rebuild the line index after all edits have been applied
+            *lines = LineIndex::new(source);
+        }
+
+        Ok(())
+    }
 }
 
 /// Represents a Workflow Description Language (WDL) document analyzer.
@@ -1966,5 +2027,16 @@ workflow test {}
             .diagnostics()
             .any(|d| d.message().contains("failed to import `bar.wdl`"));
         assert!(has_import_failed_diagnostic);
+    }
+
+    #[test]
+    #[test_log::test]
+    fn it_rejects_invalid_edit_ranges() {
+        SourceEdit::new(
+            SourcePosition::new(5, 1)..SourcePosition::new(1, 5),
+            SourcePositionEncoding::UTF8,
+            String::from("invalid range"),
+        )
+        .expect_err("should fail");
     }
 }
