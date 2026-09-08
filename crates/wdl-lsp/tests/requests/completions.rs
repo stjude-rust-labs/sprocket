@@ -6,6 +6,7 @@ use async_lsp::lsp_types::CompletionItemKind;
 use async_lsp::lsp_types::CompletionParams;
 use async_lsp::lsp_types::CompletionResponse;
 use async_lsp::lsp_types::CompletionTriggerKind;
+use async_lsp::lsp_types::Documentation;
 use async_lsp::lsp_types::Position;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
@@ -392,6 +393,23 @@ async fn should_complete_scope_variables_v1_0_stdlib() {
     assert_not_contains(&items, "find");
     assert_not_contains(&items, "chunk");
     assert_not_contains(&items, "matches");
+
+    let basename_items = items
+        .iter()
+        .filter(|item| item.label == "basename")
+        .collect::<Vec<_>>();
+    assert!(!basename_items.is_empty());
+    for item in basename_items {
+        let Some(Documentation::MarkupContent(documentation)) = &item.documentation else {
+            panic!("basename completion should have markdown documentation");
+        };
+        assert!(
+            documentation
+                .value
+                .contains("basename of a file path passed to it")
+        );
+        assert!(!documentation.value.contains("file or directory"));
+    }
 }
 
 #[tokio::test]
