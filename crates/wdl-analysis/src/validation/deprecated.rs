@@ -1,27 +1,33 @@
-//! A lint rule for flagging placeholder options as deprecated.
+//! Validation of deprecated language features.
 
-use wdl_analysis::Diagnostics;
-use wdl_analysis::Document;
-use wdl_analysis::Example;
-use wdl_analysis::LabeledSnippet;
-use wdl_analysis::VisitReason;
-use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
-use wdl_ast::Diagnostic;
-use wdl_ast::Span;
-use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxKind;
+use wdl_ast::AstToken;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
-use wdl_ast::version::V1;
+use wdl_ast::v1::TaskDefinition;
+use wdl_ast::v1::Type;
+use wdl_grammar::Diagnostic;
+use wdl_grammar::Severity;
+use wdl_grammar::Span;
+use wdl_grammar::SupportedVersion;
+use wdl_grammar::version::V1;
 
-use crate::Rule;
-use crate::Tag;
-use crate::TagSet;
+use crate::DeprecatedObjectRule;
+use crate::DeprecatedPlaceholderRule;
+use crate::DeprecatedRuntimeSectionRule;
+use crate::Diagnostics;
+use crate::Document;
+use crate::VisitReason;
+use crate::Visitor;
 
-/// The identifier for the deprecated placeholder option rule.
-const ID: &str = "DeprecatedPlaceholder";
+/// Creates a deprecated object use diagnostic.
+fn deprecated_object_use(span: Span) -> Diagnostic {
+    Diagnostic::note(String::from("use of a deprecated `Object` type"))
+        .with_rule(DeprecatedObjectRule::ID)
+        .with_highlight(span)
+        .with_fix("replace the `Object` with a `Map` or a `Struct`")
+}
 
 /// Creates a diagnostic for the use of the deprecated `default` placeholder
 /// option.
@@ -29,7 +35,7 @@ fn deprecated_default_placeholder_option(span: Span) -> Diagnostic {
     Diagnostic::note(String::from(
         "use of the deprecated `default` placeholder option",
     ))
-    .with_rule(ID)
+    .with_rule(DeprecatedPlaceholderRule::ID)
     .with_highlight(span)
     .with_fix(
         "replace the `default` placeholder option with a call to the `select_first()` standard \
@@ -42,7 +48,7 @@ fn deprecated_sep_placeholder_option(span: Span) -> Diagnostic {
     Diagnostic::note(String::from(
         "use of the deprecated `sep` placeholder option",
     ))
-    .with_rule(ID)
+    .with_rule(DeprecatedPlaceholderRule::ID)
     .with_highlight(span)
     .with_fix(
         "replace the `sep` placeholder option with a call to the `sep()` standard library function",
@@ -54,7 +60,7 @@ fn deprecated_interpolation_placeholder_option(span: Span) -> Diagnostic {
     Diagnostic::note(String::from(
         "use of the deprecated `${}` placeholder option",
     ))
-    .with_rule(ID)
+    .with_rule(DeprecatedPlaceholderRule::ID)
     .with_highlight(span)
     .with_fix("replace the opening token `$` with `~`")
 }
@@ -65,105 +71,44 @@ fn deprecated_true_false_placeholder_option(span: Span) -> Diagnostic {
     Diagnostic::note(String::from(
         "use of the deprecated `true`/`false` placeholder option",
     ))
-    .with_rule(ID)
+    .with_rule(DeprecatedPlaceholderRule::ID)
     .with_highlight(span)
     .with_fix("replace the `true`/`false` placeholder option with an `if`/`else` expression")
 }
 
-/// Detects the use of a deprecated placeholder option.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct DeprecatedPlaceholderRule {
-    /// Stores the supported version of the WDL document we're visiting.
+/// Creates a "deprecated runtime section" diagnostic.
+fn deprecated_runtime_section(task: &str, span: Span) -> Diagnostic {
+    Diagnostic::note(format!(
+        "task `{task}` contains a deprecated `runtime` section"
+    ))
+    .with_rule(DeprecatedRuntimeSectionRule::ID)
+    .with_highlight(span)
+    .with_fix("replace the `runtime` section with a `requirements` section")
+}
+
+/// A visitor for deprecated WDL features.
+#[derive(Default)]
+pub struct Deprecated {
+    /// The document version.
     version: Option<SupportedVersion>,
+    /// The severity of the `DeprecatedObject` rule.
+    object: Option<Severity>,
+    /// The severity of the `DeprecatedPlaceholder` rule.
+    placeholder: Option<Severity>,
+    /// The severity of the `DeprecatedRuntimeSection` rule.
+    runtime_section: Option<Severity>,
 }
 
-impl Rule for DeprecatedPlaceholderRule {
-    fn id(&self) -> &'static str {
-        ID
-    }
-
-    fn description(&self) -> &'static str {
-        "Ensures that deprecated expression placeholder options are not used."
-    }
-
-    fn explanation(&self) -> &'static str {
-        "Expression placeholder options were deprecated in WDL v1.1 and will be removed in the \
-         next major WDL version.
-
-         - `sep` placeholder options should be replaced by the `sep()` standard library function.
-         - `true/false` placeholder options should be replaced with `if`/`else` statements.
-         - `default` placeholder options should be replaced by the `select_first()` standard \
-         library function.
-         - `${}` interpolation placeholders should be replaced by `~{}` interpolation placeholders.
-
-
-This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this was the \
-         version where the deprecation was introduced."
-    }
-
-    fn examples(&self) -> &'static [Example] {
-        &[Example {
-            negative: LabeledSnippet {
-                label: None,
-                snippet: r#"version 1.2
-
-workflow example {
-    Array[String] names = [
-        "James",
-        "Jimmy",
-        "John",
-    ]
-    String names_separated = "~{sep="," names}"
-    String names_interpolated = "${names_separated}"
-}
-"#,
-            },
-            revised: Some(LabeledSnippet {
-                label: None,
-                snippet: r#"version 1.2
-
-workflow example {
-    Array[String] names = [
-        "James",
-        "Jimmy",
-        "John",
-    ]
-    String names_separated = "~{sep(",", names)}"
-    String names_interpolated = "~{names_separated}"
-}
-"#,
-            }),
-        }]
-    }
-
-    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
-        Some(&[
-            SyntaxKind::VersionStatementNode,
-            SyntaxKind::TaskDefinitionNode,
-            SyntaxKind::WorkflowDefinitionNode,
-            SyntaxKind::PlaceholderNode,
-        ])
-    }
-
-    fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Deprecated])
-    }
-
-    fn related_rules(&self) -> &'static [&'static str] {
-        &["DeprecatedObject", "ExpectedRuntimeKeys"]
-    }
-}
-
-impl Visitor for DeprecatedPlaceholderRule {
+impl Visitor for Deprecated {
     fn reset(&mut self) {
-        *self = Default::default();
+        *self = Self::default();
     }
 
     fn document(
         &mut self,
         _: &mut Diagnostics,
         reason: VisitReason,
-        _: &Document,
+        document: &Document,
         version: SupportedVersion,
     ) {
         if reason == VisitReason::Exit {
@@ -171,6 +116,101 @@ impl Visitor for DeprecatedPlaceholderRule {
         }
 
         self.version = Some(version);
+        self.object = document.config().diagnostics_config().deprecated_object;
+        self.placeholder = document
+            .config()
+            .diagnostics_config()
+            .deprecated_placeholder;
+        self.runtime_section = document
+            .config()
+            .diagnostics_config()
+            .deprecated_runtime_section;
+    }
+
+    fn bound_decl(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        decl: &wdl_ast::v1::BoundDecl,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let Some(severity) = self.object else {
+            return;
+        };
+
+        if let Type::Object(ty) = decl.ty() {
+            diagnostics.exceptable_add(
+                deprecated_object_use(ty.span()).with_severity(severity),
+                decl.inner(),
+                &DeprecatedObjectRule::EXCEPTABLE_NODES,
+            )
+        }
+    }
+
+    fn unbound_decl(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        decl: &wdl_ast::v1::UnboundDecl,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let Some(severity) = self.object else {
+            return;
+        };
+
+        if let Type::Object(ty) = decl.ty() {
+            diagnostics.exceptable_add(
+                deprecated_object_use(ty.span()).with_severity(severity),
+                decl.inner(),
+                &DeprecatedObjectRule::EXCEPTABLE_NODES,
+            )
+        }
+    }
+
+    fn task_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        task: &TaskDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let Some(severity) = self.runtime_section else {
+            return;
+        };
+
+        // This rule should only be present for WDL v1.2 or later, where the
+        // `runtime` section has been deprecated in favor of `requirements`.
+        if let SupportedVersion::V1(minor_version) =
+            self.version.expect("version should exist here")
+            && minor_version >= V1::Two
+            && let Some(runtime) = task.runtime()
+        {
+            let name = task.name();
+
+            diagnostics.exceptable_add(
+                deprecated_runtime_section(
+                    name.text(),
+                    runtime
+                        .inner()
+                        .first_token()
+                        .expect("runtime section should have tokens")
+                        .text_range()
+                        .into(),
+                )
+                .with_severity(severity),
+                runtime.inner(),
+                &DeprecatedRuntimeSectionRule::EXCEPTABLE_NODES,
+            );
+        }
     }
 
     fn placeholder(
@@ -183,14 +223,19 @@ impl Visitor for DeprecatedPlaceholderRule {
             return;
         }
 
+        let Some(severity) = self.placeholder else {
+            return;
+        };
+
         if !placeholder.has_tilde() {
             diagnostics.exceptable_add(
                 deprecated_interpolation_placeholder_option(Span::new(
                     placeholder.open().span().start(),
                     1,
-                )),
+                ))
+                .with_severity(severity),
                 placeholder.inner(),
-                &self.exceptable_nodes(),
+                &DeprecatedPlaceholderRule::EXCEPTABLE_NODES,
             );
         }
 
@@ -213,7 +258,11 @@ impl Visitor for DeprecatedPlaceholderRule {
                     deprecated_true_false_placeholder_option(option.span())
                 }
             };
-            diagnostics.exceptable_add(diagnostic, placeholder.inner(), &self.exceptable_nodes())
+            diagnostics.exceptable_add(
+                diagnostic.with_severity(severity),
+                placeholder.inner(),
+                &DeprecatedPlaceholderRule::EXCEPTABLE_NODES,
+            )
         }
     }
 }
@@ -241,8 +290,10 @@ mod tests {
     /// Runs the visitor's `placeholder()` method on a given placeholder with
     /// the specified version and returns whether any diagnostics were emitted.
     fn has_diagnostics(placeholder: &Placeholder, version: SupportedVersion) -> bool {
-        let mut rule = DeprecatedPlaceholderRule {
+        let mut rule = Deprecated {
             version: Some(version),
+            placeholder: Some(Severity::Warning),
+            ..Deprecated::default()
         };
         let mut diagnostics = Diagnostics::default();
         rule.placeholder(&mut diagnostics, VisitReason::Enter, placeholder);

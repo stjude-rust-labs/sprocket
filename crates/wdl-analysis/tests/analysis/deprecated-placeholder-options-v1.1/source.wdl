@@ -1,7 +1,6 @@
-## This is a test of the `DeprecatedPlaceholder` lint.
+#@ except: UnusedDeclaration, UnnecessaryFunctionCall
 
-#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, MetaDescription
-#@ except: ShellCheck
+## This is a test of the `DeprecatedPlaceholder` lint.
 
 version 1.1
 

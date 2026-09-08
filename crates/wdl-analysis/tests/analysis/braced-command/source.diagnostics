@@ -1,3 +1,11 @@
+warning[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option
+  ┌─ tests/analysis/braced-command/source.wdl:9:14
+  │
+9 │         echo ${x}
+  │              ^
+  │
+  = fix: replace the opening token `$` with `~`
+
 error: unknown name `unknown`
    ┌─ tests/analysis/braced-command/source.wdl:10:16
    │

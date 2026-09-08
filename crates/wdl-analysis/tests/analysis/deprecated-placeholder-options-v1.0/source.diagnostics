@@ -1,0 +1,7 @@
+warning[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option
+   ┌─ tests/analysis/deprecated-placeholder-options-v1.0/source.wdl:19:40
+   │
+19 │     String bad_interpolation_option = "${bar}"
+   │                                        ^
+   │
+   = fix: replace the opening token `$` with `~`

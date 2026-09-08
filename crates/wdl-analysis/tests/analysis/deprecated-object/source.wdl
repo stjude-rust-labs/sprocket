@@ -1,10 +1,10 @@
+#@ except: UnusedDeclaration, UnusedInput
+
 ## This is a test of the `DeprecatedObject` lint
 
 version 1.1
 
-#@ except: DeclarationName, MatchingOutputMeta, MetaSections
 workflow test {
-    #@ except: MetaDescription
     meta {}
 
     input {

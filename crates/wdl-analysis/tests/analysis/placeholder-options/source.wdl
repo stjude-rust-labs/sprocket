@@ -1,6 +1,6 @@
 ## Test cases for placeholder options analysis
 
-#@ except: UnusedDeclaration
+#@ except: UnusedDeclaration, DeprecatedPlaceholder
 
 version 1.3
 
