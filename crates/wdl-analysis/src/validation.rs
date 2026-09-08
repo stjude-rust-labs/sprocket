@@ -187,6 +187,12 @@ pub struct Validator {
     exceptions: exceptions::Exceptions,
 }
 
+/// Asserts that validators can move between analysis workers.
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<Validator>();
+};
+
 impl Validator {
     /// Creates a validator with an empty visitors set.
     pub fn empty() -> Self {
