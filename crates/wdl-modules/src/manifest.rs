@@ -53,6 +53,16 @@ pub enum ManifestError {
         source: RelativePathError,
     },
 
+    /// An `exclude` entry is not a valid glob.
+    #[error("invalid `exclude` pattern `{pattern}`")]
+    InvalidExcludeGlob {
+        /// The offending pattern as written in the manifest.
+        pattern: String,
+        /// The underlying glob parser error.
+        #[source]
+        source: globset::Error,
+    },
+
     /// The `readme` field was set to the literal `true`. The schema only
     /// accepts a string, the literal `false`, or absence; `true` is
     /// rejected with a dedicated message because it is a common authoring
@@ -154,12 +164,12 @@ pub struct Manifest {
     pub entrypoint: Option<RelativePath>,
     /// The module's readme.
     pub readme: Readme,
-    /// Gitignore-style glob patterns identifying files within the module
-    /// that consumers may not reach via symbolic import. Each entry is a
-    /// validated [`RelativePath`]; absolute paths, `..` segments, and
-    /// other invalid forms are rejected at parse time. Has no effect on
-    /// content hashing, signing, validation, or quoted within-module
-    /// imports.
+    /// Gitignore-style glob patterns identifying files outside the module's
+    /// logical content. Excluded files cannot be reached through symbolic or
+    /// quoted module imports and do not contribute to content validation,
+    /// hashing, signing, or packaging. Each entry is a validated
+    /// [`RelativePath`]; absolute paths, `..` segments, and other invalid forms
+    /// are rejected at parse time. The root `module.json` is always included.
     pub exclude: Vec<RelativePath>,
     /// The upstream tools wrapped by the module.
     pub tools: Vec<Tool>,
@@ -226,8 +236,8 @@ struct ManifestFields {
     /// The `readme` field, accepting a string, `false`, or absence.
     #[serde(default, deserialize_with = "deserialize_readme")]
     readme: ReadmeFields,
-    /// Gitignore-style glob patterns identifying files outside the public
-    /// import surface.
+    /// Gitignore-style glob patterns identifying files outside logical module
+    /// content.
     #[serde(default)]
     exclude: Vec<String>,
     /// The upstream tools.
@@ -340,6 +350,12 @@ impl TryFrom<ManifestFields> for Manifest {
                     .map_err(|source| ManifestError::InvalidExclude { pattern, source })
             })
             .collect::<Result<Vec<_>, _>>()?;
+        crate::module_walk::ExclusionSet::new(&exclude).map_err(|error| {
+            ManifestError::InvalidExcludeGlob {
+                pattern: error.pattern,
+                source: error.source,
+            }
+        })?;
 
         for tool in &fields.tools {
             for id in &tool.ids {
@@ -629,6 +645,22 @@ mod tests {
             }
             other => panic!("expected `InvalidExclude` variant; got {other:?}"),
         }
+    }
+
+    #[test]
+    fn rejects_invalid_exclude_glob() {
+        let err = parse(
+            r#"{
+                "name": "spellbook",
+                "license": "MIT",
+                "exclude": ["["]
+            }"#,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            ManifestError::InvalidExcludeGlob { pattern, .. } if pattern == "["
+        ));
     }
 
     #[test]
