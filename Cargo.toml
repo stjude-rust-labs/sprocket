@@ -95,7 +95,7 @@ rayon = "1.11.0"
 regex = "1.12.3"
 reqwest = { version = "0.13.1", default-features = false, features = ["rustls", "http2", "charset"] }
 rev_buf_reader = "0.3.0"
-rowan = "0.16.1"
+rowan = "0.17.0"
 schemars = "1.2.1"
 secrecy = "0.10.3"
 semver = "1.0.28"

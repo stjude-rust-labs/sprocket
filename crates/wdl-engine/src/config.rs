@@ -1916,7 +1916,7 @@ impl Condition {
 
                 Ok(Self {
                     raw,
-                    expr: expr.inner().green().into_owned(),
+                    expr: expr.inner().green().to_owned(),
                 })
             }
             Err((marker, diagnostic)) => {
