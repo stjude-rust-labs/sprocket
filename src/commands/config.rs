@@ -11,7 +11,11 @@ use crate::config::Config;
 /// The [Taplo schema directive] for `sprocket.toml`.
 ///
 /// [Taplo schema directive]: https://taplo.tamasfe.dev/configuration/directives.html#the-schema-directive
-const SCHEMA_DIRECTIVE: &str = "#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json";
+const SCHEMA_DIRECTIVE: &str = concat!(
+    "#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/tags/v",
+    env!("CARGO_PKG_VERSION"),
+    "/jsonschemas/sprocket.toml.json"
+);
 
 /// Arguments for the `config` subcommand.
 #[derive(Parser, Debug, Clone)]
@@ -86,4 +90,20 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
             .map_err(CommandError::Single)?
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SCHEMA_DIRECTIVE;
+
+    #[test]
+    fn schema_directive_uses_release_tag() {
+        assert_eq!(
+            SCHEMA_DIRECTIVE,
+            format!(
+                "#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/tags/v{}/jsonschemas/sprocket.toml.json",
+                env!("CARGO_PKG_VERSION")
+            )
+        );
+    }
 }

@@ -8,6 +8,7 @@ git_tag_name = "{{ package }}-v{{ version }}"
 [[package]]
 name = "sprocket"
 features_always_increment_minor = true
+semver_check = false
 git_release_enable = true
 git_release_name = "v{{ version }}"
 git_tag_name = "v{{ version }}"

@@ -2,13 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The `wdl` and `wdl-*` Rust crates and any separately released Python bindings
+follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The
+`sprocket` executable and its root Rust library do not; executable compatibility
+is defined by the [Sprocket compatibility policy](COMPATIBILITY.md).
 
 ## Unreleased
 
+### Added
+
+* Added the Sprocket 1.x compatibility and deprecation policy
+  ([#1071](https://github.com/stjude-rust-labs/sprocket/issues/1071)).
+
 ### Changed
 
+* `sprocket config init` now references the `sprocket.toml` schema from its
+  release tag instead of the changing `main` branch
+  ([#1071](https://github.com/stjude-rust-labs/sprocket/issues/1071)).
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
   ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).

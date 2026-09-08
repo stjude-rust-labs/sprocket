@@ -7,6 +7,7 @@ Community contributions rock and we are psyched you're reading this document!
 - Bug reports go [here][issues]
 - Feature requests are welcome and go [here](https://github.com/stjude-rust-labs/sprocket/discussions/categories/feature-requests)
 - Lint rule proposals go [here](https://github.com/stjude-rust-labs/sprocket/discussions/categories/rule-proposals)
+- Compatibility guarantees are defined in [`COMPATIBILITY.md`](COMPATIBILITY.md)
 
 ## How can I start contributing?
 
@@ -74,6 +75,20 @@ our CI checks pass. Additional guidance for satisfying the CI checks can be
 
 Note that the maintainers reserve the right to close any submission without
 review for any reason.
+
+### Compatibility changes
+
+Before changing a public interface, read
+[`COMPATIBILITY.md`](COMPATIBILITY.md). Classify the change as compatible,
+deprecated, breaking, or experimental in the pull request. A deprecation must
+include its replacement and migration instructions. Use "next release" for
+release details that maintainers will assign during release preparation.
+Breaking changes to a stable interface must follow the exception process in
+the policy.
+
+Do not rely on a `!` or `BREAKING CHANGE` conventional commit marker to choose
+the `sprocket` executable's major version. Maintainers assign executable
+versions under the compatibility policy.
 
 ## FAQs
 

@@ -14,6 +14,7 @@ For all contributors:
 - [ ] You have added tests (when appropriate).
 - [ ] You have added an entry in the CHANGELOG (when appropriate).
 - [ ] You have updated the README or other documentation to account for these changes (when appropriate).
+- [ ] You have classified changes to stable interfaces under the [compatibility policy](https://github.com/stjude-rust-labs/sprocket/blob/main/COMPATIBILITY.md) (when appropriate).
 - [ ] You have made a PR to the `next` branch in the [sprocket.bio repository](https://github.com/stjude-rust-labs/sprocket.bio) (when appropriate).
 
 For PRs containing lint rule changes:
