@@ -1052,7 +1052,7 @@ impl Document {
         let mut data = DocumentData::new(
             config.clone(),
             node.uri().clone(),
-            Some(root.inner().green().into()),
+            Some(root.inner().green().to_owned()),
             wdl_version,
             parse_diagnostics,
         );

@@ -54,6 +54,11 @@ pub struct LocatedJsonValue {
     /// values. CLI-sourced array literals (e.g., `key=["a","b"]`) are kept
     /// intact since they represent a single compound value.
     pub from_file: bool,
+    /// The original unprefixed CLI argument if it looks like an input file.
+    ///
+    /// This remains a normal continuation value unless it causes typed parsing
+    /// to fail, at which point it can support a missing-`@` diagnostic.
+    pub unprefixed_input_file: Option<String>,
 }
 
 /// An input parsed from the command line.
@@ -140,6 +145,115 @@ impl FromStr for Input {
 /// normalized and converted to engine values.
 type JsonInputMap = BTreeMap<String, Vec<LocatedJsonValue>>;
 
+/// An unprefixed CLI argument that may have been intended as an input file.
+#[derive(Clone)]
+struct InputFileCandidate {
+    /// The original unprefixed CLI argument.
+    argument: String,
+    /// The key the argument was appended to.
+    key: String,
+}
+
+/// A typed-parse retry with one candidate key's values omitted.
+struct CandidateOmission {
+    /// The candidates omitted from the input values.
+    candidates: Vec<InputFileCandidate>,
+    /// The input values with those candidates omitted.
+    values: serde_json::Map<String, JsonValue>,
+}
+
+/// Inputs flattened into the JSON representation consumed by the WDL engine.
+pub(crate) struct FlattenedInputs {
+    /// Per-key paths used to resolve relative file and directory values.
+    origins: BTreeMap<String, Vec<EvaluationPath>>,
+    /// The complete coalesced input map.
+    values: serde_json::Map<String, JsonValue>,
+    /// Input maps with one candidate key omitted at a time.
+    candidate_omissions: Vec<CandidateOmission>,
+}
+
+impl FlattenedInputs {
+    /// Returns whether the flattened input map is empty.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
+    /// Consumes the flattened inputs and returns the JSON values.
+    pub(crate) fn into_values(self) -> serde_json::Map<String, JsonValue> {
+        self.values
+    }
+
+    /// Returns the flattened JSON values.
+    pub(crate) fn values(&self) -> &serde_json::Map<String, JsonValue> {
+        &self.values
+    }
+
+    /// Parses the JSON values into typed engine inputs.
+    ///
+    /// If parsing fails, it is retried with each candidate key's unprefixed
+    /// input files omitted. A missing-`@` hint is added only when a retry
+    /// succeeds.
+    pub(crate) fn parse_engine_inputs(
+        &self,
+        document: &Document,
+    ) -> Result<Option<(String, EngineInputs)>> {
+        match EngineInputs::parse_json_object(document, self.values.clone()) {
+            Ok(inputs) => Ok(inputs),
+            Err(error) => {
+                let candidates = self
+                    .candidate_omissions
+                    .iter()
+                    .filter(|omission| {
+                        EngineInputs::parse_json_object(document, omission.values.clone()).is_ok()
+                    })
+                    .flat_map(|omission| omission.candidates.iter().cloned())
+                    .collect::<Vec<_>>();
+
+                if candidates.is_empty() {
+                    return Err(error);
+                }
+
+                Err(error).context(Self::missing_at_context(&candidates))
+            }
+        }
+    }
+
+    /// Returns the paths used to resolve relative input values.
+    pub(crate) fn origins(&self) -> &BTreeMap<String, Vec<EvaluationPath>> {
+        &self.origins
+    }
+
+    /// Builds the missing-`@` diagnostic context.
+    fn missing_at_context(candidates: &[InputFileCandidate]) -> String {
+        if let [candidate] = candidates {
+            return format!(
+                "argument `{argument}` looks like an input file but has no `@` prefix, so it was \
+                 treated as another value for `{key}`; prefix input files with `@` (for example, \
+                 `@{argument}`)",
+                argument = candidate.argument,
+                key = candidate.key,
+            );
+        }
+
+        let candidates = candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "`{argument}` after `{key}`",
+                    argument = candidate.argument,
+                    key = candidate.key,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!(
+            "arguments {candidates} look like input files but have no `@` prefix, so they were \
+             treated as additional values; prefix each input file with `@`"
+        )
+    }
+}
+
 /// A command-line invocation of a WDL workflow or task.
 ///
 /// An invocation is set of inputs parsed from the command line and/or read from
@@ -204,6 +318,7 @@ impl Invocation {
                         origin: cwd.as_path().into(),
                         value,
                         from_file: false,
+                        unprefixed_input_file: None,
                     });
                 self.last_pair_key = Some(prefixed);
             }
@@ -227,6 +342,8 @@ impl Invocation {
                         origin: cwd.as_path().into(),
                         value,
                         from_file: false,
+                        unprefixed_input_file: file::looks_like_input_file(input)
+                            .then(|| input.to_owned()),
                     });
             }
             Err(e) => return Err(e),
@@ -280,9 +397,9 @@ impl Invocation {
         document: &Document,
     ) -> Result<Option<(String, EngineInputs)>> {
         let target_override = self.target.clone();
-        let (origins, values) = self.flatten();
+        let flattened = self.flatten();
 
-        let Some((target, mut inputs)) = EngineInputs::parse_json_object(document, values)? else {
+        let Some((target, mut inputs)) = flattened.parse_engine_inputs(document)? else {
             return Ok(None);
         };
 
@@ -296,58 +413,115 @@ impl Invocation {
         }
 
         // Resolve relative paths using per-input origins.
-        join_paths_for_target(document, &target, &mut inputs, &origins).await?;
+        join_paths_for_target(document, &target, &mut inputs, flattened.origins()).await?;
 
         Ok(Some((target, inputs)))
     }
 
-    /// Flattens the collected [`LocatedJsonValue`]s into a JSON map and a
-    /// per-key origins map, applying the file-array-versus-CLI-array
-    /// flattening rules.
+    /// Flattens the collected [`LocatedJsonValue`]s for typed parsing and path
+    /// resolution, applying the file-array-versus-CLI-array flattening rules.
     ///
     /// Shared internal helper for [`Invocation::into_engine_inputs`] and
     /// [`Invocation::into_json_with_origins`].
-    pub(crate) fn flatten(
-        self,
-    ) -> (
-        BTreeMap<String, Vec<EvaluationPath>>,
-        serde_json::Map<String, JsonValue>,
-    ) {
-        self.inputs.into_iter().fold(
-            (BTreeMap::new(), serde_json::Map::new()),
-            |(mut origins, mut values), (key, located_values)| {
-                if located_values.len() == 1 {
-                    let lv = located_values.into_iter().next().unwrap();
-                    origins.insert(key.clone(), vec![lv.origin]);
-                    values.insert(key, lv.value);
-                } else {
-                    let mut element_origins = Vec::new();
-                    let mut flat_values = Vec::new();
+    pub(crate) fn flatten(self) -> FlattenedInputs {
+        fn flatten_values<F>(
+            inputs: &JsonInputMap,
+            include: F,
+        ) -> (
+            BTreeMap<String, Vec<EvaluationPath>>,
+            serde_json::Map<String, JsonValue>,
+        )
+        where
+            F: Fn(&str, &LocatedJsonValue) -> bool,
+        {
+            inputs.iter().fold(
+                (BTreeMap::new(), serde_json::Map::new()),
+                |(mut origins, mut values), (key, located_values)| {
+                    let located_values = located_values
+                        .iter()
+                        .filter(|value| include(key, value))
+                        .collect::<Vec<_>>();
 
-                    for lv in located_values {
-                        if lv.from_file {
-                            if let JsonValue::Array(arr) = lv.value {
-                                for v in arr {
-                                    element_origins.push(lv.origin.clone());
-                                    flat_values.push(v);
-                                }
-                            } else {
-                                element_origins.push(lv.origin);
-                                flat_values.push(lv.value);
-                            }
-                        } else {
-                            element_origins.push(lv.origin);
-                            flat_values.push(lv.value);
-                        }
+                    if located_values.is_empty() {
+                        return (origins, values);
                     }
 
-                    origins.insert(key.clone(), element_origins);
-                    values.insert(key, JsonValue::Array(flat_values));
-                }
+                    if located_values.len() == 1 {
+                        let lv = located_values[0];
+                        origins.insert(key.clone(), vec![lv.origin.clone()]);
+                        values.insert(key.clone(), lv.value.clone());
+                    } else {
+                        let mut element_origins = Vec::new();
+                        let mut flat_values = Vec::new();
 
-                (origins, values)
+                        for lv in located_values {
+                            if lv.from_file {
+                                if let JsonValue::Array(arr) = &lv.value {
+                                    for v in arr {
+                                        element_origins.push(lv.origin.clone());
+                                        flat_values.push(v.clone());
+                                    }
+                                } else {
+                                    element_origins.push(lv.origin.clone());
+                                    flat_values.push(lv.value.clone());
+                                }
+                            } else {
+                                element_origins.push(lv.origin.clone());
+                                flat_values.push(lv.value.clone());
+                            }
+                        }
+
+                        origins.insert(key.clone(), element_origins);
+                        values.insert(key.clone(), JsonValue::Array(flat_values));
+                    }
+
+                    (origins, values)
+                },
+            )
+        }
+
+        let candidates = self
+            .inputs
+            .iter()
+            .flat_map(|(key, values)| {
+                values.iter().filter_map(|value| {
+                    value
+                        .unprefixed_input_file
+                        .as_ref()
+                        .map(|argument| InputFileCandidate {
+                            argument: argument.clone(),
+                            key: key.clone(),
+                        })
+                })
+            })
+            .collect::<Vec<_>>();
+        let (origins, values) = flatten_values(&self.inputs, |_, _| true);
+        let candidates_by_key = candidates.iter().fold(
+            BTreeMap::<String, Vec<InputFileCandidate>>::new(),
+            |mut groups, candidate| {
+                groups
+                    .entry(candidate.key.clone())
+                    .or_default()
+                    .push(candidate.clone());
+                groups
             },
-        )
+        );
+        let candidate_omissions = candidates_by_key
+            .into_iter()
+            .map(|(candidate_key, candidates)| {
+                let values = flatten_values(&self.inputs, |key, value| {
+                    value.unprefixed_input_file.is_none() || key != candidate_key
+                })
+                .1;
+                CandidateOmission { candidates, values }
+            })
+            .collect();
+
+        FlattenedInputs {
+            origins,
+            values,
+            candidate_omissions,
+        }
     }
 
     /// Converts the collected inputs into a JSON object with target-prefixed
@@ -362,12 +536,7 @@ impl Invocation {
     /// present in the returned JSON map; each entry holds one or more
     /// origins (one per array element when the value flattens from multiple
     /// sources).
-    pub fn into_json_with_origins(
-        self,
-    ) -> (
-        BTreeMap<String, Vec<EvaluationPath>>,
-        serde_json::Map<String, JsonValue>,
-    ) {
+    pub(crate) fn into_json_with_origins(self) -> FlattenedInputs {
         self.flatten()
     }
 }

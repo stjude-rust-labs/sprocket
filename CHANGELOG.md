@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   terminating Sprocket leaves Docker containers running
   ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
 
+### Fixed
+
+* Input validation now identifies JSON and YAML input files that need an `@`
+  prefix instead of reporting a misleading array type mismatch
+  ([#906](https://github.com/stjude-rust-labs/sprocket/issues/906)).
+
 ## 0.30.1 - 2026-08-27
 
 ### Fixed
@@ -83,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* The `analyzer.except` config field has been merged into `check.except`, shared by both `sprocket check` and `sprocket analyzer` ([#1139](https://github.com/stjude-rust-labs/sprocket/pull/1139)).
 * `module.json` no longer declares a module `version`; Git version tags are the
   source of truth for module versions
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).

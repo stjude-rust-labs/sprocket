@@ -21,7 +21,6 @@ bash_set_options = ["errexit", "nounset", "pipefail"]
 
 [analyzer]
 lint = false
-except = []
 
 [run]
 output_dir = "./out"

@@ -30,7 +30,9 @@ use crate::diagnostics::meaningless_lint_directive;
 use crate::document::Document;
 use crate::rules::RULE_MAP;
 
+mod commands;
 mod counts;
+mod deprecated;
 mod env;
 mod exceptions;
 mod exprs;
@@ -347,6 +349,9 @@ impl Default for Validator {
     /// Creates a validator with the default validation visitors.
     fn default() -> Self {
         let mut validator = Self::empty();
+
+        // NOTE: This intentionally doesn't include the `Exceptions` visitor.
+        //       We manually control it below.
         validator.add_visitors([
             Box::new(strings::LiteralTextVisitor) as Box<dyn Visitor>,
             Box::<counts::CountingVisitor>::default(),
@@ -357,6 +362,8 @@ impl Default for Validator {
             Box::<exprs::ScopedExprVisitor>::default(),
             Box::<imports::ImportsVisitor>::default(),
             Box::<env::EnvVisitor>::default(),
+            Box::<commands::CommandSectionVisitor>::default(),
+            Box::<deprecated::Deprecated>::default(),
         ]);
         validator
     }

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
+  the benefits coming on any _subsequent_ requests. Before, any change in the document triggered a **full** re-analysis.
+  Now, the actual differences in the document are tracked, with any untouched items being recycled from the cache ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).
+* `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules, which ensure that deprecated
+  language features are not used ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
+
 ## 0.25.0 - 2026-08-26
 
 #### Added
@@ -16,9 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `Document::imported_workflow_by_name` are now public
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * `ExceptDirectiveValid` rule, which ensures that `#@ except` comments are placed in valid locations ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
-* Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
-  the benefits coming on any _subsequent_ requests. Before, any change in the document triggered a **full** re-analysis.
-  Now, the actual differences in the document are tracked, with any untouched items being recycled from the cache ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).
+* `CommandSectionIndentation` rule, which ensures that command sections are indented consistently ([#1144](https://github.com/stjude-rust-labs/sprocket/pull/1144)).
 
 #### Changed
 
