@@ -1,3 +1,5 @@
+#@ except: UnusedDeclaration, UnnecessaryFunctionCall
+
 ## This is a test of the `DeprecatedPlaceholder` lint.
 
 version 1.1

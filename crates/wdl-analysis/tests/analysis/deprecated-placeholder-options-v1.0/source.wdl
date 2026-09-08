@@ -1,3 +1,5 @@
+#@ except: UnusedDeclaration
+
 ## This is a test of the `DeprecatedPlaceholder` lint.
 
 version 1.0
