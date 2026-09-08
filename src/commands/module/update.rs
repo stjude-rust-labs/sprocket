@@ -2,11 +2,9 @@
 
 use std::collections::BTreeSet;
 
-use anyhow::Context as _;
 use clap::Parser;
 use wdl_modules::Lockfile;
 use wdl_modules::Resolver as _;
-use wdl_modules::dependency::DependencyName;
 use wdl_modules::module::Module;
 use wdl_modules::resolver::lock::RelockOutcome;
 use wdl_modules::resolver::lock::RelockStats;
@@ -21,6 +19,7 @@ use super::project::WriteIntent;
 use super::project::discover;
 use super::project::load_lockfile;
 use super::project::trace_project;
+use super::project::validate_dependency_names;
 use super::project::write_lockfile;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::TrustModeArg;
@@ -60,18 +59,15 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
         "starting `sprocket dev module update`"
     );
     let project = discover(&args.locator)?;
+    trace_project("module update", &project);
+    let existing = load_lockfile(&project)?.unwrap_or_default();
+    let plan = plan_update(&args, &config, &project, &existing).await?;
     if args.dry_run {
-        trace_project("module update", &project);
-        let existing = load_lockfile(&project)?.unwrap_or_default();
-        let plan = plan_update(&args, &config, &project, &existing).await?;
         tracing::debug!("dry run completed without writing lockfile");
         print_update_outcome(output, &plan.outcome.stats, true);
         return Ok(());
     }
 
-    trace_project("module update", &project);
-    let existing = load_lockfile(&project)?.unwrap_or_default();
-    let plan = plan_update(&args, &config, &project, &existing).await?;
     enforce_lockfile_signer_policy(
         &plan.existing,
         &plan.outcome.lockfile,
@@ -115,17 +111,7 @@ async fn plan_update(
     if args.names.is_empty() {
         names.extend(project.manifest().dependencies.keys().cloned());
     } else {
-        for raw in &args.names {
-            let name: DependencyName = raw
-                .parse()
-                .with_context(|| format!("invalid dependency name `{raw}`"))?;
-            if !project.manifest().dependencies.contains_key(&name) {
-                return Err(anyhow::anyhow!(
-                    "dependency `{raw}` not found in `module.json`"
-                ));
-            }
-            names.insert(name);
-        }
+        names.extend(validate_dependency_names(project, &args.names)?);
     }
     tracing::debug!(
         selected = names.len(),
