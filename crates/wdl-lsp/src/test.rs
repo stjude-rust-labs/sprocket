@@ -178,10 +178,7 @@ pub fn is_sprocket_test_file(uri: &Url) -> bool {
     let Some(base_name) = path.file_name() else {
         return false;
     };
-    let wdl_sibling = parent.join(base_name).with_extension("wdl");
-    if wdl_sibling.is_file() {
-        return true;
-    }
 
-    false
+    let wdl_sibling = parent.join(base_name).with_extension("wdl");
+    wdl_sibling.is_file()
 }
