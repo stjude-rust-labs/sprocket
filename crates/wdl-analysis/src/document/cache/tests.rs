@@ -682,11 +682,14 @@ task foo {
             IncrementalChange {
                 version: 2,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(2, 0)..SourcePosition::new(2, 0),
-                    SourcePositionEncoding::UTF8,
-                    "    # This comment should shift both diagnostics\n".to_string(),
-                )],
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(2, 0)..SourcePosition::new(2, 0),
+                        SourcePositionEncoding::UTF8,
+                        "    # This comment should shift both diagnostics\n".to_string(),
+                    )
+                    .unwrap(),
+                ],
             },
             &analyzer,
         )
@@ -724,11 +727,14 @@ task foo {
             IncrementalChange {
                 version: 3,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(7, 0)..SourcePosition::new(7, 0),
-                    SourcePositionEncoding::UTF8,
-                    "    # This should shift the `UnusedDeclaration` diagnostic\n".to_string(),
-                )],
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(7, 0)..SourcePosition::new(7, 0),
+                        SourcePositionEncoding::UTF8,
+                        "    # This should shift the `UnusedDeclaration` diagnostic\n".to_string(),
+                    )
+                    .unwrap(),
+                ],
             },
             &analyzer,
         )
@@ -765,12 +771,14 @@ task foo {
                         SourcePosition::new(7, 0)..SourcePosition::new(8, 0),
                         SourcePositionEncoding::UTF8,
                         "".to_string(),
-                    ),
+                    )
+                    .unwrap(),
                     SourceEdit::new(
                         SourcePosition::new(2, 0)..SourcePosition::new(3, 0),
                         SourcePositionEncoding::UTF8,
                         "".to_string(),
-                    ),
+                    )
+                    .unwrap(),
                 ],
             },
             &analyzer,
@@ -821,11 +829,14 @@ task foo {
             IncrementalChange {
                 version: 2,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(2, 0)..SourcePosition::new(2, 0),
-                    SourcePositionEncoding::UTF8,
-                    "    # This comment should shift both diagnostics and spans\n".to_string(),
-                )],
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(2, 0)..SourcePosition::new(2, 0),
+                        SourcePositionEncoding::UTF8,
+                        "    # This comment should shift both diagnostics and spans\n".to_string(),
+                    )
+                    .unwrap(),
+                ],
             },
             &analyzer,
         )
@@ -864,11 +875,14 @@ task foo {
             IncrementalChange {
                 version: 3,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(2, 0)..SourcePosition::new(3, 0),
-                    SourcePositionEncoding::UTF8,
-                    "".to_string(),
-                )],
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(2, 0)..SourcePosition::new(3, 0),
+                        SourcePositionEncoding::UTF8,
+                        "".to_string(),
+                    )
+                    .unwrap(),
+                ],
             },
             &analyzer,
         )
@@ -908,16 +922,19 @@ task foo {
             IncrementalChange {
                 version: 1,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(3, 0)..SourcePosition::new(3, 0),
-                    SourcePositionEncoding::UTF8,
-                    r#"    input {
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(3, 0)..SourcePosition::new(3, 0),
+                        SourcePositionEncoding::UTF8,
+                        r#"    input {
         String unused_input
     }
 
 "#
-                    .to_string(),
-                )],
+                        .to_string(),
+                    )
+                    .unwrap(),
+                ],
             },
             &analyzer,
         )
@@ -931,14 +948,17 @@ task foo {
             IncrementalChange {
                 version: 2,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(6, 0)..SourcePosition::new(6, 0),
-                    SourcePositionEncoding::UTF8,
-                    r#"
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(6, 0)..SourcePosition::new(6, 0),
+                        SourcePositionEncoding::UTF8,
+                        r#"
     String unused_decl = "Hello"
 "#
-                    .to_string(),
-                )],
+                        .to_string(),
+                    )
+                    .unwrap(),
+                ],
             },
             &analyzer,
         )
@@ -1077,12 +1097,14 @@ task foo {
                         SourcePosition::new(3, 14)..SourcePosition::new(3, 14),
                         SourcePositionEncoding::UTF8,
                         r#"+"#.to_string(),
-                    ),
+                    )
+                    .unwrap(),
                     SourceEdit::new(
                         SourcePosition::new(4, 14)..SourcePosition::new(4, 15),
                         SourcePositionEncoding::UTF8,
                         r#" "#.to_string(),
-                    ),
+                    )
+                    .unwrap(),
                 ],
             },
             &analyzer,
@@ -1127,11 +1149,14 @@ task foo {
             IncrementalChange {
                 version: 1,
                 start: None,
-                edits: vec![SourceEdit::new(
-                    SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
-                    SourcePositionEncoding::UTF8,
-                    r#"# Hello, world!"#.to_string(),
-                )],
+                edits: vec![
+                    SourceEdit::new(
+                        SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
+                        SourcePositionEncoding::UTF8,
+                        r#"# Hello, world!"#.to_string(),
+                    )
+                    .unwrap(),
+                ],
             },
             &analyzer,
         )

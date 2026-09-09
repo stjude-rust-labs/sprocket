@@ -366,10 +366,11 @@ impl IncrementalChange {
     }
 
     /// Attempts to apply the changes to the given `source`.
-    pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<()> {
+    pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<Vec<AppliedEdit>> {
         // We keep track of the last line we've processed so we only rebuild the
         // line index when there is a change that crosses a line
         let mut last_line = !0u32;
+        let mut applied_edits = Vec::new();
         for edit in &self.edits {
             let range = edit.range();
             if last_line <= range.end.line {
@@ -378,7 +379,20 @@ impl IncrementalChange {
             }
 
             last_line = range.start.line;
-            edit.apply(source, lines)?;
+            let range = edit.apply(source, lines)?;
+
+            // We only track applied edits if they apply to existing CST.
+            // Otherwise, it'll be treated as a full source
+            // replacement.
+            //
+            // The distinction is important for incremental analysis, see
+            // `AnalysisCache::intersect()`.
+            if self.start.is_none() {
+                applied_edits.push(AppliedEdit {
+                    range,
+                    replacement_length: edit.text().len(),
+                });
+            }
         }
 
         if !self.edits.is_empty() {
@@ -386,7 +400,7 @@ impl IncrementalChange {
             *lines = LineIndex::new(source);
         }
 
-        Ok(())
+        Ok(applied_edits)
     }
 }
 

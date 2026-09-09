@@ -382,8 +382,10 @@ impl DocumentGraphNode {
 
         // The document has been edited; if there is start source, apply the
         // edits to it
-        let (source, lines) = if change.start.is_some() {
-            change.apply()?
+        let (source, lines, applied_edits) = if change.start.is_some() {
+            change
+                .apply()
+                .map(|(source, lines)| (source, lines, Vec::new()))?
         } else {
             // Otherwise, apply the edits to the last parse
             let (mut source, mut lines) = match &self.parse_state {
@@ -394,11 +396,16 @@ impl DocumentGraphNode {
                 _ => bail!("cannot apply edits to a document that was not previously parsed"),
             };
 
-            change.apply_to(&mut source, &mut lines)?;
-            (source, lines)
+            let applied_edits = change.apply_to(&mut source, &mut lines)?;
+            (source, lines, applied_edits)
         };
 
-        Ok(Some((Some(change.version), source, Arc::new(lines))))
+        Ok(Some((
+            Some(change.version),
+            source,
+            Arc::new(lines),
+            applied_edits,
+        )))
     }
 
     /// Performs an incremental parse of the document.
