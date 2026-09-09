@@ -1,0 +1,7 @@
+error: no input named `not_an_input` in `foo.wdl`
+  ┌─ foo.yml:4:7
+  │
+4 │       not_an_input:
+  │       ^^^^^^^^^^^^
+
+error: failing due to 1 error

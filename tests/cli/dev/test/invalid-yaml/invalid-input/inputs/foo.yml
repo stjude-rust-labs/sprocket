@@ -1,0 +1,5 @@
+say_hello:
+  - name: bad_input
+    inputs:
+      not_an_input:
+        - "something"

@@ -28,7 +28,7 @@ use crate::yaml::spanned_fields;
 /// Convert a [`serde_saphyr::Span`] to our [`Span`] type.
 pub(crate) fn convert_yaml_span(span: serde_saphyr::Span) -> Span {
     // SAFETY: `serde-saphyr` guarantees that byte-level information is
-    // available         when parsing from a string, which we always do.
+    // available when parsing from a string, which we always do.
     Span::new(
         span.byte_offset().expect("byte info should be available") as usize,
         span.byte_len().expect("byte info should be available") as usize,
@@ -151,9 +151,9 @@ impl DocumentTests {
                 None => {
                     diagnostics.add(
                         Diagnostic::error(format!(
-                            "no target named `{name}` in `{path}`",
+                            "no target named `{name}` in `{file}`",
                             name = target.0.value,
-                            path = associated_wdl.path()
+                            file = associated_wdl.file_name(),
                         ))
                         .with_highlight(convert_yaml_span(target.0.defined.span())),
                     );
@@ -162,6 +162,10 @@ impl DocumentTests {
             };
 
             for definition in definitions {
+                definition
+                    .inputs
+                    .validate(associated_wdl, target_callable, &mut diagnostics);
+
                 definition
                     .assertions
                     .validate(target_callable, &mut diagnostics);
