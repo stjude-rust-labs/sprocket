@@ -1403,24 +1403,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     continue;
                 }
 
-                // Check for unused input
+                // Check for unused input; it must not be an environment
+                // variable and it must have only implicit
+                // dependency edges
                 if let Some(severity) = config.diagnostics_config().unused_input
                     && decl.env().is_none()
+                    && graph
+                        .edges_directed(index, Direction::Outgoing)
+                        .all(|e| *e.weight())
                 {
-                    // For any input that isn't an environment variable, check
-                    // to see if there's a single implicit
-                    // dependency edge; if so, it might be unused
-                    let mut edges = graph.edges_directed(index, Direction::Outgoing);
+                    let name = decl.name();
 
-                    if edges.all(|e| *e.weight()) {
-                        let name = decl.name();
-
-                        document.analysis_diagnostics.exceptable_add(
-                            unused_input(name.text(), name.span()).with_severity(severity),
-                            decl.inner(),
-                            &UnusedInputRule::EXCEPTABLE_NODES,
-                        );
-                    }
+                    document.analysis_diagnostics.exceptable_add(
+                        unused_input(name.text(), name.span()).with_severity(severity),
+                        decl.inner(),
+                        &UnusedInputRule::EXCEPTABLE_NODES,
+                    );
                 }
             }
             TaskGraphNode::Decl(decl) => {
@@ -1448,21 +1446,17 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     continue;
                 }
 
-                // Check for unused declaration
-                let Some(severity) = config.diagnostics_config().unused_declaration else {
-                    continue;
-                };
-
-                let name = decl.name();
-
-                // Don't warn for environment variables as they are always
-                // implicitly used
-                if decl.env().is_none()
+                // Check for unused decl; it must not be an environment variable
+                // and it must have only implicit dependency
+                // edges
+                if let Some(severity) = config.diagnostics_config().unused_declaration
+                    && decl.env().is_none()
                     && graph
                         .edges_directed(index, Direction::Outgoing)
-                        .next()
-                        .is_none()
+                        .all(|e| *e.weight())
                 {
+                    let name = decl.name();
+
                     document.analysis_diagnostics.exceptable_add(
                         unused_declaration(name.text(), name.span()).with_severity(severity),
                         decl.inner(),

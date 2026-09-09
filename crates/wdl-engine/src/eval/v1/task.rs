@@ -283,8 +283,8 @@ impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
     }
 
     /// Marks the evaluation as occurring _after_ the the task has executed.
-    pub fn with_post_execution(mut self, value: bool) -> Self {
-        self.post_execution = value;
+    pub fn with_post_execution(mut self) -> Self {
+        self.post_execution = true;
         self
     }
 }
@@ -826,12 +826,7 @@ impl<'a> State<'a> {
     }
 
     /// Evaluates a task private declaration.
-    async fn evaluate_decl(
-        &mut self,
-        id: &str,
-        decl: &Decl<SyntaxNode>,
-        post_execution: bool,
-    ) -> Result<(), Diagnostic> {
+    async fn evaluate_decl(&mut self, id: &str, decl: &Decl<SyntaxNode>) -> Result<(), Diagnostic> {
         let name = decl.name();
         debug!(
             task_id = id,
@@ -844,9 +839,7 @@ impl<'a> State<'a> {
         let decl_ty = decl.ty();
         let ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
 
-        let mut evaluator = ExprEvaluator::new(
-            TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX).with_post_execution(post_execution),
-        );
+        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
 
         let expr = decl.expr().expect("private decls should have expressions");
         let value = evaluator.evaluate_expr(&expr).await?;
@@ -1307,7 +1300,7 @@ impl<'a> State<'a> {
                 .with_work_dir(&evaluated.result.work_dir)
                 .with_stdout(&evaluated.result.stdout)
                 .with_stderr(&evaluated.result.stderr)
-                .with_post_execution(true),
+                .with_post_execution(),
         );
 
         let expr = decl.expr().expect("outputs should have expressions");
@@ -1668,7 +1661,7 @@ impl Evaluator {
                 }
                 TaskGraphNode::Decl(decl) => {
                     state
-                        .evaluate_decl(id, decl, false)
+                        .evaluate_decl(id, decl)
                         .await
                         .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
@@ -1996,17 +1989,10 @@ impl Evaluator {
             break EvaluatedTask::new(cached, result, None);
         };
 
-        // Evaluate the remaining private decls and outputs if the task executed
-        // successfully
+        // Evaluate the outputs if the task executed successfully
         if !evaluated.failed() {
             for index in &nodes[current..] {
                 match &graph[*index] {
-                    TaskGraphNode::Decl(decl) => {
-                        state
-                            .evaluate_decl(id, decl, true)
-                            .await
-                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                    }
                     TaskGraphNode::Output(decl) => {
                         state
                             .evaluate_output(id, decl, &evaluated)
@@ -2014,9 +2000,7 @@ impl Evaluator {
                             .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                     }
                     _ => {
-                        unreachable!(
-                            "only declarations and outputs should be evaluated after the command"
-                        )
+                        unreachable!("only outputs should be evaluated after the command")
                     }
                 }
             }
@@ -3120,6 +3104,8 @@ task t {
   output {
     # Ensure a HTTP fetch isn't canceled either
     String s = read_string("https://httpbin.io/status/200")
+    # Ensure a remote file existence check isn't canceled either
+    File f = "https://httpbin.io/status/200" 
   }
 }
 "#,

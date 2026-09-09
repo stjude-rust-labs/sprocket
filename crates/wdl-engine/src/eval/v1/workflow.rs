@@ -8,6 +8,8 @@ use std::mem;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -137,12 +139,18 @@ struct WorkflowEvaluationContext<'a, 'b> {
     state: &'a State,
     /// The scope being evaluated.
     scope: ScopeRef<'b>,
+    /// The cancellation token to use for HTTP operations.
+    token: &'a CancellationToken,
 }
 
 impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
     /// Constructs a new expression evaluation context.
-    pub fn new(state: &'a State, scope: ScopeRef<'b>) -> Self {
-        Self { state, scope }
+    pub fn new(state: &'a State, scope: ScopeRef<'b>, token: &'a CancellationToken) -> Self {
+        Self {
+            state,
+            scope,
+            token,
+        }
     }
 }
 
@@ -190,10 +198,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
-        (
-            self.state.evaluator.http_client(),
-            self.state.evaluator.cancellation().first(),
-        )
+        (self.state.evaluator.http_client(), self.token)
     }
 
     fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
@@ -583,173 +588,23 @@ struct State {
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
-}
-
-impl Evaluator {
-    /// Evaluates the workflow of the given document.
-    ///
-    /// Upon success, returns the outputs of the workflow.
-    pub async fn evaluate_workflow(
-        &self,
-        document: &Document,
-        inputs: WorkflowInputs,
-        eval_root_dir: impl AsRef<Path>,
-    ) -> EvaluationResult<Outputs> {
-        let workflow = document
-            .workflow()
-            .context("document does not contain a workflow")?;
-
-        // We cannot evaluate a document with errors
-        if document.has_errors() {
-            return Err(anyhow!("cannot evaluate a document with errors").into());
-        }
-
-        let result = self
-            .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
-            .await;
-
-        if self.cancellation().user_canceled()
-            && self.cancellation().state() == CancellationContextState::Canceling
-        {
-            return Err(EvaluationError::Canceled);
-        }
-
-        result
-    }
-
-    /// Performs the evaluation of the workflow of the given document.
-    ///
-    /// This method skips checking the document (and its transitive imports) for
-    /// analysis errors as the check occurs at the `evaluate` entrypoint.
-    async fn perform_workflow_evaluation(
-        &self,
-        document: &Document,
-        inputs: WorkflowInputs,
-        eval_root_dir: &Path,
-        id: &str,
-    ) -> EvaluationResult<Outputs> {
-        // Validate the inputs for the workflow
-        let workflow = document
-            .workflow()
-            .context("document does not contain a workflow")?;
-        inputs.validate(document, workflow, None).with_context(|| {
-            format!(
-                "failed to validate the inputs to workflow `{workflow}`",
-                workflow = workflow.name()
-            )
-        })?;
-
-        let ast = match document
-            .root()
-            .morph()
-            .ast_with_version_fallback(document.config().fallback_version())
-        {
-            Ast::V1(ast) => ast,
-            _ => {
-                return Err(
-                    anyhow!("workflow evaluation is only supported for WDL 1.x documents").into(),
-                );
-            }
-        };
-
-        debug!(
-            workflow_id = id,
-            workflow_name = workflow.name(),
-            document = document.uri().as_str(),
-            "evaluating workflow",
-        );
-
-        // Find the workflow in the AST
-        let definition = ast
-            .workflows()
-            .next()
-            .expect("workflow should exist in the AST");
-
-        // Build an evaluation graph for the workflow
-        let mut diagnostics = Diagnostics::default();
-
-        // We need to provide inputs to the workflow graph builder to avoid
-        // adding dependency edges from the default expressions if a
-        // value was provided
-        let graph = WorkflowGraphBuilder::default().build(
-            &definition,
-            &mut diagnostics,
-            |name| inputs.contains(name),
-            |name| document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some(),
-        );
-        assert!(
-            diagnostics.is_empty(),
-            "workflow evaluation graph should have no diagnostics"
-        );
-
-        // Split the root subgraph for every conditional and scatter statement
-        let mut subgraph = Subgraph::new(&graph);
-        let subgraphs = subgraph.split(&graph);
-
-        // Create the temp directory now as it may be needed for workflow
-        // evaluation
-        let temp_dir = eval_root_dir.join("tmp");
-        fs::create_dir_all(&temp_dir).with_context(|| {
-            format!(
-                "failed to create directory `{path}`",
-                path = temp_dir.display()
-            )
-        })?;
-
-        // Write the inputs to the workflow's root directory
-        write_json_file(eval_root_dir.join(INPUTS_FILE), &inputs)?;
-
-        let calls_dir = eval_root_dir.join("calls");
-        fs::create_dir_all(&calls_dir).with_context(|| {
-            format!(
-                "failed to create directory `{path}`",
-                path = temp_dir.display()
-            )
-        })?;
-
-        let document_path = document.uri();
-        let base_dir = EvaluationPath::parent_of(document_path.as_str()).with_context(|| {
-            format!(
-                "document `{path}` does not have a parent directory",
-                path = document.path()
-            )
-        })?;
-
-        let state = Arc::new(State {
-            evaluator: self.clone(),
-            document: document.clone(),
-            inputs,
-            scopes: Default::default(),
-            graph,
-            subgraphs,
-            base_dir,
-            temp_dir,
-            calls_dir,
-        });
-
-        // Evaluate the root graph to completion
-        state
-            .clone()
-            .evaluate_subgraph(Scopes::ROOT_INDEX, subgraph, Arc::new(id.to_string()))
-            .await?;
-
-        let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
-        if let Some(section) = definition.output() {
-            let indexes: HashMap<_, _> = section
-                .declarations()
-                .enumerate()
-                .map(|(i, d)| (d.name().hashable(), i))
-                .collect();
-            outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
-        }
-
-        // Write the outputs to the workflow's root directory
-        write_json_file(eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
-        Ok(outputs)
-    }
+    /// Whether or not an output has been evaluated.
+    output_evaluated: AtomicBool,
 }
 
 impl State {
+    /// Helper for getting the cancellation token for HTTP operations.
+    ///
+    /// Returns the second cancellation token if output evaluation has begun or
+    /// the first cancellation token if not.
+    fn http_cancellation_token(&self) -> &CancellationToken {
+        if self.output_evaluated.load(Ordering::SeqCst) {
+            self.evaluator.cancellation().second()
+        } else {
+            self.evaluator.cancellation().first()
+        }
+    }
+
     /// Evaluates a subgraph to completion.
     ///
     /// Note that this method is not `async` because it is indirectly recursive.
@@ -1017,7 +872,11 @@ impl State {
 
         // Coerce the value to the expected type
         let scopes = self.scopes.read().await;
-        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::ROOT_INDEX));
+        let context = WorkflowEvaluationContext::new(
+            self,
+            scopes.reference(Scopes::ROOT_INDEX),
+            self.http_cancellation_token(),
+        );
         let mut value = value
             .coerce(Some(&context), &expected_ty)
             .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
@@ -1034,10 +893,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some((
-                        self.evaluator.http_client(),
-                        self.evaluator.cancellation().first(),
-                    )),
+                    Some((self.evaluator.http_client(), self.http_cancellation_token())),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1089,7 +945,11 @@ impl State {
 
         // Coerce the value to the expected type
         let scopes = self.scopes.read().await;
-        let context = WorkflowEvaluationContext::new(self, scopes.reference(scope));
+        let context = WorkflowEvaluationContext::new(
+            self,
+            scopes.reference(scope),
+            self.http_cancellation_token(),
+        );
         let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
@@ -1106,10 +966,7 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some((
-                        self.evaluator.http_client(),
-                        self.evaluator.cancellation().first(),
-                    )),
+                    Some((self.evaluator.http_client(), self.http_cancellation_token())),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1150,12 +1007,19 @@ impl State {
             "evaluating output",
         );
 
+        // Mark the start of evaluating outputs
+        self.output_evaluated.store(true, Ordering::SeqCst);
+
         // Evaluate the decl's expression
         let value = self.evaluate_expr(Scopes::OUTPUT_INDEX, &expr).await?;
 
         // Coerce the value to the expected type
         let scopes = self.scopes.read().await;
-        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::OUTPUT_INDEX));
+        let context = WorkflowEvaluationContext::new(
+            self,
+            scopes.reference(Scopes::OUTPUT_INDEX),
+            self.http_cancellation_token(),
+        );
         let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
@@ -1166,10 +1030,7 @@ impl State {
             .resolve_paths(
                 expected_ty.is_optional(),
                 self.base_dir.as_local(),
-                Some((
-                    self.evaluator.http_client(),
-                    self.evaluator.cancellation().first(),
-                )),
+                Some((self.evaluator.http_client(), self.http_cancellation_token())),
                 &|path| {
                     if path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
@@ -1808,6 +1669,7 @@ impl State {
         ExprEvaluator::new(WorkflowEvaluationContext::new(
             self,
             scopes.reference(scope),
+            self.http_cancellation_token(),
         ))
         .evaluate_expr(expr)
         .await
@@ -1832,6 +1694,7 @@ impl State {
                     let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
                         self,
                         scopes.reference(scope),
+                        self.http_cancellation_token(),
                     ));
 
                     evaluator.evaluate_expr(&expr).await?
@@ -1851,6 +1714,171 @@ impl State {
         }
 
         Ok(scopes.scatter_index(scope))
+    }
+}
+
+impl Evaluator {
+    /// Evaluates the workflow of the given document.
+    ///
+    /// Upon success, returns the outputs of the workflow.
+    pub async fn evaluate_workflow(
+        &self,
+        document: &Document,
+        inputs: WorkflowInputs,
+        eval_root_dir: impl AsRef<Path>,
+    ) -> EvaluationResult<Outputs> {
+        let workflow = document
+            .workflow()
+            .context("document does not contain a workflow")?;
+
+        // We cannot evaluate a document with errors
+        if document.has_errors() {
+            return Err(anyhow!("cannot evaluate a document with errors").into());
+        }
+
+        let result = self
+            .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
+            .await;
+
+        if self.cancellation().user_canceled()
+            && self.cancellation().state() == CancellationContextState::Canceling
+        {
+            return Err(EvaluationError::Canceled);
+        }
+
+        result
+    }
+
+    /// Performs the evaluation of the workflow of the given document.
+    ///
+    /// This method skips checking the document (and its transitive imports) for
+    /// analysis errors as the check occurs at the `evaluate` entrypoint.
+    async fn perform_workflow_evaluation(
+        &self,
+        document: &Document,
+        inputs: WorkflowInputs,
+        eval_root_dir: &Path,
+        id: &str,
+    ) -> EvaluationResult<Outputs> {
+        // Validate the inputs for the workflow
+        let workflow = document
+            .workflow()
+            .context("document does not contain a workflow")?;
+        inputs.validate(document, workflow, None).with_context(|| {
+            format!(
+                "failed to validate the inputs to workflow `{workflow}`",
+                workflow = workflow.name()
+            )
+        })?;
+
+        let ast = match document
+            .root()
+            .morph()
+            .ast_with_version_fallback(document.config().fallback_version())
+        {
+            Ast::V1(ast) => ast,
+            _ => {
+                return Err(
+                    anyhow!("workflow evaluation is only supported for WDL 1.x documents").into(),
+                );
+            }
+        };
+
+        debug!(
+            workflow_id = id,
+            workflow_name = workflow.name(),
+            document = document.uri().as_str(),
+            "evaluating workflow",
+        );
+
+        // Find the workflow in the AST
+        let definition = ast
+            .workflows()
+            .next()
+            .expect("workflow should exist in the AST");
+
+        // Build an evaluation graph for the workflow
+        let mut diagnostics = Diagnostics::default();
+
+        // We need to provide inputs to the workflow graph builder to avoid
+        // adding dependency edges from the default expressions if a
+        // value was provided
+        let graph = WorkflowGraphBuilder::default().build(
+            &definition,
+            &mut diagnostics,
+            |name| inputs.contains(name),
+            |name| document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some(),
+        );
+        assert!(
+            diagnostics.is_empty(),
+            "workflow evaluation graph should have no diagnostics"
+        );
+
+        // Split the root subgraph for every conditional and scatter statement
+        let mut subgraph = Subgraph::new(&graph);
+        let subgraphs = subgraph.split(&graph);
+
+        // Create the temp directory now as it may be needed for workflow
+        // evaluation
+        let temp_dir = eval_root_dir.join("tmp");
+        fs::create_dir_all(&temp_dir).with_context(|| {
+            format!(
+                "failed to create directory `{path}`",
+                path = temp_dir.display()
+            )
+        })?;
+
+        // Write the inputs to the workflow's root directory
+        write_json_file(eval_root_dir.join(INPUTS_FILE), &inputs)?;
+
+        let calls_dir = eval_root_dir.join("calls");
+        fs::create_dir_all(&calls_dir).with_context(|| {
+            format!(
+                "failed to create directory `{path}`",
+                path = temp_dir.display()
+            )
+        })?;
+
+        let document_path = document.uri();
+        let base_dir = EvaluationPath::parent_of(document_path.as_str()).with_context(|| {
+            format!(
+                "document `{path}` does not have a parent directory",
+                path = document.path()
+            )
+        })?;
+
+        let state = Arc::new(State {
+            evaluator: self.clone(),
+            document: document.clone(),
+            inputs,
+            scopes: Default::default(),
+            graph,
+            subgraphs,
+            base_dir,
+            temp_dir,
+            calls_dir,
+            output_evaluated: AtomicBool::new(false),
+        });
+
+        // Evaluate the root graph to completion
+        state
+            .clone()
+            .evaluate_subgraph(Scopes::ROOT_INDEX, subgraph, Arc::new(id.to_string()))
+            .await?;
+
+        let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
+        if let Some(section) = definition.output() {
+            let indexes: HashMap<_, _> = section
+                .declarations()
+                .enumerate()
+                .map(|(i, d)| (d.name().hashable(), i))
+                .collect();
+            outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
+        }
+
+        // Write the outputs to the workflow's root directory
+        write_json_file(eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
+        Ok(outputs)
     }
 }
 
