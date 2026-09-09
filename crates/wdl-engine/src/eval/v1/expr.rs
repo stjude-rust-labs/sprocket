@@ -1695,6 +1695,7 @@ pub(crate) mod tests {
     use regex::Regex;
     use tempfile::TempDir;
     use tokio::sync::broadcast;
+    use tokio_util::sync::CancellationToken;
     use url::Url;
     use wdl_analysis::diagnostics::unknown_name;
     use wdl_analysis::diagnostics::unknown_type;
@@ -1706,7 +1707,6 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::Cache;
-    use crate::CancellationContext;
     use crate::Config;
     use crate::Engine;
     use crate::EvaluationHttpClient;
@@ -1789,7 +1789,7 @@ pub(crate) mod tests {
             &'a self,
             source: &'a Url,
             _: Option<broadcast::Sender<TransferEvent>>,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Location>,
         ) -> BoxFuture<'a, Result<Location>> {
             async {
@@ -1812,7 +1812,7 @@ pub(crate) mod tests {
             _: &'a Path,
             _: &'a Url,
             _: Option<broadcast::Sender<TransferEvent>>,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, ()>,
         ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
@@ -1821,7 +1821,7 @@ pub(crate) mod tests {
         fn size<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Option<u64>>,
         ) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
             std::future::ready(Ok(Some(1234))).boxed()
@@ -1830,7 +1830,7 @@ pub(crate) mod tests {
         fn walk<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Arc<[String]>>,
         ) -> BoxFuture<'a, Result<Arc<[String]>>> {
             unimplemented!()
@@ -1839,7 +1839,7 @@ pub(crate) mod tests {
         fn exists<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, bool>,
         ) -> BoxFuture<'a, Result<bool>> {
             unimplemented!()
@@ -1848,7 +1848,7 @@ pub(crate) mod tests {
         fn digest<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Option<Arc<ContentDigest>>>,
         ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
             unimplemented!()
@@ -1861,6 +1861,8 @@ pub(crate) mod tests {
         env: &'a TestEnv,
         /// The evaluation HTTP client.
         client: EvaluationHttpClient,
+        /// The cancellation token for HTTP operations.
+        token: CancellationToken,
         /// The supported version of WDL being evaluated.
         version: SupportedVersion,
         /// The stdout value from a task's execution.
@@ -1878,15 +1880,12 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-            let client = EvaluationHttpClient::new(
-                &engine,
-                &Events::disabled(),
-                CancellationContext::default(),
-            );
+            let client = EvaluationHttpClient::new(&engine, &Events::disabled());
 
             Self {
                 env,
                 client,
+                token: Default::default(),
                 version,
                 stdout: None,
                 stderr: None,
@@ -1973,8 +1972,8 @@ pub(crate) mod tests {
             self.stderr.as_ref()
         }
 
-        fn http_client(&self) -> &EvaluationHttpClient {
-            &self.client
+        fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+            (&self.client, &self.token)
         }
 
         fn compile_regex(&self, pattern: &str) -> Result<Regex, regex::Error> {

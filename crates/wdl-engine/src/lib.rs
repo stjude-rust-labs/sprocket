@@ -14,6 +14,7 @@ use sysinfo::MemoryRefreshKind;
 use sysinfo::System;
 use tokio::select;
 use tokio::sync::OnceCell;
+use tokio_util::sync::CancellationToken;
 use wdl_analysis::Document;
 use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::types::Type;
@@ -171,7 +172,7 @@ where
     pub async fn get_by_ref<Q, F, E>(
         &self,
         key: &Q,
-        cancellation: &CancellationContext,
+        token: &CancellationToken,
         init: F,
     ) -> Result<Option<V>, E>
     where
@@ -185,7 +186,6 @@ where
             cache.get_or_insert_ref(key, Default::default).clone()
         };
 
-        let token = cancellation.first();
         select! {
             biased;
             _ = token.cancelled() => {
@@ -222,7 +222,7 @@ where
     pub async fn get<F, E>(
         &self,
         key: K,
-        cancellation: &CancellationContext,
+        token: &CancellationToken,
         init: F,
     ) -> Result<Option<V>, E>
     where
@@ -234,7 +234,6 @@ where
             cache.get_or_insert(key, Default::default).clone()
         };
 
-        let token = cancellation.first();
         select! {
             biased;
             _ = token.cancelled() => {

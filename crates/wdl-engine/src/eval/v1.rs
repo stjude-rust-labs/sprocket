@@ -99,11 +99,10 @@ impl Evaluator {
     /// Constructs a new evaluator with the given engine, events, and
     /// cancellation context.
     pub(crate) fn new(engine: &Engine, events: Events, cancellation: CancellationContext) -> Self {
-        let http_client = EvaluationHttpClient::new(engine, &events, cancellation.clone());
+        let http_client = EvaluationHttpClient::new(engine, &events);
 
         let digests = DigestCalculator::new(
             http_client.clone(),
-            cancellation.clone(),
             engine.config().digest_cache_capacity as usize,
         );
 

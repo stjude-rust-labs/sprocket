@@ -307,7 +307,7 @@ impl ManagedTask for DockerTask<'_> {
             .run(
                 task,
                 self.request.context.events().crankshaft().cloned(),
-                self.request.context.cancellation().second(),
+                self.request.context.cancellation().second().clone(),
             )?
             .await
         {

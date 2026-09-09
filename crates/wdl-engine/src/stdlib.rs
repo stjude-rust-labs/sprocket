@@ -11,6 +11,7 @@ use anyhow::bail;
 use futures::future::BoxFuture;
 use regex::Regex;
 use tempfile::TempPath;
+use tokio_util::sync::CancellationToken;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -107,6 +108,7 @@ pub(crate) async fn download_file(
     client: &EvaluationHttpClient,
     base_dir: &EvaluationPath,
     path: &HostPath,
+    token: &CancellationToken,
 ) -> Result<Location> {
     let joined = base_dir.join(path.as_str())?;
     if joined.is_local() {
@@ -114,7 +116,7 @@ pub(crate) async fn download_file(
     } else {
         let url = joined.unwrap_remote();
         client
-            .download(&url)
+            .download(&url, token)
             .await
             .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"))
     }
@@ -237,9 +239,9 @@ impl<'a> CallContext<'a> {
         self.inner.stderr()
     }
 
-    /// Gets the HTTP client to use for evaluating expressions.
-    pub fn http_client(&self) -> &EvaluationHttpClient {
-        self.inner.http_client()
+    /// Gets the client and cancellation token for HTTP operations.
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+        self.inner.http()
     }
 
     /// Compiles a regular expression.
@@ -272,6 +274,23 @@ impl<'a> CallContext<'a> {
     #[allow(unused)]
     fn return_type_eq(&self, ty: impl Into<Type>) -> bool {
         self.return_type.eq(&ty.into())
+    }
+
+    /// Downloads the given path.
+    ///
+    /// If the path is already local, its location is returned.
+    pub(crate) async fn download_file(&self, path: &HostPath) -> Result<Location> {
+        let joined = self.base_dir().join(path.as_str())?;
+        if joined.is_local() {
+            Ok(Location::Path(joined.unwrap_local()))
+        } else {
+            let url = joined.unwrap_remote();
+            let (client, token) = self.http();
+            client
+                .download(&url, token)
+                .await
+                .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"))
+        }
     }
 }
 

@@ -22,11 +22,11 @@ use cloud_copy::UrlExt;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::task::spawn_blocking;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use url::Url;
 
 use crate::Cache;
-use crate::CancellationContext;
 use crate::ContentKind;
 use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
@@ -110,8 +110,6 @@ const STRONGISH_DIGEST_PREFIX_LEN: u64 = 10 * 1024 * 1024;
 struct DigestCalculatorInner {
     /// The evaluation HTTP client to use for digesting.
     client: EvaluationHttpClient,
-    /// The cancellation context for the evaluation.
-    cancellation: CancellationContext,
     /// The cache of digests for local files.
     local_digests: Cache<(ContentDigestMode, PathBuf), Digest>,
     /// The cache of digests for remote URLs.
@@ -130,17 +128,12 @@ impl DigestCalculator {
     /// # Panics
     ///
     /// Panics if the provided cache capacity is zero.
-    pub fn new(
-        client: EvaluationHttpClient,
-        cancellation: CancellationContext,
-        capacity: usize,
-    ) -> Self {
+    pub fn new(client: EvaluationHttpClient, capacity: usize) -> Self {
         let capacity = NonZeroUsize::new(capacity).expect("the cache capacity cannot be zero");
 
         Self(
             DigestCalculatorInner {
                 client,
-                cancellation,
                 local_digests: Cache::new(capacity),
                 remote_digests: Cache::new(capacity),
             }
@@ -154,10 +147,13 @@ impl DigestCalculator {
         path: &EvaluationPath,
         kind: ContentKind,
         mode: ContentDigestMode,
+        token: &CancellationToken,
     ) -> Result<Digest> {
         match path.kind() {
-            EvaluationPathKind::Local(path) => self.calculate_local_digest(path, kind, mode).await,
-            EvaluationPathKind::Remote(url) => self.calculate_remote_digest(url, kind).await,
+            EvaluationPathKind::Local(path) => {
+                self.calculate_local_digest(path, kind, mode, token).await
+            }
+            EvaluationPathKind::Remote(url) => self.calculate_remote_digest(url, kind, token).await,
         }
     }
 
@@ -183,57 +179,54 @@ impl DigestCalculator {
         path: &Path,
         kind: ContentKind,
         mode: ContentDigestMode,
+        token: &CancellationToken,
     ) -> Result<Digest> {
         match self
             .0
             .local_digests
-            .get(
-                (mode, path.to_path_buf()),
-                &self.0.cancellation,
-                async || {
-                    let metadata = path.metadata().with_context(|| {
-                        format!("failed to read metadata of `{path}`", path = path.display())
-                    })?;
+            .get((mode, path.to_path_buf()), token, async || {
+                let metadata = path.metadata().with_context(|| {
+                    format!("failed to read metadata of `{path}`", path = path.display())
+                })?;
 
-                    debug!(
-                        "calculating content digest of `{path}`",
-                        path = path.display()
-                    );
+                debug!(
+                    "calculating content digest of `{path}`",
+                    path = path.display()
+                );
 
-                    match kind {
-                        ContentKind::File | ContentKind::TempFile => {
-                            if !metadata.is_file() {
-                                bail!("expected path `{path}` to be a file", path = path.display());
-                            }
-
-                            // Always use a strong digest mode for temporary
-                            // files
-                            // This will ensure that the file metadata is _not_
-                            // considered for the
-                            // digest
-                            Self::calculate_file_digest(
-                                path,
-                                if kind == ContentKind::TempFile {
-                                    ContentDigestMode::Strong
-                                } else {
-                                    mode
-                                },
-                            )
-                            .await
+                match kind {
+                    ContentKind::File | ContentKind::TempFile => {
+                        if !metadata.is_file() {
+                            bail!("expected path `{path}` to be a file", path = path.display());
                         }
-                        ContentKind::Directory => {
-                            if metadata.is_file() {
-                                bail!(
-                                    "expected path `{path}` to be a directory",
-                                    path = path.display()
-                                );
-                            }
 
-                            self.calculate_directory_digest(path, mode).await
-                        }
+                        // Always use a strong digest mode for temporary
+                        // files
+                        // This will ensure that the file metadata is _not_
+                        // considered for the
+                        // digest
+                        Self::calculate_file_digest(
+                            path,
+                            if kind == ContentKind::TempFile {
+                                ContentDigestMode::Strong
+                            } else {
+                                mode
+                            },
+                        )
+                        .await
                     }
-                },
-            )
+                    ContentKind::Directory => {
+                        if metadata.is_file() {
+                            bail!(
+                                "expected path `{path}` to be a directory",
+                                path = path.display()
+                            );
+                        }
+
+                        self.calculate_directory_digest(path, mode, token).await
+                    }
+                }
+            })
             .await?
         {
             Some(digest) => Ok(digest),
@@ -258,16 +251,21 @@ impl DigestCalculator {
     ///
     /// * The relative path to the entry.
     /// * The content digest of the entry.
-    pub async fn calculate_remote_digest(&self, url: &Url, kind: ContentKind) -> Result<Digest> {
+    pub async fn calculate_remote_digest(
+        &self,
+        url: &Url,
+        kind: ContentKind,
+        token: &CancellationToken,
+    ) -> Result<Digest> {
         match self
             .0
             .remote_digests
-            .get_by_ref(url, &self.0.cancellation, async || {
+            .get_by_ref(url, token, async || {
                 debug!("calculating content digest of `{url}`", url = url.display());
 
                 // If there were no entries, treat the URL as a file
                 if kind == ContentKind::File {
-                    let digest = self.get_content_digest(url).await?;
+                    let digest = self.get_content_digest(url, token).await?;
                     let mut hasher = Hasher::new();
                     digest.hash(&mut hasher);
                     return anyhow::Ok(Digest::File(hasher.finalize()));
@@ -282,7 +280,7 @@ impl DigestCalculator {
                 // Walk the URL; the returned entries are in lexicographical
                 // order
                 let entries =
-                    self.0.client.walk(url).await.with_context(|| {
+                    self.0.client.walk(url, token).await.with_context(|| {
                         format!("failed to walk URL `{url}`", url = url.display())
                     })?;
 
@@ -302,7 +300,7 @@ impl DigestCalculator {
                         }
                     }
 
-                    let digest = self.get_content_digest(&url).await?;
+                    let digest = self.get_content_digest(&url, token).await?;
                     entry.hash(&mut hasher);
                     digest.hash(&mut hasher);
                 }
@@ -337,6 +335,7 @@ impl DigestCalculator {
         &'a self,
         path: &'a Path,
         mode: ContentDigestMode,
+        token: &'a CancellationToken,
     ) -> BoxFuture<'a, Result<Digest>> {
         async move {
             let mut dir = tokio::fs::read_dir(&path).await.with_context(|| {
@@ -392,7 +391,9 @@ impl DigestCalculator {
                 entry_rel_path.hash(&mut hasher);
 
                 // Recursively calculate the entry's digest
-                let digest = self.calculate_local_digest(&entry_path, kind, mode).await?;
+                let digest = self
+                    .calculate_local_digest(&entry_path, kind, mode, token)
+                    .await?;
                 digest.hash(&mut hasher);
                 count += 1;
             }
@@ -404,8 +405,12 @@ impl DigestCalculator {
     }
 
     /// Helper for retrieving the content digest of a URL.
-    async fn get_content_digest(&self, url: &Url) -> Result<Arc<ContentDigest>> {
-        match self.0.client.digest(url).await.with_context(|| {
+    async fn get_content_digest(
+        &self,
+        url: &Url,
+        token: &CancellationToken,
+    ) -> Result<Arc<ContentDigest>> {
+        match self.0.client.digest(url, token).await.with_context(|| {
             format!(
                 "failed to get content digest of URL `{url}`",
                 url = url.display()
@@ -519,7 +524,6 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::Cache;
-    use crate::CancellationContext;
     use crate::Config;
     use crate::ContentKind;
     use crate::Engine;
@@ -546,7 +550,7 @@ pub(crate) mod tests {
             &'a self,
             _: &'a Url,
             _: Option<broadcast::Sender<TransferEvent>>,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Location>,
         ) -> BoxFuture<'a, Result<Location>> {
             unimplemented!()
@@ -557,7 +561,7 @@ pub(crate) mod tests {
             _: &'a Path,
             _: &'a Url,
             _: Option<broadcast::Sender<TransferEvent>>,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, ()>,
         ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
@@ -566,7 +570,7 @@ pub(crate) mod tests {
         fn size<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Option<u64>>,
         ) -> BoxFuture<'a, Result<Option<u64>>> {
             unimplemented!()
@@ -575,7 +579,7 @@ pub(crate) mod tests {
         fn walk<'a>(
             &'a self,
             url: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Arc<[String]>>,
         ) -> BoxFuture<'a, Result<Arc<[String]>>> {
             async {
@@ -596,7 +600,7 @@ pub(crate) mod tests {
         fn exists<'a>(
             &'a self,
             _url: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, bool>,
         ) -> BoxFuture<'a, Result<bool>> {
             unimplemented!()
@@ -605,7 +609,7 @@ pub(crate) mod tests {
         fn digest<'a>(
             &'a self,
             url: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Option<Arc<ContentDigest>>>,
         ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
             async {
@@ -625,9 +629,8 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let cancellation = CancellationContext::default();
-        let client = EvaluationHttpClient::new(&engine, &Events::disabled(), cancellation.clone());
-        DigestCalculator::new(client, cancellation, 1000)
+        let client = EvaluationHttpClient::new(&engine, &Events::disabled());
+        DigestCalculator::new(client, 1000)
     }
 
     #[tokio::test]
@@ -638,7 +641,12 @@ pub(crate) mod tests {
         let digests = digests(Default::default()).await;
 
         let digest = digests
-            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strong)
+            .calculate_local_digest(
+                file.path(),
+                ContentKind::File,
+                ContentDigestMode::Strong,
+                &Default::default(),
+            )
             .await
             .unwrap();
 
@@ -656,8 +664,14 @@ pub(crate) mod tests {
 
         let digests = digests(Default::default()).await;
 
+        let token = Default::default();
         let digest = digests
-            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+            .calculate_local_digest(
+                file.path(),
+                ContentKind::File,
+                ContentDigestMode::Weak,
+                &token,
+            )
             .await
             .unwrap();
 
@@ -676,7 +690,12 @@ pub(crate) mod tests {
         digests.clear();
 
         let changed = digests
-            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+            .calculate_local_digest(
+                file.path(),
+                ContentKind::File,
+                ContentDigestMode::Weak,
+                &token,
+            )
             .await
             .unwrap();
 
@@ -696,7 +715,12 @@ pub(crate) mod tests {
         digests.clear();
 
         let changed = digests
-            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+            .calculate_local_digest(
+                file.path(),
+                ContentKind::File,
+                ContentDigestMode::Weak,
+                &token,
+            )
             .await
             .unwrap();
 
@@ -710,8 +734,14 @@ pub(crate) mod tests {
 
         let digests = digests(Default::default()).await;
 
+        let token = Default::default();
         let digest = digests
-            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+            .calculate_local_digest(
+                file.path(),
+                ContentKind::File,
+                ContentDigestMode::Strongish,
+                &token,
+            )
             .await
             .unwrap();
 
@@ -730,7 +760,12 @@ pub(crate) mod tests {
         digests.clear();
 
         let changed = digests
-            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+            .calculate_local_digest(
+                file.path(),
+                ContentKind::File,
+                ContentDigestMode::Strongish,
+                &token,
+            )
             .await
             .unwrap();
 
@@ -750,7 +785,12 @@ pub(crate) mod tests {
         digests.clear();
 
         let changed = digests
-            .calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+            .calculate_local_digest(
+                file.path(),
+                ContentKind::File,
+                ContentDigestMode::Strongish,
+                &token,
+            )
             .await
             .unwrap();
 
@@ -820,8 +860,14 @@ pub(crate) mod tests {
 
         // Regardless of the content digest mode, temporary files should
         // _always_ use a strong digest
+        let token = Default::default();
         let digest_a = digests
-            .calculate_local_digest(a.path(), ContentKind::TempFile, ContentDigestMode::Weak)
+            .calculate_local_digest(
+                a.path(),
+                ContentKind::TempFile,
+                ContentDigestMode::Weak,
+                &token,
+            )
             .await
             .unwrap();
         let digest_b = digests
@@ -829,11 +875,17 @@ pub(crate) mod tests {
                 b.path(),
                 ContentKind::TempFile,
                 ContentDigestMode::Strongish,
+                &token,
             )
             .await
             .unwrap();
         let digest_c = digests
-            .calculate_local_digest(b.path(), ContentKind::TempFile, ContentDigestMode::Strong)
+            .calculate_local_digest(
+                b.path(),
+                ContentKind::TempFile,
+                ContentDigestMode::Strong,
+                &token,
+            )
             .await
             .unwrap();
 
@@ -867,6 +919,7 @@ pub(crate) mod tests {
                 dir.path(),
                 ContentKind::Directory,
                 ContentDigestMode::Strong,
+                &Default::default(),
             )
             .await
             .unwrap();
@@ -971,10 +1024,12 @@ pub(crate) mod tests {
         .await;
 
         // URL with Content-Digest header
+        let token = Default::default();
         let digest = digests
             .calculate_remote_digest(
                 &"http://example.com/foo".parse().unwrap(),
                 ContentKind::File,
+                &token,
             )
             .await
             .unwrap();
@@ -992,6 +1047,7 @@ pub(crate) mod tests {
             .calculate_remote_digest(
                 &"http://example.com/bar".parse().unwrap(),
                 ContentKind::File,
+                &token,
             )
             .await
             .unwrap();
@@ -1008,6 +1064,7 @@ pub(crate) mod tests {
                 .calculate_remote_digest(
                     &"http://example.com/baz".parse().unwrap(),
                     ContentKind::File,
+                    &token,
                 )
                 .await
                 .unwrap_err()
@@ -1023,6 +1080,7 @@ pub(crate) mod tests {
                     .calculate_remote_digest(
                         &"http://example.com/nope".parse().unwrap(),
                         ContentKind::File,
+                        &token,
                     )
                     .await
                     .unwrap_err()
@@ -1055,10 +1113,12 @@ pub(crate) mod tests {
         .await;
 
         // Digest of a remote "directory"
+        let token = Default::default();
         let digest = digests
             .calculate_remote_digest(
                 &"http://example.com/dir".parse().unwrap(),
                 ContentKind::Directory,
+                &token,
             )
             .await
             .unwrap();
@@ -1084,6 +1144,7 @@ pub(crate) mod tests {
             .calculate_remote_digest(
                 &"http://example.com/dir/".parse().unwrap(),
                 ContentKind::Directory,
+                &token,
             )
             .await
             .unwrap();
@@ -1096,6 +1157,7 @@ pub(crate) mod tests {
             .calculate_remote_digest(
                 &"http://example.com/empty".parse().unwrap(),
                 ContentKind::Directory,
+                &token,
             )
             .await
             .unwrap();
@@ -1113,6 +1175,7 @@ pub(crate) mod tests {
                     .calculate_remote_digest(
                         &"http://example.com/missing".parse().unwrap(),
                         ContentKind::Directory,
+                        &token,
                     )
                     .await
                     .unwrap_err()
@@ -1140,8 +1203,9 @@ pub(crate) mod tests {
         let digests = digests(Default::default()).await;
 
         // Digest the directory with the file
+        let token = Default::default();
         let digest = digests
-            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong, &token)
             .await
             .expect("failed to calculate digest");
 
@@ -1150,7 +1214,7 @@ pub(crate) mod tests {
 
         // Digest again; the link should be ignored and the digest changed
         let modified = digests
-            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong, &token)
             .await
             .expect("failed to calculate digest");
         assert_ne!(digest, modified);
@@ -1160,7 +1224,7 @@ pub(crate) mod tests {
 
         // Digest again; the digest should match the original
         let modified = digests
-            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .calculate_directory_digest(dir.path(), ContentDigestMode::Strong, &token)
             .await
             .expect("failed to calculate digest");
         assert_eq!(digest, modified);

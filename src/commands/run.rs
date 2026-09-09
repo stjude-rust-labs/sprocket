@@ -1031,7 +1031,7 @@ pub async fn run(
             .subscribe_transfer()
             .expect("should have transfer events"),
         colorize,
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
@@ -1044,7 +1044,7 @@ pub async fn run(
         events
             .subscribe_engine()
             .expect("should have engine events"),
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`

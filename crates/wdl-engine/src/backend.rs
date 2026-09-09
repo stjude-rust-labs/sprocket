@@ -387,8 +387,8 @@ pub(crate) mod tests {
                 .await
                 .unwrap();
 
-            let client = EvaluationHttpClient::new(&engine, &events, cancellation.clone());
-            let digests = DigestCalculator::new(client.clone(), cancellation.clone(), 1000);
+            let client = EvaluationHttpClient::new(&engine, &events);
+            let digests = DigestCalculator::new(client.clone(), 1000);
 
             Self {
                 client,

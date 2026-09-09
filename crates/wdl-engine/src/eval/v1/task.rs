@@ -24,6 +24,7 @@ use path_clean::clean;
 use petgraph::algo::toposort;
 use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
@@ -234,6 +235,11 @@ struct TaskEvaluationContext<'a, 'b> {
     ///
     /// This is `true` when evaluating hints sections.
     task: bool,
+    /// Whether or not evaluation is occurring _after_ the task has executed.
+    ///
+    /// After the task has executed, we want cancellable operations to use the
+    /// second cancellation token and not the first.
+    post_execution: bool,
 }
 
 impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
@@ -246,6 +252,7 @@ impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
             stdout: None,
             stderr: None,
             task: false,
+            post_execution: false,
         }
     }
 
@@ -272,6 +279,12 @@ impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
     /// This is used in evaluating hints sections.
     pub fn with_task(mut self) -> Self {
         self.task = true;
+        self
+    }
+
+    /// Marks the evaluation as occurring _after_ the the task has executed.
+    pub fn with_post_execution(mut self, value: bool) -> Self {
+        self.post_execution = value;
         self
     }
 }
@@ -338,8 +351,18 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         }
     }
 
-    fn http_client(&self) -> &EvaluationHttpClient {
-        self.state.evaluator.http_client()
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+        (
+            self.state.evaluator.http_client(),
+            // After the task has executed, use the second cancellation token
+            // This ensures that the `output` section is evaluated even if the first cancellation
+            // token has been signalled
+            if self.post_execution {
+                self.state.evaluator.cancellation().second()
+            } else {
+                self.state.evaluator.cancellation().first()
+            },
+        )
     }
 
     fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
@@ -499,7 +522,10 @@ impl<'a> State<'a> {
                 .resolve_paths(
                     is_optional,
                     self.base_dir.as_local(),
-                    Some(self.evaluator.http_client()),
+                    Some((
+                        self.evaluator.http_client(),
+                        self.evaluator.cancellation().first(),
+                    )),
                     &|path| Ok(path.clone()),
                 )
                 .await?;
@@ -541,12 +567,14 @@ impl<'a> State<'a> {
         let mut downloads = JoinSet::new();
         for (url, index) in urls {
             let client = self.evaluator.http_client().clone();
+            let token = self.evaluator.cancellation().first().clone();
             downloads.spawn(async move {
                 client
                     .download(
                         &url.as_str()
                             .parse()
                             .with_context(|| format!("invalid URL `{url}`"))?,
+                        &token,
                     )
                     .await
                     .with_context(|| anyhow!("failed to localize `{url}`"))
@@ -798,7 +826,12 @@ impl<'a> State<'a> {
     }
 
     /// Evaluates a task private declaration.
-    async fn evaluate_decl(&mut self, id: &str, decl: &Decl<SyntaxNode>) -> Result<(), Diagnostic> {
+    async fn evaluate_decl(
+        &mut self,
+        id: &str,
+        decl: &Decl<SyntaxNode>,
+        post_execution: bool,
+    ) -> Result<(), Diagnostic> {
         let name = decl.name();
         debug!(
             task_id = id,
@@ -811,7 +844,9 @@ impl<'a> State<'a> {
         let decl_ty = decl.ty();
         let ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
 
-        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
+        let mut evaluator = ExprEvaluator::new(
+            TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX).with_post_execution(post_execution),
+        );
 
         let expr = decl.expr().expect("private decls should have expressions");
         let value = evaluator.evaluate_expr(&expr).await?;
@@ -1271,7 +1306,8 @@ impl<'a> State<'a> {
             TaskEvaluationContext::new(self, TASK_SCOPE_INDEX)
                 .with_work_dir(&evaluated.result.work_dir)
                 .with_stdout(&evaluated.result.stdout)
-                .with_stderr(&evaluated.result.stderr),
+                .with_stderr(&evaluated.result.stderr)
+                .with_post_execution(true),
         );
 
         let expr = decl.expr().expect("outputs should have expressions");
@@ -1285,7 +1321,10 @@ impl<'a> State<'a> {
             .resolve_paths(
                 ty.is_optional(),
                 self.base_dir.as_local(),
-                Some(self.evaluator.http_client()),
+                Some((
+                    self.evaluator.http_client(),
+                    self.evaluator.cancellation().second(),
+                )),
                 &|path| {
                     // To be a valid output, the output must be one of the
                     // following:
@@ -1383,9 +1422,10 @@ impl<'a> State<'a> {
                 if let Some(url) = input.path().as_remote() {
                     let url = url.clone();
                     let client = self.evaluator.http_client().clone();
+                    let token = self.evaluator.cancellation().first().clone();
                     downloads.spawn(async move {
                         client
-                            .download(&url)
+                            .download(&url, &token)
                             .await
                             .map(|l| (idx, l))
                             .with_context(|| anyhow!("failed to localize `{url}`"))
@@ -1628,7 +1668,7 @@ impl Evaluator {
                 }
                 TaskGraphNode::Decl(decl) => {
                     state
-                        .evaluate_decl(id, decl)
+                        .evaluate_decl(id, decl, false)
                         .await
                         .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
@@ -1726,7 +1766,10 @@ impl Evaluator {
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
-                    match cache.key(&request, self.digests()).await {
+                    match cache
+                        .key(&request, self.digests(), self.cancellation().first())
+                        .await
+                    {
                         Ok(key) => {
                             debug!(
                                 task_id = id,
@@ -1780,7 +1823,7 @@ impl Evaluator {
                     .engine()
                     .call_cache()
                     .expect("should have cache")
-                    .get(cache_key, self.digests())
+                    .get(cache_key, self.digests(), self.cancellation().first())
                     .await
                 {
                     Ok(Some(results)) => {
@@ -1928,7 +1971,7 @@ impl Evaluator {
                     .engine()
                     .call_cache()
                     .expect("should have cache")
-                    .put(key, &result, self.digests())
+                    .put(key, &result, self.digests(), self.cancellation().second())
                     .await
                 {
                     Ok(key) => {
@@ -1953,14 +1996,14 @@ impl Evaluator {
             break EvaluatedTask::new(cached, result, None);
         };
 
-        // Evaluate the remaining inputs (unused), private decls, and outputs if
-        // the task executed successfully
+        // Evaluate the remaining private decls and outputs if the task executed
+        // successfully
         if !evaluated.failed() {
             for index in &nodes[current..] {
                 match &graph[*index] {
                     TaskGraphNode::Decl(decl) => {
                         state
-                            .evaluate_decl(id, decl)
+                            .evaluate_decl(id, decl, true)
                             .await
                             .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                     }
@@ -2182,6 +2225,7 @@ impl Evaluator {
             self.http_client(),
             &result.work_dir,
             result.stderr.as_file().unwrap(),
+            self.cancellation().second(),
         )
         .await
         .ok()
@@ -2231,7 +2275,10 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
+    use crankshaft::events::Event;
+    use futures::FutureExt;
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
     use tempfile::tempdir;
     use tracing_test::traced_test;
     use wdl_analysis::Analyzer;
@@ -2239,12 +2286,14 @@ mod tests {
     use wdl_analysis::DiagnosticsConfig;
 
     use crate::CancellationContext;
+    use crate::CancellationContextState;
     use crate::Engine;
     use crate::Events;
     use crate::TaskInputs;
     use crate::config::CallCachingMode;
     use crate::config::Config;
     use crate::config::DockerBackendConfig;
+    use crate::config::FailureMode;
     use crate::eval::EvaluatedTask;
 
     /// Creates a configuration for testing with the given mode and root test
@@ -3054,5 +3103,88 @@ task test {
             logs_contain("the content of a file or directory input was modified"),
             "expected input to be modified"
         );
+    }
+
+    #[tokio::test]
+    async fn first_cancel_completes_task() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let source_path = root_dir.path().join("source.wdl");
+        fs::write(
+            &source_path,
+            r#"
+version 1.1
+
+task t {
+  command <<<sleep 5>>>
+
+  output {
+    # Ensure a HTTP fetch isn't canceled either
+    String s = read_string("https://httpbin.io/status/200")
+  }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        // Analyze the source files
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let cancellation = CancellationContext::new(FailureMode::Slow);
+        let events = Events::new(10);
+        let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone());
+
+        let document = results
+            .iter()
+            .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+            .expect("should have result")
+            .document();
+
+        let mut evaluation = evaluator
+            .evaluate_task(
+                document,
+                document.task_by_name("t").unwrap(),
+                TaskInputs::default(),
+                root_dir.path(),
+            )
+            .boxed();
+
+        let mut crankshaft = events.subscribe_crankshaft().unwrap();
+
+        loop {
+            tokio::select! {
+                e = crankshaft.recv() => {
+                    match e {
+                        Ok(Event::TaskStarted { .. }) => {
+                            // Cancel once; the task should still run to completion
+                            assert_eq!(cancellation.cancel(), CancellationContextState::Waiting);
+                        }
+                        _ => continue,
+                    }
+                },
+                res = &mut evaluation => {
+                    match res {
+                        Ok(task) => {
+                            assert!(!task.failed());
+                            assert!(root_dir.path().join("outputs.json").exists());
+                            break;
+                        }
+                        Err(e) => panic!("expected evaluation to be canceled: {e}", e = e.to_string()),
+                    }
+                }
+            }
+        }
     }
 }

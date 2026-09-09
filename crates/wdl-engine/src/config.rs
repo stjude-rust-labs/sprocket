@@ -23,6 +23,7 @@ use rowan::GreenNode;
 use schemars::JsonSchema;
 use secrecy::ExposeSecret;
 use tokio::process::Command;
+use tokio_util::sync::CancellationToken;
 use toml_spanner::Arena;
 use toml_spanner::ErrorKind;
 use toml_spanner::Failed;
@@ -2116,8 +2117,11 @@ impl Condition {
                 self.0.temp_dir
             }
 
-            fn http_client(&self) -> &EvaluationHttpClient {
-                self.0.context.http_client()
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+                (
+                    self.0.context.http_client(),
+                    self.0.context.cancellation().first(),
+                )
             }
 
             fn object_access(&self, object: &Object, name: &str) -> Option<Value> {

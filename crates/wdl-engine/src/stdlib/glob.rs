@@ -146,9 +146,9 @@ async fn glob_remote_path(
     let mut matches: Vec<Value> = Vec::new();
 
     // Walk the URL looking for matches
-    let paths = context
-        .http_client()
-        .walk(url)
+    let (client, token) = context.http();
+    let paths = client
+        .walk(url, token)
         .await
         .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
 

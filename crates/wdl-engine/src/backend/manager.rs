@@ -274,7 +274,7 @@ impl TaskManager {
                         }
 
                         // Wait for cancellation or notice of being unparked
-                        let token = task.request().context.cancellation().first();
+                        let token = task.request().context.cancellation().second();
                         let canceled = tokio::select! {
                             biased;
                             _ = token.cancelled() => true,

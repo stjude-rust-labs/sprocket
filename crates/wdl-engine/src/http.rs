@@ -24,11 +24,11 @@ use tempfile::NamedTempFile;
 use tempfile::TempPath;
 use tokio::sync::Semaphore;
 use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use url::Url;
 
 use crate::Cache;
-use crate::CancellationContext;
 use crate::config::Config;
 
 /// Represents a location of a downloaded file.
@@ -67,7 +67,7 @@ pub trait HttpClient: Send + Sync {
         &'a self,
         source: &'a Url,
         events: Option<broadcast::Sender<TransferEvent>>,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Location>,
     ) -> BoxFuture<'a, Result<Location>>;
 
@@ -80,7 +80,7 @@ pub trait HttpClient: Send + Sync {
         source: &'a Path,
         destination: &'a Url,
         events: Option<broadcast::Sender<TransferEvent>>,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, ()>,
     ) -> BoxFuture<'a, Result<()>>;
 
@@ -93,7 +93,7 @@ pub trait HttpClient: Send + Sync {
     fn size<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Option<u64>>,
     ) -> BoxFuture<'a, Result<Option<u64>>>;
 
@@ -106,7 +106,7 @@ pub trait HttpClient: Send + Sync {
     fn walk<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Arc<[String]>>,
     ) -> BoxFuture<'a, Result<Arc<[String]>>>;
 
@@ -117,7 +117,7 @@ pub trait HttpClient: Send + Sync {
     fn exists<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, bool>,
     ) -> BoxFuture<'a, Result<bool>>;
 
@@ -127,7 +127,7 @@ pub trait HttpClient: Send + Sync {
     fn digest<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Option<Arc<ContentDigest>>>,
     ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>>;
 }
@@ -229,7 +229,7 @@ impl HttpClient for DefaultHttpClient {
         &'a self,
         source: &'a Url,
         events: Option<broadcast::Sender<TransferEvent>>,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Location>,
     ) -> BoxFuture<'a, Result<Location>> {
         async move {
@@ -243,7 +243,7 @@ impl HttpClient for DefaultHttpClient {
             }
 
             let x = cache
-                .get_by_ref(source, cancellation, async || {
+                .get_by_ref(source, token, async || {
                     // Acquire a permit for the transfer
                     let _permit = self
                         .0
@@ -264,7 +264,7 @@ impl HttpClient for DefaultHttpClient {
                         self.0.client.clone(),
                         source,
                         &*temp_path,
-                        cancellation.first(),
+                        token.clone(),
                         events,
                     )
                     .await
@@ -291,12 +291,12 @@ impl HttpClient for DefaultHttpClient {
         source: &'a Path,
         destination: &'a Url,
         events: Option<broadcast::Sender<TransferEvent>>,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, ()>,
     ) -> BoxFuture<'a, Result<()>> {
         async move {
             match cache
-                .get_by_ref(destination, cancellation, async || {
+                .get_by_ref(destination, token, async || {
                     // Acquire a permit for the transfer
                     let _permit = self
                         .0
@@ -313,7 +313,7 @@ impl HttpClient for DefaultHttpClient {
                         self.0.client.clone(),
                         source,
                         destination,
-                        cancellation.first(),
+                        token.clone(),
                         events,
                     )
                     .await
@@ -342,7 +342,7 @@ impl HttpClient for DefaultHttpClient {
     fn size<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Option<u64>>,
     ) -> BoxFuture<'a, Result<Option<u64>>> {
         async move {
@@ -361,7 +361,7 @@ impl HttpClient for DefaultHttpClient {
             }
 
             match cache
-                .get_by_ref(url, cancellation, async || {
+                .get_by_ref(url, token, async || {
                     let _permit = self
                         .0
                         .semaphore
@@ -391,12 +391,12 @@ impl HttpClient for DefaultHttpClient {
     fn walk<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Arc<[String]>>,
     ) -> BoxFuture<'a, Result<Arc<[String]>>> {
         async move {
             match cache
-                .get_by_ref(url, cancellation, async || {
+                .get_by_ref(url, token, async || {
                     let _permit = self
                         .0
                         .semaphore
@@ -431,7 +431,7 @@ impl HttpClient for DefaultHttpClient {
     fn exists<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, bool>,
     ) -> BoxFuture<'a, Result<bool>> {
         async move {
@@ -444,7 +444,7 @@ impl HttpClient for DefaultHttpClient {
             }
 
             match cache
-                .get_by_ref(url, cancellation, async || {
+                .get_by_ref(url, token, async || {
                     let _permit = self
                         .0
                         .semaphore
@@ -477,12 +477,12 @@ impl HttpClient for DefaultHttpClient {
     fn digest<'a>(
         &'a self,
         url: &'a Url,
-        cancellation: &'a CancellationContext,
+        token: &'a CancellationToken,
         cache: &'a Cache<Url, Option<Arc<ContentDigest>>>,
     ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
         async move {
             match cache
-                .get_by_ref(url, cancellation, async || {
+                .get_by_ref(url, token, async || {
                     let permit = self
                         .0
                         .semaphore
@@ -530,7 +530,7 @@ pub(crate) mod tests {
             &'a self,
             _: &'a Url,
             _: Option<broadcast::Sender<TransferEvent>>,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Location>,
         ) -> BoxFuture<'a, Result<Location>> {
             unimplemented!()
@@ -541,7 +541,7 @@ pub(crate) mod tests {
             _: &'a Path,
             _: &'a Url,
             _: Option<broadcast::Sender<TransferEvent>>,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, ()>,
         ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
@@ -550,7 +550,7 @@ pub(crate) mod tests {
         fn size<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Option<u64>>,
         ) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
             unimplemented!()
@@ -559,7 +559,7 @@ pub(crate) mod tests {
         fn walk<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Arc<[String]>>,
         ) -> BoxFuture<'a, Result<Arc<[String]>>> {
             unimplemented!()
@@ -568,7 +568,7 @@ pub(crate) mod tests {
         fn exists<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, bool>,
         ) -> BoxFuture<'a, Result<bool>> {
             unimplemented!()
@@ -577,7 +577,7 @@ pub(crate) mod tests {
         fn digest<'a>(
             &'a self,
             _: &'a Url,
-            _: &'a CancellationContext,
+            _: &'a CancellationToken,
             _: &'a Cache<Url, Option<Arc<ContentDigest>>>,
         ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
             unimplemented!()

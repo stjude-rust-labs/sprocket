@@ -22,6 +22,7 @@ use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
+use tokio_util::sync::CancellationToken;
 use url::Url;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
@@ -830,7 +831,7 @@ impl Value {
         &self,
         optional: bool,
         base_dir: Option<&Path>,
-        client: Option<&EvaluationHttpClient>,
+        http: Option<(&EvaluationHttpClient, &CancellationToken)>,
         translate: &F,
     ) -> Result<Self>
     where
@@ -875,14 +876,15 @@ impl Value {
 
                     bail!("path `{path}` does not exist");
                 } else if path::is_supported_url(path.as_str()) {
-                    match client {
-                        Some(client) => {
+                    match http {
+                        Some((client, token)) => {
                             let exists = client
                                 .exists(
                                     &path
                                         .as_str()
                                         .parse()
                                         .with_context(|| format!("invalid URL `{path}`"))?,
+                                    token,
                                 )
                                 .await?;
                             if exists {
@@ -926,7 +928,7 @@ impl Value {
                 Ok(Self::Primitive(v))
             }
             Self::Compound(v) => Ok(Self::Compound(
-                v.resolve_paths(base_dir, client, translate).boxed().await?,
+                v.resolve_paths(base_dir, http, translate).boxed().await?,
             )),
             v => Ok(v.clone()),
         }
@@ -2662,7 +2664,7 @@ impl CompoundValue {
     fn resolve_paths<'a, F>(
         &'a self,
         base_dir: Option<&'a Path>,
-        client: Option<&'a EvaluationHttpClient>,
+        http: Option<(&'a EvaluationHttpClient, &'a CancellationToken)>,
         translate: &'a F,
     ) -> BoxFuture<'a, Result<Self>>
     where
@@ -2677,12 +2679,12 @@ impl CompoundValue {
                     let fst = pair
                         .0
                         .left
-                        .resolve_paths(left_optional, base_dir, client, translate)
+                        .resolve_paths(left_optional, base_dir, http, translate)
                         .await?;
                     let snd = pair
                         .0
                         .right
-                        .resolve_paths(right_optional, base_dir, client, translate)
+                        .resolve_paths(right_optional, base_dir, http, translate)
                         .await?;
                     Ok(Self::Pair(Pair::new_unchecked(ty.clone(), fst, snd)))
                 }
@@ -2691,7 +2693,7 @@ impl CompoundValue {
                     let optional = ty.element_type().is_optional();
                     if !array.0.elements.is_empty() {
                         let resolved_elements = futures::stream::iter(array.0.elements.iter())
-                            .then(|v| v.resolve_paths(optional, base_dir, client, translate))
+                            .then(|v| v.resolve_paths(optional, base_dir, http, translate))
                             .try_collect::<Vec<Value>>()
                             .await?;
                         Ok(Self::Array(Array::new_unchecked(
@@ -2710,13 +2712,13 @@ impl CompoundValue {
                         let resolved_elements = futures::stream::iter(map.0.elements.iter())
                             .then(async |(k, v)| {
                                 let resolved_key = Value::from(k.clone())
-                                    .resolve_paths(key_optional, base_dir, client, translate)
+                                    .resolve_paths(key_optional, base_dir, http, translate)
                                     .await?
                                     .as_primitive()
                                     .cloned()
                                     .expect("key should be primitive");
                                 let resolved_value = v
-                                    .resolve_paths(value_optional, base_dir, client, translate)
+                                    .resolve_paths(value_optional, base_dir, http, translate)
                                     .await?;
                                 Ok::<_, anyhow::Error>((resolved_key, resolved_value))
                             })
@@ -2734,7 +2736,7 @@ impl CompoundValue {
                         let resolved_members = futures::stream::iter(object.iter())
                             .then(async |(n, v)| {
                                 let resolved =
-                                    v.resolve_paths(false, base_dir, client, translate).await?;
+                                    v.resolve_paths(false, base_dir, http, translate).await?;
                                 Ok::<_, anyhow::Error>((n.to_string(), resolved))
                             })
                             .try_collect()
@@ -2751,7 +2753,7 @@ impl CompoundValue {
                                 .resolve_paths(
                                     ty.members()[n].is_optional(),
                                     base_dir,
-                                    client,
+                                    http,
                                     translate,
                                 )
                                 .await?;
@@ -2769,7 +2771,7 @@ impl CompoundValue {
                     let optional = e.enum_ty().inner_value_type().is_optional();
                     let value =
                         e.0.value
-                            .resolve_paths(optional, base_dir, client, translate)
+                            .resolve_paths(optional, base_dir, http, translate)
                             .await?;
 
                     Ok(Self::EnumChoice(EnumChoice::new(
@@ -4234,7 +4236,7 @@ mod tests {
                 unimplemented!()
             }
 
-            fn http_client(&self) -> &EvaluationHttpClient {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4365,7 +4367,7 @@ mod tests {
                 unimplemented!()
             }
 
-            fn http_client(&self) -> &EvaluationHttpClient {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4463,7 +4465,7 @@ mod tests {
                 unimplemented!()
             }
 
-            fn http_client(&self) -> &EvaluationHttpClient {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 

@@ -244,12 +244,18 @@ impl TaskExecutionBackend for TesBackend {
                         let kind = input.kind();
                         let path = path.to_path_buf();
                         let client = request.context.http_client().clone();
+                        let token = request.context.cancellation().first().clone();
                         let digests = request.context.digests().clone();
                         let inputs_url = inputs_url.clone();
                         uploads.spawn(async move {
                             let url = inputs_url.join_digest(
                                 digests
-                                    .calculate_local_digest(&path, kind, ContentDigestMode::Strong)
+                                    .calculate_local_digest(
+                                        &path,
+                                        kind,
+                                        ContentDigestMode::Strong,
+                                        &token,
+                                    )
                                     .await
                                     .with_context(|| {
                                         format!(
@@ -259,7 +265,7 @@ impl TaskExecutionBackend for TesBackend {
                                     })?,
                             );
                             client
-                                .upload(&path, &url)
+                                .upload(&path, &url, &token)
                                 .await
                                 .with_context(|| {
                                     format!(
@@ -438,7 +444,7 @@ impl TaskExecutionBackend for TesBackend {
                     .run(
                         task,
                         request.context.events().crankshaft().cloned(),
-                        request.context.cancellation().second(),
+                        request.context.cancellation().second().clone(),
                     )?
                     .await
                 {

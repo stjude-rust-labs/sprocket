@@ -22,6 +22,7 @@ use arrayvec::ArrayString;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::fs;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
 use url::Url;
@@ -202,8 +203,9 @@ impl Content {
         kind: ContentKind,
         mode: ContentDigestMode,
         digests: &DigestCalculator,
+        token: &CancellationToken,
     ) -> Result<Self> {
-        let digest = digests.calculate_digest(&path, kind, mode).await?;
+        let digest = digests.calculate_digest(&path, kind, mode, token).await?;
         Ok(Self {
             location: path.try_into()?,
             digest: digest.to_hex(),
@@ -220,9 +222,10 @@ impl Content {
         kind: ContentKind,
         mode: ContentDigestMode,
         digests: &DigestCalculator,
+        token: &CancellationToken,
     ) -> Result<EvaluationPath> {
         let path: EvaluationPath = self.location.parse()?;
-        let digest = digests.calculate_digest(&path, kind, mode).await?;
+        let digest = digests.calculate_digest(&path, kind, mode, token).await?;
         if digest.to_hex() != self.digest {
             bail!(
                 "cached content `{location}` was modified",
@@ -497,7 +500,12 @@ impl CallCache {
     ///
     /// This will calculate digests for the command, requirements, hints, and
     /// inputs.
-    pub async fn key(&self, request: &KeyRequest<'_>, digests: &DigestCalculator) -> Result<Key> {
+    pub async fn key(
+        &self,
+        request: &KeyRequest<'_>,
+        digests: &DigestCalculator,
+        token: &CancellationToken,
+    ) -> Result<Key> {
         // Calculate the requirement digests
         let requirement_digests = request
             .requirements
@@ -525,7 +533,7 @@ impl CallCache {
         for input in request.backend_inputs.iter().filter(|i| i.cacheable()) {
             inputs.push(
                 digests
-                    .calculate_digest(input.path(), input.kind(), self.0.mode)
+                    .calculate_digest(input.path(), input.kind(), self.0.mode, token)
                     .await?
                     .to_hex(),
             );
@@ -580,6 +588,7 @@ impl CallCache {
         &self,
         key: &Key,
         digests: &DigestCalculator,
+        token: &CancellationToken,
     ) -> Result<Option<TaskExecutionResult>> {
         // Take a shared lock on the entry file
         let path = self.0.entry_path(key);
@@ -597,15 +606,15 @@ impl CallCache {
 
         let stdout = entry
             .stdout
-            .to_evaluation_path(ContentKind::File, self.0.mode, digests)
+            .to_evaluation_path(ContentKind::File, self.0.mode, digests, token)
             .await?;
         let stderr = entry
             .stderr
-            .to_evaluation_path(ContentKind::File, self.0.mode, digests)
+            .to_evaluation_path(ContentKind::File, self.0.mode, digests, token)
             .await?;
         let work = entry
             .work
-            .to_evaluation_path(ContentKind::Directory, self.0.mode, digests)
+            .to_evaluation_path(ContentKind::Directory, self.0.mode, digests, token)
             .await?;
 
         Ok(Some(TaskExecutionResult {
@@ -626,6 +635,7 @@ impl CallCache {
         key: Key,
         result: &TaskExecutionResult,
         digests: &DigestCalculator,
+        token: &CancellationToken,
     ) -> Result<ArrayString<64>> {
         let path = self.0.entry_path(&key);
         let file = LockedFile::acquire_exclusive(&path).await?;
@@ -659,6 +669,7 @@ impl CallCache {
                 ContentKind::File,
                 self.0.mode,
                 digests,
+                token,
             )
             .await?,
             stderr: Content::from_evaluation_path(
@@ -671,6 +682,7 @@ impl CallCache {
                 ContentKind::File,
                 self.0.mode,
                 digests,
+                token,
             )
             .await?,
             work: Content::from_evaluation_path(
@@ -678,6 +690,7 @@ impl CallCache {
                 ContentKind::Directory,
                 self.0.mode,
                 digests,
+                token,
             )
             .await?,
         };
@@ -789,19 +802,30 @@ mod tests {
 
         /// Populates a dummy execution result into the cache for the given key
         /// request.
-        async fn populate(&self, request: &KeyRequest<'_>, digests: &DigestCalculator) {
+        async fn populate(
+            &self,
+            request: &KeyRequest<'_>,
+            digests: &DigestCalculator,
+            token: &CancellationToken,
+        ) {
             // Get a key for the cache (should not exist)
-            let key = self.inner.key(request, digests).await.unwrap();
-            assert!(self.inner.get(&key, digests).await.unwrap().is_none());
+            let key = self.inner.key(request, digests, token).await.unwrap();
+            assert!(
+                self.inner
+                    .get(&key, digests, token)
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
 
             // Cache a dummy execution result
             self.inner
-                .put(key, &self.create_execution_result().await, digests)
+                .put(key, &self.create_execution_result().await, digests, token)
                 .await
                 .unwrap();
 
             // Get the entry we just put and ensure it is returned
-            self.inner.key(request, digests).await.unwrap();
+            self.inner.key(request, digests, token).await.unwrap();
         }
     }
 
@@ -828,8 +852,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Check for modified command
         let key = cache
@@ -840,13 +865,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -885,8 +911,9 @@ mod tests {
             )],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Change the input's guest path, but keep the file name the same
         // The entry should be valid as the input's contents and file name
@@ -904,10 +931,16 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
-        cache.inner.get(&key, &digests).await.unwrap().unwrap();
+        cache
+            .inner
+            .get(&key, &digests, &token)
+            .await
+            .unwrap()
+            .unwrap();
 
         // Change the input's file name
         let key = cache
@@ -923,13 +956,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -968,8 +1002,9 @@ mod tests {
             )],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Change the input's file name doesn't invalidate the entry because the
         // file contents remained the same and file names are ignored
@@ -987,10 +1022,16 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
-        cache.inner.get(&key, &digests).await.unwrap().unwrap();
+        cache
+            .inner
+            .get(&key, &digests, &token)
+            .await
+            .unwrap()
+            .unwrap();
 
         // Changing the temp file's contents invalidates the entry
         fs::write(&input_file_path, "changed!").await.unwrap();
@@ -1000,8 +1041,9 @@ mod tests {
             cache
                 .inner
                 .get(
-                    &cache.inner.key(&request, &digests).await.unwrap(),
-                    &digests
+                    &cache.inner.key(&request, &digests, &token).await.unwrap(),
+                    &digests,
+                    &token,
                 )
                 .await
                 .unwrap_err()
@@ -1033,8 +1075,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1044,13 +1087,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1081,8 +1125,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1092,13 +1137,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1132,8 +1178,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1143,13 +1190,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1180,8 +1228,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1194,13 +1243,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1234,8 +1284,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1248,13 +1299,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1288,8 +1340,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1299,13 +1352,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1336,8 +1390,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1350,13 +1405,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1390,8 +1446,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1404,13 +1461,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1449,8 +1507,9 @@ mod tests {
             )],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1460,13 +1519,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1501,8 +1561,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         let key = cache
             .inner
@@ -1516,13 +1577,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1561,18 +1623,19 @@ mod tests {
             )],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Changing the file's contents invalidates the entry
         fs::write(&input_file_path, "changed!").await.unwrap();
         digests.clear();
 
-        let key = cache.inner.key(&request, &digests).await.unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1603,18 +1666,19 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Changing the stdout file invalidates the entry
         fs::write(&cache.stdout, "changed!").await.unwrap();
         digests.clear();
 
-        let key = cache.inner.key(&request, &digests).await.unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1648,18 +1712,19 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Deleting the stdout file invalidates the entry
         fs::remove_file(&cache.stdout).await.unwrap();
         digests.clear();
 
-        let key = cache.inner.key(&request, &digests).await.unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1693,18 +1758,19 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Changing the stderr file invalidates the entry
         fs::write(&cache.stderr, "changed!").await.unwrap();
         digests.clear();
 
-        let key = cache.inner.key(&request, &digests).await.unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1738,18 +1804,19 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Deleting the stderr file invalidates the entry
         fs::remove_file(&cache.stderr).await.unwrap();
         digests.clear();
 
-        let key = cache.inner.key(&request, &digests).await.unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1783,8 +1850,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Changing the work directory (by adding a file) invalidates the entry
         fs::write(&cache.work_dir.join("foo"), "added!")
@@ -1792,11 +1860,11 @@ mod tests {
             .unwrap();
         digests.clear();
 
-        let key = cache.inner.key(&request, &digests).await.unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1830,18 +1898,19 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Deleting the working directory invalidates the entry
         fs::remove_dir_all(&cache.work_dir).await.unwrap();
         digests.clear();
 
-        let key = cache.inner.key(&request, &digests).await.unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1886,8 +1955,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Modify the memory requirement; this should not affect the entry
         let key = cache
@@ -1904,10 +1974,16 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
-        cache.inner.get(&key, &digests).await.unwrap().unwrap();
+        cache
+            .inner
+            .get(&key, &digests, &token)
+            .await
+            .unwrap()
+            .unwrap();
 
         // Modify the container requirement; this should affect the entry
         let key = cache
@@ -1924,13 +2000,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -1969,8 +2046,9 @@ mod tests {
             backend_inputs: &[],
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Modify the `localization_optional` hint; this should not affect the
         // entry
@@ -1985,10 +2063,16 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
-        cache.inner.get(&key, &digests).await.unwrap().unwrap();
+        cache
+            .inner
+            .get(&key, &digests, &token)
+            .await
+            .unwrap()
+            .unwrap();
 
         // Modify the `foo` hint; this should affect the entry
         let key = cache
@@ -2002,13 +2086,14 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
         assert_eq!(
             cache
                 .inner
-                .get(&key, &digests)
+                .get(&key, &digests, &token)
                 .await
                 .unwrap_err()
                 .to_string(),
@@ -2062,8 +2147,9 @@ mod tests {
             backend_inputs: &backend_inputs,
         };
 
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        cache.populate(&request, &digests).await;
+        cache.populate(&request, &digests, &token).await;
 
         // Modify the `foo` input; this should not affect the entry
         let key = cache
@@ -2077,10 +2163,16 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
-        cache.inner.get(&key, &digests).await.unwrap().unwrap();
+        cache
+            .inner
+            .get(&key, &digests, &token)
+            .await
+            .unwrap()
+            .unwrap();
 
         // Changing the file's contents should not invalidate the entry
         fs::write(&input_file_path, "changed!").await.unwrap();
@@ -2088,8 +2180,13 @@ mod tests {
 
         // Modify the `foo` input; this should not affect the entry as the
         // backend input was excluded
-        let key = cache.inner.key(&request, &digests).await.unwrap();
-        cache.inner.get(&key, &digests).await.unwrap().unwrap();
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
+        cache
+            .inner
+            .get(&key, &digests, &token)
+            .await
+            .unwrap()
+            .unwrap();
 
         // Modify the `bar` input; the key should change and the entry should
         // not exist
@@ -2109,10 +2206,18 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();
-        assert!(cache.inner.get(&key, &digests).await.unwrap().is_none());
+        assert!(
+            cache
+                .inner
+                .get(&key, &digests, &token)
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -2139,8 +2244,9 @@ mod tests {
         };
 
         // Compute the cache key
+        let token = Default::default();
         let digests = digests(Default::default()).await;
-        let original = cache.inner.key(&request, &digests).await.unwrap();
+        let original = cache.inner.key(&request, &digests, &token).await.unwrap();
 
         // Compute a key with a different backend
         let modified = cache
@@ -2151,6 +2257,7 @@ mod tests {
                     ..request
                 },
                 &digests,
+                &token,
             )
             .await
             .unwrap();

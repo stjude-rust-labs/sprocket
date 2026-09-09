@@ -266,8 +266,8 @@ impl CancellationContext {
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn first(&self) -> CancellationToken {
-        self.first.clone()
+    pub fn first(&self) -> &CancellationToken {
+        &self.first
     }
 
     /// Gets the cancellation token that is canceled upon the second
@@ -280,8 +280,8 @@ impl CancellationContext {
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn second(&self) -> CancellationToken {
-        self.second.clone()
+    pub fn second(&self) -> &CancellationToken {
+        &self.second
     }
 
     /// Determines if the user initiated the cancellation, considering any
@@ -340,8 +340,6 @@ struct EvaluationHttpClientInner {
     engine: Engine,
     /// The evaluator associated with the client.
     events: Option<broadcast::Sender<TransferEvent>>,
-    /// The cancellation context for evaluation.
-    cancellation: CancellationContext,
     /// The cache for calls to the `download` method.
     downloads: Cache<Url, Location>,
     /// The cache for calls to the `upload` method.
@@ -358,8 +356,8 @@ struct EvaluationHttpClientInner {
 
 /// A HTTP client implementation used for evaluation.
 ///
-/// This type wraps an inner [`HttpClient`] and closes over the events and
-/// cancellation context for evaluation.
+/// This type wraps an inner [`HttpClient`] and provides transfer events from a
+/// related [`Engine`].
 ///
 /// Successful calls to this type's methods will be cached for the evaluation.
 ///
@@ -374,7 +372,7 @@ impl EvaluationHttpClient {
     ///
     /// Panics if the provided configuration specifies a zero for response cache
     /// capacity.
-    pub fn new(engine: &Engine, events: &Events, cancellation: CancellationContext) -> Self {
+    pub fn new(engine: &Engine, events: &Events) -> Self {
         let capacity = NonZeroUsize::new(engine.config().http.response_cache_capacity as usize)
             .expect("the cache capacity cannot be zero");
 
@@ -382,7 +380,6 @@ impl EvaluationHttpClient {
             EvaluationHttpClientInner {
                 engine: engine.clone(),
                 events: events.transfer().cloned(),
-                cancellation,
                 downloads: Cache::new(capacity),
                 uploads: Cache::new(capacity),
                 sizes: Cache::new(capacity),
@@ -395,16 +392,11 @@ impl EvaluationHttpClient {
     }
 
     /// Downloads a file or directory to a temporary path.
-    pub async fn download(&self, source: &Url) -> Result<Location> {
+    pub async fn download(&self, source: &Url, token: &CancellationToken) -> Result<Location> {
         self.0
             .engine
             .http_client()
-            .download(
-                source,
-                self.0.events.clone(),
-                &self.0.cancellation,
-                &self.0.downloads,
-            )
+            .download(source, self.0.events.clone(), token, &self.0.downloads)
             .await
     }
 
@@ -412,7 +404,12 @@ impl EvaluationHttpClient {
     ///
     /// The destination URL is expected to be content-addressed (meaning
     /// specific to the content being uploaded).
-    pub async fn upload(&self, source: &Path, destination: &Url) -> Result<()> {
+    pub async fn upload(
+        &self,
+        source: &Path,
+        destination: &Url,
+        token: &CancellationToken,
+    ) -> Result<()> {
         self.0
             .engine
             .http_client()
@@ -420,7 +417,7 @@ impl EvaluationHttpClient {
                 source,
                 destination,
                 self.0.events.clone(),
-                &self.0.cancellation,
+                token,
                 &self.0.uploads,
             )
             .await
@@ -432,11 +429,11 @@ impl EvaluationHttpClient {
     ///
     /// Returns `Ok(None)` if the URL is valid but the size cannot be
     /// determined.
-    pub async fn size(&self, url: &Url) -> Result<Option<u64>> {
+    pub async fn size(&self, url: &Url, token: &CancellationToken) -> Result<Option<u64>> {
         self.0
             .engine
             .http_client()
-            .size(url, &self.0.cancellation, &self.0.sizes)
+            .size(url, token, &self.0.sizes)
             .await
     }
 
@@ -446,11 +443,11 @@ impl EvaluationHttpClient {
     /// lexicographical order.
     ///
     /// If the given storage URL is not a directory, an empty list is returned.
-    pub async fn walk(&self, url: &Url) -> Result<Arc<[String]>> {
+    pub async fn walk(&self, url: &Url, token: &CancellationToken) -> Result<Arc<[String]>> {
         self.0
             .engine
             .http_client()
-            .walk(url, &self.0.cancellation, &self.0.walks)
+            .walk(url, token, &self.0.walks)
             .await
     }
 
@@ -458,22 +455,26 @@ impl EvaluationHttpClient {
     ///
     /// Returns `Ok(true)` if a HEAD request returns success or if a walk of the
     /// URL returns at least one contained URL.
-    pub async fn exists(&self, url: &Url) -> Result<bool> {
+    pub async fn exists(&self, url: &Url, token: &CancellationToken) -> Result<bool> {
         self.0
             .engine
             .http_client()
-            .exists(url, &self.0.cancellation, &self.0.exists)
+            .exists(url, token, &self.0.exists)
             .await
     }
 
     /// Gets the content digest of the resource identified by the given URL.
     ///
     /// Returns `Ok(None)` if the resource has no associated content digest.
-    pub async fn digest(&self, url: &Url) -> Result<Option<Arc<ContentDigest>>> {
+    pub async fn digest(
+        &self,
+        url: &Url,
+        token: &CancellationToken,
+    ) -> Result<Option<Arc<ContentDigest>>> {
         self.0
             .engine
             .http_client()
-            .digest(url, &self.0.cancellation, &self.0.digests)
+            .digest(url, token, &self.0.digests)
             .await
     }
 }
@@ -759,8 +760,8 @@ pub(crate) trait EvaluationContext: Send + Sync {
         None
     }
 
-    /// Gets the HTTP client to use for evaluating expressions.
-    fn http_client(&self) -> &EvaluationHttpClient;
+    /// Gets the client and cancellation token for HTTP operations.
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken);
 
     /// Gets a guest path representation of a host path.
     ///

@@ -18,7 +18,6 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
-use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::HiddenValue;
@@ -107,7 +106,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
             _ => context.arguments[0].value.clone(),
         };
 
-        calculate_disk_size(context.http_client(), &value, unit, context.base_dir())
+        calculate_disk_size(&context, &value, unit, context.base_dir())
             .await
             .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
             .map(Into::into)
@@ -134,9 +133,10 @@ async fn file_size(path: impl AsRef<Path>) -> Result<u64> {
 }
 
 /// Gets the size of a remote resource.
-async fn resource_size(client: &EvaluationHttpClient, url: &Url) -> Result<u64> {
+async fn resource_size(context: &CallContext<'_>, url: &Url) -> Result<u64> {
+    let (client, token) = context.http();
     client
-        .size(url)
+        .size(url, token)
         .await
         .with_context(|| format!("failed to determine content length of URL `{url}`"))?
         .with_context(|| format!("URL `{url}` has an unknown content length"))
@@ -146,7 +146,7 @@ async fn resource_size(client: &EvaluationHttpClient, url: &Url) -> Result<u64> 
 ///
 /// The path might be to a local file or to a remote URL.
 async fn file_path_size(
-    client: &EvaluationHttpClient,
+    context: &CallContext<'_>,
     base_dir: &EvaluationPath,
     path: &str,
 ) -> Result<u64> {
@@ -154,7 +154,7 @@ async fn file_path_size(
     if is_supported_url(path)
         && let Ok(url) = path.parse()
     {
-        return resource_size(client, &url).await;
+        return resource_size(context, &url).await;
     }
 
     // If the path is absolute, get the file size
@@ -164,7 +164,7 @@ async fn file_path_size(
 
     match base_dir.join(path)?.kind() {
         EvaluationPathKind::Local(path) => file_size(path).await,
-        EvaluationPathKind::Remote(url) => resource_size(client, url).await,
+        EvaluationPathKind::Remote(url) => resource_size(context, url).await,
     }
 }
 
@@ -176,7 +176,7 @@ async fn file_path_size(
 /// The size of a directory is based on the sum of the files contained in the
 /// directory.
 fn calculate_disk_size<'a>(
-    client: &'a EvaluationHttpClient,
+    context: &'a CallContext<'_>,
     value: &'a Value,
     unit: StorageUnit,
     base_dir: &'a EvaluationPath,
@@ -184,8 +184,8 @@ fn calculate_disk_size<'a>(
     async move {
         match value {
             Value::None(_) => Ok(0.0),
-            Value::Primitive(v) => primitive_disk_size(client, v, unit, base_dir).await,
-            Value::Compound(v) => compound_disk_size(client, v, unit, base_dir).await,
+            Value::Primitive(v) => primitive_disk_size(context, v, unit, base_dir).await,
+            Value::Compound(v) => compound_disk_size(context, v, unit, base_dir).await,
             Value::Hidden(HiddenValue::Hints(_)) => {
                 bail!("the size of a hints value cannot be calculated")
             }
@@ -213,14 +213,14 @@ fn calculate_disk_size<'a>(
 
 /// Calculates the disk size of the given primitive value in the given unit.
 async fn primitive_disk_size(
-    client: &EvaluationHttpClient,
+    context: &CallContext<'_>,
     value: &PrimitiveValue,
     unit: StorageUnit,
     base_dir: &EvaluationPath,
 ) -> Result<f64> {
     match value {
         PrimitiveValue::File(path) => {
-            let size = file_path_size(client, base_dir, path.as_str()).await?;
+            let size = file_path_size(context, base_dir, path.as_str()).await?;
             Ok(unit.units(size))
         }
         PrimitiveValue::Directory(path) => {
@@ -233,19 +233,19 @@ async fn primitive_disk_size(
 
 /// Calculates the disk size for a compound value in the given unit.
 async fn compound_disk_size(
-    client: &EvaluationHttpClient,
+    context: &CallContext<'_>,
     value: &CompoundValue,
     unit: StorageUnit,
     base_dir: &EvaluationPath,
 ) -> Result<f64> {
     match value {
-        CompoundValue::Pair(pair) => Ok(calculate_disk_size(client, pair.left(), unit, base_dir)
+        CompoundValue::Pair(pair) => Ok(calculate_disk_size(context, pair.left(), unit, base_dir)
             .await?
-            + calculate_disk_size(client, pair.right(), unit, base_dir).await?),
+            + calculate_disk_size(context, pair.right(), unit, base_dir).await?),
         CompoundValue::Array(array) => {
             let mut size = 0.0;
             for e in array.as_slice() {
-                size += calculate_disk_size(client, e, unit, base_dir).await?;
+                size += calculate_disk_size(context, e, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -253,8 +253,8 @@ async fn compound_disk_size(
         CompoundValue::Map(map) => {
             let mut size = 0.0;
             for (k, v) in map.iter() {
-                size += primitive_disk_size(client, k, unit, base_dir).await?
-                    + calculate_disk_size(client, v, unit, base_dir).await?;
+                size += primitive_disk_size(context, k, unit, base_dir).await?
+                    + calculate_disk_size(context, v, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -262,7 +262,7 @@ async fn compound_disk_size(
         CompoundValue::Object(object) => {
             let mut size = 0.0;
             for (_, v) in object.iter() {
-                size += calculate_disk_size(client, v, unit, base_dir).await?;
+                size += calculate_disk_size(context, v, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -270,7 +270,7 @@ async fn compound_disk_size(
         CompoundValue::Struct(s) => {
             let mut size = 0.0;
             for (_, v) in s.iter() {
-                size += calculate_disk_size(client, v, unit, base_dir).await?;
+                size += calculate_disk_size(context, v, unit, base_dir).await?;
             }
 
             Ok(size)

@@ -23,6 +23,7 @@ use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use tokio::sync::RwLock;
 use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
 use wdl_analysis::Diagnostics;
@@ -188,8 +189,11 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         &self.state.temp_dir
     }
 
-    fn http_client(&self) -> &EvaluationHttpClient {
-        self.state.evaluator.http_client()
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+        (
+            self.state.evaluator.http_client(),
+            self.state.evaluator.cancellation().first(),
+        )
     }
 
     fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
@@ -1030,7 +1034,10 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.evaluator.http_client()),
+                    Some((
+                        self.evaluator.http_client(),
+                        self.evaluator.cancellation().first(),
+                    )),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1099,7 +1106,10 @@ impl State {
                 .resolve_paths(
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
-                    Some(self.evaluator.http_client()),
+                    Some((
+                        self.evaluator.http_client(),
+                        self.evaluator.cancellation().first(),
+                    )),
                     &|path| Ok(path.clone()),
                 )
                 .await
@@ -1156,7 +1166,10 @@ impl State {
             .resolve_paths(
                 expected_ty.is_optional(),
                 self.base_dir.as_local(),
-                Some(self.evaluator.http_client()),
+                Some((
+                    self.evaluator.http_client(),
+                    self.evaluator.cancellation().first(),
+                )),
                 &|path| {
                     if path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
