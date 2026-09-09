@@ -356,7 +356,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
             self.state.evaluator.http_client(),
             // After the task has executed, use the second cancellation token
             // This ensures that the `output` section is evaluated even if the first cancellation
-            // token has been signalled
+            // token has been signaled
             if self.post_execution {
                 self.state.evaluator.cancellation().second()
             } else {
