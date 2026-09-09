@@ -34,7 +34,9 @@ use wdl_ast::Span;
 
 /// Converts a file byte offset to an LSP position.
 pub fn position(index: &LineIndex, offset: usize) -> Result<Position> {
-    let line_col = index.line_col(offset.try_into()?);
+    let line_col = index
+        .try_line_col(offset.try_into()?)
+        .context("invalid line column")?;
     let line_col = index
         .to_wide(WideEncoding::Utf16, line_col)
         .with_context(|| {
