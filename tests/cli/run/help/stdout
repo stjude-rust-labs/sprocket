@@ -89,6 +89,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --disable-retries
+          Disable retries for all task evaluations for this run
+
       --no-ignore
           Ignore `.sprocketignore` files while discovering WDL documents
 
