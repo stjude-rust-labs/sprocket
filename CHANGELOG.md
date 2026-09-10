@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added a `--disable-retries` flag to `sprocket run`, which disables retries for all task
+  evaluations, including those with a `runtime.maxRetries`/`requirements.maxRetries` value set ([#1190](https://github.com/stjude-rust-labs/sprocket/pull/1190)).
+
 ### Changed
 
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that

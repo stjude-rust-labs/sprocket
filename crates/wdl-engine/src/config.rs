@@ -1104,6 +1104,53 @@ impl ToToml for Retries {
     }
 }
 
+/// The maximum number of retries to attempt if a task fails.
+#[derive(Copy, Clone, Debug, Toml, PartialEq, Eq)]
+#[toml(Toml, untagged, from = Retries)]
+pub enum RetryConfig {
+    /// Disable retries entirely, including any retries specified in task
+    /// requirements.
+    Disabled,
+    /// Set a default maximum number of retries.
+    ///
+    /// A task's `max_retries` requirement will override this value.
+    Enabled(Retries),
+}
+
+impl RetryConfig {
+    /// Whether retries are disabled.
+    pub fn is_disabled(self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self::Enabled(Retries::default())
+    }
+}
+
+impl From<u64> for RetryConfig {
+    fn from(value: u64) -> Self {
+        Self::Enabled(value.into())
+    }
+}
+
+impl From<RetryConfig> for u64 {
+    fn from(value: RetryConfig) -> Self {
+        match value {
+            RetryConfig::Enabled(retries) => retries.into(),
+            RetryConfig::Disabled => 0,
+        }
+    }
+}
+
+impl From<Retries> for RetryConfig {
+    fn from(value: Retries) -> Self {
+        Self::Enabled(value)
+    }
+}
+
 /// Represents task evaluation configuration.
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
@@ -1113,8 +1160,8 @@ pub struct TaskConfig {
     ///
     /// A task's `max_retries` requirement will override this value.
     #[toml(default)]
-    #[schemars(default)]
-    pub retries: Retries,
+    #[schemars(default, with = "Retries")]
+    pub retries: RetryConfig,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
     #[toml(default = String::from(default_task_container()))]
@@ -1215,7 +1262,7 @@ impl Default for TaskConfig {
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
-        if let Retries::Use(value) = self.retries
+        if let RetryConfig::Enabled(Retries::Use(value)) = self.retries
             && value >= MAX_RETRIES
         {
             bail!("configuration value `task.retries` cannot exceed {MAX_RETRIES}");

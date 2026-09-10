@@ -529,6 +529,10 @@ pub(crate) fn max_retries(
     requirements: &Object,
     config: &Config,
 ) -> Result<u64> {
+    if config.task.retries.is_disabled() {
+        return Ok(0);
+    }
+
     if let Some((key, value)) = find_key_value(
         &[
             TASK_REQUIREMENT_MAX_RETRIES,
