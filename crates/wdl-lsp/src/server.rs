@@ -1261,12 +1261,6 @@ impl<S: 'static> Server<S> {
         tx: RequestResponseSender<Option<Vec<InlayHint>>>,
         state: &ServerState<S>,
     ) {
-        // Analyze the document first to ensure we have up-to-date information
-        if let Err(e) = state.config.analyzer.analyze(ProgressToken(None)).await {
-            let _ = tx.send(Err(ResponseError::new(ErrorCode::INTERNAL_ERROR, e)));
-            return;
-        }
-
         let result = state
             .config
             .analyzer
