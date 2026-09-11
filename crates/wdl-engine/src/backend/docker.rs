@@ -349,11 +349,24 @@ impl ManagedTask for DockerTask<'_> {
 ///
 /// This runs after a Docker task whatever the outcome of that task was.
 #[cfg(unix)]
-async fn chown_work_dir(backend: &docker::Backend, name: &str, work_dir: &Path) -> Result<()> {
+async fn chown_work_dir(
+    backend: &docker::Backend,
+    name: &str,
+    work_dir: &Path,
+    rootless: bool,
+) -> Result<()> {
     assert!(work_dir.is_absolute(), "work directory should be absolute");
 
-    // SAFETY: `geteuid` and `getegid` are always safe to call and cannot fail.
-    let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
+    let (uid, gid) = if rootless {
+        // 0:0 in a rootless context maps back to the host user's UID/GID:
+        // https://docs.docker.com/engine/security/rootless/uid-gid-mapping/
+        (0, 0)
+    } else {
+        // SAFETY: `geteuid` and `getegid` are always safe to call and cannot
+        // fail.
+        unsafe { (libc::geteuid(), libc::getegid()) }
+    };
+
     let ownership = format!("{uid}:{gid}");
 
     let task = Task::builder()
@@ -473,6 +486,9 @@ pub struct DockerBackend {
     max_cpu: f64,
     /// The maximum memory for any of one node.
     max_memory: u64,
+    /// Whether the Docker daemon is running in rootless mode.
+    #[cfg(unix)]
+    rootless: bool,
     /// The task manager for the backend.
     manager: TaskManager,
 }
@@ -504,6 +520,14 @@ impl DockerBackend {
         .await
         .context("failed to initialize Docker backend")?;
 
+        #[cfg(unix)]
+        let rootless = {
+            let client_info = backend.client().info().await?;
+            client_info
+                .security_options
+                .is_some_and(|options| options.iter().any(|opt| *opt == "name=rootless"))
+        };
+
         let resources = *backend.resources();
         let cpu = resources.cpu() as f64;
         let max_cpu = resources.max_cpu() as f64;
@@ -524,6 +548,8 @@ impl DockerBackend {
             inner: Arc::new(backend),
             max_cpu,
             max_memory,
+            #[cfg(unix)]
+            rootless,
             manager,
         })
     }
@@ -663,17 +689,21 @@ impl TaskExecutionBackend for DockerBackend {
             // which abandons a task that has to wait for resources
             // once evaluation has been canceled.
             #[cfg(unix)]
-            {
+            'cleanup: {
                 let work_dir = request.work_dir();
-                if work_dir.exists() {
-                    let name = format!(
-                        "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
-                        name = request.name
-                    );
+                if !work_dir.exists() {
+                    break 'cleanup;
+                }
 
-                    if let Err(e) = chown_work_dir(self.inner.as_ref(), &name, &work_dir).await {
-                        tracing::error!("Docker backend cleanup failed: {e:#}");
-                    }
+                let name = format!(
+                    "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
+                    name = request.name
+                );
+
+                if let Err(e) =
+                    chown_work_dir(self.inner.as_ref(), &name, &work_dir, self.rootless).await
+                {
+                    tracing::error!("Docker backend cleanup failed: {e:#}");
                 }
             }
 
