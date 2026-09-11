@@ -3143,7 +3143,7 @@ task t {
         let mut evaluation = evaluator
             .evaluate_task(
                 document,
-                document.task_by_name("t").unwrap(),
+                document.local_task_by_name("t").unwrap(),
                 TaskInputs::default(),
                 root_dir.path(),
             )

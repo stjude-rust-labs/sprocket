@@ -1789,7 +1789,7 @@ impl Evaluator {
         debug!(
             workflow_id = id,
             workflow_name = workflow.name(),
-            document = document.uri().as_str(),
+            document = %document.uri(),
             "evaluating workflow",
         );
 

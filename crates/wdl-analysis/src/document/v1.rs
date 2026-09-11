@@ -1654,21 +1654,17 @@ fn add_task(
                     continue;
                 }
 
-                // Check for unused declaration
-                let Some(severity) = config.diagnostics_config().unused_declaration else {
-                    continue;
-                };
-
-                let name = decl.name();
-
-                // Don't warn for environment variables as they are always
-                // implicitly used
-                if decl.env().is_none()
+                // Check for unused decl; it must not be an environment variable
+                // and it must have only implicit dependency
+                // edges
+                if let Some(severity) = config.diagnostics_config().unused_declaration
+                    && decl.env().is_none()
                     && graph
                         .edges_directed(index, Direction::Outgoing)
-                        .next()
-                        .is_none()
+                        .all(|e| *e.weight())
                 {
+                    let name = decl.name();
+
                     diagnostics.exceptable_add(
                         unused_declaration(name.text(), name.span()).with_severity(severity),
                         decl.inner(),

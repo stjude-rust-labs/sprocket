@@ -10,7 +10,6 @@ use indexmap::IndexMap;
 use ordered_float::Pow;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
-use wdl_analysis::EnumRef;
 use wdl_analysis::Exceptable;
 use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::ambiguous_argument;
