@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+        run: rustup update nightly && rustup default nightly && rustup component add llvm-tools
 
       - name: Cache build artifacts
         uses: Swatinem/rust-cache@v2
@@ -99,7 +99,7 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: |
-            cargo-llvm-cov@0.8
+            cargo-llvm-cov@0.9
             nextest@0.9
 
       # Pre-warm the npx cache so parallel tests don't race to install it.
@@ -107,12 +107,19 @@ jobs:
         if: runner.os == 'Linux'
         run: npx -y pagefind@1.5.0 --help
 
-      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      # nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16),
+      # so nextest coverage and doctest coverage are collected in separate `--no-report` passes
+      # and merged with `cargo llvm-cov report --doctests`.
+      # See: https://nexte.st/docs/integrations/test-coverage/#collecting-coverage-data-from-doctests
       - name: Run tests
         shell: bash
         env:
           RUST_LOG: info,thirtyfour::manager::driver=debug
-        run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --exclude fuzz --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --exclude fuzz --doc
+        run: |
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov --no-report nextest --profile=ci --workspace --locked --all-targets --exclude fuzz --all-features --no-fail-fast
+          cargo llvm-cov --no-report --doc --workspace --locked --exclude fuzz --all-features
+          cargo llvm-cov report --workspace --doctests --codecov --output-path codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
@@ -174,7 +181,7 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: |
-            cargo-llvm-cov@0.8
+            cargo-llvm-cov@0.9
             nextest@0.9
 
       # See the `test` job
