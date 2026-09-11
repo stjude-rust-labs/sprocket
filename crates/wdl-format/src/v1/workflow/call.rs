@@ -7,6 +7,7 @@ use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_comma_separated_items;
 
 /// Formats a [`CallTarget`](wdl_ast::v1::CallTarget).
 ///
@@ -180,21 +181,7 @@ pub fn format_call_statement(
         stream.increment_indent();
         stream.end_line();
 
-        let mut inputs = inputs.iter().peekable();
-        let mut commas = commas.iter();
-        while let Some(input) = inputs.next() {
-            (&input).write(stream, config);
-            if let Some(comma) = commas.next()
-                && (inputs.peek().is_some() || comma.has_comment())
-            {
-                (comma).write(stream, config);
-                if inputs.peek().is_some() {
-                    stream.end_line();
-                }
-            } else if config.trailing_commas {
-                stream.push_literal(",".into(), SyntaxKind::Comma);
-            }
-        }
+        write_comma_separated_items(&inputs, &commas, stream, config);
 
         stream.decrement_indent();
         stream.end_line();
