@@ -132,3 +132,32 @@ task corge {
 
     command <<<>>>
 }
+
+# Collisions between doc comments and parameter_meta keys shouldn't matter
+task mixed_sources {
+    input {
+        ## `first` gets a doc comment
+        String first
+        String second
+        String third
+    }
+
+    parameter_meta {
+        first: "And a parameter_meta entry?!"
+        second: "`second` gets a parameter_meta entry"
+        third: "`third` gets a parameter_meta entry"
+    }
+
+    command <<<>>>
+}
+
+# No `parameter_meta` section, but incomplete doc comments
+task missing_doc_comment {
+    input {
+        ## `first` gets a doc comment
+        String first
+        String second
+    }
+
+    command <<<>>>
+}

@@ -55,4 +55,14 @@ warning[ParameterMetaMatched]: task `corge` is missing a doc comment for input `
     │
 125 │         String second
     │                ^^^^^^ this input does not have a doc comment
+    │
+    = fix: add a doc comment to `second` with a detailed description of the input.
+
+warning[ParameterMetaMatched]: task `missing_doc_comment` is missing a doc comment for input `second`
+    ┌─ tests/lints/matching-param-meta/source.wdl:159:16
+    │
+159 │         String second
+    │                ^^^^^^ this input does not have a doc comment
+    │
+    = fix: add a doc comment to `second` with a detailed description of the input.
 

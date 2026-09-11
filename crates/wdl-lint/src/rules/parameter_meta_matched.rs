@@ -54,7 +54,7 @@ fn missing_param_meta(
     .with_rule(ID)
     .with_label(
         format!(
-            "this input does not have {}",
+            "this {decl_type} does not have {}",
             if suggest_doc_comments {
                 "a doc comment"
             } else {
@@ -64,10 +64,14 @@ fn missing_param_meta(
         span,
     );
 
-    if !suggest_doc_comments {
+    if suggest_doc_comments {
+        diagnostic = diagnostic.with_fix(format!(
+            "add a doc comment to `{missing}` with a detailed description of the {decl_type}.",
+        ));
+    } else {
         diagnostic = diagnostic.with_fix(format!(
             "add a `{missing}` key to the `parameter_meta` section with a detailed description of \
-             the input.",
+             the {decl_type}.",
         ));
     }
 
@@ -129,13 +133,14 @@ impl Rule for ParameterMetaMatchedRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that inputs have a matching entry in a `parameter_meta` section."
+        "Ensures that inputs have a matching entry in a `parameter_meta` section, or supplementary \
+         doc comments."
     }
 
     fn explanation(&self) -> &'static str {
         "Each input parameter within a task or workflow should have an associated `parameter_meta` \
-         entry with a detailed description of the input. Non-input keys are not permitted within \
-         the `parameter_meta` block."
+         entry or doc comment with a detailed description of the input. Non-input keys are not \
+         permitted within the `parameter_meta` block."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -194,6 +199,9 @@ task say_hello {
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         Some(&[
             SyntaxKind::VersionStatementNode,
+            SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::WorkflowDefinitionNode,
+            SyntaxKind::StructDefinitionNode,
             SyntaxKind::ParameterMetadataSectionNode,
         ])
     }
@@ -303,7 +311,11 @@ fn check_parameter_meta(
 
     let actual_order: Vec<_> = parameter_meta_map
         .keys()
-        .filter(|name| decls_map.contains_key(&**name))
+        .filter(|name| {
+            decls_map
+                .get(&**name)
+                .is_some_and(|(_, _, has_doc_comments)| !has_doc_comments)
+        })
         .cloned()
         .collect();
 
