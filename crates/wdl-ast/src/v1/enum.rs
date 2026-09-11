@@ -136,7 +136,10 @@ impl<N: TreeNode> AstNode<N> for EnumDefinition<N> {
 
 impl Documented<SyntaxNode> for EnumDefinition<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
-        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia(), false)
+                .collect(),
+        )
     }
 }
 
@@ -210,7 +213,10 @@ impl<N: TreeNode> AstNode<N> for EnumChoice<N> {
 
 impl Documented<SyntaxNode> for EnumChoice<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
-        Some(crate::doc_comments::<SyntaxNode>(self.name().inner().preceding_trivia()).collect())
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.name().inner().preceding_trivia(), false)
+                .collect(),
+        )
     }
 }
 
