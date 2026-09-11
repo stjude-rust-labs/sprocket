@@ -16,7 +16,7 @@ copyright = "%Y, Sprocket Contributors"
 # General configuration
 
 extensions = [
-    # Convert Markdown docstrings into HTML. (This is a custom extension defined in
+    # Parse Markdown docstrings as MyST. (This is a custom extension defined in
     # `_ext/markdown_docstrings.py`.)
     "markdown_docstrings",
     # Markdown parsing.
