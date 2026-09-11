@@ -3,4 +3,3 @@ error: type mismatch for placeholder option `true/false`: expected type `Boolean
    │
 11 │         String out = "~{true='y' false='n' read_json("not-bool.json")}"
    │                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Int`
-

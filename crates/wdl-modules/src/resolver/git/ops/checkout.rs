@@ -311,8 +311,8 @@ where
                     }
                 }));
             }
-            // libgit2 fetch.c:144-151 rejects an exact OID when the remote does not
-            // advertise OID wants.
+            // libgit2 fetch.c:144-151 rejects an exact OID when the remote does
+            // not advertise OID wants.
             if error.class() != git2::ErrorClass::Invalid
                 || !error
                     .message()
@@ -325,8 +325,9 @@ where
                 });
             }
             drop(repo);
-            // Local fixtures do not exercise this path because local transport advertises
-            // both OID capabilities (libgit2 local.c:263-268).
+            // Local fixtures do not exercise this path because local transport
+            // advertises both OID capabilities (libgit2
+            // local.c:263-268).
             std::fs::remove_dir_all(leaf).map_err(|source| GitError::Io {
                 path: leaf.to_path_buf(),
                 source,

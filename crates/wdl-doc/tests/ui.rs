@@ -361,6 +361,9 @@ fn main() -> ExitCode {
 |                                    |
 +------------------------------------+"#;
         println!("{}\n", warning.red());
+
+        // The runtime must be entered to allow construction of `Sleep`.
+        let _guard = runtime.enter();
         for i in (1..6).rev() {
             println!("The tests will start in {i} seconds.");
             runtime.block_on(async {

@@ -80,9 +80,9 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             ));
         }
 
-        // For consistency with `PathBuf::push`, push an empty segment so that we treat
-        // the last segment as a directory; otherwise, `Url::join` will treat it as a
-        // file.
+        // For consistency with `PathBuf::push`, push an empty segment so that
+        // we treat the last segment as a directory; otherwise,
+        // `Url::join` will treat it as a file.
         if let Ok(mut segments) = url.path_segments_mut() {
             segments.pop_if_empty();
             segments.push("");
@@ -199,9 +199,9 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
                 ));
             }
 
-            // For consistency with `PathBuf::push`, push an empty segment so that we treat
-            // the last segment as a directory; otherwise, `Url::join` will treat it as a
-            // file.
+            // For consistency with `PathBuf::push`, push an empty segment so
+            // that we treat the last segment as a directory;
+            // otherwise, `Url::join` will treat it as a file.
             if let Ok(mut segments) = url.path_segments_mut() {
                 segments.pop_if_empty();
                 segments.push("");
@@ -243,12 +243,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn join_paths() {

@@ -3,4 +3,3 @@ error: cannot coerce type name `Status` to type `String`
    │
 11 │         echo ~{Status}
    │                ^^^^^^ this is type name `Status`
-

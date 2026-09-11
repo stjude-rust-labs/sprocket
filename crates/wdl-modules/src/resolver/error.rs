@@ -417,6 +417,7 @@ pub enum ResolverError {
 }
 
 /// The kind of Git reference named in a `ResolverError::UnknownGitRef` variant.
+#[cfg(feature = "git-resolver")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GitRefKind {
     /// The reference was an annotated or lightweight tag.
@@ -425,6 +426,7 @@ pub enum GitRefKind {
     Branch,
 }
 
+#[cfg(feature = "git-resolver")]
 impl std::fmt::Display for GitRefKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

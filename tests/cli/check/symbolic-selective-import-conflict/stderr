@@ -3,7 +3,7 @@ error: import of `grind_beans` conflicts with an existing definition
   │
 3 │ import { grind_beans } from coffeeshop
   │          ^^^^^^^^^^^ imported here
-4 │ 
+4 │
 5 │ task grind_beans {
   │      ----------- previous definition
 

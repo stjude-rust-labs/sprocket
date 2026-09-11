@@ -7,10 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Short literal arrays, if/then/else clauses, and symbolic import clauses are kept on the same line instead of being unconditionally line split ([#1154](https://github.com/stjude-rust-labs/sprocket/pull/1154)).
+
 #### Fixed
 
+* Formatting no longer panics when an `input` hints item has a value that is not a `hints` literal ([#1174](https://github.com/stjude-rust-labs/sprocket/pull/1174)).
+
+## 0.20.2 - 2026-08-26
+
+#### Added
+
+* Extraneous tokens (e.g. trailing commas and empty call input blocks) are dropped from the output ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
+
+#### Fixed
+
+* Commas and closing delimiters are no longer dangled after multiline if/then/else expressions ([#1056](https://github.com/stjude-rust-labs/sprocket/pull/1056)).
 * Duplicate sections in a task, workflow, or struct are no longer dropped; every section is retained in the order it was written. A task that has both a `requirements` and a `runtime` section now retains both ([#1112](https://github.com/stjude-rust-labs/sprocket/pull/1112)).
 * Formatting no longer panics on `input` hints keys that use dotted struct member paths, such as `foo.bar` ([#854](https://github.com/stjude-rust-labs/sprocket/issues/854)).
+* Comments within import statements are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
+* Non-directive comment ordering and blank lines are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
 
 ## 0.20.1 - 2026-08-05
 

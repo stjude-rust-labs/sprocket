@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Various internal caches are now have configurable LRU capacities and are
+  evaluation specific rather than scoped to the process or engine ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+
+#### Fixed
+
+* The Docker backend now hands a task's work directory back to the user
+  performing evaluation after a canceled or failed task, not only a completed
+  one ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
+* Fixed "permission denied" errors when evaluating tasks under rootless
+  Docker ([#1179](https://github.com/stjude-rust-labs/sprocket/pull/1179)).
+
+## 0.17.3 - 2026-08-27
+
+## 0.17.2 - 2026-08-26
+
+#### Added
+
+* Introduced the `Engine` type which stores a shared reference to the task
+  execution backend and file transferer. Configuration for backend and file
+  transfers are now shared between all evaluations in the same process,
+  specifically for the server and test commands ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added a shared user-specific image cache for the apptainer-based backends.
+  SIF files are now reused between runs. NOTE: a cache entry for a mutable tag
+  (e.g. `latest`) is not updated if already present in the cache; avoid using
+  mutated tag references in your WDL tasks. ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft`
+  events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
+
+#### Changed
+
 * `EngineEvent` now emits `TaskInitializing` before an execution attempt and
   `TaskLocalizing` before it transfers inputs; both events identify the attempt
   by its unique name. `ReusedCachedExecutionResult` now includes that name, and
@@ -17,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed the enum choice value cache to be keyed by document URI; this prevents
+  an enum with the same index and choice index from overwriting a cache entry
+  from another document ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Call cache entries for commands that reference temporary files created by a
+  call to a `write_*` stdlib function will no longer be ignored due to a
+  mismatch between the evaluated command and the cached evaluated command.
+  NOTE: this fix will invalidate all existing call cache entries ([#1103](https://github.com/stjude-rust-labs/sprocket/pull/1103)).
 * `WorkflowInputs` serialization no longer drops call-nested inputs.
   Previously, the `Serialize` impl silently discarded per-call inputs
   (including task input overrides, requirements, and hints for calls inside a

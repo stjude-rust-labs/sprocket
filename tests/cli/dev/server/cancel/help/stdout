@@ -5,18 +5,18 @@ Usage: sprocket dev server cancel [OPTIONS] <RUN>
 Arguments:
   <RUN>
           The run to cancel.
-          
+
           May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`).
 
 Options:
       --host <HOST>
           The hostname of the running Sprocket server to talk to.
-          
+
           If not provided, falls back to the value in the Sprocket config.
 
   -p, --port <PORT>
           The port of the running Sprocket server to talk to.
-          
+
           If not provided, falls back to the value in the Sprocket config.
 
   -v, --verbose...
@@ -35,7 +35,7 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
 
   -c, --config <CONFIG>
@@ -43,7 +43,7 @@ Options:
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help

@@ -21,4 +21,3 @@ warning[UnnecessaryFunctionCall]: unnecessary call to function `defined`
    │                   ^^^^^^^ --------------------- type `Array[String]` is not optional
    │
    = fix: replace the function call with `true`
-

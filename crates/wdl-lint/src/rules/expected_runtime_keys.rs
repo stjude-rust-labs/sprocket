@@ -395,8 +395,9 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         );
                     }
 
-                    // Now that we've emitted the necessary diagnostics for this runtime section,
-                    // clear our tracking container of encountered keys to prepare for the next
+                    // Now that we've emitted the necessary diagnostics for this
+                    // runtime section, clear our tracking
+                    // container of encountered keys to prepare for the next
                     // runtime section.
                     self.encountered_keys.clear();
                     self.runtime_processed_for_task = true;
@@ -427,12 +428,12 @@ impl Visitor for ExpectedRuntimeKeysRule {
             // The only keys that need to be individually inspected are WDL v1.1
             // keys because,
             //
-            // - WDL v1.0 contains no deprecated keys: the only issue that can occur is when
-            //   one of the two recommended key is omitted, and that is handled at the end
-            //   of the `document()` method.
-            // - WDL v1.2 deprecates the `runtime` section, so any WDL document with a
-            //   version of 1.2 or later should ignore the keys and report the section as
-            //   deprecated (in another rule).
+            // - WDL v1.0 contains no deprecated keys: the only issue that can
+            //   occur is when one of the two recommended key is omitted, and
+            //   that is handled at the end of the `document()` method.
+            // - WDL v1.2 deprecates the `runtime` section, so any WDL document
+            //   with a version of 1.2 or later should ignore the keys and
+            //   report the section as deprecated (in another rule).
             if minor_version == V1::One {
                 match keys_v1_1().get(key_name.text()) {
                     Some(kind) => {
@@ -453,10 +454,12 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         // If the key was _not_ found in the map, that means the
                         // key was not one of the permitted values for WDL v1.1.
                         //
-                        // If it's also not in the explicitly allowed configuration,
+                        // If it's also not in the explicitly allowed
+                        // configuration,
                         // add a diagnostic for it.
                         if !self.allowed_runtime_keys.contains(key_text) {
-                            // Note we don't use `item.span()` here to avoid highlighting the whole
+                            // Note we don't use `item.span()` here to avoid
+                            // highlighting the whole
                             // runtime object.
                             let text_for_key_span = item
                                 .inner()

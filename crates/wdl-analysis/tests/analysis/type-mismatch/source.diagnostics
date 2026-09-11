@@ -3,7 +3,7 @@ error: type mismatch: expected type `Int`, but found type `String`
    │
 12 │     Int a = "hello"
    │         -   ^^^^^^^ this is type `String`
-   │         │    
+   │         │
    │         this expects type `Int`
 
 error: type mismatch: expected type `String`, but found type `Int`
@@ -11,7 +11,7 @@ error: type mismatch: expected type `String`, but found type `Int`
    │
 13 │     String b = 5
    │            -   ^ this is type `Int`
-   │            │    
+   │            │
    │            this expects type `String`
 
 error: type mismatch: expected type `Array[String]`, but found type `Map[Int, String]`
@@ -19,7 +19,7 @@ error: type mismatch: expected type `Array[String]`, but found type `Map[Int, St
    │
 14 │     Array[String] c = { 1: "one", 2: "two" }
    │                   -   ^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[Int, String]`
-   │                   │    
+   │                   │
    │                   this expects type `Array[String]`
 
 error: type mismatch: expected type `Array[Int]`, but found type `Array[String]`
@@ -27,7 +27,7 @@ error: type mismatch: expected type `Array[Int]`, but found type `Array[String]`
    │
 15 │     Array[Int] d = ["a", "b", "c"]
    │                -   ^^^^^^^^^^^^^^^ this is type `Array[String]`
-   │                │    
+   │                │
    │                this expects type `Array[Int]`
 
 error: type mismatch: expected type `Map[Int, String]`, but found type `Map[String, Int]`
@@ -35,7 +35,7 @@ error: type mismatch: expected type `Map[Int, String]`, but found type `Map[Stri
    │
 16 │     Map[Int, String] e = { "a": 1, "b": 2, "c": 3 }
    │                      -   ^^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[String, Int]`
-   │                      │    
+   │                      │
    │                      this expects type `Map[Int, String]`
 
 error: type mismatch: a type common to both type `Int` and type `String` does not exist
@@ -43,7 +43,7 @@ error: type mismatch: a type common to both type `Int` and type `String` does no
    │
 17 │     Array[Int] f = [1, "2", "3"]
    │                     -  ^^^ this is type `String`
-   │                     │   
+   │                     │
    │                     this and all prior elements had a common type `Int`
 
 error: type mismatch: a type common to both type `Int` and type `String` does not exist
@@ -51,7 +51,7 @@ error: type mismatch: a type common to both type `Int` and type `String` does no
    │
 17 │     Array[Int] f = [1, "2", "3"]
    │                     -       ^^^ this is type `String`
-   │                     │        
+   │                     │
    │                     this and all prior elements had a common type `Int`
 
 error: type mismatch: a type common to both type `String` and type `Int` does not exist
@@ -59,7 +59,7 @@ error: type mismatch: a type common to both type `String` and type `Int` does no
    │
 18 │     Map[String, String] g = { "a": "1", "b": 2, "c": "3" }
    │                                    ---       ^ this is type `Int`
-   │                                    │          
+   │                                    │
    │                                    this and all prior elements had a common type `String`
 
 error: type mismatch: expected type `Int`, but found type `Array[Int]`
@@ -67,7 +67,7 @@ error: type mismatch: expected type `Int`, but found type `Array[Int]`
    │
 19 │     Foo h = Foo { x: [1] }
    │                   -  ^^^ this is type `Array[Int]`
-   │                   │   
+   │                   │
    │                   this expects type `Int`
 
 error: type mismatch: a type common to both type `String` and type `Int` does not exist
@@ -75,6 +75,5 @@ error: type mismatch: a type common to both type `String` and type `Int` does no
    │
 20 │     Map[String, String] i = { "a": "1", 0: "2", "c": "3" }
    │                               ---       ^ this is type `Int`
-   │                               │          
+   │                               │
    │                               this and all prior elements had a common type `String`
-

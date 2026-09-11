@@ -47,7 +47,7 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
 
   -c, --config <CONFIG>
@@ -55,7 +55,7 @@ Options:
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help

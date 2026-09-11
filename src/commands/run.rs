@@ -8,6 +8,7 @@ use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -29,6 +30,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
+use tracing::span;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
@@ -42,6 +44,7 @@ use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::Engine;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -50,6 +53,7 @@ use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
@@ -59,9 +63,12 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::uses_docker_backend;
+use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::exec::HeartbeatGuard;
 use crate::system::v1::exec::RunContext;
 use crate::system::v1::exec::Target;
 use crate::system::v1::exec::create_run_directory;
@@ -70,7 +77,9 @@ use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::execute_target;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::select_target;
+use crate::system::v1::exec::spawn_heartbeat;
 use crate::system::v1::fs::FileSystemLock;
+use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
@@ -137,13 +146,18 @@ pub struct Args {
     #[clap(long)]
     pub locked: bool,
 
-    /// The output name to index on.
+    /// The index path to index the run outputs under.
     ///
-    /// If provided, the run outputs will be indexed using the specified output
-    /// name as the key. The index allows efficient lookup of runs by output
-    /// values.
-    #[clap(long, value_name = "OUTPUT_NAME")]
-    pub index_on: Option<String>,
+    /// If provided, the run's output files and directories are symlinked into
+    /// `<output_dir>/index/<index_path>/`, along with a symlink to the run's
+    /// `outputs.json` file. The path must be relative and cannot contain `.` or
+    /// `..` components.
+    ///
+    /// The path is used verbatim, so group results by a value of your own
+    /// choosing by interpolating it in the shell (e.g. `--index-on
+    /// "project/$name"`).
+    #[clap(long, value_name = "INDEX_PATH")]
+    pub index_on: Option<IndexPath>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -199,6 +213,10 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// Disable retries for all task evaluations for this run.
+    #[clap(long)]
+    pub disable_retries: bool,
 
     /// Show task stderr during execution.
     ///
@@ -333,13 +351,27 @@ enum Preparation {
     Localizing,
 }
 
+struct ImagePullState {
+    /// The displayed currently being pulled.
+    displayed_image: Option<(String, tracing::Span)>,
+    /// Images actively being pulled.
+    pulling_images: IndexMap<String, usize>,
+    /// The collapsed footer span for multi-image pulls.
+    collapsed_images_span: tracing::Span,
+}
+
 /// Represents state for reporting evaluation progress.
-#[derive(Default)]
 struct State {
+    /// The progress bar span.
+    progress_bar: tracing::Span,
+    /// The style of sub-tasks under the main runner status.
+    sub_task_style: ProgressStyle,
     /// The map of task identifiers to names.
     tasks: HashMap<u64, Task>,
     /// The set of currently executing tasks.
     executing: IndexSet<Arc<String>>,
+    /// The state of container image pulls.
+    images: ImagePullState,
     /// The number of failed tasks.
     failed: usize,
     /// The number of completed tasks.
@@ -363,6 +395,34 @@ struct State {
 }
 
 impl State {
+    fn new(progress_bar: tracing::Span, colorize: bool) -> Self {
+        let sub_task_style_template = if colorize {
+            "{span_child_prefix}[{elapsed_precise:.cyan/blue}] {msg}"
+        } else {
+            "{span_child_prefix}[{elapsed_precise}] {msg}"
+        };
+        let sub_task_style = ProgressStyle::with_template(sub_task_style_template).unwrap();
+
+        Self {
+            progress_bar,
+            sub_task_style,
+            tasks: Default::default(),
+            executing: Default::default(),
+            images: ImagePullState {
+                displayed_image: None,
+                pulling_images: IndexMap::new(),
+                collapsed_images_span: tracing::Span::none(),
+            },
+            failed: 0,
+            preparing: IndexMap::new(),
+            departed: HashSet::new(),
+            canceled: 0,
+            parked: 0,
+            cached: 0,
+            completed: 0,
+        }
+    }
+
     /// Records that a task has entered the given preparation phase.
     ///
     /// Phases only ever advance: a task that has already left preparation is
@@ -392,6 +452,103 @@ impl State {
         self.preparing.shift_remove(name);
         self.departed.insert(name.clone());
     }
+
+    /// The number of images that are being pulled, but not displayed.
+    fn collapsed_image_count(&self) -> usize {
+        let displayed = self
+            .images
+            .displayed_image
+            .as_ref()
+            .map(|(name, _)| name.as_str());
+
+        self.images
+            .pulling_images
+            .keys()
+            .filter(|name| Some(name.as_str()) != displayed)
+            .count()
+    }
+
+    /// Set a new image to be displayed.
+    fn display_image_pull(&mut self, name: String) {
+        let span = span!(parent: self.progress_bar.clone(), Level::WARN, "pull image");
+        span.pb_set_style(&self.sub_task_style);
+        span.pb_set_message(&format!("pulling image `{}`", name.green()));
+        span.pb_start();
+
+        self.images.displayed_image.replace((name, span));
+    }
+
+    /// Update the collapsed image progress bar.
+    fn update_collapsed_image_pull_status(&mut self) {
+        static PENDING_FOOTER_STYLE: LazyLock<ProgressStyle> =
+            LazyLock::new(|| ProgressStyle::with_template("    ...and {msg} more").unwrap());
+
+        let collapsed = self.collapsed_image_count();
+        if collapsed == 0 {
+            self.images.collapsed_images_span = tracing::Span::none();
+            return;
+        }
+
+        if self.images.collapsed_images_span.is_none() {
+            self.images.collapsed_images_span =
+                span!(parent: self.progress_bar.clone(), Level::WARN, "pulling images");
+            self.images
+                .collapsed_images_span
+                .pb_set_style(&PENDING_FOOTER_STYLE);
+            self.images.collapsed_images_span.pb_start();
+        }
+
+        self.images
+            .collapsed_images_span
+            .pb_set_message(&collapsed.to_string());
+    }
+
+    /// Add an image to the pull progress bar.
+    fn start_image_pull(&mut self, name: String) {
+        let no_images = self.images.pulling_images.is_empty();
+
+        self.images
+            .pulling_images
+            .entry(name.clone())
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+
+        if no_images {
+            self.display_image_pull(name);
+        }
+
+        self.update_collapsed_image_pull_status();
+    }
+
+    /// Remove an image from the pull progress bar.
+    fn end_image_pull(&mut self, name: String) {
+        let Some(count) = self.images.pulling_images.get_mut(&name) else {
+            return;
+        };
+
+        *count = count.saturating_sub(1);
+        if *count > 0 {
+            return;
+        }
+
+        self.images.pulling_images.shift_remove(&name);
+
+        if self
+            .images
+            .displayed_image
+            .as_ref()
+            .is_some_and(|(current, _)| current == &name)
+        {
+            self.images.displayed_image.take();
+
+            // Promote the next image to be displayed
+            if let Some(next) = self.images.pulling_images.keys().next().cloned() {
+                self.display_image_pull(next);
+            }
+        }
+
+        self.update_collapsed_image_pull_status();
+    }
 }
 
 /// Displays evaluation progress.
@@ -405,23 +562,25 @@ async fn progress(
     token: CancellationToken,
 ) {
     /// Helper for formatting the progress bar
-    fn message(state: &State) -> String {
+    fn message(state: &mut State) -> String {
         fn append(message: &mut String, count: usize, kind: impl std::fmt::Display) {
-            if count > 0 {
-                let comma = if message.is_empty() {
-                    message.push_str(" -");
-                    false
-                } else {
-                    true
-                };
-
-                let _ = write!(
-                    message,
-                    "{comma} {count} {kind} task{s}",
-                    comma = if comma { "," } else { "" },
-                    s = if count == 1 { "" } else { "s" }
-                );
+            if count == 0 {
+                return;
             }
+
+            let comma = if message.is_empty() {
+                message.push_str(" -");
+                false
+            } else {
+                true
+            };
+
+            let _ = write!(
+                message,
+                "{comma} {count} {kind} task{s}",
+                comma = if comma { "," } else { "" },
+                s = if count == 1 { "" } else { "s" }
+            );
         }
 
         let mut message = String::new();
@@ -475,11 +634,11 @@ async fn progress(
 
     progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
 
-    let mut state = State::default();
+    let mut state = State::new(progress_bar.clone(), colorize);
     let mut lagged = false;
     let mut tasks_canceled = false;
 
-    progress_bar.pb_set_message(&message(&state));
+    progress_bar.pb_set_message(&message(&mut state));
     progress_bar.pb_start();
 
     loop {
@@ -495,6 +654,14 @@ async fn progress(
             r = crankshaft.recv() => match r {
                 Ok(event) if !lagged => {
                     let removed = match event {
+                        CrankshaftEvent::ImagePullStarted { name, .. } => {
+                            state.start_image_pull(name);
+                            None
+                        }
+                        CrankshaftEvent::ImagePullFailed { name, .. } | CrankshaftEvent::ImagePullFinished { name, .. } => {
+                            state.end_image_pull(name);
+                            None
+                        }
                         CrankshaftEvent::TaskCreated { id, name, token: task_token, .. } => {
                             // Work a backend runs on its own behalf is not a task of
                             // the workflow, so it is left out of the counts entirely.
@@ -603,7 +770,7 @@ async fn progress(
                         state.executing.swap_remove(&task.name);
                     }
 
-                    progress_bar.pb_set_message(&message(&state));
+                    progress_bar.pb_set_message(&message(&mut state));
                 }
                 Ok(_) => continue,
                 Err(RecvError::Closed) => break,
@@ -637,7 +804,7 @@ async fn progress(
                         }
                     };
 
-                    progress_bar.pb_set_message(&message(&state));
+                    progress_bar.pb_set_message(&message(&mut state));
                 }
                 Ok(_) => continue,
                 Err(RecvError::Closed) => break,
@@ -743,6 +910,9 @@ pub async fn run(
     }
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    if let Some(output_dir) = &args.output_dir {
+        config.run.output_dir.clone_from(output_dir);
+    }
     args.apply_engine_config(&mut config.run.engine);
 
     // Bring a stale or missing module lockfile up to date before executing so
@@ -838,13 +1008,17 @@ pub async fn run(
     }
 
     let document = results.filter(&[&source]).next().unwrap().document();
-
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
-    let (ctx, run_dir, db) =
+    // Held for the rest of this function: dropping it stops the heartbeat and
+    // would make this run look abandoned while it is still executing.
+    let (ctx, run_dir, db, _heartbeat) =
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    // Determined here as the engine configuration is moved into evaluation
+    // below.
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let events = Events::new(
         config
             .run
@@ -857,7 +1031,7 @@ pub async fn run(
             .subscribe_transfer()
             .expect("should have transfer events"),
         colorize,
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
@@ -870,7 +1044,7 @@ pub async fn run(
         events
             .subscribe_engine()
             .expect("should have engine events"),
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
@@ -879,18 +1053,26 @@ pub async fn run(
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
 
+    if args.disable_retries {
+        config.run.engine.task.retries = RetryConfig::Disabled;
+    }
+
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
         document.clone(),
-        config.run.engine,
-        cancellation.clone(),
+        engine,
         events,
+        cancellation.clone(),
         &target,
         inputs,
         &run_dir,
         &base_dir,
-        args.index_on.as_deref(),
+        args.index_on.as_ref(),
     ));
 
     loop {
@@ -912,6 +1094,10 @@ pub async fn run(
                     },
                     CancellationContextState::Canceling => {
                         error!("waiting for executing tasks to cancel: use Ctrl-C to immediately terminate Sprocket");
+
+                        if uses_docker {
+                            warn_docker_termination();
+                        }
                     },
                 }
             },
@@ -1028,13 +1214,9 @@ async fn setup_run_context(
     source: &Source,
     target: &Target,
     inputs: &Inputs,
-) -> Result<(RunContext, RunDirectory, Arc<dyn Database>)> {
+) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
-    let output_dir = OutputDirectory::new(
-        args.output_dir
-            .clone()
-            .unwrap_or_else(|| config.run.output_dir.clone()),
-    );
+    let output_dir = OutputDirectory::new(config.run.output_dir.clone());
 
     // Acquire an exclusive lock on the output directory to serialize setup
     // operations across concurrent processes (e.g., database creation,
@@ -1060,13 +1242,18 @@ async fn setup_run_context(
     );
 
     // Open or create the database for provenance tracking
-    let db_path = config.server.database_url();
+    let db_path = config.server.database.resolve_url(output_dir.root());
     let db = open_database(&db_path).await?;
 
     // Create session and run records
     let session = create_session(db.as_ref(), SprocketCommand::Run)
         .await
         .context("failed to create session")?;
+
+    // This process owns the session's runs, so it reports liveness while they
+    // are in flight; a `sprocket run` killed outright leaves them non-terminal
+    // for the sweep to close out.
+    let heartbeat = spawn_heartbeat(db.clone(), session.uuid, config.server.heartbeat_interval());
 
     let (run_id, run_name, _run) = create_run_record(
         db.as_ref(),
@@ -1096,7 +1283,7 @@ async fn setup_run_context(
         started_at: Utc::now(),
     };
 
-    Ok((ctx, run_dir, db))
+    Ok((ctx, run_dir, db, heartbeat))
 }
 
 /// Initializes logging to `output.log` in the given run directory.

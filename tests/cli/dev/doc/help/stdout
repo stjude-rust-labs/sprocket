@@ -15,7 +15,7 @@ Options:
 
       --logo <SVG FILE>
           Path to an SVG logo to embed on each page.
-          
+
           If not supplied, the default Sprocket logo will be used.
 
       --homepage-url <LINK TO HOMEPAGE>
@@ -29,7 +29,7 @@ Options:
 
       --alt-light-logo <SVG FILE>
           Path to an alternate light mode SVG logo to embed on each page.
-          
+
           If not supplied, the `--logo` SVG will be used; or if that is also not supplied, the default Sprocket logo will be used.
 
   -l, --light-mode
@@ -40,7 +40,7 @@ Options:
 
       --overwrite
           Overwrite any existing documentation.
-          
+
           If specified, any existing files in the output directory will be deleted. Otherwise, the command will ignore existing files. Regardless of this flag, the command will overwrite any existing files which conflict with the generated documentation.
 
       --open
@@ -71,12 +71,12 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
 
       --theme <DIR>
           An optional path to a custom theme directory.
-          
+
           This argument is meant to be used by developers of the `wdl` crates; customizing the theme used for the generated documentation is currently unsupported.
 
   -c, --config <CONFIG>
@@ -84,18 +84,18 @@ Options:
 
       --install
           Install the theme if it is not already installed.
-          
+
           `npm` and `npx` are expected to be available in the environment.
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
       --with-doc-comments
           Enables support for documentation comments
-          
-          This option is *experimental* and will be removed in a future major version. Follow the pre-RFC discussion here: <http/github.com/openwdl/wdl/issues/757>.
+
+          This option is *experimental* and will be removed in a future major version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
 
   -m, --report-mode <MODE>
           The report mode

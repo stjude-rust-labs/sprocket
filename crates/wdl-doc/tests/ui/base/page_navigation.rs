@@ -92,8 +92,8 @@ impl UiTest for PageNavigation {
             );
         }
 
-        // The struct members section and the authored Markdown heading must both
-        // be present.
+        // The struct members section and the authored Markdown heading must
+        // both be present.
         if !link_texts.contains(&"Members") {
             bail!("expected a `Members` navigation link");
         }

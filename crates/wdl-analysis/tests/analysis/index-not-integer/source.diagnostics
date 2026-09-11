@@ -9,4 +9,3 @@ error: type mismatch: expected index to be type `String`, but found type `Int`
    │
 11 │     String y = b[0]
    │                  ^ this is type `Int`
-

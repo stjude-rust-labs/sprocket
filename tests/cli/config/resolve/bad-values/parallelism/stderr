@@ -3,4 +3,3 @@ error: failed to deserialize configuration file `bad.toml`
   │
 2 │ parallelism = 0
   │               ^ expected a positive integer or `available` for parallelism
-

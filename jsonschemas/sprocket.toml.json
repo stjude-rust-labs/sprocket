@@ -139,7 +139,7 @@
       "type": "object",
       "properties": {
         "except": {
-          "description": "Rule IDs or tags to except from running.",
+          "description": "Rule IDs or tags to except from running.\n\nThis list is also honored by the `analyzer` subcommand.",
           "type": "array",
           "items": {
             "type": "string"
@@ -252,14 +252,6 @@
           "description": "Whether to enable lint rules.",
           "type": "boolean",
           "default": false
-        },
-        "except": {
-          "description": "Rule IDs to except from running.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         }
       },
       "additionalProperties": false
@@ -310,6 +302,27 @@
           "description": "The failure mode for workflow or task evaluation.\n\nA value of [`FailureMode::Slow`] will result in evaluation waiting for\nexecuting tasks to complete upon error or interruption.\n\nA value of [`FailureMode::Fast`] will immediately attempt to cancel\nexecuting tasks upon error or interruption.",
           "$ref": "#/$defs/FailureMode"
         },
+        "digest_cache_capacity": {
+          "description": "The capacity for runtime digest caches.\n\nThe file and directory digests calculated during evaluation are stored\nin LRU caches with this capacity.\n\nThe capacity cannot be zero.\n\nDefaults to `1000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "default": 1000
+        },
+        "choice_cache_capacity": {
+          "description": "The capacity for the runtime enum choice cache.\n\nThe values created for enums during evaluation are stored in an LRU\ncache with this capacity.\n\nThe capacity cannot be zero.\n\nDefaults to `1000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "default": 1000
+        },
+        "regex_cache_capacity": {
+          "description": "The capacity for the runtime compiled regular expression cache.\n\nWhen a WDL stdlib function that takes a regular expression is called, a\nnewly seen regular expression is compiled and stored in an LRU cache\nwith this capacity.\n\nThe capacity cannot be zero.\n\nDefaults to `1000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "default": 1000
+        },
         "output_dir": {
           "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
           "type": "string",
@@ -348,6 +361,13 @@
         "hash_algorithm": {
           "description": "The hash algorithm to use for calculating content digests for file\nuploads.\n\nDefaults to `sha256`.",
           "type": "string"
+        },
+        "response_cache_capacity": {
+          "description": "The capacity for the in-memory HTTP response cache.\n\nEach HTTP operation performed in evaluation gets its own LRU response\ncache with this capacity.\n\nThe capacity cannot be zero.\n\nNote: this capacity affects only in-memory caches; it does not affect\nthe download cache.\n\nDefaults to `1000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "default": 1000
         }
       },
       "additionalProperties": false
@@ -982,11 +1002,9 @@
           "default": "apptainer"
         },
         "image_cache_dir": {
-          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nWhen set, pulled images are stored in this directory and shared\nacross runs. When unset, images are stored in a per-run directory\nthat is not shared.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nDefaults to an operating system specific cache directory for the user.",
+          "type": "string",
+          "default": "system"
         },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",
@@ -1210,7 +1228,7 @@
         },
         "database": {
           "description": "Database configuration.",
-          "$ref": "#/$defs/ServerDatabaseConfig"
+          "$ref": "#/$defs/DatabaseConfig"
         },
         "output_dir": {
           "description": "Directory for workflow outputs.",
@@ -1240,12 +1258,19 @@
         "engine": {
           "description": "The engine configuration to use during execution.",
           "$ref": "#/$defs/WdlEngineConfig"
+        },
+        "orphan_timeout_minutes": {
+          "description": "How many minutes a session may go without recording a heartbeat before\nthe runs it owns are marked `orphaned`. Applies to `sprocket run`\ninvocations as well as servers.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 5
         }
       },
       "additionalProperties": false
     },
-    "ServerDatabaseConfig": {
-      "description": "Server database configuration.",
+    "DatabaseConfig": {
+      "description": "Database configuration.",
       "type": "object",
       "properties": {
         "url": {
@@ -1317,6 +1342,27 @@
         "fail": {
           "description": "The failure mode for workflow or task evaluation.\n\nA value of [`FailureMode::Slow`] will result in evaluation waiting for\nexecuting tasks to complete upon error or interruption.\n\nA value of [`FailureMode::Fast`] will immediately attempt to cancel\nexecuting tasks upon error or interruption.",
           "$ref": "#/$defs/FailureMode"
+        },
+        "digest_cache_capacity": {
+          "description": "The capacity for runtime digest caches.\n\nThe file and directory digests calculated during evaluation are stored\nin LRU caches with this capacity.\n\nThe capacity cannot be zero.\n\nDefaults to `1000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "default": 1000
+        },
+        "choice_cache_capacity": {
+          "description": "The capacity for the runtime enum choice cache.\n\nThe values created for enums during evaluation are stored in an LRU\ncache with this capacity.\n\nThe capacity cannot be zero.\n\nDefaults to `1000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "default": 1000
+        },
+        "regex_cache_capacity": {
+          "description": "The capacity for the runtime compiled regular expression cache.\n\nWhen a WDL stdlib function that takes a regular expression is called, a\nnewly seen regular expression is compiled and stored in an LRU cache\nwith this capacity.\n\nThe capacity cannot be zero.\n\nDefaults to `1000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "default": 1000
         }
       },
       "additionalProperties": false

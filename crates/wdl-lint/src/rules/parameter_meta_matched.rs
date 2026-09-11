@@ -209,7 +209,8 @@ fn check_parameter_meta(
         .collect();
 
     // We determine the intersection of expected and actual parameter names.
-    // Using these we next check for missing and extraneous parameters separately.
+    // Using these we next check for missing and extraneous parameters
+    // separately.
     let expected_order: Vec<_> = expected
         .iter()
         .map(|decl| decl.name().text().to_string())
@@ -286,8 +287,9 @@ impl Visitor for ParameterMetaMatchedRule {
             return;
         }
 
-        // Note that only the first input and parameter_meta sections are checked as any
-        // additional sections is considered a validation error
+        // Note that only the first input and parameter_meta sections are
+        // checked as any additional sections is considered a validation
+        // error
         match task.parameter_metadata() {
             Some(param_meta) => {
                 check_parameter_meta(
@@ -315,8 +317,9 @@ impl Visitor for ParameterMetaMatchedRule {
             return;
         }
 
-        // Note that only the first input and parameter_meta sections are checked as any
-        // additional sections is considered a validation error
+        // Note that only the first input and parameter_meta sections are
+        // checked as any additional sections is considered a validation
+        // error
         match workflow.parameter_metadata() {
             Some(param_meta) => {
                 check_parameter_meta(
@@ -353,8 +356,9 @@ impl Visitor for ParameterMetaMatchedRule {
             return;
         }
 
-        // Note that only the first input and parameter_meta sections are checked as any
-        // additional sections is considered a validation error
+        // Note that only the first input and parameter_meta sections are
+        // checked as any additional sections is considered a validation
+        // error
         match def.parameter_metadata().next() {
             Some(param_meta) => {
                 check_parameter_meta(

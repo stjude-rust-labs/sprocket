@@ -56,7 +56,9 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Wait for manager to be ready
     let (tx, rx) = oneshot::channel();
@@ -91,7 +93,8 @@ workflow test {
 "#;
 
 #[sqlx::test]
-async fn list_sessions_returns_empty_initially(pool: sqlx::SqlitePool) {
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn list_sessions_starts_with_only_the_server_session(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 
     let response = app
@@ -110,12 +113,17 @@ async fn list_sessions_returns_empty_initially(pool: sqlx::SqlitePool) {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(json["sessions"].is_array());
+    // The server claims a session as soon as it starts, before serving any
+    // command, and heartbeats it from that moment on. That session is what
+    // marks this process's runs as belonging to a live server, so a sweep by
+    // any other server leaves them alone.
+    let sessions = json["sessions"].as_array().unwrap();
     assert_eq!(
-        json["sessions"].as_array().unwrap().len(),
-        0,
-        "should have no sessions initially"
+        sessions.len(),
+        1,
+        "the server's own session should be the only one"
     );
+    assert_eq!(sessions[0]["subcommand"], "server");
 }
 
 #[sqlx::test]
@@ -198,6 +206,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn get_nonexistent_session_returns_404(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 
@@ -293,6 +302,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn invalid_session_next_token_returns_error(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 

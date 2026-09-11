@@ -33,6 +33,7 @@ use tracing::level_filters::LevelFilter;
 use tracing::trace;
 use tracing_indicatif::IndicatifLayer;
 use tracing_indicatif::IndicatifWriter;
+use tracing_indicatif::writer::Stdout;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::fmt;
@@ -117,7 +118,8 @@ async fn real_main() -> CommandResult<()> {
                     config
                 }
                 Err(e) => {
-                    // If there is source associated with the error, emit a diagnostic
+                    // If there is source associated with the error, emit a
+                    // diagnostic
                     if let Some(source) = e.source() {
                         emit_diagnostics(
                             &e.path().to_string(),
@@ -132,7 +134,8 @@ async fn real_main() -> CommandResult<()> {
                         )
                         .context("failed to emit diagnostics")?;
 
-                        // Bail out without returning to caller as the diagnostic was displayed
+                        // Bail out without returning to caller as the
+                        // diagnostic was displayed
                         std::process::exit(1);
                     }
 
@@ -161,7 +164,7 @@ async fn real_main() -> CommandResult<()> {
     };
 
     colored::control::set_override(colorize);
-    let (writer, file_handle) =
+    let (writer, file_handle, indicatif_writers) =
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
 
     match cli.command {
@@ -198,7 +201,7 @@ async fn real_main() -> CommandResult<()> {
             commands::server::server(args, config, colorize).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args, config, colorize).await
+            commands::test::test(args, config, colorize, indicatif_writers.stdout).await
         }
     }
 }
@@ -226,6 +229,14 @@ pub type FileReloadHandle = reload::Handle<
     Layered<IndicatifLayer<FilterLayer>, FilterLayer>,
 >;
 
+/// Writers for the `tracing-indicatif` layer.
+struct IndicatifWriters {
+    /// Writer for stdout.
+    stdout: IndicatifWriter<Stdout>,
+    /// Writer for stderr.
+    stderr: IndicatifWriter,
+}
+
 /// Initializes logging given the verbosity level and whether or not to colorize
 /// log output.
 ///
@@ -235,21 +246,21 @@ pub type FileReloadHandle = reload::Handle<
 fn initialize_logging(
     verbosity: Verbosity<WarnLevel>,
     colorize: bool,
-) -> Result<(FilterReloadHandle, FileReloadHandle)> {
+) -> Result<(FilterReloadHandle, FileReloadHandle, IndicatifWriters)> {
     // Try to get a default environment filter via `RUST_LOG`
     let env_filter = match EnvFilter::try_from_default_env()
         .context("invalid `RUST_LOG` environment variable")
     {
         Ok(filter) => filter,
         Err(e) => {
-            // If there was an error and the variable was set, then the error was due to
-            // parsing an invalid directive
+            // If there was an error and the variable was set, then the error
+            // was due to parsing an invalid directive
             if std::env::var("RUST_LOG").is_ok() {
                 return Err(e);
             }
 
-            // Otherwise, use a default directive env filter that disables noisy hyper
-            // output
+            // Otherwise, use a default directive env filter that disables noisy
+            // hyper output
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::from(verbosity).into())
                 .from_env_lossy()
@@ -261,9 +272,15 @@ fn initialize_logging(
     // This layer should always come first in the subscriber
     let (filter_layer, filter_reload_handle) = reload::Layer::new(env_filter);
 
-    // Set up an indicatif layer so that progress bars don't interfere with logging
-    // output
-    let indicatif_layer = IndicatifLayer::new();
+    // Set up an indicatif layer so that progress bars don't interfere with
+    // logging output
+    let indicatif_layer = IndicatifLayer::new()
+        .with_span_child_prefix_indent("    ")
+        .with_span_child_prefix_symbol("↳ ");
+    let indicatif_writers = IndicatifWriters {
+        stdout: indicatif_layer.get_stdout_writer(),
+        stderr: indicatif_layer.get_stderr_writer(),
+    };
 
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_reload_handle) =
@@ -272,7 +289,7 @@ fn initialize_logging(
     // Build the subscriber and set it as the global default
     let subscriber = fmt::Subscriber::builder()
         .with_max_level(LevelFilter::TRACE)
-        .with_writer(indicatif_layer.get_stderr_writer())
+        .with_writer(indicatif_writers.stderr.clone())
         .with_ansi(colorize)
         .with_ansi_sanitization(false)
         .finish()
@@ -283,7 +300,7 @@ fn initialize_logging(
     tracing::subscriber::set_global_default(subscriber)
         .context("failed to set tracing subscriber")?;
 
-    Ok((filter_reload_handle, file_reload_handle))
+    Ok((filter_reload_handle, file_reload_handle, indicatif_writers))
 }
 
 /// The Sprocket command line entrypoint.

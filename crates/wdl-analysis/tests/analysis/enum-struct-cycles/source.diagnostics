@@ -29,4 +29,3 @@ error: enum `CyclicEnum5` has a recursive definition
    │      ^^^^^^^^^^^
    │
    = help: the type `CyclicStruct3` participates in the recursion
-

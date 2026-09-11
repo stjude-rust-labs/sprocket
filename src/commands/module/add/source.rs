@@ -290,7 +290,6 @@ pub(super) fn selector_arg_kind(args: &Args) -> &'static str {
 mod tests {
     use std::fs;
 
-    use anyhow::Context as _;
     use clap::Parser as _;
     use git2::IndexAddOption;
     use git2::Oid;

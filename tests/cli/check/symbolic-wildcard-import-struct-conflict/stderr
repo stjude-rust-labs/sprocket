@@ -3,7 +3,7 @@ error: conflicting struct name `Point`
   │
 3 │ import * from shapes
   │               ------ the import that introduced the struct is here
-4 │ 
+4 │
 5 │ struct Point {
   │        ^^^^^ this name conflicts with an imported struct
   │

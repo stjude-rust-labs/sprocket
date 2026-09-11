@@ -5,18 +5,18 @@ Usage: sprocket dev server status [OPTIONS] [RUN]
 Arguments:
   [RUN]
           The run to inspect.
-          
+
           May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`). If omitted, all runs are listed.
 
 Options:
       --status <STATUS>
           Filter the run list by status.
-          
+
           Valid values: `queued`, `analyzing`, `running`, `completed`, `failed`, `canceling`, `canceled`. Only used when no `RUN` is provided.
 
       --limit <N>
           Maximum number of runs to display.
-          
+
           When set, fetches a single page of at most `N` runs. When omitted, all runs are displayed by paginating through the server's results. Only used when no `RUN` is provided.
 
       --json
@@ -24,12 +24,12 @@ Options:
 
       --host <HOST>
           The hostname of the running Sprocket server to talk to.
-          
+
           If not provided, falls back to the value in the Sprocket config.
 
   -p, --port <PORT>
           The port of the running Sprocket server to talk to.
-          
+
           If not provided, falls back to the value in the Sprocket config.
 
   -v, --verbose...
@@ -48,7 +48,7 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
 
   -c, --config <CONFIG>
@@ -56,7 +56,7 @@ Options:
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help

@@ -1,18 +1,22 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 
 use anyhow::Result;
+use cloud_copy::ContentDigest;
 use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
+use regex::Regex;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
+use url::Url;
 use wdl_analysis::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::types::Type;
@@ -20,6 +24,8 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 
+use crate::Cache;
+use crate::Engine;
 use crate::EvaluationPath;
 use crate::GuestPath;
 use crate::HostPath;
@@ -28,7 +34,7 @@ use crate::Outputs;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
-use crate::http::Transferer;
+use crate::http::Location;
 
 mod trie;
 pub mod v1;
@@ -92,8 +98,9 @@ impl CancellationContextState {
     fn update(mode: FailureMode, error: bool, state: &Arc<AtomicU8>) -> Option<Self> {
         // Update the provided state with the new state
         let previous_state = state
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
-                // If updating for an error and there has been a cancellation, bail out
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
+                // If updating for an error and there has been a cancellation,
+                // bail out
                 if error && state != CANCELLATION_STATE_NOT_CANCELED {
                     return None;
                 }
@@ -134,6 +141,9 @@ impl CancellationContextState {
 /// Represents context for cancelling workflow or task evaluation.
 ///
 /// Uses a default failure mode of [`Slow`](FailureMode::Slow).
+///
+/// This type is cheaply cloned and all clones reference the same cancellation
+/// state.
 #[derive(Debug, Clone)]
 pub struct CancellationContext {
     /// The failure mode for the cancellation context.
@@ -142,7 +152,7 @@ pub struct CancellationContext {
     state: Arc<AtomicU8>,
     /// The parent context, consulted read-only when folding the effective
     /// state. `None` for a root context created by [`new`](Self::new).
-    parent: Option<Arc<CancellationContext>>,
+    parent: Option<Arc<Self>>,
     /// The cancellation token that is canceled upon the first cancellation.
     first: CancellationToken,
     /// The cancellation token that is canceled upon the second cancellation
@@ -256,8 +266,8 @@ impl CancellationContext {
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn first(&self) -> CancellationToken {
-        self.first.clone()
+    pub fn first(&self) -> &CancellationToken {
+        &self.first
     }
 
     /// Gets the cancellation token that is canceled upon the second
@@ -270,8 +280,8 @@ impl CancellationContext {
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn second(&self) -> CancellationToken {
-        self.second.clone()
+    pub fn second(&self) -> &CancellationToken {
+        &self.second
     }
 
     /// Determines if the user initiated the cancellation, considering any
@@ -321,6 +331,151 @@ impl CancellationContext {
 impl Default for CancellationContext {
     fn default() -> Self {
         Self::new(FailureMode::Slow)
+    }
+}
+
+/// The inner state of [`EvaluationHttpClient`].
+struct EvaluationHttpClientInner {
+    /// The engine associated with evaluation.
+    engine: Engine,
+    /// The evaluator associated with the client.
+    events: Option<broadcast::Sender<TransferEvent>>,
+    /// The cache for calls to the `download` method.
+    downloads: Cache<Url, Location>,
+    /// The cache for calls to the `upload` method.
+    uploads: Cache<Url, ()>,
+    /// The cache for calls to the `size` method.
+    sizes: Cache<Url, Option<u64>>,
+    /// The cache for calls to the `walk` method.
+    walks: Cache<Url, Arc<[String]>>,
+    /// The cache for calls to the `exists` method.
+    exists: Cache<Url, bool>,
+    /// The cache for calls to the `digests` method.
+    digests: Cache<Url, Option<Arc<ContentDigest>>>,
+}
+
+/// A HTTP client implementation used for evaluation.
+///
+/// This type wraps an inner [`HttpClient`] and provides transfer events from a
+/// related [`Engine`].
+///
+/// Successful calls to this type's methods will be cached for the evaluation.
+///
+/// This type is cheaply cloned.
+#[derive(Clone)]
+pub(crate) struct EvaluationHttpClient(Arc<EvaluationHttpClientInner>);
+
+impl EvaluationHttpClient {
+    /// Constructs a new HTTP evaluation client.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided configuration specifies a zero for response cache
+    /// capacity.
+    pub fn new(engine: &Engine, events: &Events) -> Self {
+        let capacity = NonZeroUsize::new(engine.config().http.response_cache_capacity as usize)
+            .expect("the cache capacity cannot be zero");
+
+        Self(
+            EvaluationHttpClientInner {
+                engine: engine.clone(),
+                events: events.transfer().cloned(),
+                downloads: Cache::new(capacity),
+                uploads: Cache::new(capacity),
+                sizes: Cache::new(capacity),
+                walks: Cache::new(capacity),
+                exists: Cache::new(capacity),
+                digests: Cache::new(capacity),
+            }
+            .into(),
+        )
+    }
+
+    /// Downloads a file or directory to a temporary path.
+    pub async fn download(&self, source: &Url, token: &CancellationToken) -> Result<Location> {
+        self.0
+            .engine
+            .http_client()
+            .download(source, self.0.events.clone(), token, &self.0.downloads)
+            .await
+    }
+
+    /// Uploads a local file or directory to a cloud storage URL.
+    ///
+    /// The destination URL is expected to be content-addressed (meaning
+    /// specific to the content being uploaded).
+    pub async fn upload(
+        &self,
+        source: &Path,
+        destination: &Url,
+        token: &CancellationToken,
+    ) -> Result<()> {
+        self.0
+            .engine
+            .http_client()
+            .upload(
+                source,
+                destination,
+                self.0.events.clone(),
+                token,
+                &self.0.uploads,
+            )
+            .await
+    }
+
+    /// Gets the size of a resource at a given URL.
+    ///
+    /// Returns `Ok(Some(_))` if the size is known.
+    ///
+    /// Returns `Ok(None)` if the URL is valid but the size cannot be
+    /// determined.
+    pub async fn size(&self, url: &Url, token: &CancellationToken) -> Result<Option<u64>> {
+        self.0
+            .engine
+            .http_client()
+            .size(url, token, &self.0.sizes)
+            .await
+    }
+
+    /// Walks a given storage URL as if it were a directory.
+    ///
+    /// Returns a list of relative paths from the given URL that are in
+    /// lexicographical order.
+    ///
+    /// If the given storage URL is not a directory, an empty list is returned.
+    pub async fn walk(&self, url: &Url, token: &CancellationToken) -> Result<Arc<[String]>> {
+        self.0
+            .engine
+            .http_client()
+            .walk(url, token, &self.0.walks)
+            .await
+    }
+
+    /// Determines if the given URL exists.
+    ///
+    /// Returns `Ok(true)` if a HEAD request returns success or if a walk of the
+    /// URL returns at least one contained URL.
+    pub async fn exists(&self, url: &Url, token: &CancellationToken) -> Result<bool> {
+        self.0
+            .engine
+            .http_client()
+            .exists(url, token, &self.0.exists)
+            .await
+    }
+
+    /// Gets the content digest of the resource identified by the given URL.
+    ///
+    /// Returns `Ok(None)` if the resource has no associated content digest.
+    pub async fn digest(
+        &self,
+        url: &Url,
+        token: &CancellationToken,
+    ) -> Result<Option<Arc<ContentDigest>>> {
+        self.0
+            .engine
+            .http_client()
+            .digest(url, token, &self.0.digests)
+            .await
     }
 }
 
@@ -383,6 +538,8 @@ pub enum EngineEvent {
 }
 
 /// Represents events that may be sent during WDL evaluation.
+///
+/// This type is cheaply cloned.
 #[derive(Debug, Clone, Default)]
 pub struct Events {
     /// The WDL engine events channel.
@@ -436,18 +593,18 @@ impl Events {
     }
 
     /// Gets the sender for the Crankshaft events.
-    pub(crate) fn engine(&self) -> &Option<broadcast::Sender<EngineEvent>> {
-        &self.engine
+    pub(crate) fn engine(&self) -> Option<&broadcast::Sender<EngineEvent>> {
+        self.engine.as_ref()
     }
 
     /// Gets the sender for the Crankshaft events.
-    pub(crate) fn crankshaft(&self) -> &Option<broadcast::Sender<CrankshaftEvent>> {
-        &self.crankshaft
+    pub(crate) fn crankshaft(&self) -> Option<&broadcast::Sender<CrankshaftEvent>> {
+        self.crankshaft.as_ref()
     }
 
     /// Gets the sender for the transfer events.
-    pub(crate) fn transfer(&self) -> &Option<broadcast::Sender<TransferEvent>> {
-        &self.transfer
+    pub(crate) fn transfer(&self) -> Option<&broadcast::Sender<TransferEvent>> {
+        self.transfer.as_ref()
     }
 }
 
@@ -603,8 +760,8 @@ pub(crate) trait EvaluationContext: Send + Sync {
         None
     }
 
-    /// Gets the transferer to use for evaluating expressions.
-    fn transferer(&self) -> &dyn Transferer;
+    /// Gets the client and cancellation token for HTTP operations.
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken);
 
     /// Gets a guest path representation of a host path.
     ///
@@ -624,11 +781,11 @@ pub(crate) trait EvaluationContext: Send + Sync {
         None
     }
 
-    /// Notifies the context that a file was created as a result of a call to a
-    /// stdlib function.
+    /// Notifies the context that a temporary file was created as a result of a
+    /// call to a stdlib function.
     ///
     /// A context may map a guest path for the new host path.
-    fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
+    fn notify_temp_file_created(&mut self, path: &HostPath) -> Result<()> {
         let _ = path;
         Ok(())
     }
@@ -643,6 +800,9 @@ pub(crate) trait EvaluationContext: Send + Sync {
         let _ = (object, name);
         None
     }
+
+    /// Compiles a regular expression.
+    fn compile_regex(&self, pattern: &str) -> Result<Regex, regex::Error>;
 }
 
 /// Represents an index of a scope in a collection of scopes.
@@ -858,7 +1018,7 @@ impl EvaluatedTask {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

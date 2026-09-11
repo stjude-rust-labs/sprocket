@@ -115,6 +115,8 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
         if trailing_comments.is_none() {
             trailing_comments = find_trailing_comments(&last_token_of_element(import));
         }
+
+        stream.end_line();
     }
 
     stream.blank_line();
@@ -231,6 +233,7 @@ pub fn format_input_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut inputs = Vec::new();
     let mut close_brace = None;
@@ -257,6 +260,7 @@ pub fn format_input_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("input section close brace")).write(stream, config);
     stream.end_line();
 }
@@ -283,10 +287,12 @@ pub fn format_output_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         } else {
             assert_eq!(child.element().kind(), SyntaxKind::BoundDeclNode);
         }
@@ -319,9 +325,8 @@ pub fn format_literal_input_item(
         }
     }
 
-    let hints_node = children.next().expect("literal input item hints node");
-    assert_eq!(hints_node.element().kind(), SyntaxKind::LiteralHintsNode);
-    (&hints_node).write(stream, config);
+    let value = children.next().expect("literal input item value");
+    (&value).write(stream, config);
 }
 
 /// Formats a [`LiteralInput`](wdl_ast::v1::LiteralInput).
@@ -346,6 +351,7 @@ pub fn format_literal_input(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -360,18 +366,24 @@ pub fn format_literal_input(
         }
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal input close brace")).write(stream, config);
 }
 
@@ -423,6 +435,7 @@ pub fn format_literal_hints(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -437,18 +450,24 @@ pub fn format_literal_hints(
         }
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal hints close brace")).write(stream, config);
 }
 
@@ -502,6 +521,7 @@ pub fn format_literal_output(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -516,17 +536,23 @@ pub fn format_literal_output(
         }
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal output close brace")).write(stream, config);
 }

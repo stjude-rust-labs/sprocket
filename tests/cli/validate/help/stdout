@@ -12,17 +12,17 @@ Arguments:
 
   [INPUTS]...
           The inputs for the task or workflow.
-          
+
           An input can be a key-value pair (e.g., `task.name=value`), an input file prefixed with `@` (e.g., `@inputs.json`), or a bare value that is appended to the preceding key's array.
 
 Options:
   -t, --target <NAME>
           The name of the task or workflow to validate inputs against.
-          
+
           This argument is required if trying to validate a task or workflow without any inputs.
-          
+
           If `target` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
-          
+
           If `target` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
 
   -m, --report-mode <MODE>
@@ -48,7 +48,7 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
 
   -c, --config <CONFIG>
@@ -56,7 +56,7 @@ Options:
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help

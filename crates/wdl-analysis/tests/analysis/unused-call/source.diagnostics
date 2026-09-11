@@ -3,4 +3,3 @@ warning[UnusedCall]: unused call `foo`
    │
 15 │     call foo
    │          ^^^
-

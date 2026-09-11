@@ -49,6 +49,7 @@ pub use crate::resolver::config::TransferLimit;
 pub use crate::resolver::config::TransferLimitError;
 #[cfg(feature = "git-resolver")]
 pub use crate::resolver::config::TrustMode;
+#[cfg(feature = "git-resolver")]
 pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;

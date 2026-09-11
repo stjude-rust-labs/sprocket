@@ -145,6 +145,9 @@ pub struct RunTaskCountsResponse {
     pub canceled: i64,
     /// Number of tasks that were preempted.
     pub preempted: i64,
+    /// Number of tasks orphaned when the server that owned their run stopped
+    /// reporting.
+    pub orphaned: i64,
     /// Total number of tasks across all statuses.
     pub total: i64,
 }
@@ -161,6 +164,7 @@ impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
             failed: 0,
             canceled: 0,
             preempted: 0,
+            orphaned: 0,
             total: 0,
         };
 
@@ -175,6 +179,7 @@ impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
                 TaskStatus::Failed => counts.failed = count,
                 TaskStatus::Canceled => counts.canceled = count,
                 TaskStatus::Preempted => counts.preempted = count,
+                TaskStatus::Orphaned => counts.orphaned = count,
             }
             counts.total += count;
         }

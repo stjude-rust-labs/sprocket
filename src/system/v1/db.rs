@@ -1,5 +1,7 @@
 //! Database schema and operations for provenance tracking in v1.
 
+use std::time::Duration;
+
 use async_trait::async_trait;
 use chrono::DateTime;
 use chrono::Utc;
@@ -309,6 +311,30 @@ pub trait Database: Send + Sync {
         Ok(())
     }
 
+    /// Records a liveness heartbeat on a session.
+    ///
+    /// `sprocket server` and `sprocket run` use this to keep their sessions
+    /// live.
+    async fn heartbeat_session(&self, id: Uuid, at: DateTime<Utc>) -> Result<()>;
+
+    /// Marks non-terminal runs and their tasks owned by a stale session
+    /// `Orphaned`.
+    ///
+    /// A session is stale when it records no heartbeat within `timeout`; one
+    /// that never recorded one uses its `created_at`. Its owner can no longer
+    /// drive or cancel its runs. Live owners keep their sessions fresh, so this
+    /// is safe to run continuously across processes sharing one database.
+    ///
+    /// Implementations must use a bulk statement per table to avoid the
+    /// [`list_runs`](Self::list_runs) page limit.
+    ///
+    /// Returns the number of runs marked orphaned.
+    async fn mark_orphaned_runs(
+        &self,
+        error: &str,
+        timeout: Duration,
+        now: DateTime<Utc>,
+    ) -> Result<u64>;
     /// Transition a run to `Canceling` status.
     ///
     /// Returns `true` if the run was updated, `false` if it was not found or

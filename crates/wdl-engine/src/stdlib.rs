@@ -9,7 +9,9 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use futures::future::BoxFuture;
+use regex::Regex;
 use tempfile::TempPath;
+use tokio_util::sync::CancellationToken;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -17,6 +19,7 @@ use wdl_ast::Span;
 
 use crate::Coercible;
 use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::HostPath;
 use crate::NoneValue;
@@ -24,7 +27,6 @@ use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 use crate::http::Location;
-use crate::http::Transferer;
 
 mod as_map;
 mod as_pairs;
@@ -59,7 +61,6 @@ mod read_object;
 mod read_objects;
 mod read_string;
 mod read_tsv;
-mod regex_cache;
 mod round;
 mod select_all;
 mod select_first;
@@ -104,17 +105,18 @@ fn ensure_local_path(base_dir: &EvaluationPath, path: &str) -> Result<PathBuf> {
 ///
 /// If the path is already local, its location is returned.
 pub(crate) async fn download_file(
-    transferer: &dyn Transferer,
+    client: &EvaluationHttpClient,
     base_dir: &EvaluationPath,
     path: &HostPath,
+    token: &CancellationToken,
 ) -> Result<Location> {
     let joined = base_dir.join(path.as_str())?;
     if joined.is_local() {
         Ok(Location::Path(joined.unwrap_local()))
     } else {
         let url = joined.unwrap_remote();
-        transferer
-            .download(&url)
+        client
+            .download(&url, token)
             .await
             .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"))
     }
@@ -152,9 +154,9 @@ pub(crate) fn temp_path_to_value(
         )
     })?);
 
-    // Finally, notify that the file was created.
+    // Finally, notify that the temp file was created.
     // For task evaluation, this will cause a guest path to be mapped.
-    context.context.notify_file_created(&path).map_err(|e| {
+    context.inner.notify_temp_file_created(&path).map_err(|e| {
         function_call_failed(
             function_name,
             format!("failed to keep temporary file: {e}"),
@@ -192,7 +194,7 @@ impl CallArgument {
 /// Represents function call context.
 pub struct CallContext<'a> {
     /// The evaluation context for the call.
-    context: &'a mut dyn EvaluationContext,
+    inner: &'a mut dyn EvaluationContext,
     /// The call site span.
     call_site: Span,
     /// The arguments to the call.
@@ -210,7 +212,7 @@ impl<'a> CallContext<'a> {
         return_type: Type,
     ) -> Self {
         Self {
-            context,
+            inner: context,
             call_site,
             arguments,
             return_type,
@@ -219,32 +221,37 @@ impl<'a> CallContext<'a> {
 
     /// Gets the base directory for the call.
     pub fn base_dir(&self) -> &EvaluationPath {
-        self.context.base_dir()
+        self.inner.base_dir()
     }
 
     /// Gets the temp directory for the call.
     pub fn temp_dir(&self) -> &Path {
-        self.context.temp_dir()
+        self.inner.temp_dir()
     }
 
     /// Gets the stdout value for the call.
     pub fn stdout(&self) -> Option<&Value> {
-        self.context.stdout()
+        self.inner.stdout()
     }
 
     /// Gets the stderr value for the call.
     pub fn stderr(&self) -> Option<&Value> {
-        self.context.stderr()
+        self.inner.stderr()
     }
 
-    /// Gets the transferer to use for evaluating expressions.
-    pub fn transferer(&self) -> &dyn Transferer {
-        self.context.transferer()
+    /// Gets the client and cancellation token for HTTP operations.
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+        self.inner.http()
+    }
+
+    /// Compiles a regular expression.
+    fn compile_regex(&self, pattern: &str) -> Result<Regex, regex::Error> {
+        self.inner.compile_regex(pattern)
     }
 
     /// Gets the inner evaluation context.
     pub fn inner(&self) -> &dyn EvaluationContext {
-        self.context
+        self.inner
     }
 
     /// Coerces an argument to the given type.
@@ -257,7 +264,7 @@ impl<'a> CallContext<'a> {
     fn coerce_argument(&self, index: usize, ty: impl Into<Type>) -> Value {
         self.arguments[index]
             .value
-            .coerce(Some(self.context), &ty.into())
+            .coerce(Some(self.inner), &ty.into())
             .expect("value should coerce")
     }
 
@@ -267,6 +274,23 @@ impl<'a> CallContext<'a> {
     #[allow(unused)]
     fn return_type_eq(&self, ty: impl Into<Type>) -> bool {
         self.return_type.eq(&ty.into())
+    }
+
+    /// Downloads the given path.
+    ///
+    /// If the path is already local, its location is returned.
+    pub(crate) async fn download_file(&self, path: &HostPath) -> Result<Location> {
+        let joined = self.base_dir().join(path.as_str())?;
+        if joined.is_local() {
+            Ok(Location::Path(joined.unwrap_local()))
+        } else {
+            let url = joined.unwrap_remote();
+            let (client, token) = self.http();
+            client
+                .download(&url, token)
+                .await
+                .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"))
+        }
     }
 }
 
@@ -414,7 +438,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
 });
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
     use wdl_analysis::stdlib::TypeParameters;

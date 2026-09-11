@@ -202,7 +202,7 @@ impl Extend<Tag> for TagSet {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]
