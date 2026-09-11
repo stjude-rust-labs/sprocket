@@ -79,13 +79,15 @@ fn hash_command(request: &KeyRequest<'_>, input_digests: &[ArrayString<64>]) -> 
                     Some((index, len)) => {
                         let end = start + len;
 
-                        // If the backend input is cacheable, hash the input kind, content digest,
+                        // If the backend input is cacheable, hash the input
+                        // kind, content digest,
                         // and file name (non-temporary only)
                         let input = &request.backend_inputs[index];
                         if input.cacheable() {
                             input.kind().hash(&mut hasher);
 
-                            // Count the number of preceding non-cacheable inputs to offset by
+                            // Count the number of preceding non-cacheable
+                            // inputs to offset by
                             let offset = (0..index)
                                 .filter(|i| !request.backend_inputs[*i].cacheable())
                                 .count();
@@ -93,7 +95,8 @@ fn hash_command(request: &KeyRequest<'_>, input_digests: &[ArrayString<64>]) -> 
                             match input.kind() {
                                 ContentKind::File | ContentKind::Directory => {
                                     // Hash the file name
-                                    // SAFETY: guest paths are always Unix style and have a slash
+                                    // SAFETY: guest paths are always Unix style
+                                    // and have a slash
                                     let slash = start + current[start..end].rfind('/').unwrap();
                                     (&current[slash + 1..end]).hash(&mut hasher);
                                 }
@@ -526,7 +529,8 @@ impl CallCache {
         // Calculate the command digest
         let command_digest = hash_command(request, &inputs);
 
-        // Sort the input digests so that they can be easily compared with an entry
+        // Sort the input digests so that they can be easily compared with an
+        // entry
         inputs.sort();
 
         // Calculate the task's cache key
@@ -622,8 +626,8 @@ impl CallCache {
         let file = LockedFile::acquire_exclusive(&path).await?;
 
         // Truncate the file before attempting to serialize it
-        // If further operations fail, this guarantees that the cache entry will be
-        // invalidated
+        // If further operations fail, this guarantees that the cache entry will
+        // be invalidated
         file.set_len(0).with_context(|| {
             format!(
                 "failed to truncate call cache entry file `{path}`",
@@ -881,8 +885,8 @@ mod tests {
         cache.populate(&transferer, &request).await;
 
         // Change the input's guest path, but keep the file name the same
-        // The entry should be valid as the input's contents and file name remained the
-        // same
+        // The entry should be valid as the input's contents and file name
+        // remained the same
         let key = cache
             .inner
             .key(
@@ -963,8 +967,9 @@ mod tests {
         let transferer = DigestTransferer::default();
         cache.populate(&transferer, &request).await;
 
-        // Change the input's file name doesn't invalidate the entry because the file
-        // contents remained the same and file names are ignored for temporary files
+        // Change the input's file name doesn't invalidate the entry because the
+        // file contents remained the same and file names are ignored
+        // for temporary files
         let key = cache
             .inner
             .key(
@@ -1963,7 +1968,8 @@ mod tests {
         let transferer = DigestTransferer::default();
         cache.populate(&transferer, &request).await;
 
-        // Modify the `localization_optional` hint; this should not affect the entry
+        // Modify the `localization_optional` hint; this should not affect the
+        // entry
         let key = cache
             .inner
             .key(
@@ -2076,12 +2082,13 @@ mod tests {
         fs::write(&input_file_path, "changed!").await.unwrap();
         clear_digest_cache();
 
-        // Modify the `foo` input; this should not affect the entry as the backend input
-        // was excluded
+        // Modify the `foo` input; this should not affect the entry as the
+        // backend input was excluded
         let key = cache.inner.key(&transferer, &request).await.unwrap();
         cache.inner.get(&transferer, &key).await.unwrap().unwrap();
 
-        // Modify the `bar` input; the key should change and the entry should not exist
+        // Modify the `bar` input; the key should change and the entry should
+        // not exist
         let key = cache
             .inner
             .key(

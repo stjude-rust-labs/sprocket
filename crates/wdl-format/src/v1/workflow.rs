@@ -65,8 +65,8 @@ pub fn format_conditional_statement_clause(
         children.next();
     }
 
-    // If the ConditionalStatementClause contains a condition, we need to process
-    // the parens and all elements inside!
+    // If the ConditionalStatementClause contains a condition, we need to
+    // process the parens and all elements inside!
     if has_condition {
         let open_paren = children.next().expect("open paren");
         assert_eq!(open_paren.element().kind(), SyntaxKind::OpenParen);

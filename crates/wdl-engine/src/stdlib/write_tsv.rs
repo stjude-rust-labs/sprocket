@@ -269,8 +269,8 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
 
         let mut writer = BufWriter::new(fs::File::from(file));
 
-        // Get the struct type to print the columns; we need to do this even when the
-        // array is empty
+        // Get the struct type to print the columns; we need to do this even
+        // when the array is empty
         let rows_ty = rows.ty();
         let ty = match rows_ty.as_array() {
             Some(ty) => ty

@@ -197,12 +197,13 @@ task say_goodbye {
     fn tags(&self) -> TagSet {
         // NOTE: these are the justification for these tags:
         //
-        // - Clarity because it resolves the ambiguous situations described in the
-        //   explanation above.
-        // - Portability because this resolves situations where different execution
-        //   engines might behave differently (e.g., one container engine might always
-        //   pull the latest image for a mutably tagged container whereas another may
-        //   use a older, cached version until the user prompts it to upgrade).
+        // - Clarity because it resolves the ambiguous situations described in
+        //   the explanation above.
+        // - Portability because this resolves situations where different
+        //   execution engines might behave differently (e.g., one container
+        //   engine might always pull the latest image for a mutably tagged
+        //   container whereas another may use a older, cached version until the
+        //   user prompts it to upgrade).
         TagSet::new(&[Tag::Clarity, Tag::Portability])
     }
 
@@ -283,8 +284,8 @@ fn check_container_value(
         if array.is_empty() {
             diagnostics.exceptable_add(empty_array(value.expr().span()), node, exceptable_nodes);
         } else if array.len() == 1 {
-            // SAFETY: we just checked to ensure that exactly one element exists in the
-            // vec, so this will always unwrap.
+            // SAFETY: we just checked to ensure that exactly one element exists
+            // in the vec, so this will always unwrap.
             let uri = array.iter().next().unwrap();
             diagnostics.exceptable_add(
                 array_to_string_literal(uri.literal_string().span()),

@@ -445,8 +445,9 @@ impl RunManagerSvc {
         let semaphore = self.semaphore.clone();
         let handle = tokio::spawn(async move {
             let _permit = if let Some(ref sem) = semaphore {
-                // SAFETY: the semaphore is Arc-wrapped and held by the manager for its
-                // entire lifetime. It is never explicitly closed. If this fails, it
+                // SAFETY: the semaphore is Arc-wrapped and held by the manager
+                // for its entire lifetime. It is never
+                // explicitly closed. If this fails, it
                 // indicates a catastrophic programming error.
                 Some(sem.acquire().await.unwrap())
             } else {
@@ -595,8 +596,9 @@ async fn cancel_run(
             // `Canceled` in the database.
             CancellationContextState::Canceling => {
                 db.cancel_run(id, Utc::now()).await?;
-                // NOTE: when a run is actually canceled, remove it from the runs
-                // map, as it won't remove itself at the end of execution.
+                // NOTE: when a run is actually canceled, remove it from the
+                // runs map, as it won't remove itself at the
+                // end of execution.
                 runs_guard.remove(&id);
             }
         }

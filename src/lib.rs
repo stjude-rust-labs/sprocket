@@ -118,7 +118,8 @@ async fn real_main() -> CommandResult<()> {
                     config
                 }
                 Err(e) => {
-                    // If there is source associated with the error, emit a diagnostic
+                    // If there is source associated with the error, emit a
+                    // diagnostic
                     if let Some(source) = e.source() {
                         emit_diagnostics(
                             &e.path().to_string(),
@@ -133,7 +134,8 @@ async fn real_main() -> CommandResult<()> {
                         )
                         .context("failed to emit diagnostics")?;
 
-                        // Bail out without returning to caller as the diagnostic was displayed
+                        // Bail out without returning to caller as the
+                        // diagnostic was displayed
                         std::process::exit(1);
                     }
 
@@ -251,14 +253,14 @@ fn initialize_logging(
     {
         Ok(filter) => filter,
         Err(e) => {
-            // If there was an error and the variable was set, then the error was due to
-            // parsing an invalid directive
+            // If there was an error and the variable was set, then the error
+            // was due to parsing an invalid directive
             if std::env::var("RUST_LOG").is_ok() {
                 return Err(e);
             }
 
-            // Otherwise, use a default directive env filter that disables noisy hyper
-            // output
+            // Otherwise, use a default directive env filter that disables noisy
+            // hyper output
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::from(verbosity).into())
                 .from_env_lossy()
@@ -270,8 +272,8 @@ fn initialize_logging(
     // This layer should always come first in the subscriber
     let (filter_layer, filter_reload_handle) = reload::Layer::new(env_filter);
 
-    // Set up an indicatif layer so that progress bars don't interfere with logging
-    // output
+    // Set up an indicatif layer so that progress bars don't interfere with
+    // logging output
     let indicatif_layer = IndicatifLayer::new()
         .with_span_child_prefix_indent("    ")
         .with_span_child_prefix_symbol("↳ ");

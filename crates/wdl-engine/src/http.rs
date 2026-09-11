@@ -259,7 +259,8 @@ impl Transferer for HttpTransferer {
                             .context("failed to create temporary file")?
                             .into_temp_path();
 
-                        // Perform the download (always overwrite the local temp file)
+                        // Perform the download (always overwrite the local temp
+                        // file)
                         cloud_copy::copy(
                             self.0.config.clone(),
                             self.0.client.clone(),

@@ -580,9 +580,9 @@ where
     pub fn peek2(&mut self) -> Option<Peek2<T>> {
         let first = self.peek()?;
 
-        // We have to clone the lexer here since it only supports a single lookahead.
-        // The clone is cheap, but it does mean we'll re-tokenize this second lookahead
-        // eventually.
+        // We have to clone the lexer here since it only supports a single
+        // lookahead. The clone is cheap, but it does mean we'll
+        // re-tokenize this second lookahead eventually.
         let mut lexer = self
             .lexer
             .as_ref()
@@ -749,8 +749,9 @@ where
                 if let Some((Ok(token), _)) = lexer.as_mut().expect("should have a lexer").peek()
                     && !recovery.contains(token.into_raw())
                 {
-                    // Determine if the token is recoverable in the parent recovery set
-                    // If so, we'll restart where we first attempted to parse this item
+                    // Determine if the token is recoverable in the parent
+                    // recovery set If so, we'll restart
+                    // where we first attempted to parse this item
                     if let Some(parent) = &parent
                         && parent.contains(token.into_raw())
                     {
@@ -783,8 +784,9 @@ where
                 }
 
                 if let Err(mut e) = self.expect(delimiter) {
-                    // Attach a label to the diagnostic hinting at where we expected the
-                    // delimiter to be; to do this, look back at the last non-trivia token event
+                    // Attach a label to the diagnostic hinting at where we
+                    // expected the delimiter to be; to do
+                    // this, look back at the last non-trivia token event
                     // in the parser events and use its span for the label.
                     let span = self.events.iter().rev().find_map(|e| match e {
                         Event::Token { kind, span }
@@ -865,15 +867,16 @@ where
             // to move past the entire set of tokens that are part
             // of the interpolation
             if T::recover_interpolation(token, span, self) {
-                // If the diagnostic label started at this token, we need to extend its length
-                // to cover the interpolation
+                // If the diagnostic label started at this token, we need to
+                // extend its length to cover the interpolation
                 for label in diagnostic.inner.labels_mut() {
                     let label_span = label.span();
                     if label_span.start() != span.start() {
                         continue;
                     }
 
-                    // The label should include everything up to the current start
+                    // The label should include everything up to the current
+                    // start
                     label.set_span(Span::new(
                         label_span.start(),
                         self.lexer
@@ -900,8 +903,8 @@ where
 
     /// Starts a new node event.
     pub fn start(&mut self) -> Marker {
-        // Peek before starting the node so that any trivia appears as siblings to this
-        // node
+        // Peek before starting the node so that any trivia appears as siblings
+        // to this node
         if !self.events.is_empty() {
             self.peek();
 
@@ -1219,8 +1222,8 @@ where
                     lexer.next();
                 }
 
-                // Consecutive unknown tokens of the same type get condensed into a single
-                // diagnostic and event
+                // Consecutive unknown tokens of the same type get condensed
+                // into a single diagnostic and event
                 while let Some((Err(_), peeked_span)) = lexer.peek() {
                     unknown_span = Span::new(
                         unknown_span.start(),

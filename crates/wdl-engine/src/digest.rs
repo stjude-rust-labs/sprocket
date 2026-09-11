@@ -156,8 +156,9 @@ async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<D
             .context("file digest task panicked")?
         }
         ContentDigestMode::Strongish => {
-            // Calculate a digest off of file metadata and a hash of only the first
-            // `STRONGISH_DIGEST_PREFIX_LEN` bytes of the file's contents
+            // Calculate a digest off of file metadata and a hash of only the
+            // first `STRONGISH_DIGEST_PREFIX_LEN` bytes of the
+            // file's contents
             let path = path.to_path_buf();
             spawn_blocking(move || {
                 let mut hasher = Hasher::new();
@@ -255,8 +256,9 @@ fn calculate_directory_digest(
                 )
             })?;
 
-            // For symlink entries, ensure the link isn't broken by retrieving the target's
-            // metadata; if it is broken, ignore it by not including it
+            // For symlink entries, ensure the link isn't broken by retrieving
+            // the target's metadata; if it is broken, ignore it by
+            // not including it
             if metadata.is_symlink() {
                 match fs::metadata(&entry_path) {
                     Ok(m) => metadata = m,
@@ -339,7 +341,8 @@ pub async fn calculate_local_digest(
                     }
 
                     // Always use a strong digest mode for temporary files
-                    // This will ensure that the file metadata is _not_ considered for the digest
+                    // This will ensure that the file metadata is _not_
+                    // considered for the digest
                     calculate_file_digest(
                         path,
                         if kind == ContentKind::TempFile {
@@ -418,8 +421,9 @@ pub async fn calculate_remote_digest(
                 let mut url = url.clone();
 
                 {
-                    // Append the entry to the url; we must pop the last segment if it is empty as
-                    // otherwise `push` will append another empty segment
+                    // Append the entry to the url; we must pop the last segment
+                    // if it is empty as otherwise `push`
+                    // will append another empty segment
                     let mut segments = url.path_segments_mut().expect("URL should have a path");
                     segments.pop_if_empty();
                     for segment in entry.split('/') {
@@ -694,7 +698,8 @@ pub(crate) mod test {
             "expected digests to match since they differ only past the strongish prefix length"
         );
 
-        // A strong digest, on the other hand, should be able to tell the difference
+        // A strong digest, on the other hand, should be able to tell the
+        // difference
         let digest_a = calculate_file_digest(a.path(), ContentDigestMode::Strong)
             .await
             .unwrap();
@@ -716,8 +721,8 @@ pub(crate) mod test {
         a.flush().unwrap();
         b.flush().unwrap();
 
-        // Regardless of the content digest mode, temporary files should _always_ use a
-        // strong digest
+        // Regardless of the content digest mode, temporary files should
+        // _always_ use a strong digest
         let digest_a =
             calculate_local_digest(a.path(), ContentKind::TempFile, ContentDigestMode::Weak)
                 .await
@@ -982,7 +987,8 @@ pub(crate) mod test {
         assert_eq!(digest, trailing_digest);
 
         // Digest of a remote "directory" that is "empty"
-        // We can't distinguish between a non-existent directory and an empty one
+        // We can't distinguish between a non-existent directory and an empty
+        // one
         let digest = calculate_remote_digest(
             &transferer,
             &"http://example.com/empty".parse().unwrap(),
@@ -995,8 +1001,8 @@ pub(crate) mod test {
         hasher.update(&0u32.to_le_bytes()); // Number of entries
         assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
 
-        // Digest of a remote "directory" containing a file with a missing content
-        // digest
+        // Digest of a remote "directory" containing a file with a missing
+        // content digest
         assert_eq!(
             format!(
                 "{:#}",

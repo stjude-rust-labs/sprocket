@@ -876,9 +876,10 @@ impl DocsTree {
         };
 
         // Local dependency module entrypoint documents are collapsed onto
-        // their module's root directory (see `WorkspaceMetadata::documentation_path`),
-        // so a node's directory (i.e. its path without a trailing
-        // `index.html`) can be looked up directly as a module root.
+        // their module's root directory (see
+        // `WorkspaceMetadata::documentation_path`), so a node's
+        // directory (i.e. its path without a trailing `index.html`) can
+        // be looked up directly as a module root.
         let node_module = |path: &Path| -> Option<&ModuleMetadata> {
             let dir = if path.file_name().expect("path should have a file name") == "index.html" {
                 path.parent().expect("path should have a parent")
@@ -2008,7 +2009,11 @@ mod tests {
         let docs_dir = tempfile::tempdir().unwrap();
         let index_source = tempfile::tempdir().unwrap();
         let index_path = index_source.path().join("index.md");
-        fs::write(&index_path, "Custom homepage content marker").unwrap();
+        fs::write(
+            &index_path,
+            r#"<div class="wdl-tests-dark">Custom homepage content marker</div>"#,
+        )
+        .unwrap();
 
         let tree = DocsTreeBuilder::new(docs_dir.path())
             .maybe_workspace_metadata(None)
@@ -2028,6 +2033,7 @@ mod tests {
         let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
         assert!(!content.contains("main__homepage-header"));
         assert!(content.contains("Custom homepage content marker"));
+        assert!(content.contains("class=\"wdl-tests-dark\""));
         assert!(!content.contains("module-overview"));
     }
 

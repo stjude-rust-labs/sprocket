@@ -435,7 +435,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         async {
-            // Keep track of the start in case there is a `None` evaluated and an error
+            // Keep track of the start in case there is a `None` evaluated and
+            // an error
             let start = buffer.len();
 
             // Bump the placeholder count while evaluating the placeholder
@@ -443,12 +444,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let result = imp(self, placeholder, buffer).await;
             self.placeholders -= 1;
 
-            // Reset the evaluated none flag when we're done evaluating placeholders
+            // Reset the evaluated none flag when we're done evaluating
+            // placeholders
             if self.placeholders == 0 {
                 let evaluated_none = std::mem::replace(&mut self.evaluated_none, false);
 
-                // If a `None` was evaluated and an error occurred, truncate to the start of the
-                // placeholder evaluation
+                // If a `None` was evaluated and an error occurred, truncate to
+                // the start of the placeholder evaluation
                 if evaluated_none && result.is_err() {
                     buffer.truncate(start);
                     return Ok(());
@@ -860,8 +862,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let mut name = String::new();
         let value = self.evaluate_expr(&expr).await?;
 
-        // The first name should be an input/output and then the remainder should be a
-        // struct member
+        // The first name should be an input/output and then the remainder
+        // should be a struct member
         let mut span = None;
         let mut struct_ty: Option<&StructType> = None;
         while let Some((i, segment)) = segments.next() {
@@ -987,16 +989,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
         let (cond_expr, true_expr, false_expr) = expr.exprs();
 
-        // Evaluate the conditional expression and the true expression or the false
-        // expression, depending on the result of the conditional expression
+        // Evaluate the conditional expression and the true expression or the
+        // false expression, depending on the result of the conditional
+        // expression
         let cond = self.evaluate_expr(&cond_expr).await?;
         let (value, true_ty, false_ty) = if cond
             .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| if_conditional_mismatch(&cond.ty(), cond_expr.span()))?
             .unwrap_boolean()
         {
-            // Evaluate the `true` expression and calculate the type of the `false`
-            // expression
+            // Evaluate the `true` expression and calculate the type of the
+            // `false` expression
             let value = self.evaluate_expr(&true_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
@@ -1014,8 +1017,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let true_ty = value.ty();
             (value, true_ty, false_ty)
         } else {
-            // Evaluate the `false` expression and calculate the type of the `true`
-            // expression
+            // Evaluate the `false` expression and calculate the type of the
+            // `true` expression
             let value = self.evaluate_expr(&false_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
@@ -1312,8 +1315,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             | (Value::None(_), Value::Primitive(PrimitiveValue::String(_)))
                 if op == NumericOperator::Addition && self.placeholders > 0 =>
             {
-                // Allow string concatenation with `None` in placeholders, which evaluates to
-                // `None`
+                // Allow string concatenation with `None` in placeholders, which
+                // evaluates to `None`
                 Some(Value::new_none(Type::None))
             }
             _ => None,
@@ -1344,7 +1347,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     count += 1;
                 }
 
-                // First bind the function based on the argument types, then dispatch the call
+                // First bind the function based on the argument types, then
+                // dispatch the call
                 let types = &types[..count.min(MAX_PARAMETERS)];
                 let arguments = &arguments[..count.min(MAX_PARAMETERS)];
                 if count <= MAX_PARAMETERS {
@@ -1660,7 +1664,8 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                     let (name, val_expr) = item.name_value();
                     let name_str = name.text().to_string();
 
-                    // Infer the type from the literal expression and recursively extract value
+                    // Infer the type from the literal expression and
+                    // recursively extract value
                     let inferred_ty = infer_type_from_literal(&val_expr)?;
                     let val = parse_constant_value(&inferred_ty, &val_expr)?;
                     Some((name_str, val))
@@ -1809,7 +1814,8 @@ pub(crate) mod test {
             _: &'a CancellationContext,
         ) -> BoxFuture<'a, Result<Location>> {
             async {
-                // For tests, redirect requests to example.com to files relative to the work dir
+                // For tests, redirect requests to example.com to files relative
+                // to the work dir
                 if source.authority() == "example.com" {
                     return Ok(Location::Path(
                         self.test_dir
@@ -1914,7 +1920,8 @@ pub(crate) mod test {
                 .into());
             }
 
-            // If the name is a reference to an enum, return it as a [`Value::TypeNameRef`].
+            // If the name is a reference to an enum, return it as a
+            // [`Value::TypeNameRef`].
             if let Some(ty) = self.env.enums.get(name) {
                 return Ok(TypeNameRefValue::new(
                     name,
@@ -2009,7 +2016,8 @@ pub(crate) mod test {
         let marker = parser.start();
         match v1::expr(&mut parser, marker) {
             Ok(()) => {
-                // This call to `next` is important as `next` adds any remaining buffered events
+                // This call to `next` is important as `next` adds any remaining
+                // buffered events
                 assert!(
                     parser.next().is_none(),
                     "parser is not finished; expected a single expression with no remaining tokens"
@@ -3599,8 +3607,8 @@ pub(crate) mod test {
 
     #[tokio::test]
     async fn call_expr() {
-        // This test will just check for errors; testing of the function implementations
-        // is in `stdlib.rs`
+        // This test will just check for errors; testing of the function
+        // implementations is in `stdlib.rs`
         let env = TestEnv::default();
         let diagnostic = eval_v1_expr(&env, V1::Zero, "min(1, 2)").await.unwrap_err();
         assert_eq!(

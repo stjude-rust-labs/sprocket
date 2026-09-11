@@ -1107,8 +1107,9 @@ impl FunctionSignature {
         for (i, (parameter, argument)) in self.parameters.iter().zip(arguments.iter()).enumerate() {
             match parameter.ty.realize(&type_parameters) {
                 Some(ty) => {
-                    // If a coercion hasn't occurred yet, check for type equivalence
-                    // For the purpose of this check, also accept equivalence of `T` if the
+                    // If a coercion hasn't occurred yet, check for type
+                    // equivalence For the purpose of this
+                    // check, also accept equivalence of `T` if the
                     // parameter type is `T?`; otherwise, fall back to coercion
                     if !coerced && argument != &ty && argument != &ty.require() {
                         coerced = true;
@@ -1144,9 +1145,10 @@ impl FunctionSignature {
             }
         }
 
-        // Finally, realize the return type; if it fails to realize, it means there was
-        // at least one uninferred type parameter; we return `Union` instead to indicate
-        // that the return value is indeterminate.
+        // Finally, realize the return type; if it fails to realize, it means
+        // there was at least one uninferred type parameter; we return
+        // `Union` instead to indicate that the return value is
+        // indeterminate.
         let ret = self.ret().realize(&type_parameters).unwrap_or(Type::Union);
 
         if coerced {
@@ -1266,7 +1268,8 @@ impl FunctionSignatureBuilder {
             "too many parameters"
         );
 
-        // Ensure any generic type parameters indexes are in range for the parameters
+        // Ensure any generic type parameters indexes are in range for the
+        // parameters
         for parameter in sig.parameters.iter() {
             parameter.ty.assert_type_parameters(&sig.type_parameters)
         }
@@ -1371,8 +1374,8 @@ impl Function {
             Self::Polymorphic(f) => {
                 let mut ty = None;
 
-                // For polymorphic functions, the calculated return type must be the same for
-                // each overload
+                // For polymorphic functions, the calculated return type must be
+                // the same for each overload
                 for signature in &f.signatures {
                     let type_parameters = signature.infer_type_parameters(arguments, true);
                     let ret_ty = signature
@@ -1525,7 +1528,8 @@ impl PolymorphicFunction {
         version: SupportedVersion,
         arguments: &[Type],
     ) -> Result<Binding<'a>, FunctionBindError> {
-        // Ensure that there is at least one signature with a matching minimum version.
+        // Ensure that there is at least one signature with a matching minimum
+        // version.
         let min_version = self.minimum_version();
         if version < min_version {
             return Err(FunctionBindError::RequiresVersion(min_version));
@@ -1543,7 +1547,8 @@ impl PolymorphicFunction {
             return Err(FunctionBindError::TooManyArguments(max));
         }
 
-        // Overload resolution precedence is from most specific to least specific:
+        // Overload resolution precedence is from most specific to least
+        // specific:
         // * Non-generic exact match
         // * Non-generic with coercion
         // * Generic exact match
@@ -1582,8 +1587,10 @@ impl PolymorphicFunction {
                         exact = Some((index, ty));
                     }
                     Ok(BindingKind::Coercion(ty)) => {
-                        // If this is the first coercion, store it; otherwise, store the second
-                        // coercion index; if there's more than one coercion, we'll report an error
+                        // If this is the first coercion, store it; otherwise,
+                        // store the second
+                        // coercion index; if there's more than one coercion,
+                        // we'll report an error
                         // below after ensuring there's no exact match
                         if coercion1.is_none() {
                             coercion1 = Some((index, ty));
@@ -1592,7 +1599,8 @@ impl PolymorphicFunction {
                         }
                     }
                     Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
-                        // We'll report an argument mismatch for the greatest argument index
+                        // We'll report an argument mismatch for the greatest
+                        // argument index
                         if index > max_mismatch_index {
                             max_mismatch_index = index;
                             expected_types.clear();

@@ -2,14 +2,10 @@
 
 mod bash_set_syntax;
 mod call_input_keyword;
-mod command_section_indentation;
 mod concise_input;
 mod container_uri;
 mod declaration_name;
 mod deny_glob_star;
-mod deprecated_object;
-mod deprecated_placeholder;
-mod deprecated_runtime_section;
 mod description_length;
 mod doc_comment_tabs;
 mod doc_meta_strings;
@@ -40,14 +36,10 @@ mod unused_doc_comments;
 
 pub use bash_set_syntax::*;
 pub use call_input_keyword::*;
-pub use command_section_indentation::*;
 pub use concise_input::*;
 pub use container_uri::*;
 pub use declaration_name::*;
 pub use deny_glob_star::*;
-pub use deprecated_object::*;
-pub use deprecated_placeholder::*;
-pub use deprecated_runtime_section::*;
 pub use description_length::*;
 pub use doc_comment_tabs::*;
 pub use doc_meta_strings::*;

@@ -47,7 +47,8 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             .coerce_argument(0, ANALYSIS_STDLIB.array_string_type().clone())
             .unwrap_array();
 
-        // Create a temporary file that will be persisted after writing the lines
+        // Create a temporary file that will be persisted after writing the
+        // lines
         let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(

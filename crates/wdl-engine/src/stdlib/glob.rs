@@ -95,10 +95,12 @@ fn glob_local_path(
             } else {
                 // Currently this is at odd with the 1.3 spec, specifically:
                 //
-                // `Broken symlinks (those that point to non-existent targets) are included.`
+                // `Broken symlinks (those that point to non-existent targets)
+                // are included.`
                 //
-                // However, since this function returns `Array[File]` and 1.3 also says that
-                // non-optional files should exist, including them doesn't seem appropriate.
+                // However, since this function returns `Array[File]` and 1.3
+                // also says that non-optional files should
+                // exist, including them doesn't seem appropriate.
                 //
                 // For now, we'll exclude them until that matter is resolved.
                 false

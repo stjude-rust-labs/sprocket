@@ -32,7 +32,7 @@ pub(crate) struct ThreadSafeSyntaxNode {
 impl From<SyntaxNode<WorkflowDescriptionLanguage>> for ThreadSafeSyntaxNode {
     fn from(node: SyntaxNode<WorkflowDescriptionLanguage>) -> Self {
         Self {
-            root: node.ancestors().last().unwrap().green().into_owned(),
+            root: node.ancestors().last().unwrap().green().to_owned(),
             node_ptr: SyntaxNodePtr::new(&node),
         }
     }
@@ -206,8 +206,8 @@ mod tests {
 
     use super::*;
 
-    // Assert `ThreadSafeSyntaxNode` and `ThreadSafeSyntaxToken` are actually thread
-    // safe.
+    // Assert `ThreadSafeSyntaxNode` and `ThreadSafeSyntaxToken` are actually
+    // thread safe.
     const _: () = {
         const fn assert_send<T: Send>() {}
         const fn assert_sync<T: Sync>() {}

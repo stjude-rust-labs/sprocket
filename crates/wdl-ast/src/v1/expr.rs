@@ -2086,8 +2086,8 @@ impl<N: TreeNode> LiteralString<N> {
             }
         }
 
-        // Now that the string has been unescaped and the first and last lines trimmed,
-        // we can detect any leading whitespace and trim it.
+        // Now that the string has been unescaped and the first and last lines
+        // trimmed, we can detect any leading whitespace and trim it.
         let mut leading_whitespace = usize::MAX;
         let mut parsing_leading_whitespace = true;
         let mut iter = result.iter().peekable();
@@ -2109,7 +2109,8 @@ impl<N: TreeNode> LiteralString<N> {
                                 }
                             }
 
-                            // Don't include blank lines in determining leading whitespace, unless
+                            // Don't include blank lines in determining leading
+                            // whitespace, unless
                             // the next part is a placeholder
                             if ws_count == line.len()
                                 && iter
@@ -2131,8 +2132,8 @@ impl<N: TreeNode> LiteralString<N> {
         }
 
         // Finally, strip the leading whitespace on each line
-        // This is done in place using the `replace_range` method; the method will
-        // internally do moves without allocations
+        // This is done in place using the `replace_range` method; the method
+        // will internally do moves without allocations
         let mut strip_leading_whitespace = whole_first_line_trimmed;
         for part in &mut result {
             match part {

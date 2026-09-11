@@ -136,9 +136,10 @@ pub fn completion(
             return Ok(items);
         }
 
-        // NOTE: Custom handling for version completion. If the token to the immediate
-        // left of the cursor (ignoring whitespace) is the `version` keyword, we are
-        // very likely completing the version number.
+        // NOTE: Custom handling for version completion. If the token to the
+        // immediate left of the cursor (ignoring whitespace) is the
+        // `version` keyword, we are very likely completing the version
+        // number.
         let mut non_trivia = token.clone();
         if non_trivia.kind().is_trivia()
             && let Some(prev) = non_trivia.prev_token()

@@ -139,7 +139,7 @@
       "type": "object",
       "properties": {
         "except": {
-          "description": "Rule IDs or tags to except from running.",
+          "description": "Rule IDs or tags to except from running.\n\nThis list is also honored by the `analyzer` subcommand.",
           "type": "array",
           "items": {
             "type": "string"
@@ -252,14 +252,6 @@
           "description": "Whether to enable lint rules.",
           "type": "boolean",
           "default": false
-        },
-        "except": {
-          "description": "Rule IDs to except from running.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         }
       },
       "additionalProperties": false

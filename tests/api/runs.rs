@@ -777,7 +777,8 @@ task final_task {
         .await
         .expect("workflow should start running");
 
-    // Wait for `slow_task` to actually be running inside Docker before canceling
+    // Wait for `slow_task` to actually be running inside Docker before
+    // canceling
     poll_for_task_running(&db, run_uuid, "slow_task-", 60)
         .await
         .expect("slow_task should be running");
@@ -860,9 +861,9 @@ task final_task {
     assert!(slow_task.completed_at.is_some());
 
     // Whether `final_task` is recorded at all depends on how far the workflow
-    // got before the cancel landed: the engine creates the task's record when it
-    // starts evaluating it, which is before it decides not to run it. Either way
-    // it must never have executed.
+    // got before the cancel landed: the engine creates the task's record when
+    // it starts evaluating it, which is before it decides not to run it.
+    // Either way it must never have executed.
     if let Some(final_task) = wdl_tasks.iter().find(|t| t.name.starts_with("final_task-")) {
         assert_eq!(final_task.status, TaskStatus::Canceled);
         assert!(
@@ -942,7 +943,8 @@ task sleep_task {
         .await
         .expect("sleep_task should be running");
 
-    // With fast failure mode, single cancel request should go straight to Cancelled
+    // With fast failure mode, single cancel request should go straight to
+    // Cancelled
     let cancel_response = app
         .clone()
         .oneshot(
@@ -2312,8 +2314,9 @@ async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
     /// The advertised size of the input the origin never finishes sending.
     const INPUT_SIZE: usize = 1024 * 1024;
 
-    // An origin that answers the existence probe but stalls part way through the
-    // body, so the run is stuck transferring the input until it is canceled.
+    // An origin that answers the existence probe but stalls part way through
+    // the body, so the run is stuck transferring the input until it is
+    // canceled.
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let origin = tokio::spawn(async move {

@@ -632,7 +632,8 @@ mod tests {
         fs::write(dir.path().join("root.wdl"), b"workflow w {}").unwrap();
         fs::write(dir.path().join("sub").join("nested.wdl"), b"task t {}").unwrap();
 
-        // Simulate Unix-style paths (as `hash_directory` would produce on Unix).
+        // Simulate Unix-style paths (as `hash_directory` would produce on
+        // Unix).
         let mut h_unix = Hasher::new(dir.path().to_path_buf());
         for p in ["root.wdl", "sub/nested.wdl"] {
             h_unix.try_add(p).unwrap();

@@ -1,0 +1,4 @@
+error: invalid input key `collect.count`
+
+Caused by:
+    expected type `Int` for input `count`, but found type `String`

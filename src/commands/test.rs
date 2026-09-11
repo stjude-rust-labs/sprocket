@@ -63,6 +63,7 @@ use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::Config;
@@ -239,7 +240,7 @@ fn filter_test(
 
     if let Some(filter) = name_filter {
         if exact {
-            return &*test.name != filter;
+            return *test.name != filter;
         }
 
         return !test.name.contains(filter);
@@ -719,10 +720,10 @@ impl Runner {
                     .expect("verified during parse");
                 let is_workflow = callable.is_workflow();
 
-                let run_root: Arc<Path> = self.root.join(&*target).join(&*test.name).into();
+                let test_name: Arc<str> = test.name.0.value.into();
+                let run_root: Arc<Path> = self.root.join(&*target).join(&*test_name).into();
 
-                target_results.insert(test.name.clone(), Vec::new());
-
+                target_results.insert(test_name.clone(), Vec::new());
                 let assertions = Arc::new(test.assertions);
                 for (test_num, run_inputs) in test.inputs.cartesian_product().enumerate() {
                     let test_num = test_num + 1; // start count at 1
@@ -736,9 +737,8 @@ impl Runner {
                         Ok(res) => res,
                         Err(e) => {
                             errors.push(Arc::new(e.context(format!(
-                                "converting YAML inputs to a JSON map for test `{}` for WDL \
-                                 document `{}`",
-                                test.name,
+                                "converting YAML inputs to a JSON map for test `{test_name}` for \
+                                 WDL document `{}`",
                                 wdl_document.path()
                             ))));
                             continue;
@@ -749,10 +749,11 @@ impl Runner {
                     {
                         Ok(res) => res,
                         Err(e) => {
-                            // TODO(serial): Spanned diagnostics would be nice here too
+                            // TODO(serial): Spanned diagnostics would be nice
+                            // here too
                             errors.push(Arc::new(e.context(format!(
-                                "converting to WDL inputs for test `{}` for WDL document `{}`",
-                                test.name,
+                                "converting to WDL inputs for test `{test_name}` for WDL document \
+                                 `{}`",
                                 wdl_document.path()
                             ))));
                             continue;
@@ -774,7 +775,7 @@ impl Runner {
                         id: TestIdentifier {
                             doc_name: doc_name.clone(),
                             target: target.clone(),
-                            test_name: test.name.clone(),
+                            test_name: test_name.clone(),
                             iteration_num: test_num,
                         },
                         run_root: run_root.clone(),
@@ -1037,9 +1038,9 @@ pub async fn test(
         .map_err(CommandError::from)?;
 
     // Find and parse all YAML before beginning any executions.
-    // This is so that any totally invalid YAML is caught up-front before we start
-    // testing. Smaller issues with test definitions will later be collected and
-    // reported on after all tests execute.
+    // This is so that any totally invalid YAML is caught up-front before we
+    // start testing. Smaller issues with test definitions will later be
+    // collected and reported on after all tests execute.
     let mut documents = Vec::new();
     let mut counts = DiagnosticCounts::default();
     for analysis in analysis_results.filter(&[&source]) {
@@ -1138,9 +1139,13 @@ pub async fn test(
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.validate()?;
 
-    // Determined here as the engine configuration is moved into the engine below.
+    // Determined here as the engine configuration is moved into the engine
+    // below.
     let uses_docker = uses_docker_backend(&config.run.engine);
-    let engine = Engine::new(config.run.engine)
+    let mut engine_config = config.run.engine;
+    engine_config.task.retries = RetryConfig::Disabled;
+
+    let engine = Engine::new(engine_config)
         .await
         .context("failed to create WDL evaluation engine")?;
     let cancellation = CancellationContext::new(FailureMode::Fast);

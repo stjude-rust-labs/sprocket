@@ -171,8 +171,8 @@ pub fn format_command_section(
     match parts {
         None => {
             // The command section has mixed indentation, so we format it as is.
-            // TODO: We may want to format this differently in the future, but for now
-            // we can say "ugly input, ugly output".
+            // TODO: We may want to format this differently in the future, but
+            // for now we can say "ugly input, ugly output".
             for child in children {
                 match child.element().kind() {
                     SyntaxKind::CloseBrace => {
@@ -216,7 +216,8 @@ pub fn format_command_section(
                                 bash_indent = None;
                                 stream.end_line();
                                 if lines.peek().is_none() {
-                                    // save the leading whitespace to use as temporary indent
+                                    // save the leading whitespace to use as
+                                    // temporary indent
                                     bash_indent = Some(
                                         line.chars()
                                             .take_while(|c| matches!(c, ' ' | '\t'))

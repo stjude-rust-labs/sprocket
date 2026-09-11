@@ -575,7 +575,8 @@ mod tests {
         let module_sig = ModuleSignature::new(&signer, &digest, None).unwrap();
 
         let mut buf = Vec::new();
-        // SAFETY: writing valid signature data to an in-memory buffer cannot fail.
+        // SAFETY: writing valid signature data to an in-memory buffer cannot
+        // fail.
         module_sig.write(&mut buf).unwrap();
         // SAFETY: `write` emitted a valid module signature document.
         let parsed = ModuleSignature::parse(&buf).unwrap();

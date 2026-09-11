@@ -179,8 +179,8 @@ impl FromStr for JobState {
         // See https://slurm.schedmd.com/job_state_codes.html for base states
         // See https://slurm.schedmd.com/sacct.html for state flags recognized by `sacct`
 
-        // Job states may have extraneous information that follows them, so match by
-        // prefix
+        // Job states may have extraneous information that follows them, so
+        // match by prefix
         for (prefix, state) in [
             ("BOOT_FAIL", Self::BootFail),
             ("CANCELLED", Self::Canceled),
@@ -558,16 +558,16 @@ impl Monitor {
 
         let mut command = Command::new("sbatch");
 
-        // If a Slurm partition has been configured, specify it. Otherwise, the job will
-        // end up on the cluster's default partition.
+        // If a Slurm partition has been configured, specify it. Otherwise, the
+        // job will end up on the cluster's default partition.
         if let Some(partition) =
             config.slurm_partition_for_task(request.requirements, request.hints)
         {
             command.arg("--partition").arg(&partition.name);
         }
 
-        // If GPUs are required, use the gpu helper to determine the count and pass it
-        // to `sbatch` via `--gpus-per-task`.
+        // If GPUs are required, use the gpu helper to determine the count and
+        // pass it to `sbatch` via `--gpus-per-task`.
         if let Some(gpu_count) =
             requirements::gpu(request.inputs, request.requirements, request.hints)
         {
@@ -597,8 +597,9 @@ impl Monitor {
             }
         );
 
-        // The path for the Slurm-level stdout and stderr. This primarily contains the
-        // job report, as we redirect Apptainer and WDL output separately.
+        // The path for the Slurm-level stdout and stderr. This primarily
+        // contains the job report, as we redirect Apptainer and WDL
+        // output separately.
         let slurm_stdout_path = request.attempt_dir.join("slurm.stdout");
         let slurm_stderr_path = request.attempt_dir.join("slurm.stderr");
 
@@ -872,12 +873,13 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             .as_slurm_apptainer()
             .expect("configured backend is not Slurm Apptainer");
 
-        // Determine whether CPU or memory limits are set for this partition, and clamp
-        // or deny them as appropriate if the limits are exceeded
+        // Determine whether CPU or memory limits are set for this partition,
+        // and clamp or deny them as appropriate if the limits are
+        // exceeded
         //
-        // TODO ACF 2025-10-16: refactor so that we're not duplicating logic here (for
-        // the in-WDL `task` values) and below in `spawn` (for the actual
-        // resource request)
+        // TODO ACF 2025-10-16: refactor so that we're not duplicating logic
+        // here (for the in-WDL `task` values) and below in `spawn` (for
+        // the actual resource request)
         if let Some(partition) = backend_config.slurm_partition_for_task(requirements, hints) {
             if let Some(max_cpu) = partition.max_cpu_per_task
                 && required_cpu > max_cpu as f64

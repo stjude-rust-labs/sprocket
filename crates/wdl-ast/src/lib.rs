@@ -614,8 +614,8 @@ impl<N: TreeNode> Document<N> {
         let Some(stmt) = self.version_statement() else {
             return Ast::Unsupported;
         };
-        // Parse the version statement, fall back to the fallback, and finally give up
-        // if neither of those works.
+        // Parse the version statement, fall back to the fallback, and finally
+        // give up if neither of those works.
         let Some(version) = stmt
             .version()
             .text()
@@ -866,8 +866,8 @@ impl Comment {
 
     /// Gets whether the comment is an inline comment or not.
     pub fn is_inline_comment(&self) -> bool {
-        // If there is a preceding token that isn't whitespace with a newline, then
-        // the comment is not alone on this line.
+        // If there is a preceding token that isn't whitespace with a newline,
+        // then the comment is not alone on this line.
         if let Some(prev) = self.inner().prev_sibling_or_token() {
             if prev.kind() == SyntaxKind::Whitespace {
                 !prev

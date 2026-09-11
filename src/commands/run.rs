@@ -53,6 +53,7 @@ use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
@@ -212,6 +213,10 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// Disable retries for all task evaluations for this run.
+    #[clap(long)]
+    pub disable_retries: bool,
 
     /// Show task stderr during execution.
     ///
@@ -1011,7 +1016,8 @@ pub async fn run(
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
-    // Determined here as the engine configuration is moved into evaluation below.
+    // Determined here as the engine configuration is moved into evaluation
+    // below.
     let uses_docker = uses_docker_backend(&config.run.engine);
     let events = Events::new(
         config
@@ -1046,6 +1052,10 @@ pub async fn run(
     // CWD as a placeholder.
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
+
+    if args.disable_retries {
+        config.run.engine.task.retries = RetryConfig::Disabled;
+    }
 
     let engine = Engine::new(config.run.engine)
         .await

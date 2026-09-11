@@ -2,7 +2,6 @@
 
 pub mod dive;
 
-use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
@@ -755,8 +754,9 @@ pub fn construct_tree(source: &str, mut events: Vec<Event>) -> SyntaxNode {
                     };
                 }
 
-                // As the current node was pushed first and then its ancestors, walk
-                // the list in reverse to start the "oldest" ancestor first
+                // As the current node was pushed first and then its ancestors,
+                // walk the list in reverse to start the
+                // "oldest" ancestor first
                 for kind in ancestors.drain(..).rev() {
                     if kind != SyntaxKind::Abandoned {
                         builder.start_node(kind.into());
@@ -815,7 +815,7 @@ impl SyntaxTree {
     }
 
     /// Gets a copy of the underlying root green node for the tree.
-    pub fn green(&self) -> Cow<'_, GreenNodeData> {
+    pub fn green(&self) -> &GreenNodeData {
         self.0.green()
     }
 

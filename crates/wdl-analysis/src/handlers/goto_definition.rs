@@ -113,8 +113,8 @@ pub fn goto_definition(
                     .find_map(v1::CallStatement::cast)
                 && call_stmt.alias().is_none()
             {
-                // NOTE: implicit alias found, resolving call target instead of the
-                // alias
+                // NOTE: implicit alias found, resolving call target instead of
+                // the alias
                 let target = call_stmt.target();
                 let callee_name = target.names().last().expect("call target must have a name");
                 return resolve_call_target(
@@ -282,8 +282,8 @@ fn resolve_type_reference(
         }
     }
 
-    // Fallback search in case the struct is not in the current document's analysis
-    // map
+    // Fallback search in case the struct is not in the current document's
+    // analysis map
     for (_, ns) in analysis_doc.namespaces() {
         let node = graph.get(graph.get_index(ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
@@ -472,9 +472,9 @@ fn resolve_global_identifier(
     }
 
     for (_, ns) in analysis_doc.namespaces() {
-        // SAFETY: we know `get_index` will return `Some` as `ns.source` comes from
-        // `analysis_doc.namespaces` which only contains namespaces for documents that
-        // are guaranteed to be present in the graph.
+        // SAFETY: we know `get_index` will return `Some` as `ns.source` comes
+        // from `analysis_doc.namespaces` which only contains namespaces
+        // for documents that are guaranteed to be present in the graph.
         let node = graph.get(graph.get_index(ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
@@ -589,9 +589,9 @@ fn resolve_access_expression(
                 continue;
             };
 
-            // SAFETY: we know `lines` will return Some as we only reach here when
-            // `node.document` is fully parsed and in `ParsedState::Parse`
-            // state.
+            // SAFETY: we know `lines` will return Some as we only reach here
+            // when `node.document` is fully parsed and in
+            // `ParsedState::Parse` state.
             let imported_lines = node.parse_state().lines().unwrap();
 
             let struct_node =
@@ -954,12 +954,14 @@ fn resolve_call_input_item(
         return Ok(None);
     }
 
-    // For LHS identifier, resolve to the target task/workflow's input parameter.
+    // For LHS identifier, resolve to the target task/workflow's input
+    // parameter.
     let mut current = parent_node.parent();
 
     // Walk up the CST to find the containing `CallStatement`.
-    // This traversal is necessary because call input parameters are not part of the
-    // local scope - they refer to the called task/workflow's parameter definitions.
+    // This traversal is necessary because call input parameters are not part of
+    // the local scope - they refer to the called task/workflow's parameter
+    // definitions.
     while let Some(node) = current {
         if node.kind() == SyntaxKind::CallStatementNode {
             let Some(call_stmt) = wdl_ast::v1::CallStatement::cast(node) else {

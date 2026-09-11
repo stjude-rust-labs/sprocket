@@ -874,7 +874,8 @@ mod tests {
             .await
             .expect("failed to insert version");
 
-        // Now connect using `from_pool()` — should fail with `InvalidVersion` error
+        // Now connect using `from_pool()` — should fail with `InvalidVersion`
+        // error
         let result = SqliteDatabase::from_pool(pool).await;
 
         assert!(
@@ -1351,8 +1352,8 @@ mod tests {
                 .expect("failed to update task")
         );
 
-        // The first terminal status wins; reconciliation of a finished task is a
-        // no-op.
+        // The first terminal status wins; reconciliation of a finished task is
+        // a no-op.
         assert!(
             db.update_task_completed("t", Some(0), Utc::now())
                 .await

@@ -69,7 +69,8 @@ pub(crate) fn ast_methods(
     // Remove the first generic (`impl<N: TreeNode> Ast<N>` into `impl Ast<N>`).
     py_impl.generics = Generics::default();
 
-    // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl PyAst`).
+    // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl
+    // PyAst`).
     let original_type_path = make_py_self_ty(&mut py_impl.self_ty)?;
 
     // Create the Python methods from the original methods.
@@ -238,9 +239,10 @@ fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
         Ok(())
     }
 
-    // Iterator that removes `#[skip]` and `#[cfg_attr(feature = "unstable-python",
-    // skip)]` from the list of attributes. This iterator must be fully consumed
-    // or not all `#[skip]` attributes will be removed.
+    // Iterator that removes `#[skip]` and `#[cfg_attr(feature =
+    // "unstable-python", skip)]` from the list of attributes. This iterator
+    // must be fully consumed or not all `#[skip]` attributes will be
+    // removed.
     let mut skip_attrs = attrs.extract_if(.., |attr| {
         // Check for `#[skip]`.
         if let Meta::Path(ref path) = attr.meta
@@ -295,8 +297,8 @@ fn make_py_method(
     let mut impl_iterator = false;
 
     if let ReturnType::Type(_, ref mut type_) = py_fn.sig.output {
-        // If the return type is `impl Iterator<...>`, mark this method as a special
-        // case.
+        // If the return type is `impl Iterator<...>`, mark this method as a
+        // special case.
         if is_impl_iterator(type_)? {
             impl_iterator = true;
         } else {
@@ -373,17 +375,18 @@ fn is_impl_iterator(type_: &Type) -> Result<bool> {
 
 /// Replaces all instances of `Self` with `original_ident` in a type.
 fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &Path) -> Result<()> {
-    // Replaces `Self` with `original_type_path` for all path segments and generic
-    // parameters.
+    // Replaces `Self` with `original_type_path` for all path segments and
+    // generic parameters.
     fn process_path(path: &mut Path, original_type_path: &Path) -> Result<()> {
         // `Self` must be the first segment, so we don't need to check any later
         // segments. <https://doc.rust-lang.org/reference/paths.html#r-paths.qualifiers.type-self.allowed-positions>
         if let Some(first) = path.segments.first()
             && first.ident == "Self"
         {
-            // Actually replace `Self`. If `original_type_path` is `::foo::Bar` and the
-            // current type path is `Self::baz::qux`, we perform the replacement by cloning
-            // `::foo::Bar` and then appending `baz::qux`. The final result is
+            // Actually replace `Self`. If `original_type_path` is `::foo::Bar`
+            // and the current type path is `Self::baz::qux`, we
+            // perform the replacement by cloning `::foo::Bar` and
+            // then appending `baz::qux`. The final result is
             // `::foo::Bar::baz::qux`.
             let mut new_path = original_type_path.clone();
 
@@ -442,8 +445,9 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
             | Type::TraitObject(TypeTraitObject { bounds, .. }) => {
                 for bound in bounds.iter_mut() {
                     if let TypeParamBound::Trait(trait_bound) = bound {
-                        // The trait itself cannot be `Self`, but `Self` may be in its generic
-                        // parameters, so we process the path anyways.
+                        // The trait itself cannot be `Self`, but `Self` may be
+                        // in its generic parameters, so
+                        // we process the path anyways.
                         process_path(&mut trait_bound.path, original_type_path)?;
                     }
                 }
@@ -499,8 +503,8 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
         Type::Path(type_path) => {
             for segments in &mut type_path.path.segments {
                 if let PathArguments::AngleBracketed(ref mut path_arguments) = segments.arguments {
-                    // Generics with default types must be last, so we start looking for them at
-                    // the end.
+                    // Generics with default types must be last, so we start
+                    // looking for them at the end.
                     for i in (0..path_arguments.args.len()).rev() {
                         if let GenericArgument::Type(ref type_) = path_arguments.args[i]
                             && let Type::Path(TypePath {
@@ -511,7 +515,8 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
                         {
                             path_arguments.args.pop();
                         } else {
-                            // If the last argument isn't what we're looking for, it may not be a
+                            // If the last argument isn't what we're looking
+                            // for, it may not be a
                             // generic with a default type. Exit out.
                             break;
                         }
@@ -523,7 +528,8 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
                         }
                     }
 
-                    // If we ended up removing all arguments, convert `AngleBracketed` into `None`.
+                    // If we ended up removing all arguments, convert
+                    // `AngleBracketed` into `None`.
                     if path_arguments.args.is_empty() {
                         segments.arguments = PathArguments::None;
                     }
@@ -688,8 +694,8 @@ fn make_py_method_body_impl_iterator(
     let method_ident = &py_fn.sig.ident;
     // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
     // String` into `a, b`.) This is purposefully called before we add `py:
-    // Python<'py>` to the function input, as the Python marker token is not passed
-    // to the original method.
+    // Python<'py>` to the function input, as the Python marker token is not
+    // passed to the original method.
     let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
 
     // Add `'py` lifetime.
@@ -1297,8 +1303,8 @@ mod tests {
 
     #[test]
     fn replace_self_long_original_type() {
-        // Testing when the original type path has more than one segment and generic
-        // parameters.
+        // Testing when the original type path has more than one segment and
+        // generic parameters.
         let original_type_path = parse_quote!(foo::Bar<String>);
         let mut type_ = parse_quote!(Self::baz);
 
@@ -1313,8 +1319,8 @@ mod tests {
     fn strip_path_generic() {
         let generic_ident = Ident::new("N", Span::call_site());
 
-        // The first item in each tuple will be fed into `strip_path_generic()`, and the
-        // result will be compared with the second item.
+        // The first item in each tuple will be fed into `strip_path_generic()`,
+        // and the result will be compared with the second item.
         let test_cases: [(Type, Type); _] = [
             // Paths
             (parse_quote!(Ast), parse_quote!(Ast)),

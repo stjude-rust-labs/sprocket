@@ -847,14 +847,16 @@ impl Value {
         match self {
             Self::Primitive(v @ PrimitiveValue::File(path))
             | Self::Primitive(v @ PrimitiveValue::Directory(path)) => {
-                // We treat file and directory paths almost entirely the same, other than when
-                // reporting errors and choosing which variant to return in the result
+                // We treat file and directory paths almost entirely the same,
+                // other than when reporting errors and choosing
+                // which variant to return in the result
                 let is_file = v.as_file().is_some();
                 let path = translate(path)?;
 
                 if path::is_file_url(path.as_str()) {
-                    // File URLs must be absolute paths, so we just check whether it exists without
-                    // performing any joining
+                    // File URLs must be absolute paths, so we just check
+                    // whether it exists without performing
+                    // any joining
                     let exists = path
                         .as_str()
                         .parse::<Url>()
@@ -1236,7 +1238,8 @@ impl<'de> serde::Deserialize<'de> for Value {
                     elements.push(element);
                 }
 
-                // Try to find a mutually-agreeable common type for the elements of the array.
+                // Try to find a mutually-agreeable common type for the elements
+                // of the array.
                 let mut candidate_ty = None;
                 for element in elements.iter() {
                     let new_candidate_ty = element.ty();
@@ -1576,14 +1579,14 @@ impl Hash for PrimitiveValue {
                 v.hash(state);
             }
             Self::Float(v) => {
-                // Hash this with the same discriminant as integer; this allows coercion from
-                // int to float.
+                // Hash this with the same discriminant as integer; this allows
+                // coercion from int to float.
                 1.hash(state);
                 v.hash(state);
             }
             Self::String(v) | Self::File(HostPath(v)) | Self::Directory(HostPath(v)) => {
-                // Hash these with the same discriminant; this allows coercion from file and
-                // directory to string
+                // Hash these with the same discriminant; this allows coercion
+                // from file and directory to string
                 2.hash(state);
                 v.hash(state);
             }
@@ -2807,8 +2810,8 @@ impl Coercible for CompoundValue {
             match (self, target_ty) {
                 // Array[X] -> Array[Y](+) where X -> Y
                 (Self::Array(v), CompoundType::Array(target_ty)) => {
-                    // Don't allow coercion when the source is empty but the target has the
-                    // non-empty qualifier
+                    // Don't allow coercion when the source is empty but the
+                    // target has the non-empty qualifier
                     if v.is_empty() && target_ty.is_non_empty() {
                         bail!("cannot coerce empty array value to non-empty array {target:#}");
                     }

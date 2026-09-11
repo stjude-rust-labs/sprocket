@@ -7,11 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added a `--disable-retries` flag to `sprocket run`, which disables retries for all task
+  evaluations, including those with a `runtime.maxRetries`/`requirements.maxRetries` value set ([#1190](https://github.com/stjude-rust-labs/sprocket/pull/1190)).
+
 ### Changed
 
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
   ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
+
+### Fixed
+
+* Input validation now identifies JSON and YAML input files that need an `@`
+  prefix instead of reporting a misleading array type mismatch
+  ([#906](https://github.com/stjude-rust-labs/sprocket/issues/906)).
 
 ## 0.30.1 - 2026-08-27
 
@@ -83,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* The `analyzer.except` config field has been merged into `check.except`, shared by both `sprocket check` and `sprocket analyzer` ([#1139](https://github.com/stjude-rust-labs/sprocket/pull/1139)).
 * `module.json` no longer declares a module `version`; Git version tags are the
   source of truth for module versions
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
