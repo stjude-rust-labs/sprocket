@@ -1021,10 +1021,11 @@ impl Document {
     /// Creates a new analyzed document from a document graph node.
     pub(crate) fn from_graph_node(
         config: &Config,
-        graph: &mut DocumentGraph,
+        graph: &DocumentGraph,
         index: NodeIndex,
+        existing_cache: Option<Arc<AnalysisCache>>,
     ) -> Self {
-        let node = graph.get_mut(index);
+        let node = graph.get(index);
         let (wdl_version, parse_diagnostics, edits) = match node.parse_state() {
             ParseState::NotParsed => panic!("node should have been parsed"),
             ParseState::Error(_) => {
@@ -1047,8 +1048,6 @@ impl Document {
             config.clone()
         };
 
-        let old_cache = node.take_cache();
-
         let mut data = DocumentData::new(
             config.clone(),
             node.uri().clone(),
@@ -1064,9 +1063,15 @@ impl Document {
                 // an unsupported version unless a fallback
                 // version is configured
             }
-            Ast::V1(ast) => {
-                v1::populate_document(&mut data, old_cache, &config, graph, index, &ast, &edits)
-            }
+            Ast::V1(ast) => v1::populate_document(
+                &mut data,
+                existing_cache,
+                &config,
+                graph,
+                index,
+                &ast,
+                &edits,
+            ),
         };
 
         Self {

@@ -61,6 +61,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::config::Config;
 use crate::document::Document;
+use crate::document::cache::AnalysisCache;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::EdgeKind;
@@ -1315,12 +1316,19 @@ where
                     let config = self.config.clone();
                     let validator = validator.clone();
                     handles.push(RayonHandle::spawn(move || {
-                        let mut graph = graph.write();
+                        let existing_cache = { graph.write().get_mut(index).take_cache() };
 
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                            Self::analyze_node(&config, &mut graph, index, &mut (validator)())
+                            Self::analyze_node(
+                                &config,
+                                &graph.read(),
+                                index,
+                                existing_cache,
+                                &mut (validator)(),
+                            )
                         }));
 
+                        let mut graph = graph.write();
                         let node = graph.get_mut(index);
                         match result {
                             Ok((_, document)) => {
@@ -1841,12 +1849,13 @@ where
     #[tracing::instrument(name = "analysis", skip_all)]
     fn analyze_node(
         config: &Config,
-        graph: &mut DocumentGraph,
+        graph: &DocumentGraph,
         index: NodeIndex,
+        existing_cache: Option<Arc<AnalysisCache>>,
         validator: &mut crate::Validator,
     ) -> (NodeIndex, Document) {
         let start = Instant::now();
-        let mut document = Document::from_graph_node(config, graph, index);
+        let mut document = Document::from_graph_node(config, graph, index, existing_cache);
 
         match &graph.get(index).parse_state() {
             ParseState::Parsed { diagnostics, .. }

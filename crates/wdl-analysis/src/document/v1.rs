@@ -187,7 +187,7 @@ pub(crate) fn populate_document(
     document: &mut DocumentData,
     existing_cache: Option<Arc<AnalysisCache>>,
     config: &Config,
-    graph: &mut DocumentGraph,
+    graph: &DocumentGraph,
     index: NodeIndex,
     ast: &Ast,
     edits: &[crate::analyzer::AppliedEdit],
