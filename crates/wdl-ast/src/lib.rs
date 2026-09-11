@@ -67,7 +67,7 @@ pub(crate) mod python;
 pub mod v1;
 
 /// An [`AstNode`] that may have documentation comments attached to it.
-pub trait Documented<N: TreeNode> {
+pub trait Documented<N: TreeNode>: AstNode<N> {
     /// Get all comment nodes preceding this node that start with
     /// [`DOC_COMMENT_PREFIX`].
     ///
@@ -78,7 +78,31 @@ pub trait Documented<N: TreeNode> {
 }
 
 /// Shared doc comment extraction logic.
+///
+/// NOTE: This is not a public API
+///
+/// `allow_floating` can be used to allow floating comments to be associated
+/// with this node. It's currently only used for preambles. For example:
+///
+/// ```wdl
+/// ## This is a preamble
+///
+/// version 1.3
+/// ```
+///
+/// That preamble comment is still associated with the version statement,
+/// despite floating above it. While in the following:
+///
+/// ```wdl
+/// ## This is a comment for `foo`
+///
+/// task foo {}
+/// ```
+///
+/// Since we don't allow floating comments on task definitions, that doc comment
+/// is *not* associated with it.
 #[allow(clippy::needless_bool)] // For clarity
+#[doc(hidden)] // Exported for `wdl-doc`
 pub fn doc_comments<N: TreeNode>(
     preceding_trivia: impl DoubleEndedIterator<Item = N::Token>,
     allow_floating: bool,

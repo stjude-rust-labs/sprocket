@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 * `SyntaxTree::green()` now returns `&GreenNode` instead of `Cow<GreenNode>` ([#1183](https://github.com/stjude-rust-labs/sprocket/pull/1183)).
+* `SyntaxTokenExt::preceding_trivia()` now returns a `DoubleEndedIterator` ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
 
 ## 0.25.1 - 2026-08-05
 

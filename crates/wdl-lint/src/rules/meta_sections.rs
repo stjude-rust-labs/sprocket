@@ -8,7 +8,6 @@ use wdl_analysis::Example;
 use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
-use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Documented;
@@ -16,9 +15,7 @@ use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
-use wdl_ast::SyntaxTokenExt;
-use wdl_ast::doc_comments;
-use wdl_ast::v1::InputSection;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::TaskDefinition;
@@ -111,13 +108,14 @@ impl Rule for MetaSectionsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections."
+        "Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections, \
+         or supplementary doc comments."
     }
 
     fn explanation(&self) -> &'static str {
-        "It is important that WDL code is well-documented. Every task and workflow should have \
-         both a meta and parameter_meta section. Tasks without an `input` section are permitted to \
-         skip the `parameter_meta` section."
+        "It is important that WDL code is well-documented. Every task and workflow should be \
+         documented with both a meta and parameter_meta section, or doc comments. Tasks without an \
+         `input` section are permitted to skip the `parameter_meta` section."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -196,21 +194,17 @@ impl MetaSectionsRule {
         &self,
         diagnostics: &mut Diagnostics,
         name: Ident,
-        node: &SyntaxNode,
-        inputs: Option<InputSection>,
+        node: &impl Documented<SyntaxNode>,
+        inputs: Option<impl IntoIterator<Item = Decl>>,
         parameter_meta: Option<ParameterMetadataSection>,
         meta: Option<MetadataSection>,
         context: Context,
     ) {
-        let self_documented = node.first_token().is_some_and(|t| {
-            doc_comments::<SyntaxNode>(t.preceding_trivia(), false)
-                .next()
-                .is_some()
-        });
+        let self_documented = node.doc_comments().is_some_and(|docs| !docs.is_empty());
 
         let inputs_present = inputs.is_some();
         let inputs_documented = inputs.is_some_and(|i| {
-            i.declarations()
+            i.into_iter()
                 .any(|d| d.doc_comments().is_some_and(|c| !c.is_empty()))
         });
 
@@ -222,19 +216,19 @@ impl MetaSectionsRule {
         if needs_meta && needs_parameter_meta {
             diagnostics.exceptable_add(
                 missing_sections(name, context),
-                node,
+                node.inner(),
                 &self.exceptable_nodes(),
             );
         } else if needs_meta {
             diagnostics.exceptable_add(
                 missing_section(name, Section::Meta, context),
-                node,
+                node.inner(),
                 &self.exceptable_nodes(),
             );
         } else if needs_parameter_meta {
             diagnostics.exceptable_add(
                 missing_section(name, Section::ParameterMeta, context),
-                node,
+                node.inner(),
                 &self.exceptable_nodes(),
             );
         }
@@ -270,11 +264,12 @@ impl Visitor for MetaSectionsRule {
             return;
         }
 
+        let input_section = task.input();
         self.check_meta_sections(
             diagnostics,
             task.name(),
-            task.inner(),
-            task.input(),
+            task,
+            input_section.as_ref().map(|i| i.declarations()),
             task.parameter_metadata(),
             task.metadata(),
             Context::Task,
@@ -291,11 +286,12 @@ impl Visitor for MetaSectionsRule {
             return;
         }
 
+        let input_section = workflow.input();
         self.check_meta_sections(
             diagnostics,
             workflow.name(),
-            workflow.inner(),
-            workflow.input(),
+            workflow,
+            input_section.as_ref().map(|i| i.declarations()),
             workflow.parameter_metadata(),
             workflow.metadata(),
             Context::Workflow,
@@ -320,8 +316,8 @@ impl Visitor for MetaSectionsRule {
         self.check_meta_sections(
             diagnostics,
             def.name(),
-            def.inner(),
-            None,
+            def,
+            Some(def.members().map(Decl::Unbound)),
             def.parameter_metadata().next(),
             def.metadata().next(),
             Context::Struct,

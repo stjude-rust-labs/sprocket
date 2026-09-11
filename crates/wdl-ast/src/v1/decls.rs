@@ -907,6 +907,30 @@ impl Documented<SyntaxNode> for Decl<SyntaxNode> {
     }
 }
 
+impl<N: TreeNode> AstNode<N> for Decl<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        matches!(
+            kind,
+            SyntaxKind::UnboundDeclNode | SyntaxKind::BoundDeclNode
+        )
+    }
+
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::BoundDeclNode => Some(Self::Bound(BoundDecl(inner))),
+            SyntaxKind::UnboundDeclNode => Some(Self::Unbound(UnboundDecl(inner))),
+            _ => None,
+        }
+    }
+
+    fn inner(&self) -> &N {
+        match self {
+            Decl::Bound(bound) => bound.inner(),
+            Decl::Unbound(unbound) => unbound.inner(),
+        }
+    }
+}
+
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> Decl<N> {
     /// Returns whether or not the given syntax kind can be cast to
