@@ -12,6 +12,7 @@ use super::project::trace_project;
 use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
+use super::signer_policy::enforce_lockfile_signer_policy;
 use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
@@ -77,11 +78,12 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         return Ok(());
     }
 
+    let baseline = lock.unwrap_or_default();
+    let plan = RelockPlanner::new(&config, &project, &baseline)
+        .plan(std::sync::Arc::new(project.manifest().clone()))
+        .await?;
+
     if args.dry_run {
-        let baseline = lock.clone().unwrap_or_default();
-        let plan = RelockPlanner::new(&config, &project, &baseline)
-            .plan(std::sync::Arc::new(project.manifest().clone()))
-            .await?;
         tracing::debug!("dry run completed without writing lockfile or trust store");
         let changes = relock_change_count(&plan.outcome.stats);
         output.planned(
@@ -106,14 +108,14 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         return Ok(());
     }
 
-    let baseline = lock.clone().unwrap_or_default();
-    let outcome = RelockPlanner::new(&config, &project, &baseline)
-        .plan_and_enforce(
-            std::sync::Arc::new(project.manifest().clone()),
-            signer_change_mode(&config, args.trust_mode),
-            output,
-        )
-        .await?;
+    enforce_lockfile_signer_policy(
+        &plan.existing,
+        &plan.outcome.lockfile,
+        &plan.identities,
+        signer_change_mode(&config, args.trust_mode),
+        output,
+    )?;
+    let outcome = plan.outcome;
     if write_lockfile(
         &project,
         &outcome.lockfile,
