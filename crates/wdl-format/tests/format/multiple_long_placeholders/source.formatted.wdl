@@ -19,8 +19,9 @@ task cast_spell {
             else None)} \
         --inscribeGreaterWardingCircle ~{consecrated_chalk_powder.left} ~{
             (if (length(spell_components) != 0)
-            then consecrated_chalk_powder.right
-            else None)} \
+                then consecrated_chalk_powder.right
+                else None)
+        } \
         --dispelLingering ~{warding_dust.left} ~{(if (length(
             spell_components
         ) != 0)

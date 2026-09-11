@@ -79,7 +79,7 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
 
     use pretty_assertions::assert_eq;
@@ -89,8 +89,8 @@ mod test {
 
     use crate::PrimitiveValue;
     use crate::Value;
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     fn assert_file_in_temp(env: &TestEnv, value: &Value) {
         assert!(

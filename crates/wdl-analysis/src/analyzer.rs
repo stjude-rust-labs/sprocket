@@ -1381,7 +1381,7 @@ const _: () = {
 };
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
     use std::path::PathBuf;
 

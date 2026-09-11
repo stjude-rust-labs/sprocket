@@ -215,7 +215,7 @@ impl Documented<SyntaxNode> for EnumChoice<SyntaxNode> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::Ast;
     use crate::Document;

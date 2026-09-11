@@ -26,7 +26,6 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
-use wdl::engine::config::LocalBackendConfig;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -2306,10 +2305,7 @@ async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
     use tokio::io::AsyncReadExt as _;
     use tokio::io::AsyncWriteExt as _;
 
-    let mut engine = wdl::engine::Config::default();
-    engine
-        .backends
-        .insert("default".into(), LocalBackendConfig::default().into());
+    let engine = wdl::engine::Config::local();
 
     /// The advertised size of the input the origin never finishes sending.
     const INPUT_SIZE: usize = 1024 * 1024;
