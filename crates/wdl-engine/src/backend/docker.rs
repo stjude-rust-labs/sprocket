@@ -358,7 +358,8 @@ async fn chown_work_dir(
     assert!(work_dir.is_absolute(), "work directory should be absolute");
 
     let (uid, gid) = if rootless {
-        // 0:0 in a rootless context maps back to the host user's UID/GID
+        // 0:0 in a rootless context maps back to the host user's UID/GID:
+        // https://docs.docker.com/engine/security/rootless/uid-gid-mapping/
         (0, 0)
     } else {
         // SAFETY: `geteuid` and `getegid` are always safe to call and cannot
