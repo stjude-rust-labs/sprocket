@@ -349,11 +349,23 @@ impl ManagedTask for DockerTask<'_> {
 ///
 /// This runs after a Docker task whatever the outcome of that task was.
 #[cfg(unix)]
-async fn chown_work_dir(backend: &docker::Backend, name: &str, work_dir: &Path) -> Result<()> {
+async fn chown_work_dir(
+    backend: &docker::Backend,
+    name: &str,
+    work_dir: &Path,
+    rootless: bool,
+) -> Result<()> {
     assert!(work_dir.is_absolute(), "work directory should be absolute");
 
-    // SAFETY: `geteuid` and `getegid` are always safe to call and cannot fail.
-    let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
+    let (uid, gid) = if rootless {
+        // 0:0 in a rootless context maps back to the host user's UID/GID
+        (0, 0)
+    } else {
+        // SAFETY: `geteuid` and `getegid` are always safe to call and cannot
+        // fail.
+        unsafe { (libc::geteuid(), libc::getegid()) }
+    };
+
     let ownership = format!("{uid}:{gid}");
 
     let task = Task::builder()
@@ -677,12 +689,6 @@ impl TaskExecutionBackend for DockerBackend {
             // once evaluation has been canceled.
             #[cfg(unix)]
             'cleanup: {
-                if self.rootless {
-                    // Under rootless Docker, the `work_dir` is already owned by
-                    // the user. Nothing to do.
-                    break 'cleanup;
-                }
-
                 let work_dir = request.work_dir();
                 if !work_dir.exists() {
                     break 'cleanup;
@@ -693,7 +699,9 @@ impl TaskExecutionBackend for DockerBackend {
                     name = request.name
                 );
 
-                if let Err(e) = chown_work_dir(self.inner.as_ref(), &name, &work_dir).await {
+                if let Err(e) =
+                    chown_work_dir(self.inner.as_ref(), &name, &work_dir, self.rootless).await
+                {
                     tracing::error!("Docker backend cleanup failed: {e:#}");
                 }
             }
