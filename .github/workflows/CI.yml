@@ -99,7 +99,7 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: |
-            cargo-llvm-cov@0.8
+            cargo-llvm-cov@0.9
             nextest@0.9
 
       # Pre-warm the npx cache so parallel tests don't race to install it.
@@ -181,7 +181,7 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: |
-            cargo-llvm-cov@0.8
+            cargo-llvm-cov@0.9
             nextest@0.9
 
       # See the `test` job
