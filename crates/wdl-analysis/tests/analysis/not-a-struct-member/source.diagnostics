@@ -9,4 +9,3 @@ error: struct `Foo` does not have a member named `y`
    │
 16 │     String b = a.y
    │                  ^
-

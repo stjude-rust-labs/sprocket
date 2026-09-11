@@ -60,6 +60,7 @@ pub async fn analyze_source(
     fallback_version: Option<SupportedVersion>,
     modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: wdl::analysis::FeatureFlags,
+    ignore_filename: Option<String>,
     report_mode: Mode,
     colorize: bool,
 ) -> CommandResult<Document> {
@@ -68,6 +69,7 @@ pub async fn analyze_source(
         .fallback_version(fallback_version)
         .modules_config(modules_config)
         .feature_flags(feature_flags)
+        .ignore_filename(ignore_filename)
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
@@ -198,6 +200,7 @@ pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResu
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
         report_mode,
         colorize,
     )

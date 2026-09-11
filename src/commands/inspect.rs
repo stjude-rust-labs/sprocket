@@ -57,19 +57,25 @@ pub fn status_color(status: &RunStatus) -> Color {
         RunStatus::Canceled => Color::Yellow,
         RunStatus::Canceling => Color::Yellow,
         RunStatus::Running => Color::Cyan,
+        RunStatus::Analyzing => Color::Magenta,
         RunStatus::Queued => Color::White,
+        RunStatus::Orphaned => Color::Red,
     }
 }
 
 /// Returns the color to use when displaying a task status.
 pub fn task_status_color(status: TaskStatus) -> Color {
     match status {
+        TaskStatus::Initializing => Color::White,
+        TaskStatus::Localizing => Color::Cyan,
         TaskStatus::Pending => Color::White,
         TaskStatus::Running => Color::Cyan,
         TaskStatus::Completed => Color::Green,
+        TaskStatus::Cached => Color::Green,
         TaskStatus::Failed => Color::Red,
         TaskStatus::Canceled => Color::Yellow,
         TaskStatus::Preempted => Color::Yellow,
+        TaskStatus::Orphaned => Color::Red,
     }
 }
 
@@ -87,12 +93,20 @@ pub fn task_counts_summary(counts: &RunTaskCountsResponse, colorize: bool) -> Op
     // Fixed display order. Labels mirror the `TaskStatus` `Display` output and
     // colors come from `task_status_color`, the single source of truth.
     let entries = [
+        (
+            "initializing",
+            counts.initializing,
+            TaskStatus::Initializing,
+        ),
+        ("localizing", counts.localizing, TaskStatus::Localizing),
         ("pending", counts.pending, TaskStatus::Pending),
         ("running", counts.running, TaskStatus::Running),
         ("completed", counts.completed, TaskStatus::Completed),
+        ("cached", counts.cached, TaskStatus::Cached),
         ("failed", counts.failed, TaskStatus::Failed),
         ("canceled", counts.canceled, TaskStatus::Canceled),
         ("preempted", counts.preempted, TaskStatus::Preempted),
+        ("orphaned", counts.orphaned, TaskStatus::Orphaned),
     ];
 
     let parts = entries
@@ -392,12 +406,16 @@ mod tests {
         preempted: i64,
     ) -> RunTaskCountsResponse {
         RunTaskCountsResponse {
+            initializing: 0,
+            localizing: 0,
             pending,
             running,
             completed,
+            cached: 0,
             failed,
             canceled,
             preempted,
+            orphaned: 0,
             total: pending + running + completed + failed + canceled + preempted,
         }
     }

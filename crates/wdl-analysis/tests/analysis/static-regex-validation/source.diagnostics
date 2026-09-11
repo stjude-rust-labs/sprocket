@@ -6,4 +6,3 @@ error: unclosed character class
    │
 11 │     String? f_invalid = find(s, "[unclosed")  # Invalid pattern. Error: unclosed character class
    │                                 ^^^^^^^^^^^ invalid regular expression
-

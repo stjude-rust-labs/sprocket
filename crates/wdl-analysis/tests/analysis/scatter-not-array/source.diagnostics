@@ -3,4 +3,3 @@ error: type mismatch: expected an array type, but found type `String`
   │
 8 │     scatter (x in a) {}
   │                   ^ this is type `String`
-

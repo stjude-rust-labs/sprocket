@@ -5,6 +5,7 @@ use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -31,8 +32,13 @@ use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::config::BackendConfig;
+use wdl::engine::config::LsfApptainerBackendConfig;
+use wdl::engine::config::SlurmApptainerBackendConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
+
+use crate::IGNORE_FILENAME;
 
 /// Default host.
 const fn default_host() -> &'static str {
@@ -67,11 +73,18 @@ const CONFIG_FILENAME: &str = "sprocket.toml";
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
 /// alongside the user's Sprocket config.
 ///
-/// On macOS this is `$HOME/.config/sprocket/`, on Linux it follows
+/// The `SPROCKET_CONFIG_ROOT` environment variable, when set, overrides the
+/// platform-specific default (this is primarily used to isolate configuration
+/// during testing).
+///
+/// Otherwise, on macOS this is `$HOME/.config/sprocket/`, on Linux it follows
 /// `$XDG_CONFIG_HOME` (typically `~/.config/sprocket/`), on Windows it lands
 /// in `%APPDATA%/sprocket/`. Returns `None` when the underlying base
 /// directory cannot be determined (no `$HOME`, etc.).
 pub fn config_root() -> Option<PathBuf> {
+    if let Some(root) = std::env::var_os("SPROCKET_CONFIG_ROOT") {
+        return Some(PathBuf::from(root));
+    }
     #[cfg(target_os = "macos")]
     let base = dirs::home_dir().map(|p| p.join(".config"));
     #[cfg(not(target_os = "macos"))]
@@ -101,6 +114,28 @@ pub fn config_root() -> Option<PathBuf> {
 fn default_events_channel_capacity() -> u32 {
     5000
 }
+
+/// The default number of minutes a session may go without recording a
+/// heartbeat before the runs it owns are considered orphaned.
+///
+/// Processes heartbeat far more often than this (see
+/// [`ServerConfig::heartbeat_interval`]), so five minutes tolerates several
+/// missed heartbeats and some clock drift between hosts sharing a database.
+fn default_orphan_timeout_minutes() -> u64 {
+    5
+}
+
+/// How many heartbeats a process aims to record per orphan timeout window.
+///
+/// Dividing the timeout by this keeps the interval under it, so a process must
+/// miss several heartbeats before its runs are swept.
+const HEARTBEATS_PER_ORPHAN_TIMEOUT: u32 = 5;
+
+/// The longest a process goes between heartbeats.
+///
+/// The sweep shares this interval, so a ceiling keeps it responsive however
+/// long the timeout is.
+const MAX_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// The default parallelism for the `sprocket test` command.
 const DEFAULT_TEST_PARALLELISM: u32 = 50;
@@ -181,6 +216,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub common: CommonConfig,
+    /// Configuration for the `module` command group (`[module]` section).
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub module: ModuleConfig,
     /// Configuration for the module system (`[modules]` section).
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -194,6 +233,49 @@ impl Config {
     }
 }
 
+/// Configuration for the `sprocket dev module` command group.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleConfig {
+    /// Configuration for `sprocket dev module init`.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub init: ModuleInitConfig,
+}
+
+/// Configuration for `sprocket dev module init`.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleInitConfig {
+    /// Default module author name.
+    pub author: Option<String>,
+    /// Default module author email.
+    pub email: Option<String>,
+    /// Default SPDX license expression.
+    pub license: Option<String>,
+}
+
+impl ModuleInitConfig {
+    /// Validates that configured module fields are not blank.
+    fn validate(&self) -> Result<()> {
+        for (field, value) in [
+            ("author", &self.author),
+            ("email", &self.email),
+            ("license", &self.license),
+        ] {
+            if value
+                .as_deref()
+                .is_some_and(|value| value.trim().is_empty())
+            {
+                bail!("`module.init.{field}` cannot be empty");
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Represents shared configuration options for Sprocket commands.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
@@ -203,6 +285,10 @@ pub struct CommonConfig {
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
     pub color: ColorMode,
+    /// Ignore `.sprocketignore` files while discovering WDL documents.
+    #[toml(skip)]
+    #[schemars(skip)]
+    pub no_ignore: bool,
     /// The report mode.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
@@ -211,6 +297,13 @@ pub struct CommonConfig {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub wdl: WdlConfig,
+}
+
+impl CommonConfig {
+    /// Gets the ignore filename for document discovery.
+    pub fn ignore_filename(&self) -> Option<String> {
+        (!self.no_ignore).then(|| IGNORE_FILENAME.to_string())
+    }
 }
 
 /// Represents a fallback WDL version to use.
@@ -312,7 +405,9 @@ mod feature_flags {
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Rule IDs to except from running.
+    /// Rule IDs or tags to except from running.
+    ///
+    /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
     #[schemars(default)]
     pub except: Vec<String>,
@@ -332,21 +427,11 @@ pub struct CheckConfig {
     #[toml(default)]
     #[schemars(default)]
     pub hide_warnings: bool,
-    /// Enable all lint rules, even those outside the default set.
-    ///
-    /// This cannot be `true` while `only_lint_tags` is populated.
-    #[toml(default)]
-    #[schemars(default)]
-    pub all_lint_rules: bool,
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
     #[toml(default)]
     #[schemars(default)]
-    pub only_lint_tags: Vec<String>,
-    /// Set of lint tags to filter out of the enabled lint rules.
-    #[toml(default)]
-    #[schemars(default)]
-    pub filter_lint_tags: Vec<String>,
+    pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
     /// Lint rule configuration.
@@ -364,10 +449,6 @@ pub struct AnalyzerConfig {
     #[toml(default)]
     #[schemars(default)]
     pub lint: bool,
-    /// Rule IDs to except from running.
-    #[toml(default)]
-    #[schemars(default)]
-    pub except: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `run` command.
@@ -414,11 +495,11 @@ impl Default for RunConfig {
     }
 }
 
-/// Server database configuration.
+/// Database configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
-pub struct ServerDatabaseConfig {
+pub struct DatabaseConfig {
     /// Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db`
     /// in the output directory. in the output directory.
     #[toml(default = String::from(sentinel_database_filename()))]
@@ -426,10 +507,24 @@ pub struct ServerDatabaseConfig {
     pub url: String,
 }
 
-impl Default for ServerDatabaseConfig {
+impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
             url: sentinel_database_filename().into(),
+        }
+    }
+}
+
+impl DatabaseConfig {
+    /// Resolves the database URL for the given output directory.
+    pub(crate) fn resolve_url(&self, output_dir: &Path) -> String {
+        if self.url == sentinel_database_filename() {
+            output_dir
+                .join(DEFAULT_DATABASE_FILENAME)
+                .to_string_lossy()
+                .to_string()
+        } else {
+            self.url.clone()
         }
     }
 }
@@ -522,7 +617,7 @@ pub struct ServerConfig {
     /// Database configuration.
     #[toml(default, style = Header)]
     #[schemars(default)]
-    pub database: ServerDatabaseConfig,
+    pub database: DatabaseConfig,
     /// Directory for workflow outputs.
     #[toml(default = PathBuf::from(default_output_directory()))]
     #[schemars(default = "default_output_directory")]
@@ -543,6 +638,12 @@ pub struct ServerConfig {
     #[toml(default)]
     #[schemars(default)]
     pub engine: EngineConfig,
+    /// How many minutes a session may go without recording a heartbeat before
+    /// the runs it owns are marked `orphaned`. Applies to `sprocket run`
+    /// invocations as well as servers.
+    #[toml(default = default_orphan_timeout_minutes())]
+    #[schemars(default = "default_orphan_timeout_minutes")]
+    pub orphan_timeout_minutes: u64,
 }
 
 impl Default for ServerConfig {
@@ -551,27 +652,34 @@ impl Default for ServerConfig {
             host: default_host().into(),
             port: default_port(),
             allowed_origins: Vec::new(),
-            database: ServerDatabaseConfig::default(),
+            database: DatabaseConfig::default(),
             output_dir: DEFAULT_OUTPUT_DIRECTORY.into(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
             max_concurrent_runs: Default::default(),
             engine: EngineConfig::default(),
+            orphan_timeout_minutes: default_orphan_timeout_minutes(),
         }
     }
 }
 
 impl ServerConfig {
-    /// Get the database URL.
-    pub fn database_url(&self) -> String {
-        if self.database.url == sentinel_database_filename() {
-            self.output_dir
-                .join(DEFAULT_DATABASE_FILENAME)
-                .to_string_lossy()
-                .to_string()
-        } else {
-            self.database.url.to_string()
-        }
+    /// The interval at which a process records a liveness heartbeat on the
+    /// session it owns, and a server re-sweeps for sessions that have stopped
+    /// recording one.
+    ///
+    /// Derived from [`Self::orphan_timeout_minutes`] rather than configured
+    /// separately: an interval at or above the timeout would let a server
+    /// declare its own live runs orphaned. [`Self::validate`] rejects a zero
+    /// timeout, which `tokio::time::interval` would panic on.
+    pub fn heartbeat_interval(&self) -> Duration {
+        (self.orphan_timeout() / HEARTBEATS_PER_ORPHAN_TIMEOUT).min(MAX_HEARTBEAT_INTERVAL)
+    }
+
+    /// The duration a session may go without a heartbeat before the runs it
+    /// owns are considered orphaned.
+    pub fn orphan_timeout(&self) -> Duration {
+        Duration::from_secs(self.orphan_timeout_minutes * 60)
     }
 
     /// Validates and normalizes the server configuration.
@@ -593,6 +701,11 @@ impl ServerConfig {
             && max == 0
         {
             anyhow::bail!("`max_concurrent_runs` must be at least 1");
+        }
+
+        // Validate the orphan timeout is at least a minute
+        if self.orphan_timeout_minutes == 0 {
+            anyhow::bail!("`orphan_timeout_minutes` must be at least 1");
         }
 
         // Validate that all allowed URLs can be parsed
@@ -1135,9 +1248,7 @@ impl Config {
 
     /// Validate a configuration.
     pub fn validate(&mut self) -> Result<()> {
-        if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
-            bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
-        }
+        self.module.init.validate()?;
 
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
@@ -1157,46 +1268,54 @@ impl Config {
                 }
             }
         }
+
+        // Expands the paths in the given engine configuration.
+        fn expand_paths(config: &mut EngineConfig) -> Result<()> {
+            // Expand the call cache directory
+            if !config.task.using_system_cache_dir() {
+                config.task.cache_dir = config
+                    .task
+                    .cache_dir()
+                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+            }
+
+            // Expand the download cache directory
+            if !config.http.using_system_cache_dir() {
+                config.http.cache_dir = config
+                    .http
+                    .cache_dir()
+                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+            }
+
+            // Expand the apptainer image cache directory
+            for backend in config.backends.values_mut() {
+                match backend {
+                    BackendConfig::LsfApptainer {
+                        config: LsfApptainerBackendConfig { apptainer, .. },
+                    }
+                    | BackendConfig::SlurmApptainer {
+                        config: SlurmApptainerBackendConfig { apptainer, .. },
+                    } if !apptainer.using_system_image_cache_dir() => {
+                        apptainer.image_cache_dir = apptainer
+                            .image_cache_dir()
+                            .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok(())
+        }
+
+        // Expand paths in the configuration for both the `run` and `server`
+        // sections
         self.run.output_dir = expand(&self.run.output_dir)?;
         self.server.output_dir = expand(&self.server.output_dir)?;
-        self.run.engine.task.cache_dir = match self
-            .run
-            .engine
-            .task
-            .cache_dir()
-            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
-            .transpose()?
-        {
-            Some(s) => s,
-            None => self.run.engine.task.cache_dir.clone(),
-        };
-        if !self.run.engine.http.using_system_cache_dir() {
-            self.run.engine.http.cache_dir = self
-                .run
-                .engine
-                .http
-                .cache_dir()
-                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
-        }
-        self.server.engine.task.cache_dir = match self
-            .server
-            .engine
-            .task
-            .cache_dir()
-            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
-            .transpose()?
-        {
-            Some(s) => s,
-            None => self.server.engine.task.cache_dir.clone(),
-        };
-        if !self.server.engine.http.using_system_cache_dir() {
-            self.server.engine.http.cache_dir = self
-                .server
-                .engine
-                .http
-                .cache_dir()
-                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
-        }
+
+        // Expand the paths in the engine configuration for both `run` and
+        // `server`
+        expand_paths(&mut self.run.engine)?;
+        expand_paths(&mut self.server.engine)?;
 
         // Validate inner configs
         self.server.validate()?;
@@ -1222,7 +1341,7 @@ impl Config {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use schemars::schema_for;
@@ -1235,7 +1354,7 @@ mod test {
             HashMap::from_iter([("value", MaxConcurrentRuns::Unlimited)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"unlimited\"\n")
+            "value = \"unlimited\"\n"
         );
 
         let map: HashMap<&str, MaxConcurrentRuns> =
@@ -1342,20 +1461,20 @@ mod test {
     }
 
     #[test]
-    fn server_database_url_uses_output_dir_for_default() {
-        let config = ServerConfig::default();
+    fn database_url_uses_output_dir_for_default() {
+        let config = DatabaseConfig::default();
         assert_eq!(
-            PathBuf::from(config.database_url()),
-            PathBuf::from(".").join("out").join("sprocket.db")
+            PathBuf::from(config.resolve_url(Path::new("custom-output"))),
+            PathBuf::from("custom-output").join("sprocket.db")
         );
 
-        let config = ServerConfig {
-            database: ServerDatabaseConfig {
-                url: "sqlite://custom.db".to_string(),
-            },
-            ..Default::default()
+        let config = DatabaseConfig {
+            url: "sqlite://custom.db".to_string(),
         };
-        assert_eq!(config.database_url(), "sqlite://custom.db");
+        assert_eq!(
+            config.resolve_url(Path::new("ignored")),
+            "sqlite://custom.db"
+        );
     }
 
     #[test]
@@ -1470,6 +1589,36 @@ mod test {
             !failed,
             "the generated schema does not match the current `sprocket.toml`!"
         );
+    }
+
+    #[test]
+    fn module_init_config_parses() {
+        let config = toml_spanner::from_str::<Config>(
+            "[module.init]\nauthor = \"Jane Doe\"\nemail = \"jane@example.com\"\nlicense = \
+             \"MIT\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(config.module.init.author.as_deref(), Some("Jane Doe"));
+        assert_eq!(
+            config.module.init.email.as_deref(),
+            Some("jane@example.com")
+        );
+        assert_eq!(config.module.init.license.as_deref(), Some("MIT"));
+    }
+
+    #[test]
+    fn module_init_config_rejects_blank_fields() {
+        for (field, value) in [("author", "   "), ("email", "\t"), ("license", "\n")] {
+            let source = format!("[module.init]\n{field} = {value:?}\n");
+            let mut config = toml_spanner::from_str::<Config>(&source).unwrap();
+            let error = config.validate().unwrap_err();
+
+            assert_eq!(
+                error.to_string(),
+                format!("`module.init.{field}` cannot be empty")
+            );
+        }
     }
 
     #[test]
@@ -1597,17 +1746,6 @@ mod test {
 
         let mut config = Config::default();
         config.validate()?;
-
-        let mut config = Config::default();
-        config.check.all_lint_rules = true;
-        config.check.only_lint_tags.push("style".to_string());
-        let Err(error) = config.validate() else {
-            panic!("incompatible lint options should error");
-        };
-        assert_eq!(
-            error.to_string(),
-            "`all_lint_rules` cannot be specified with `only_lint_tags`"
-        );
 
         let mut config = Config::default();
         config.run.events_capacity = 0;

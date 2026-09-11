@@ -27,7 +27,7 @@ Options:
           Possible values:
           - default: The default, human-readable output
           - json:    Machine-readable JSON
-          
+
           [default: default]
 
   -v, --verbose...
@@ -36,6 +36,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
       --color <COLOR>
           Controls output colorization
 
@@ -43,7 +46,7 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
 
   -c, --config <CONFIG>
@@ -51,7 +54,7 @@ Options:
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help
@@ -110,6 +113,7 @@ Available rules:
   - UsingFallbackVersion
 
 Available tags:
+  - All
   - Clarity
   - Completeness
   - Correctness

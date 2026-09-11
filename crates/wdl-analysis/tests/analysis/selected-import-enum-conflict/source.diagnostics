@@ -6,4 +6,3 @@ error: import of `Status` conflicts with an existing definition
   ·
 7 │ import { Status } from "lib.wdl"
   │          ^^^^^^ imported here
-

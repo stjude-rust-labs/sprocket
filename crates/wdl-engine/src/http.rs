@@ -1,31 +1,34 @@
-//! Implementation of remote file downloads and uploads over HTTP.
+//! Implementation of a HTTP client.
+//!
+//! The `DefaultHttpClient` type implements the `HttpClient` trait.
+//!
+//! The `HttpClient` trait can be used to replace the HTTP implementation for
+//! testing.
 
-use std::collections::HashMap;
 use std::fs;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
+use anyhow::bail;
 use cloud_copy::ContentDigest;
-use cloud_copy::HttpClient;
 use cloud_copy::TransferEvent;
 use cloud_copy::UrlExt;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tempfile::NamedTempFile;
 use tempfile::TempPath;
-use tokio::sync::OnceCell;
 use tokio::sync::Semaphore;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use url::Url;
 
+use crate::Cache;
 use crate::config::Config;
 
 /// Represents a location of a downloaded file.
@@ -57,18 +60,29 @@ impl AsRef<Path> for Location {
     }
 }
 
-/// Represents a file transferer.
-pub trait Transferer: Send + Sync {
+/// A trait implemented by HTTP clients.
+pub trait HttpClient: Send + Sync {
     /// Downloads a file or directory to a temporary path.
-    fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>>;
+    fn download<'a>(
+        &'a self,
+        source: &'a Url,
+        events: Option<broadcast::Sender<TransferEvent>>,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Location>,
+    ) -> BoxFuture<'a, Result<Location>>;
 
     /// Uploads a local file or directory to a cloud storage URL.
     ///
     /// The destination URL is expected to be content-addressed (meaning
     /// specific to the content being uploaded).
-    ///
-    /// Returns the destination URL with any Azure authentication applied.
-    fn upload<'a>(&'a self, source: &'a Path, destination: &'a Url) -> BoxFuture<'a, Result<()>>;
+    fn upload<'a>(
+        &'a self,
+        source: &'a Path,
+        destination: &'a Url,
+        events: Option<broadcast::Sender<TransferEvent>>,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, ()>,
+    ) -> BoxFuture<'a, Result<()>>;
 
     /// Gets the size of a resource at a given URL.
     ///
@@ -76,7 +90,12 @@ pub trait Transferer: Send + Sync {
     ///
     /// Returns `Ok(None)` if the URL is valid but the size cannot be
     /// determined.
-    fn size<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<u64>>>;
+    fn size<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Option<u64>>,
+    ) -> BoxFuture<'a, Result<Option<u64>>>;
 
     /// Walks a given storage URL as if it were a directory.
     ///
@@ -84,66 +103,54 @@ pub trait Transferer: Send + Sync {
     /// lexicographical order.
     ///
     /// If the given storage URL is not a directory, an empty list is returned.
-    fn walk<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>>;
+    fn walk<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Arc<[String]>>,
+    ) -> BoxFuture<'a, Result<Arc<[String]>>>;
 
     /// Determines if the given URL exists.
     ///
     /// Returns `Ok(true)` if a HEAD request returns success or if a walk of the
     /// URL returns at least one contained URL.
-    fn exists<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<bool>>;
+    fn exists<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, bool>,
+    ) -> BoxFuture<'a, Result<bool>>;
 
     /// Gets the content digest of the resource identified by the given URL.
     ///
     /// Returns `Ok(None)` if the resource has no associated content digest.
-    fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>>;
+    fn digest<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Option<Arc<ContentDigest>>>,
+    ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>>;
 }
 
-/// Used to cache results of transferer operations.
-#[derive(Default)]
-struct Cache {
-    /// Stores the results of downloading files.
-    downloads: HashMap<Url, Arc<OnceCell<Location>>>,
-    /// Stores the results of uploading files.
-    uploads: HashMap<Url, Arc<OnceCell<()>>>,
-    /// Stores the results of retrieving file sizes.
-    sizes: HashMap<Url, Arc<OnceCell<Option<u64>>>>,
-    /// Stores the results of walking a URL.
-    walks: HashMap<Url, Arc<OnceCell<Arc<[String]>>>>,
-    /// Stores the results of checking for URL existence.
-    exists: HashMap<Url, Arc<OnceCell<bool>>>,
-    /// Stores the results of retrieving content digests a URL.
-    digests: HashMap<Url, Arc<OnceCell<Option<Arc<ContentDigest>>>>>,
-}
-
-/// Represents the internal state of `HttpTransferer`.
-struct HttpTransfererInner {
+/// The internal state of the default HTTP client.
+struct State {
     /// The configuration for transferring files.
     config: cloud_copy::Config,
-    /// The HTTP client to use.
-    client: HttpClient,
-    /// The cached results of transferer operations.
-    cache: Mutex<Cache>,
+    /// The internal HTTP client.
+    client: cloud_copy::HttpClient,
     /// The path to the temporary directory for links/copies.
     temp_dir: PathBuf,
-    /// The cancellation token for canceling transfers.
-    cancel: CancellationToken,
-    /// The events sender to use for transfer events.
-    events: Option<broadcast::Sender<TransferEvent>>,
     /// Limits the number of concurrent transfers.
     semaphore: Semaphore,
 }
 
-/// Implementation of a file transferer that uses HTTP.
+/// Implementation of the default HTTP client.
 #[derive(Clone)]
-pub struct HttpTransferer(Arc<HttpTransfererInner>);
+pub struct DefaultHttpClient(Arc<State>);
 
-impl HttpTransferer {
-    /// Constructs a new HTTP transferer with the given configuration.
-    pub fn new(
-        config: Arc<Config>,
-        cancel: CancellationToken,
-        events: Option<broadcast::Sender<TransferEvent>>,
-    ) -> Result<Self> {
+impl DefaultHttpClient {
+    /// Constructs a new [`DefaultHttpClient`] with the given configuration.
+    pub fn new(config: &Config) -> Result<Self> {
         let cache_dir = config.http.cache_dir()?;
 
         let temp_dir = cache_dir.join("tmp");
@@ -206,22 +213,25 @@ impl HttpTransferer {
             .with_google(google_config)
             .build();
 
-        let client = HttpClient::new_with_cache(copy_config.clone(), cache_dir);
+        let client = cloud_copy::HttpClient::new_with_cache(copy_config.clone(), cache_dir);
 
-        Ok(Self(Arc::new(HttpTransfererInner {
+        Ok(Self(Arc::new(State {
             config: copy_config,
             client,
-            cache: Default::default(),
             temp_dir,
-            cancel,
-            events,
             semaphore: Semaphore::new(config.http.parallelism.into()),
         })))
     }
 }
 
-impl Transferer for HttpTransferer {
-    fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>> {
+impl HttpClient for DefaultHttpClient {
+    fn download<'a>(
+        &'a self,
+        source: &'a Url,
+        events: Option<broadcast::Sender<TransferEvent>>,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Location>,
+    ) -> BoxFuture<'a, Result<Location>> {
         async move {
             // File URLs don't need to be downloaded
             if source.scheme() == "file" {
@@ -232,101 +242,109 @@ impl Transferer for HttpTransferer {
                 ));
             }
 
-            let download = {
-                let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache.downloads.entry(source.clone()).or_default().clone()
-            };
-
-            // Get an existing result or initialize a new one exactly once
-            Ok(download
-                .get_or_try_init(|| async {
-                    {
-                        // Acquire a permit for the transfer
-                        let _permit = self
-                            .0
-                            .semaphore
-                            .acquire()
-                            .await
-                            .context("failed to acquire permit")?;
-
-                        // Create a temporary path to where the download will go
-                        let temp_path = NamedTempFile::new_in(&self.0.temp_dir)
-                            .context("failed to create temporary file")?
-                            .into_temp_path();
-
-                        // Perform the download (always overwrite the local temp file)
-                        cloud_copy::copy(
-                            self.0.config.clone(),
-                            self.0.client.clone(),
-                            source,
-                            &*temp_path,
-                            self.0.cancel.clone(),
-                            self.0.events.clone(),
-                        )
+            let x = cache
+                .get_by_ref(source, token, async || {
+                    // Acquire a permit for the transfer
+                    let _permit = self
+                        .0
+                        .semaphore
+                        .acquire()
                         .await
-                        .with_context(|| {
-                            format!("failed to download `{source}`", source = source.display())
-                        })
-                        .map(|_| Location::Temp(Arc::new(temp_path)))
-                    }
-                })
-                .await?
-                .clone())
-        }
-        .boxed()
-    }
+                        .context("failed to acquire permit")?;
 
-    fn upload<'a>(&'a self, source: &'a Path, destination: &'a Url) -> BoxFuture<'a, Result<()>> {
-        async move {
-            let upload = {
-                let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache
-                    .uploads
-                    .entry(destination.clone())
-                    .or_default()
-                    .clone()
-            };
+                    // Create a temporary path to where the download will go
+                    let temp_path = NamedTempFile::new_in(&self.0.temp_dir)
+                        .context("failed to create temporary file")?
+                        .into_temp_path();
 
-            // Get an existing result or initialize a new one exactly once
-            upload
-                .get_or_try_init(|| async {
-                    {
-                        // Acquire a permit for the transfer
-                        let _permit = self
-                            .0
-                            .semaphore
-                            .acquire()
-                            .await
-                            .context("failed to acquire permit")?;
-
-                        // Perform the upload (do not overwrite)
-                        let mut config = self.0.config.clone();
-                        config.set_overwrite(false);
-                        match cloud_copy::copy(
-                            config,
-                            self.0.client.clone(),
-                            source,
-                            destination,
-                            self.0.cancel.clone(),
-                            self.0.events.clone(),
-                        )
-                        .await
-                        {
-                            Ok(_) | Err(cloud_copy::Error::RemoteDestinationExists(_)) => {
-                                anyhow::Ok(())
-                            }
-                            Err(e) => Err(e.into()),
-                        }
-                    }
+                    // Perform the download (always overwrite the local temp
+                    // file)
+                    cloud_copy::copy(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        source,
+                        &*temp_path,
+                        token.clone(),
+                        events,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("failed to download `{source}`", source = source.display())
+                    })
+                    .map(|_| Location::Temp(Arc::new(temp_path)))
                 })
                 .await?;
 
-            Ok(())
+            match x {
+                Some(location) => Ok(location),
+                None => bail!(
+                    "failed to download `{source}`: the operation was cancelled",
+                    source = source.display()
+                ),
+            }
         }
         .boxed()
     }
 
-    fn size<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<u64>>> {
+    fn upload<'a>(
+        &'a self,
+        source: &'a Path,
+        destination: &'a Url,
+        events: Option<broadcast::Sender<TransferEvent>>,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, ()>,
+    ) -> BoxFuture<'a, Result<()>> {
+        async move {
+            match cache
+                .get_by_ref(destination, token, async || {
+                    // Acquire a permit for the transfer
+                    let _permit = self
+                        .0
+                        .semaphore
+                        .acquire()
+                        .await
+                        .context("failed to acquire permit")?;
+
+                    // Perform the upload (do not overwrite)
+                    let mut config = self.0.config.clone();
+                    config.set_overwrite(false);
+                    match cloud_copy::copy(
+                        config,
+                        self.0.client.clone(),
+                        source,
+                        destination,
+                        token.clone(),
+                        events,
+                    )
+                    .await
+                    {
+                        Ok(_) | Err(cloud_copy::Error::RemoteDestinationExists(_)) => Ok(()),
+                        Err(e) => Err(e).with_context(|| {
+                            format!(
+                                "failed to upload `{destination}`",
+                                destination = destination.display()
+                            )
+                        }),
+                    }
+                })
+                .await?
+            {
+                Some(_) => Ok(()),
+                None => bail!(
+                    "failed to upload `{destination}`: the operation was cancelled",
+                    destination = destination.display()
+                ),
+            }
+        }
+        .boxed()
+    }
+
+    fn size<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Option<u64>>,
+    ) -> BoxFuture<'a, Result<Option<u64>>> {
         async move {
             // Check for local file
             if url.scheme() == "file" {
@@ -342,14 +360,8 @@ impl Transferer for HttpTransferer {
                 return Ok(Some(metadata.len()));
             }
 
-            let size = {
-                let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache.sizes.entry(url.clone()).or_default().clone()
-            };
-
-            // Get an existing result or initialize a new one exactly once
-            Ok(*size
-                .get_or_try_init(|| async {
+            match cache
+                .get_by_ref(url, token, async || {
                     let _permit = self
                         .0
                         .semaphore
@@ -364,21 +376,27 @@ impl Transferer for HttpTransferer {
                             format!("failed to retrieve size of `{url}`", url = url.display())
                         })
                 })
-                .await?)
+                .await?
+            {
+                Some(size) => Ok(size),
+                None => bail!(
+                    "failed to retrieve size of `{url}`: the operation was cancelled",
+                    url = url.display()
+                ),
+            }
         }
         .boxed()
     }
 
-    fn walk<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
+    fn walk<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Arc<[String]>>,
+    ) -> BoxFuture<'a, Result<Arc<[String]>>> {
         async move {
-            let walk = {
-                let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache.walks.entry(url.clone()).or_default().clone()
-            };
-
-            // Get an existing result or initialize a new one exactly once
-            Ok(walk
-                .get_or_try_init(|| async {
+            match cache
+                .get_by_ref(url, token, async || {
                     let _permit = self
                         .0
                         .semaphore
@@ -389,7 +407,9 @@ impl Transferer for HttpTransferer {
                     let mut entries =
                         cloud_copy::walk(self.0.config.clone(), self.0.client.clone(), url.clone())
                             .await
-                            .with_context(|| format!("failed to walk URL `{url}`"))?;
+                            .with_context(|| {
+                                format!("failed to walk URL `{url}`", url = url.display())
+                            })?;
 
                     // We return the entries in lexicographical order
                     entries.sort();
@@ -397,12 +417,23 @@ impl Transferer for HttpTransferer {
                     anyhow::Ok(entries.into())
                 })
                 .await?
-                .clone())
+            {
+                Some(entries) => Ok(entries),
+                None => bail!(
+                    "failed to walk URL `{url}`: the operation was cancelled",
+                    url = url.display()
+                ),
+            }
         }
         .boxed()
     }
 
-    fn exists<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<bool>> {
+    fn exists<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, bool>,
+    ) -> BoxFuture<'a, Result<bool>> {
         async move {
             // Check for local file
             if url.scheme() == "file" {
@@ -412,14 +443,8 @@ impl Transferer for HttpTransferer {
                 return Ok(path.exists());
             }
 
-            let exists = {
-                let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache.exists.entry(url.clone()).or_default().clone()
-            };
-
-            // Get an existing result or initialize a new one exactly once
-            Ok(*exists
-                .get_or_try_init(|| async {
+            match cache
+                .get_by_ref(url, token, async || {
                     let _permit = self
                         .0
                         .semaphore
@@ -437,21 +462,27 @@ impl Transferer for HttpTransferer {
                             )
                         })
                 })
-                .await?)
+                .await?
+            {
+                Some(exists) => Ok(exists),
+                None => bail!(
+                    "failed to determine existence of `{url}`: the operation was cancelled",
+                    url = url.display()
+                ),
+            }
         }
         .boxed()
     }
 
-    fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
+    fn digest<'a>(
+        &'a self,
+        url: &'a Url,
+        token: &'a CancellationToken,
+        cache: &'a Cache<Url, Option<Arc<ContentDigest>>>,
+    ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
         async move {
-            let digest = {
-                let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache.digests.entry(url.clone()).or_default().clone()
-            };
-
-            // Get an existing result or initialize a new one exactly once
-            Ok(digest
-                .get_or_try_init(|| async {
+            match cache
+                .get_by_ref(url, token, async || {
                     let permit = self
                         .0
                         .semaphore
@@ -465,13 +496,91 @@ impl Transferer for HttpTransferer {
                         self.0.client.clone(),
                         url.clone(),
                     )
-                    .await?;
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to retrieve content digest of `{url}`",
+                            url = url.display()
+                        )
+                    })?;
                     drop(permit);
                     anyhow::Ok(digest.map(Into::into))
                 })
                 .await?
-                .clone())
+            {
+                Some(digest) => Ok(digest),
+                None => bail!(
+                    "failed to retrieve content digest of `{url}`: the operation was cancelled",
+                    url = url.display()
+                ),
+            }
         }
         .boxed()
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+
+    pub struct NotImplementedHttpClient;
+
+    impl HttpClient for NotImplementedHttpClient {
+        fn download<'a>(
+            &'a self,
+            _: &'a Url,
+            _: Option<broadcast::Sender<TransferEvent>>,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Location>,
+        ) -> BoxFuture<'a, Result<Location>> {
+            unimplemented!()
+        }
+
+        fn upload<'a>(
+            &'a self,
+            _: &'a Path,
+            _: &'a Url,
+            _: Option<broadcast::Sender<TransferEvent>>,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, ()>,
+        ) -> BoxFuture<'a, Result<()>> {
+            unimplemented!()
+        }
+
+        fn size<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Option<u64>>,
+        ) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
+            unimplemented!()
+        }
+
+        fn walk<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Arc<[String]>>,
+        ) -> BoxFuture<'a, Result<Arc<[String]>>> {
+            unimplemented!()
+        }
+
+        fn exists<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, bool>,
+        ) -> BoxFuture<'a, Result<bool>> {
+            unimplemented!()
+        }
+
+        fn digest<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Option<Arc<ContentDigest>>>,
+        ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
+            unimplemented!()
+        }
     }
 }

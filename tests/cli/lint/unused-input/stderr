@@ -11,4 +11,3 @@ warning[UnusedInput]: unused input `unused_value`
   │
 5 │         Int unused_value
   │             ^^^^^^^^^^^^
-

@@ -6,4 +6,3 @@ error: conflicting enum choice name `Active`
 6 │     Pending,
 7 │     Active,
   │     ^^^^^^ this enum choice conflicts with a previously used name
-

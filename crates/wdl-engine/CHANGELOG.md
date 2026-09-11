@@ -7,14 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Various internal caches are now have configurable LRU capacities and are
+  evaluation specific rather than scoped to the process or engine ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+
 #### Fixed
 
+* The Docker backend now hands a task's work directory back to the user
+  performing evaluation after a canceled or failed task, not only a completed
+  one ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
+* Fixed "permission denied" errors when evaluating tasks under rootless
+  Docker ([#1179](https://github.com/stjude-rust-labs/sprocket/pull/1179)).
+
+## 0.17.3 - 2026-08-27
+
+## 0.17.2 - 2026-08-26
+
+#### Added
+
+* Introduced the `Engine` type which stores a shared reference to the task
+  execution backend and file transferer. Configuration for backend and file
+  transfers are now shared between all evaluations in the same process,
+  specifically for the server and test commands ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added a shared user-specific image cache for the apptainer-based backends.
+  SIF files are now reused between runs. NOTE: a cache entry for a mutable tag
+  (e.g. `latest`) is not updated if already present in the cache; avoid using
+  mutated tag references in your WDL tasks. ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft`
+  events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
+
+#### Changed
+
+* `EngineEvent` now emits `TaskInitializing` before an execution attempt and
+  `TaskLocalizing` before it transfers inputs; both events identify the attempt
+  by its unique name. `ReusedCachedExecutionResult` now includes that name, and
+  `ExecuteTaskRequest::id` has been renamed to `name` so backends report the
+  same identifier ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+
+#### Fixed
+
+* Fixed the enum choice value cache to be keyed by document URI; this prevents
+  an enum with the same index and choice index from overwriting a cache entry
+  from another document ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Call cache entries for commands that reference temporary files created by a
+  call to a `write_*` stdlib function will no longer be ignored due to a
+  mismatch between the evaluated command and the cached evaluated command.
+  NOTE: this fix will invalidate all existing call cache entries ([#1103](https://github.com/stjude-rust-labs/sprocket/pull/1103)).
 * `WorkflowInputs` serialization no longer drops call-nested inputs.
   Previously, the `Serialize` impl silently discarded per-call inputs
   (including task input overrides, requirements, and hints for calls inside a
   workflow) due to a variable-shadowing bug in the calls-iteration loop
   ([#1070](https://github.com/stjude-rust-labs/sprocket/pull/1070)).
+* The Docker backend now explains bind mount failures that name a path which
+  is present on the host. Docker resolves bind mounts through the daemon's
+  view of the filesystem, so a work directory the engine had just created was
+  reported as not existing whenever it fell outside the shared folders, or its
+  directory tree had been deleted and recreated while the daemon held a cached
+  view of it
+  ([#1094](https://github.com/stjude-rust-labs/sprocket/pull/1094)).
 * `Directory` -> `String` coercions will no longer preserve trailing slashes ([#1107](https://github.com/stjude-rust-labs/sprocket/pull/1107)).
+* LSF workflows now survive `bjobs` query failures and retry at the next monitor
+  interval instead of failing every monitored task
+  ([#1120](https://github.com/stjude-rust-labs/sprocket/pull/1120)).
 
 ## 0.17.1 - 2026-08-05
 

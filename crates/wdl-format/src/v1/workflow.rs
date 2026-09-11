@@ -11,6 +11,7 @@ use crate::TokenStream;
 use crate::Trivia;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_sections;
 
 /// Formats a [`ConditionalStatement`](wdl_ast::v1::ConditionalStatement).
 ///
@@ -64,8 +65,8 @@ pub fn format_conditional_statement_clause(
         children.next();
     }
 
-    // If the ConditionalStatementClause contains a condition, we need to process
-    // the parens and all elements inside!
+    // If the ConditionalStatementClause contains a condition, we need to
+    // process the parens and all elements inside!
     if has_condition {
         let open_paren = children.next().expect("open paren");
         assert_eq!(open_paren.element().kind(), SyntaxKind::OpenParen);
@@ -84,10 +85,12 @@ pub fn format_conditional_statement_clause(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
     }
@@ -138,10 +141,12 @@ pub fn format_scatter_statement(
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
     }
@@ -179,46 +184,47 @@ pub fn format_workflow_definition(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
-    let mut meta = None;
-    let mut parameter_meta = None;
-    let mut input = None;
+    let mut meta_sections = Vec::new();
+    let mut parameter_meta_sections = Vec::new();
+    let mut input_sections = Vec::new();
     let mut body = Vec::new();
-    let mut output = None;
-    let mut hints = None;
+    let mut output_sections = Vec::new();
+    let mut hints_sections = Vec::new();
     let mut close_brace = None;
 
     for child in children {
         match child.element().kind() {
             SyntaxKind::MetadataSectionNode => {
-                meta = Some(child.clone());
+                meta_sections.push(child);
             }
             SyntaxKind::ParameterMetadataSectionNode => {
-                parameter_meta = Some(child.clone());
+                parameter_meta_sections.push(child);
             }
             SyntaxKind::InputSectionNode => {
-                input = Some(child.clone());
+                input_sections.push(child);
             }
             SyntaxKind::BoundDeclNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::CallStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::ConditionalStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::ScatterStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::OutputSectionNode => {
-                output = Some(child.clone());
+                output_sections.push(child);
             }
             SyntaxKind::WorkflowHintsSectionNode => {
-                hints = Some(child.clone());
+                hints_sections.push(child);
             }
             SyntaxKind::CloseBrace => {
-                close_brace = Some(child.clone());
+                close_brace = Some(child);
             }
             _ => {
                 unreachable!(
@@ -229,45 +235,30 @@ pub fn format_workflow_definition(
         }
     }
 
-    if let Some(meta) = meta {
-        (&meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(input) = input {
-        (&input).write(stream, config);
-        stream.blank_line();
-    }
+    write_sections(&meta_sections, stream, config);
+    write_sections(&parameter_meta_sections, stream, config);
+    write_sections(&input_sections, stream, config);
 
     stream.allow_blank_lines();
     let body_empty = body.is_empty();
     for child in body {
-        (&child).write(stream, config);
+        child.write(stream, config);
     }
     stream.ignore_trailing_blank_lines();
     if !body_empty {
         stream.blank_line();
     }
 
-    if let Some(output) = output {
-        (&output).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(hints) = hints {
-        (&hints).write(stream, config);
-        stream.blank_line();
-    }
+    write_sections(&output_sections, stream, config);
+    write_sections(&hints_sections, stream, config);
 
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
-    (&close_brace.expect("workflow close brace")).write(stream, config);
+    stream.end_line();
+    close_brace
+        .expect("workflow close brace")
+        .write(stream, config);
     stream.end_line();
 }
 
@@ -287,6 +278,7 @@ pub fn format_workflow_hints_array(
     assert_eq!(open_bracket.element().kind(), SyntaxKind::OpenBracket);
     (&open_bracket).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -306,22 +298,24 @@ pub fn format_workflow_hints_array(
         }
     }
 
-    let mut commas = commas.into_iter();
-    for item in items {
-        (&item).write(stream, config);
-        match commas.next() {
-            Some(comma) => {
-                (&comma).write(stream, config);
+    let mut items = items.iter().peekable();
+    let mut commas = commas.iter();
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
+            (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
             }
-            _ if config.trailing_commas => {
-                stream.push_literal(",".to_string(), SyntaxKind::Comma);
-            }
-            _ => {}
+        } else if config.trailing_commas {
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_bracket.expect("workflow hints array close bracket")).write(stream, config);
 }
 
@@ -397,10 +391,12 @@ pub fn format_workflow_hints_object(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
         stream.end_line();
@@ -428,10 +424,12 @@ pub fn format_workflow_hints_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
         stream.end_line();

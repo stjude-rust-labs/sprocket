@@ -3,9 +3,8 @@ error: conflicting enum name `Status`
   │
 4 │ import "imported.wdl"
   │        -------------- the import that introduced the enum is here
-5 │ 
+5 │
 6 │ enum Status {
   │      ^^^^^^ this name conflicts with an imported enum
   │
   = fix: either rename the enum or use an `alias` clause on the import with a different name
-

@@ -15,4 +15,3 @@ error: conflicting struct member name `y`
 8 │     Int x
 9 │     Int y
   │         ^ this struct member conflicts with a previously used name
-

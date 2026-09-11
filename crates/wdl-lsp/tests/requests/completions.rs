@@ -327,8 +327,8 @@ async fn should_complete_scope_variables() {
     assert_contains(&items, "floor");
     assert_contains(&items, "stdout");
     assert_contains(&items, "stderr");
-    // The following standard library functions are present in WDL version 1.3 and
-    // should appear as completions.
+    // The following standard library functions are present in WDL version 1.3
+    // and should appear as completions.
     assert_contains(&items, "min");
     assert_contains(&items, "find");
     assert_contains(&items, "chunk");
@@ -386,8 +386,8 @@ async fn should_complete_scope_variables_v1_0_stdlib() {
     assert_contains(&items, "floor");
     assert_contains(&items, "stdout");
     assert_contains(&items, "stderr");
-    // The following standard library functions are *not* present in WDL version 1.0
-    // and should *not* appear as completions.
+    // The following standard library functions are *not* present in WDL version
+    // 1.0 and should *not* appear as completions.
     assert_not_contains(&items, "min");
     assert_not_contains(&items, "find");
     assert_not_contains(&items, "chunk");

@@ -31,6 +31,7 @@ use crate::diagnostics::no_common_type;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
+use crate::types::EnumChoiceCacheKey;
 use crate::types::Optional;
 use crate::types::Type;
 
@@ -176,7 +177,7 @@ pub struct Enum {
     source: Option<Arc<Url>>,
     /// The type of the enum.
     ///
-    /// Initially this is `None` until a type check/coercion occurs.
+    /// Initially this is `None` until types are populated for the document.
     ty: Option<Type>,
 }
 
@@ -458,7 +459,8 @@ impl<'a> ScopeUnion<'a> {
                     continue;
                 }
 
-                // If this name is not in the current clause's scope, mark as optional
+                // If this name is not in the current clause's scope, mark as
+                // optional
                 if scope_ref.local(name).is_none() {
                     info.ty = info.ty.optional();
                 }
@@ -653,36 +655,74 @@ impl Workflow {
 
 /// A task imported into scope by a wildcard or selected-member import.
 #[derive(Debug)]
-pub(crate) struct ImportedTask {
+pub struct ImportedTask {
     /// The task name in the source document.
-    pub name: String,
+    name: String,
     /// The span of the import statement that introduced this task.
-    pub span: Span,
+    span: Span,
     /// The source URI the task came from.
-    pub source: Arc<Url>,
+    source: Arc<Url>,
+    /// The source document that defines the task.
+    document: Document,
     /// The inputs of the task.
-    pub inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
-    pub outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
+}
+
+impl ImportedTask {
+    /// Gets the task name in its source document.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the source document that defines the task.
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
+
+    /// Gets the source URI the task came from.
+    pub(crate) fn source(&self) -> &Url {
+        &self.source
+    }
 }
 
 /// A workflow imported into scope by a wildcard or selected-member import.
 #[derive(Debug)]
-pub(crate) struct ImportedWorkflow {
+pub struct ImportedWorkflow {
     /// The workflow name in the source document.
-    pub name: String,
+    name: String,
     /// The span of the import statement.
-    pub span: Span,
+    span: Span,
     /// The source URI.
-    pub source: Arc<Url>,
+    source: Arc<Url>,
+    /// The source document that defines the workflow.
+    document: Document,
     /// The inputs of the workflow.
-    pub inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
-    pub outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
+}
+
+impl ImportedWorkflow {
+    /// Gets the workflow name in its source document.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the source document that defines the workflow.
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
+
+    /// Gets the source URI the workflow came from.
+    pub(crate) fn source(&self) -> &Url {
+        &self.source
+    }
 }
 
 /// A callable item.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Callable<'a> {
     /// A workflow.
     Workflow(&'a Workflow),
@@ -715,11 +755,29 @@ impl Callable<'_> {
         }
     }
 
+    /// Whether this callable represents a workflow.
+    pub fn is_workflow(&self) -> bool {
+        matches!(self, Callable::Workflow(_))
+    }
+
+    /// Whether this callable represents a task.
+    pub fn is_task(&self) -> bool {
+        matches!(self, Callable::Task(_))
+    }
+
     /// Get the inputs of the callable.
     pub fn inputs(&self) -> &IndexMap<String, Input> {
         match self {
             Callable::Workflow(w) => w.inputs(),
             Callable::Task(t) => t.inputs(),
+        }
+    }
+
+    /// Get the defined outputs of the callable.
+    pub fn outputs(&self) -> &IndexMap<String, Output> {
+        match self {
+            Callable::Workflow(w) => w.outputs(),
+            Callable::Task(t) => t.outputs(),
         }
     }
 }
@@ -761,6 +819,11 @@ pub(crate) struct DocumentData {
     imported_tasks: IndexMap<String, ImportedTask>,
     /// Workflows imported via wildcard or selected-member imports.
     imported_workflows: IndexMap<String, ImportedWorkflow>,
+    /// Whether a wildcard import failed to resolve.
+    ///
+    /// Unknown unqualified calls are suppressed in this case because they may
+    /// have come from the missing import.
+    failed_wildcard_import: bool,
     /// Selected task or workflow imports that failed to resolve.
     failed_selected_imports: IndexSet<String>,
     /// The diagnostics from parsing.
@@ -792,6 +855,7 @@ impl DocumentData {
             enums: Default::default(),
             imported_tasks: Default::default(),
             imported_workflows: Default::default(),
+            failed_wildcard_import: false,
             failed_selected_imports: Default::default(),
             parse_diagnostics: diagnostics,
             analysis_diagnostics: Default::default(),
@@ -874,13 +938,14 @@ impl Document {
                 *wdl_version,
             ),
             _ => {
-                // Don't process a document with a missing version statement or an unsupported
-                // version unless a fallback version is configured
+                // Don't process a document with a missing version statement or
+                // an unsupported version unless a fallback
+                // version is configured
                 return Self {
                     data: Arc::new(DocumentData::new(
                         config.clone(),
                         node.uri().clone(),
-                        Some(root.inner().green().into()),
+                        Some(root.inner().green().to_owned()),
                         None,
                         diagnostics.to_vec(),
                     )),
@@ -891,7 +956,7 @@ impl Document {
         let mut data = DocumentData::new(
             config.clone(),
             node.uri().clone(),
-            Some(root.inner().green().into()),
+            Some(root.inner().green().to_owned()),
             Some(wdl_version),
             diagnostics.to_vec(),
         );
@@ -1011,7 +1076,7 @@ impl Document {
     }
 
     /// Gets an imported task in the document by local name.
-    pub(crate) fn imported_task_by_name(&self, name: &str) -> Option<&ImportedTask> {
+    pub fn imported_task_by_name(&self, name: &str) -> Option<&ImportedTask> {
         self.data.imported_tasks.get(name)
     }
 
@@ -1023,7 +1088,7 @@ impl Document {
     }
 
     /// Gets an imported workflow in the document by local name.
-    pub(crate) fn imported_workflow_by_name(&self, name: &str) -> Option<&ImportedWorkflow> {
+    pub fn imported_workflow_by_name(&self, name: &str) -> Option<&ImportedWorkflow> {
         self.data.imported_workflows.get(name)
     }
 
@@ -1074,28 +1139,25 @@ impl Document {
     }
 
     /// Gets the custom type by name.
-    pub fn get_custom_type(&self, name: &str) -> Option<Type> {
+    pub fn get_custom_type(&self, name: &str) -> Option<&Type> {
         if let Some(s) = self.struct_by_name(name) {
-            return s.ty().cloned();
+            return s.ty();
         }
 
-        if let Some(s) = self.enum_by_name(name) {
-            return s.ty().cloned();
+        if let Some(e) = self.enum_by_name(name) {
+            return e.ty();
         }
 
         None
     }
 
     /// Gets a cache key for an enum choice lookup.
-    pub fn get_choice_cache_key(
-        &self,
-        name: &str,
-        choice: &str,
-    ) -> Option<crate::types::EnumChoiceCacheKey> {
+    pub fn get_choice_cache_key(&self, name: &str, choice: &str) -> Option<EnumChoiceCacheKey> {
         let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
         let choice_index = enum_ty.choices().iter().position(|v| v == choice)?;
-        Some(crate::types::EnumChoiceCacheKey::new(
+        Some(EnumChoiceCacheKey::new(
+            self.data.uri.clone(),
             enum_index,
             choice_index,
         ))
@@ -1151,7 +1213,8 @@ impl Document {
             let mut index = match scopes.binary_search_by_key(&position, |s| s.span.start()) {
                 Ok(index) => index,
                 Err(index) => {
-                    // This indicates that we couldn't find a match and the match would go _before_
+                    // This indicates that we couldn't find a match and the
+                    // match would go _before_
                     // the first scope, so there is no containing scope.
                     if index == 0 {
                         return None;
@@ -1162,7 +1225,8 @@ impl Document {
             };
 
             // We now have the index to start looking up the list of scopes
-            // We walk up the list to try to find a span that contains the position
+            // We walk up the list to try to find a span that contains the
+            // position
             loop {
                 let scope = &scopes[index];
                 if scope.span.contains(position) {
@@ -1192,8 +1256,9 @@ impl Document {
         {
             Ok(index) => &self.data.tasks[index],
             Err(index) => {
-                // This indicates that we couldn't find a match and the match would go _before_
-                // the first task, so there is no containing task.
+                // This indicates that we couldn't find a match and the match
+                // would go _before_ the first task, so there is
+                // no containing task.
                 if index == 0 {
                     return None;
                 }

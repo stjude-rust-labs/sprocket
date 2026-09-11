@@ -16,6 +16,7 @@ use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::SubmitRunRequest;
 use crate::server::paths;
+use crate::system::v1::fs::IndexPath;
 
 /// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
@@ -49,16 +50,22 @@ pub struct SubmitRunRequestArgs {
     #[clap(short, long, value_name = "NAME")]
     target: Option<String>,
 
-    /// The output name to index on.
+    /// The index path to index the run outputs under.
     ///
-    /// If provided, the server will index the run outputs using the specified
-    /// output name as the key.
-    #[clap(long, value_name = "OUTPUT_NAME")]
-    index_on: Option<String>,
+    /// If provided, the server symlinks the run outputs into the `index`
+    /// directory of its output directory at this path. The path must be
+    /// relative and cannot contain `.` or `..` components.
+    #[clap(long, value_name = "INDEX_PATH")]
+    index_on: Option<IndexPath>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     report_mode: Option<Mode>,
+
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before submission.
+    #[clap(long)]
+    locked: bool,
 }
 
 /// Arguments for the `submit` subcommand.
@@ -78,17 +85,28 @@ pub struct Args {
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.run_request_args.report_mode.unwrap_or_default();
     let source = match args.run_request_args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
+
+    // Bring a stale or missing module lockfile up to date before submitting so
+    // the workflow runs against a consistent, reproducible tree, unless
+    // `--locked` asked for the submission to fail instead.
+    if let Some(dir) = source.local_start_dir() {
+        let policy = if args.run_request_args.locked {
+            crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
+        } else {
+            crate::commands::module::auto_lock::LockfilePolicy::Regenerate
+        };
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir, policy).await?;
+    }
 
     let document = analyze_source(
         &source,
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
         report_mode,
         colorize,
     )
@@ -129,7 +147,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         source: source_str,
         inputs: target_json_inputs,
         target: args.run_request_args.target,
-        index_on: args.run_request_args.index_on,
+        index_on: args.run_request_args.index_on.map(|path| path.to_string()),
     };
 
     let submit_response: serde_json::Value = send_json(
@@ -223,6 +241,7 @@ command <<<>>>
     const INVALID_FILE: &str = r#"this is not valid wdl"#;
 
     #[tokio::test]
+    #[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
     pub async fn can_submit_and_complete() -> anyhow::Result<()> {
         let ServerTestFixture {
             server_task,
@@ -251,6 +270,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             config,
@@ -284,7 +304,7 @@ command <<<>>>
                     .expect("run should have a status")
                     .to_string();
 
-                if status != "queued" && status != "running" {
+                if status != "queued" && status != "analyzing" && status != "running" {
                     break;
                 }
 
@@ -321,6 +341,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             Config::default(),
@@ -360,6 +381,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             Config::default(),

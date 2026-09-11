@@ -52,6 +52,10 @@ static UUID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
+/// Backtick-quoted Windows absolute paths in human-readable diagnostics.
+static WINDOWS_DRIVE_PATH_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"`([A-Za-z]:(?:[\\/]+[^\s\\/`]+)+[\\/]*)`"#).unwrap());
+
 /// Binary file extensions that should only be checked for existence.
 const BINARY_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
 
@@ -68,7 +72,8 @@ fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
             continue;
         }
         if path.is_dir() {
-            // The following tests require Docker, so skip if the Docker tests are disabled
+            // The following tests require Docker, so skip if the Docker tests
+            // are disabled
             #[cfg(docker_tests_disabled)]
             match path.file_name().and_then(|n| n.to_str()) {
                 Some("run") | Some("test") => continue,
@@ -193,6 +198,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
+    let config_root = TempDir::new().context("failed to create isolated config root")?;
 
     let env_config = resolve_env_config(test_path)?;
     if let Some(env_config) = env_config.as_ref() {
@@ -206,6 +212,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let result = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env("SPROCKET_CONFIG_ROOT", config_root.path())
         .env("RUST_LOG", "none")
         .env_remove("RUST_BACKTRACE")
         .spawn()
@@ -237,10 +244,10 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
 fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     let mut config_overridden = false;
     let mut sprocket_config = sprocket::Config::default();
-    // For `run` tests, allow overriding the engine config. We restrict the override
-    // to this subset of tests in order to avoid messing with the expected output
-    // for commands that format the config and therefore expect the config to be
-    // exactly the default.
+    // For `run` tests, allow overriding the engine config. We restrict the
+    // override to this subset of tests in order to avoid messing with the
+    // expected output for commands that format the config and therefore
+    // expect the config to be exactly the default.
     if test_path.starts_with("tests/cli/run")
         && let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG")
     {
@@ -257,23 +264,41 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     }
 }
 
+/// Converts a Windows drive path to a drive-independent path with `/`
+/// separators.
+fn normalize_windows_drive_path(path: &str) -> String {
+    let mut normalized = String::with_capacity(path.len() - 1);
+    let mut previous_was_separator = false;
+
+    for c in path[2..].chars() {
+        if matches!(c, '\\' | '/') {
+            if !previous_was_separator {
+                normalized.push('/');
+            }
+            previous_was_separator = true;
+        } else {
+            normalized.push(c);
+            previous_was_separator = false;
+        }
+    }
+
+    normalized
+}
+
 /// Normalizes a string for OS platform differences and dynamic content.
 fn normalize_string(input: &str, temp_dir: &Path) -> String {
-    // NOTE: the drive prefix removal (e.g., `C:`) must occur after backslash
-    // normalization so that paths like `C:\foo` are first converted to `C:/foo`
-    // before the prefix is stripped.
-    let s = input
-        .replace(&*temp_dir.to_string_lossy(), "_TEMP_DIR_")
+    // Replace native, JSON-escaped, and slash-normalized forms of the temporary
+    // directory without rewriting unrelated backslashes or URL delimiters.
+    let temp_dir = temp_dir.to_string_lossy();
+    let escaped_temp_dir = temp_dir.replace('\\', "\\\\");
+    let slash_temp_dir = temp_dir.replace('\\', "/");
+    let mut s = input
+        .replace(escaped_temp_dir.as_str(), "_TEMP_DIR_")
+        .replace(slash_temp_dir.as_str(), "_TEMP_DIR_")
+        .replace(temp_dir.as_ref(), "_TEMP_DIR_")
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
-        .replace("sprocket.exe", "sprocket")
-        .replace("\\", "/")
-        .replace("//", "/");
-
-    // Strip Windows drive prefixes (e.g., `C:`) from absolute paths.
-    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/\S)").unwrap());
-    let s = DRIVE_PREFIX.replace_all(&s, "$1");
+        .replace("sprocket.exe", "sprocket");
 
     // Normalize Windows OS error messages to their Unix equivalents.
     const WINDOWS_TO_UNIX_ERRORS: &[(&str, &str)] = &[
@@ -291,14 +316,33 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
         ),
     ];
 
-    let mut s = s.into_owned();
     for (windows, unix) in WINDOWS_TO_UNIX_ERRORS {
         s = s.replace(windows, unix);
     }
 
+    let s = WINDOWS_DRIVE_PATH_PATTERN.replace_all(&s, |captures: &regex::Captures<'_>| {
+        let path = normalize_windows_drive_path(&captures[1]);
+        format!("`{path}`")
+    });
+
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
-    s.to_string()
+    trim_trailing_whitespace(&s)
+}
+
+/// Removes trailing horizontal whitespace and excess blank lines.
+fn trim_trailing_whitespace(s: &str) -> String {
+    let terminated = s.ends_with('\n') || s.ends_with('\r');
+    let mut lines = s.lines().map(str::trim_end).collect::<Vec<_>>();
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
+
+    let mut normalized = lines.join("\n");
+    if terminated {
+        normalized.push('\n');
+    }
+    normalized
 }
 
 /// Normalizes a path by replacing dynamic components (timestamps) with
@@ -597,9 +641,10 @@ fn compare_test_results(
             )?;
             normalize_expected_outputs(&expected_output_dir)
                 .context("failed to normalize expected outputs")?;
-            // Normalize temp dir paths inside any text files copied into outputs/
-            // during BLESS. `recursive_copy` preserves file contents verbatim, so
-            // any file that captured the temp path will embed a one-run absolute
+            // Normalize temp dir paths inside any text files copied into
+            // outputs/ during BLESS. `recursive_copy` preserves
+            // file contents verbatim, so any file that captured the
+            // temp path will embed a one-run absolute
             // path that future comparisons will never match.
             normalize_output_files(&expected_output_dir, working_test_directory)
                 .context("failed to normalize output file contents")?;

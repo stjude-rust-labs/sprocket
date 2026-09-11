@@ -60,21 +60,28 @@ pub fn format_metadata_array(
     let empty = items.is_empty();
     if !empty {
         stream.increment_indent();
+        stream.end_line();
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     if !empty {
         stream.decrement_indent();
+        stream.end_line();
     }
     (&close_bracket.expect("metadata array close bracket")).write(stream, config);
 }
@@ -120,21 +127,28 @@ pub fn format_metadata_object(
     let empty = items.is_empty();
     if !empty {
         stream.increment_indent();
+        stream.end_line();
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     if !empty {
         stream.decrement_indent();
+        stream.end_line();
     }
     (&close_brace.expect("metadata object close brace")).write(stream, config);
 }
@@ -185,6 +199,7 @@ pub fn format_metadata_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -210,6 +225,7 @@ pub fn format_metadata_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("metadata section close brace")).write(stream, config);
     stream.end_line();
 }
@@ -240,6 +256,7 @@ pub fn format_parameter_metadata_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -265,6 +282,7 @@ pub fn format_parameter_metadata_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("parameter metadata section close brace")).write(stream, config);
     stream.end_line();
 }

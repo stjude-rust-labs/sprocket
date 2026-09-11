@@ -3,7 +3,7 @@ error: cannot assign an empty array to a non-empty array type
    │
 17 │     Array[Int]+ x = []
    │                 -   ^^ this is an empty array
-   │                 │    
+   │                 │
    │                 this expects a non-empty array
 
 error: cannot assign an empty array to a non-empty array type
@@ -11,6 +11,5 @@ error: cannot assign an empty array to a non-empty array type
    │
 31 │     call t as t4 { input: x = ((([]))) }
    │                           -   ^^^^^^^^ this is an empty array
-   │                           │    
+   │                           │
    │                           this expects a non-empty array
-

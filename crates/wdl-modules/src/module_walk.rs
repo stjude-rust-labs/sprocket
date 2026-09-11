@@ -2,11 +2,9 @@
 //! resource-limit checking, and materialization.
 //!
 //! One traversal implementation enforces all module-content rules.
-//! The canonical module root is carried through all recursion so
-//! containment checks are never relative to the current directory.
-//! Directory symlinks are rejected to prevent cycles. File symlinks
-//! are allowed when they resolve inside the module root and do not
-//! target non-module content.
+//! Symbolic links are not permitted anywhere in a module tree: any
+//! symlink encountered during the walk makes the module invalid, per
+//! the module specification.
 
 use std::io;
 use std::path::Path;
@@ -19,25 +17,10 @@ use crate::hash::NON_MODULE_CONTENT;
 /// An error encountered while walking a module tree.
 #[derive(Debug, Error)]
 pub enum ModuleWalkError {
-    /// A symbolic link target resolves outside the module root.
-    #[error("symbolic link `{0}` resolves outside the module root")]
-    SymlinkEscapesRoot(String),
-
-    /// A symbolic link points to a directory.
-    ///
-    /// Directory symlinks are rejected to prevent cycles during tree
-    /// traversal.
-    #[error("symbolic link `{0}` targets a directory")]
-    DirectorySymlink(String),
-
-    /// A symbolic link resolves to a path that is not UTF-8.
-    #[error("symbolic link target under `{0}` is not UTF-8")]
-    NonUtf8SymlinkTarget(String),
-
-    /// A symbolic link target resolves to non-module content (e.g.,
-    /// `.git` or `.sparse.json`).
-    #[error("symbolic link `{0}` targets non-module content")]
-    SymlinkTargetsMetadata(String),
+    /// A symbolic link was found in the module tree. Symbolic links are
+    /// not permitted anywhere in a module.
+    #[error("symbolic link `{0}` is not permitted in a module")]
+    Symlink(String),
 
     /// I/O failure during the walk.
     #[error("i/o error at `{path}`")]
@@ -63,26 +46,17 @@ pub struct TreeStats {
 /// metadata exclusion. Calls `visitor` for each file with its path
 /// and size. Returns aggregate statistics.
 ///
-/// Rules enforced:
-/// - Entries named `.git` or `.sparse.json` are skipped.
-/// - Symlinks whose canonical target is outside the module root are rejected
-///   with `ModuleWalkError::SymlinkEscapesRoot`.
-/// - Symlinks targeting non-module content (`.git`, `.sparse.json`) are
-///   rejected with `ModuleWalkError::SymlinkTargetsMetadata`.
-/// - Directory symlinks are rejected to prevent cycles.
-/// - Only regular files (and file symlinks to valid targets) are visited.
+/// The walk enforces these rules.
+///
+/// - Entries named `.git` or `.sprocket` are skipped.
+/// - Any symbolic link is rejected with [`ModuleWalkError::Symlink`].
+/// - Only regular files are visited.
 pub fn walk_module_tree<E>(
     root: &Path,
     visitor: &mut dyn FnMut(&Path, u64) -> Result<(), E>,
 ) -> Result<TreeStats, WalkError<E>> {
-    let canonical_root = std::fs::canonicalize(root).map_err(|source| {
-        WalkError::Walk(ModuleWalkError::Io {
-            path: root.to_path_buf(),
-            source,
-        })
-    })?;
     let mut stats = TreeStats::default();
-    walk_recursive(&canonical_root, root, visitor, &mut stats)?;
+    walk_recursive(root, visitor, &mut stats)?;
     Ok(stats)
 }
 
@@ -102,9 +76,8 @@ impl<E> From<ModuleWalkError> for WalkError<E> {
     }
 }
 
-/// Recursive directory walker carrying the canonical module root.
+/// Recursive directory walker. Rejects any symbolic link encountered.
 fn walk_recursive<E>(
-    module_root: &Path,
     dir: &Path,
     visitor: &mut dyn FnMut(&Path, u64) -> Result<(), E>,
     stats: &mut TreeStats,
@@ -123,9 +96,6 @@ fn walk_recursive<E>(
             })
         })?;
         let name = entry.file_name();
-        if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
-            continue;
-        }
         let path = entry.path();
         let meta = std::fs::symlink_metadata(&path).map_err(|source| {
             WalkError::Walk(ModuleWalkError::Io {
@@ -133,12 +103,17 @@ fn walk_recursive<E>(
                 source,
             })
         })?;
+        // Symbolic links are not permitted anywhere in a module tree.
         if meta.file_type().is_symlink() {
-            handle_symlink(module_root, &path, visitor, stats)?;
+            return Err(WalkError::Walk(ModuleWalkError::Symlink(
+                path.display().to_string(),
+            )));
+        }
+        if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
             continue;
         }
         if meta.is_dir() {
-            walk_recursive(module_root, &path, visitor, stats)?;
+            walk_recursive(&path, visitor, stats)?;
         } else if meta.is_file() {
             stats.files += 1;
             stats.bytes = stats.bytes.saturating_add(meta.len());
@@ -148,56 +123,29 @@ fn walk_recursive<E>(
     Ok(())
 }
 
-/// Validates and processes a symlink entry against containment rules.
-fn handle_symlink<E>(
-    module_root: &Path,
-    path: &Path,
-    visitor: &mut dyn FnMut(&Path, u64) -> Result<(), E>,
-    stats: &mut TreeStats,
-) -> Result<(), WalkError<E>> {
-    let target = std::fs::canonicalize(path).map_err(|source| {
-        WalkError::Walk(ModuleWalkError::Io {
-            path: path.to_path_buf(),
-            source,
-        })
-    })?;
-    if !target.starts_with(module_root) {
-        return Err(WalkError::Walk(ModuleWalkError::SymlinkEscapesRoot(
-            path.display().to_string(),
-        )));
+#[cfg(all(test, unix))]
+mod tests {
+    use std::convert::Infallible;
+    use std::os::unix::fs::symlink;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn rejects_symlink_in_excluded_directory() -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempdir()?;
+        let outside = tempdir()?;
+        symlink(outside.path(), root.path().join(".sprocket"))?;
+
+        let result = walk_module_tree(root.path(), &mut |_, _| -> Result<(), Infallible> {
+            Ok(())
+        });
+
+        assert!(matches!(
+            result,
+            Err(WalkError::Walk(ModuleWalkError::Symlink(_)))
+        ));
+        Ok(())
     }
-    if let Ok(rel) = target.strip_prefix(module_root) {
-        if rel.to_str().is_none() {
-            return Err(WalkError::Walk(ModuleWalkError::NonUtf8SymlinkTarget(
-                path.display().to_string(),
-            )));
-        }
-        // SAFETY: the `to_str` check above guarantees all components
-        // are valid UTF-8.
-        let targets_metadata = rel
-            .components()
-            .any(|c| NON_MODULE_CONTENT.contains(&c.as_os_str().to_str().unwrap()));
-        if targets_metadata {
-            return Err(WalkError::Walk(ModuleWalkError::SymlinkTargetsMetadata(
-                path.display().to_string(),
-            )));
-        }
-    }
-    let target_meta = std::fs::metadata(path).map_err(|source| {
-        WalkError::Walk(ModuleWalkError::Io {
-            path: path.to_path_buf(),
-            source,
-        })
-    })?;
-    if target_meta.is_dir() {
-        return Err(WalkError::Walk(ModuleWalkError::DirectorySymlink(
-            path.display().to_string(),
-        )));
-    }
-    if target_meta.is_file() {
-        stats.files += 1;
-        stats.bytes = stats.bytes.saturating_add(target_meta.len());
-        visitor(path, target_meta.len()).map_err(WalkError::Visitor)?;
-    }
-    Ok(())
 }

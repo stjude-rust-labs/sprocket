@@ -1,5 +1,6 @@
 //! Dependency-source parsing for `modules.json`.
 
+use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -11,12 +12,18 @@ use serde_with::SerializeDisplay;
 use thiserror::Error;
 use url::Url;
 
-use crate::lockfile::GitCommit;
-use crate::lockfile::GitCommitError;
+use crate::lockfile::GitCommitish;
+use crate::lockfile::GitCommitishError;
 use crate::relative_path::RelativePath;
 use crate::relative_path::RelativePathError;
 use crate::version_requirement::VersionRequirement;
 use crate::version_requirement::VersionRequirementError;
+
+/// Characters with special meaning in Git pathspecs.
+const GIT_PATHSPEC_CHARACTERS: [char; 5] = ['*', '?', '[', ']', '\\'];
+
+/// Leading characters with special meaning in Git pathspecs.
+const GIT_PATHSPEC_PREFIXES: [char; 3] = [':', '!', '^'];
 
 /// An error constructing a [`GitModulePath`].
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
@@ -29,6 +36,10 @@ pub enum GitModulePathError {
     /// therefore disallowed.
     #[error("git module path must not be `.`")]
     Dot,
+
+    /// The path contains syntax interpreted specially by git pathspecs.
+    #[error("git module path contains reserved git pathspec character `{0}`")]
+    Pathspec(char),
 }
 
 /// A validated, canonical sub-path within a Git-backed dependency.
@@ -101,6 +112,18 @@ impl FromStr for GitModulePath {
         if s == "." {
             return Err(GitModulePathError::Dot);
         }
+        if let Some(character) = s
+            .chars()
+            .find(|character| GIT_PATHSPEC_CHARACTERS.contains(character))
+            .or_else(|| {
+                GIT_PATHSPEC_PREFIXES
+                    .iter()
+                    .copied()
+                    .find(|prefix| s.starts_with(*prefix))
+            })
+        {
+            return Err(GitModulePathError::Pathspec(character));
+        }
         Ok(Self(RelativePath::from_str(s)?))
     }
 }
@@ -138,7 +161,7 @@ pub enum DependencySourceError {
 
     /// A Git commit selector was invalid.
     #[error(transparent)]
-    GitCommit(#[from] GitCommitError),
+    GitCommit(#[from] GitCommitishError),
 
     /// The Git URL did not parse.
     #[error("invalid Git URL: {0}")]
@@ -216,9 +239,9 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                 } else if let Some(b) = branch {
                     GitSelector::Branch(b)
                 } else if let Some(c) = commit {
-                    GitSelector::Commit(GitCommit::try_from(c)?)
+                    GitSelector::Commit(GitCommitish::try_from(c)?)
                 } else {
-                    // SAFETY: `selector_count` is 1 in this branch, and the
+                    // `selector_count` is 1 in this branch, and the
                     // four `if let Some(...)` arms above cover every selector
                     // field, so one of them must match.
                     unreachable!()
@@ -259,8 +282,32 @@ pub enum GitSelector {
     Tag(String),
     /// A Git branch name.
     Branch(String),
-    /// A full Git commit SHA.
-    Commit(GitCommit),
+    /// A Git commit SHA, or any unique prefix of one (4 to 40 hex chars).
+    /// The resolver expands a prefix to the full SHA at lock time.
+    Commit(GitCommitish),
+}
+
+impl GitSelector {
+    /// Returns the selector kind used in diagnostics and command output.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Version(_) => "version",
+            Self::Tag(_) => "tag",
+            Self::Branch(_) => "branch",
+            Self::Commit(_) => "commit",
+        }
+    }
+}
+
+impl fmt::Display for GitSelector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Version(requirement) => write!(f, "version {requirement}"),
+            Self::Tag(tag) => write!(f, "tag {tag}"),
+            Self::Branch(branch) => write!(f, "branch {branch}"),
+            Self::Commit(commit) => write!(f, "commit {commit}"),
+        }
+    }
 }
 
 /// Flat field set of a dependency declaration as it appears in
@@ -386,6 +433,19 @@ mod tests {
     }
 
     #[test]
+    fn git_selector_reports_its_kind() {
+        // SAFETY: `*` is a valid version requirement.
+        let version = GitSelector::Version("*".parse().unwrap());
+        // SAFETY: this is a valid abbreviated Git commit.
+        let commit = GitSelector::Commit("a1b2c3d".parse().unwrap());
+
+        assert_eq!(version.kind(), "version");
+        assert_eq!(GitSelector::Tag("v1.0.0".to_string()).kind(), "tag");
+        assert_eq!(GitSelector::Branch("main".to_string()).kind(), "branch");
+        assert_eq!(commit.kind(), "commit");
+    }
+
+    #[test]
     fn parses_local_path() {
         let dep = parse(r#"{"path": "../local"}"#).unwrap();
         assert!(matches!(dep, DependencySource::LocalPath { .. }));
@@ -416,11 +476,27 @@ mod tests {
     }
 
     #[test]
-    fn rejects_short_commit_selector() {
-        let err = parse(r#"{"git": "https://x/y", "commit": "abc123"}"#).unwrap_err();
+    fn accepts_commit_prefix_selector() {
+        let dep = parse(r#"{"git": "https://github.com/x/y", "commit": "a1b2c3d"}"#).unwrap();
+        match dep {
+            DependencySource::Git {
+                selector: GitSelector::Commit(commit),
+                ..
+            } => {
+                assert_eq!(commit.as_str(), "a1b2c3d");
+                assert!(!commit.is_full());
+            }
+            _ => panic!("expected `Commit` selector"),
+        }
+    }
+
+    #[test]
+    fn rejects_too_short_commit_selector() {
+        // Fewer than 4 hex characters is rejected.
+        let err = parse(r#"{"git": "https://x/y", "commit": "ab"}"#).unwrap_err();
         assert!(
             err.to_string()
-                .contains("must be exactly 40 lowercase hex characters"),
+                .contains("must be 4 to 40 lowercase hex characters"),
             "wrong error: {err}"
         );
     }
@@ -577,6 +653,24 @@ mod git_module_path_tests {
             ),
             "expected `Invalid(EscapesRoot)` for `module/../../secret`"
         );
+    }
+
+    #[test]
+    fn rejects_git_pathspec_syntax() {
+        for (path, expected) in [
+            ("*", '*'),
+            ("modules/[ab]", '['),
+            ("modules/?", '?'),
+            (":/modules", ':'),
+            ("!modules", '!'),
+            ("^modules", '^'),
+        ] {
+            assert_eq!(
+                GitModulePath::from_str(path),
+                Err(GitModulePathError::Pathspec(expected)),
+                "expected `{path}` to report its first Git pathspec character"
+            );
+        }
     }
 
     #[test]

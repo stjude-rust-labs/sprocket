@@ -12,9 +12,7 @@ deny_warnings = false
 deny_notes = false
 hide_notes = false
 hide_warnings = false
-all_lint_rules = false
-only_lint_tags = []
-filter_lint_tags = []
+tags = []
 
 [check.lint]
 allowed_runtime_keys = []
@@ -23,7 +21,6 @@ bash_set_options = ["errexit", "nounset", "pipefail"]
 
 [analyzer]
 lint = false
-except = []
 
 [run]
 output_dir = "./out"
@@ -32,12 +29,16 @@ backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
+digest_cache_capacity = 1000
+choice_cache_capacity = 1000
+regex_cache_capacity = 1000
 
 [run.http]
 cache_dir = "system"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
+response_cache_capacity = 1000
 
 [run.workflow]
 
@@ -75,6 +76,7 @@ output_dir = "./out"
 allowed_file_paths = []
 allowed_urls = []
 max_concurrent_runs = "unlimited"
+orphan_timeout_minutes = 5
 
 [server.database]
 url = "default"
@@ -84,12 +86,16 @@ backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
+digest_cache_capacity = 1000
+choice_cache_capacity = 1000
+regex_cache_capacity = 1000
 
 [server.engine.http]
 cache_dir = "system"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
+response_cache_capacity = 1000
 
 [server.engine.workflow]
 
@@ -161,10 +167,16 @@ fallback_version = "none"
 wdl_1_3 = true
 wdl_1_4 = false
 
+[module]
+
+[module.init]
+
 [modules]
+default_git_platform = "github"
 large_file_warning = "1.0 MiB"
+max_transfer_bytes = "2.0 GiB"
 require_signed = false
-trust_mode = "auto"
+trust_mode = "confirm"
 allowed_schemes = ["https", "ssh"]
 allowed_transitive_schemes = ["https"]
 max_advertised_refs = 100000
@@ -176,4 +188,3 @@ denied_hosts = [
 ]
 allowed_hosts = []
 allowed_transitive_hosts = ["github.com", "gitlab.com"]
-

@@ -124,6 +124,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     let fallback_version = config.common.wdl.fallback_version.into();
     let feature_flags = config.common.wdl.feature_flags;
     let modules_config = config.modules.clone();
+    let ignore_filename = config.common.ignore_filename();
 
     let indent = if args.with_tabs || args.indentation_size.is_some() {
         Indent::try_new(args.with_tabs, args.indentation_size)
@@ -169,6 +170,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
+                .ignore_filename(ignore_filename.clone())
                 .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
@@ -230,6 +232,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
+                .ignore_filename(ignore_filename.clone())
                 .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
@@ -264,6 +267,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
+                .ignore_filename(ignore_filename.clone())
                 .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;

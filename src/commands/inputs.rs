@@ -443,7 +443,8 @@ impl InputProcessor {
                             &workflow,
                         )?;
 
-                        // Any inputs specified by the workflow itself cannot be overridden.
+                        // Any inputs specified by the workflow itself cannot be
+                        // overridden.
                         specified.iter().for_each(|s| {
                             let key = namespace.clone().push(s).join().expect("key to join");
                             self.results.remove(&key);
@@ -461,9 +462,7 @@ impl InputProcessor {
 pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let source = match args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
 
@@ -472,6 +471,7 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
+        .ignore_filename(config.common.ignore_filename())
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;

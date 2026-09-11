@@ -3,4 +3,3 @@ error: type mismatch: argument to function `sub` expects type `String`, but foun
   │
 7 │     String x = sub("foo", 1, "bar")
   │                           ^ this is type `Int`
-

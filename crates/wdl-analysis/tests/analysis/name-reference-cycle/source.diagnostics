@@ -6,4 +6,3 @@ error: a name reference cycle was detected
  9 │     Int b = c
 10 │     Int c = a
    │             - a reference back to `a` is here
-

@@ -1,0 +1,11 @@
+warning: unknown field `this_isnt_a_valid_assertion`
+  ┌─ foo.yml:5:7
+  │
+5 │       this_isnt_a_valid_assertion: 1
+  │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unknown field `some_unknown_field`
+  ┌─ foo.yml:3:5
+  │
+3 │     some_unknown_field: true
+  │     ^^^^^^^^^^^^^^^^^^

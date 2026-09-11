@@ -1,0 +1,4 @@
+Sprocket test result summary:
+✅ `foo::add::valid_types` success! (1 successful test execution)
+✅ `foo::add::partially_invalid` success! (0 successful test execution)
+✅ `foo::add::fully_invalid_types` success! (0 successful test execution)

@@ -14,4 +14,3 @@ error: cannot define workflow `bar` as only one workflow is allowed per source f
    │          --- first workflow is defined here
 11 │ workflow bar {}
    │          ^^^ consider moving this workflow to a new file
-

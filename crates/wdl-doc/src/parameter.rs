@@ -120,8 +120,8 @@ impl Parameter {
             .unwrap_or("None".to_string());
         if !summarize {
             // If we are not summarizing, we need to remove the first
-            // line from the leading whitespace calculation as the first line never
-            // leads with whitespace.
+            // line from the leading whitespace calculation as the first line
+            // never leads with whitespace.
             let mut lines = expr.lines();
             let first_line = lines.next().expect("expr should have at least one line");
 
@@ -287,11 +287,12 @@ where
     let params = params.collect::<Vec<_>>();
 
     let third_col = if params.iter().any(|p| p.required().is_none()) {
-        // If any parameter is an output, we use "Expression" as the third column
-        // header.
+        // If any parameter is an output, we use "Expression" as the third
+        // column header.
         "Expression"
     } else {
-        // If all parameters are inputs, we use "Default" as the third column header.
+        // If all parameters are inputs, we use "Default" as the third column
+        // header.
         "Default"
     };
 

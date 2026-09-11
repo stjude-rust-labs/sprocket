@@ -52,7 +52,9 @@ async fn create_test_server(
         Mode::default(),
         true,
         db,
-    );
+    )
+    .await
+    .expect("failed to spawn run manager service");
 
     // Wait for the manager to be ready.
     let (tx, rx) = oneshot::channel();
@@ -101,6 +103,7 @@ async fn get_info(app: &axum::Router) -> (StatusCode, serde_json::Value) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn info_returns_configured_slow_mode(pool: sqlx::SqlitePool) {
     let (app, _temp, output_dir) = create_test_server(pool, ServerFailureMode::Slow).await;
 
@@ -111,6 +114,7 @@ async fn info_returns_configured_slow_mode(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn info_returns_configured_fast_mode(pool: sqlx::SqlitePool) {
     let (app, _temp, output_dir) = create_test_server(pool, ServerFailureMode::Fast).await;
 

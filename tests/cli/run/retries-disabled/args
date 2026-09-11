@@ -1,0 +1,1 @@
+-qq run --disable-retries source.wdl -t likes_to_fail

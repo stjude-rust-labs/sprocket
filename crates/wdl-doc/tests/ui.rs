@@ -348,7 +348,7 @@ fn main() -> ExitCode {
         .expect("failed to create Tokio runtime");
 
     let args = libtest_mimic::Arguments::from_args();
-    if !should_run_headless() {
+    if !should_run_headless() && !args.list {
         let warning = r#"+------------------------------------+
 |                                    |
 |                                    |
@@ -361,9 +361,14 @@ fn main() -> ExitCode {
 |                                    |
 +------------------------------------+"#;
         println!("{}\n", warning.red());
+
+        // The runtime must be entered to allow construction of `Sleep`.
+        let _guard = runtime.enter();
         for i in (1..6).rev() {
             println!("The tests will start in {i} seconds.");
-            runtime.block_on(tokio::time::sleep(Duration::from_secs(1)));
+            runtime.block_on(async {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            });
         }
     }
 
