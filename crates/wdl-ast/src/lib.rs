@@ -67,7 +67,7 @@ pub(crate) mod python;
 pub mod v1;
 
 /// An [`AstNode`] that may have documentation comments attached to it.
-pub trait Documented<N: TreeNode>: AstNode<N> {
+pub trait Documented<N: TreeNode> {
     /// Get all comment nodes preceding this node that start with
     /// [`DOC_COMMENT_PREFIX`].
     ///

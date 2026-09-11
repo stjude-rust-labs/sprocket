@@ -892,6 +892,15 @@ pub enum Decl<N: TreeNode = SyntaxNode> {
     Unbound(UnboundDecl<N>),
 }
 
+impl Documented<SyntaxNode> for Decl<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        match self {
+            Decl::Bound(bound) => bound.doc_comments(),
+            Decl::Unbound(unbound) => unbound.doc_comments(),
+        }
+    }
+}
+
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> Decl<N> {
     /// Returns whether or not the given syntax kind can be cast to
