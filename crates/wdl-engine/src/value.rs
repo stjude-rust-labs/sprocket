@@ -22,6 +22,7 @@ use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
+use tokio_util::sync::CancellationToken;
 use url::Url;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
@@ -61,10 +62,10 @@ use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::version::V1;
 
 use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::Outputs;
 use crate::backend::TaskExecutionConstraints;
-use crate::http::Transferer;
 use crate::path;
 
 /// Represents a path to a file or directory on the host file system or a URL to
@@ -810,7 +811,7 @@ impl Value {
 
     /// Check that any paths referenced by a `File` or `Directory` value within
     /// this value exist, and return a new value with any relevant host
-    /// paths transformed by the given `translate()` function.
+    /// paths transformed by the given `translate` function.
     ///
     /// If a `File` or `Directory` value is optional and the path does not
     /// exist, it is replaced with a WDL none value.
@@ -821,7 +822,7 @@ impl Value {
     /// If a local base directory is provided, it will be joined with any
     /// relative local paths prior to checking for existence.
     ///
-    /// The provided transferer is used for checking remote URL existence.
+    /// The provided HTTP client is used for checking remote URL existence.
     ///
     /// TODO ACF 2025-11-10: this function is an intermediate step on the way to
     /// more thoroughly refactoring the code between `sprocket` and
@@ -830,7 +831,7 @@ impl Value {
         &self,
         optional: bool,
         base_dir: Option<&Path>,
-        transferer: Option<&dyn Transferer>,
+        http: Option<(&EvaluationHttpClient, &CancellationToken)>,
         translate: &F,
     ) -> Result<Self>
     where
@@ -875,14 +876,15 @@ impl Value {
 
                     bail!("path `{path}` does not exist");
                 } else if path::is_supported_url(path.as_str()) {
-                    match transferer {
-                        Some(transferer) => {
-                            let exists = transferer
+                    match http {
+                        Some((client, token)) => {
+                            let exists = client
                                 .exists(
                                     &path
                                         .as_str()
                                         .parse()
                                         .with_context(|| format!("invalid URL `{path}`"))?,
+                                    token,
                                 )
                                 .await?;
                             if exists {
@@ -926,9 +928,7 @@ impl Value {
                 Ok(Self::Primitive(v))
             }
             Self::Compound(v) => Ok(Self::Compound(
-                v.resolve_paths(base_dir, transferer, translate)
-                    .boxed()
-                    .await?,
+                v.resolve_paths(base_dir, http, translate).boxed().await?,
             )),
             v => Ok(v.clone()),
         }
@@ -2664,7 +2664,7 @@ impl CompoundValue {
     fn resolve_paths<'a, F>(
         &'a self,
         base_dir: Option<&'a Path>,
-        transferer: Option<&'a dyn Transferer>,
+        http: Option<(&'a EvaluationHttpClient, &'a CancellationToken)>,
         translate: &'a F,
     ) -> BoxFuture<'a, Result<Self>>
     where
@@ -2679,12 +2679,12 @@ impl CompoundValue {
                     let fst = pair
                         .0
                         .left
-                        .resolve_paths(left_optional, base_dir, transferer, translate)
+                        .resolve_paths(left_optional, base_dir, http, translate)
                         .await?;
                     let snd = pair
                         .0
                         .right
-                        .resolve_paths(right_optional, base_dir, transferer, translate)
+                        .resolve_paths(right_optional, base_dir, http, translate)
                         .await?;
                     Ok(Self::Pair(Pair::new_unchecked(ty.clone(), fst, snd)))
                 }
@@ -2693,7 +2693,7 @@ impl CompoundValue {
                     let optional = ty.element_type().is_optional();
                     if !array.0.elements.is_empty() {
                         let resolved_elements = futures::stream::iter(array.0.elements.iter())
-                            .then(|v| v.resolve_paths(optional, base_dir, transferer, translate))
+                            .then(|v| v.resolve_paths(optional, base_dir, http, translate))
                             .try_collect::<Vec<Value>>()
                             .await?;
                         Ok(Self::Array(Array::new_unchecked(
@@ -2712,13 +2712,13 @@ impl CompoundValue {
                         let resolved_elements = futures::stream::iter(map.0.elements.iter())
                             .then(async |(k, v)| {
                                 let resolved_key = Value::from(k.clone())
-                                    .resolve_paths(key_optional, base_dir, transferer, translate)
+                                    .resolve_paths(key_optional, base_dir, http, translate)
                                     .await?
                                     .as_primitive()
                                     .cloned()
                                     .expect("key should be primitive");
                                 let resolved_value = v
-                                    .resolve_paths(value_optional, base_dir, transferer, translate)
+                                    .resolve_paths(value_optional, base_dir, http, translate)
                                     .await?;
                                 Ok::<_, anyhow::Error>((resolved_key, resolved_value))
                             })
@@ -2735,9 +2735,8 @@ impl CompoundValue {
                     } else {
                         let resolved_members = futures::stream::iter(object.iter())
                             .then(async |(n, v)| {
-                                let resolved = v
-                                    .resolve_paths(false, base_dir, transferer, translate)
-                                    .await?;
+                                let resolved =
+                                    v.resolve_paths(false, base_dir, http, translate).await?;
                                 Ok::<_, anyhow::Error>((n.to_string(), resolved))
                             })
                             .try_collect()
@@ -2754,7 +2753,7 @@ impl CompoundValue {
                                 .resolve_paths(
                                     ty.members()[n].is_optional(),
                                     base_dir,
-                                    transferer,
+                                    http,
                                     translate,
                                 )
                                 .await?;
@@ -2772,7 +2771,7 @@ impl CompoundValue {
                     let optional = e.enum_ty().inner_value_type().is_optional();
                     let value =
                         e.0.value
-                            .resolve_paths(optional, base_dir, transferer, translate)
+                            .resolve_paths(optional, base_dir, http, translate)
                             .await?;
 
                     Ok(Self::EnumChoice(EnumChoice::new(
@@ -4066,11 +4065,12 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::iter::empty;
 
     use approx::assert_relative_eq;
     use pretty_assertions::assert_eq;
+    use regex::Regex;
     use wdl_analysis::types::ArrayType;
     use wdl_analysis::types::MapType;
     use wdl_analysis::types::PairType;
@@ -4080,10 +4080,7 @@ mod test {
     use wdl_ast::SupportedVersion;
 
     use super::*;
-    use crate::CancellationContext;
     use crate::EvaluationPath;
-    use crate::Events;
-    use crate::http::Transferer;
 
     #[test]
     fn boolean_coercion() {
@@ -4239,15 +4236,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
-                unimplemented!()
-            }
-
-            fn events(&self) -> &Events {
-                unimplemented!()
-            }
-
-            fn cancellation(&self) -> &CancellationContext {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4257,6 +4246,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4374,15 +4367,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
-                unimplemented!()
-            }
-
-            fn events(&self) -> &Events {
-                unimplemented!()
-            }
-
-            fn cancellation(&self) -> &CancellationContext {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4392,6 +4377,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4476,15 +4465,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
-                unimplemented!()
-            }
-
-            fn events(&self) -> &Events {
-                unimplemented!()
-            }
-
-            fn cancellation(&self) -> &CancellationContext {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4494,6 +4475,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 

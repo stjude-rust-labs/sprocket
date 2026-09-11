@@ -579,10 +579,10 @@ impl Postprocessor {
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
         let mut post_buffer = TokenStream::<PostToken>::default();
 
-        // If we encounter any potential splits, we use the first iteration to find any
-        // spans that will fit. If we don't find any potential splits, we can
-        // just push the result of the first iteration to the out stream and be
-        // done.
+        // If we encounter any potential splits, we use the first iteration to
+        // find any spans that will fit. If we don't find any potential
+        // splits, we can just push the result of the first iteration to
+        // the out stream and be done.
         self.fit_potential_splits = true;
         let mut fit_spans = Vec::new();
         let mut fit_start = None;
@@ -593,8 +593,8 @@ impl Postprocessor {
             match token {
                 PreToken::FitOrSplitStart { .. } => {
                     reprocess_needed = true;
-                    // overwrite any prior start. Only the innermost span is a candidate for
-                    // fitting.
+                    // overwrite any prior start. Only the innermost span is a
+                    // candidate for fitting.
                     fit_start = Some(i);
                 }
                 PreToken::PotentialSplit => {
@@ -860,8 +860,9 @@ impl Postprocessor {
                 fit_span = fit_spans.next();
                 self.fit_potential_splits = false;
             }
-            // If we cached before the step and the line is now too long, revert, line
-            // break, then repeat the step we just took.
+            // If we cached before the step and the line is now too long,
+            // revert, line break, then repeat the step we just
+            // took.
             if max_length.is_some_and(|max| post_buffer.last_line_width(config) > max)
                 && let Some(cache) = cache.take()
                 && let Some(cached_self) = cached_self.take()
