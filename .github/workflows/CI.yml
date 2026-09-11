@@ -119,7 +119,7 @@ jobs:
           cargo llvm-cov clean --workspace
           cargo llvm-cov --no-report nextest --profile=ci --workspace --locked --all-targets --exclude fuzz --all-features --no-fail-fast
           cargo llvm-cov --no-report --doc --workspace --locked --exclude fuzz --all-features
-          cargo llvm-cov report --doctests --codecov --output-path codecov.json
+          cargo llvm-cov report --workspace --doctests --codecov --output-path codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
