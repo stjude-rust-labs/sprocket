@@ -24,7 +24,6 @@ git-resolver = [
     "dep:dirs",
     "dep:futures",
     "dep:git2",
-    "dep:globset",
     "dep:tokio",
     "dep:toml-spanner",
     "dep:tracing",
@@ -40,7 +39,7 @@ dirs = { workspace = true, optional = true }
 ed25519-dalek = { workspace = true }
 futures = { workspace = true, optional = true }
 git2 = { workspace = true, optional = true, features = ["https", "ssh"] }
-globset = { workspace = true, optional = true }
+globset = { workspace = true }
 hex = { workspace = true }
 path-clean = { workspace = true }
 schemars = { workspace = true }

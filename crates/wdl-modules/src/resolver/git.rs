@@ -320,7 +320,8 @@ impl GitResolver {
         };
 
         // Reject paths that match the manifest's exclude globs.
-        if exclude_set(&manifest.exclude)?.is_match(rel.as_path()) {
+        let exclusions = exclude_set(&manifest.exclude)?;
+        if exclusions.is_excluded(rel.as_path()) {
             return Err(ResolverError::MissingFile {
                 dep: name.manifest().to_string(),
                 path: rel.as_path().to_path_buf(),
@@ -342,6 +343,31 @@ impl GitResolver {
                 }
                 other => other,
             })?;
+
+        // Case-insensitive filesystems may resolve a differently-cased
+        // symbolic path to excluded content. Match the canonical target's
+        // actual on-disk spelling before returning it.
+        let canonical_root =
+            std::fs::canonicalize(root_path).map_err(|source| ResolverError::Io {
+                path: root_path.to_path_buf(),
+                source,
+            })?;
+        let actual = canonical
+            .strip_prefix(&canonical_root)
+            .map_err(|_| ResolverError::Io {
+                path: canonical.clone(),
+                source: std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "path resolves outside module content",
+                ),
+            })?;
+        if crate::hash::path_is_excluded_from_hash(actual) || exclusions.is_excluded(actual) {
+            return Err(ResolverError::MissingFile {
+                dep: name.manifest().to_string(),
+                path: actual.to_path_buf(),
+                kind: MissingFileKind::Excluded,
+            });
+        }
 
         Ok(MaterializedFile {
             path: canonical,
@@ -1261,29 +1287,11 @@ pub(super) fn resolve_normalized_subpath(
 /// `literal_separator` is enabled so a single `*` does not cross `/`.
 pub(super) fn exclude_set(
     patterns: &[crate::relative_path::RelativePath],
-) -> Result<globset::GlobSet, ResolverError> {
-    if patterns.is_empty() {
-        return Ok(globset::GlobSet::empty());
-    }
-    let mut builder = globset::GlobSetBuilder::new();
-    for p in patterns {
-        let s: &str = p.as_ref();
-        let compile = |glob: &str| {
-            globset::GlobBuilder::new(glob)
-                .literal_separator(true)
-                .build()
-                .map_err(|source| ResolverError::InvalidExclude {
-                    pattern: s.to_string(),
-                    source,
-                })
-        };
-        builder.add(compile(s)?);
-        builder.add(compile(&format!("{}/**", s.trim_end_matches('/')))?);
-    }
-    // SAFETY: `GlobSetBuilder::build` only consolidates already-compiled
-    // globs; `GlobBuilder::build` above is the validating step, so by the
-    // time we reach this call there is nothing left for `build` to reject.
-    Ok(builder.build().unwrap())
+) -> Result<crate::module_walk::ExclusionSet, ResolverError> {
+    crate::module_walk::ExclusionSet::new(patterns).map_err(|error| ResolverError::InvalidExclude {
+        pattern: error.pattern,
+        source: error.source,
+    })
 }
 
 /// Returns true when a lockfile entry can satisfy the current Git

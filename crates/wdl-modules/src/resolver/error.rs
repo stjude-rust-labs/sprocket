@@ -383,6 +383,21 @@ pub enum ResolverError {
         import: String,
     },
 
+    /// A quoted `import` in included module content targets an excluded path.
+    #[error(
+        "`{dep}` file `{file}` has a quoted import `{import}` that targets content excluded by \
+         the module manifest"
+    )]
+    QuotedImportExcluded {
+        /// The owning dependency.
+        dep: String,
+        /// The included `.wdl` file containing the offending import, relative
+        /// to the module root.
+        file: String,
+        /// The offending import target as written.
+        import: String,
+    },
+
     /// An I/O error.
     #[error("i/o error at `{path}`")]
     Io {

@@ -7,6 +7,7 @@ use thiserror::Error;
 use super::ModuleProject;
 use crate::hash::ContentHash;
 use crate::hash::HashError;
+use crate::module_walk::ExclusionSet;
 
 /// A manifest-referenced file required for a valid module project.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -78,16 +79,18 @@ impl ModuleProject {
     ///
     /// The returned digest can be reused for signature verification.
     pub fn validate(&self) -> Result<ContentHash, ProjectValidationError> {
-        validate_regular_file(
-            &self.root,
-            self.manifest().entrypoint_filename(),
-            ProjectFileKind::Entrypoint,
-        )?;
-        if let Some(readme) = self.manifest().readme_filename() {
+        let exclusions = ExclusionSet::new(&self.manifest().exclude).map_err(HashError::from)?;
+        let entrypoint = self.manifest().entrypoint_filename();
+        if !exclusions.is_excluded(entrypoint) {
+            validate_regular_file(&self.root, entrypoint, ProjectFileKind::Entrypoint)?;
+        }
+        if let Some(readme) = self.manifest().readme_filename()
+            && !exclusions.is_excluded(readme)
+        {
             validate_regular_file(&self.root, readme, ProjectFileKind::Readme)?;
         }
 
-        crate::hash::hash_directory(&self.root).map_err(Into::into)
+        crate::hash::hash_directory_with_exclusions(&self.root, &exclusions).map_err(Into::into)
     }
 }
 
@@ -321,6 +324,40 @@ mod tests {
             }
         ));
         assert!(error.to_string().contains(".sprocket/README.md"));
+        Ok(())
+    }
+
+    #[test]
+    fn allows_entrypoint_excluded_by_manifest_glob() -> Result<(), Box<dyn Error>> {
+        let (directory, project) = project(
+            r#"{
+                "name":"example",
+                "license":"MIT",
+                "exclude":["*.wdl"]
+            }"#,
+        )?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("README.md"), "# Example\n")?;
+
+        project.validate()?;
+        Ok(())
+    }
+
+    #[test]
+    fn allows_readme_excluded_by_manifest_glob() -> Result<(), Box<dyn Error>> {
+        let (directory, project) = project(
+            r#"{
+                "name":"example",
+                "license":"MIT",
+                "exclude":["docs/**"],
+                "readme":"docs/README.md"
+            }"#,
+        )?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::create_dir(directory.path().join("docs"))?;
+        std::fs::write(directory.path().join("docs/README.md"), "# Example\n")?;
+
+        project.validate()?;
         Ok(())
     }
 
