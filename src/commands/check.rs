@@ -309,7 +309,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
             for d in result.document().diagnostics() {
                 if matches!(d.severity(), Severity::Warning | Severity::Note)
                     && args.common.suppress_imports
-                    && !provided_source_uris.contains(uri)
+                    && !provided_source_uris.contains(&uri)
                 {
                     continue;
                 }

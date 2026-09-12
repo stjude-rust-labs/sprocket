@@ -157,7 +157,7 @@ pub fn document_diagnostic_report(
         })
         .map(|d| {
             diagnostic(
-                result.document().uri(),
+                &result.document().uri(),
                 result.lines().expect("should have line index"),
                 source,
                 d,
@@ -197,7 +197,7 @@ pub fn workspace_diagnostic_report(
             continue;
         }
 
-        if let Some(previous) = ids.get(result.document().uri())
+        if let Some(previous) = ids.get(&*result.document().uri())
             && previous == result.document().id().as_ref()
         {
             debug!(
@@ -233,7 +233,7 @@ pub fn workspace_diagnostic_report(
             })
             .filter_map(|d| {
                 diagnostic(
-                    result.document().uri(),
+                    &result.document().uri(),
                     result.lines().expect("should have line index"),
                     source,
                     d,

@@ -118,7 +118,7 @@ pub async fn validate_inputs(
         EngineInputs::Task(inputs) => {
             // SAFETY: we wouldn't have a task inputs if a task didn't exist
             // that matched the user's criteria.
-            let task = document.task_by_name(&target).unwrap();
+            let task = document.local_task_by_name(&target).unwrap();
             inputs.validate(document, task, None)?
         }
         EngineInputs::Workflow(inputs) => {

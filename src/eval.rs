@@ -72,7 +72,7 @@ impl<'a> Evaluator<'a> {
             );
         }
         let mut inputs = self.inputs.unwrap_task_inputs();
-        let task = self.document.task_by_name(self.name).ok_or_else(|| {
+        let task = self.document.local_task_by_name(self.name).ok_or_else(|| {
             anyhow!(
                 "document does not contain a task named `{name}`",
                 name = self.name

@@ -209,6 +209,15 @@ pub enum SourcePositionEncoding {
     UTF16,
 }
 
+/// Represents an edit to a document's source after it has been applied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppliedEdit {
+    /// The range in the old string that was replaced.
+    pub range: Range<usize>,
+    /// The length of the new text that replaced it.
+    pub replacement_length: usize,
+}
+
 /// Represents an edit to a document's source.
 #[derive(Debug, Clone)]
 pub struct SourceEdit {
@@ -259,8 +268,13 @@ impl SourceEdit {
         self.range.start..self.range.end
     }
 
+    /// The replacement text.
+    pub(crate) fn text(&self) -> &str {
+        &self.text
+    }
+
     /// Applies the edit to the given string if it's in range.
-    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<()> {
+    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<Range<usize>> {
         let (start, end) = match self.encoding {
             SourcePositionEncoding::UTF8 => (
                 LineCol {
@@ -311,8 +325,8 @@ impl SourceEdit {
             bail!("edit end position is not at a character boundary");
         }
 
-        source.replace_range(range, &self.text);
-        Ok(())
+        source.replace_range(range.clone(), &self.text);
+        Ok(range)
     }
 }
 
@@ -352,10 +366,11 @@ impl IncrementalChange {
     }
 
     /// Attempts to apply the changes to the given `source`.
-    pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<()> {
+    pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<Vec<AppliedEdit>> {
         // We keep track of the last line we've processed so we only rebuild the
         // line index when there is a change that crosses a line
         let mut last_line = !0u32;
+        let mut applied_edits = Vec::new();
         for edit in &self.edits {
             let range = edit.range();
             if last_line <= range.end.line {
@@ -364,7 +379,20 @@ impl IncrementalChange {
             }
 
             last_line = range.start.line;
-            edit.apply(source, lines)?;
+            let range = edit.apply(source, lines)?;
+
+            // We only track applied edits if they apply to existing CST.
+            // Otherwise, it'll be treated as a full source
+            // replacement.
+            //
+            // The distinction is important for incremental analysis, see
+            // `AnalysisCache::intersect()`.
+            if self.start.is_none() {
+                applied_edits.push(AppliedEdit {
+                    range,
+                    replacement_length: edit.text().len(),
+                });
+            }
         }
 
         if !self.edits.is_empty() {
@@ -372,7 +400,7 @@ impl IncrementalChange {
             *lines = LineIndex::new(source);
         }
 
-        Ok(())
+        Ok(applied_edits)
     }
 }
 
