@@ -1,4 +1,4 @@
-name: Release Sprocket Python Bindings
+name: Release Python
 
 permissions:
   contents: read
@@ -7,40 +7,23 @@ on:
   push:
     tags:
       - v*
-  # When run on a pull request, this workflow will only build the wheels. It will not trigger a
-  # release.
-  pull_request:
-    paths:
-      - .github/workflows/python-release.yml
-      - .python-version
-      - Cargo.lock
-      - Cargo.toml
-      - crates/sprocket-py/**
-      - crates/sprocket-py-macros/**
-      - pyproject.toml
-      - python/**
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish the full wheel matrix to PyPI; run representative builds if false
-        required: true
-        type: boolean
-        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   linux:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJSON(((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish)) && '["x86_64","aarch64"]' || '["x86_64"]') }}
+        target: [x86_64, aarch64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -54,7 +37,6 @@ jobs:
           manylinux: auto
 
       - name: Upload wheels
-        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-linux-${{ matrix.target }}
@@ -62,11 +44,12 @@ jobs:
           if-no-files-found: error
 
   musllinux:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJSON(((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish)) && '["x86_64","aarch64"]' || '["x86_64"]') }}
+        target: [x86_64, aarch64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -80,7 +63,6 @@ jobs:
           manylinux: musllinux_1_2
 
       - name: Upload wheels
-        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-musllinux-${{ matrix.target }}
@@ -88,11 +70,44 @@ jobs:
           if-no-files-found: error
 
   windows:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish)) && '[{"runner":"windows-2025","target":"x64","python_arch":"x64","python_version":"3.10"},{"runner":"windows-2025","target":"x64","python_arch":"x64","python_version":"3.11"},{"runner":"windows-2025","target":"x64","python_arch":"x64","python_version":"3.12"},{"runner":"windows-2025","target":"x64","python_arch":"x64","python_version":"3.13"},{"runner":"windows-2025","target":"x64","python_arch":"x64","python_version":"3.14"},{"runner":"windows-11-vs2026-arm","target":"aarch64","python_arch":"arm64","python_version":"3.12"},{"runner":"windows-11-vs2026-arm","target":"aarch64","python_arch":"arm64","python_version":"3.13"},{"runner":"windows-11-vs2026-arm","target":"aarch64","python_arch":"arm64","python_version":"3.14"}]' || '[{"runner":"windows-2025","target":"x64","python_arch":"x64","python_version":"3.13"}]') }}
+        platform:
+          - runner: windows-2025
+            target: x64
+            python_arch: x64
+            python_version: "3.10"
+          - runner: windows-2025
+            target: x64
+            python_arch: x64
+            python_version: "3.11"
+          - runner: windows-2025
+            target: x64
+            python_arch: x64
+            python_version: "3.12"
+          - runner: windows-2025
+            target: x64
+            python_arch: x64
+            python_version: "3.13"
+          - runner: windows-2025
+            target: x64
+            python_arch: x64
+            python_version: "3.14"
+          - runner: windows-11-vs2026-arm
+            target: aarch64
+            python_arch: arm64
+            python_version: "3.12"
+          - runner: windows-11-vs2026-arm
+            target: aarch64
+            python_arch: arm64
+            python_version: "3.13"
+          - runner: windows-11-vs2026-arm
+            target: aarch64
+            python_arch: arm64
+            python_version: "3.14"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -115,7 +130,6 @@ jobs:
           target: ${{ matrix.platform.target }}
 
       - name: Upload wheels
-        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-windows-${{ matrix.platform.target }}-py${{ matrix.platform.python_version }}
@@ -123,11 +137,42 @@ jobs:
           if-no-files-found: error
 
   macos:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish)) && '[{"runner":"macos-26-intel","target":"x86_64","python_version":"3.10"},{"runner":"macos-26-intel","target":"x86_64","python_version":"3.11"},{"runner":"macos-26-intel","target":"x86_64","python_version":"3.12"},{"runner":"macos-26-intel","target":"x86_64","python_version":"3.13"},{"runner":"macos-26-intel","target":"x86_64","python_version":"3.14"},{"runner":"macos-26","target":"aarch64","python_version":"3.10"},{"runner":"macos-26","target":"aarch64","python_version":"3.11"},{"runner":"macos-26","target":"aarch64","python_version":"3.12"},{"runner":"macos-26","target":"aarch64","python_version":"3.13"},{"runner":"macos-26","target":"aarch64","python_version":"3.14"}]' || '[{"runner":"macos-26-intel","target":"x86_64","python_version":"3.13"}]') }}
+        platform:
+          - runner: macos-26-intel
+            target: x86_64
+            python_version: "3.10"
+          - runner: macos-26-intel
+            target: x86_64
+            python_version: "3.11"
+          - runner: macos-26-intel
+            target: x86_64
+            python_version: "3.12"
+          - runner: macos-26-intel
+            target: x86_64
+            python_version: "3.13"
+          - runner: macos-26-intel
+            target: x86_64
+            python_version: "3.14"
+          - runner: macos-26
+            target: aarch64
+            python_version: "3.10"
+          - runner: macos-26
+            target: aarch64
+            python_version: "3.11"
+          - runner: macos-26
+            target: aarch64
+            python_version: "3.12"
+          - runner: macos-26
+            target: aarch64
+            python_version: "3.13"
+          - runner: macos-26
+            target: aarch64
+            python_version: "3.14"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -156,7 +201,6 @@ jobs:
           target: ${{ matrix.platform.target }}
 
       - name: Upload wheels
-        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-macos-${{ matrix.platform.target }}-py${{ matrix.platform.python_version }}
@@ -164,6 +208,7 @@ jobs:
           if-no-files-found: error
 
   sdist:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -176,7 +221,6 @@ jobs:
           args: --sdist --out dist
 
       - name: Upload sdist
-        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-sdist
@@ -185,8 +229,7 @@ jobs:
 
   wheel-smoke:
     name: Smoke test ${{ matrix.artifact }}
-    # Smoke tests consume uploaded artifacts, so only run them when this workflow will publish.
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [linux, windows, macos]
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -219,10 +262,8 @@ jobs:
 
   release:
     name: Release
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
-    # Only publish when a new release is made or on demand. This way we don't try to publish when
-    # triggered on a pull request.
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
     needs: [linux, musllinux, windows, macos, sdist, wheel-smoke]
     permissions:
       # Used to sign release artifacts and authenticate with trusted publishing.
