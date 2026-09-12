@@ -144,24 +144,24 @@ fn collect_references_from_document(
         //
         // - All members of a namespace must be unique within that namespace.
         // - When the user makes a declaration within a nested scope, they are
-        //   essentially reserving that name in all of the higher-level scopes so that
-        //   it cannot be reused.
+        //   essentially reserving that name in all of the higher-level scopes
+        //   so that it cannot be reused.
         //
-        // This means name matching combined with definition resolution is safe and
-        // won't produce false positives from shadowed variables.
+        // This means name matching combined with definition resolution is safe
+        // and won't produce false positives from shadowed variables.
         if token.kind() == SyntaxKind::Ident && token.text() == target.name {
             let token_pos = position(lines, token.text_range().start())
                 .context("failed to convert token position")?;
             let source_pos = SourcePosition::new(token_pos.line, token_pos.character);
 
             let resolved_location =
-                handlers::goto_definition(graph, document.uri(), source_pos, encoding)
+                handlers::goto_definition(graph, &document.uri(), source_pos, encoding)
                     .context("failed to resolve token definition")?;
 
             if let Some(location) = resolved_location
                 && location == target.location
             {
-                let reference_location = location_from_span(document.uri(), token.span(), lines)
+                let reference_location = location_from_span(&document.uri(), token.span(), lines)
                     .context("failed to create reference location")?;
 
                 locations.push(reference_location);

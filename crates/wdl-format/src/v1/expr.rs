@@ -4,6 +4,7 @@ use wdl_ast::SyntaxKind;
 
 use crate::Config;
 use crate::PreToken;
+use crate::SPACE;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
@@ -31,7 +32,6 @@ pub fn format_sep_option(
     let sep_value = children.next().expect("sep value");
     assert_eq!(sep_value.element().kind(), SyntaxKind::LiteralStringNode);
     (&sep_value).write(stream, config);
-    stream.end_word();
 }
 
 /// Formats a [`DefaultOption`](wdl_ast::v1::DefaultOption).
@@ -56,7 +56,6 @@ pub fn format_default_option(
 
     let default_value = children.next().expect("default value");
     (&default_value).write(stream, config);
-    stream.end_word();
 }
 
 /// Formats a [`TrueFalseOption`](wdl_ast::v1::TrueFalseOption).
@@ -114,7 +113,6 @@ pub fn format_true_false_option(
         (&first_equals).write(stream, config);
         (&first_value).write(stream, config);
     }
-    stream.end_word();
 }
 
 /// Formats a [`Placeholder`](wdl_ast::v1::Placeholder).
@@ -148,7 +146,14 @@ pub fn format_placeholder(
         }
     }
 
+    if let Some(first) = children.next() {
+        // do not end_word() before the first child
+        (&first).write(stream, config);
+    }
     for child in children {
+        if child.element().kind() != SyntaxKind::CloseBrace {
+            stream.end_word();
+        }
         (&child).write(stream, config);
     }
 }
@@ -185,8 +190,10 @@ pub fn format_literal_string(
                             if let Some(next_c) = chars.peek()
                                 && *next_c == '\''
                             {
-                                // Do not write this backslash as single quotes don't need
-                                // escaping in a double-quoted string (and we format all
+                                // Do not write this backslash as single quotes
+                                // don't need
+                                // escaping in a double-quoted string (and we
+                                // format all
                                 // LiteralStrings as double-quoted strings).
                                 prev_c = Some(c);
                                 continue;
@@ -195,8 +202,10 @@ pub fn format_literal_string(
                         }
                         '"' => {
                             if prev_c.is_none_or(|c| c != '\\') {
-                                // This double quote sign is not escaped, so we need to escape
-                                // it. This happens when a single quoted string is re-formatted
+                                // This double quote sign is not escaped, so we
+                                // need to escape
+                                // it. This happens when a single quoted string
+                                // is re-formatted
                                 // as a double quoted string.
                                 replacement.push('\\');
                             }
@@ -390,21 +399,36 @@ pub fn format_literal_array(
 
     let empty = items.is_empty();
     if !empty {
-        stream.increment_indent();
+        stream.fit_or_split_start("".to_string().into(), SPACE.to_string().into(), true);
     }
+
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    let mut trailing_comma_inserted = false;
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            if items.peek().is_some() {
+                stream.potential_split();
+            } else {
+                trailing_comma_inserted = true;
+            }
         }
-        stream.end_line();
     }
 
     if !empty {
-        stream.decrement_indent();
+        stream.fit_or_split_end(
+            "".to_string().into(),
+            if trailing_comma_inserted || !config.trailing_commas {
+                "".to_string().into()
+            } else {
+                ",".to_string().into()
+            },
+            true,
+        );
     }
     (&close_bracket.expect("literal array close bracket")).write(stream, config);
 }
@@ -449,6 +473,7 @@ pub fn format_literal_map(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -468,18 +493,25 @@ pub fn format_literal_map(
         }
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal map close brace")).write(stream, config);
 }
 
@@ -506,7 +538,6 @@ pub fn format_literal_object_item(
 
     let value = children.next().expect("literal object item value");
     (&value).write(stream, config);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralObject`](wdl_ast::v1::LiteralObject).
@@ -530,6 +561,7 @@ pub fn format_literal_object(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut members = Vec::new();
     let mut commas = Vec::new();
@@ -549,18 +581,25 @@ pub fn format_literal_object(
         }
     }
 
+    let mut items = members.iter().peekable();
     let mut commas = commas.iter();
-    for member in members {
-        (&member).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal object close brace")).write(stream, config);
 }
 
@@ -972,31 +1011,49 @@ pub fn format_if_expr(
             if cur.kind().is_trivia() {
                 continue;
             }
-            result = cur.kind() == SyntaxKind::ElseKeyword;
+            // only match on `else`; `then` could be considered for "chaining"
+            // but that makes it harder to read IMO (a-frantz).
+            result = matches!(cur.kind(), SyntaxKind::ElseKeyword);
             break;
         }
         result
     };
 
-    for child in element.children().expect("if expr children") {
+    let mut children = element.children().expect("if expr children").peekable();
+    while let Some(child) = children.next() {
         match child.element().kind() {
+            SyntaxKind::IfKeyword => {
+                if !in_chain {
+                    stream.fit_or_split_start(
+                        "".to_string().into(),
+                        SPACE.to_string().into(),
+                        false,
+                    );
+                }
+            }
             SyntaxKind::ThenKeyword => {
                 if !in_chain {
-                    stream.increment_indent();
+                    stream.potential_split();
                 } else {
                     stream.end_line();
                 }
             }
             SyntaxKind::ElseKeyword => {
-                stream.end_line();
+                if !in_chain {
+                    stream.potential_split();
+                } else {
+                    stream.end_line();
+                }
             }
             _ => {}
         }
-        (&child).write(stream, config);
-        stream.end_word();
+        (child).write(stream, config);
+        if children.peek().is_some() {
+            stream.end_word();
+        }
     }
 
     if !in_chain {
-        stream.decrement_indent();
+        stream.fit_or_split_end("".to_string().into(), "".to_string().into(), false);
     }
 }

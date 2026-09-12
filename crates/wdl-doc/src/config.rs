@@ -12,6 +12,40 @@ pub struct ExternalUrls {
     pub homepage: Option<Url>,
     /// URL pointing to the project's GitHub repository.
     pub github: Option<Url>,
+    /// URL pointing to the project's Slack workspace.
+    pub slack: Option<Url>,
+}
+
+/// Site-level SEO metadata embedded into each page's `<head>`.
+///
+/// Every field is optional; a given `<head>` tag is only emitted when its
+/// backing field is set.
+#[derive(Clone, Debug, Default)]
+pub struct Seo {
+    /// Site title. When set, each page's `<title>` becomes
+    /// `"<page> | <title>"` and drives `og:site_name`.
+    pub title: Option<String>,
+    /// Default page description (`<meta name="description">`, `og:description`,
+    /// `twitter:description`).
+    pub description: Option<String>,
+    /// Content author (`<meta name="author">`).
+    pub author: Option<String>,
+    /// Keywords (`<meta name="keywords">`).
+    pub keywords: Vec<String>,
+    /// Absolute site base URL used to build per-page `<link rel="canonical">`
+    /// and `og:url` values.
+    pub base_url: Option<Url>,
+    /// Social-preview image URL (`og:image`, `twitter:image`).
+    pub image_url: Option<Url>,
+    /// Open Graph locale (`og:locale`); defaults to `en_US` when unset.
+    pub locale: Option<String>,
+    /// Twitter handle, including the leading `@` (`twitter:site`,
+    /// `twitter:creator`).
+    pub twitter_handle: Option<String>,
+    /// Robots directive (`<meta name="robots">`, e.g. `index, follow`).
+    pub robots: Option<String>,
+    /// Browser theme color (`<meta name="theme-color">`).
+    pub theme_color: Option<String>,
 }
 
 /// Additional HTML to embed into each generated page.
@@ -81,6 +115,8 @@ pub struct Config {
     pub(crate) alt_logo: Option<PathBuf>,
     /// Optional HTML to embed in each page.
     pub(crate) additional_html: AdditionalHtml,
+    /// Site-level SEO metadata embedded into each page's `<head>`.
+    pub(crate) seo: Seo,
     /// (**EXPERIMENTAL**) Enable support for documentation comments.
     pub(crate) enable_doc_comments: bool,
 }
@@ -104,6 +140,7 @@ impl Config {
             external_urls: ExternalUrls::default(),
             alt_logo: None,
             additional_html: AdditionalHtml::default(),
+            seo: Seo::default(),
             enable_doc_comments: false,
         }
     }
@@ -153,6 +190,12 @@ impl Config {
     /// Overwrite the config's additional HTML with the new value.
     pub fn additional_html(mut self, additional_html: AdditionalHtml) -> Self {
         self.additional_html = additional_html;
+        self
+    }
+
+    /// Overwrite the config's SEO metadata with the new value.
+    pub fn seo(mut self, seo: Seo) -> Self {
+        self.seo = seo;
         self
     }
 

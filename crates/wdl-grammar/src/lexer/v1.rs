@@ -747,12 +747,12 @@ impl<'a> ParserToken<'a> for Token {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::lexer::Lexer;
-    use crate::lexer::test::map;
+    use crate::lexer::tests::map;
 
     #[test]
     pub fn whitespace() {

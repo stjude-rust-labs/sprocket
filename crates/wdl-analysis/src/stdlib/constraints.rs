@@ -61,7 +61,8 @@ impl Constraint for SizeableConstraint {
                 Type::Primitive(ty, _) => primitive_type_is_sizable(*ty),
                 Type::Compound(ty, _) => compound_type_is_sizable(ty),
                 Type::Object | Type::OptionalObject => {
-                    // Note: checking the types of an object's members is a runtime constraint
+                    // Note: checking the types of an object's members is a
+                    // runtime constraint
                     true
                 }
                 // Treat unions as sizable as they can only be checked at runtime
@@ -221,7 +222,7 @@ impl Constraint for EnumChoiceConstraint {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::types::ArrayType;
     use crate::types::MapType;
@@ -230,7 +231,7 @@ mod test {
     use crate::types::PrimitiveType;
     use crate::types::StructType;
 
-    #[test]
+    #[test_log::test]
     fn test_sizable_constraint() {
         let constraint = SizeableConstraint;
         assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
@@ -305,7 +306,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn test_struct_constraint() {
         let constraint = StructConstraint;
         assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
@@ -336,7 +337,7 @@ mod test {
         ));
     }
 
-    #[test]
+    #[test_log::test]
     fn test_json_constraint() {
         let constraint = JsonSerializableConstraint;
         assert!(constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
@@ -373,7 +374,7 @@ mod test {
         ));
     }
 
-    #[test]
+    #[test_log::test]
     fn test_map_key_constraint() {
         let constraint = MapKeyConstraint;
         assert!(constraint.satisfied(&PrimitiveType::Boolean.into()));
@@ -393,7 +394,7 @@ mod test {
         assert!(!constraint.satisfied(&Type::Object));
     }
 
-    #[test]
+    #[test_log::test]
     fn test_primitive_constraint() {
         let constraint = PrimitiveTypeConstraint;
         assert!(constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));

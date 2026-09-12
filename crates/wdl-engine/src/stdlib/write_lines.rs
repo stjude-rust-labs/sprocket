@@ -47,7 +47,8 @@ fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnost
             .coerce_argument(0, ANALYSIS_STDLIB.array_string_type().clone())
             .unwrap_array();
 
-        // Create a temporary file that will be persisted after writing the lines
+        // Create a temporary file that will be persisted after writing the
+        // lines
         let (file, path) = NamedTempFile::with_prefix_in("tmp", context.temp_dir())
             .map_err(|e| {
                 function_call_failed(
@@ -90,14 +91,14 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
 
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn write_lines() {

@@ -4,7 +4,7 @@
 
 version 1.3
 
-#@ except: RequirementsSection, EmptyOutputs
+#@ except: DeprecatedRuntimeSection, RequirementsSection, EmptyOutputs
 task foo {
     meta {}
 

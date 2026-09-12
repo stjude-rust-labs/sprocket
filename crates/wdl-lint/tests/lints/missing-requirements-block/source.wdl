@@ -1,4 +1,4 @@
-#@ except: MetaDescription, EmptyOutputs, BashSetSyntax
+#@ except: DeprecatedRuntimeSection, MetaDescription, EmptyOutputs, BashSetSyntax
 
 version 1.3
 
@@ -21,14 +21,14 @@ task good {
     }
 }
 
-task deprecated_runtime {
-    meta {}
+task runtime_section {
+   meta {}
 
-    command <<<>>>
+   command <<<>>>
 
-    output {}
-
-    # This `runtime` section should be flagged as deprecated.
-    runtime {
-    }
+   output {}
+   
+   # This `runtime` section should suppress `RequirementsSection`
+   runtime {
+   }
 }

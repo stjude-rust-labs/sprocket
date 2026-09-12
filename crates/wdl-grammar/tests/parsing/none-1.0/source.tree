@@ -1,0 +1,85 @@
+RootNode@0..264
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.0"
+  Whitespace@11..13 "\n\n"
+  WorkflowDefinitionNode@13..263
+    WorkflowKeyword@13..21 "workflow"
+    Whitespace@21..22 " "
+    Ident@22..39 "test_none_literal"
+    Whitespace@39..40 " "
+    OpenBrace@40..41 "{"
+    Whitespace@41..44 "\n  "
+    InputSectionNode@44..72
+      InputKeyword@44..49 "input"
+      Whitespace@49..50 " "
+      OpenBrace@50..51 "{"
+      Whitespace@51..56 "\n    "
+      UnboundDeclNode@56..68
+        PrimitiveTypeNode@56..62
+          StringTypeKeyword@56..62 "String"
+        Whitespace@62..63 " "
+        Ident@63..68 "value"
+      Whitespace@68..71 "\n  "
+      CloseBrace@71..72 "}"
+    Whitespace@72..76 "\n\n  "
+    Comment@76..145 "# In version 1.0, `No ..."
+    Whitespace@145..148 "\n  "
+    BoundDeclNode@148..212
+      PrimitiveTypeNode@148..155
+        StringTypeKeyword@148..154 "String"
+        QuestionMark@154..155 "?"
+      Whitespace@155..156 " "
+      Ident@156..167 "maybe_value"
+      Whitespace@167..168 " "
+      Assignment@168..169 "="
+      Whitespace@169..170 " "
+      IfExprNode@170..212
+        IfKeyword@170..172 "if"
+        Whitespace@172..173 " "
+        ParenthesizedExprNode@173..191
+          OpenParen@173..174 "("
+          EqualityExprNode@174..190
+            NameRefExprNode@174..179
+              Ident@174..179 "value"
+            Whitespace@179..180 " "
+            Equal@180..182 "=="
+            Whitespace@182..183 " "
+            LiteralStringNode@183..190
+              DoubleQuote@183..184 "\""
+              LiteralStringText@184..189 "match"
+              DoubleQuote@189..190 "\""
+          CloseParen@190..191 ")"
+        Whitespace@191..192 " "
+        ThenKeyword@192..196 "then"
+        Whitespace@196..197 " "
+        NameRefExprNode@197..202
+          Ident@197..202 "value"
+        Whitespace@202..203 " "
+        ElseKeyword@203..207 "else"
+        Whitespace@207..208 " "
+        NameRefExprNode@208..212
+          Ident@208..212 "None"
+    Whitespace@212..216 "\n\n  "
+    OutputSectionNode@216..261
+      OutputKeyword@216..222 "output"
+      Whitespace@222..223 " "
+      OpenBrace@223..224 "{"
+      Whitespace@224..229 "\n    "
+      BoundDeclNode@229..257
+        PrimitiveTypeNode@229..236
+          StringTypeKeyword@229..235 "String"
+          QuestionMark@235..236 "?"
+        Whitespace@236..237 " "
+        Ident@237..243 "result"
+        Whitespace@243..244 " "
+        Assignment@244..245 "="
+        Whitespace@245..246 " "
+        NameRefExprNode@246..257
+          Ident@246..257 "maybe_value"
+      Whitespace@257..260 "\n  "
+      CloseBrace@260..261 "}"
+    Whitespace@261..262 "\n"
+    CloseBrace@262..263 "}"
+  Whitespace@263..264 "\n"

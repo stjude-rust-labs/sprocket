@@ -22,16 +22,6 @@ use crate::TagSet;
 /// The identifier for the missing requirements rule.
 const ID: &str = "RequirementsSection";
 
-/// Creates a "deprecated runtime section" diagnostic.
-fn deprecated_runtime_section(task: &str, span: Span) -> Diagnostic {
-    Diagnostic::note(format!(
-        "task `{task}` contains a deprecated `runtime` section"
-    ))
-    .with_rule(ID)
-    .with_highlight(span)
-    .with_fix("replace the `runtime` section with a `requirements` section")
-}
-
 /// Creates a "missing requirements section" diagnostic.
 fn missing_requirements_section(task: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!("task `{task}` is missing a `requirements` section"))
@@ -54,10 +44,7 @@ impl Rule for RequirementsSectionRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Tasks that don't declare `requirements` sections are unlikely to be portable.
-
-For tasks that _should_ contain a `requirements` section but a `runtime` section exists instead, \
-         the `runtime` section is flagged as deprecated."
+        "Tasks that don't declare `requirements` sections are unlikely to be portable."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -100,7 +87,7 @@ task say_hello {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness, Tag::Portability, Tag::Deprecated])
+        TagSet::new(&[Tag::Completeness, Tag::Portability])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
@@ -112,6 +99,7 @@ task say_hello {
 
     fn related_rules(&self) -> &'static [&'static str] {
         &[
+            "DeprecatedRuntimeSection",
             "ExpectedRuntimeKeys",
             "MetaDescription",
             "ParameterMetaMatched",
@@ -155,35 +143,15 @@ impl Visitor for RequirementsSectionRule {
         // version, the `runtime` section was recommended.
         if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here")
             && minor_version >= V1::Two
+            && task.requirements().is_none()
+            && task.runtime().is_none()
         {
-            match task.runtime() {
-                Some(runtime) => {
-                    let name = task.name();
-                    diagnostics.exceptable_add(
-                        deprecated_runtime_section(
-                            name.text(),
-                            runtime
-                                .inner()
-                                .first_token()
-                                .expect("runtime section should have tokens")
-                                .text_range()
-                                .into(),
-                        ),
-                        runtime.inner(),
-                        &self.exceptable_nodes(),
-                    );
-                }
-                _ => {
-                    if task.requirements().is_none() {
-                        let name = task.name();
-                        diagnostics.exceptable_add(
-                            missing_requirements_section(name.text(), name.span()),
-                            task.inner(),
-                            &self.exceptable_nodes(),
-                        );
-                    }
-                }
-            }
+            let name = task.name();
+            diagnostics.exceptable_add(
+                missing_requirements_section(name.text(), name.span()),
+                task.inner(),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }

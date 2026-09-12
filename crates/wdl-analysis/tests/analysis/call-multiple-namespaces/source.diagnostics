@@ -3,4 +3,3 @@ error: only one namespace may be specified in a call statement
   │
 9 │     call foo.bar.baz
   │              ^^^
-

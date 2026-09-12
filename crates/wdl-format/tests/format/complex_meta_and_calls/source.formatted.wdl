@@ -60,23 +60,27 @@ workflow test_wf {
         }
     }
 
-    call no_params call with_params { input:
+    call no_params
+    call with_params { input:
         a,
         b,
         c,
         d = 1,
     }
-    call qualified.name call qualified.name { input:
+    call qualified.name
+    call qualified.name { input:
         a = 1,
         b = 2,
         c = "3",
     }
-    call aliased as x call aliased as x { input:
-    }
-    call f after x after y call f after x after y { input:
+    call aliased as x
+    call aliased as x
+    call f after x after y
+    call f after x after y { input:
         a = [],
     }
-    call f as x after x call f as x after x after y { input:
+    call f as x after x
+    call f as x after x after y { input:
         name = "hello",
     }
     call test_task as foo { input:

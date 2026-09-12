@@ -15,6 +15,7 @@ use crate::system::v1::db::Task;
 use crate::system::v1::db::TaskLog;
 use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::JsonObject;
+use crate::system::v1::fs::IndexPath;
 
 /// Response for run submission.
 #[derive(Debug)]
@@ -126,8 +127,8 @@ pub enum RunManagerCmd {
         inputs: JsonObject,
         /// Optional target workflow or task name to execute.
         target: Option<String>,
-        /// Optional output directory to index on.
-        index_on: Option<String>,
+        /// Optional index path to index the run outputs under.
+        index_on: Option<IndexPath>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<SubmitResponse, super::SubmitRunError>>,
     },

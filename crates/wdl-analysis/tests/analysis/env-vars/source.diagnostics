@@ -3,4 +3,3 @@ warning[UnusedDeclaration]: unused declaration `d`
    │
 13 │     String d = ""
    │            ^
-

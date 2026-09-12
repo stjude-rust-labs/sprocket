@@ -6,4 +6,3 @@ error: conflicting task name `Status`
    ·
 11 │ enum Status {
    │      ------ the enum with the conflicting name is here
-

@@ -1,0 +1,11 @@
+{
+  "name": "wdl-doc-a11y",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Accessibility audit for generated wdl-doc documentation.",
+  "dependencies": {
+    "axe-core": "^4.12.1",
+    "puppeteer": "^25.4.0"
+  }
+}

@@ -5,23 +5,17 @@
       "source": {
         "path": "coffeeshop"
       },
-      "version": "0.1.0",
-      "checksum": "sha256:a407df0c19c5cf9b7c615042d5bbb9cd555d0e4ea97ab02a5b4fa687e8e11c82",
       "dependencies": {}
     },
     "cafe_menu": {
       "source": {
         "path": "cafe_menu"
       },
-      "version": "0.1.0",
-      "checksum": "sha256:e2563f918ba6cb6fb635518404be12b3e7f7f383c14d49a76c029a9704b7a254",
       "dependencies": {
         "coffeeshop": {
           "source": {
             "path": "../coffeeshop"
           },
-          "version": "0.1.0",
-          "checksum": "sha256:a407df0c19c5cf9b7c615042d5bbb9cd555d0e4ea97ab02a5b4fa687e8e11c82",
           "dependencies": {}
         }
       }

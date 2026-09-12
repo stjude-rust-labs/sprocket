@@ -64,6 +64,7 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
+        .ignore_filename(config.common.ignore_filename())
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;

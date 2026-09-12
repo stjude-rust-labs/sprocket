@@ -4,6 +4,8 @@ locale = "en-us"
 
 [default.extend-words]
 # Add words here to ignore them (case-sensitive)
+axe = "axe"
+AXE = "AXE"
 ba = "ba"
 bimap = "bimap"
 caf = "caf"

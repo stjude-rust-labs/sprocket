@@ -14,6 +14,11 @@ use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::CommandSectionIndentationRule;
+use crate::DeprecatedObjectRule;
+use crate::DeprecatedPlaceholderRule;
+use crate::DeprecatedRuntimeSectionRule;
+use crate::ExceptDirectiveValidRule;
 use crate::Exceptable as _;
 use crate::FormatConfig;
 use crate::KnownRulesRule;
@@ -341,6 +346,31 @@ pub struct DiagnosticsConfig {
     /// A value of `None` disables the diagnostic.
     #[toml(FromToml with = parse_string)]
     pub known_rules: Option<Severity>,
+    /// The severity for the except directive valid diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub except_directive_valid: Option<Severity>,
+    /// The severity for the `command` section indentation diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub command_section_indentation: Option<Severity>,
+    /// The severity for the deprecated `object` diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub deprecated_object: Option<Severity>,
+    /// The severity for the deprecated placeholder option diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub deprecated_placeholder: Option<Severity>,
+    /// The severity for the deprecated `runtime` section diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub deprecated_runtime_section: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -361,6 +391,11 @@ impl DiagnosticsConfig {
         let mut misleading_declaration_order = None;
         let mut meaningless_lint_directive = None;
         let mut known_rules = None;
+        let mut except_directive_valid = None;
+        let mut command_section_indentation = None;
+        let mut deprecated_object = None;
+        let mut deprecated_placeholder = None;
+        let mut deprecated_runtime_section = None;
 
         for rule in rules {
             let rule = rule.as_ref();
@@ -376,6 +411,15 @@ impl DiagnosticsConfig {
                 }
                 MeaninglessLintDirective::ID => meaningless_lint_directive = Some(rule.severity()),
                 KnownRulesRule::ID => known_rules = Some(rule.severity()),
+                ExceptDirectiveValidRule::ID => except_directive_valid = Some(rule.severity()),
+                CommandSectionIndentationRule::ID => {
+                    command_section_indentation = Some(rule.severity())
+                }
+                DeprecatedObjectRule::ID => deprecated_object = Some(rule.severity()),
+                DeprecatedPlaceholderRule::ID => deprecated_placeholder = Some(rule.severity()),
+                DeprecatedRuntimeSectionRule::ID => {
+                    deprecated_runtime_section = Some(rule.severity())
+                }
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -395,6 +439,11 @@ impl DiagnosticsConfig {
             misleading_declaration_order,
             meaningless_lint_directive,
             known_rules,
+            except_directive_valid,
+            command_section_indentation,
+            deprecated_object,
+            deprecated_placeholder,
+            deprecated_runtime_section,
         }
     }
 
@@ -414,6 +463,11 @@ impl DiagnosticsConfig {
                 MisleadingDeclarationOrderRule::ID => self.misleading_declaration_order = None,
                 MeaninglessLintDirective::ID => self.meaningless_lint_directive = None,
                 KnownRulesRule::ID => self.known_rules = None,
+                ExceptDirectiveValidRule::ID => self.except_directive_valid = None,
+                CommandSectionIndentationRule::ID => self.command_section_indentation = None,
+                DeprecatedObjectRule::ID => self.deprecated_object = None,
+                DeprecatedPlaceholderRule::ID => self.deprecated_placeholder = None,
+                DeprecatedRuntimeSectionRule::ID => self.deprecated_runtime_section = None,
                 _ => {}
             }
         }
@@ -433,6 +487,11 @@ impl DiagnosticsConfig {
             misleading_declaration_order: None,
             meaningless_lint_directive: None,
             known_rules: None,
+            except_directive_valid: None,
+            command_section_indentation: None,
+            deprecated_object: None,
+            deprecated_placeholder: None,
+            deprecated_runtime_section: None,
         }
     }
 }
@@ -441,14 +500,14 @@ impl DiagnosticsConfig {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn custom_format_config_round_trip() {
         let custom_format_config = FormatConfig::default().trailing_commas(false);
         let analysis_config = Config::default().with_format_config(custom_format_config);
         assert_eq!(analysis_config.format(), &custom_format_config);
     }
 
-    #[test]
+    #[test_log::test]
     fn no_format_config_is_default() {
         let default_format_config = FormatConfig::default();
         let analysis_config = Config::default();

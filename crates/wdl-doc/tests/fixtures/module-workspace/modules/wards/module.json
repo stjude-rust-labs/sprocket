@@ -1,0 +1,6 @@
+{
+  "name": "wards",
+  "version": "1.0.0",
+  "license": "MIT",
+  "entrypoint": "wards.wdl"
+}

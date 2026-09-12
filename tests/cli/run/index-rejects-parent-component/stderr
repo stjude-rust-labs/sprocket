@@ -1,0 +1,3 @@
+error: invalid value '../escape' for '--index-on <INDEX_PATH>': index path `../escape` cannot contain `.` or `..` components
+
+For more information, try '--help'.

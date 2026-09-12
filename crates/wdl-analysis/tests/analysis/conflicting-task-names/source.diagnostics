@@ -15,4 +15,3 @@ error: conflicting task name `bar`
    ·
 17 │ task bar {
    │      ^^^ this task conflicts with a previously used name
-

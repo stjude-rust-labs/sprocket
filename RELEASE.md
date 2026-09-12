@@ -6,6 +6,9 @@ Various CI features have been implemented to ease the release process, but some 
 
 ## Time to Release!
 
+Before cutting a release, review every entry under `## Unreleased` in each
+`CHANGELOG.md` and verify that every item links to its originating pull request.
+
 The following steps are handled automatically by the [release-plz](./.github/workflows/release-plz.yml) workflow.
 In the event it fails, they can be performed manually.
 

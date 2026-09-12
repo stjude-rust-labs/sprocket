@@ -7,7 +7,7 @@
   "module": "dist/bundle.js",
   "type": "module",
   "scripts": {
-    "build": "./node_modules/.bin/esbuild js/index.js --bundle --format=esm --outfile=dist/common.js"
+    "build": "./node_modules/.bin/esbuild js/index.js --bundle --format=esm --loader:.svg=text --outfile=dist/common.js"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.2",

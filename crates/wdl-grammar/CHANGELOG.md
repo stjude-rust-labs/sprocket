@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `SyntaxTree::green()` now returns `&GreenNode` instead of `Cow<GreenNode>` ([#1183](https://github.com/stjude-rust-labs/sprocket/pull/1183)).
+
+## 0.25.1 - 2026-08-05
+
+#### Fixed
+
+* Fixed parsing of WDL 1.0 to treat `None` as an identifier (i.e. in a name
+  reference expression) instead of as a literal none expression ([#1058](https://github.com/stjude-rust-labs/sprocket/pull/1058)).
+
 ## 0.25.0 - 2026-07-15
 
 #### Added

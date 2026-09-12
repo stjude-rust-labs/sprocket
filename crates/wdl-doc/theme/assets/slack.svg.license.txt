@@ -1,0 +1,6 @@
+Bootstrap Icons slack
+Copyright 2019-Present The Bootstrap Authors
+Source: https://github.com/twbs/icons/blob/main/icons/slack.svg
+License: MIT
+License URL: https://opensource.org/licenses/MIT
+Changes: Set the fill color to match the theme (dark mode).

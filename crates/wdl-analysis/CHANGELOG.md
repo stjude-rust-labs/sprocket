@@ -7,11 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
+  the benefits coming on any _subsequent_ requests. Before, any change in the document triggered a **full** re-analysis.
+  Now, the actual differences in the document are tracked, with any untouched items being recycled from the cache ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).
+* `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules, which ensure that deprecated
+  language features are not used ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
+
+## 0.25.0 - 2026-08-26
+
+#### Added
+
+* `ImportedTask` and `ImportedWorkflow` are now public and expose `name()`,
+  `document()`, and source accessors, while `Document::imported_task_by_name`
+  and `Document::imported_workflow_by_name` are now public
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `ExceptDirectiveValid` rule, which ensures that `#@ except` comments are placed in valid locations ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
+* `CommandSectionIndentation` rule, which ensures that command sections are indented consistently ([#1144](https://github.com/stjude-rust-labs/sprocket/pull/1144)).
+
+#### Changed
+
+* An import must now share the importing document's major version and have a
+  minor version no greater than it; importing a newer minor version is rejected
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `Visitor::known_rules()` and `Validator::extend_known_rules()` were renamed to `Visitor::rules()` and
+  `Validator::extend_rules()`, respectively ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
+
+#### Fixed
+
+* Fixed aliasing of imported enums causing a confusing "not a struct"
+  diagnostic from static analysis ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Fixed static analysis failing to emit a diagnostic for unknown enum choice
+  access ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* A task or workflow re-exported into a document through two scope-merging
+  imports that denote the same underlying declaration is no longer a spurious
+  conflict, so diamond-shaped import graphs resolve
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* A form-1 (namespaced) import now exposes the imported document's re-exported
+  tasks and workflows, so `call ns.reexported_task` resolves
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Unknown unqualified calls are no longer reported when a wildcard import
+  fails to resolve, since the call may have originated from the missing import
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+## 0.24.0 - 2026-08-05
+
 ### Fixed
 
 * Supported WDL 1.0 `runtime` resource requirements remain available to
   execution consumers while static type diagnostics remain version-aware
-  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
 * LSP hover and completion for standard library functions are now version-aware:
   functions and polymorphic signatures whose minimum WDL version exceeds the
   document's declared version are no longer offered in completion or shown on

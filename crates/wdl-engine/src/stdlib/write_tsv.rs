@@ -16,7 +16,6 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
-use crate::HostPath;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -38,10 +37,9 @@ pub(crate) async fn write_tsv_value<W: AsyncWrite + Unpin>(
     context: &CallContext<'_>,
 ) -> Result<bool, std::io::Error> {
     match value {
-        PrimitiveValue::String(v)
-        | PrimitiveValue::File(HostPath(v))
-        | PrimitiveValue::Directory(HostPath(v))
-            if v.contains('\t') =>
+        PrimitiveValue::String(v) if v.contains('\t') => Ok(false),
+        PrimitiveValue::File(path) | PrimitiveValue::Directory(path)
+            if path.as_str().contains('\t') =>
         {
             Ok(false)
         }
@@ -271,8 +269,8 @@ fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Dia
 
         let mut writer = BufWriter::new(fs::File::from(file));
 
-        // Get the struct type to print the columns; we need to do this even when the
-        // array is empty
+        // Get the struct type to print the columns; we need to do this even
+        // when the array is empty
         let rows_ty = rows.ty();
         let ty = match rows_ty.as_array() {
             Some(ty) => ty
@@ -405,7 +403,7 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
 
     use pretty_assertions::assert_eq;
@@ -415,8 +413,8 @@ mod test {
     use wdl_analysis::types::Type;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn write_tsv() {

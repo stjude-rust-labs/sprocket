@@ -3,4 +3,3 @@ error: failed to import `foo://bar`: unsupported URI scheme `foo`
   │
 5 │ import "foo://bar" as foo
   │        ^^^^^^^^^^^
-

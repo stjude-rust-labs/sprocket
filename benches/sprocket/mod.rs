@@ -5,6 +5,7 @@ use std::path::Path;
 
 use criterion::Criterion;
 use url::Url;
+use wdl::lint::Tag;
 
 use crate::get_workflows_repo;
 
@@ -37,9 +38,7 @@ fn check_standalone_documents(c: &mut Criterion, workflows_repo: &Path) {
                     let common = sprocket::commands::check::Common {
                         sources: vec![sprocket::analysis::Source::File(file_url)],
                         except: vec![],
-                        all_lint_rules: true,
-                        filter_lint_tag: vec![],
-                        only_lint_tag: vec![],
+                        tag: vec![Tag::All.to_string()],
                         deny_warnings: false,
                         deny_notes: false,
                         suppress_imports: false,

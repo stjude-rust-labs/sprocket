@@ -2,6 +2,8 @@
 
 use std::ffi::OsStr;
 use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
@@ -207,12 +209,19 @@ pub enum SourcePositionEncoding {
     UTF16,
 }
 
+/// Represents an edit to a document's source after it has been applied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppliedEdit {
+    /// The range in the old string that was replaced.
+    pub range: Range<usize>,
+    /// The length of the new text that replaced it.
+    pub replacement_length: usize,
+}
+
 /// Represents an edit to a document's source.
 #[derive(Debug, Clone)]
 pub struct SourceEdit {
     /// The range of the edit.
-    ///
-    /// Note that invalid ranges will cause the edit to be ignored.
     range: Range<SourcePosition>,
     /// The encoding of the edit positions.
     encoding: SourcePositionEncoding,
@@ -220,18 +229,38 @@ pub struct SourceEdit {
     text: String,
 }
 
+/// Arises when creating [`SourceEdit`]s with invalid [`SourcePosition`] ranges.
+#[derive(Debug)]
+pub struct RangeError(pub Range<SourcePosition>);
+
+impl Display for RangeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "range `{:?}` has a start bound greater than its end",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for RangeError {}
+
 impl SourceEdit {
     /// Creates a new source edit for the given range and replacement text.
     pub fn new(
         range: Range<SourcePosition>,
         encoding: SourcePositionEncoding,
         text: impl Into<String>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, RangeError> {
+        if range.start > range.end {
+            return Err(RangeError(range));
+        }
+
+        Ok(Self {
             range,
             encoding,
             text: text.into(),
-        }
+        })
     }
 
     /// Gets the range of the edit.
@@ -239,8 +268,13 @@ impl SourceEdit {
         self.range.start..self.range.end
     }
 
+    /// The replacement text.
+    pub(crate) fn text(&self) -> &str {
+        &self.text
+    }
+
     /// Applies the edit to the given string if it's in range.
-    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<()> {
+    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<Range<usize>> {
         let (start, end) = match self.encoding {
             SourcePositionEncoding::UTF8 => (
                 LineCol {
@@ -291,8 +325,8 @@ impl SourceEdit {
             bail!("edit end position is not at a character boundary");
         }
 
-        source.replace_range(range, &self.text);
-        Ok(())
+        source.replace_range(range.clone(), &self.text);
+        Ok(range)
     }
 }
 
@@ -313,6 +347,61 @@ pub struct IncrementalChange {
     pub start: Option<String>,
     /// The source edits to apply.
     pub edits: Vec<SourceEdit>,
+}
+
+impl IncrementalChange {
+    /// Attempts to apply the changes to the change's `start`.
+    ///
+    /// # Errors
+    ///
+    /// This will error if the `IncrementalChange` does not have a `start`
+    /// source.
+    pub fn apply(&self) -> Result<(String, LineIndex)> {
+        let Some(mut source) = self.start.clone() else {
+            bail!("no start source provided");
+        };
+        let mut lines = LineIndex::new(&source);
+        self.apply_to(&mut source, &mut lines)?;
+        Ok((source, lines))
+    }
+
+    /// Attempts to apply the changes to the given `source`.
+    pub fn apply_to(&self, source: &mut String, lines: &mut LineIndex) -> Result<Vec<AppliedEdit>> {
+        // We keep track of the last line we've processed so we only rebuild the
+        // line index when there is a change that crosses a line
+        let mut last_line = !0u32;
+        let mut applied_edits = Vec::new();
+        for edit in &self.edits {
+            let range = edit.range();
+            if last_line <= range.end.line {
+                // Only rebuild the line index if the edit has changed lines
+                *lines = LineIndex::new(source);
+            }
+
+            last_line = range.start.line;
+            let range = edit.apply(source, lines)?;
+
+            // We only track applied edits if they apply to existing CST.
+            // Otherwise, it'll be treated as a full source
+            // replacement.
+            //
+            // The distinction is important for incremental analysis, see
+            // `AnalysisCache::intersect()`.
+            if self.start.is_none() {
+                applied_edits.push(AppliedEdit {
+                    range,
+                    replacement_length: edit.text().len(),
+                });
+            }
+        }
+
+        if !self.edits.is_empty() {
+            // Rebuild the line index after all edits have been applied
+            *lines = LineIndex::new(source);
+        }
+
+        Ok(applied_edits)
+    }
 }
 
 /// Represents a Workflow Description Language (WDL) document analyzer.
@@ -594,8 +683,8 @@ where
         // walk at nested module boundaries: a subdirectory with its own
         // `module.json` is a separate (local-path dependency) module whose WDL
         // files reach the analyzer through symbolic-import materialization, not
-        // directory scanning. Outside an active module there is nothing to scope
-        // to, so scan everything.
+        // directory scanning. Outside an active module there is nothing to
+        // scope to, so scan everything.
         let stop_at_module_boundaries = self
             .resolution
             .module_root()
@@ -1292,7 +1381,7 @@ const _: () = {
 };
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
     use std::path::PathBuf;
 
@@ -1302,6 +1391,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_returns_empty_results() {
         let analyzer = Analyzer::default();
         let results = analyzer.analyze(()).await.unwrap();
@@ -1309,6 +1399,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_analyzes_a_document() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let path = dir.path().join("foo.wdl");
@@ -1370,6 +1461,7 @@ workflow test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_reanalyzes_a_document_on_change() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let path = dir.path().join("foo.wdl");
@@ -1428,8 +1520,8 @@ workflow something_else {
         let uri = path_to_uri(&path).expect("should convert to URI");
         analyzer.notify_change(uri.clone(), false).unwrap();
 
-        // Analyze again and ensure the analysis result id is changed and the issue
-        // fixed
+        // Analyze again and ensure the analysis result id is changed and the
+        // issue fixed
         let id = results[0].document.id().clone();
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
@@ -1445,6 +1537,7 @@ workflow something_else {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_reanalyzes_a_document_on_incremental_change() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let path = dir.path().join("foo.wdl");
@@ -1502,8 +1595,8 @@ workflow test {
             )
             .unwrap();
 
-        // Analyze again and ensure the analysis result id is changed and the issue was
-        // fixed
+        // Analyze again and ensure the analysis result id is changed and the
+        // issue was fixed
         let id = results[0].document.id().clone();
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
@@ -1512,6 +1605,7 @@ workflow test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_removes_documents() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let foo = dir.path().join("foo.wdl");
@@ -1574,6 +1668,7 @@ workflow test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn selected_imported_task_conflicts_with_local_workflow() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         fs::write(
@@ -1621,6 +1716,7 @@ workflow run {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn symbolic_import_resolves_through_mock_resolver() {
         use wdl_modules::Manifest;
         use wdl_modules::lockfile::ResolvedSource;
@@ -1761,6 +1857,7 @@ workflow run {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn concurrent_symbolic_imports_faster_than_serial() {
         use std::sync::atomic::AtomicUsize;
         use std::sync::atomic::Ordering;
@@ -1901,6 +1998,7 @@ workflow run {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_deletes_documents() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let foo = dir.path().join("foo.wdl");
@@ -1940,8 +2038,8 @@ workflow test {}
 
         // Now delete bar.wdl, which foo.wdl depends on.
         //
-        // Unlike removal, this should *force* the deletion of bar.wdl in the graph (and
-        // thus cause errors in foo.wdl)
+        // Unlike removal, this should *force* the deletion of bar.wdl in the
+        // graph (and thus cause errors in foo.wdl)
         fs::remove_file(&bar).expect("should delete file");
         analyzer
             .delete_documents(vec![path_to_uri(&bar).expect("should convert to URI")])
@@ -1957,5 +2055,16 @@ workflow test {}
             .diagnostics()
             .any(|d| d.message().contains("failed to import `bar.wdl`"));
         assert!(has_import_failed_diagnostic);
+    }
+
+    #[test]
+    #[test_log::test]
+    fn it_rejects_invalid_edit_ranges() {
+        SourceEdit::new(
+            SourcePosition::new(5, 1)..SourcePosition::new(1, 5),
+            SourcePositionEncoding::UTF8,
+            String::from("invalid range"),
+        )
+        .expect_err("should fail");
     }
 }

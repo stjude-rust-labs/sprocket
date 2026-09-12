@@ -8,6 +8,7 @@ use semver::Version;
 use crate::dependency::DependencyName;
 use crate::hash::ContentHash;
 use crate::lockfile::ResolvedSource;
+use crate::signing::SignerIdentity;
 use crate::signing::VerifyingKey;
 
 /// A symbolic import resolved to a concrete file on disk.
@@ -53,12 +54,16 @@ pub struct ResolvedTree {
 pub struct ResolvedDependency {
     /// The resolved source.
     pub source: ResolvedSource,
-    /// The version declared in the module's `module.json`.
-    pub version: Version,
-    /// The module's content hash.
-    pub checksum: ContentHash,
-    /// The signer's public key, if the module was signed.
+    /// The resolved module version, when selected from a version tag.
+    pub version: Option<Version>,
+    /// The module's content hash. `None` for local path sources, which
+    /// carry no checksum and are read as-is.
+    pub checksum: Option<ContentHash>,
+    /// The signer's public key, if the module was signed. `None` for
+    /// local path sources, which are not subject to signature verification.
     pub signer: Option<VerifyingKey>,
+    /// Optional signer identity metadata captured from `module.sig`.
+    pub signer_identity: Option<SignerIdentity>,
     /// The module's transitive resolved dependencies.
     pub dependencies: BTreeMap<DependencyName, ResolvedDependency>,
 }
@@ -69,12 +74,16 @@ pub struct ResolvedDependency {
 /// [`ResolvedDependency`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedModule {
-    /// The version declared in the module's `module.json`.
-    pub version: Version,
-    /// The module's content hash.
-    pub checksum: ContentHash,
-    /// The signer's public key, if the module was signed.
+    /// The resolved module version, when selected from a version tag.
+    pub version: Option<Version>,
+    /// The module's content hash. `None` for local path sources, which
+    /// carry no checksum and are read as-is.
+    pub checksum: Option<ContentHash>,
+    /// The signer's public key, if the module was signed. `None` for
+    /// local path sources, which are not subject to signature verification.
     pub signer: Option<VerifyingKey>,
+    /// Optional signer identity metadata captured from `module.sig`.
+    pub signer_identity: Option<SignerIdentity>,
     /// The module's transitive resolved dependencies.
     pub dependencies: BTreeMap<DependencyName, ResolvedDependency>,
 }

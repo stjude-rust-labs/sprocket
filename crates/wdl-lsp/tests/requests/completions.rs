@@ -11,6 +11,8 @@ use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::Completion;
 use pretty_assertions::assert_eq;
+use wdl_analysis::FeatureFlags;
+use wdl_lsp::ServerOptions;
 
 use crate::common::TestContext;
 use crate::common::TestContextBuilder;
@@ -327,8 +329,8 @@ async fn should_complete_scope_variables() {
     assert_contains(&items, "floor");
     assert_contains(&items, "stdout");
     assert_contains(&items, "stderr");
-    // The following standard library functions are present in WDL version 1.3 and
-    // should appear as completions.
+    // The following standard library functions are present in WDL version 1.3
+    // and should appear as completions.
     assert_contains(&items, "min");
     assert_contains(&items, "find");
     assert_contains(&items, "chunk");
@@ -386,8 +388,8 @@ async fn should_complete_scope_variables_v1_0_stdlib() {
     assert_contains(&items, "floor");
     assert_contains(&items, "stdout");
     assert_contains(&items, "stderr");
-    // The following standard library functions are *not* present in WDL version 1.0
-    // and should *not* appear as completions.
+    // The following standard library functions are *not* present in WDL version
+    // 1.0 and should *not* appear as completions.
     assert_not_contains(&items, "min");
     assert_not_contains(&items, "find");
     assert_not_contains(&items, "chunk");
@@ -703,4 +705,26 @@ async fn should_not_complete_shadowed_type_names() {
             .any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::ENUM)),
         "completions should NOT have contained an enum item for 'Status'"
     );
+}
+
+#[tokio::test]
+async fn should_complete_select_imported_task() {
+    let mut ctx = TestContextBuilder::new("completions_selected")
+        .server_options(ServerOptions {
+            feature_flags: FeatureFlags::default().with_wdl_1_4(),
+            ..ServerOptions::default()
+        })
+        .build();
+    ctx.initialize().await;
+
+    // Position of `add` in `call add` in source.wdl
+    let response = completion_request(&mut ctx, "source.wdl", Position::new(5, 9))
+        .await
+        .expect("request should succeed");
+
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_contains(&items, "add");
 }

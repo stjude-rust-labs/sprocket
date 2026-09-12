@@ -98,6 +98,16 @@
       "addLabels": [
         "python"
       ]
+    },
+    {
+      "description": "Do not update Python interpreter",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {

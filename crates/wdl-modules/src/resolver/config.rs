@@ -17,18 +17,29 @@ pub struct ModulesConfig {
     /// Override the global cache location for this project.
     pub cache_path: Option<PathBuf>,
 
+    /// The platform used to expand `owner/repo` dependency shorthands.
+    #[toml(default)]
+    #[schemars(default)]
+    pub default_git_platform: GitPlatform,
+
     /// Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]
     /// when the user opts out. Defaults to 1 MiB.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
     pub large_file_warning: LargeFileWarning,
 
+    /// Maximum bytes accepted from a Git remote during one fetch. Defaults
+    /// to 2 GiB.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
+    pub max_transfer_bytes: TransferLimit,
+
     /// Reject any unsigned module in the dependency tree.
     #[toml(default)]
     #[schemars(default)]
     pub require_signed: bool,
 
-    /// TOFU policy for new signer keys.
+    /// Policy for accepting signer keys.
     #[toml(default)]
     #[schemars(default)]
     pub trust_mode: TrustMode,
@@ -134,7 +145,9 @@ impl Default for ModulesConfig {
     fn default() -> Self {
         Self {
             cache_path: None,
+            default_git_platform: GitPlatform::default(),
             large_file_warning: LargeFileWarning::default(),
+            max_transfer_bytes: TransferLimit::default(),
             require_signed: false,
             trust_mode: TrustMode::default(),
             allowed_schemes: default_top_level_schemes(),
@@ -146,33 +159,6 @@ impl Default for ModulesConfig {
             max_materialized_files: None,
             max_materialized_bytes: None,
         }
-    }
-}
-
-#[cfg(test)]
-use crate::resolver::DependencyScope;
-
-#[cfg(test)]
-impl ModulesConfig {
-    /// Returns `true` if the given host is permitted for a dependency
-    /// at this level of the tree.
-    fn host_allowed(&self, host: &str, scope: DependencyScope) -> bool {
-        if self
-            .denied_hosts
-            .iter()
-            .any(|h| h.eq_ignore_ascii_case(host))
-        {
-            return false;
-        }
-        if is_non_public_ip(host) {
-            return false;
-        }
-        let allowed = if matches!(scope, DependencyScope::Transitive) {
-            &self.allowed_transitive_hosts
-        } else {
-            &self.allowed_hosts
-        };
-        allowed.is_empty() || allowed.iter().any(|h| h.eq_ignore_ascii_case(host))
     }
 }
 
@@ -220,6 +206,115 @@ pub(crate) fn is_non_public_ip(host: &str) -> bool {
         }
     }
 }
+
+/// A hosted Git platform used for dependency shorthand expansion.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "lowercase")]
+#[schemars(rename_all = "lowercase")]
+pub enum GitPlatform {
+    /// GitHub repository shorthand.
+    #[default]
+    Github,
+    /// GitLab repository shorthand.
+    Gitlab,
+    /// Bitbucket repository shorthand.
+    Bitbucket,
+}
+
+impl GitPlatform {
+    /// Expands an `owner/repo` shorthand into a hosted Git URL.
+    pub fn expand_shorthand(self, source: &str) -> Option<Result<url::Url, url::ParseError>> {
+        let shorthand = source.parse::<HostedGitShorthand>().ok()?;
+        Some(self.repository_url(&shorthand.owner, &shorthand.repo))
+    }
+
+    /// Returns the inferred dependency name for an `owner/repo` shorthand.
+    pub fn shorthand_repo_name(source: &str) -> Option<String> {
+        let shorthand = source.parse::<HostedGitShorthand>().ok()?;
+        Some(
+            shorthand
+                .repo
+                .strip_suffix(".git")
+                .unwrap_or(&shorthand.repo)
+                .to_string(),
+        )
+    }
+
+    /// Builds the hosted Git URL for an owner and repository.
+    fn repository_url(self, owner: &str, repo: &str) -> Result<url::Url, url::ParseError> {
+        let url = format!(
+            "https://{host}/{owner}/{repo}.git",
+            host = self.host(),
+            repo = repo.strip_suffix(".git").unwrap_or(repo)
+        );
+        url.parse()
+    }
+
+    /// Returns the canonical host name for this platform.
+    fn host(self) -> &'static str {
+        match self {
+            Self::Github => "github.com",
+            Self::Gitlab => "gitlab.com",
+            Self::Bitbucket => "bitbucket.org",
+        }
+    }
+}
+
+impl FromStr for GitPlatform {
+    type Err = GitPlatformError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "github" => Ok(Self::Github),
+            "gitlab" => Ok(Self::Gitlab),
+            "bitbucket" => Ok(Self::Bitbucket),
+            _ => Err(GitPlatformError(s.to_string())),
+        }
+    }
+}
+
+/// Error parsing a Git platform name.
+#[derive(Debug, Error)]
+#[error("`{0}` is not a valid git platform (expected `github`, `gitlab`, or `bitbucket`)")]
+pub struct GitPlatformError(String);
+
+/// A parsed `owner/repo` hosted Git shorthand.
+struct HostedGitShorthand {
+    /// The repository owner or organization.
+    owner: String,
+    /// The repository name.
+    repo: String,
+}
+
+impl FromStr for HostedGitShorthand {
+    type Err = HostedGitShorthandError;
+
+    fn from_str(source: &str) -> Result<Self, Self::Err> {
+        let mut parts = source.split('/');
+        let owner = parts.next().ok_or(HostedGitShorthandError)?;
+        let repo = parts.next().ok_or(HostedGitShorthandError)?;
+        if parts.next().is_some()
+            || owner.is_empty()
+            || repo.is_empty()
+            || source.starts_with('.')
+            || source.starts_with('/')
+            || owner == "."
+            || owner == ".."
+            || repo == "."
+            || repo == ".."
+        {
+            return Err(HostedGitShorthandError);
+        }
+        Ok(Self {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// An error parsing a hosted Git shorthand.
+struct HostedGitShorthandError;
 
 /// Dummy type used to generate the JSON schema for [`bytesize::ByteSize`]s.
 #[derive(Debug, JsonSchema)]
@@ -274,38 +369,104 @@ impl std::fmt::Display for LargeFileWarning {
     }
 }
 
+/// String-only representation used to generate the [`TransferLimit`] schema.
+#[derive(Debug, JsonSchema)]
+#[schemars(untagged, inline)]
+#[expect(dead_code, reason = "Only used for schema generation.")]
+enum TransferLimitSchema {
+    /// No transfer limit is enforced.
+    Unlimited(#[schemars(pattern(r"^[Uu][Nn][Ll][Ii][Mm][Ii][Tt][Ee][Dd]$"))] String),
+    /// A fetch receiving more than this many bytes is aborted.
+    Bytes(#[schemars(pattern(r"^\d+(?:\.\d+)?\s*(?:[KMGTPEkmgtpe][Ii]?[Bb]?|[Bb])$"))] String),
+}
+
+/// Maximum bytes accepted from a Git remote during one fetch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(with = "TransferLimitSchema")]
+pub enum TransferLimit {
+    /// No transfer limit is enforced.
+    Unlimited,
+    /// A fetch receiving more than this many bytes is aborted.
+    Bytes(u64),
+}
+
+impl Default for TransferLimit {
+    fn default() -> Self {
+        Self::Bytes(2 * 1024 * 1024 * 1024)
+    }
+}
+
+impl TransferLimit {
+    /// Returns the limit in bytes, or `None` when unlimited.
+    pub(crate) fn as_bytes(self) -> Option<u64> {
+        match self {
+            Self::Unlimited => None,
+            Self::Bytes(bytes) => Some(bytes),
+        }
+    }
+}
+
+impl FromStr for TransferLimit {
+    type Err = TransferLimitError;
+
+    fn from_str(source: &str) -> Result<Self, Self::Err> {
+        if source.eq_ignore_ascii_case("unlimited") {
+            return Ok(Self::Unlimited);
+        }
+        let bytes = source
+            .parse::<bytesize::ByteSize>()
+            .map_err(|_| TransferLimitError(source.to_string()))?
+            .as_u64();
+        Ok(Self::Bytes(bytes))
+    }
+}
+
+impl std::fmt::Display for TransferLimit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unlimited => formatter.write_str("unlimited"),
+            Self::Bytes(bytes) => write!(formatter, "{}", bytesize::ByteSize(*bytes)),
+        }
+    }
+}
+
+/// Error parsing a [`TransferLimit`] string.
+#[derive(Debug, Error)]
+#[error("`{0}` is not a valid transfer limit (expected e.g. `2GiB`, `500MB`, or `unlimited`)")]
+pub struct TransferLimitError(String);
+
 /// Error parsing a [`LargeFileWarning`] string.
 #[derive(Debug, Error)]
 #[error("`{0}` is not a valid file-size string (expected e.g. `1MiB`, `500KB`, or `none`)")]
 pub struct LargeFileWarningError(String);
 
-/// Trust-on-first-use (TOFU) policy for new signer keys.
+/// Policy for accepting signer keys.
 ///
 /// When the resolver encounters a signed module whose signer key is not
 /// yet recorded in the lockfile, this setting controls whether the key
-/// is accepted silently or requires explicit user confirmation. The
+/// may be accepted automatically or requires explicit user confirmation. The
 /// library computes a [`LockfileDiff`](super::lock::LockfileDiff) that
 /// flags new signers; the CLI is responsible for acting on the policy
 /// (e.g., prompting the user when `Confirm` is set).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "lowercase")]
-#[schemars(rename_all = "lowercase")]
+#[toml(Toml, rename_all = "kebab-case")]
+#[schemars(rename_all = "kebab-case")]
 pub enum TrustMode {
-    /// New signer keys are recorded in the lockfile without prompting.
-    /// This is the default and is suitable for non-interactive or
-    /// CI environments where manual confirmation is impractical.
+    /// Signer keys may be recorded without prompting when a caller
+    /// explicitly opts into automatic trust.
+    AutoAccept,
+    /// Signer keys may be recorded without prompting when a caller
+    /// explicitly opts into trusting first observed keys.
+    Tofu,
+    /// The CLI must prompt the user to confirm signer keys before
+    /// writing the lockfile.
     #[default]
-    Auto,
-    /// The CLI must prompt the user to confirm any newly-trusted signer
-    /// key before writing the lockfile. Intended for interactive use
-    /// where the user wants to review each new signer.
     Confirm,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolver::DependencyScope;
 
     #[test]
     fn parses_default_threshold_when_absent() {
@@ -314,6 +475,46 @@ mod tests {
             cfg.large_file_warning,
             LargeFileWarning::Threshold(b) if b == 1024 * 1024
         ));
+    }
+
+    #[test]
+    fn parses_default_git_platform() {
+        let cfg: ModulesConfig =
+            toml_spanner::from_str(r#"default_git_platform = "gitlab""#).unwrap();
+        assert_eq!(cfg.default_git_platform, GitPlatform::Gitlab);
+    }
+
+    #[test]
+    fn parses_trust_modes() {
+        let cfg: ModulesConfig = toml_spanner::from_str(r#"trust_mode = "confirm""#).unwrap();
+        assert_eq!(cfg.trust_mode, TrustMode::Confirm);
+
+        let cfg: ModulesConfig = toml_spanner::from_str(r#"trust_mode = "auto-accept""#).unwrap();
+        assert_eq!(cfg.trust_mode, TrustMode::AutoAccept);
+        assert!(toml_spanner::from_str::<ModulesConfig>(r#"trust_mode = "auto""#).is_err());
+
+        let cfg: ModulesConfig = toml_spanner::from_str(r#"trust_mode = "tofu""#).unwrap();
+        assert_eq!(cfg.trust_mode, TrustMode::Tofu);
+    }
+
+    #[test]
+    fn expands_hosted_git_shorthand() {
+        let url = GitPlatform::Bitbucket
+            .expand_shorthand("stjudecloud/workflows.git")
+            .and_then(Result::ok);
+        assert_eq!(
+            url.as_ref().map(url::Url::as_str),
+            Some("https://bitbucket.org/stjudecloud/workflows.git")
+        );
+        assert_eq!(
+            GitPlatform::shorthand_repo_name("stjudecloud/workflows.git").as_deref(),
+            Some("workflows")
+        );
+        assert!(
+            GitPlatform::Github
+                .expand_shorthand("./stjudecloud/workflows")
+                .is_none()
+        );
     }
 
     #[test]
@@ -342,67 +543,31 @@ mod tests {
     }
 
     #[test]
-    fn default_policy_denies_localhost_hosts() {
-        let cfg = ModulesConfig::default();
-        assert!(!cfg.host_allowed("localhost", DependencyScope::TopLevel));
-        assert!(!cfg.host_allowed("127.0.0.1", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("::1", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("0.0.0.0", DependencyScope::TopLevel));
-    }
-
-    #[test]
-    fn default_policy_denies_private_and_metadata_ips() {
-        let cfg = ModulesConfig::default();
-        let denied = [
-            "169.254.169.254",
-            "10.0.0.1",
-            "192.168.1.1",
-            "172.16.0.1",
-            "100.64.0.1",
-            "127.0.0.1",
-            "0.0.0.0",
-            "255.255.255.255",
-            "224.0.0.1",
-            "::1",
-            "::",
-            "fe80::1",
-            "fc00::1",
-            "ff02::1",
-            // IPv4-mapped IPv6
-            "::ffff:127.0.0.1",
-            "::ffff:169.254.169.254",
-            "::ffff:10.0.0.1",
-            "::ffff:192.168.1.1",
-        ];
-        for ip in denied {
-            for scope in [DependencyScope::TopLevel, DependencyScope::Transitive] {
-                assert!(
-                    !cfg.host_allowed(ip, scope),
-                    "`{ip}` should be denied for `{scope:?}`"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn default_policy_allows_public_hosts() {
-        let cfg = ModulesConfig::default();
-        assert!(cfg.host_allowed("github.com", DependencyScope::TopLevel));
-        assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
-        assert!(
-            cfg.host_allowed("::ffff:140.82.121.3", DependencyScope::TopLevel),
-            "public IPv4-mapped IPv6 should be allowed"
+    fn transfer_limit_round_trips() {
+        assert_eq!(
+            "unlimited".parse::<TransferLimit>().unwrap(),
+            TransferLimit::Unlimited
         );
+        assert_eq!(TransferLimit::Unlimited.as_bytes(), None);
+        assert_eq!(
+            "2GiB".parse::<TransferLimit>().unwrap(),
+            TransferLimit::Bytes(2_147_483_648)
+        );
+        assert_eq!(TransferLimit::default().to_string(), "2.0 GiB");
+        assert!("abc".parse::<TransferLimit>().is_err());
     }
 
     #[test]
-    fn allowlist_limits_transitive_hosts() {
-        let cfg = ModulesConfig {
-            allowed_transitive_hosts: vec!["github.com".into()],
-            ..ModulesConfig::default()
-        };
-        assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("gitlab.com", DependencyScope::Transitive));
-        assert!(cfg.host_allowed("gitlab.com", DependencyScope::TopLevel));
+    fn parses_transfer_limit_from_toml() {
+        let cfg: ModulesConfig = toml_spanner::from_str(r#"max_transfer_bytes = "2GiB""#).unwrap();
+        assert_eq!(cfg.max_transfer_bytes, TransferLimit::Bytes(2_147_483_648));
+
+        let cfg: ModulesConfig =
+            toml_spanner::from_str(r#"max_transfer_bytes = "UnLiMiTeD""#).unwrap();
+        assert_eq!(cfg.max_transfer_bytes, TransferLimit::Unlimited);
+
+        assert!(
+            toml_spanner::from_str::<ModulesConfig>("max_transfer_bytes = 2147483648").is_err()
+        );
     }
 }

@@ -3,10 +3,13 @@
 use std::path::Path;
 use std::time::Duration;
 
+use anyhow::Context;
 use anyhow::bail;
 use thirtyfour::By;
+use thirtyfour::Rect;
 use thirtyfour::WebDriver;
 use thirtyfour::WebElement;
+use thirtyfour::prelude::ElementQueryable;
 use thirtyfour::prelude::ElementWaitable;
 
 use crate::UiTest;
@@ -88,6 +91,123 @@ impl UiTest for ToggleTheme {
             );
         }
 
+        // The theme toggle is an icon-only button, so it must carry an
+        // accessible label.
+        let toggle_button = driver.find(By::Id("theme-toggle")).await?;
+        match toggle_button.attr("aria-label").await?.as_deref() {
+            Some("Switch theme") => {}
+            label => bail!(
+                "expected the theme toggle to have `aria-label=\"Switch theme\"`, found: {label:?}"
+            ),
+        }
+
+        // The decorative source-card icon-only copy button on a declaration
+        // page must be keyboard focusable.
+        let base = driver.current_url().await?;
+        let struct_page = base
+            .join("employee/Employee-struct.html")
+            .context("failed to build struct page url")?;
+        driver.goto(struct_page.as_str()).await?;
+
+        let copy = driver
+            .query(By::ClassName("source-card__copy"))
+            .wait(Duration::from_secs(10), Duration::from_millis(100))
+            .first()
+            .await?;
+        let info = driver
+            .execute(
+                r#"
+                const btn = document.querySelector('.source-card__copy');
+                if (!btn) return { found: false };
+                btn.focus();
+                return {
+                    found: true,
+                    tag: btn.tagName,
+                    tabIndex: btn.tabIndex,
+                    active: document.activeElement === btn,
+                    disabled: !!btn.disabled,
+                };
+                "#,
+                Vec::new(),
+            )
+            .await?;
+        let info = info.json();
+        if !info["found"].as_bool().unwrap_or(false) {
+            bail!("expected a `.source-card__copy` button on the struct page");
+        }
+        if info["tag"].as_str() != Some("BUTTON") {
+            bail!(
+                "expected the source copy control to be a `<button>`, found {:?}",
+                info["tag"]
+            );
+        }
+        if info["disabled"].as_bool().unwrap_or(true) {
+            bail!("expected the source copy control to be enabled");
+        }
+        if info["tabIndex"].as_i64().unwrap_or(-1) < 0 {
+            bail!(
+                "expected the source copy control to be in the tab order, tabIndex was {:?}",
+                info["tabIndex"]
+            );
+        }
+        if !info["active"].as_bool().unwrap_or(false) {
+            bail!("expected the source copy control to accept focus");
+        }
+        // Keep a reference to the copy button to silence unused warnings and to
+        // assert it is still attached after focusing.
+        drop(copy);
+
+        // The right rail must be visible above the responsive breakpoint
+        // (1280px) and hidden below it. Capture the original window rect so the
+        // shared browser window can be restored reliably for later tests.
+        let original_rect = driver.get_window_rect().await?;
+
+        driver.set_window_rect(0, 0, 1400, 900).await?;
+        if !right_rail_displayed(driver).await? {
+            restore_window(driver, &original_rect).await?;
+            bail!("expected the right rail to be visible above the responsive breakpoint");
+        }
+
+        driver.set_window_rect(0, 0, 1000, 900).await?;
+        if right_rail_displayed(driver).await? {
+            restore_window(driver, &original_rect).await?;
+            bail!("expected the right rail to be hidden below the responsive breakpoint");
+        }
+
+        // Restore the shared browser window so later tests are unaffected.
+        restore_window(driver, &original_rect).await?;
+
         Ok(())
     }
+}
+
+/// Returns whether the right rail is currently rendered (not `display: none`).
+async fn right_rail_displayed(driver: &WebDriver) -> anyhow::Result<bool> {
+    // Give the layout a moment to react to the window resize.
+    for _ in 0..20 {
+        let ret = driver
+            .execute(
+                r#"
+                const el = document.querySelector('.layout__main-rail');
+                if (!el) return null;
+                return getComputedStyle(el).display !== 'none' && el.offsetParent !== null;
+                "#,
+                Vec::new(),
+            )
+            .await?;
+        if let Some(displayed) = ret.json().as_bool() {
+            return Ok(displayed);
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    bail!("could not find the right rail element");
+}
+
+/// Restores the shared browser window to a previously captured rect so later
+/// tests are unaffected by this test's resizing.
+async fn restore_window(driver: &WebDriver, rect: &Rect) -> anyhow::Result<()> {
+    driver
+        .set_window_rect(rect.x, rect.y, rect.width as u32, rect.height as u32)
+        .await?;
+    Ok(())
 }

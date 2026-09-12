@@ -7,6 +7,8 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
+pub use index::IndexPath;
+pub use index::IndexPathError;
 pub use index::create_index_entries;
 pub use index::rebuild_index;
 pub use lock::FileSystemLock;
@@ -49,15 +51,25 @@ impl OutputDirectory {
     }
 
     /// Get the index directory for a given index path.
-    pub fn index_dir(&self, index_path: impl Into<PathBuf>) -> PathBuf {
-        self.0.join(INDEX_DIR).join(index_path.into())
+    pub fn index_dir(&self, index_path: &IndexPath) -> PathBuf {
+        self.0.join(INDEX_DIR).join(index_path.as_path())
     }
 
     /// Get the index directory and ensure it exists.
-    pub fn ensure_index_dir(&self, index_path: impl Into<PathBuf>) -> std::io::Result<PathBuf> {
+    pub fn ensure_index_dir(&self, index_path: &IndexPath) -> std::io::Result<PathBuf> {
         let path = self.index_dir(index_path);
         std::fs::create_dir_all(&path)?;
         Ok(path)
+    }
+
+    /// Resolves the root of the output directory to an absolute path with
+    /// symlinks resolved.
+    ///
+    /// The root may be relative (e.g. `./out`) while paths produced by the
+    /// engine are absolute; resolving the root allows the two to be compared
+    /// with [`make_relative_to`](Self::make_relative_to).
+    pub fn canonicalize(&self) -> std::io::Result<Self> {
+        Ok(Self(std::fs::canonicalize(&self.0)?))
     }
 
     /// Get the root directory.
@@ -201,13 +213,16 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let output_dir = OutputDirectory::new(temp.path());
 
-        let nested_index = "project/sample/results";
-        let index_path = output_dir.ensure_index_dir(nested_index).unwrap();
+        let nested_index: IndexPath = "project/sample/results".parse().unwrap();
+        let index_path = output_dir.ensure_index_dir(&nested_index).unwrap();
 
         // Should create `index/project/sample/results`
         assert!(index_path.exists());
         assert!(index_path.is_dir());
-        assert_eq!(index_path, temp.path().join("index").join(nested_index));
+        assert_eq!(
+            index_path,
+            temp.path().join("index").join(nested_index.as_path())
+        );
     }
 
     #[test]
@@ -223,8 +238,9 @@ mod tests {
         assert_eq!(path1, path2);
 
         // Call `ensure_index_dir` twice
-        let path3 = output_dir.ensure_index_dir("index-1").unwrap();
-        let path4 = output_dir.ensure_index_dir("index-1").unwrap();
+        let index_path: IndexPath = "index-1".parse().unwrap();
+        let path3 = output_dir.ensure_index_dir(&index_path).unwrap();
+        let path4 = output_dir.ensure_index_dir(&index_path).unwrap();
         assert_eq!(path3, path4);
     }
 
@@ -241,8 +257,8 @@ mod tests {
         assert!(emoji_path.exists());
 
         // Spaces in index name
-        let spaces_index = "my index path";
-        let spaces_path = output_dir.ensure_index_dir(spaces_index).unwrap();
+        let spaces_index: IndexPath = "my index path".parse().unwrap();
+        let spaces_path = output_dir.ensure_index_dir(&spaces_index).unwrap();
         assert!(spaces_path.exists());
     }
 

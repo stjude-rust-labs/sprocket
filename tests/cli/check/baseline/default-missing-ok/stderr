@@ -5,4 +5,3 @@ note[MetaSections]: workflow `test` is missing a `meta` section
   │          ^^^^ this workflow is missing a `meta` section
   │
   = fix: add the missing section
-

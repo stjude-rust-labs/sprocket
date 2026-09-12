@@ -53,7 +53,7 @@ error: conflicting call name `baz`
    │
 37 │     call baz.baz        # FIRST
    │              --- the call with the conflicting name is here
-38 │ 
+38 │
 39 │     call foo as baz     # NOT OK
    │                 ^^^ this call name conflicts with a previously used name
 
@@ -100,4 +100,3 @@ error: conflicting call name `ok`
    │          ^^ this call name conflicts with a previously used name
    │
    = fix: add an `as` clause to the call to specify a different name
-

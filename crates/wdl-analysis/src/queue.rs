@@ -61,6 +61,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::config::Config;
 use crate::document::Document;
+use crate::document::cache::AnalysisCache;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::EdgeKind;
@@ -727,7 +728,8 @@ where
                                         lines, diagnostics, ..
                                     } => {
                                         // If there are any diagnostics that are
-                                        // errors, we shouldn't attempt to format the
+                                        // errors, we shouldn't attempt to
+                                        // format the
                                         // document.
                                         if diagnostics
                                             .iter()
@@ -1187,9 +1189,10 @@ where
     ) -> Cancelable<Result<Vec<AnalysisResult>>> {
         // Analysis works by building a subgraph of what needs to be analyzed.
         // We start with the requested node or all roots. We then perform a
-        // breadth-first traversal maintaining the set of nodes that compromises the
-        // subgraph. At each step of the traversal, we reparse what has changed. The
-        // traversal is complete when no new nodes are added to the subgraph node set.
+        // breadth-first traversal maintaining the set of nodes that compromises
+        // the subgraph. At each step of the traversal, we reparse what
+        // has changed. The traversal is complete when no new nodes are
+        // added to the subgraph node set.
 
         let mut subgraph = {
             let graph = self.graph.read();
@@ -1224,7 +1227,8 @@ where
                 .get_range(offset..)
                 .expect("offset should be valid");
 
-            // If there's no more nodes to process, we're done building the subgraph
+            // If there's no more nodes to process, we're done building the
+            // subgraph
             if slice.is_empty() {
                 break;
             }
@@ -1273,7 +1277,8 @@ where
                 return Cancelable::Canceled;
             }
 
-            // Build a set of nodes with no incoming edges (i.e. no unanalyzed dependencies)
+            // Build a set of nodes with no incoming edges (i.e. no unanalyzed
+            // dependencies)
             set.clear();
             for node in subgraph.node_indices() {
                 if subgraph
@@ -1311,8 +1316,16 @@ where
                     let config = self.config.clone();
                     let validator = validator.clone();
                     handles.push(RayonHandle::spawn(move || {
+                        let existing_cache = { graph.write().get_mut(index).take_cache() };
+
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                            Self::analyze_node(
+                                &config,
+                                &graph.read(),
+                                index,
+                                existing_cache,
+                                &mut (validator)(),
+                            )
                         }));
 
                         let mut graph = graph.write();
@@ -1358,7 +1371,7 @@ where
             }));
         }
 
-        results.sort_by(|a, b| a.document().uri().cmp(b.document().uri()));
+        results.sort_by_key(|a| a.document().uri());
         Cancelable::Completed(Ok(results))
     }
 
@@ -1519,8 +1532,8 @@ where
     ) -> Result<(Vec<NodeIndex>, SymbolicWorkSet)> {
         // Handle parse completion and URI imports under graph.write(). Symbolic
         // imports are collected (and deduplicated by module identity plus
-        // symbolic path) for concurrent materialization outside the lock, so the
-        // write lock is held for as short a time as possible.
+        // symbolic path) for concurrent materialization outside the lock, so
+        // the write lock is held for as short a time as possible.
         let mut uri_import_modules: Vec<(Url, Arc<Module>)> = Vec::new();
         let (parsed_indices, symbolic_work): (Vec<NodeIndex>, SymbolicWorkSet) = {
             let mut graph = self.graph.write();
@@ -1604,28 +1617,32 @@ where
                                         None => continue,
                                     };
 
-                                    let symbolic_path: SymbolicPath =
-                                        match module_path.text().parse() {
-                                            Ok(path) => path,
-                                            Err(e) => {
-                                                // Record the syntax failure so the
-                                                // import surfaces a precise diagnostic
-                                                // instead of the generic "not in a
-                                                // module" message during analysis.
-                                                graph.insert_failed_symbolic_import(
-                                                    index,
-                                                    module_path.text().to_string(),
-                                                    e.to_string(),
-                                                );
-                                                continue;
-                                            }
-                                        };
+                                    let symbolic_path: SymbolicPath = match module_path
+                                        .text()
+                                        .parse()
+                                    {
+                                        Ok(path) => path,
+                                        Err(e) => {
+                                            // Record the syntax failure so the
+                                            // import surfaces a precise
+                                            // diagnostic
+                                            // instead of the generic "not in a
+                                            // module" message during analysis.
+                                            graph.insert_failed_symbolic_import(
+                                                index,
+                                                module_path.text().to_string(),
+                                                e.to_string(),
+                                            );
+                                            continue;
+                                        }
+                                    };
 
                                     // Collapse imports of the same dependency
                                     // from the same module into one
                                     // materialization, keyed on full module
                                     // identity plus the symbolic path, so each
-                                    // dependency is resolved once and the result
+                                    // dependency is resolved once and the
+                                    // result
                                     // fanned out to every importer.
                                     work.entry((consumer_module.id(), symbolic_path.clone()))
                                         .or_insert_with(|| MaterializeWork {
@@ -1675,9 +1692,10 @@ where
             count = unique_work.len(),
             "resolving symbolic imports concurrently",
         );
-        // SAFETY: symbolic work is only collected when a consumer module governs
-        // a document, which only happens when resolution is enabled with a
-        // resolver; a disabled context produces no work and returned above.
+        // SAFETY: symbolic work is only collected when a consumer module
+        // governs a document, which only happens when resolution is
+        // enabled with a resolver; a disabled context produces no work
+        // and returned above.
         let resolver = Arc::clone(self.resolver.as_ref().unwrap());
         let stream = futures::stream::iter(unique_work.into_values().map(|work| {
             let resolver = Arc::clone(&resolver);
@@ -1750,8 +1768,9 @@ where
 
                         // Ask the resolved file for the module that owns it,
                         // extending the consumer module captured during
-                        // collection. The queue does not reassemble module state
-                        // from the file's raw manifest and root itself.
+                        // collection. The queue does not reassemble module
+                        // state from the file's raw
+                        // manifest and root itself.
                         let import_module = materialized
                             .child_module(&consumer_module, symbolic_path.dep_name().clone());
 
@@ -1827,15 +1846,16 @@ where
     }
 
     /// Analyzes a node in the document graph.
+    #[tracing::instrument(name = "analysis", skip_all)]
     fn analyze_node(
         config: &Config,
-        graph: Arc<RwLock<DocumentGraph>>,
+        graph: &DocumentGraph,
         index: NodeIndex,
+        existing_cache: Option<Arc<AnalysisCache>>,
         validator: &mut crate::Validator,
     ) -> (NodeIndex, Document) {
         let start = Instant::now();
-        let graph = graph.read();
-        let mut document = Document::from_graph_node(config, &graph, index);
+        let mut document = Document::from_graph_node(config, graph, index, existing_cache);
 
         match &graph.get(index).parse_state() {
             ParseState::Parsed { diagnostics, .. }

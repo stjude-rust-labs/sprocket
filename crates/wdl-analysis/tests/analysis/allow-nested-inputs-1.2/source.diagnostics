@@ -3,4 +3,3 @@ warning: missing required call input `required` for task `my_task`
    │
 24 │     call my_task
    │          ^^^^^^^
-
