@@ -166,22 +166,21 @@ async fn real_main() -> CommandResult<()> {
     colored::control::set_override(colorize);
     let (writer, file_handle, indicatif_writers) =
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
+    let output = commands::output::CommandOutput::new(colorize);
 
     match cli.command {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args, config, writer).await,
-        Commands::Check(args) => commands::check::check(args, config, colorize).await,
+        Commands::Check(args) => commands::check::check(args, config, output).await,
         Commands::Completions(args) => {
             let mut cmd = Cli::command();
             commands::completions::completions(args, &mut cmd).await
         }
-        Commands::Config(args) => commands::config::config(args, config),
-        Commands::Explain(args) => commands::explain::explain(args),
-        Commands::Format(args) => commands::format::format(args, config, colorize).await,
-        Commands::Inputs(args) => commands::inputs::inputs(args, config, colorize).await,
-        Commands::Lint(args) => commands::check::lint(args, config, colorize).await,
-        Commands::Run(args) => {
-            commands::run::run(args, config, colorize, file_handle, writer).await
-        }
+        Commands::Config(args) => commands::config::config(args, config, output),
+        Commands::Explain(args) => commands::explain::explain(args, output),
+        Commands::Format(args) => commands::format::format(args, config, output).await,
+        Commands::Inputs(args) => commands::inputs::inputs(args, config, output).await,
+        Commands::Lint(args) => commands::check::lint(args, config, output).await,
+        Commands::Run(args) => commands::run::run(args, config, output, file_handle, writer).await,
         Commands::Validate(args) => commands::validate::validate(args, config, colorize).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, colorize).await
@@ -190,18 +189,13 @@ async fn real_main() -> CommandResult<()> {
             commands::lock::lock(args, config, colorize).await
         }
         Commands::Dev(commands::DevCommands::Module(command)) => {
-            commands::module::run(
-                command,
-                config,
-                commands::output::CommandOutput::new(colorize),
-            )
-            .await
+            commands::module::run(command, config, output).await
         }
         Commands::Dev(commands::DevCommands::Server(args)) => {
-            commands::server::server(args, config, colorize).await
+            commands::server::server(args, config, output).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args, config, colorize, indicatif_writers.stdout).await
+            commands::test::test(args, config, output, indicatif_writers.stdout).await
         }
     }
 }
