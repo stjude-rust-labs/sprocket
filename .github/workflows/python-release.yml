@@ -7,7 +7,6 @@ on:
   push:
     tags:
       - v*
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,7 +17,6 @@ env:
 
 jobs:
   linux:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -44,7 +42,6 @@ jobs:
           if-no-files-found: error
 
   musllinux:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -70,7 +67,6 @@ jobs:
           if-no-files-found: error
 
   windows:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
@@ -137,7 +133,6 @@ jobs:
           if-no-files-found: error
 
   macos:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
@@ -208,7 +203,6 @@ jobs:
           if-no-files-found: error
 
   sdist:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -229,7 +223,6 @@ jobs:
 
   wheel-smoke:
     name: Smoke test ${{ matrix.artifact }}
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [linux, windows, macos]
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -262,7 +255,6 @@ jobs:
 
   release:
     name: Release
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-24.04
     needs: [linux, musllinux, windows, macos, sdist, wheel-smoke]
     permissions:

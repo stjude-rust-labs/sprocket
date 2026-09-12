@@ -67,10 +67,6 @@ To publish a Python release:
    [Python release workflow](./.github/workflows/python-release.yml) publishes
    the matching Python distributions to PyPI.
 
-The workflow also supports manual publication runs. Run it only against a
-`v{VERSION}` tag whose version has not already been published. Every manual
-run builds the full distribution matrix and publishes it to PyPI.
-
 Create a GitHub environment named `pypi` before the first release. Require
 reviewers for deployments and restrict deployment tags to
 `v*`. Configure the PyPI trusted publisher with these values:
