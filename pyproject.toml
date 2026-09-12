@@ -33,6 +33,7 @@ docs = ["sphinx~=9.1", "sphinx_rtd_theme~=3.1", "myst-parser~=5.1"]
 module-name = "sprocket_bio._sprocket_bio"
 manifest-path = "crates/sprocket-py/Cargo.toml"
 python-source = "python"
+include = [{ path = "LICENSE-*", format = "sdist" }]
 
 [tool.pytest]
 strict = true
