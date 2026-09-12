@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lsp"
-version = "0.22.0"
+version = "0.23.0"
 description = "Language Server Protocol implementation for WDL"
 license.workspace = true
 rust-version.workspace = true
@@ -19,7 +19,7 @@ line-index = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sprocket-test-types = { path = "../sprocket-test-types", version = "0.1.0" }
+sprocket-test-types = { path = "../sprocket-test-types", version = "0.2.0" }
 struct-patch = { workspace = true, features = ["nesting"] }
 tokio = { workspace = true }
 tokio-util = { workspace = true, features = ["compat"] }
@@ -28,9 +28,9 @@ tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-wdl-analysis = { path = "../wdl-analysis", version = "0.25.0" }
-wdl-ast = { path = "../wdl-ast", version = "0.26.2" }
-wdl-lint = { path = "../wdl-lint", version = "0.27.0" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.26.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.27.0" }
+wdl-lint = { path = "../wdl-lint", version = "0.28.0" }
 
 [dev-dependencies]
 blake3 = { workspace = true }

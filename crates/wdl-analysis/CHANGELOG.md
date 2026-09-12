@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.26.0 - 2026-09-12
+
 #### Added
 
 * Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
