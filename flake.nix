@@ -54,7 +54,7 @@
 
         sprocket = pkgs.rustPlatform.buildRustPackage {
           pname = "sprocket";
-          version = cargoToml.package.version;
+          version = cargoToml.workspace.package.version;
 
           src = lib.cleanSourceWith {
             src = ./.;
