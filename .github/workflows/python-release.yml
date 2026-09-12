@@ -58,6 +58,7 @@ jobs:
           manylinux: auto
 
       - name: Upload wheels
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-linux-${{ matrix.platform.target }}
@@ -87,6 +88,7 @@ jobs:
           manylinux: musllinux_1_2
 
       - name: Upload wheels
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-musllinux-${{ matrix.platform.target }}
@@ -153,6 +155,7 @@ jobs:
           target: ${{ matrix.platform.target }}
 
       - name: Upload wheels
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-windows-${{ matrix.platform.target }}-py${{ matrix.platform.python_version }}
@@ -223,6 +226,7 @@ jobs:
           target: ${{ matrix.platform.target }}
 
       - name: Upload wheels
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-macos-${{ matrix.platform.target }}-py${{ matrix.platform.python_version }}
@@ -242,6 +246,7 @@ jobs:
           args: --sdist --out dist
 
       - name: Upload sdist
+        if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         uses: actions/upload-artifact@v6
         with:
           name: wheels-sdist
@@ -250,6 +255,8 @@ jobs:
 
   wheel-smoke:
     name: Smoke test ${{ matrix.artifact }}
+    # Smoke tests consume uploaded artifacts, so only run them when this workflow will publish.
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
     needs: [linux, windows, macos]
     runs-on: ${{ matrix.runner }}
     strategy:
