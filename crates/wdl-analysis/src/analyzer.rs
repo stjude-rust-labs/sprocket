@@ -928,6 +928,7 @@ where
     /// Get the call hierarchy for the symbol at the current position.
     pub async fn call_hierarchy(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -939,6 +940,7 @@ where
                 position,
                 encoding,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -998,6 +1000,7 @@ where
     /// Performs a "goto definition" for a symbol at the current position.
     pub async fn goto_definition(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -1009,6 +1012,7 @@ where
                 position,
                 encoding,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1028,6 +1032,7 @@ where
     /// Performs a `find references` for a symbol across all the documents.
     pub async fn find_all_references(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -1041,6 +1046,7 @@ where
                 encoding,
                 include_declaration,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1058,12 +1064,17 @@ where
     }
 
     /// Get all code lenses in a document.
-    pub async fn code_lens(&self, document: Url) -> Result<Option<Vec<CodeLens>>> {
+    pub async fn code_lens(
+        &self,
+        context: Context,
+        document: Url,
+    ) -> Result<Option<Vec<CodeLens>>> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::CodeLens(CodeLensRequest {
                 document,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1114,6 +1125,7 @@ where
     /// Performs a `hover` for a symbol at a given position in a document.
     pub async fn hover(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -1125,6 +1137,7 @@ where
                 position,
                 encoding,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1140,6 +1153,7 @@ where
     /// Renames a symbol at a given position across the workspace.
     pub async fn rename(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -1153,6 +1167,7 @@ where
                 encoding,
                 new_name,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1170,12 +1185,17 @@ where
     }
 
     /// Gets semantic tokens for a document
-    pub async fn semantic_tokens(&self, document: Url) -> Result<Option<SemanticTokensResult>> {
+    pub async fn semantic_tokens(
+        &self,
+        context: Context,
+        document: Url,
+    ) -> Result<Option<SemanticTokensResult>> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::SemanticTokens(SemanticTokenRequest {
                 document,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1241,6 +1261,7 @@ where
     /// Get the incoming calls for the symbol at the current position.
     pub async fn incoming_calls(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -1252,6 +1273,7 @@ where
                 position,
                 encoding,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1271,6 +1293,7 @@ where
     /// Get the outgoing calls for the symbol at the current position.
     pub async fn outgoing_calls(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -1282,6 +1305,7 @@ where
                 position,
                 encoding,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
@@ -1331,6 +1355,7 @@ where
     /// Requests inlay hints for a document.
     pub async fn inlay_hints(
         &self,
+        context: Context,
         document: Url,
         range: lsp_types::Range,
     ) -> Result<Option<Vec<InlayHint>>> {
@@ -1340,6 +1365,7 @@ where
                 document,
                 range,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
