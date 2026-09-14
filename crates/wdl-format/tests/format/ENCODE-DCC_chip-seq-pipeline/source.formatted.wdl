@@ -2464,7 +2464,7 @@ task align {
         then transpose([fastqs_R1, fastqs_R2])
         else transpose([fastqs_R1])
 
-    command <<<
+    command {
         set -e
 
         # check if pipeline dependencies can be found
@@ -2474,83 +2474,83 @@ task align {
           exit 3
         fi
         python3 $(which encode_task_merge_fastq.py) \
-            ~{write_tsv(tmp_fastqs)} \
-            ~{if paired_end then "--paired-end" else ""} \
-            ~{"--nth " + cpu}
+            ${write_tsv(tmp_fastqs)} \
+            ${if paired_end then "--paired-end" else ""} \
+            ${"--nth " + cpu}
 
-        if [ -z '~{trim_bp}' ]; then
+        if [ -z '${trim_bp}' ]; then
             SUFFIX=
         else
             SUFFIX=_trimmed
             python3 $(which encode_task_trim_fastq.py) \
                 R1/*.fastq.gz \
-                --trim-bp ~{trim_bp} \
+                --trim-bp ${trim_bp} \
                 --out-dir R1$SUFFIX
-            if [ '~{paired_end}' == 'true' ]; then
+            if [ '${paired_end}' == 'true' ]; then
                 python3 $(which encode_task_trim_fastq.py) \
                     R2/*.fastq.gz \
-                    --trim-bp ~{trim_bp} \
+                    --trim-bp ${trim_bp} \
                     --out-dir R2$SUFFIX
             fi
         fi
-        if [ '~{crop_length}' == '0' ]; then
+        if [ '${crop_length}' == '0' ]; then
             SUFFIX=$SUFFIX
         else
             NEW_SUFFIX="$SUFFIX"_cropped
             python3 $(which encode_task_trimmomatic.py) \
                 --fastq1 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end then "--fastq2 R2$SUFFIX/*.fastq.gz" else ""} \
-                ~{if paired_end then "--paired-end" else ""} \
-                --crop-length ~{crop_length} \
-                --crop-length-tol "~{crop_length_tol}" \
-                ~{"--phred-score-format " + trimmomatic_phred_score_format} \
+                ${if paired_end then "--fastq2 R2$SUFFIX/*.fastq.gz" else ""} \
+                ${if paired_end then "--paired-end" else ""} \
+                --crop-length ${crop_length} \
+                --crop-length-tol "${crop_length_tol}" \
+                ${"--phred-score-format " + trimmomatic_phred_score_format} \
                 --out-dir-R1 R1$NEW_SUFFIX \
-                ~{if paired_end then "--out-dir-R2 R2$NEW_SUFFIX" else ""} \
-                ~{"--trimmomatic-java-heap " + if defined(trimmomatic_java_heap)
+                ${if paired_end then "--out-dir-R2 R2$NEW_SUFFIX" else ""} \
+                ${"--trimmomatic-java-heap " + if defined(trimmomatic_java_heap)
                     then trimmomatic_java_heap
                     else (round(mem_gb * trimmomatic_java_heap_factor) + "G")} \
-                ~{"--nth " + cpu}
+                ${"--nth " + cpu}
             SUFFIX=$NEW_SUFFIX
         fi
 
-        if [ '~{aligner}' == 'bwa' ]; then
+        if [ '${aligner}' == 'bwa' ]; then
             python3 $(which encode_task_bwa.py) \
-                ~{idx_tar} \
+                ${idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
-                ~{if paired_end then "--paired-end" else ""} \
-                ~{if use_bwa_mem_for_pe then "--use-bwa-mem-for-pe" else ""} \
-                ~{"--bwa-mem-read-len-limit " + bwa_mem_read_len_limit} \
-                ~{"--mem-gb " + samtools_mem_gb} \
-                ~{"--nth " + cpu}
+                ${if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
+                ${if paired_end then "--paired-end" else ""} \
+                ${if use_bwa_mem_for_pe then "--use-bwa-mem-for-pe" else ""} \
+                ${"--bwa-mem-read-len-limit " + bwa_mem_read_len_limit} \
+                ${"--mem-gb " + samtools_mem_gb} \
+                ${"--nth " + cpu}
 
-        elif [ '~{aligner}' == 'bowtie2' ]; then
+        elif [ '${aligner}' == 'bowtie2' ]; then
             python3 $(which encode_task_bowtie2.py) \
-                ~{idx_tar} \
+                ${idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
-                ~{"--multimapping " + multimapping} \
-                ~{if paired_end then "--paired-end" else ""} \
-                ~{if use_bowtie2_local_mode then "--local" else ""} \
-                ~{"--mem-gb " + samtools_mem_gb} \
-                ~{"--nth " + cpu}
+                ${if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
+                ${"--multimapping " + multimapping} \
+                ${if paired_end then "--paired-end" else ""} \
+                ${if use_bowtie2_local_mode then "--local" else ""} \
+                ${"--mem-gb " + samtools_mem_gb} \
+                ${"--nth " + cpu}
         else
-            python3 ~{custom_align_py} \
-                ~{idx_tar} \
+            python3 ${custom_align_py} \
+                ${idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
-                ~{if paired_end then "--paired-end" else ""} \
-                ~{"--mem-gb " + samtools_mem_gb} \
-                ~{"--nth " + cpu}
+                ${if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
+                ${if paired_end then "--paired-end" else ""} \
+                ${"--mem-gb " + samtools_mem_gb} \
+                ${"--nth " + cpu}
         fi 
 
         python3 $(which encode_task_post_align.py) \
             R1$SUFFIX/*.fastq.gz $(ls *.bam) \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--mem-gb " + samtools_mem_gb} \
-            ~{"--nth " + cpu}
+            ${"--mito-chr-name " + mito_chr_name} \
+            ${"--mem-gb " + samtools_mem_gb} \
+            ${"--nth " + cpu}
         rm -rf R1 R2 R1$SUFFIX R2$SUFFIX
-    >>>
+    }
 
     output {
         File bam = glob("*.bam")[0]
@@ -2561,9 +2561,9 @@ task align {
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         preemptible: 0
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
@@ -2598,31 +2598,31 @@ task filter {
     Float samtools_mem_gb = 0.8 * mem_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_filter.py) \
-            ~{bam} \
-            ~{if paired_end then "--paired-end" else ""} \
+            ${bam} \
+            ${if paired_end then "--paired-end" else ""} \
             --multimapping 0 \
-            ~{"--dup-marker " + dup_marker} \
-            ~{"--mapq-thresh " + mapq_thresh} \
-            --filter-chrs ~{sep=" " filter_chrs} \
-            ~{"--chrsz " + chrsz} \
-            ~{if no_dup_removal then "--no-dup-removal" else ""} \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--mem-gb " + samtools_mem_gb} \
-            ~{"--nth " + cpu} \
-            ~{"--picard-java-heap " + if defined(picard_java_heap)
+            ${"--dup-marker " + dup_marker} \
+            ${"--mapq-thresh " + mapq_thresh} \
+            --filter-chrs ${sep=" " filter_chrs} \
+            ${"--chrsz " + chrsz} \
+            ${if no_dup_removal then "--no-dup-removal" else ""} \
+            ${"--mito-chr-name " + mito_chr_name} \
+            ${"--mem-gb " + samtools_mem_gb} \
+            ${"--nth " + cpu} \
+            ${"--picard-java-heap " + if defined(picard_java_heap)
                 then picard_java_heap
                 else (round(mem_gb * picard_java_heap_factor) + "G")}
 
-        if [ '~{redact_nodup_bam}' == 'true' ]; then
+        if [ '${redact_nodup_bam}' == 'true' ]; then
             python3 $(which encode_task_bam_to_pbam.py) \
                 $(ls *.bam) \
-                ~{"--ref-fa " + ref_fa} \
+                ${"--ref-fa " + ref_fa} \
                 '--delete-original-bam'
         fi
-    >>>
+    }
 
     output {
         File nodup_bam = glob("*.bam")[0]
@@ -2634,9 +2634,9 @@ task filter {
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2662,17 +2662,17 @@ task bam2ta {
     Float samtools_mem_gb = 0.8 * mem_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_bam2ta.py) \
-            ~{bam} \
+            ${bam} \
             --disable-tn5-shift \
-            ~{if paired_end then "--paired-end" else ""} \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--subsample " + subsample} \
-            ~{"--mem-gb " + samtools_mem_gb} \
-            ~{"--nth " + cpu}
-    >>>
+            ${if paired_end then "--paired-end" else ""} \
+            ${"--mito-chr-name " + mito_chr_name} \
+            ${"--subsample " + subsample} \
+            ${"--mem-gb " + samtools_mem_gb} \
+            ${"--nth " + cpu}
+    }
 
     output {
         File ta = glob("*.tagAlign.gz")[0]
@@ -2680,9 +2680,9 @@ task bam2ta {
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2703,13 +2703,13 @@ task spr {
     Float mem_gb = 4.0 + mem_factor * input_file_size_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_spr.py) \
-            ~{ta} \
-            ~{"--pseudoreplication-random-seed " + pseudoreplication_random_seed} \
-            ~{if paired_end then "--paired-end" else ""}
-    >>>
+            ${ta} \
+            ${"--pseudoreplication-random-seed " + pseudoreplication_random_seed} \
+            ${if paired_end then "--paired-end" else ""}
+    }
 
     output {
         File ta_pr1 = glob("*.pr1.tagAlign.gz")[0]
@@ -2718,9 +2718,9 @@ task spr {
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: 4
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2735,13 +2735,13 @@ task pool_ta {
         RuntimeEnvironment runtime_environment
     }
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_pool_ta.py) \
-            ~{sep=" " select_all(tas)} \
-            ~{"--prefix " + prefix} \
-            ~{"--col " + col}
-    >>>
+            ${sep=" " select_all(tas)} \
+            ${"--prefix " + prefix} \
+            ${"--col " + col}
+    }
 
     output {
         File ta_pooled = glob("*.tagAlign.gz")[0]
@@ -2780,19 +2780,19 @@ task xcor {
     Float mem_gb = 8.0 + mem_factor * input_file_size_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_xcor.py) \
-            ~{ta} \
-            ~{if paired_end then "--paired-end" else ""} \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--subsample " + subsample} \
-            ~{"--chip-seq-type " + chip_seq_type} \
-            ~{"--exclusion-range-min " + exclusion_range_min} \
-            ~{"--exclusion-range-max " + exclusion_range_max} \
-            ~{"--subsample " + subsample} \
-            ~{"--nth " + cpu}
-    >>>
+            ${ta} \
+            ${if paired_end then "--paired-end" else ""} \
+            ${"--mito-chr-name " + mito_chr_name} \
+            ${"--subsample " + subsample} \
+            ${"--chip-seq-type " + chip_seq_type} \
+            ${"--exclusion-range-min " + exclusion_range_min} \
+            ${"--exclusion-range-max " + exclusion_range_max} \
+            ${"--subsample " + subsample} \
+            ${"--nth " + cpu}
+    }
 
     output {
         File plot_pdf = glob("*.cc.plot.pdf")[0]
@@ -2804,9 +2804,9 @@ task xcor {
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2830,15 +2830,15 @@ task jsd {
     Float mem_gb = 5.0 + mem_factor * input_file_size_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_jsd.py) \
-            ~{sep=" " select_all(nodup_bams)} \
-            ~{if length(ctl_bams) > 0 then "--ctl-bam " + select_first(ctl_bams) else ""} \
-            ~{"--mapq-thresh " + mapq_thresh} \
-            ~{"--blacklist " + blacklist} \
-            ~{"--nth " + cpu}
-    >>>
+            ${sep=" " select_all(nodup_bams)} \
+            ${if length(ctl_bams) > 0 then "--ctl-bam " + select_first(ctl_bams) else ""} \
+            ${"--mapq-thresh " + mapq_thresh} \
+            ${"--blacklist " + blacklist} \
+            ${"--nth " + cpu}
+    }
 
     output {
         File plot = glob("*.png")[0]
@@ -2847,9 +2847,9 @@ task jsd {
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2870,18 +2870,18 @@ task choose_ctl {
         RuntimeEnvironment runtime_environment
     }
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_choose_ctl.py) \
-            --tas ~{sep=" " select_all(tas)} \
-            --ctl-tas ~{sep=" " select_all(ctl_tas)} \
-            ~{"--ta-pooled " + ta_pooled} \
-            ~{"--ctl-ta-pooled " + ctl_ta_pooled} \
-            ~{if always_use_pooled_ctl then "--always-use-pooled-ctl" else ""} \
-            ~{"--ctl-depth-ratio " + ctl_depth_ratio} \
-            ~{"--ctl-depth-limit " + ctl_depth_limit} \
-            ~{"--exp-ctl-depth-ratio-limit " + exp_ctl_depth_ratio_limit}
-    >>>
+            --tas ${sep=" " select_all(tas)} \
+            --ctl-tas ${sep=" " select_all(ctl_tas)} \
+            ${"--ta-pooled " + ta_pooled} \
+            ${"--ctl-ta-pooled " + ctl_ta_pooled} \
+            ${if always_use_pooled_ctl then "--always-use-pooled-ctl" else ""} \
+            ${"--ctl-depth-ratio " + ctl_depth_ratio} \
+            ${"--ctl-depth-limit " + ctl_depth_limit} \
+            ${"--exp-ctl-depth-ratio-limit " + exp_ctl_depth_ratio_limit}
+    }
 
     output {
         File chosen_ctl_id_tsv = glob("chosen_ctl.tsv")[0]
@@ -2912,13 +2912,13 @@ task count_signal_track {
 
     Float mem_gb = 8.0
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_count_signal_track.py) \
-            ~{ta} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--mem-gb " + mem_gb}
-    >>>
+            ${ta} \
+            ${"--chrsz " + chrsz} \
+            ${"--mem-gb " + mem_gb}
+    }
 
     output {
         File pos_bw = glob("*.positive.bigwig")[0]
@@ -2927,7 +2927,7 @@ task count_signal_track {
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: 4
         disks: "local-disk 50 SSD"
         docker: runtime_environment.docker
@@ -2950,12 +2950,12 @@ task subsample_ctl {
     Float mem_gb = 4.0 + mem_factor * input_file_size_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         python3 $(which encode_task_subsample_ctl.py) \
-            ~{ta} \
-            ~{"--subsample " + subsample} \
-            ~{if paired_end then "--paired-end" else ""} \
-    >>>
+            ${ta} \
+            ${"--subsample " + subsample} \
+            ${if paired_end then "--paired-end" else ""} \
+    }
 
     output {
         File ta_subsampled = glob("*.tagAlign.gz")[0]
@@ -2963,9 +2963,9 @@ task subsample_ctl {
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: 4
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2997,38 +2997,38 @@ task call_peak {
     Float mem_gb = 4.0 + mem_factor * input_file_size_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         set -e
 
-        if [ '~{peak_caller}' == 'macs2' ]; then
+        if [ '${peak_caller}' == 'macs2' ]; then
             python3 $(which encode_task_macs2_chip.py) \
-                ~{sep=" " select_all(tas)} \
-                ~{"--gensz " + gensz} \
-                ~{"--chrsz " + chrsz} \
-                ~{"--fraglen " + fraglen} \
-                ~{"--cap-num-peak " + cap_num_peak} \
-                ~{"--pval-thresh " + pval_thresh} \
-                ~{"--mem-gb " + mem_gb}
+                ${sep=" " select_all(tas)} \
+                ${"--gensz " + gensz} \
+                ${"--chrsz " + chrsz} \
+                ${"--fraglen " + fraglen} \
+                ${"--cap-num-peak " + cap_num_peak} \
+                ${"--pval-thresh " + pval_thresh} \
+                ${"--mem-gb " + mem_gb}
 
-        elif [ '~{peak_caller}' == 'spp' ]; then
+        elif [ '${peak_caller}' == 'spp' ]; then
             python3 $(which encode_task_spp.py) \
-                ~{sep=" " select_all(tas)} \
-                ~{"--chrsz " + chrsz} \
-                ~{"--fraglen " + fraglen} \
-                ~{"--cap-num-peak " + cap_num_peak} \
-                ~{"--fdr-thresh " + fdr_thresh} \
-                ~{"--nth " + cpu}
+                ${sep=" " select_all(tas)} \
+                ${"--chrsz " + chrsz} \
+                ${"--fraglen " + fraglen} \
+                ${"--cap-num-peak " + cap_num_peak} \
+                ${"--fdr-thresh " + fdr_thresh} \
+                ${"--nth " + cpu}
         fi
 
         python3 $(which encode_task_post_call_peak_chip.py) \
             $(ls *Peak.gz) \
-            ~{"--ta " + tas[0]} \
-            ~{"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--peak-type " + peak_type} \
-            ~{"--blacklist " + blacklist}        
-    >>>
+            ${"--ta " + tas[0]} \
+            ${"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
+            ${"--chrsz " + chrsz} \
+            ${"--fraglen " + fraglen} \
+            ${"--peak-type " + peak_type} \
+            ${"--blacklist " + blacklist}        
+    }
 
     output {
         File peak = glob("*[!.][!b][!f][!i][!l][!t]." + peak_type + ".gz")[0]
@@ -3046,9 +3046,9 @@ task call_peak {
 
     runtime {
         cpu: if peak_caller == "macs2" then 2 else cpu
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         preemptible: 0
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
@@ -3074,16 +3074,16 @@ task macs2_signal_track {
     Float mem_gb = 4.0 + mem_factor * input_file_size_gb
     Int disk_gb = round(20.0 + disk_factor * input_file_size_gb)
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_macs2_signal_track_chip.py) \
-            ~{sep=" " select_all(tas)} \
-            ~{"--gensz " + gensz} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--pval-thresh " + pval_thresh} \
-            ~{"--mem-gb " + mem_gb}
-    >>>
+            ${sep=" " select_all(tas)} \
+            ${"--gensz " + gensz} \
+            ${"--chrsz " + chrsz} \
+            ${"--fraglen " + fraglen} \
+            ${"--pval-thresh " + pval_thresh} \
+            ${"--mem-gb " + mem_gb}
+    }
 
     output {
         File pval_bw = glob("*.pval.signal.bigwig")[0]
@@ -3092,9 +3092,9 @@ task macs2_signal_track {
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: "local-disk ${disk_gb} SSD"
         preemptible: 0
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
@@ -3120,22 +3120,22 @@ task idr {
         RuntimeEnvironment runtime_environment
     }
 
-    command <<<
+    command {
         set -e
-        ~{if defined(ta) then "" else "touch null.frip.qc"}
+        ${if defined(ta) then "" else "touch null.frip.qc"}
         touch null 
         python3 $(which encode_task_idr.py) \
-            ~{peak1} ~{peak2} ~{peak_pooled} \
-            ~{"--prefix " + prefix} \
-            ~{"--idr-thresh " + idr_thresh} \
-            ~{"--peak-type " + peak_type} \
-            --idr-rank ~{rank} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--blacklist " + blacklist} \
-            ~{"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
-            ~{"--ta " + ta}
-    >>>
+            ${peak1} ${peak2} ${peak_pooled} \
+            ${"--prefix " + prefix} \
+            ${"--idr-thresh " + idr_thresh} \
+            ${"--peak-type " + peak_type} \
+            --idr-rank ${rank} \
+            ${"--fraglen " + fraglen} \
+            ${"--chrsz " + chrsz} \
+            ${"--blacklist " + blacklist} \
+            ${"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
+            ${"--ta " + ta}
+    }
 
     output {
         File idr_peak = glob("*[!.][!b][!f][!i][!l][!t]." + peak_type + ".gz")[0]
@@ -3177,21 +3177,21 @@ task overlap {
         RuntimeEnvironment runtime_environment
     }
 
-    command <<<
+    command {
         set -e
-        ~{if defined(ta) then "" else "touch null.frip.qc"}
+        ${if defined(ta) then "" else "touch null.frip.qc"}
         touch null 
         python3 $(which encode_task_overlap.py) \
-            ~{peak1} ~{peak2} ~{peak_pooled} \
-            ~{"--prefix " + prefix} \
-            ~{"--peak-type " + peak_type} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--blacklist " + blacklist} \
+            ${peak1} ${peak2} ${peak_pooled} \
+            ${"--prefix " + prefix} \
+            ${"--peak-type " + peak_type} \
+            ${"--fraglen " + fraglen} \
+            ${"--chrsz " + chrsz} \
+            ${"--blacklist " + blacklist} \
             --nonamecheck \
-            ~{"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
-            ~{"--ta " + ta}
-    >>>
+            ${"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
+            ${"--ta " + ta}
+    }
 
     output {
         File overlap_peak = glob("*[!.][!b][!f][!i][!l][!t]." + peak_type + ".gz")[0]
@@ -3229,16 +3229,16 @@ task reproducibility {
         RuntimeEnvironment runtime_environment
     }
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_reproducibility.py) \
-            ~{sep=" " peaks} \
-            --peaks-pr ~{sep=" " peaks_pr} \
-            ~{"--peak-ppr " + peak_ppr} \
-            --prefix ~{prefix} \
-            ~{"--peak-type " + peak_type} \
-            ~{"--chrsz " + chrsz}
-    >>>
+            ${sep=" " peaks} \
+            --peaks-pr ${sep=" " peaks_pr} \
+            ${"--peak-ppr " + peak_ppr} \
+            --prefix ${prefix} \
+            ${"--peak-type " + peak_type} \
+            ${"--chrsz " + chrsz}
+    }
 
     output {
         File optimal_peak = glob("*optimal_peak.*.gz")[0]
@@ -3282,15 +3282,15 @@ task gc_bias {
     Float mem_gb = 4.0 + mem_factor * input_file_size_gb
     Float picard_java_heap_factor = 0.9
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_gc_bias.py) \
-            ~{"--nodup-bam " + nodup_bam} \
-            ~{"--ref-fa " + ref_fa} \
-            ~{"--picard-java-heap " + if defined(picard_java_heap)
+            ${"--nodup-bam " + nodup_bam} \
+            ${"--ref-fa " + ref_fa} \
+            ${"--picard-java-heap " + if defined(picard_java_heap)
                 then picard_java_heap
                 else (round(mem_gb * picard_java_heap_factor) + "G")}
-    >>>
+    }
 
     output {
         File gc_plot = glob("*.gc_plot.png")[0]
@@ -3299,7 +3299,7 @@ task gc_bias {
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: "${mem_gb} GB"
         time: 6
         disks: "local-disk 250 SSD"
         docker: runtime_environment.docker
@@ -3372,69 +3372,69 @@ task qc_report {
         RuntimeEnvironment runtime_environment
     }
 
-    command <<<
+    command {
         set -e
         python3 $(which encode_task_qc_report.py) \
             --pipeline-prefix chip \
-            ~{"--pipeline-ver " + pipeline_ver} \
-            ~{"--title '" + sub(title, "'", "_") + "'"} \
-            ~{"--desc '" + sub(description, "'", "_") + "'"} \
-            ~{"--genome " + genome} \
-            ~{"--multimapping " + 0} \
-            --paired-ends ~{sep=" " paired_ends} \
-            --ctl-paired-ends ~{sep=" " ctl_paired_ends} \
-            --pipeline-type ~{pipeline_type} \
-            --aligner ~{aligner} \
-            ~{if (no_dup_removal) then "--no-dup-removal " else ""} \
-            --peak-caller ~{peak_caller} \
-            ~{"--cap-num-peak " + cap_num_peak} \
-            --idr-thresh ~{idr_thresh} \
-            --pval-thresh ~{pval_thresh} \
-            --xcor-trim-bp ~{xcor_trim_bp} \
-            --xcor-subsample-reads ~{xcor_subsample_reads} \
-            --samstat-qcs ~{sep="_:_" samstat_qcs} \
-            --nodup-samstat-qcs ~{sep="_:_" nodup_samstat_qcs} \
-            --dup-qcs ~{sep="_:_" dup_qcs} \
-            --lib-complexity-qcs ~{sep="_:_" lib_complexity_qcs} \
-            --xcor-plots ~{sep="_:_" xcor_plots} \
-            --xcor-scores ~{sep="_:_" xcor_scores} \
-            --idr-plots ~{sep="_:_" idr_plots} \
-            --idr-plots-pr ~{sep="_:_" idr_plots_pr} \
-            --ctl-samstat-qcs ~{sep="_:_" ctl_samstat_qcs} \
-            --ctl-nodup-samstat-qcs ~{sep="_:_" ctl_nodup_samstat_qcs} \
-            --ctl-dup-qcs ~{sep="_:_" ctl_dup_qcs} \
-            --ctl-lib-complexity-qcs ~{sep="_:_" ctl_lib_complexity_qcs} \
-            ~{"--jsd-plot " + jsd_plot} \
-            --jsd-qcs ~{sep="_:_" jsd_qcs} \
-            ~{"--idr-plot-ppr " + idr_plot_ppr} \
-            --frip-qcs ~{sep="_:_" frip_qcs} \
-            --frip-qcs-pr1 ~{sep="_:_" frip_qcs_pr1} \
-            --frip-qcs-pr2 ~{sep="_:_" frip_qcs_pr2} \
-            ~{"--frip-qc-pooled " + frip_qc_pooled} \
-            ~{"--frip-qc-ppr1 " + frip_qc_ppr1} \
-            ~{"--frip-qc-ppr2 " + frip_qc_ppr2} \
-            --frip-idr-qcs ~{sep="_:_" frip_idr_qcs} \
-            --frip-idr-qcs-pr ~{sep="_:_" frip_idr_qcs_pr} \
-            ~{"--frip-idr-qc-ppr " + frip_idr_qc_ppr} \
-            --frip-overlap-qcs ~{sep="_:_" frip_overlap_qcs} \
-            --frip-overlap-qcs-pr ~{sep="_:_" frip_overlap_qcs_pr} \
-            ~{"--frip-overlap-qc-ppr " + frip_overlap_qc_ppr} \
-            ~{"--idr-reproducibility-qc " + idr_reproducibility_qc} \
-            ~{"--overlap-reproducibility-qc " + overlap_reproducibility_qc} \
-            --gc-plots ~{sep="_:_" gc_plots} \
-            --peak-region-size-qcs ~{sep="_:_" peak_region_size_qcs} \
-            --peak-region-size-plots ~{sep="_:_" peak_region_size_plots} \
-            --num-peak-qcs ~{sep="_:_" num_peak_qcs} \
-            ~{"--idr-opt-peak-region-size-qc " + idr_opt_peak_region_size_qc} \
-            ~{"--idr-opt-peak-region-size-plot " + idr_opt_peak_region_size_plot} \
-            ~{"--idr-opt-num-peak-qc " + idr_opt_num_peak_qc} \
-            ~{"--overlap-opt-peak-region-size-qc " + overlap_opt_peak_region_size_qc} \
-            ~{"--overlap-opt-peak-region-size-plot " + overlap_opt_peak_region_size_plot} \
-            ~{"--overlap-opt-num-peak-qc " + overlap_opt_num_peak_qc} \
+            ${"--pipeline-ver " + pipeline_ver} \
+            ${"--title '" + sub(title, "'", "_") + "'"} \
+            ${"--desc '" + sub(description, "'", "_") + "'"} \
+            ${"--genome " + genome} \
+            ${"--multimapping " + 0} \
+            --paired-ends ${sep=" " paired_ends} \
+            --ctl-paired-ends ${sep=" " ctl_paired_ends} \
+            --pipeline-type ${pipeline_type} \
+            --aligner ${aligner} \
+            ${if (no_dup_removal) then "--no-dup-removal " else ""} \
+            --peak-caller ${peak_caller} \
+            ${"--cap-num-peak " + cap_num_peak} \
+            --idr-thresh ${idr_thresh} \
+            --pval-thresh ${pval_thresh} \
+            --xcor-trim-bp ${xcor_trim_bp} \
+            --xcor-subsample-reads ${xcor_subsample_reads} \
+            --samstat-qcs ${sep="_:_" samstat_qcs} \
+            --nodup-samstat-qcs ${sep="_:_" nodup_samstat_qcs} \
+            --dup-qcs ${sep="_:_" dup_qcs} \
+            --lib-complexity-qcs ${sep="_:_" lib_complexity_qcs} \
+            --xcor-plots ${sep="_:_" xcor_plots} \
+            --xcor-scores ${sep="_:_" xcor_scores} \
+            --idr-plots ${sep="_:_" idr_plots} \
+            --idr-plots-pr ${sep="_:_" idr_plots_pr} \
+            --ctl-samstat-qcs ${sep="_:_" ctl_samstat_qcs} \
+            --ctl-nodup-samstat-qcs ${sep="_:_" ctl_nodup_samstat_qcs} \
+            --ctl-dup-qcs ${sep="_:_" ctl_dup_qcs} \
+            --ctl-lib-complexity-qcs ${sep="_:_" ctl_lib_complexity_qcs} \
+            ${"--jsd-plot " + jsd_plot} \
+            --jsd-qcs ${sep="_:_" jsd_qcs} \
+            ${"--idr-plot-ppr " + idr_plot_ppr} \
+            --frip-qcs ${sep="_:_" frip_qcs} \
+            --frip-qcs-pr1 ${sep="_:_" frip_qcs_pr1} \
+            --frip-qcs-pr2 ${sep="_:_" frip_qcs_pr2} \
+            ${"--frip-qc-pooled " + frip_qc_pooled} \
+            ${"--frip-qc-ppr1 " + frip_qc_ppr1} \
+            ${"--frip-qc-ppr2 " + frip_qc_ppr2} \
+            --frip-idr-qcs ${sep="_:_" frip_idr_qcs} \
+            --frip-idr-qcs-pr ${sep="_:_" frip_idr_qcs_pr} \
+            ${"--frip-idr-qc-ppr " + frip_idr_qc_ppr} \
+            --frip-overlap-qcs ${sep="_:_" frip_overlap_qcs} \
+            --frip-overlap-qcs-pr ${sep="_:_" frip_overlap_qcs_pr} \
+            ${"--frip-overlap-qc-ppr " + frip_overlap_qc_ppr} \
+            ${"--idr-reproducibility-qc " + idr_reproducibility_qc} \
+            ${"--overlap-reproducibility-qc " + overlap_reproducibility_qc} \
+            --gc-plots ${sep="_:_" gc_plots} \
+            --peak-region-size-qcs ${sep="_:_" peak_region_size_qcs} \
+            --peak-region-size-plots ${sep="_:_" peak_region_size_plots} \
+            --num-peak-qcs ${sep="_:_" num_peak_qcs} \
+            ${"--idr-opt-peak-region-size-qc " + idr_opt_peak_region_size_qc} \
+            ${"--idr-opt-peak-region-size-plot " + idr_opt_peak_region_size_plot} \
+            ${"--idr-opt-num-peak-qc " + idr_opt_num_peak_qc} \
+            ${"--overlap-opt-peak-region-size-qc " + overlap_opt_peak_region_size_qc} \
+            ${"--overlap-opt-peak-region-size-plot " + overlap_opt_peak_region_size_plot} \
+            ${"--overlap-opt-num-peak-qc " + overlap_opt_num_peak_qc} \
             --out-qc-html qc.html \
             --out-qc-json qc.json \
-            ~{"--qc-json-ref " + qc_json_ref}
-    >>>
+            ${"--qc-json-ref " + qc_json_ref}
+    }
 
     output {
         File report = glob("*qc.html")[0]
@@ -3557,13 +3557,13 @@ task raise_exception {
         RuntimeEnvironment runtime_environment
     }
 
-    command <<<
-        echo -e "\n* Error: ~{msg}\n" >&2
+    command {
+        echo -e "\n* Error: ${msg}\n" >&2
         exit 2
-    >>>
+    }
 
     output {
-        String error_msg = "~{msg}"
+        String error_msg = "${msg}"
     }
 
     runtime {

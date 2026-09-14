@@ -27,6 +27,11 @@ fn trailing_commas_default() -> bool {
     true
 }
 
+/// Default for whether to upgrade deprecations.
+fn upgrade_deprecations_default() -> bool {
+    false
+}
+
 /// Configuration for formatting.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, deny_unknown_fields)]
@@ -51,6 +56,14 @@ pub struct Config {
     #[toml(default = trailing_commas_default())]
     #[schemars(default = "trailing_commas_default")]
     pub trailing_commas: bool,
+    /// Whether to eagerly upgrade deprecated WDL constructs.
+    ///
+    /// Currently this includes changing curly brace command sections (`{}`)
+    /// into heredoc command sections (`<<<>>>>`) and changing dollar-style
+    /// placeholders (`${}`) into tilde-style placeholders (`~{}`).
+    #[toml(default = upgrade_deprecations_default())]
+    #[schemars(default = "upgrade_deprecations_default")]
+    pub upgrade_deprecations: bool,
     /// The newline style.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
@@ -65,6 +78,7 @@ impl Default for Config {
             sort_imports: sort_imports_default(),
             sort_inputs: sort_inputs_default(),
             trailing_commas: trailing_commas_default(),
+            upgrade_deprecations: upgrade_deprecations_default(),
             newline_style: NewlineStyle::default(),
         }
     }
@@ -104,6 +118,12 @@ impl Config {
     /// Set whether trailing commas are enabled.
     pub fn trailing_commas(mut self, trailing_commas: bool) -> Self {
         self.trailing_commas = trailing_commas;
+        self
+    }
+
+    /// Set whether to upgrade deprecations.
+    pub fn upgrade_deprecations(mut self, upgrade_deprecations: bool) -> Self {
+        self.upgrade_deprecations = upgrade_deprecations;
         self
     }
 }

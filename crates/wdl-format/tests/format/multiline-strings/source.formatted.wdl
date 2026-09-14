@@ -4,6 +4,6 @@ version 1.3
 
 workflow test {
     String x = <<<
-    ~{"foobar"}
+    ${"foobar"}
     >>>
 }
