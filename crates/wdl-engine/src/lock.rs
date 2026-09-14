@@ -161,7 +161,7 @@ impl Write for LockedFile {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use tempfile::NamedTempFile;
 
     use super::*;

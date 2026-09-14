@@ -26,6 +26,7 @@ globset = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 libc = { workspace = true }
+lru = { workspace = true }
 nonempty = { workspace = true }
 num_enum = { workspace = true }
 ordered-float = { workspace = true }

@@ -4,6 +4,7 @@ use wdl_ast::SyntaxKind;
 
 use crate::Config;
 use crate::PreToken;
+use crate::SPACE;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
@@ -56,8 +57,7 @@ pub fn format_import_members(
     let open_brace = children.next().expect("import member open brace");
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (open_brace).write(stream, config);
-    stream.increment_indent();
-    stream.end_line();
+    stream.fit_or_split_start(SPACE.to_string().into(), SPACE.to_string().into(), true);
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -79,6 +79,7 @@ pub fn format_import_members(
 
     let mut items = items.iter().peekable();
     let mut commas = commas.iter();
+    let mut trailing_comma_inserted = false;
     while let Some(item) = items.next() {
         (&item).write(stream, config);
         if let Some(comma) = commas.next()
@@ -86,15 +87,22 @@ pub fn format_import_members(
         {
             (comma).write(stream, config);
             if items.peek().is_some() {
-                stream.end_line();
+                stream.potential_split();
+            } else {
+                trailing_comma_inserted = true;
             }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
     }
 
-    stream.decrement_indent();
-    stream.end_line();
+    stream.fit_or_split_end(
+        SPACE.to_string().into(),
+        if trailing_comma_inserted || !config.trailing_commas {
+            "".to_string().into()
+        } else {
+            ",".to_string().into()
+        },
+        true,
+    );
     (&close_brace.expect("import members close brace")).write(stream, config);
 }
 

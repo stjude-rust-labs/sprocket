@@ -61,6 +61,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::config::Config;
 use crate::document::Document;
+use crate::document::cache::AnalysisCache;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::EdgeKind;
@@ -1315,8 +1316,16 @@ where
                     let config = self.config.clone();
                     let validator = validator.clone();
                     handles.push(RayonHandle::spawn(move || {
+                        let existing_cache = { graph.write().get_mut(index).take_cache() };
+
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                            Self::analyze_node(
+                                &config,
+                                &graph.read(),
+                                index,
+                                existing_cache,
+                                &mut (validator)(),
+                            )
                         }));
 
                         let mut graph = graph.write();
@@ -1362,7 +1371,7 @@ where
             }));
         }
 
-        results.sort_by(|a, b| a.document().uri().cmp(b.document().uri()));
+        results.sort_by_key(|a| a.document().uri());
         Cancelable::Completed(Ok(results))
     }
 
@@ -1837,15 +1846,16 @@ where
     }
 
     /// Analyzes a node in the document graph.
+    #[tracing::instrument(name = "analysis", skip_all)]
     fn analyze_node(
         config: &Config,
-        graph: Arc<RwLock<DocumentGraph>>,
+        graph: &DocumentGraph,
         index: NodeIndex,
+        existing_cache: Option<Arc<AnalysisCache>>,
         validator: &mut crate::Validator,
     ) -> (NodeIndex, Document) {
         let start = Instant::now();
-        let graph = graph.read();
-        let mut document = Document::from_graph_node(config, &graph, index);
+        let mut document = Document::from_graph_node(config, graph, index, existing_cache);
 
         match &graph.get(index).parse_state() {
             ParseState::Parsed { diagnostics, .. }

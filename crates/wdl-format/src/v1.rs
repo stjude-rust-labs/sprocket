@@ -325,9 +325,8 @@ pub fn format_literal_input_item(
         }
     }
 
-    let hints_node = children.next().expect("literal input item hints node");
-    assert_eq!(hints_node.element().kind(), SyntaxKind::LiteralHintsNode);
-    (&hints_node).write(stream, config);
+    let value = children.next().expect("literal input item value");
+    (&value).write(stream, config);
 }
 
 /// Formats a [`LiteralInput`](wdl_ast::v1::LiteralInput).

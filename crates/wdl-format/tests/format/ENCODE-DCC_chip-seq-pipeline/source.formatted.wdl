@@ -1043,10 +1043,7 @@ workflow chip {
             runtime_environment = runtime_environment,
         }
     }
-    File ref_fa_ = select_first([
-        ref_fa,
-        read_genome_tsv.ref_fa,
-    ])
+    File ref_fa_ = select_first([ref_fa, read_genome_tsv.ref_fa])
     File? bwa_idx_tar_ = if defined(bwa_idx_tar)
         then bwa_idx_tar
         else read_genome_tsv.bwa_idx_tar
@@ -1054,14 +1051,8 @@ workflow chip {
         bowtie2_idx_tar,
         read_genome_tsv.bowtie2_idx_tar,
     ])
-    File chrsz_ = select_first([
-        chrsz,
-        read_genome_tsv.chrsz,
-    ])
-    String gensz_ = select_first([
-        gensz,
-        read_genome_tsv.gensz,
-    ])
+    File chrsz_ = select_first([chrsz, read_genome_tsv.chrsz])
+    String gensz_ = select_first([gensz, read_genome_tsv.gensz])
     File? blacklist1_ = if defined(blacklist)
         then blacklist
         else read_genome_tsv.blacklist
@@ -1071,10 +1062,7 @@ workflow chip {
     # merge multiple blacklists
     # two blacklists can have different number of columns (3 vs 6)
     # so we limit merged blacklist's columns to 3
-    Array[File] blacklists = select_all([
-        blacklist1_,
-        blacklist2_,
-    ])
+    Array[File] blacklists = select_all([blacklist1_, blacklist2_])
     if (length(blacklists) > 1) {
         call pool_ta as pool_blacklist { input:
             tas = blacklists,
@@ -1087,10 +1075,7 @@ workflow chip {
         else if length(blacklists) > 0
         then blacklists[0]
         else blacklist2_
-    String mito_chr_name_ = select_first([
-        mito_chr_name,
-        read_genome_tsv.mito_chr_name,
-    ])
+    String mito_chr_name_ = select_first([mito_chr_name, read_genome_tsv.mito_chr_name])
     String regex_bfilt_peak_chr_name_ = select_first([
         regex_bfilt_peak_chr_name,
         read_genome_tsv.regex_bfilt_peak_chr_name,
@@ -1102,21 +1087,11 @@ workflow chip {
     ])
 
     ### temp vars (do not define these)
-    String aligner_ = if defined(custom_align_py)
-        then "custom"
-        else aligner
+    String aligner_ = if defined(custom_align_py) then "custom" else aligner
     String peak_caller_ = if pipeline_type == "tf"
-        then select_first([
-            peak_caller,
-            "spp",
-        ])
-        else select_first([
-            peak_caller,
-            "macs2",
-        ])
-    String peak_type_ = if peak_caller_ == "spp"
-        then "regionPeak"
-        else "narrowPeak"
+        then select_first([peak_caller, "spp"])
+        else select_first([peak_caller, "macs2"])
+    String peak_type_ = if peak_caller_ == "spp" then "regionPeak" else "narrowPeak"
     Boolean enable_idr = pipeline_type == "tf"  # enable_idr for TF chipseq only
     String idr_rank_ = if peak_caller_ == "spp"
         then "signal.value"
@@ -1130,26 +1105,17 @@ workflow chip {
             cap_num_peak,
             cap_num_peak_spp,
         ])
-        else select_first([
-            cap_num_peak,
-            cap_num_peak_macs2,
-        ])
+        else select_first([cap_num_peak, cap_num_peak_macs2])
     Int mapq_thresh_ = mapq_thresh
-    Boolean enable_xcor_ = if pipeline_type == "control"
-        then false
-        else true
+    Boolean enable_xcor_ = if pipeline_type == "control" then false else true
     Boolean enable_count_signal_track_ = if pipeline_type == "control"
         then false
         else enable_count_signal_track
-    Boolean enable_jsd_ = if pipeline_type == "control"
-        then false
-        else enable_jsd
+    Boolean enable_jsd_ = if pipeline_type == "control" then false else enable_jsd
     Boolean enable_gc_bias_ = if pipeline_type == "control"
         then false
         else enable_gc_bias
-    Boolean align_only_ = if pipeline_type == "control"
-        then true
-        else align_only
+    Boolean align_only_ = if pipeline_type == "control" then true else align_only
 
     Float align_mem_factor_ = if aligner_ == "bowtie2"
         then align_bowtie2_mem_factor
@@ -1229,27 +1195,13 @@ workflow chip {
             fastqs_rep5_R1,
         ]
         else if length(fastqs_rep4_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1]
         else if length(fastqs_rep3_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1]
         else if length(fastqs_rep2_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1]
         else if length(fastqs_rep1_R1) > 0
-        then [
-            fastqs_rep1_R1,
-        ]
+        then [fastqs_rep1_R1]
         else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
     Array[Array[File]] fastqs_R2 = [
@@ -1337,20 +1289,11 @@ workflow chip {
             ctl_fastqs_rep4_R1,
         ]
         else if length(ctl_fastqs_rep3_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1]
         else if length(ctl_fastqs_rep2_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1]
         else if length(ctl_fastqs_rep1_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-        ]
+        then [ctl_fastqs_rep1_R1]
         else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
     Array[Array[File]] ctl_fastqs_R2 = [
@@ -1378,9 +1321,7 @@ workflow chip {
     Int num_rep_ta = if length(tas) < num_rep_nodup_bam
         then num_rep_nodup_bam
         else length(tas)
-    Int num_rep_peak = if length(peaks) < num_rep_ta
-        then num_rep_ta
-        else length(peaks)
+    Int num_rep_peak = if length(peaks) < num_rep_ta then num_rep_ta else length(peaks)
     Int num_rep = num_rep_peak
 
     # temporary variables to get number of controls
@@ -1477,9 +1418,7 @@ workflow chip {
         if (has_input_of_align && !has_output_of_align) {
             call align { input:
                 fastqs_R1 = fastqs_R1[i],
-                fastqs_R2 = if paired_end_
-                    then fastqs_R2[i]
-                    else [],
+                fastqs_R2 = if paired_end_ then fastqs_R2[i] else [],
                 crop_length = crop_length,
                 crop_length_tol = crop_length_tol,
                 trimmomatic_phred_score_format = trimmomatic_phred_score_format,
@@ -1506,9 +1445,7 @@ workflow chip {
                 runtime_environment = runtime_environment,
             }
         }
-        File? bam_ = if has_output_of_align
-            then bams[i]
-            else align.bam
+        File? bam_ = if has_output_of_align then bams[i] else align.bam
 
         Boolean has_input_of_filter = has_output_of_align || defined(align.bam)
         Boolean has_output_of_filter = i < length(nodup_bams)
@@ -1554,9 +1491,7 @@ workflow chip {
                 runtime_environment = runtime_environment,
             }
         }
-        File? ta_ = if has_output_of_bam2ta
-            then tas[i]
-            else bam2ta.ta
+        File? ta_ = if has_output_of_bam2ta then tas[i] else bam2ta.ta
 
         Boolean has_input_of_spr = has_output_of_bam2ta || defined(bam2ta.ta)
         if (has_input_of_spr && !align_only_ && !true_rep_only) {
@@ -1722,9 +1657,7 @@ workflow chip {
 
         # before peak calling, get fragment length from xcor analysis or given input
         # if fraglen [] is defined in the input JSON, fraglen from xcor will be ignored
-        Int? fraglen_ = if i < length(fraglen)
-            then fraglen[i]
-            else xcor.fraglen
+        Int? fraglen_ = if i < length(fraglen) then fraglen[i] else xcor.fraglen
     }
 
     # align each control
@@ -1747,9 +1680,7 @@ workflow chip {
         if (has_input_of_align_ctl && !has_output_of_align_ctl) {
             call align as align_ctl { input:
                 fastqs_R1 = ctl_fastqs_R1[i],
-                fastqs_R2 = if ctl_paired_end_
-                    then ctl_fastqs_R2[i]
-                    else [],
+                fastqs_R2 = if ctl_paired_end_ then ctl_fastqs_R2[i] else [],
                 crop_length = crop_length,
                 crop_length_tol = crop_length_tol,
                 trimmomatic_phred_score_format = trimmomatic_phred_score_format,
@@ -1776,9 +1707,7 @@ workflow chip {
                 runtime_environment = runtime_environment,
             }
         }
-        File? ctl_bam_ = if has_output_of_align_ctl
-            then ctl_bams[i]
-            else align_ctl.bam
+        File? ctl_bam_ = if has_output_of_align_ctl then ctl_bams[i] else align_ctl.bam
 
         Boolean has_input_of_filter_ctl = has_output_of_align_ctl || defined(align_ctl.bam
         )
@@ -1826,9 +1755,7 @@ workflow chip {
                 runtime_environment = runtime_environment,
             }
         }
-        File? ctl_ta_ = if has_output_of_bam2ta_ctl
-            then ctl_tas[i]
-            else bam2ta_ctl.ta
+        File? ctl_ta_ = if has_output_of_bam2ta_ctl then ctl_tas[i] else bam2ta_ctl.ta
     }
 
     # if there are TAs for ALL replicates then pool them
@@ -1961,20 +1888,14 @@ workflow chip {
             then []
             else if chosen_ctl_ta_subsample > 0
             then [
-                select_first([
-                    subsample_ctl.ta_subsampled,
-                ]),
+                select_first([subsample_ctl.ta_subsampled]),
             ]
             else if chosen_ctl_ta_id == -1
             then [
-                select_first([
-                    pool_ta_ctl.ta_pooled,
-                ]),
+                select_first([pool_ta_ctl.ta_pooled]),
             ]
             else [
-                select_first([
-                    ctl_ta_[chosen_ctl_ta_id],
-                ]),
+                select_first([ctl_ta_[chosen_ctl_ta_id]]),
             ]
     }
     Int chosen_ctl_ta_pooled_subsample = if has_all_input_of_choose_ctl && !align_only_
@@ -1995,9 +1916,7 @@ workflow chip {
                 peak_caller = peak_caller_,
                 peak_type = peak_type_,
                 tas = flatten([
-                    [
-                        ta_[i],
-                    ],
+                    [ta_[i]],
                     chosen_ctl_tas[i],
                 ]),
                 gensz = gensz_,
@@ -2020,17 +1939,13 @@ workflow chip {
                     else runtime_environment,
             }
         }
-        File? peak_ = if has_output_of_call_peak
-            then peaks[i]
-            else call_peak.peak
+        File? peak_ = if has_output_of_call_peak then peaks[i] else call_peak.peak
 
         # signal track
         if (has_input_of_call_peak && !align_only_) {
             call macs2_signal_track { input:
                 tas = flatten([
-                    [
-                        ta_[i],
-                    ],
+                    [ta_[i]],
                     chosen_ctl_tas[i],
                 ]),
                 gensz = gensz_,
@@ -2053,9 +1968,7 @@ workflow chip {
                 peak_caller = peak_caller_,
                 peak_type = peak_type_,
                 tas = flatten([
-                    [
-                        spr.ta_pr1[i],
-                    ],
+                    [spr.ta_pr1[i]],
                     chosen_ctl_tas[i],
                 ]),
                 gensz = gensz_,
@@ -2090,9 +2003,7 @@ workflow chip {
                 peak_caller = peak_caller_,
                 peak_type = peak_type_,
                 tas = flatten([
-                    [
-                        spr.ta_pr2[i],
-                    ],
+                    [spr.ta_pr2[i]],
                     chosen_ctl_tas[i],
                 ]),
                 gensz = gensz_,
@@ -2132,9 +2043,7 @@ workflow chip {
 
     if (has_all_input_of_choose_ctl && !align_only_ && chosen_ctl_ta_pooled_subsample > 0) {
         call subsample_ctl as subsample_ctl_pooled { input:
-            ta = if num_ctl < 2
-                then ctl_ta_[0]
-                else pool_ta_ctl.ta_pooled,
+            ta = if num_ctl < 2 then ctl_ta_[0] else pool_ta_ctl.ta_pooled,
             subsample = chosen_ctl_ta_pooled_subsample,
             paired_end = ctl_paired_end_[0],
             mem_factor = subsample_ctl_mem_factor,
@@ -2146,16 +2055,10 @@ workflow chip {
     Array[File?] chosen_ctl_ta_pooled = if !has_all_input_of_choose_ctl || align_only_
         then []
         else if chosen_ctl_ta_pooled_subsample > 0
-        then [
-            subsample_ctl_pooled.ta_subsampled,
-        ]
+        then [subsample_ctl_pooled.ta_subsampled]
         else if num_ctl < 2
-        then [
-            ctl_ta_[0],
-        ]
-        else [
-            pool_ta_ctl.ta_pooled,
-        ]
+        then [ctl_ta_[0]]
+        else [pool_ta_ctl.ta_pooled]
 
     Boolean has_input_of_call_peak_pooled = defined(pool_ta.ta_pooled)
     Boolean has_output_of_call_peak_pooled = defined(peak_pooled)
@@ -2167,9 +2070,7 @@ workflow chip {
             peak_caller = peak_caller_,
             peak_type = peak_type_,
             tas = flatten([
-                select_all([
-                    pool_ta.ta_pooled,
-                ]),
+                select_all([pool_ta.ta_pooled]),
                 chosen_ctl_ta_pooled,
             ]),
             gensz = gensz_,
@@ -2200,9 +2101,7 @@ workflow chip {
     if (has_input_of_call_peak_pooled && !align_only_ && num_rep > 1) {
         call macs2_signal_track as macs2_signal_track_pooled { input:
             tas = flatten([
-                select_all([
-                    pool_ta.ta_pooled,
-                ]),
+                select_all([pool_ta.ta_pooled]),
                 chosen_ctl_ta_pooled,
             ]),
             gensz = gensz_,
@@ -2226,9 +2125,7 @@ workflow chip {
             peak_caller = peak_caller_,
             peak_type = peak_type_,
             tas = flatten([
-                select_all([
-                    pool_ta_pr1.ta_pooled,
-                ]),
+                select_all([pool_ta_pr1.ta_pooled]),
                 chosen_ctl_ta_pooled,
             ]),
             gensz = gensz_,
@@ -2264,9 +2161,7 @@ workflow chip {
             peak_caller = peak_caller_,
             peak_type = peak_type_,
             tas = flatten([
-                select_all([
-                    pool_ta_pr2.ta_pooled,
-                ]),
+                select_all([pool_ta_pr2.ta_pooled]),
                 chosen_ctl_ta_pooled,
             ]),
             gensz = gensz_,
@@ -2479,9 +2374,7 @@ workflow chip {
 
         jsd_plot = jsd.plot,
         jsd_qcs = if defined(jsd.jsd_qcs)
-            then select_first([
-                jsd.jsd_qcs,
-            ])
+            then select_first([jsd.jsd_qcs])
             else [],
 
         frip_qcs = select_all(call_peak.frip_qc),
@@ -2493,16 +2386,12 @@ workflow chip {
 
         idr_plots = select_all(idr.idr_plot),
         idr_plots_pr = if defined(idr_pr.idr_plot)
-            then select_first([
-                idr_pr.idr_plot,
-            ])
+            then select_first([idr_pr.idr_plot])
             else [],
         idr_plot_ppr = idr_ppr.idr_plot,
         frip_idr_qcs = select_all(idr.frip_qc),
         frip_idr_qcs_pr = if defined(idr_pr.frip_qc)
-            then select_first([
-                idr_pr.frip_qc,
-            ])
+            then select_first([idr_pr.frip_qc])
             else [],
         frip_idr_qc_ppr = idr_ppr.frip_qc,
         frip_overlap_qcs = select_all(overlap.frip_qc),
@@ -2572,13 +2461,8 @@ task align {
 
     Float trimmomatic_java_heap_factor = 0.9
     Array[Array[File]] tmp_fastqs = if paired_end
-        then transpose([
-            fastqs_R1,
-            fastqs_R2,
-        ])
-        else transpose([
-            fastqs_R1,
-        ])
+        then transpose([fastqs_R1, fastqs_R2])
+        else transpose([fastqs_R1])
 
     command <<<
         set -e
@@ -2591,9 +2475,7 @@ task align {
         fi
         python3 $(which encode_task_merge_fastq.py) \
             ~{write_tsv(tmp_fastqs)} \
-            ~{if paired_end
-                then "--paired-end"
-                else ""} \
+            ~{if paired_end then "--paired-end" else ""} \
             ~{"--nth " + cpu}
 
         if [ -z '~{trim_bp}' ]; then
@@ -2617,19 +2499,13 @@ task align {
             NEW_SUFFIX="$SUFFIX"_cropped
             python3 $(which encode_task_trimmomatic.py) \
                 --fastq1 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end
-                    then "--fastq2 R2$SUFFIX/*.fastq.gz"
-                    else ""} \
-                ~{if paired_end
-                    then "--paired-end"
-                    else ""} \
+                ~{if paired_end then "--fastq2 R2$SUFFIX/*.fastq.gz" else ""} \
+                ~{if paired_end then "--paired-end" else ""} \
                 --crop-length ~{crop_length} \
                 --crop-length-tol "~{crop_length_tol}" \
                 ~{"--phred-score-format " + trimmomatic_phred_score_format} \
                 --out-dir-R1 R1$NEW_SUFFIX \
-                ~{if paired_end
-                    then "--out-dir-R2 R2$NEW_SUFFIX"
-                    else ""} \
+                ~{if paired_end then "--out-dir-R2 R2$NEW_SUFFIX" else ""} \
                 ~{"--trimmomatic-java-heap " + if defined(trimmomatic_java_heap)
                     then trimmomatic_java_heap
                     else (round(mem_gb * trimmomatic_java_heap_factor) + "G")} \
@@ -2641,15 +2517,9 @@ task align {
             python3 $(which encode_task_bwa.py) \
                 ~{idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end
-                    then "R2$SUFFIX/*.fastq.gz"
-                    else ""} \
-                ~{if paired_end
-                    then "--paired-end"
-                    else ""} \
-                ~{if use_bwa_mem_for_pe
-                    then "--use-bwa-mem-for-pe"
-                    else ""} \
+                ~{if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
+                ~{if paired_end then "--paired-end" else ""} \
+                ~{if use_bwa_mem_for_pe then "--use-bwa-mem-for-pe" else ""} \
                 ~{"--bwa-mem-read-len-limit " + bwa_mem_read_len_limit} \
                 ~{"--mem-gb " + samtools_mem_gb} \
                 ~{"--nth " + cpu}
@@ -2658,28 +2528,18 @@ task align {
             python3 $(which encode_task_bowtie2.py) \
                 ~{idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end
-                    then "R2$SUFFIX/*.fastq.gz"
-                    else ""} \
+                ~{if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
                 ~{"--multimapping " + multimapping} \
-                ~{if paired_end
-                    then "--paired-end"
-                    else ""} \
-                ~{if use_bowtie2_local_mode
-                    then "--local"
-                    else ""} \
+                ~{if paired_end then "--paired-end" else ""} \
+                ~{if use_bowtie2_local_mode then "--local" else ""} \
                 ~{"--mem-gb " + samtools_mem_gb} \
                 ~{"--nth " + cpu}
         else
             python3 ~{custom_align_py} \
                 ~{idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
-                ~{if paired_end
-                    then "R2$SUFFIX/*.fastq.gz"
-                    else ""} \
-                ~{if paired_end
-                    then "--paired-end"
-                    else ""} \
+                ~{if paired_end then "R2$SUFFIX/*.fastq.gz" else ""} \
+                ~{if paired_end then "--paired-end" else ""} \
                 ~{"--mem-gb " + samtools_mem_gb} \
                 ~{"--nth " + cpu}
         fi 
@@ -2742,17 +2602,13 @@ task filter {
         set -e
         python3 $(which encode_task_filter.py) \
             ~{bam} \
-            ~{if paired_end
-                then "--paired-end"
-                else ""} \
+            ~{if paired_end then "--paired-end" else ""} \
             --multimapping 0 \
             ~{"--dup-marker " + dup_marker} \
             ~{"--mapq-thresh " + mapq_thresh} \
             --filter-chrs ~{sep=" " filter_chrs} \
             ~{"--chrsz " + chrsz} \
-            ~{if no_dup_removal
-                then "--no-dup-removal"
-                else ""} \
+            ~{if no_dup_removal then "--no-dup-removal" else ""} \
             ~{"--mito-chr-name " + mito_chr_name} \
             ~{"--mem-gb " + samtools_mem_gb} \
             ~{"--nth " + cpu} \
@@ -2811,9 +2667,7 @@ task bam2ta {
         python3 $(which encode_task_bam2ta.py) \
             ~{bam} \
             --disable-tn5-shift \
-            ~{if paired_end
-                then "--paired-end"
-                else ""} \
+            ~{if paired_end then "--paired-end" else ""} \
             ~{"--mito-chr-name " + mito_chr_name} \
             ~{"--subsample " + subsample} \
             ~{"--mem-gb " + samtools_mem_gb} \
@@ -2854,9 +2708,7 @@ task spr {
         python3 $(which encode_task_spr.py) \
             ~{ta} \
             ~{"--pseudoreplication-random-seed " + pseudoreplication_random_seed} \
-            ~{if paired_end
-                then "--paired-end"
-                else ""}
+            ~{if paired_end then "--paired-end" else ""}
     >>>
 
     output {
@@ -2932,9 +2784,7 @@ task xcor {
         set -e
         python3 $(which encode_task_xcor.py) \
             ~{ta} \
-            ~{if paired_end
-                then "--paired-end"
-                else ""} \
+            ~{if paired_end then "--paired-end" else ""} \
             ~{"--mito-chr-name " + mito_chr_name} \
             ~{"--subsample " + subsample} \
             ~{"--chip-seq-type " + chip_seq_type} \
@@ -2984,9 +2834,7 @@ task jsd {
         set -e
         python3 $(which encode_task_jsd.py) \
             ~{sep=" " select_all(nodup_bams)} \
-            ~{if length(ctl_bams) > 0
-                then "--ctl-bam " + select_first(ctl_bams)
-                else ""} \
+            ~{if length(ctl_bams) > 0 then "--ctl-bam " + select_first(ctl_bams) else ""} \
             ~{"--mapq-thresh " + mapq_thresh} \
             ~{"--blacklist " + blacklist} \
             ~{"--nth " + cpu}
@@ -3029,9 +2877,7 @@ task choose_ctl {
             --ctl-tas ~{sep=" " select_all(ctl_tas)} \
             ~{"--ta-pooled " + ta_pooled} \
             ~{"--ctl-ta-pooled " + ctl_ta_pooled} \
-            ~{if always_use_pooled_ctl
-                then "--always-use-pooled-ctl"
-                else ""} \
+            ~{if always_use_pooled_ctl then "--always-use-pooled-ctl" else ""} \
             ~{"--ctl-depth-ratio " + ctl_depth_ratio} \
             ~{"--ctl-depth-limit " + ctl_depth_limit} \
             ~{"--exp-ctl-depth-ratio-limit " + exp_ctl_depth_ratio_limit}
@@ -3108,9 +2954,7 @@ task subsample_ctl {
         python3 $(which encode_task_subsample_ctl.py) \
             ~{ta} \
             ~{"--subsample " + subsample} \
-            ~{if paired_end
-                then "--paired-end"
-                else ""} \
+            ~{if paired_end then "--paired-end" else ""} \
     >>>
 
     output {
@@ -3201,9 +3045,7 @@ task call_peak {
     }
 
     runtime {
-        cpu: if peak_caller == "macs2"
-            then 2
-            else cpu
+        cpu: if peak_caller == "macs2" then 2 else cpu
         memory: "~{mem_gb} GB"
         time: time_hr
         disks: "local-disk ~{disk_gb} SSD"
@@ -3280,9 +3122,7 @@ task idr {
 
     command <<<
         set -e
-        ~{if defined(ta)
-            then ""
-            else "touch null.frip.qc"}
+        ~{if defined(ta) then "" else "touch null.frip.qc"}
         touch null 
         python3 $(which encode_task_idr.py) \
             ~{peak1} ~{peak2} ~{peak_pooled} \
@@ -3307,9 +3147,7 @@ task idr {
         File idr_plot = glob("*.txt.png")[0]
         File idr_unthresholded_peak = glob("*.txt.gz")[0]
         File idr_log = glob("*.idr*.log")[0]
-        File frip_qc = if defined(ta)
-            then glob("*.frip.qc")[0]
-            else glob("null")[0]
+        File frip_qc = if defined(ta) then glob("*.frip.qc")[0] else glob("null")[0]
     }
 
     runtime {
@@ -3341,9 +3179,7 @@ task overlap {
 
     command <<<
         set -e
-        ~{if defined(ta)
-            then ""
-            else "touch null.frip.qc"}
+        ~{if defined(ta) then "" else "touch null.frip.qc"}
         touch null 
         python3 $(which encode_task_overlap.py) \
             ~{peak1} ~{peak2} ~{peak_pooled} \
@@ -3365,9 +3201,7 @@ task overlap {
         File bfilt_overlap_peak_hammock = glob("*.bfilt." + peak_type + ".hammock.gz*")[0]
         File bfilt_overlap_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*"
         )[1]
-        File frip_qc = if defined(ta)
-            then glob("*.frip.qc")[0]
-            else glob("null")[0]
+        File frip_qc = if defined(ta) then glob("*.frip.qc")[0] else glob("null")[0]
     }
 
     runtime {
@@ -3551,9 +3385,7 @@ task qc_report {
             --ctl-paired-ends ~{sep=" " ctl_paired_ends} \
             --pipeline-type ~{pipeline_type} \
             --aligner ~{aligner} \
-            ~{if (no_dup_removal)
-                then "--no-dup-removal "
-                else ""} \
+            ~{if (no_dup_removal) then "--no-dup-removal " else ""} \
             --peak-caller ~{peak_caller} \
             ~{"--cap-num-peak " + cap_num_peak} \
             --idr-thresh ~{idr_thresh} \
@@ -3650,21 +3482,15 @@ task read_genome_tsv {
 
     output {
         String? genome_name = read_string("genome_name")
-        String? ref_fa = if size("ref_fa") == 0
-            then null_s
-            else read_string("ref_fa")
+        String? ref_fa = if size("ref_fa") == 0 then null_s else read_string("ref_fa")
         String? bwa_idx_tar = if size("bwa_idx_tar") == 0
             then null_s
             else read_string("bwa_idx_tar")
         String? bowtie2_idx_tar = if size("bowtie2_idx_tar") == 0
             then null_s
             else read_string("bowtie2_idx_tar")
-        String? chrsz = if size("chrsz") == 0
-            then null_s
-            else read_string("chrsz")
-        String? gensz = if size("gensz") == 0
-            then null_s
-            else read_string("gensz")
+        String? chrsz = if size("chrsz") == 0 then null_s else read_string("chrsz")
+        String? gensz = if size("gensz") == 0 then null_s else read_string("gensz")
         String? blacklist = if size("blacklist") == 0
             then null_s
             else read_string("blacklist")

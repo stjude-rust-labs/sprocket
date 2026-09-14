@@ -32,7 +32,7 @@ pub(crate) struct ThreadSafeSyntaxNode {
 impl From<SyntaxNode<WorkflowDescriptionLanguage>> for ThreadSafeSyntaxNode {
     fn from(node: SyntaxNode<WorkflowDescriptionLanguage>) -> Self {
         Self {
-            root: node.ancestors().last().unwrap().green().into_owned(),
+            root: node.ancestors().last().unwrap().green().to_owned(),
             node_ptr: SyntaxNodePtr::new(&node),
         }
     }

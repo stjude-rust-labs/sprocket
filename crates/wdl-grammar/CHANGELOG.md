@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `SyntaxTree::green()` now returns `&GreenNode` instead of `Cow<GreenNode>` ([#1183](https://github.com/stjude-rust-labs/sprocket/pull/1183)).
+
 ## 0.25.1 - 2026-08-05
 
 #### Fixed

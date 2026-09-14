@@ -12,11 +12,13 @@ error: conflicting struct name `Foo`
 error: conflicting struct name `Foo`
    ┌─ tests/analysis/conflicting-struct-names/source.wdl:16:8
    │
- 8 │ struct Foo {
-   │        --- the struct with the conflicting name is here
-   ·
 16 │ struct Foo {
-   │        ^^^ this struct conflicts with a previously used name
+   │        ^^^ this name conflicts with an imported struct
+   ·
+28 │ import "bar.wdl" alias Baz as Foo
+   │                               --- the import that introduced the struct is here
+   │
+   = fix: either rename the struct or use an `alias` clause on the import with a different name
 
 error: conflicting struct name `Bar`
    ┌─ tests/analysis/conflicting-struct-names/source.wdl:20:8

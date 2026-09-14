@@ -3146,6 +3146,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.18.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d317b4b9eb398e6acce275758ec6125535505e7a146fb1a9b8bda2451b0ff4c"
+dependencies = [
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3253,6 +3262,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "memoffset"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
+dependencies = [
+ "autocfg",
 ]
 
 [[package]]
@@ -4533,12 +4551,13 @@ dependencies = [
 
 [[package]]
 name = "rowan"
-version = "0.16.1"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "417a3a9f582e349834051b8a10c8d71ca88da4211e4093528e36b9845f6b5f21"
+checksum = "14b574c58582fa59fa43a2feb6608b8744184659f08a2e0117e4b8224d95ed61"
 dependencies = [
  "countme",
  "hashbrown 0.14.5",
+ "memoffset",
  "rustc-hash 1.1.0",
  "text-size",
 ]
@@ -5316,7 +5335,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-py"
-version = "0.1.0"
+version = "0.30.1"
 dependencies = [
  "pyo3",
  "wdl-ast",
@@ -6774,6 +6793,7 @@ dependencies = [
  "line-index",
  "lsp-types",
  "parking_lot",
+ "paste",
  "path-clean",
  "petgraph",
  "pretty_assertions",
@@ -6783,6 +6803,7 @@ dependencies = [
  "rowan",
  "schemars 1.2.2",
  "semver",
+ "sha2 0.11.0",
  "smallvec",
  "strsim",
  "tempfile",
@@ -6881,6 +6902,7 @@ dependencies = [
  "itertools 0.15.0",
  "libc",
  "libtest-mimic",
+ "lru",
  "nonempty",
  "num_enum",
  "ordered-float",
@@ -6989,11 +7011,13 @@ dependencies = [
  "blake3",
  "fs_extra",
  "futures",
+ "indexmap 2.14.0",
  "line-index",
  "parking_lot",
  "pretty_assertions",
  "serde",
  "serde_json",
+ "sprocket-test-types",
  "struct-patch",
  "tempfile",
  "tokio",
