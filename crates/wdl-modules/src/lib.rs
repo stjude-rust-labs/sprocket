@@ -2,7 +2,8 @@
 //!
 //! `wdl-modules` provides the local, deterministic pieces of WDL module
 //! handling: `module.json` manifest parsing, `module-lock.json` lockfile
-//! parsing, symbolic import paths, deterministic content hashing, Ed25519
+//! parsing, symbolic import paths, manifest-driven content exclusions,
+//! deterministic content hashing, Ed25519
 //! `module.sig` signing and verification, SPDX license validation, and
 //! module file-tree checks.
 //!

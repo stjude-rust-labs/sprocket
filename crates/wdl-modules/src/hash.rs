@@ -1,4 +1,4 @@
-//! Content hashing per the WDL module spec.
+//! Content hashing per the WDL module spec, including manifest exclusions.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -15,6 +15,8 @@ use sha2::Digest;
 use sha2::Sha256;
 use thiserror::Error;
 
+use crate::module_walk::ExcludePatternError;
+use crate::module_walk::ExclusionSet;
 use crate::module_walk::ModuleWalkError;
 use crate::relative_path::RelativePath;
 use crate::relative_path::RelativePathError;
@@ -23,6 +25,21 @@ use crate::tree::TreeError;
 /// An error during content hashing.
 #[derive(Debug, Error)]
 pub enum HashError {
+    /// The root module manifest could not be parsed while loading content
+    /// exclusions.
+    #[error("invalid module manifest at `{path}`")]
+    Manifest {
+        /// The root manifest path.
+        path: PathBuf,
+        /// The manifest parse error.
+        #[source]
+        source: crate::manifest::ManifestError,
+    },
+
+    /// A manifest `exclude` pattern is not a valid glob.
+    #[error(transparent)]
+    InvalidExclude(#[from] ExcludePatternError),
+
     /// A path supplied to [`Hasher::try_add`] failed relative-path
     /// validation.
     #[error(transparent)]
@@ -259,8 +276,6 @@ impl Hasher {
     }
 }
 
-/// Computes the content hash of a directory by walking it (excluding the
-/// spec-mandated exclusions `module.sig` and `module-lock.json`).
 /// Directory and file names that are not module content and should
 /// be excluded from hashing, limit checks, and content walks.
 pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git", ".sprocket"];
@@ -277,14 +292,25 @@ pub(crate) fn path_is_excluded_from_hash(path: &Path) -> bool {
         })
 }
 
-/// Walks `root` and computes the deterministic content hash of the
-/// module directory, skipping non-module content and spec-defined
-/// exclusions.
+/// Walks `root` and computes its deterministic module content hash.
+///
+/// Manifest `exclude` matches, `module.sig`, `module-lock.json`, and
+/// non-content metadata directories are omitted. The root `module.json` is
+/// always included.
 pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> {
     let root = root.as_ref();
+    let exclusions = exclusions_from_root(root)?;
+    hash_directory_with_exclusions(root, &exclusions)
+}
+
+/// Computes a content hash with exclusions that have already been compiled.
+pub(crate) fn hash_directory_with_exclusions(
+    root: &Path,
+    exclusions: &ExclusionSet,
+) -> Result<ContentHash, HashError> {
     let mut hasher = Hasher::new(root.to_path_buf());
 
-    crate::module_walk::walk_module_tree(root, &mut |path: &Path, _size| {
+    crate::module_walk::walk_module_content_tree(root, exclusions, &mut |path: &Path, _size| {
         // SAFETY: the walker only yields paths under `root`.
         let rel_path = path.strip_prefix(root).unwrap();
         let rel = rel_path
@@ -305,6 +331,35 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
     crate::tree::validate_tree(hasher.paths())?;
 
     hasher.finalize()
+}
+
+/// Loads and compiles exclusions from the root manifest when one is present.
+fn exclusions_from_root(root: &Path) -> Result<ExclusionSet, HashError> {
+    let path = root.join(crate::MANIFEST_FILENAME);
+    let metadata = match std::fs::symlink_metadata(&path) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == io::ErrorKind::NotFound => {
+            return ExclusionSet::new(&[]).map_err(Into::into);
+        }
+        Err(source) => return Err(HashError::Io { path, source }),
+    };
+    if metadata.file_type().is_symlink() {
+        return Err(HashError::Walk(ModuleWalkError::Symlink(
+            path.display().to_string(),
+        )));
+    }
+    if !metadata.is_file() {
+        return ExclusionSet::new(&[]).map_err(Into::into);
+    }
+    let bytes = std::fs::read(&path).map_err(|source| HashError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    let manifest = crate::Manifest::parse(&bytes).map_err(|source| HashError::Manifest {
+        path: path.clone(),
+        source,
+    })?;
+    ExclusionSet::new(&manifest.exclude).map_err(Into::into)
 }
 
 #[cfg(test)]
@@ -455,6 +510,65 @@ mod tests {
         let d_with_state = hash_directory(dir.path()).unwrap();
 
         assert_eq!(d_clean, d_with_state);
+    }
+
+    #[test]
+    fn manifest_exclusions_keep_hash_stable_after_excluded_edits() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join(crate::MANIFEST_FILENAME),
+            br#"{"name":"example","license":"MIT","exclude":["test/**"]}"#,
+        )
+        .unwrap();
+        fs::create_dir(dir.path().join("test")).unwrap();
+        fs::write(dir.path().join("index.wdl"), b"version 1.3\n").unwrap();
+        fs::write(dir.path().join("test/harness.wdl"), b"first").unwrap();
+
+        let before = hash_directory(dir.path()).unwrap();
+        fs::write(dir.path().join("test/harness.wdl"), b"second").unwrap();
+        let after = hash_directory(dir.path()).unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn root_manifest_is_hashed_even_when_excluded_by_glob() {
+        let dir = tempdir().unwrap();
+        let manifest = dir.path().join(crate::MANIFEST_FILENAME);
+        fs::write(
+            &manifest,
+            br#"{"name":"example","license":"MIT","exclude":["*"]}"#,
+        )
+        .unwrap();
+        fs::write(dir.path().join("index.wdl"), b"version 1.3\n").unwrap();
+        let before = hash_directory(dir.path()).unwrap();
+
+        fs::write(
+            &manifest,
+            br#"{"name":"renamed","license":"MIT","exclude":["*"]}"#,
+        )
+        .unwrap();
+        let after = hash_directory(dir.path()).unwrap();
+        assert_ne!(before, after);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn excluded_paths_cannot_conceal_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join(crate::MANIFEST_FILENAME),
+            br#"{"name":"example","license":"MIT","exclude":["test/**"]}"#,
+        )
+        .unwrap();
+        fs::create_dir(dir.path().join("test")).unwrap();
+        symlink(dir.path(), dir.path().join("test/alias")).unwrap();
+
+        assert!(matches!(
+            hash_directory(dir.path()),
+            Err(HashError::Walk(ModuleWalkError::Symlink(_)))
+        ));
     }
 
     #[test]

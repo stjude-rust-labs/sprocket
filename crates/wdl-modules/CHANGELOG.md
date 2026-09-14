@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Manifest `exclude` patterns now consistently omit matching files from module
+  content validation, hashing, signing, and imports while retaining physical
+  tree safety and resource-limit checks ([#1187](https://github.com/stjude-rust-labs/sprocket/issues/1187)).
+
 ## 0.3.2 - 2026-08-26
 
 #### Added
