@@ -15,6 +15,8 @@ use async_lsp::lsp_types::notification::DidChangeTextDocument;
 use async_lsp::lsp_types::notification::DidCloseTextDocument;
 use async_lsp::lsp_types::notification::DidOpenTextDocument;
 use async_lsp::lsp_types::request::CodeLensRequest;
+use wdl_analysis::FeatureFlags;
+use wdl_lsp::ServerOptions;
 
 use crate::common::TestContext;
 use crate::common::TestContextBuilder;
@@ -495,4 +497,46 @@ async fn should_ignore_wdl_targets_with_inputs() {
         .await
         .expect("request should succeed");
     assert!(response.is_none(), "response should be empty: {response:?}");
+}
+
+#[tokio::test]
+async fn should_not_generate_code_lens_for_imported_targets() {
+    let mut ctx = TestContextBuilder::new("code_lens_selected")
+        .server_options(ServerOptions {
+            feature_flags: FeatureFlags::default().with_wdl_1_4(),
+            ..ServerOptions::default()
+        })
+        .build();
+    ctx.initialize().await;
+
+    let Some(response) = code_lens_request(&mut ctx, "source.wdl")
+        .await
+        .expect("request should succeed")
+    else {
+        panic!("response should contain entries");
+    };
+
+    let expected = vec![CodeLens {
+        range: Range {
+            start: Position {
+                line: 4,
+                character: 9,
+            },
+            end: Position {
+                line: 4,
+                character: 13,
+            },
+        },
+        command: Some(Command {
+            title: "Run 'main'".to_string(),
+            command: String::from("sprocket.run"),
+            arguments: Some(vec![
+                ctx.doc_uri("source.wdl").to_string().into(),
+                "main".into(),
+            ]),
+        }),
+        data: None,
+    }];
+
+    assert_code_lenses(response, expected);
 }

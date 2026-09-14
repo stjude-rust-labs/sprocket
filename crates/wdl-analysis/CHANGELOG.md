@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
+  the benefits coming on any _subsequent_ requests. Before, any change in the document triggered a **full** re-analysis.
+  Now, the actual differences in the document are tracked, with any untouched items being recycled from the cache ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).
 * `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules, which ensure that deprecated
   language features are not used ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
 

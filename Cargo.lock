@@ -3146,6 +3146,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.18.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d317b4b9eb398e6acce275758ec6125535505e7a146fb1a9b8bda2451b0ff4c"
+dependencies = [
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5326,7 +5335,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-py"
-version = "0.1.0"
+version = "0.30.1"
 dependencies = [
  "pyo3",
  "wdl-ast",
@@ -6784,6 +6793,7 @@ dependencies = [
  "line-index",
  "lsp-types",
  "parking_lot",
+ "paste",
  "path-clean",
  "petgraph",
  "pretty_assertions",
@@ -6793,6 +6803,7 @@ dependencies = [
  "rowan",
  "schemars 1.2.2",
  "semver",
+ "sha2 0.11.0",
  "smallvec",
  "strsim",
  "tempfile",
@@ -6891,6 +6902,7 @@ dependencies = [
  "itertools 0.15.0",
  "libc",
  "libtest-mimic",
+ "lru",
  "nonempty",
  "num_enum",
  "ordered-float",

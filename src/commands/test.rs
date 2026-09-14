@@ -63,6 +63,7 @@ use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::Config;
@@ -715,7 +716,7 @@ impl Runner {
                 }
 
                 let callable = wdl_document
-                    .callable_by_name(&target)
+                    .local_callable_by_name(&target)
                     .expect("verified during parse");
                 let is_workflow = callable.is_workflow();
 
@@ -1141,7 +1142,10 @@ pub async fn test(
     // Determined here as the engine configuration is moved into the engine
     // below.
     let uses_docker = uses_docker_backend(&config.run.engine);
-    let engine = Engine::new(config.run.engine)
+    let mut engine_config = config.run.engine;
+    engine_config.task.retries = RetryConfig::Disabled;
+
+    let engine = Engine::new(engine_config)
         .await
         .context("failed to create WDL evaluation engine")?;
     let cancellation = CancellationContext::new(FailureMode::Fast);

@@ -34,7 +34,7 @@ async fn analyze(files: &[(&str, &str)]) -> Document {
     let mut results = analyzer.analyze(()).await.expect("analysis should succeed");
     let index = results
         .iter()
-        .position(|result| **result.document().uri() == source)
+        .position(|result| *result.document().uri() == source)
         .expect("source result should exist");
     results.swap_remove(index).document().clone()
 }
@@ -93,8 +93,14 @@ async fn assert_first_import_wins(source: &str, first: &str, second: &str) {
     ])
     .await;
 
-    assert!(document.imported_workflow_by_name(first).is_some());
-    assert!(document.imported_workflow_by_name(second).is_none());
+    assert!(
+        document.imported_workflow_by_name(first).is_some(),
+        "expected workflow `{first}` to be imported"
+    );
+    assert!(
+        document.imported_workflow_by_name(second).is_none(),
+        "expected workflow `{second}` to not be imported"
+    );
     assert_eq!(
         errors(&document),
         [format!(
@@ -107,26 +113,42 @@ async fn assert_first_import_wins(source: &str, first: &str, second: &str) {
 async fn distinct_imported_workflows_conflict_in_every_scope_merging_order() {
     for (source, first, second) in [
         (
-            "version 1.4\n\nimport * from \"a.wdl\"\nimport * from \"b.wdl\"\n\nstruct Anchor { \
-             Int value }\n",
+            r#"version 1.4
+
+import * from "a.wdl"
+import * from "b.wdl"
+
+struct Anchor { Int value }"#,
             "alpha",
             "beta",
         ),
         (
-            "version 1.4\n\nimport { alpha } from \"a.wdl\"\nimport { beta } from \
-             \"b.wdl\"\n\nstruct Anchor { Int value }\n",
+            r#"version 1.4
+
+import { alpha } from "a.wdl"
+import { beta } from "b.wdl"
+
+struct Anchor { Int value }"#,
             "alpha",
             "beta",
         ),
         (
-            "version 1.4\n\nimport * from \"a.wdl\"\nimport { beta } from \"b.wdl\"\n\nstruct \
-             Anchor { Int value }\n",
+            r#"version 1.4
+
+import * from "a.wdl"
+import { beta } from "b.wdl"
+
+struct Anchor { Int value }"#,
             "alpha",
             "beta",
         ),
         (
-            "version 1.4\n\nimport { alpha } from \"a.wdl\"\nimport * from \"b.wdl\"\n\nstruct \
-             Anchor { Int value }\n",
+            r#"version 1.4
+
+import { alpha } from "a.wdl"
+import * from "b.wdl"
+
+struct Anchor { Int value }"#,
             "alpha",
             "beta",
         ),
