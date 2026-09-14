@@ -2521,6 +2521,71 @@ task gen_files {
             .is_none()
     );
 
+    // https://github.com/openwdl/wdl/pull/800#issuecomment-5470593410
+    assert!(
+        functions
+            .insert(
+                "list",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Four))
+                        .required(1)
+                        .parameter(
+                            "directory",
+                            PrimitiveType::Directory,
+                            "The existing directory to list; the root directory itself is not \
+                             returned.",
+                        )
+                        .parameter(
+                            "recursive",
+                            PrimitiveType::Boolean,
+                            "(Optional) Recursively list files and subdirectories; defaults to \
+                             `false`. Directory symlinks are never traversed.",
+                        )
+                        .parameter(
+                            "include_symlinks",
+                            PrimitiveType::Boolean,
+                            "(Optional) Include file and directory symlinks; defaults to `true`. \
+                             Included symlinks must have accessible targets.",
+                        )
+                        .parameter(
+                            "pattern",
+                            PrimitiveType::String,
+                            "(Optional) A glob matched only against file basenames. Directories \
+                             are not filtered. Without a pattern, dotfiles are included; otherwise, \
+                             the pattern must start with `.` to match them.",
+                        )
+                        .ret(Type::from(PairType::new(
+                            array_file.clone(),
+                            ArrayType::new(PrimitiveType::Directory),
+                        )))
+                        .definition(
+                            r#"
+Lists files and subdirectories in an existing directory. May be used in task and workflow expressions.
+
+**Parameters**:
+
+1. `Directory directory`: The directory to list; the root directory itself is not returned.
+2. `Boolean recursive`: (Optional) Recursively list files and subdirectories; defaults to `false`. Directory symlinks are never traversed.
+3. `Boolean include_symlinks`: (Optional) Include file and directory symlinks; defaults to `true`.
+4. `String pattern`: (Optional) A glob matched against file basenames, not relative paths. Directories are not filtered. Without a pattern, dotfiles are included; otherwise, the pattern must start with `.` to match them.
+
+Optional arguments may be omitted, but `None` is not accepted for any argument.
+
+Included symlinks with dangling or unreadable targets cause an evaluation error. With `include_symlinks = false`, symlinks are skipped without reading their targets.
+
+**Returns**: `Pair[Array[File], Array[Directory]]`, with files in `.left` and directories in `.right`. Both arrays are sorted lexicographically by path relative to `directory`.
+
+Requires WDL 1.4 and `feature_flags.wdl_1_4 = true`.
+"#
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
     const SIZE_DEFINITION: &str = r#"
 Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. The files may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage)
 
@@ -5237,6 +5302,8 @@ mod tests {
                 "join_paths(base: Directory, relative: Array[String]+) -> String",
                 "join_paths(paths: Array[String]+) -> String",
                 "glob(pattern: String) -> Array[File]",
+                "list(directory: Directory, <recursive: Boolean>, <include_symlinks: Boolean>, \
+                 <pattern: String>) -> Pair[Array[File], Array[Directory]]",
                 "size(value: None, <unit: String>) -> Float",
                 "size(value: File?, <unit: String>) -> Float",
                 "size(value: String?, <unit: String>) -> Float",
@@ -5373,6 +5440,185 @@ mod tests {
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "Int");
+    }
+
+    #[test_log::test]
+    fn it_binds_list_with_all_argument_counts() {
+        let f = STDLIB.function("list").expect("should have function");
+        let version = SupportedVersion::V1(V1::Four);
+        let arguments = [
+            PrimitiveType::Directory.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::String.into(),
+        ];
+        let expected: Type = PairType::new(
+            ArrayType::new(PrimitiveType::File),
+            ArrayType::new(PrimitiveType::Directory),
+        )
+        .into();
+
+        assert_eq!(f.param_min_max(version), Some((1, 4)));
+        for count in 1..=arguments.len() {
+            let binding = f
+                .bind(version, &arguments[..count])
+                .expect("binding should succeed");
+            assert_eq!(binding.index(), 0);
+            assert_eq!(binding.return_type(), &expected);
+        }
+    }
+
+    #[test_log::test]
+    fn list_requires_wdl_1_4() {
+        let f = STDLIB.function("list").expect("should have function");
+        let minimum = SupportedVersion::V1(V1::Four);
+        assert_eq!(f.minimum_version(), minimum);
+
+        for version in [V1::Zero, V1::One, V1::Two, V1::Three] {
+            let version = SupportedVersion::V1(version);
+            assert_eq!(f.param_min_max(version), None);
+            assert_eq!(
+                f.bind(version, &[PrimitiveType::Directory.into()])
+                    .expect_err("binding should fail"),
+                FunctionBindError::RequiresVersion(minimum)
+            );
+        }
+    }
+
+    #[test_log::test]
+    fn list_rejects_incorrect_argument_counts() {
+        let f = STDLIB.function("list").expect("should have function");
+        let version = SupportedVersion::V1(V1::Four);
+        assert_eq!(
+            f.bind(version, &[]).expect_err("binding should fail"),
+            FunctionBindError::TooFewArguments(1)
+        );
+        assert_eq!(
+            f.bind(
+                version,
+                &[
+                    PrimitiveType::Directory.into(),
+                    PrimitiveType::Boolean.into(),
+                    PrimitiveType::Boolean.into(),
+                    PrimitiveType::String.into(),
+                    PrimitiveType::String.into(),
+                ]
+            )
+            .expect_err("binding should fail"),
+            FunctionBindError::TooManyArguments(4)
+        );
+    }
+
+    #[test_log::test]
+    fn list_rejects_incorrect_argument_types() {
+        let f = STDLIB.function("list").expect("should have function");
+        let valid: [Type; 4] = [
+            PrimitiveType::Directory.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::String.into(),
+        ];
+
+        for (index, invalid) in [
+            (0, PrimitiveType::File.into()),
+            (0, PrimitiveType::Integer.into()),
+            (0, ArrayType::new(PrimitiveType::Directory).into()),
+            (1, PrimitiveType::String.into()),
+            (2, PrimitiveType::Integer.into()),
+            (3, PrimitiveType::Boolean.into()),
+        ] {
+            let mut arguments = valid.clone();
+            arguments[index] = invalid;
+            assert_eq!(
+                f.bind(SupportedVersion::V1(V1::Four), &arguments)
+                    .expect_err("binding should fail"),
+                FunctionBindError::ArgumentTypeMismatch {
+                    index,
+                    expected: format!("{:#}", valid[index]),
+                }
+            );
+        }
+    }
+
+    #[test_log::test]
+    fn list_rejects_optional_and_none_arguments() {
+        let f = STDLIB.function("list").expect("should have function");
+        let valid: [Type; 4] = [
+            PrimitiveType::Directory.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::String.into(),
+        ];
+
+        for (index, ty) in valid.iter().enumerate() {
+            for invalid in [ty.optional(), Type::None] {
+                let mut arguments = valid.clone();
+                arguments[index] = invalid;
+                assert_eq!(
+                    f.bind(SupportedVersion::V1(V1::Four), &arguments)
+                        .expect_err("binding should fail"),
+                    FunctionBindError::ArgumentTypeMismatch {
+                        index,
+                        expected: format!("{ty:#}"),
+                    }
+                );
+            }
+        }
+
+        for (index, ty) in [
+            (0, PrimitiveType::String),
+            (3, PrimitiveType::File),
+            (3, PrimitiveType::Directory),
+        ] {
+            let mut arguments = valid.clone();
+            arguments[index] = Type::from(ty).optional();
+            assert_eq!(
+                f.bind(SupportedVersion::V1(V1::Four), &arguments)
+                    .expect_err("binding should fail"),
+                FunctionBindError::ArgumentTypeMismatch {
+                    index,
+                    expected: format!("{:#}", valid[index]),
+                }
+            );
+        }
+    }
+
+    #[test_log::test]
+    fn it_binds_list_with_existing_coercions() {
+        let f = STDLIB.function("list").expect("should have function");
+        let version = SupportedVersion::V1(V1::Four);
+
+        for directory in [PrimitiveType::Directory, PrimitiveType::String] {
+            for pattern in [
+                PrimitiveType::String,
+                PrimitiveType::File,
+                PrimitiveType::Directory,
+            ] {
+                let binding = f
+                    .bind(
+                        version,
+                        &[
+                            directory.into(),
+                            PrimitiveType::Boolean.into(),
+                            PrimitiveType::Boolean.into(),
+                            pattern.into(),
+                        ],
+                    )
+                    .expect("binding should succeed");
+                assert_eq!(
+                    binding.return_type().to_string(),
+                    "Pair[Array[File], Array[Directory]]"
+                );
+            }
+        }
+
+        let binding = f
+            .bind(version, &[const { Type::Union }; 4])
+            .expect("binding should succeed");
+        assert_eq!(
+            binding.return_type().to_string(),
+            "Pair[Array[File], Array[Directory]]"
+        );
     }
 
     #[test_log::test]
