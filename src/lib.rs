@@ -11,7 +11,9 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::fmt::Arguments;
 use std::fs::File;
+use std::io::IoSlice;
 use std::io::IsTerminal as _;
 use std::io::Write;
 use std::path::PathBuf;
@@ -254,10 +256,31 @@ impl Write for Stdout {
         }
     }
 
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.write_vectored(bufs),
+            Stdout::Stdout => std::io::stdout().write_vectored(bufs),
+        }
+    }
+
     fn flush(&mut self) -> std::io::Result<()> {
         match self {
             Stdout::IndicatifWriter(writer) => writer.flush(),
             Stdout::Stdout => std::io::stdout().flush(),
+        }
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.write_all(buf),
+            Stdout::Stdout => std::io::stdout().write_all(buf),
+        }
+    }
+
+    fn write_fmt(&mut self, args: Arguments<'_>) -> std::io::Result<()> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.write_fmt(args),
+            Stdout::Stdout => std::io::stdout().write_fmt(args),
         }
     }
 }
@@ -296,10 +319,31 @@ impl Write for Stderr {
         }
     }
 
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.write_vectored(bufs),
+            Stderr::Stderr => std::io::stderr().write_vectored(bufs),
+        }
+    }
+
     fn flush(&mut self) -> std::io::Result<()> {
         match self {
             Stderr::IndicatifWriter(writer) => writer.flush(),
             Stderr::Stderr => std::io::stderr().flush(),
+        }
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.write_all(buf),
+            Stderr::Stderr => std::io::stderr().write_all(buf),
+        }
+    }
+
+    fn write_fmt(&mut self, args: Arguments<'_>) -> std::io::Result<()> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.write_fmt(args),
+            Stderr::Stderr => std::io::stderr().write_fmt(args),
         }
     }
 }
