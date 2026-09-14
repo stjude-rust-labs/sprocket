@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Input validation now identifies JSON and YAML input files that need an `@`
   prefix instead of reporting a misleading array type mismatch
   ([#906](https://github.com/stjude-rust-labs/sprocket/issues/906)).
+* Print an informative error when `dev test` `parallelism` argument or config
+  value is `0` instead of panicking ([#1196](https://github.com/stjude-rust-labs/sprocket/pull/1196)).
 
 ## 0.30.1 - 2026-08-27
 
