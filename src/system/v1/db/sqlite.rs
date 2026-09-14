@@ -690,7 +690,7 @@ impl Database for SqliteDatabase {
         .fetch_optional(&self.pool)
         .await?;
 
-        task.ok_or(DatabaseError::NotFound)
+        task.ok_or_else(|| DatabaseError::NotFound("not found".to_string()))
     }
 
     async fn list_tasks(
