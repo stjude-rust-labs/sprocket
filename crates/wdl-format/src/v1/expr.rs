@@ -197,7 +197,8 @@ pub fn format_literal_string(
                             if let Some(next_c) = chars.peek()
                                 && *next_c == '\''
                             {
-                                // Do not write this backslash as it doesn't need an escape
+                                // Do not write this backslash as it doesn't
+                                // need an escape
                                 prev_c = Some(c);
                                 continue;
                             }
@@ -207,7 +208,8 @@ pub fn format_literal_string(
                             if let Some(next_c) = chars.peek()
                                 && *next_c == '"'
                             {
-                                // Do not write this backslash as it doesn't need an escape
+                                // Do not write this backslash as it doesn't
+                                // need an escape
                                 prev_c = Some(c);
                                 continue;
                             }
@@ -215,7 +217,9 @@ pub fn format_literal_string(
                         }
                         ('"', QuoteStyle::Double) | ('\'', QuoteStyle::Single) => {
                             if prev_c.is_none_or(|c| c != '\\') {
-                                // This quote is not escaped and we need to escape it. This happens when a quote is re-formatted as its inverse.
+                                // This quote is not escaped and we need to
+                                // escape it. This happens when a quote is
+                                // re-formatted as its inverse.
                                 replacement.push('\\');
                             }
                             replacement.push(c);
