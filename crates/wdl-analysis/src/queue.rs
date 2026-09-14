@@ -118,7 +118,7 @@ pub enum Request<Context> {
     /// A request to get symbols for a document.
     DocumentSymbol(DocumentSymbolRequest),
     /// A request to get symbols for the workspace.
-    WorkspaceSymbol(WorkspaceSymbolRequest),
+    WorkspaceSymbol(WorkspaceSymbolRequest<Context>),
     /// A request to get all incoming calls from a symbol.
     IncomingCalls(IncomingCallsRequest<Context>),
     /// A request to get all outgoing calls from a symbol.
@@ -322,11 +322,13 @@ pub struct DocumentSymbolRequest {
 }
 
 /// Represents a request to get symbols for the workspace.
-pub struct WorkspaceSymbolRequest {
+pub struct WorkspaceSymbolRequest<Context> {
     /// The query string to filter symbols.
     pub query: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<SymbolInformation>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the incoming calls for a symbol.
@@ -601,7 +603,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -636,7 +638,7 @@ where
                         document = document
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -812,7 +814,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -852,7 +854,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(Vec::new()).ok();
                         continue;
                     }
@@ -893,7 +895,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -930,7 +932,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -967,7 +969,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(None, context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -996,7 +998,7 @@ where
                     let start = Instant::now();
                     debug!("received request for semantic tokens for {document}");
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -1046,9 +1048,18 @@ where
                         }
                     }
                 }
-                Request::WorkspaceSymbol(WorkspaceSymbolRequest { query, completed }) => {
+                Request::WorkspaceSymbol(WorkspaceSymbolRequest {
+                    query,
+                    completed,
+                    context,
+                }) => {
                     let start = Instant::now();
                     debug!("received request for workspace symbols with query `{query}`");
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::workspace_symbol(&graph, &query) {
@@ -1079,7 +1090,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -1117,7 +1128,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -1183,7 +1194,7 @@ where
                     let start = Instant::now();
                     debug!("received request for inlay hints at {document}");
 
-                    if !self.ensure_analyzed(document.clone(), context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -1273,32 +1284,36 @@ where
         }
     }
 
-    /// Ensures that the `document` is analyzed.
+    /// Ensures that the `document` (or workspace) is analyzed.
     ///
     /// Returns `true` if the document was successfully analyzed, and `false` if
     /// the document either doesn't exist or fails analysis.
-    fn ensure_analyzed(&self, document: Url, context: Context) -> bool {
-        {
-            let graph = self.graph.read();
+    ///
+    /// If the document is `None`, the entire workspace is analyzed.
+    fn ensure_analyzed(&self, document: Option<Url>, context: Context) -> bool {
+        let index = match &document {
+            Some(uri) => {
+                let graph = self.graph.read();
 
-            match graph.get_index(&document) {
-                Some(index) => {
-                    let node = graph.get(index);
-                    if node.document().is_some() {
-                        // Already analyzed
-                        return true;
-                    }
-                }
-                None => {
-                    debug!("document `{document}` not found in graph");
+                let Some(index) = graph.get_index(uri) else {
+                    debug!("document `{uri:?}` not found in graph");
                     return false;
-                }
-            }
-        }
+                };
 
-        trace!("document not yet analyzed");
-        match self.analyze(Some(document), context, None) {
-            Cancelable::Completed(Ok(_)) => true,
+                Some(index)
+            }
+            None => None,
+        };
+
+        match self.analyze(document, context, None) {
+            Cancelable::Completed(Ok(_)) => {
+                if let Some(index) = index {
+                    let graph = self.graph.read();
+                    return graph.get(index).document().is_some();
+                }
+
+                true
+            }
             Cancelable::Completed(Err(e)) => {
                 debug!("failed to analyze document: {e:?}");
                 false
@@ -1403,7 +1418,6 @@ where
         let mut results: Vec<AnalysisResult> = Vec::new();
         while subgraph.node_count() > 0 {
             if completed.is_some_and(|c| c.is_closed()) {
-                debug!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
 
@@ -1559,10 +1573,8 @@ where
         }
 
         let total = tasks.len();
-        if completed.is_some() {
-            self.tokio
-                .block_on((self.progress)(context.clone(), kind, 0, total));
-        }
+        self.tokio
+            .block_on((self.progress)(context.clone(), kind, 0, total));
 
         let update_progress = self.progress.clone();
         let results = self.tokio.block_on(async move {
@@ -1577,39 +1589,33 @@ where
                 results.push(result);
                 count += 1;
 
-                if completed.is_some() {
-                    let now = Instant::now();
-                    if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS
-                    {
-                        debug!("{count} out of {total} {kind} task(s) have completed");
-                        last_progress = now;
-                        update_progress(context.clone(), kind, count, total).await;
-                    }
+                let now = Instant::now();
+                if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS {
+                    debug!("{count} out of {total} {kind} task(s) have completed");
+                    last_progress = now;
+                    update_progress(context.clone(), kind, count, total).await;
                 }
             }
 
             results
         });
 
-        if completed.is_some() {
-            if results.len() < total {
-                debug!(
-                    "{count} out of {total} {kind} task(s) have completed; canceled {canceled} \
-                     tasks",
-                    count = results.len(),
-                    canceled = total - results.len()
-                );
-            } else {
-                debug!(
-                    "{count} out of {total} {kind} task(s) have completed",
-                    count = results.len()
-                );
-            }
-
-            // Report all have completed even if there are cancellations
-            self.tokio
-                .block_on((self.progress)(context.clone(), kind, total, total));
+        if results.len() < total {
+            debug!(
+                "{count} out of {total} {kind} task(s) have completed; canceled {canceled} tasks",
+                count = results.len(),
+                canceled = total - results.len()
+            );
+        } else {
+            debug!(
+                "{count} out of {total} {kind} task(s) have completed",
+                count = results.len()
+            );
         }
+
+        // Report all have completed even if there are cancellations
+        self.tokio
+            .block_on((self.progress)(context.clone(), kind, total, total));
 
         if completed.is_some_and(|c| c.is_closed()) {
             Cancelable::Canceled

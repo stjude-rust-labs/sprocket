@@ -1431,7 +1431,7 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .workspace_symbol(params.query)
+            .workspace_symbol(ProgressToken::default(), params.query)
             .await
             .map(|opt| opt.map(WorkspaceSymbolResponse::Flat))
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));

@@ -1236,12 +1236,17 @@ where
     }
 
     /// Gets document symbols for the workspace.
-    pub async fn workspace_symbol(&self, query: String) -> Result<Option<Vec<SymbolInformation>>> {
+    pub async fn workspace_symbol(
+        &self,
+        context: Context,
+        query: String,
+    ) -> Result<Option<Vec<SymbolInformation>>> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::WorkspaceSymbol(WorkspaceSymbolRequest {
                 query,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
