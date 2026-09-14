@@ -6,6 +6,7 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use serde::Deserialize;
 use serde::Serialize;
+use tracing::error;
 
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::exec::ConfigError;
@@ -53,8 +54,11 @@ pub enum Error {
 impl From<DatabaseError> for Error {
     fn from(err: DatabaseError) -> Self {
         match err {
-            DatabaseError::NotFound => Self::NotFound(err.to_string()),
-            _ => Self::Internal,
+            DatabaseError::NotFound(_) => Self::NotFound(err.to_string()),
+            err => {
+                error!(error = %err, "database request failed");
+                Self::Internal
+            }
         }
     }
 }
@@ -206,7 +210,7 @@ mod tests {
     #[tokio::test]
     async fn database_not_found_maps_to_not_found_response() {
         assert_error_response(
-            Error::from(DatabaseError::NotFound),
+            Error::from(DatabaseError::NotFound("not found".to_string())),
             StatusCode::NOT_FOUND,
             "NotFound",
             "not found",

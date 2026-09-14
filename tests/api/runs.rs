@@ -78,6 +78,7 @@ async fn create_test_server(
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db.clone())
         .failure_mode(ServerFailureMode::Slow)
         .output_dir(output_dir)
         .build();
