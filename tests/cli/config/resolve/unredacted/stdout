@@ -5,6 +5,7 @@ sort_imports = true
 sort_inputs = false
 trailing_commas = true
 newline_style = "auto"
+quote_style = "preserve"
 
 [check]
 except = []
