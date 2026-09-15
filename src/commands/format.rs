@@ -206,7 +206,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                         formatted_lines.zip(source_lines).all(|(f, s)| f == s)
                     };
                     if newline_only {
-                        eprintln!("incorrect line endings: diff elided");
+                        eprintln!("incorrect newline style");
                     } else if colorize {
                         eprint!(
                             "{}",
