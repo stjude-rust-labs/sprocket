@@ -41,9 +41,17 @@ struct Listing {
     directories: BTreeSet<String>,
 }
 
+/// The kind of a listed directory entry.
+enum EntryKind {
+    /// A file, including a broken symbolic link.
+    File,
+    /// A directory.
+    Directory,
+}
+
 /// Lists files and directories, optionally recursively and with a file filter.
 ///
-/// https://github.com/openwdl/wdl/pull/800#issuecomment-5470593410
+/// https://github.com/openwdl/wdl/blob/wdl-1.4/SPEC.md#-list
 fn list(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert!((1..=4).contains(&context.arguments.len()));
@@ -154,28 +162,30 @@ async fn list_local(
             .await
             .with_context(|| format!("failed to read entry of directory `{}`", path.display()))?
         {
-            let mut kind = entry.file_type().await.with_context(|| {
+            let file_type = entry.file_type().await.with_context(|| {
                 format!("failed to read file type of `{}`", entry.path().display())
             })?;
-            let symlink = kind.is_symlink();
-            if symlink {
+            let symlink = file_type.is_symlink();
+            let kind = if symlink {
                 if !include_symlinks {
                     continue;
                 }
-                kind = fs::metadata(entry.path())
-                    .await
-                    .with_context(|| {
-                        format!(
-                            "failed to read target of symlink `{}`",
-                            entry.path().display()
-                        )
-                    })?
-                    .file_type();
-            }
 
-            if !kind.is_file() && !kind.is_dir() {
+                match fs::metadata(entry.path()).await {
+                    Ok(metadata) if metadata.is_file() => EntryKind::File,
+                    Ok(metadata) if metadata.is_dir() => EntryKind::Directory,
+                    Ok(_) => continue,
+                    // An unresolved symbolic link is broken for listing purposes.
+                    Err(_) => EntryKind::File,
+                }
+            } else if file_type.is_file() {
+                EntryKind::File
+            } else if file_type.is_dir() {
+                EntryKind::Directory
+            } else {
                 continue;
-            }
+            };
+
             let name = entry.file_name().into_string().map_err(|_| {
                 anyhow!(
                     "path `{}` cannot be represented as UTF-8",
@@ -187,13 +197,17 @@ async fn list_local(
             } else {
                 format!("{parent}/{name}")
             };
-            if kind.is_dir() {
-                if recursive && !symlink {
-                    pending.push(relative.clone());
+            match kind {
+                EntryKind::Directory => {
+                    if recursive && !symlink {
+                        pending.push(relative.clone());
+                    }
+                    listing.directories.insert(relative);
                 }
-                listing.directories.insert(relative);
-            } else if matches_file(matcher, &name) {
-                listing.files.push(relative);
+                EntryKind::File if matches_file(matcher, &name) => {
+                    listing.files.push(relative);
+                }
+                EntryKind::File => {}
             }
         }
     }
@@ -209,9 +223,6 @@ async fn list_remote(
 ) -> Result<Listing> {
     let (client, token) = context.http();
     let paths = client.walk(url, token).await?;
-    if paths.is_empty() {
-        bail!("URL `{}` does not refer to a directory", url.display());
-    }
 
     let mut listing = Listing::default();
     for path in paths.iter() {
@@ -545,23 +556,59 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn list_reports_broken_symlinks_unless_excluded() {
+    async fn list_includes_broken_symlinks_unless_excluded() {
         use std::os::unix::fs::symlink;
 
         let env = test_env();
         symlink(
             "missing",
-            env.base_dir().as_local().unwrap().join("data/broken"),
+            env.base_dir().as_local().unwrap().join("data/broken.txt"),
         )
         .unwrap();
-        let diagnostic = eval_v1_expr(&env, V1::Four, "list(directory)")
+        symlink(
+            "cycle-b.txt",
+            env.base_dir().as_local().unwrap().join("data/cycle-a.txt"),
+        )
+        .unwrap();
+        symlink(
+            "cycle-a.txt",
+            env.base_dir().as_local().unwrap().join("data/cycle-b.txt"),
+        )
+        .unwrap();
+
+        let value = eval_v1_expr(&env, V1::Four, "list(directory)")
             .await
-            .unwrap_err();
-        assert!(
-            diagnostic
-                .message()
-                .contains("failed to read target of symlink")
+            .unwrap();
+        assert_eq!(
+            relative_paths(&env, value).0,
+            [
+                "data/.hidden.txt",
+                "data/a.txt",
+                "data/broken.txt",
+                "data/cycle-a.txt",
+                "data/cycle-b.txt",
+                "data/z.txt",
+            ]
         );
+
+        let value = eval_v1_expr(&env, V1::Four, "list(directory, false, true, '*.txt')")
+            .await
+            .unwrap();
+        assert_eq!(
+            relative_paths(&env, value).0,
+            [
+                "data/a.txt",
+                "data/broken.txt",
+                "data/cycle-a.txt",
+                "data/cycle-b.txt",
+                "data/z.txt",
+            ]
+        );
+
+        let value = eval_v1_expr(&env, V1::Four, "list(directory, false, true, '*.bam')")
+            .await
+            .unwrap();
+        assert!(relative_paths(&env, value).0.is_empty());
 
         let value = eval_v1_expr(&env, V1::Four, "list(directory, false, false)")
             .await
@@ -670,22 +717,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_reports_remote_errors() {
+    async fn list_returns_empty_remote_listing() {
         let env = test_env();
         for path in ["missing", "data/a.txt"] {
-            let diagnostic = eval_v1_expr(
+            let value = eval_v1_expr(
                 &env,
                 V1::Four,
                 &format!("list('https://example.com/{path}')"),
             )
             .await
-            .unwrap_err();
-            assert!(
-                diagnostic
-                    .message()
-                    .starts_with("call to function `list` failed:"),
-                "{diagnostic:?}"
-            );
+            .unwrap();
+            assert_eq!(relative_paths(&env, value), (vec![], vec![]));
         }
     }
 
@@ -713,6 +755,7 @@ workflow test {
     }
 
     Pair[Array[File], Array[Directory]] entries = list(directory, true, true, "*.txt")
+    Array[File] top_level_files = list(directory).left
 
     scatter (file in entries.left) {
         call read_file { input: file }
@@ -727,7 +770,9 @@ workflow test {
     output {
         Array[String] contents = read_file.contents
         Array[Int] child_counts = child_count
+        Int top_level_count = length(top_level_files)
         String task_contents = list_task.contents
+        Int task_top_level_count = list_task.top_level_count
         Array[File] generated_files = list_task.generated.left
         Array[Directory] generated_directories = list_task.generated.right
     }
@@ -753,6 +798,7 @@ task list_task {
     Array[File] files = list(directory, true, true, "*.txt").left
     String directory_path = directory
     Array[File] mapped_files = list(directory_path, true, true, "*.txt").left
+    Array[File] top_level_files = list(directory).left
 
     command <<<
         cat ~{sep(" ", squote(files))} > contents.txt
@@ -765,6 +811,7 @@ task list_task {
 
     output {
         String contents = read_string("contents.txt")
+        Int top_level_count = length(top_level_files)
         Pair[Array[File], Array[Directory]] generated = list("generated", true)
     }
 }
@@ -791,6 +838,16 @@ task list_task {
             "{:?}",
             document.diagnostics().collect::<Vec<_>>()
         );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+
+            let data = env.base_dir().as_local().unwrap().join("data");
+            symlink("missing", data.join("broken")).unwrap();
+            symlink("cycle-b", data.join("cycle-a")).unwrap();
+            symlink("cycle-a", data.join("cycle-b")).unwrap();
+        }
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
@@ -834,6 +891,23 @@ task list_task {
                 .unwrap()
                 .as_str(),
             expected_contents.concat()
+        );
+        let expected_top_level_count = if cfg!(unix) { 6 } else { 3 };
+        assert_eq!(
+            outputs
+                .get("top_level_count")
+                .unwrap()
+                .as_integer()
+                .unwrap(),
+            expected_top_level_count
+        );
+        assert_eq!(
+            outputs
+                .get("task_top_level_count")
+                .unwrap()
+                .as_integer()
+                .unwrap(),
+            expected_top_level_count
         );
         let counts: Vec<_> = outputs
             .get("child_counts")

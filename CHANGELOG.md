@@ -11,8 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added the experimental WDL 1.4 `list` function for listing a directory's files
   and subdirectories, with recursion, symlink inclusion, and file filtering.
-  This implements the design approved in
-  [openwdl/wdl#800](https://github.com/openwdl/wdl/pull/800#issuecomment-5470593410)
+  This implements [openwdl/wdl#800](https://github.com/openwdl/wdl/pull/800)
   and requires `feature_flags.wdl_1_4 = true`.
 * Added configuration setting `run.digest_cache_capacity` and
   `server.engine.digest_cache_capacity` for specifying the evaluation digest

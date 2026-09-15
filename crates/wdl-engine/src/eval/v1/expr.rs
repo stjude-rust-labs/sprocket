@@ -1838,6 +1838,10 @@ pub(crate) mod tests {
                 let root = self
                     .0
                     .join(url.path().strip_prefix('/').unwrap_or(url.path()));
+                if !root.is_dir() {
+                    return Ok(Vec::<String>::new().into());
+                }
+
                 let mut paths = Vec::new();
                 for entry in walkdir::WalkDir::new(&root).min_depth(1) {
                     let entry = entry?;

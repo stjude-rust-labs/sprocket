@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added the WDL 1.4 `list` function, returning a pair of file and directory
   arrays with optional recursion, symlink inclusion, and basename glob filtering
-  ([openwdl/wdl#800](https://github.com/openwdl/wdl/pull/800#issuecomment-5470593410)).
+  ([openwdl/wdl#800](https://github.com/openwdl/wdl/pull/800)).
 
 #### Changed
 
