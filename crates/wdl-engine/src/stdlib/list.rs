@@ -286,6 +286,14 @@ mod tests {
 
     use pretty_assertions::assert_eq;
     use url::Url;
+    use wdl_analysis::stdlib::FunctionBindError;
+    use wdl_analysis::stdlib::STDLIB;
+    use wdl_analysis::types::ArrayType;
+    use wdl_analysis::types::Optional;
+    use wdl_analysis::types::PairType;
+    use wdl_analysis::types::PrimitiveType;
+    use wdl_analysis::types::Type;
+    use wdl_ast::SupportedVersion;
     use wdl_ast::version::V1;
 
     use crate::PrimitiveValue;
@@ -362,6 +370,182 @@ mod tests {
         assert_eq!(
             directories,
             ["data/.hidden_dir", "data/a", "data/a-dir", "data/empty"]
+        );
+    }
+
+    #[tokio::test]
+    async fn list_requires_wdl_1_4() {
+        let env = test_env();
+        for version in [V1::Zero, V1::One, V1::Two, V1::Three] {
+            let diagnostic = eval_v1_expr(&env, version, "list(directory)")
+                .await
+                .unwrap_err();
+            assert_eq!(
+                diagnostic.message(),
+                "this use of function `list` requires a minimum WDL version of 1.4"
+            );
+        }
+    }
+
+    #[test]
+    fn it_binds_list_with_all_argument_counts() {
+        let f = STDLIB.function("list").expect("should have function");
+        let version = SupportedVersion::V1(V1::Four);
+        let arguments = [
+            PrimitiveType::Directory.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::String.into(),
+        ];
+        let expected: Type = PairType::new(
+            ArrayType::new(PrimitiveType::File),
+            ArrayType::new(PrimitiveType::Directory),
+        )
+        .into();
+
+        assert_eq!(f.param_min_max(version), Some((1, 4)));
+        for count in 1..=arguments.len() {
+            let binding = f
+                .bind(version, &arguments[..count])
+                .expect("binding should succeed");
+            assert_eq!(binding.index(), 0);
+            assert_eq!(binding.return_type(), &expected);
+        }
+    }
+
+    #[test]
+    fn list_rejects_incorrect_argument_counts() {
+        let f = STDLIB.function("list").expect("should have function");
+        let version = SupportedVersion::V1(V1::Four);
+        assert_eq!(
+            f.bind(version, &[]).expect_err("binding should fail"),
+            FunctionBindError::TooFewArguments(1)
+        );
+        assert_eq!(
+            f.bind(
+                version,
+                &[
+                    PrimitiveType::Directory.into(),
+                    PrimitiveType::Boolean.into(),
+                    PrimitiveType::Boolean.into(),
+                    PrimitiveType::String.into(),
+                    PrimitiveType::String.into(),
+                ]
+            )
+            .expect_err("binding should fail"),
+            FunctionBindError::TooManyArguments(4)
+        );
+    }
+
+    #[test]
+    fn list_rejects_incorrect_argument_types() {
+        let f = STDLIB.function("list").expect("should have function");
+        let valid: [Type; 4] = [
+            PrimitiveType::Directory.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::String.into(),
+        ];
+
+        for (index, invalid) in [
+            (0, PrimitiveType::File.into()),
+            (0, PrimitiveType::Integer.into()),
+            (0, ArrayType::new(PrimitiveType::Directory).into()),
+            (1, PrimitiveType::String.into()),
+            (2, PrimitiveType::Integer.into()),
+            (3, PrimitiveType::Boolean.into()),
+        ] {
+            let mut arguments = valid.clone();
+            arguments[index] = invalid;
+            assert_eq!(
+                f.bind(SupportedVersion::V1(V1::Four), &arguments)
+                    .expect_err("binding should fail"),
+                FunctionBindError::ArgumentTypeMismatch {
+                    index,
+                    expected: format!("{:#}", valid[index]),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn list_rejects_optional_and_none_arguments() {
+        let f = STDLIB.function("list").expect("should have function");
+        let valid: [Type; 4] = [
+            PrimitiveType::Directory.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::String.into(),
+        ];
+
+        for (index, ty) in valid.iter().enumerate() {
+            for invalid in [ty.optional(), Type::None] {
+                let mut arguments = valid.clone();
+                arguments[index] = invalid;
+                assert_eq!(
+                    f.bind(SupportedVersion::V1(V1::Four), &arguments)
+                        .expect_err("binding should fail"),
+                    FunctionBindError::ArgumentTypeMismatch {
+                        index,
+                        expected: format!("{ty:#}"),
+                    }
+                );
+            }
+        }
+
+        for (index, ty) in [
+            (0, PrimitiveType::String),
+            (3, PrimitiveType::File),
+            (3, PrimitiveType::Directory),
+        ] {
+            let mut arguments = valid.clone();
+            arguments[index] = Type::from(ty).optional();
+            assert_eq!(
+                f.bind(SupportedVersion::V1(V1::Four), &arguments)
+                    .expect_err("binding should fail"),
+                FunctionBindError::ArgumentTypeMismatch {
+                    index,
+                    expected: format!("{:#}", valid[index]),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn it_binds_list_with_existing_coercions() {
+        let f = STDLIB.function("list").expect("should have function");
+        let version = SupportedVersion::V1(V1::Four);
+
+        for directory in [PrimitiveType::Directory, PrimitiveType::String] {
+            for pattern in [
+                PrimitiveType::String,
+                PrimitiveType::File,
+                PrimitiveType::Directory,
+            ] {
+                let binding = f
+                    .bind(
+                        version,
+                        &[
+                            directory.into(),
+                            PrimitiveType::Boolean.into(),
+                            PrimitiveType::Boolean.into(),
+                            pattern.into(),
+                        ],
+                    )
+                    .expect("binding should succeed");
+                assert_eq!(
+                    binding.return_type().to_string(),
+                    "Pair[Array[File], Array[Directory]]"
+                );
+            }
+        }
+
+        let binding = f
+            .bind(version, &[const { Type::Union }; 4])
+            .expect("binding should succeed");
+        assert_eq!(
+            binding.return_type().to_string(),
+            "Pair[Array[File], Array[Directory]]"
         );
     }
 
