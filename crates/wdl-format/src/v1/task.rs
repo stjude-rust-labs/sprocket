@@ -141,7 +141,7 @@ pub fn format_command_section(
 
     let open_delimiter = children.next().expect("open delimiter");
     match open_delimiter.element().kind() {
-        SyntaxKind::OpenBrace => {
+        SyntaxKind::OpenBrace if config.upgrade_deprecations => {
             stream.push_literal_in_place_of_token(
                 open_delimiter
                     .element()
@@ -150,14 +150,8 @@ pub fn format_command_section(
                 "<<<".to_string(),
             );
         }
-        SyntaxKind::OpenHeredoc => {
-            (&open_delimiter).write(stream, config);
-        }
         _ => {
-            unreachable!(
-                "unexpected open delimiter in command section: {:?}",
-                open_delimiter.element().kind()
-            );
+            (&open_delimiter).write(stream, config);
         }
     }
 
@@ -253,7 +247,7 @@ pub fn format_command_section(
 
             for child in children {
                 match child.element().kind() {
-                    SyntaxKind::CloseBrace => {
+                    SyntaxKind::CloseBrace if config.upgrade_deprecations => {
                         stream.push_literal_in_place_of_token(
                             child
                                 .element()
@@ -262,14 +256,8 @@ pub fn format_command_section(
                             ">>>".to_string(),
                         );
                     }
-                    SyntaxKind::CloseHeredoc => {
-                        (&child).write(stream, config);
-                    }
                     _ => {
-                        unreachable!(
-                            "unexpected child in command section: {:?}",
-                            child.element().kind()
-                        );
+                        (&child).write(stream, config);
                     }
                 }
             }
