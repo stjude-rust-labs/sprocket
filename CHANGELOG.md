@@ -17,6 +17,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) and requires
   `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
 
+### Changed
+
+* `sprocket inputs`, `sprocket validate`, `sprocket run`, and server execution now select local
+  workflows by name. WDL 1.4 documents with multiple workflows require an explicit target when one
+  cannot be inferred ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
+
 ### Fixed
 
 * Relative paths for `doc` configured index pages are now resolved relative to the root workspace
