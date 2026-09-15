@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * API v1 read endpoints now query the database connection pool directly instead
   of waiting on the run manager command queue
   ([#578](https://github.com/stjude-rust-labs/sprocket/issues/578)).
+* `sprocket inputs`, `sprocket validate`, `sprocket run`, and server execution
+  now select local workflows by name. WDL 1.4 documents with multiple
+  workflows require an explicit target when one cannot be inferred
+  ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
   ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).

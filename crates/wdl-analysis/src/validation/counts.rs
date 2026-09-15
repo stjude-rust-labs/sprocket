@@ -223,7 +223,7 @@ fn empty_struct(name: Ident) -> Diagnostic {
 /// Ensures that a document:
 ///
 /// * Contains at least one definition in the file
-/// * Contains at most one workflow
+/// * Contains at most one workflow before WDL 1.4
 /// * Contains exactly one command section in every task
 /// * Contains at most one input section in a task or workflow
 /// * Contains at most one output section in a task or workflow
@@ -318,7 +318,10 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        self.ignore_current = self.has_workflow;
+        self.ignore_current = self
+            .version
+            .is_some_and(|version| version < SupportedVersion::V1(V1::Four))
+            && self.has_workflow;
         self.has_workflow = true;
     }
 

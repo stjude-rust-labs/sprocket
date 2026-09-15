@@ -347,15 +347,32 @@ fn resolve_call_target(
                 )?));
             }
 
-            if let Some(wf_def) = imported_doc
-                .workflow()
-                .filter(|w| w.name() == callee_name_str)
-            {
-                return Ok(Some(location_from_span(
-                    &ns_info.source(),
-                    wf_def.name_span(),
-                    imported_lines,
-                )?));
+            if let Some(workflow) = imported_doc.workflow_by_name(callee_name_str) {
+                match workflow {
+                    crate::WorkflowRef::Local(workflow) => {
+                        return Ok(Some(location_from_span(
+                            &ns_info.source(),
+                            workflow.name_span(),
+                            imported_lines,
+                        )?));
+                    }
+                    crate::WorkflowRef::Imported(workflow) => {
+                        let Some(index) = graph.get_index(&workflow.source()) else {
+                            return Ok(None);
+                        };
+                        let node = graph.get(index);
+                        let Some(definition) =
+                            workflow.document().local_workflow_by_name(workflow.name())
+                        else {
+                            return Ok(None);
+                        };
+                        return Ok(Some(location_from_span(
+                            &workflow.source(),
+                            definition.name_span(),
+                            node.parse_state().lines().unwrap(),
+                        )?));
+                    }
+                }
             }
         } else if target_names.len() == 1 {
             // NOTE: Local calls
@@ -367,10 +384,7 @@ fn resolve_call_target(
                 )?));
             }
 
-            if let Some(wf_def) = analysis_doc
-                .workflow()
-                .filter(|w| w.name() == callee_name_str)
-            {
+            if let Some(wf_def) = analysis_doc.local_workflow_by_name(callee_name_str) {
                 return Ok(Some(location_from_span(
                     &analysis_doc.uri(),
                     wf_def.name_span(),
@@ -405,9 +419,8 @@ fn resolve_call_target(
                 let Some(imported_doc) = node.document() else {
                     return Ok(None);
                 };
-                let Some(workflow_def) = imported_doc
-                    .workflow()
-                    .filter(|workflow| workflow.name() == imported_workflow.name())
+                let Some(workflow_def) =
+                    imported_doc.local_workflow_by_name(imported_workflow.name())
                 else {
                     return Ok(None);
                 };
@@ -1031,8 +1044,7 @@ fn find_target_input_parameter(
         }
     }
 
-    if let Some(workflow) = doc.workflow()
-        && workflow.name() == target_name
+    if let Some(workflow) = doc.local_workflow_by_name(target_name)
         && workflow.inputs().contains_key(token.text())
     {
         let scope = workflow.scope();
@@ -1072,10 +1084,7 @@ fn find_global_definition_in_doc(
             lines,
         )?));
     }
-    if let Some(w) = analysis_doc
-        .workflow()
-        .filter(|w_def| w_def.name() == ident_text)
-    {
+    if let Some(w) = analysis_doc.local_workflow_by_name(ident_text) {
         return Ok(Some(location_from_span(
             document_uri,
             w.name_span(),

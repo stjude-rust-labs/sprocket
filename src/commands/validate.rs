@@ -122,9 +122,9 @@ pub async fn validate_inputs(
             inputs.validate(document, task, None)?
         }
         EngineInputs::Workflow(inputs) => {
-            // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
-            // exist that matched the user's criteria.
-            let workflow = document.workflow().unwrap();
+            let workflow = document
+                .local_workflow_by_name(&target)
+                .with_context(|| format!("workflow `{target}` was not found"))?;
             inputs.validate(document, workflow, None)?
         }
     }
@@ -153,20 +153,12 @@ async fn resolve_target_and_inputs(
         Some((target, inputs)) => (target, inputs),
         None => {
             if let Some(name) = target_arg {
-                match (document.task_by_name(&name), document.workflow()) {
+                match (
+                    document.local_task_by_name(&name),
+                    document.local_workflow_by_name(&name),
+                ) {
                     (Some(_), _) => (name, EngineInputs::Task(Default::default())),
-                    (None, Some(workflow)) => {
-                        if workflow.name() == name {
-                            (name, EngineInputs::Workflow(Default::default()))
-                        } else {
-                            return Err(anyhow!(
-                                "no task or workflow with name `{name}` was found in document \
-                                 `{path}`",
-                                path = document.path()
-                            )
-                            .into());
-                        }
-                    }
+                    (None, Some(_)) => (name, EngineInputs::Workflow(Default::default())),
                     (None, None) => {
                         return Err(anyhow!(
                             "no task or workflow with name `{name}` was found in document `{path}`",

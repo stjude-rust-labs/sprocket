@@ -1,0 +1,2 @@
+[common.wdl.feature_flags]
+wdl_1_4 = true

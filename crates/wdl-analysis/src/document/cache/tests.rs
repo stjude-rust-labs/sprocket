@@ -207,6 +207,9 @@ task baz {
     assert_ne!(new_foo_hash, foo_hash);
     assert_eq!(new_bar_hash, bar_hash);
     assert_eq!(new_baz_hash, baz_hash);
+    assert!(cache_post.tests.invalidated_signatures.contains(&foo_hash));
+    assert!(cache_post.tests.invalidated_signatures.contains(&bar_hash));
+    assert!(!cache_post.tests.invalidated_signatures.contains(&baz_hash));
 
     assert!(
         cache_post
@@ -232,6 +235,342 @@ task baz {
         .iter()
         .find(|d| d.message() == "missing required call input `name` for task `foo`");
     assert!(missing_input.is_some());
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn should_recompute_recursive_workflow_diagnostics_after_body_edits() {
+    let acyclic = r#"version 1.4
+
+workflow first {
+    call second
+}
+
+workflow second {
+    call third
+}
+
+workflow third {}
+"#;
+    let cyclic = r#"version 1.4
+
+workflow first {
+    call second
+}
+
+workflow second {
+    call first
+}
+
+workflow third {}
+"#;
+
+    let config =
+        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), acyclic)]).await;
+
+    let result = doc_handle.analyze(&analyzer).await;
+    assert_eq!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.message().starts_with("cannot recursively call"))
+            .count(),
+        0
+    );
+
+    let first_hash = result
+        .document()
+        .cache()
+        .item_by_name("first")
+        .expect("first workflow should exist")
+        .signature_hash()
+        .expect("first workflow should be local");
+    let second_hash = result
+        .document()
+        .cache()
+        .item_by_name("second")
+        .expect("second workflow should exist")
+        .signature_hash()
+        .expect("second workflow should be local");
+
+    doc_handle.edit(cyclic, &analyzer).await;
+    let result = doc_handle.analyze(&analyzer).await;
+    let cache = result.document().cache();
+    assert!(cache.tests.invalidated_signatures.contains(&first_hash));
+    assert!(cache.tests.invalidated_signatures.contains(&second_hash));
+    assert!(cache.dependencies.contains_edge(first_hash, second_hash));
+    assert!(cache.dependencies.contains_edge(second_hash, first_hash));
+    assert_eq!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.message().starts_with("cannot recursively call"))
+            .count(),
+        1
+    );
+
+    let stable = doc_handle.analyze(&analyzer).await;
+    assert_eq!(
+        stable
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.message().starts_with("cannot recursively call"))
+            .count(),
+        1
+    );
+
+    doc_handle.edit(acyclic, &analyzer).await;
+    let result = doc_handle.analyze(&analyzer).await;
+    assert_eq!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.message().starts_with("cannot recursively call"))
+            .count(),
+        0
+    );
+
+    doc_handle.edit(cyclic, &analyzer).await;
+    let result = doc_handle.analyze(&analyzer).await;
+    assert_eq!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.message().starts_with("cannot recursively call"))
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn should_retain_identical_duplicate_workflow_diagnostics() {
+    let source = r#"version 1.4
+
+workflow duplicate {}
+
+workflow duplicate {}
+"#;
+    let shifted = r#"version 1.4
+
+# Shift both identical definitions without changing either signature.
+workflow duplicate {}
+
+workflow duplicate {}
+"#;
+    let config =
+        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), source)]).await;
+
+    let result = doc_handle.analyze(&analyzer).await;
+    assert_eq!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.message() == "conflicting workflow name `duplicate`")
+            .count(),
+        1
+    );
+    assert_eq!(result.document().local_workflows().count(), 1);
+
+    doc_handle.edit(shifted, &analyzer).await;
+    let result = doc_handle.analyze(&analyzer).await;
+    assert_eq!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.message() == "conflicting workflow name `duplicate`")
+            .count(),
+        1
+    );
+    assert_eq!(result.document().local_workflows().count(), 1);
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn should_resolve_calls_when_a_workflow_is_added() {
+    let initial = r#"version 1.4
+
+workflow caller {
+    call callee
+}
+"#;
+    let revised = r#"version 1.4
+
+workflow caller {
+    call callee
+}
+
+workflow callee {}
+"#;
+    let config =
+        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), initial)]).await;
+
+    let result = doc_handle.analyze(&analyzer).await;
+    assert!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic
+                .message()
+                .contains("unknown task or workflow `callee`"))
+    );
+
+    doc_handle.edit(revised, &analyzer).await;
+    let result = doc_handle.analyze(&analyzer).await;
+    assert!(
+        !result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic
+                .message()
+                .contains("unknown task or workflow `callee`"))
+    );
+    assert!(
+        result
+            .document()
+            .local_workflow_by_name("caller")
+            .expect("caller workflow should exist")
+            .calls()
+            .contains_key("callee")
+    );
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn should_resolve_calls_when_an_imported_workflow_is_added() {
+    let initial_library = r#"version 1.4
+
+workflow existing {}
+"#;
+    let revised_library = r#"version 1.4
+
+workflow existing {}
+
+workflow added {}
+"#;
+    let source = r#"version 1.4
+
+import * from "foo.wdl"
+
+workflow caller {
+    call added
+}
+"#;
+    let config =
+        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let ([mut library, main], analyzer) = setup_analyzer(
+        config,
+        [
+            (FOO_WDL.clone(), initial_library),
+            (MAIN_WDL.clone(), source),
+        ],
+    )
+    .await;
+
+    let result = main.analyze(&analyzer).await;
+    assert!(
+        result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic
+                .message()
+                .contains("unknown task or workflow `added`"))
+    );
+
+    library.edit(revised_library, &analyzer).await;
+    let result = main.analyze(&analyzer).await;
+    assert!(
+        !result
+            .document()
+            .analysis_diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic
+                .message()
+                .contains("unknown task or workflow `added`"))
+    );
+    assert!(
+        result
+            .document()
+            .local_workflow_by_name("caller")
+            .expect("caller workflow should exist")
+            .calls()
+            .contains_key("added")
+    );
+}
+
+#[tokio::test]
+#[test_log::test]
+async fn should_resolve_calls_when_a_missing_import_appears() {
+    let source = r#"version 1.4
+
+import "foo.wdl" as foo
+
+workflow caller {
+    call foo.added
+}
+"#;
+    let library_source = r#"version 1.4
+
+workflow added {}
+"#;
+    let config =
+        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let ([main], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), source)]).await;
+
+    let result = main.analyze(&analyzer).await;
+    let caller_hash = result
+        .document()
+        .cache()
+        .item_by_name("caller")
+        .expect("caller workflow should exist")
+        .signature_hash()
+        .expect("caller workflow should be local");
+    assert!(
+        !result
+            .document()
+            .local_workflow_by_name("caller")
+            .expect("caller workflow should exist")
+            .calls()
+            .contains_key("added")
+    );
+
+    analyzer.add_document(FOO_WDL.clone()).await.unwrap();
+    let mut library = DocumentHandle {
+        version: 0,
+        uri: FOO_WDL.clone(),
+    };
+    library.edit(library_source, &analyzer).await;
+
+    let result = main.analyze(&analyzer).await;
+    assert!(
+        result
+            .document()
+            .cache()
+            .tests
+            .invalidated_signatures
+            .contains(&caller_hash)
+    );
+    assert!(
+        result
+            .document()
+            .local_workflow_by_name("caller")
+            .expect("caller workflow should exist")
+            .calls()
+            .contains_key("added")
+    );
 }
 
 #[tokio::test]

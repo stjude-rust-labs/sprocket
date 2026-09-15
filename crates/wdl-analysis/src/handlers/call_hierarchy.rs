@@ -187,19 +187,19 @@ fn resolve_enclosing_scope(
     offset: usize,
     lines: &LineIndex,
 ) -> Option<EnclosingScope> {
-    if let Some(workflow) = document.workflow()
-        && workflow.scope().span().contains(offset)
-    {
-        let location = location_from_span(&document.uri(), workflow.name_span(), lines).ok()?;
-        let range = location_from_span(&document.uri(), workflow.span(), lines)
-            .ok()?
-            .range;
-        return Some(EnclosingScope {
-            kind: EnclosingScopeKind::Workflow,
-            name: workflow.name().to_string(),
-            location,
-            range,
-        });
+    for workflow in document.local_workflows() {
+        if workflow.scope().span().contains(offset) {
+            let location = location_from_span(&document.uri(), workflow.name_span(), lines).ok()?;
+            let range = location_from_span(&document.uri(), workflow.span(), lines)
+                .ok()?
+                .range;
+            return Some(EnclosingScope {
+                kind: EnclosingScopeKind::Workflow,
+                name: workflow.name().to_string(),
+                location,
+                range,
+            });
+        }
     }
 
     for task in document.local_tasks() {

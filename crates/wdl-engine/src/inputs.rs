@@ -47,16 +47,16 @@ pub type JsonMap = serde_json::Map<String, JsonValue>;
 fn resolve_call_document<'a>(
     document: &'a Document,
     call: &'a CallType,
-) -> (&'a Document, &'a str) {
+) -> Result<(&'a Document, &'a str)> {
     let base = match call.namespace() {
         Some(ns) => document
             .namespace(ns)
-            .expect("namespace should be present")
+            .with_context(|| format!("namespace `{ns}` was not found"))?
             .document(),
         None => document,
     };
 
-    match call.kind() {
+    Ok(match call.kind() {
         CallKind::Task => base
             .imported_task_by_name(call.name())
             .map(|task| (task.document(), task.name()))
@@ -65,7 +65,7 @@ fn resolve_call_document<'a>(
             .imported_workflow_by_name(call.name())
             .map(|workflow| (workflow.document(), workflow.name()))
             .unwrap_or((base, call.name())),
-    }
+    })
 }
 
 /// Checks that an input value matches the type of the input.
@@ -586,14 +586,19 @@ impl WorkflowInputs {
                 )
             })?;
 
-            let (document, call_target_name) = resolve_call_document(document, call);
+            let (document, call_target_name) = resolve_call_document(document, call)?;
 
             // Validate the call's inputs
             let inputs = match call.kind() {
                 CallKind::Task => {
-                    let task = document
-                        .local_task_by_name(call_target_name)
-                        .expect("task should be present");
+                    let task =
+                        document
+                            .local_task_by_name(call_target_name)
+                            .with_context(|| {
+                                format!(
+                                    "task `{call_target_name}` was not found in the call document"
+                                )
+                            })?;
 
                     let task_inputs = inputs.as_task_inputs().with_context(|| {
                         format!("`{name}` is a call to a task, but workflow inputs were supplied")
@@ -603,12 +608,13 @@ impl WorkflowInputs {
                     &task_inputs.inputs
                 }
                 CallKind::Workflow => {
-                    let workflow = document.workflow().expect("should have a workflow");
-                    assert_eq!(
-                        workflow.name(),
-                        call_target_name,
-                        "call name does not match workflow name"
-                    );
+                    let workflow = document
+                        .local_workflow_by_name(call_target_name)
+                        .with_context(|| {
+                            format!(
+                                "workflow `{call_target_name}` was not found in the call document"
+                            )
+                        })?;
                     let workflow_inputs = inputs.as_workflow_inputs().with_context(|| {
                         format!("`{name}` is a call to a workflow, but task inputs were supplied")
                     })?;
@@ -683,7 +689,7 @@ impl WorkflowInputs {
                             CallKind::Workflow => Inputs::Workflow(Default::default()),
                         });
 
-                let (document, call_target_name) = resolve_call_document(document, call);
+                let (document, call_target_name) = resolve_call_document(document, call)?;
 
                 let next = remainder
                     .split_once('.')
@@ -699,21 +705,29 @@ impl WorkflowInputs {
                 // Recurse on the call's inputs to set the value
                 let input = match call.kind() {
                     CallKind::Task => {
-                        let task = document
-                            .local_task_by_name(call_target_name)
-                            .expect("task should be present");
+                        let task =
+                            document
+                                .local_task_by_name(call_target_name)
+                                .with_context(|| {
+                                    format!(
+                                        "task `{call_target_name}` was not found in the call \
+                                         document"
+                                    )
+                                })?;
                         inputs
                             .as_task_inputs_mut()
                             .expect("should be a task input")
                             .set_path_value(document, task, remainder, value)?
                     }
                     CallKind::Workflow => {
-                        let workflow = document.workflow().expect("should have a workflow");
-                        assert_eq!(
-                            workflow.name(),
-                            call_target_name,
-                            "call name does not match workflow name"
-                        );
+                        let workflow = document
+                            .local_workflow_by_name(call_target_name)
+                            .with_context(|| {
+                                format!(
+                                    "workflow `{call_target_name}` was not found in the call \
+                                     document"
+                                )
+                            })?;
                         inputs
                             .as_workflow_inputs_mut()
                             .expect("should be a task input")
@@ -1073,12 +1087,10 @@ impl Inputs {
 
         let inputs = match (
             document.local_task_by_name(&target_name),
-            document.workflow(),
+            document.local_workflow_by_name(&target_name),
         ) {
             (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
-            (None, Some(workflow)) if workflow.name() == target_name => {
-                Self::parse_workflow_inputs(document, workflow, object)?
-            }
+            (None, Some(workflow)) => Self::parse_workflow_inputs(document, workflow, object)?,
             _ => bail!(
                 "invalid inputs: a task or workflow named `{target_name}` does not exist in the \
                  document"

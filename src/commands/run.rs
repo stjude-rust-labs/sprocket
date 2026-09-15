@@ -117,10 +117,10 @@ pub struct Args {
     /// The name of the task or workflow to run.
     ///
     /// When no inputs are provided and `target` is not specified, the
-    /// target is inferred from the document: a workflow is selected if one
-    /// exists, otherwise a single task is selected. If the target remains
-    /// ambiguous (e.g., multiple tasks and no workflow), an error is
-    /// returned.
+    /// target is inferred from the document: a workflow is selected if exactly
+    /// one exists, otherwise a single task is selected. If the target remains
+    /// ambiguous (for example, the document has multiple workflows), an error
+    /// is returned.
     ///
     /// If `target` is not specified but inputs are provided, all input
     /// keys (from both files and key-value pairs) are expected to be
@@ -1189,7 +1189,7 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
             })?;
         }
         (Target::Workflow(workflow), Inputs::Workflow(inputs)) => {
-            let Some(workflow) = document.workflow() else {
+            let Some(workflow) = document.local_workflow_by_name(workflow) else {
                 bail!("workflow '{workflow}' not found in document");
             };
 

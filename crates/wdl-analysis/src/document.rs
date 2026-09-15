@@ -974,7 +974,7 @@ impl DocumentData {
             Some(Context::Namespace(*span))
         } else if let Some((_idx, _hash, task)) = cache.local_task_by_name(name) {
             Some(Context::Task(task.name_span()))
-        } else if let Some(wf) = cache.workflow().filter(|w| w.name() == name) {
+        } else if let Some((_idx, _hash, wf)) = cache.local_workflow_by_name(name) {
             Some(Context::Workflow(wf.name_span()))
         } else if let Some((_idx, _hash, s)) = cache.local_struct_by_name(name) {
             Some(Context::Struct(s.name_span()))
@@ -1184,8 +1184,8 @@ impl Document {
         self.data.cache.tasks()
     }
 
-    /// Gets the tasks in the document.
-    pub(crate) fn local_tasks(&self) -> impl Iterator<Item = &Task> {
+    /// Gets the tasks locally defined in the document.
+    pub fn local_tasks(&self) -> impl Iterator<Item = &Task> {
         self.data.cache.local_tasks().map(|(_, _, task)| task)
     }
 
@@ -1210,11 +1210,27 @@ impl Document {
         self.data.cache.imported_task_by_name(name).map(|(_, t)| t)
     }
 
-    /// Gets a workflow in the document.
+    /// Gets the workflows in the document.
     ///
-    /// Returns `None` if the document did not contain a workflow.
-    pub fn workflow(&self) -> Option<&Workflow> {
-        self.data.cache.workflow()
+    /// NOTE: This includes both locally defined and imported workflows.
+    pub fn workflows(&self) -> impl Iterator<Item = WorkflowRef<'_>> {
+        self.data.cache.workflows()
+    }
+
+    /// Gets the workflows locally defined in the document.
+    pub fn local_workflows(&self) -> impl Iterator<Item = &Workflow> {
+        self.data
+            .cache
+            .local_workflows()
+            .map(|(_idx, _hash, workflow)| workflow)
+    }
+
+    /// Gets a locally defined workflow by name.
+    pub fn local_workflow_by_name(&self, name: &str) -> Option<&Workflow> {
+        self.data
+            .cache
+            .local_workflow_by_name(name)
+            .map(|(_idx, _hash, workflow)| workflow)
     }
 
     /// Gets an imported workflow in the document by local name.
@@ -1279,9 +1295,7 @@ impl Document {
     /// NOTE: Unlike [`Self::callable_by_name()`], this only searches callables
     /// defined in this document.
     pub fn local_callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
-        if let Some(workflow) = self.workflow()
-            && workflow.name == name
-        {
+        if let Some(workflow) = self.local_workflow_by_name(name) {
             return Some(Callable::Workflow(WorkflowRef::Local(workflow)));
         }
 
@@ -1296,10 +1310,9 @@ impl Document {
     ///
     /// See also: [`Self::callables()`]
     pub fn local_callables(&self) -> impl Iterator<Item = Callable<'_>> {
-        self.workflow()
+        self.local_workflows()
             .map(WorkflowRef::Local)
             .map(Callable::Workflow)
-            .into_iter()
             .chain(self.local_tasks().map(TaskRef::Local).map(Callable::Task))
     }
 
@@ -1475,29 +1488,24 @@ impl Document {
             }
         }
 
-        // Check to see if the position is contained in the workflow
-        if let Some(workflow) = self.data.cache.workflow()
-            && workflow.scope().span().contains(position)
-        {
-            return find_scope(&workflow.scopes, position);
-        }
-
-        // Search for a task that might contain the position
-        let task = self
+        // Search for the local workflow or task that might contain the
+        // position.
+        let scopes = self
             .data
             .cache
-            .local_tasks()
-            .filter_map(|(_idx, _hash, t)| {
-                if t.scope().span().start() <= position {
-                    Some(t)
-                } else {
-                    None
-                }
-            })
-            .max_by_key(|t| t.scope().span().start())?;
+            .local_workflows()
+            .map(|(_idx, _hash, workflow)| &workflow.scopes)
+            .chain(
+                self.data
+                    .cache
+                    .local_tasks()
+                    .map(|(_idx, _hash, task)| &task.scopes),
+            )
+            .filter(|scopes| scopes[0].span.start() <= position)
+            .max_by_key(|scopes| scopes[0].span.start())?;
 
-        if task.scope().span().contains(position) {
-            return find_scope(&task.scopes, position);
+        if scopes[0].span.contains(position) {
+            return find_scope(scopes, position);
         }
 
         None
