@@ -18,3 +18,9 @@ task strings_inverted {
         ~{'--haplotypecaller-options ' + "'" + haplotypecallerPassthroughOptions + "'"}
     >>>
 }
+
+workflow test {
+    input {
+        String a = 'x\\"y'
+    }
+}

@@ -194,26 +194,36 @@ pub fn format_literal_string(
                 while let Some(c) = chars.next() {
                     match (c, config.quote_style) {
                         ('\\', QuoteStyle::Double) => {
-                            if let Some(next_c) = chars.peek()
-                                && *next_c == '\''
-                            {
-                                // Do not write this backslash as it doesn't
-                                // need an escape
-                                prev_c = Some(c);
+                            if prev_c.is_none_or(|c| c != '\\') {
+                                if let Some(next_c) = chars.peek()
+                                    && *next_c == '\''
+                                {
+                                    // Do not write this backslash as it doesn't
+                                    // need an escape
+                                } else {
+                                    replacement.push(c);
+                                }
+                            } else {
+                                replacement.push(c);
+                                prev_c = None;
                                 continue;
                             }
-                            replacement.push(c);
                         }
                         ('\\', QuoteStyle::Single) => {
-                            if let Some(next_c) = chars.peek()
-                                && *next_c == '"'
-                            {
-                                // Do not write this backslash as it doesn't
-                                // need an escape
-                                prev_c = Some(c);
+                            if prev_c.is_none_or(|c| c != '\\') {
+                                if let Some(next_c) = chars.peek()
+                                    && *next_c == '"'
+                                {
+                                    // Do not write this backslash as it doesn't
+                                    // need an escape
+                                } else {
+                                    replacement.push(c);
+                                }
+                            } else {
+                                replacement.push(c);
+                                prev_c = None;
                                 continue;
                             }
-                            replacement.push(c);
                         }
                         ('"', QuoteStyle::Double) | ('\'', QuoteStyle::Single) => {
                             if prev_c.is_none_or(|c| c != '\\') {
