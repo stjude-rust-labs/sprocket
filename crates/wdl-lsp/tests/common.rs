@@ -241,6 +241,11 @@ impl TestContext {
         self.workspace.path().join(path)
     }
 
+    /// Gets the content of the file within the temporary workspace.
+    pub fn doc_content(&self, path: &str) -> String {
+        fs::read_to_string(self.doc_path(path)).unwrap()
+    }
+
     /// Creates a file URI for the temporary workspace.
     pub fn workspace_uri(&self) -> Url {
         Url::from_file_path(self.workspace.path()).unwrap()
@@ -253,7 +258,7 @@ impl TestContext {
             uri: self.doc_uri(path),
             language_id: String::from(language),
             version: 0,
-            text: fs::read_to_string(self.doc_path(path)).unwrap(),
+            text: self.doc_content(path),
         }
     }
 

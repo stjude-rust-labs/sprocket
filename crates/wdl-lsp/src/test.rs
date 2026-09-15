@@ -12,22 +12,55 @@ use line_index::LineIndex;
 use sprocket_test_types::DocumentTests;
 use tokio::sync::Mutex;
 use url::Url;
+use uuid::Uuid;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::IncrementalChange;
 
+use crate::handlers::associated_wdl_file_path;
+
+/// The result of a [`SprocketTestYaml`] analysis.
+#[derive(Debug)]
+pub struct AnalysisResult {
+    /// The unique ID of this analysis.
+    pub id: Arc<str>,
+    /// The analyzed document.
+    pub document: Arc<SprocketTestYaml>,
+    /// The diagnostics from parsing and analysis.
+    pub diagnostics: Diagnostics,
+}
+
+/// A cached validation result.
+#[derive(Clone, Debug)]
+struct ValidationResult {
+    /// The ID of this current revision of the document.
+    id: Arc<str>,
+    /// The ID of the associated WDL document.
+    wdl_id: Arc<String>,
+    /// The validation diagnostics.
+    diagnostics: Diagnostics,
+}
+
 /// The parse status of a `sprocket dev test` YAML file.
 #[derive(Clone, Debug)]
-pub enum Document {
+enum DocumentState {
     /// The document was successfully parsed.
-    Parsed((DocumentTests, Diagnostics)),
+    Parsed {
+        /// The parsed test definitions.
+        tests: DocumentTests,
+        /// Any diagnostics encountered during parsing.
+        parse_diagnostics: Diagnostics,
+        /// Cached validation result.
+        validated: Option<ValidationResult>,
+    },
     /// The document failed to parse.
-    #[allow(dead_code)]
     Failed(Diagnostics),
 }
 
 /// A `sprocket dev test` YAML file.
 #[derive(Clone, Debug)]
 pub struct SprocketTestYaml {
+    /// The ID of this current revision of the document.
+    pub id: Arc<str>,
     /// The line index of the document.
     pub lines: LineIndex,
     /// The current source of the file.
@@ -35,7 +68,39 @@ pub struct SprocketTestYaml {
     /// The path to the file on disk.
     pub path: PathBuf,
     /// The parsed document, if any.
-    pub document: Option<Document>,
+    document: Option<DocumentState>,
+}
+
+impl SprocketTestYaml {
+    /// Gets the associated WDL file for this test YAML, if one exists.
+    pub fn associated_wdl(&self) -> Option<Url> {
+        associated_wdl_file_path(&self.path).and_then(|wdl_path| Url::from_file_path(wdl_path).ok())
+    }
+
+    /// Get the tests from the document, if it was parsed.
+    pub fn tests(&self) -> Option<&DocumentTests> {
+        match self.document.as_ref() {
+            Some(DocumentState::Parsed { tests, .. }) => Some(tests),
+            _ => None,
+        }
+    }
+
+    /// Ensures the document has been parsed.
+    fn ensure_parsed(&mut self) {
+        if self.document.is_some() {
+            return;
+        }
+
+        let new_state = match DocumentTests::parse(&self.source) {
+            Ok((tests, parse_diagnostics)) => DocumentState::Parsed {
+                tests,
+                parse_diagnostics,
+                validated: None,
+            },
+            Err(err) => DocumentState::Failed(err),
+        };
+        self.document = Some(new_state);
+    }
 }
 
 /// A cache of all known `sprocket dev test` YAML files.
@@ -47,31 +112,44 @@ pub struct SprocketTestCache {
 
 impl SprocketTestCache {
     /// Add a Sprocket test YAML file to the cache.
+    ///
+    /// Returns the document.
     pub async fn open(&self, uri: Url, content: String) -> Result<Arc<SprocketTestYaml>> {
         let Ok(path) = uri.to_file_path() else {
             // `Analyzer` only supports `file://` URIs anyway.
             bail!("unsupported uri: {uri}");
         };
 
-        Ok(self
+        let entry = self
             .documents
             .lock()
             .await
             .entry(uri)
             .or_insert_with(|| {
                 Arc::new(SprocketTestYaml {
+                    id: Uuid::new_v4().to_string().into(),
                     lines: LineIndex::new(&content),
                     source: content,
                     path,
                     document: None,
                 })
             })
-            .clone())
+            .clone();
+
+        Ok(entry)
+    }
+
+    /// Checks if any cached test YAML document depends on the given WDL
+    /// document.
+    pub async fn has_dependent_test(&self, uri: &Url) -> bool {
+        let docs = self.documents.lock().await;
+        docs.values()
+            .any(|entry| entry.associated_wdl().as_ref() == Some(uri))
     }
 
     /// Drop a [`SprocketTestYaml`] from the cache.
-    pub async fn close(&self, uri: &Url) {
-        self.documents.lock().await.remove(uri);
+    pub async fn close(&self, uri: &Url) -> Option<Arc<SprocketTestYaml>> {
+        self.documents.lock().await.remove(uri)
     }
 
     /// Apply a change to a [`SprocketTestYaml`].
@@ -91,10 +169,17 @@ impl SprocketTestCache {
             (source, lines)
         };
 
+        test_yaml.id = Uuid::new_v4().to_string().into();
         test_yaml.source = new_source;
         test_yaml.lines = new_lines;
         test_yaml.document = None;
         Ok(())
+    }
+
+    /// Get a [`SprocketTestYaml`] by its URI.
+    pub async fn get(&self, uri: &Url) -> Option<Arc<SprocketTestYaml>> {
+        let docs = self.documents.lock().await;
+        docs.get(uri).cloned()
     }
 
     /// Returns true if the URI exists in the server's test YAML cache.
@@ -103,50 +188,77 @@ impl SprocketTestCache {
     }
 
     /// Get a [`SprocketTestYaml`] by its URI, ensuring it is parsed beforehand.
-    pub async fn ensure_parsed(&self, uri: Url) -> Result<Option<Arc<SprocketTestYaml>>> {
+    pub async fn ensure_parsed(
+        &self,
+        uri: Url,
+    ) -> Result<Option<Arc<SprocketTestYaml>>, Diagnostics> {
         let mut docs = self.documents.lock().await;
-        if let Entry::Occupied(mut entry) = docs.entry(uri) {
-            if entry.get().document.is_none() {
-                let test_yaml = Arc::make_mut(entry.get_mut());
-                test_yaml.document = match DocumentTests::parse(&test_yaml.source) {
-                    Ok(result) => Some(Document::Parsed(result)),
-                    Err(err) => Some(Document::Failed(err)),
-                };
-            }
+        let Entry::Occupied(mut entry) = docs.entry(uri) else {
+            return Ok(None);
+        };
 
-            return Ok(Some(Arc::clone(entry.get())));
-        }
+        let test_yaml = Arc::make_mut(entry.get_mut());
+        test_yaml.ensure_parsed();
 
-        Ok(None)
-    }
-}
-
-/// Check if a directory is a valid Sprocket test directory.
-///
-/// A Sprocket test directory is valid if:
-/// 1. Its name is `test`.
-/// 2. Its parent contains at least one `.wdl` file.
-fn is_sprocket_test_dir(path: &std::path::Path) -> bool {
-    if !path.is_dir() {
-        return false;
-    }
-    if path.file_name().and_then(|s| s.to_str()) != Some("test") {
-        return false;
-    }
-    let Some(parent) = path.parent() else {
-        return false;
-    };
-    if let Ok(entries) = std::fs::read_dir(parent) {
-        for entry in entries.flatten() {
-            if let Ok(file_type) = entry.file_type()
-                && file_type.is_file()
-                && entry.path().extension().and_then(|s| s.to_str()) == Some("wdl")
-            {
-                return true;
-            }
+        match &test_yaml.document.as_ref().unwrap() {
+            DocumentState::Parsed { .. } => Ok(Some(Arc::clone(entry.get()))),
+            DocumentState::Failed(diagnostics) => Err(diagnostics.clone()),
         }
     }
-    false
+
+    /// Evaluates the document's validation state and returns all associated
+    /// diagnostics.
+    pub async fn analyze_document(
+        &self,
+        uri: Url,
+        associated_wdl: &wdl_analysis::Document,
+    ) -> Result<Option<AnalysisResult>> {
+        let mut docs = self.documents.lock().await;
+        let Entry::Occupied(mut entry) = docs.entry(uri) else {
+            return Ok(None);
+        };
+
+        let test_yaml = Arc::make_mut(entry.get_mut());
+        test_yaml.ensure_parsed();
+
+        let doc = test_yaml.document.as_mut().unwrap();
+
+        let (diagnostics, id) = match doc {
+            DocumentState::Failed(diagnostics) => (diagnostics.clone(), test_yaml.id.clone()),
+            DocumentState::Parsed {
+                validated:
+                    Some(ValidationResult {
+                        id,
+                        wdl_id,
+                        diagnostics,
+                    }),
+                ..
+            } if wdl_id == associated_wdl.id() => (diagnostics.clone(), id.clone()),
+            DocumentState::Parsed {
+                tests,
+                parse_diagnostics,
+                validated,
+            } => {
+                let mut diagnostics = parse_diagnostics.clone();
+                if let Err(e) = tests.validate(associated_wdl) {
+                    diagnostics.extend(e);
+                }
+                let id: Arc<str> = format!("{}-{}", test_yaml.id, associated_wdl.id()).into();
+                *validated = Some(ValidationResult {
+                    id: id.clone(),
+                    diagnostics: diagnostics.clone(),
+                    wdl_id: associated_wdl.id().clone(),
+                });
+                (diagnostics, id)
+            }
+        };
+
+        Ok(Some(AnalysisResult {
+            id,
+            document: entry.get().clone(),
+            diagnostics,
+        }))
+    }
 }
 
 /// Check if a file is a valid Sprocket test definition file.
@@ -167,18 +279,38 @@ pub fn is_sprocket_test_file(uri: &Url) -> bool {
         return false;
     }
 
-    let Some(parent) = path.parent() else {
-        return false;
-    };
+    associated_wdl_file_path(&path).is_some()
+}
 
-    if is_sprocket_test_dir(parent) {
-        return true;
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_sprocket_test_cache_lifecycle() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let wdl_path = temp_dir.path().join("foo.wdl");
+        std::fs::write(&wdl_path, "version 1.1\nworkflow test {}\n").unwrap();
+        let yaml_path = temp_dir.path().join("foo.yaml");
+        std::fs::write(&yaml_path, "test: []\n").unwrap();
+
+        let yaml_uri = Url::from_file_path(&yaml_path).unwrap();
+        let wdl_uri = Url::from_file_path(&wdl_path).unwrap();
+
+        let cache = SprocketTestCache::default();
+        let entry = cache
+            .open(yaml_uri.clone(), "test: []\n".to_string())
+            .await
+            .unwrap();
+        assert_eq!(entry.associated_wdl(), Some(wdl_uri.clone()));
+
+        assert!(cache.has_dependent_test(&wdl_uri).await);
+
+        let other_uri = Url::from_file_path(temp_dir.path().join("other.wdl")).unwrap();
+        assert!(!cache.has_dependent_test(&other_uri).await);
+
+        // Closing the test YAML removes the dependency
+        assert!(cache.close(&yaml_uri).await.is_some());
+        assert!(!cache.has_dependent_test(&wdl_uri).await);
     }
-
-    let Some(base_name) = path.file_name() else {
-        return false;
-    };
-
-    let wdl_sibling = parent.join(base_name).with_extension("wdl");
-    wdl_sibling.is_file()
 }

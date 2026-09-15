@@ -1,5 +1,6 @@
 //! Implementation of the LSP server.
 
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fmt::Formatter;
 use std::mem;
@@ -32,6 +33,7 @@ use serde::Deserializer;
 use serde_json::Value;
 use serde_json::to_value;
 use struct_patch::Patch;
+use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::oneshot::Sender;
 use tower::ServiceBuilder;
@@ -164,7 +166,7 @@ impl ClientSupport {
 
 /// Represents a progress token for displaying work progress in the client.
 #[derive(Debug, Clone, Default)]
-struct ProgressToken(Option<String>);
+pub(crate) struct ProgressToken(Option<String>);
 
 impl ProgressToken {
     /// Constructs a new progress token.
@@ -394,13 +396,17 @@ pub type FilterReloadHandle<S> = tracing_subscriber::reload::Handle<EnvFilter, S
 #[derive(Debug)]
 pub(crate) struct ServerState<S> {
     /// The current set of workspace folders.
-    folders: Vec<WorkspaceFolder>,
+    folders: Mutex<Vec<WorkspaceFolder>>,
     /// Mutable configuration fields.
-    config: ServerConfig,
+    pub(crate) config: ServerConfig,
     /// Level filter reload handle.
     log_handle: Option<FilterReloadHandle<S>>,
     /// Known `sprocket dev test` YAML files.
     pub(crate) test_yamls: SprocketTestCache,
+    /// Manually opened WDL documents.
+    ///
+    /// See [`Server::did_open()`]
+    pub(crate) open_wdls: Mutex<HashSet<Url>>,
 }
 
 impl<S> ServerState<S> {
@@ -447,11 +453,11 @@ pub struct Server<S> {
 
 /// The server config and dependent fields.
 #[derive(Debug)]
-struct ServerConfig {
+pub(crate) struct ServerConfig {
     /// User-controlled options for the server.
     options: UserOptions,
     /// The analyzer used to analyze documents.
-    analyzer: Analyzer<ProgressToken>,
+    pub(crate) analyzer: Analyzer<ProgressToken>,
 }
 
 /// Create an [`Analyzer`] validator for the current LSP configuration.
@@ -749,6 +755,7 @@ impl<S: 'static> Server<S> {
             },
             log_handle,
             test_yamls: SprocketTestCache::default(),
+            open_wdls: Default::default(),
         }));
 
         let state_clone = state.clone();
@@ -1014,12 +1021,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/completion` request handler.
     async fn completion(
-        mut params: CompletionParams,
+        params: CompletionParams,
         tx: RequestResponseSender<Option<CompletionResponse>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1042,12 +1047,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/definition` request handler.
     async fn definition(
-        mut params: GotoDefinitionParams,
+        params: GotoDefinitionParams,
         tx: RequestResponseSender<Option<GotoDefinitionResponse>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1069,12 +1072,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/documentSymbol` request handler.
     async fn document_symbol(
-        mut params: DocumentSymbolParams,
+        params: DocumentSymbolParams,
         tx: RequestResponseSender<Option<DocumentSymbolResponse>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
-
         let result = state
             .config
             .analyzer
@@ -1087,12 +1088,27 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/diagnostic` request handler.
     async fn document_diagnostic(
-        mut params: DocumentDiagnosticParams,
+        params: DocumentDiagnosticParams,
         tx: RequestResponseSender<DocumentDiagnosticReportResult>,
         state: &ServerState<S>,
         options: &ServerOptions,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
+        if is_sprocket_test_file(&params.text_document.uri) {
+            let _ = tx.send(
+                handlers::diagnostic::document_diagnostic(params, state, options)
+                    .await
+                    .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e)),
+            );
+            return;
+        }
+
+        if to_wdl_file_path(&params.text_document.uri).is_none() {
+            // Not a file we care about
+            let _ = tx.send(Ok(DocumentDiagnosticReportResult::Report(
+                DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport::default()),
+            )));
+            return;
+        }
 
         let results = state
             .config
@@ -1102,13 +1118,15 @@ impl<S: 'static> Server<S> {
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))
             .and_then(|results| {
                 let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
-                proto::document_diagnostic_report(params, results, &options.name, matcher.as_mut())
-                    .ok_or_else(|| {
-                        ResponseError::new(
-                            ErrorCode::REQUEST_FAILED,
-                            "no diagnostic report produced",
-                        )
-                    })
+                proto::analysis_document_diagnostic_report(
+                    params,
+                    results,
+                    &options.name,
+                    matcher.as_mut(),
+                )
+                .ok_or_else(|| {
+                    ResponseError::new(ErrorCode::REQUEST_FAILED, "no diagnostic report produced")
+                })
             });
 
         let _ = tx.send(results);
@@ -1116,12 +1134,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/foldingRange` request handler.
     async fn folding_range(
-        mut params: FoldingRangeParams,
+        params: FoldingRangeParams,
         tx: RequestResponseSender<Option<Vec<FoldingRange>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
-
         let result = state
             .config
             .analyzer
@@ -1134,12 +1150,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/formatting` request handler.
     async fn formatting(
-        mut params: DocumentFormattingParams,
+        params: DocumentFormattingParams,
         tx: RequestResponseSender<Option<Vec<TextEdit>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
-
         let result = state
             .config
             .analyzer
@@ -1453,33 +1467,91 @@ impl<S: 'static> Server<S> {
         let _ = tx.send(results);
     }
 
+    /// Checks if a WDL document is depended upon by any active source:
+    ///
+    /// 1. Manually opened by the client (`textDocument/didOpen`)
+    /// 2. Depended upon by any open test YAML file
+    /// 3. Contained within an active workspace folder
+    async fn has_dependents(uri: &Url, state: &ServerState<S>) -> bool {
+        if state.open_wdls.lock().await.contains(uri) {
+            return true;
+        }
+
+        if state.test_yamls.has_dependent_test(uri).await {
+            return true;
+        }
+
+        if let Ok(path) = uri.to_file_path() {
+            let folders = state.folders.lock().await;
+            for folder in folders.iter() {
+                if let Ok(folder_path) = folder.uri.to_file_path()
+                    && path.starts_with(&folder_path)
+                {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
     /// `textDocument/didOpen` notification handler.
     async fn did_open(params: DidOpenTextDocumentParams, state: &ServerState<S>) {
+        async fn open_wdl<S: 'static>(uri: &Url, state: &ServerState<S>) -> bool {
+            if let Err(e) = state.config.analyzer.add_document(uri.clone()).await {
+                error!("failed to add document {uri}: {e}");
+                return false;
+            }
+
+            true
+        }
+
         if is_sprocket_test_file(&params.text_document.uri) {
-            if let Err(e) = state
+            match state
                 .test_yamls
                 .open(params.text_document.uri.clone(), params.text_document.text)
                 .await
             {
-                error!(
-                    "failed to open document {uri}: {e}",
-                    uri = params.text_document.uri
-                );
+                Ok(test_yaml) => {
+                    let Some(associated_wdl) = test_yaml.associated_wdl() else {
+                        // The test has no associated WDL yet
+                        return;
+                    };
+
+                    // If the associated WDL exists, we'll also open
+                    // it for any future
+                    // `textDocument/diagnostic` requests on the
+                    // YAML.
+                    //
+                    // When the YAML is closed
+                    // (`textDocument/didClose`), if it remains
+                    // the only dependent of the WDL, we'll also
+                    // close it.
+                    open_wdl(&associated_wdl, state).await;
+                }
+                Err(e) => {
+                    error!(
+                        "failed to open document {uri}: {e}",
+                        uri = params.text_document.uri
+                    );
+                }
             }
             return;
         }
 
-        if let Err(e) = state
-            .config
-            .analyzer
-            .add_document(params.text_document.uri.clone())
-            .await
-        {
-            error!(
-                "failed to add document {uri}: {e}",
-                uri = params.text_document.uri
-            );
+        if to_wdl_file_path(&params.text_document.uri).is_none() {
+            return;
         }
+
+        if !open_wdl(&params.text_document.uri, state).await {
+            return;
+        }
+
+        state
+            .open_wdls
+            .lock()
+            .await
+            .insert(params.text_document.uri.clone());
 
         if let Err(e) = state.config.analyzer.notify_incremental_change(
             params.text_document.uri,
@@ -1495,14 +1567,50 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/didClose` notification handler.
     async fn did_close(params: DidCloseTextDocumentParams, state: &ServerState<S>) {
-        state.test_yamls.close(&params.text_document.uri).await;
+        if let Some(test_yaml) = state.test_yamls.close(&params.text_document.uri).await {
+            if let Some(associated_wdl) = test_yaml.associated_wdl() {
+                // If no other test or client depends on the associated WDL,
+                // unroot it.
+                if !Self::has_dependents(&associated_wdl, state).await
+                    && let Err(e) = state
+                        .config
+                        .analyzer
+                        .unroot_documents(vec![associated_wdl])
+                        .await
+                {
+                    error!("failed to remove documents from analyzer: {e}");
+                }
+            }
+            return;
+        }
+
+        state
+            .open_wdls
+            .lock()
+            .await
+            .remove(&params.text_document.uri);
 
         if let Err(e) = state
             .config
             .analyzer
-            .notify_change(params.text_document.uri, true)
+            .notify_change(params.text_document.uri.clone(), true)
         {
             error!("failed to notify change: {e}");
+        }
+
+        if Self::has_dependents(&params.text_document.uri, state).await {
+            // A test or workspace still depends on the WDL, we'll keep it open
+            // for now
+            return;
+        }
+
+        if let Err(e) = state
+            .config
+            .analyzer
+            .unroot_documents(vec![params.text_document.uri])
+            .await
+        {
+            error!("failed to remove documents from analyzer: {e}");
         }
     }
 
@@ -1580,8 +1688,12 @@ impl<S: 'static> Server<S> {
         state: &ServerState<S>,
     ) {
         // Process the removed folders
-        if !params.event.removed.is_empty()
-            && let Err(e) = state
+        if !params.event.removed.is_empty() {
+            let mut folders = state.folders.lock().await;
+            folders.retain(|f| !params.event.removed.iter().any(|r| r.uri == f.uri));
+            drop(folders);
+
+            if let Err(e) = state
                 .config
                 .analyzer
                 .unroot_documents(
@@ -1596,12 +1708,20 @@ impl<S: 'static> Server<S> {
                         .collect(),
                 )
                 .await
-        {
-            error!("failed to remove documents from analyzer: {e}");
+            {
+                error!("failed to remove documents from analyzer: {e}");
+            }
         }
 
         // Progress the added folders
         if !params.event.added.is_empty() {
+            let mut folders = state.folders.lock().await;
+            for mut folder in params.event.added.clone() {
+                normalize_uri_path(&mut folder.uri);
+                folders.push(folder);
+            }
+            drop(folders);
+
             for folder in &params.event.added {
                 match folder.uri.to_file_path() {
                     Ok(path) => {
@@ -1744,12 +1864,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         let state = self.state.clone();
         let info = self.options.info();
         Box::pin(async move {
-            let mut state = state.write().await;
+            let state = state.write().await;
 
             if let Some(folders) = params.workspace_folders {
                 for mut folder in folders {
                     normalize_uri_path(&mut folder.uri);
-                    state.folders.push(folder.clone());
+                    state.folders.lock().await.push(folder.clone());
                     match folder.uri.to_file_path() {
                         Ok(path) => {
                             if let Err(e) = state.config.analyzer.add_directory(path).await {
@@ -1939,15 +2059,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: DocumentDiagnosticParams,
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
-        if to_wdl_file_path(&params.text_document.uri).is_some() {
-            self.request(move |tx| Message::Request(Request::DocumentDiagnostic { params, tx }))
-        } else {
-            Box::pin(async {
-                Ok(DocumentDiagnosticReportResult::Report(
-                    DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport::default()),
-                ))
-            })
-        }
+        self.request(move |tx| Message::Request(Request::DocumentDiagnostic { params, tx }))
     }
 
     fn workspace_diagnostic(

@@ -114,7 +114,7 @@ pub fn diagnostic(
 }
 
 /// Converts analysis results into an LSP document diagnostic report.
-pub fn document_diagnostic_report(
+pub fn analysis_document_diagnostic_report(
     params: DocumentDiagnosticParams,
     results: Vec<AnalysisResult>,
     source: &str,
@@ -124,8 +124,38 @@ pub fn document_diagnostic_report(
         .iter()
         .find(|r| r.document().uri().as_ref() == &params.text_document.uri)?;
 
+    document_diagnostic_report(
+        params,
+        result.document().id().as_ref(),
+        result.document().diagnostics(),
+        source,
+        result.lines().expect("should have line index"),
+        move |d| {
+            if let Some(matcher) = &mut matcher {
+                return !matcher.is_suppressed(d, result.document());
+            }
+            true
+        },
+    )
+}
+
+/// Converts a collection of [`Diagnostic`]s into an LSP document diagnostic
+/// report.
+///
+/// [`Diagnostic`]: wdl_ast::Diagnostic
+pub fn document_diagnostic_report<'a, F>(
+    params: DocumentDiagnosticParams,
+    result_id: &str,
+    diagnostics: impl IntoIterator<Item = &'a wdl_ast::Diagnostic>,
+    source: &str,
+    lines: &LineIndex,
+    mut filter: F,
+) -> Option<DocumentDiagnosticReportResult>
+where
+    F: FnMut(&'a wdl_ast::Diagnostic) -> bool,
+{
     if let Some(previous) = params.previous_result_id {
-        if &previous == result.document().id().as_ref() {
+        if previous == result_id {
             debug!(
                 "diagnostics for document `{uri}` have not changed (client has latest)",
                 uri = params.text_document.uri,
@@ -146,23 +176,10 @@ pub fn document_diagnostic_report(
         );
     }
 
-    let items = result
-        .document()
-        .diagnostics()
-        .filter(|d| {
-            if let Some(matcher) = &mut matcher {
-                return !matcher.is_suppressed(d, result.document());
-            }
-            true
-        })
-        .map(|d| {
-            diagnostic(
-                &result.document().uri(),
-                result.lines().expect("should have line index"),
-                source,
-                d,
-            )
-        })
+    let items = diagnostics
+        .into_iter()
+        .filter(|d| filter(d))
+        .map(|d| diagnostic(&params.text_document.uri, lines, source, d))
         .collect::<Result<Vec<_>>>()
         .ok()?;
 
@@ -170,7 +187,7 @@ pub fn document_diagnostic_report(
         DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
             related_documents: None,
             full_document_diagnostic_report: FullDocumentDiagnosticReport {
-                result_id: Some(result.document().id().as_ref().clone()),
+                result_id: Some(result_id.to_string()),
                 items,
             },
         }),
