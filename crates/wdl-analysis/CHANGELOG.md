@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules, which ensure that deprecated
   language features are not used ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
 
+#### Changed
+
+* The `Analyzer::{call_hierarchy, goto_definition, find_all_references, code_lens, hover, rename, semantic_tokens,
+  workspace_symbol, incoming_calls, outgoing_calls, inlay_hints}()` requests perform analysis on-demand and now require
+  a `Context` argument ([#1189](https://github.com/stjude-rust-labs/sprocket/pull/1189)).
+
 ## 0.25.0 - 2026-08-26
 
 #### Added

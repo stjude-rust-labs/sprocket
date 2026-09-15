@@ -791,7 +791,7 @@ pub struct TestConfig {
     pub parallelism: u32,
     /// Delay between submitting initial test executions, in milliseconds.
     ///
-    /// Once the `parallelism`` permits are exhausted, this throttle delay is
+    /// Once the `parallelism` permits are exhausted, this throttle delay is
     /// ignored and new tests are submitted eagerly as prior tests complete and
     /// free permits.
     ///
@@ -816,6 +816,16 @@ impl Default for TestConfig {
             fixtures_dir: None,
             run_dir: None,
         }
+    }
+}
+
+impl TestConfig {
+    /// Validates the configuration.
+    fn validate(&self) -> Result<()> {
+        if self.parallelism == 0 {
+            return Err(anyhow!("`parallelism` must be greater than `0`"));
+        }
+        Ok(())
     }
 }
 
@@ -1320,6 +1330,7 @@ impl Config {
         // Validate inner configs
         self.server.validate()?;
         self.doc.validate()?;
+        self.test.validate()?;
 
         Ok(())
     }

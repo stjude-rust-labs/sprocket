@@ -1006,6 +1006,9 @@ pub async fn test(
             .try_into()
             .context("invalid test parallelism")?,
     );
+    if parallelism == 0 {
+        return Err(anyhow!("`parallelism` must be greater than `0`").into());
+    }
     let (source, workspace) = match (&source, args.workspace) {
         (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
