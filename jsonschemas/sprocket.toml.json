@@ -1378,7 +1378,7 @@
           "minimum": 0
         },
         "throttle": {
-          "description": "Delay between submitting initial test executions, in milliseconds.\n\nOnce the `parallelism`` permits are exhausted, this throttle delay is\nignored and new tests are submitted eagerly as prior tests complete and\nfree permits.\n\nThe default is `100` milliseconds.",
+          "description": "Delay between submitting initial test executions, in milliseconds.\n\nOnce the `parallelism` permits are exhausted, this throttle delay is\nignored and new tests are submitted eagerly as prior tests complete and\nfree permits.\n\nThe default is `100` milliseconds.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
