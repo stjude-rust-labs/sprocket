@@ -10,17 +10,64 @@ error: expected `}`, but found `meta` keyword
 error: expected `}`, but found `output` keyword
    ┌─ tests/parsing/missing-brace/source.wdl:16:5
    │
+ 5 │ task foo {
+   │          - this opening delimiter...
+   ·
+12 │ }
+   │ - ...matches this closing delimiter
+   ·
 15 │     input {
    │           - this `{` is not matched
 16 │     output {
    │     ^^^^^^ unexpected `output` keyword
 
-error: expected `}`, but found end of input
-   ┌─ tests/parsing/missing-brace/source.wdl:18:1
+error: expected `}`, but found `task` keyword
+   ┌─ tests/parsing/missing-brace/source.wdl:19:1
    │
 14 │ task bar {
    │          - this `{` is not matched
-   ·
+15 │     input {
+16 │     output {
+   │            - this delimiter might not be properly closed...
+17 │ }
+   │ - ...as it matches this but it has different indentation
 18 │ 
-   │ ^ unexpected end of input
+19 │ task baz {
+   │ ^^^^ unexpected `task` keyword
+
+error: expected `}`, but found end of input
+   ┌─ tests/parsing/missing-brace/source.wdl:19:10
+   │
+19 │ task baz {
+   │          ^ unclosed delimiter
+20 │     meta {
+   │          - unclosed delimiter
+   ·
+27 │         inputs: {
+   │                 - unclosed delimiter
+28 │             foo: {
+   │                  - another 4 unclosed delimiters begin from here
+   ·
+32 │                             quux: {
+   │                                   - this delimiter might not be properly closed...
+33 │ }
+   │ - ...as it matches this but it has different indentation
+
+error: expected `:`, but found identifier
+   ┌─ tests/parsing/missing-brace/source.wdl:25:6
+   │
+25 │ task qux {
+   │      ^^^ unexpected identifier
+
+error: expected `:`, but found `{`
+   ┌─ tests/parsing/missing-brace/source.wdl:25:10
+   │
+25 │ task qux {
+   │          ^ unexpected `{`
+
+error: expected `:`, but found `{`
+   ┌─ tests/parsing/missing-brace/source.wdl:26:11
+   │
+26 │     hints {
+   │           ^ unexpected `{`
 
