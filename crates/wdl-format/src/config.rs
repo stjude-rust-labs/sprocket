@@ -59,7 +59,7 @@ pub struct Config {
     /// Whether to eagerly upgrade deprecated WDL constructs.
     ///
     /// Currently this includes changing curly brace command sections (`{}`)
-    /// into heredoc command sections (`<<<>>>>`) and changing dollar-style
+    /// into heredoc command sections (`<<<>>>`) and changing dollar-style
     /// placeholders (`${}`) into tilde-style placeholders (`~{}`).
     #[toml(default = upgrade_deprecations_default())]
     #[schemars(default = "upgrade_deprecations_default")]
