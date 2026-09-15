@@ -310,11 +310,8 @@ fn resolve_hover_by_context(
                 return Ok(provide_task_documentation(&task, &target_doc.root()));
             }
 
-            if let Some(workflow) = target_doc
-                .workflow()
-                .filter(|w| w.name() == callee_name.text())
-            {
-                return Ok(provide_workflow_documentation(workflow, &target_doc.root()));
+            if let Some(documentation) = workflow_documentation(target_doc, callee_name.text()) {
+                return Ok(Some(documentation));
             }
         }
         SyntaxKind::AccessExprNode => {
@@ -524,10 +521,25 @@ fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<
     if let Some(t) = document.task_by_name(token.text()) {
         return Ok(provide_task_documentation(&t, &document.root()));
     }
-    if let Some(w) = document.workflow().filter(|w| w.name() == token.text()) {
-        return Ok(provide_workflow_documentation(w, &document.root()));
+    if let Some(documentation) = workflow_documentation(document, token.text()) {
+        return Ok(Some(documentation));
     }
     Ok(None)
+}
+
+/// Provides documentation for a local or scope-merged workflow.
+fn workflow_documentation(document: &Document, name: &str) -> Option<String> {
+    match document.workflow_by_name(name)? {
+        crate::WorkflowRef::Local(workflow) => {
+            provide_workflow_documentation(workflow, &document.root())
+        }
+        crate::WorkflowRef::Imported(imported) => {
+            let workflow = imported
+                .document()
+                .local_workflow_by_name(imported.name())?;
+            provide_workflow_documentation(workflow, &imported.document().root())
+        }
+    }
 }
 
 /// Generates markdown content for a standard library function's hover info.

@@ -1,0 +1,1 @@
+-qq -c sprocket.toml run source.wdl --target second

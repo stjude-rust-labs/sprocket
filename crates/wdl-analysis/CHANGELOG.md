@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Now, the actual differences in the document are tracked, with any untouched items being recycled from the cache ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).
 * `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules, which ensure that deprecated
   language features are not used ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
+* WDL 1.4 documents may define multiple workflows, and workflows in the same
+  document may call one another. Direct and transitive recursive workflow calls
+  are rejected ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
+
+#### Removed
+
+* Removed the singular `Document::workflow()` API. Use `Document::workflows()`
+  or `Document::local_workflows()` to iterate, and
+  `Document::workflow_by_name()` or `Document::local_workflow_by_name()` for
+  explicit lookup. This is a breaking API change
+  ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
 
 ## 0.25.0 - 2026-08-26
 

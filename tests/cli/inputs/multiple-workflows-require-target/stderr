@@ -1,0 +1,1 @@
+error: document `source.wdl` contains more than one workflow: use the `--target` option to refer to a specific workflow by name
