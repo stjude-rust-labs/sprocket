@@ -1,1 +1,1 @@
-format check file.wdl 
+-c sprocket.toml format check file.wdl 
