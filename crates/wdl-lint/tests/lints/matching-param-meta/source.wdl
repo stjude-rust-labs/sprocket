@@ -3,15 +3,13 @@
 ## the order is the same as `input` section.
 
 #@ except: BashSetSyntax, EmptyOutputs, InputName, MetaDescription
-#@ except: RequirementsSection
+#@ except: RequirementsSection, EmptyOutputs, MetaSections, SectionOrdering
 
 version 1.3
 
 # This workflow has both an extraneous and missing entry
 # in the `parameter_meta` section
 workflow w {
-    meta {}
-
     parameter_meta {
         matching: {
             description: "a matching parameter!",
@@ -28,14 +26,10 @@ workflow w {
         String matching
         String does_not_exist
     }
-
-    output {}
 }
 
 # This task only has a missing entry in the `parameter_meta` section
 task foo {
-    meta {}
-
     parameter_meta {
         matching: {
             description: "a matching parameter!",
@@ -53,14 +47,10 @@ task foo {
     }
 
     command <<<>>>
-
-    output {}
 }
 
 # This task only has an extraneous entry in the `parameter_meta` section
 task bar {
-    meta {}
-
     parameter_meta {
         matching: {
             description: "a matching parameter!",
@@ -78,14 +68,10 @@ task bar {
     }
 
     command <<<>>>
-
-    output {}
 }
 
 # Task with out-of-order parameter_meta
 task baz {
-    meta {}
-
     parameter_meta {
         second: "This should be second"
         first: "This should be first"
@@ -98,6 +84,80 @@ task baz {
     }
 
     command <<<>>>
+}
 
-    output {}
+# Allow mixing in doc comments
+task qux {
+    input {
+        String first
+        ## `second` gets doc comments
+        String second
+    }
+
+    parameter_meta {
+        first: "`first` is documented with parameter_meta"
+    }
+
+    command <<<>>>
+}
+
+# Make sure ordering still works, ignoring doc comments
+task quux {
+    input {
+        String first
+        ## `second` gets doc comments
+        String second
+        String third
+    }
+
+    parameter_meta {
+        third: "`third` also gets a parameter_meta entry"
+        first: "`first` is documented with parameter_meta"
+    }
+
+    command <<<>>>
+}
+
+task corge {
+    input {
+        ## `first` should change the message for `second` to suggest doc comments
+        String first
+        String second
+        String third
+    }
+
+    parameter_meta {
+        third: "`third` gets a parameter_meta entry"
+    }
+
+    command <<<>>>
+}
+
+# Collisions between doc comments and parameter_meta keys shouldn't matter
+task mixed_sources {
+    input {
+        ## `first` gets a doc comment
+        String first
+        String second
+        String third
+    }
+
+    parameter_meta {
+        first: "And a parameter_meta entry?!"
+        second: "`second` gets a parameter_meta entry"
+        third: "`third` gets a parameter_meta entry"
+    }
+
+    command <<<>>>
+}
+
+# No `parameter_meta` section, but incomplete doc comments
+task missing_doc_comment {
+    input {
+        ## `first` gets a doc comment
+        String first
+        String second
+    }
+
+    command <<<>>>
 }
