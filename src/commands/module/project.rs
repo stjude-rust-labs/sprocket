@@ -7,6 +7,7 @@ use anyhow::Context as _;
 use clap::Args as ClapArgs;
 use wdl_modules::Lockfile;
 use wdl_modules::Manifest;
+use wdl_modules::dependency::DependencyName;
 use wdl_modules::project::LockedLockfile;
 use wdl_modules::project::ModuleProject;
 
@@ -70,6 +71,25 @@ pub(super) fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile
         }
     }
     Ok(lockfile)
+}
+
+/// Parses dependency names and verifies that each one is declared.
+pub(super) fn validate_dependency_names(
+    project: &Project,
+    names: &[String],
+) -> anyhow::Result<Vec<DependencyName>> {
+    names
+        .iter()
+        .map(|raw| {
+            let name: DependencyName = raw
+                .parse()
+                .with_context(|| format!("invalid dependency name `{raw}`"))?;
+            if !project.manifest().dependencies.contains_key(&name) {
+                anyhow::bail!("dependency `{raw}` not found in `module.json`");
+            }
+            Ok(name)
+        })
+        .collect()
 }
 
 /// The `--locked` flag shared by commands that read `module-lock.json`.
