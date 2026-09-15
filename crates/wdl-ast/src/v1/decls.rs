@@ -807,6 +807,8 @@ impl Documented<SyntaxNode> for UnboundDecl<SyntaxNode> {
             parent.kind(),
             SyntaxKind::StructDefinitionNode | SyntaxKind::InputSectionNode
         ) {
+            // Unbound decl doc comments are only valid on struct fields and
+            // inputs
             return None;
         }
 
@@ -875,6 +877,7 @@ impl Documented<SyntaxNode> for BoundDecl<SyntaxNode> {
             parent.kind(),
             SyntaxKind::InputSectionNode | SyntaxKind::OutputSectionNode
         ) {
+            // Bound decl doc comments are only valid on inputs/outputs
             return None;
         }
 

@@ -71,9 +71,14 @@ pub trait Documented<N: TreeNode>: AstNode<N> {
     /// Get all comment nodes preceding this node that start with
     /// [`DOC_COMMENT_PREFIX`].
     ///
-    /// If doc comments don't apply to this node, `None` will be returned.
+    /// This will return `None` if doc comments aren't valid for the node in the
+    /// current context. For example, an [`UnboundDecl`] can only have doc
+    /// comments if it represents a struct field or input. In any other
+    /// context, its comments would be ignored.
     ///
     /// The comments returned are ordered top to bottom.
+    ///
+    /// [`UnboundDecl`]: v1::UnboundDecl
     fn doc_comments(&self) -> Option<Vec<Comment<N::Token>>>;
 }
 
