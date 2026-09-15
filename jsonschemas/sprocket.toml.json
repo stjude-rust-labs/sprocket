@@ -74,6 +74,11 @@
           "type": "boolean",
           "default": true
         },
+        "reorder_sections": {
+          "description": "Whether to reorder task and workflow sections to Sprocket's opinionated\norder.",
+          "type": "boolean",
+          "default": false
+        },
         "newline_style": {
           "description": "The newline style.",
           "$ref": "#/$defs/NewlineStyle"

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Removed
 
+* Removed `SectionOrder` lint rule. Use `format check` with `reorder_sections = true` to satisfy any ordering checks ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).
 * The `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules were promoted to `wdl-analysis` ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
 
 ## 0.27.0 - 2026-08-26

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Formatting no longer forces users to adopt Sprocket's opinionated section ordering of tasks and workflows. Set `reorder_sections = true` to retain prior behavior ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).
 * Formatting no longer panics when an `input` hints item has a value that is not a `hints` literal ([#1174](https://github.com/stjude-rust-labs/sprocket/pull/1174)).
 
 ## 0.20.2 - 2026-08-26
