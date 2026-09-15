@@ -3,7 +3,6 @@ Rules with the tag `Clarity`:
   - DeclarationName
   - DenyGlobStar
   - DocCommentTabs
-  - DoubleQuotes
   - EmptyDocComment
   - HereDocCommands
   - ImportPlacement

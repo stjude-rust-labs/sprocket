@@ -77,7 +77,6 @@ Available rules:
   - DescriptionLength
   - DocCommentTabs
   - DocMetaStrings
-  - DoubleQuotes
   - EmptyDocComment
   - EmptyOutputs
   - ExceptDirectiveValid
