@@ -845,6 +845,14 @@ impl Value {
             }
         }
 
+        fn is_file_or_unresolved_symlink(path: &Path) -> bool {
+            path.is_file()
+                || (path
+                    .symlink_metadata()
+                    .is_ok_and(|metadata| metadata.file_type().is_symlink())
+                    && path.metadata().is_err())
+        }
+
         match self {
             Self::Primitive(v @ PrimitiveValue::File(path))
             | Self::Primitive(v @ PrimitiveValue::Directory(path)) => {
@@ -910,7 +918,7 @@ impl Value {
                 let exists_path: Cow<'_, Path> = base_dir
                     .map(|d| d.join(path.as_str()).into())
                     .unwrap_or_else(|| Path::new(path.as_str()).into());
-                if is_file && !exists_path.is_file() {
+                if is_file && !is_file_or_unresolved_symlink(&exists_path) {
                     if optional {
                         return Ok(Value::new_none(self.ty().optional()));
                     } else {

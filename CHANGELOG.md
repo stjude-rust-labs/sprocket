@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added the experimental WDL 1.4 `list` function for listing a directory's files
+  and subdirectories, with recursion, symlink inclusion, and file filtering.
+  This implements [openwdl/wdl#800](https://github.com/openwdl/wdl/pull/800)
+  and requires `feature_flags.wdl_1_4 = true`.
 * Added `--type-signatures` flag to `inputs` ([#1205](https://github.com/stjude-rust-labs/sprocket/pull/1205)).
 * `format check` notifies when the only diff is in newline style
   ([#1204](https://github.com/stjude-rust-labs/sprocket/pull/1204)).
