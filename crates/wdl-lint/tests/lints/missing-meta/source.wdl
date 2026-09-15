@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs, BashSetSyntax
+#@ except: EmptyOutputs, BashSetSyntax, RuntimeSection
 
 version 1.0
 
@@ -8,11 +8,11 @@ task test {
     input {}
 
     command <<<>>>
+}
 
-    output {}
-
-    #@ except: ExpectedRuntimeKeys
-    runtime {}
+## This doc comment suppresses the lint
+task documented {
+    command <<<>>>
 }
 
 # This should not have diagnostics for <= 1.2
