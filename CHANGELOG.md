@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `format check` notifies when the only diff is in newline style
+  ([#1204](https://github.com/stjude-rust-labs/sprocket/pull/1204)).
 * Added configuration setting `run.digest_cache_capacity` and
   `server.engine.digest_cache_capacity` for specifying the evaluation digest
   cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
