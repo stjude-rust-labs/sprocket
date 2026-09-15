@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.21.0 - 2026-09-15
+
 #### Added
 
 * Added an `upgrade_deprecations` config option to upgrade some deprecated WDL constructs to their replacement styles ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
