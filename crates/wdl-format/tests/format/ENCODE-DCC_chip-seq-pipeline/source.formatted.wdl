@@ -7,6 +7,8 @@ struct RuntimeEnvironment {
 }
 
 workflow chip {
+    String pipeline_ver = "v2.2.2"
+
     meta {
         version: "v2.2.2"
         author: "Jin wook Lee"
@@ -62,6 +64,174 @@ workflow chip {
                 help: "Resource settings are used for determining an instance type on cloud backends (e.g. GCP, AWS) and used for submitting tasks to a cluster engine (e.g. SLURM, SGE, ...). Walltime (chip.*_time_hr) is only used for cluster engines. Other tasks default to use 1 CPU and 4GB of memory.",
             },
         }
+    }
+
+    input {
+        # group: runtime_environment
+        String docker = "encodedcc/chip-seq-pipeline:v2.2.2"
+        String singularity = "https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif"
+        String conda = "encd-chip"
+        String conda_macs2 = "encd-chip-macs2"
+        String conda_spp = "encd-chip-spp"
+
+        # group: pipeline_metadata
+        String title = "Untitled"
+        String description = "No description"
+
+        # group: reference_genome
+        File? genome_tsv
+        String? genome_name
+        File? ref_fa
+        File? bwa_idx_tar
+        File? bowtie2_idx_tar
+        File? chrsz
+        File? blacklist
+        File? blacklist2
+        String? mito_chr_name
+        String? regex_bfilt_peak_chr_name
+        String? gensz
+        File? custom_aligner_idx_tar
+
+        # group: input_genomic_data
+        Boolean? paired_end
+        Array[Boolean] paired_ends = []
+        Array[File] fastqs_rep1_R1 = []
+        Array[File] fastqs_rep1_R2 = []
+        Array[File] fastqs_rep2_R1 = []
+        Array[File] fastqs_rep2_R2 = []
+        Array[File] fastqs_rep3_R1 = []
+        Array[File] fastqs_rep3_R2 = []
+        Array[File] fastqs_rep4_R1 = []
+        Array[File] fastqs_rep4_R2 = []
+        Array[File] fastqs_rep5_R1 = []
+        Array[File] fastqs_rep5_R2 = []
+        Array[File] fastqs_rep6_R1 = []
+        Array[File] fastqs_rep6_R2 = []
+        Array[File] fastqs_rep7_R1 = []
+        Array[File] fastqs_rep7_R2 = []
+        Array[File] fastqs_rep8_R1 = []
+        Array[File] fastqs_rep8_R2 = []
+        Array[File] fastqs_rep9_R1 = []
+        Array[File] fastqs_rep9_R2 = []
+        Array[File] fastqs_rep10_R1 = []
+        Array[File] fastqs_rep10_R2 = []
+        Array[File] bams = []
+        Array[File] nodup_bams = []
+        Array[File] tas = []
+        Array[File] peaks = []
+        Array[File] peaks_pr1 = []
+        Array[File] peaks_pr2 = []
+        File? peak_ppr1
+        File? peak_ppr2
+        File? peak_pooled
+        Boolean? ctl_paired_end
+        Array[Boolean] ctl_paired_ends = []
+        Array[File] ctl_fastqs_rep1_R1 = []
+        Array[File] ctl_fastqs_rep1_R2 = []
+        Array[File] ctl_fastqs_rep2_R1 = []
+        Array[File] ctl_fastqs_rep2_R2 = []
+        Array[File] ctl_fastqs_rep3_R1 = []
+        Array[File] ctl_fastqs_rep3_R2 = []
+        Array[File] ctl_fastqs_rep4_R1 = []
+        Array[File] ctl_fastqs_rep4_R2 = []
+        Array[File] ctl_fastqs_rep5_R1 = []
+        Array[File] ctl_fastqs_rep5_R2 = []
+        Array[File] ctl_fastqs_rep6_R1 = []
+        Array[File] ctl_fastqs_rep6_R2 = []
+        Array[File] ctl_fastqs_rep7_R1 = []
+        Array[File] ctl_fastqs_rep7_R2 = []
+        Array[File] ctl_fastqs_rep8_R1 = []
+        Array[File] ctl_fastqs_rep8_R2 = []
+        Array[File] ctl_fastqs_rep9_R1 = []
+        Array[File] ctl_fastqs_rep9_R2 = []
+        Array[File] ctl_fastqs_rep10_R1 = []
+        Array[File] ctl_fastqs_rep10_R2 = []
+        Array[File] ctl_bams = []
+        Array[File] ctl_nodup_bams = []
+        Array[File] ctl_tas = []
+
+        # group: pipeline_parameter
+        String pipeline_type
+        Boolean align_only = false
+        Boolean redact_nodup_bam = false
+        Boolean true_rep_only = false
+        Boolean enable_count_signal_track = false
+        Boolean enable_jsd = true
+        Boolean enable_gc_bias = true
+
+        # group: alignment
+        String aligner = "bowtie2"
+        File? custom_align_py
+        Boolean use_bwa_mem_for_pe = false
+        Int bwa_mem_read_len_limit = 70
+        Boolean use_bowtie2_local_mode = false
+        Int crop_length = 0
+        Int crop_length_tol = 2
+        String trimmomatic_phred_score_format = "auto"
+        Int xcor_trim_bp = 50
+        Boolean use_filt_pe_ta_for_xcor = false
+        String dup_marker = "picard"
+        Boolean no_dup_removal = false
+        Int mapq_thresh = 30
+        Array[String] filter_chrs = []
+        Int subsample_reads = 0
+        Int ctl_subsample_reads = 0
+        Int xcor_subsample_reads = 15000000
+        Int xcor_exclusion_range_min = -500
+        Int? xcor_exclusion_range_max
+        Int pseudoreplication_random_seed = 0
+
+        # group: peak_calling
+        Int ctl_depth_limit = 200000000
+        Float exp_ctl_depth_ratio_limit = 5.0
+        Array[Int?] fraglen = []
+        String? peak_caller
+        Boolean always_use_pooled_ctl = true
+        Float ctl_depth_ratio = 1.2
+        Int? cap_num_peak
+        Float pval_thresh = 0.01
+        Float fdr_thresh = 0.01
+        Float idr_thresh = 0.05
+
+        # group: resource_parameter
+        Int align_cpu = 6
+        Float align_bowtie2_mem_factor = 0.15
+        Float align_bwa_mem_factor = 1.0
+        Int align_time_hr = 48
+        Float align_bowtie2_disk_factor = 8.0
+        Float align_bwa_disk_factor = 8.0
+        Int filter_cpu = 4
+        Float filter_mem_factor = 0.4
+        Int filter_time_hr = 24
+        Float filter_disk_factor = 8.0
+        Int bam2ta_cpu = 2
+        Float bam2ta_mem_factor = 0.35
+        Int bam2ta_time_hr = 6
+        Float bam2ta_disk_factor = 4.0
+        Float spr_mem_factor = 20.0
+        Float spr_disk_factor = 30.0
+        Int jsd_cpu = 4
+        Float jsd_mem_factor = 0.1
+        Int jsd_time_hr = 6
+        Float jsd_disk_factor = 2.0
+        Int xcor_cpu = 2
+        Float xcor_mem_factor = 1.0
+        Int xcor_time_hr = 24
+        Float xcor_disk_factor = 4.5
+        Float subsample_ctl_mem_factor = 22.0
+        Float subsample_ctl_disk_factor = 15.0
+        Float macs2_signal_track_mem_factor = 12.0
+        Int macs2_signal_track_time_hr = 24
+        Float macs2_signal_track_disk_factor = 80.0
+        Int call_peak_cpu = 6
+        Float call_peak_spp_mem_factor = 5.0
+        Float call_peak_macs2_mem_factor = 5.0
+        Int call_peak_time_hr = 72
+        Float call_peak_spp_disk_factor = 5.0
+        Float call_peak_macs2_disk_factor = 30.0
+        String? align_trimmomatic_java_heap
+        String? filter_picard_java_heap
+        String? gc_bias_picard_java_heap
     }
 
     parameter_meta {
@@ -851,175 +1021,6 @@ workflow chip {
         }
     }
 
-    input {
-        # group: runtime_environment
-        String docker = "encodedcc/chip-seq-pipeline:v2.2.2"
-        String singularity = "https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif"
-        String conda = "encd-chip"
-        String conda_macs2 = "encd-chip-macs2"
-        String conda_spp = "encd-chip-spp"
-
-        # group: pipeline_metadata
-        String title = "Untitled"
-        String description = "No description"
-
-        # group: reference_genome
-        File? genome_tsv
-        String? genome_name
-        File? ref_fa
-        File? bwa_idx_tar
-        File? bowtie2_idx_tar
-        File? chrsz
-        File? blacklist
-        File? blacklist2
-        String? mito_chr_name
-        String? regex_bfilt_peak_chr_name
-        String? gensz
-        File? custom_aligner_idx_tar
-
-        # group: input_genomic_data
-        Boolean? paired_end
-        Array[Boolean] paired_ends = []
-        Array[File] fastqs_rep1_R1 = []
-        Array[File] fastqs_rep1_R2 = []
-        Array[File] fastqs_rep2_R1 = []
-        Array[File] fastqs_rep2_R2 = []
-        Array[File] fastqs_rep3_R1 = []
-        Array[File] fastqs_rep3_R2 = []
-        Array[File] fastqs_rep4_R1 = []
-        Array[File] fastqs_rep4_R2 = []
-        Array[File] fastqs_rep5_R1 = []
-        Array[File] fastqs_rep5_R2 = []
-        Array[File] fastqs_rep6_R1 = []
-        Array[File] fastqs_rep6_R2 = []
-        Array[File] fastqs_rep7_R1 = []
-        Array[File] fastqs_rep7_R2 = []
-        Array[File] fastqs_rep8_R1 = []
-        Array[File] fastqs_rep8_R2 = []
-        Array[File] fastqs_rep9_R1 = []
-        Array[File] fastqs_rep9_R2 = []
-        Array[File] fastqs_rep10_R1 = []
-        Array[File] fastqs_rep10_R2 = []
-        Array[File] bams = []
-        Array[File] nodup_bams = []
-        Array[File] tas = []
-        Array[File] peaks = []
-        Array[File] peaks_pr1 = []
-        Array[File] peaks_pr2 = []
-        File? peak_ppr1
-        File? peak_ppr2
-        File? peak_pooled
-        Boolean? ctl_paired_end
-        Array[Boolean] ctl_paired_ends = []
-        Array[File] ctl_fastqs_rep1_R1 = []
-        Array[File] ctl_fastqs_rep1_R2 = []
-        Array[File] ctl_fastqs_rep2_R1 = []
-        Array[File] ctl_fastqs_rep2_R2 = []
-        Array[File] ctl_fastqs_rep3_R1 = []
-        Array[File] ctl_fastqs_rep3_R2 = []
-        Array[File] ctl_fastqs_rep4_R1 = []
-        Array[File] ctl_fastqs_rep4_R2 = []
-        Array[File] ctl_fastqs_rep5_R1 = []
-        Array[File] ctl_fastqs_rep5_R2 = []
-        Array[File] ctl_fastqs_rep6_R1 = []
-        Array[File] ctl_fastqs_rep6_R2 = []
-        Array[File] ctl_fastqs_rep7_R1 = []
-        Array[File] ctl_fastqs_rep7_R2 = []
-        Array[File] ctl_fastqs_rep8_R1 = []
-        Array[File] ctl_fastqs_rep8_R2 = []
-        Array[File] ctl_fastqs_rep9_R1 = []
-        Array[File] ctl_fastqs_rep9_R2 = []
-        Array[File] ctl_fastqs_rep10_R1 = []
-        Array[File] ctl_fastqs_rep10_R2 = []
-        Array[File] ctl_bams = []
-        Array[File] ctl_nodup_bams = []
-        Array[File] ctl_tas = []
-
-        # group: pipeline_parameter
-        String pipeline_type
-        Boolean align_only = false
-        Boolean redact_nodup_bam = false
-        Boolean true_rep_only = false
-        Boolean enable_count_signal_track = false
-        Boolean enable_jsd = true
-        Boolean enable_gc_bias = true
-
-        # group: alignment
-        String aligner = "bowtie2"
-        File? custom_align_py
-        Boolean use_bwa_mem_for_pe = false
-        Int bwa_mem_read_len_limit = 70
-        Boolean use_bowtie2_local_mode = false
-        Int crop_length = 0
-        Int crop_length_tol = 2
-        String trimmomatic_phred_score_format = "auto"
-        Int xcor_trim_bp = 50
-        Boolean use_filt_pe_ta_for_xcor = false
-        String dup_marker = "picard"
-        Boolean no_dup_removal = false
-        Int mapq_thresh = 30
-        Array[String] filter_chrs = []
-        Int subsample_reads = 0
-        Int ctl_subsample_reads = 0
-        Int xcor_subsample_reads = 15000000
-        Int xcor_exclusion_range_min = -500
-        Int? xcor_exclusion_range_max
-        Int pseudoreplication_random_seed = 0
-
-        # group: peak_calling
-        Int ctl_depth_limit = 200000000
-        Float exp_ctl_depth_ratio_limit = 5.0
-        Array[Int?] fraglen = []
-        String? peak_caller
-        Boolean always_use_pooled_ctl = true
-        Float ctl_depth_ratio = 1.2
-        Int? cap_num_peak
-        Float pval_thresh = 0.01
-        Float fdr_thresh = 0.01
-        Float idr_thresh = 0.05
-
-        # group: resource_parameter
-        Int align_cpu = 6
-        Float align_bowtie2_mem_factor = 0.15
-        Float align_bwa_mem_factor = 1.0
-        Int align_time_hr = 48
-        Float align_bowtie2_disk_factor = 8.0
-        Float align_bwa_disk_factor = 8.0
-        Int filter_cpu = 4
-        Float filter_mem_factor = 0.4
-        Int filter_time_hr = 24
-        Float filter_disk_factor = 8.0
-        Int bam2ta_cpu = 2
-        Float bam2ta_mem_factor = 0.35
-        Int bam2ta_time_hr = 6
-        Float bam2ta_disk_factor = 4.0
-        Float spr_mem_factor = 20.0
-        Float spr_disk_factor = 30.0
-        Int jsd_cpu = 4
-        Float jsd_mem_factor = 0.1
-        Int jsd_time_hr = 6
-        Float jsd_disk_factor = 2.0
-        Int xcor_cpu = 2
-        Float xcor_mem_factor = 1.0
-        Int xcor_time_hr = 24
-        Float xcor_disk_factor = 4.5
-        Float subsample_ctl_mem_factor = 22.0
-        Float subsample_ctl_disk_factor = 15.0
-        Float macs2_signal_track_mem_factor = 12.0
-        Int macs2_signal_track_time_hr = 24
-        Float macs2_signal_track_disk_factor = 80.0
-        Int call_peak_cpu = 6
-        Float call_peak_spp_mem_factor = 5.0
-        Float call_peak_macs2_mem_factor = 5.0
-        Int call_peak_time_hr = 72
-        Float call_peak_spp_disk_factor = 5.0
-        Float call_peak_macs2_disk_factor = 30.0
-        String? align_trimmomatic_java_heap
-        String? filter_picard_java_heap
-        String? gc_bias_picard_java_heap
-    }
-
-    String pipeline_ver = "v2.2.2"
     RuntimeEnvironment runtime_environment = {
         "docker": docker,
         "singularity": singularity,

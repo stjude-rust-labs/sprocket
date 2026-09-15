@@ -27,6 +27,11 @@ fn trailing_commas_default() -> bool {
     true
 }
 
+/// Default for whether task and workflow sections should be reordered.
+fn reorder_sections_default() -> bool {
+    false
+}
+
 /// Configuration for formatting.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, deny_unknown_fields)]
@@ -51,6 +56,11 @@ pub struct Config {
     #[toml(default = trailing_commas_default())]
     #[schemars(default = "trailing_commas_default")]
     pub trailing_commas: bool,
+    /// Whether to reorder task and workflow sections to Sprocket's opinionated
+    /// order.
+    #[toml(default = reorder_sections_default())]
+    #[schemars(default = "reorder_sections_default")]
+    pub reorder_sections: bool,
     /// The newline style.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
@@ -65,6 +75,7 @@ impl Default for Config {
             sort_imports: sort_imports_default(),
             sort_inputs: sort_inputs_default(),
             trailing_commas: trailing_commas_default(),
+            reorder_sections: reorder_sections_default(),
             newline_style: NewlineStyle::default(),
         }
     }
@@ -104,6 +115,12 @@ impl Config {
     /// Set whether trailing commas are enabled.
     pub fn trailing_commas(mut self, trailing_commas: bool) -> Self {
         self.trailing_commas = trailing_commas;
+        self
+    }
+
+    /// Set whether section reordering is enabled.
+    pub fn reorder_sections(mut self, reorder_sections: bool) -> Self {
+        self.reorder_sections = reorder_sections;
         self
     }
 }

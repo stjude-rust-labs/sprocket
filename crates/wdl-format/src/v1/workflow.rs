@@ -186,80 +186,121 @@ pub fn format_workflow_definition(
     stream.increment_indent();
     stream.end_line();
 
-    let mut meta_sections = Vec::new();
-    let mut parameter_meta_sections = Vec::new();
-    let mut input_sections = Vec::new();
-    let mut body = Vec::new();
-    let mut output_sections = Vec::new();
-    let mut hints_sections = Vec::new();
-    let mut close_brace = None;
+    if config.reorder_sections {
+        let mut meta_sections = Vec::new();
+        let mut parameter_meta_sections = Vec::new();
+        let mut input_sections = Vec::new();
+        let mut body = Vec::new();
+        let mut output_sections = Vec::new();
+        let mut hints_sections = Vec::new();
+        let mut close_brace = None;
 
-    for child in children {
-        match child.element().kind() {
-            SyntaxKind::MetadataSectionNode => {
-                meta_sections.push(child);
-            }
-            SyntaxKind::ParameterMetadataSectionNode => {
-                parameter_meta_sections.push(child);
-            }
-            SyntaxKind::InputSectionNode => {
-                input_sections.push(child);
-            }
-            SyntaxKind::BoundDeclNode => {
-                body.push(child);
-            }
-            SyntaxKind::CallStatementNode => {
-                body.push(child);
-            }
-            SyntaxKind::ConditionalStatementNode => {
-                body.push(child);
-            }
-            SyntaxKind::ScatterStatementNode => {
-                body.push(child);
-            }
-            SyntaxKind::OutputSectionNode => {
-                output_sections.push(child);
-            }
-            SyntaxKind::WorkflowHintsSectionNode => {
-                hints_sections.push(child);
-            }
-            SyntaxKind::CloseBrace => {
-                close_brace = Some(child);
-            }
-            _ => {
-                unreachable!(
-                    "unexpected child in workflow definition: {:?}",
-                    child.element().kind()
-                );
+        for child in children {
+            match child.element().kind() {
+                SyntaxKind::InputSectionNode => {
+                    input_sections.push(child);
+                }
+                SyntaxKind::MetadataSectionNode => {
+                    meta_sections.push(child);
+                }
+                SyntaxKind::ParameterMetadataSectionNode => {
+                    parameter_meta_sections.push(child);
+                }
+                SyntaxKind::BoundDeclNode
+                | SyntaxKind::CallStatementNode
+                | SyntaxKind::ConditionalStatementNode
+                | SyntaxKind::ScatterStatementNode => {
+                    body.push(child);
+                }
+                SyntaxKind::OutputSectionNode => {
+                    output_sections.push(child);
+                }
+                SyntaxKind::WorkflowHintsSectionNode => {
+                    hints_sections.push(child);
+                }
+                SyntaxKind::CloseBrace => {
+                    close_brace = Some(child);
+                }
+                _ => {
+                    unreachable!(
+                        "unexpected child in workflow definition: {:?}",
+                        child.element().kind()
+                    );
+                }
             }
         }
+
+        write_sections(&meta_sections, stream, config);
+        write_sections(&parameter_meta_sections, stream, config);
+        write_sections(&input_sections, stream, config);
+
+        stream.allow_blank_lines();
+        let body_empty = body.is_empty();
+        for child in body {
+            child.write(stream, config);
+        }
+        stream.ignore_trailing_blank_lines();
+        if !body_empty {
+            stream.blank_line();
+        }
+
+        write_sections(&output_sections, stream, config);
+        write_sections(&hints_sections, stream, config);
+
+        stream
+            .trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
+
+        stream.decrement_indent();
+        stream.end_line();
+        close_brace
+            .expect("workflow close brace")
+            .write(stream, config);
+        stream.end_line();
+    } else {
+        let mut first_written = false;
+        for child in children {
+            match child.element().kind() {
+                SyntaxKind::InputSectionNode
+                | SyntaxKind::MetadataSectionNode
+                | SyntaxKind::ParameterMetadataSectionNode
+                | SyntaxKind::OutputSectionNode
+                | SyntaxKind::WorkflowHintsSectionNode => {
+                    if first_written {
+                        stream.trim_while(|t| {
+                            matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine))
+                        });
+                        stream.blank_line();
+                    }
+                    (&child).write(stream, config);
+                    stream.blank_line();
+                }
+                SyntaxKind::BoundDeclNode
+                | SyntaxKind::CallStatementNode
+                | SyntaxKind::ConditionalStatementNode
+                | SyntaxKind::ScatterStatementNode => {
+                    stream.allow_blank_lines();
+                    (&child).write(stream, config);
+                    stream.ignore_trailing_blank_lines();
+                }
+                SyntaxKind::CloseBrace => {
+                    stream.trim_while(|t| {
+                        matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine))
+                    });
+                    stream.decrement_indent();
+                    stream.end_line();
+                    (&child).write(stream, config);
+                    stream.end_line();
+                }
+                _ => {
+                    unreachable!(
+                        "unexpected child in workflow definition: {:?}",
+                        child.element().kind()
+                    );
+                }
+            }
+            first_written = true;
+        }
     }
-
-    write_sections(&meta_sections, stream, config);
-    write_sections(&parameter_meta_sections, stream, config);
-    write_sections(&input_sections, stream, config);
-
-    stream.allow_blank_lines();
-    let body_empty = body.is_empty();
-    for child in body {
-        child.write(stream, config);
-    }
-    stream.ignore_trailing_blank_lines();
-    if !body_empty {
-        stream.blank_line();
-    }
-
-    write_sections(&output_sections, stream, config);
-    write_sections(&hints_sections, stream, config);
-
-    stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
-
-    stream.decrement_indent();
-    stream.end_line();
-    close_brace
-        .expect("workflow close brace")
-        .write(stream, config);
-    stream.end_line();
 }
 
 /// Formats a [`WorkflowHintsArray`](wdl_ast::v1::WorkflowHintsArray).
