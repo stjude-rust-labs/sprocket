@@ -13,6 +13,7 @@ use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::get_json;
 use crate::commands::client::resolve_run_id;
 use crate::commands::client::send_json;
+use crate::commands::output::CommandOutput;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::ensure_no_analysis_errors;
@@ -77,7 +78,8 @@ pub struct Args {
 ///
 /// Fetches the original run's details, optionally re-analyzes the source,
 /// merges any input overrides, then submits a new run.
-pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn retry(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     let report_mode = args.report_mode.unwrap_or_default();
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
@@ -171,10 +173,9 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
     )
     .await?;
 
-    println!(
-        "{}",
+    output.payload(
         serde_json::to_string_pretty(&submit_response)
-            .context("failed to pretty-print response")?
+            .context("failed to pretty-print response")?,
     );
 
     Ok(())
