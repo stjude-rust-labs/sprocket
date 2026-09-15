@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `--type-signatures` flag to `inputs` ([#1205](https://github.com/stjude-rust-labs/sprocket/pull/1205)).
 * Added configuration setting `run.digest_cache_capacity` and
   `server.engine.digest_cache_capacity` for specifying the evaluation digest
   cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
