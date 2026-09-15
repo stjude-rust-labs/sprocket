@@ -75,7 +75,7 @@
           "default": true
         },
         "upgrade_deprecations": {
-          "description": "Whether to eagerly upgrade deprecated WDL constructs.\n\nCurrently this includes changing curly brace command sections (`{}`)\ninto heredoc command sections (`<<<>>>>`) and changing dollar-style\nplaceholders (`${}`) into tilde-style placeholders (`~{}`).",
+          "description": "Whether to eagerly upgrade deprecated WDL constructs.\n\nCurrently this includes changing curly brace command sections (`{}`)\ninto heredoc command sections (`<<<>>>`) and changing dollar-style\nplaceholders (`${}`) into tilde-style placeholders (`~{}`).",
           "type": "boolean",
           "default": false
         },
