@@ -257,11 +257,8 @@ impl TestContext {
         }
     }
 
-    /// Performs the LSP initialization handshake and returns the initial
-    /// workspace diagnostic report alongside the initialization result.
-    pub async fn initialize(
-        &mut self,
-    ) -> (lsp_types::InitializeResult, WorkspaceDiagnosticReportResult) {
+    /// Performs the LSP initialization handshake and returns the result.
+    pub async fn initialize(&mut self) -> lsp_types::InitializeResult {
         let workspace_url = self.workspace_uri();
         let capabilities = ClientCapabilities {
             text_document: Some(lsp_types::TextDocumentClientCapabilities {
@@ -313,8 +310,7 @@ impl TestContext {
         self.notify::<lsp_types::notification::Initialized>(InitializedParams {})
             .expect("notification should succeed");
 
-        let diagnostics = self.workspace_diagnostic().await;
-        (result, diagnostics)
+        result
     }
 
     /// Issues a fresh `workspace/diagnostic` pull with no previous result IDs.

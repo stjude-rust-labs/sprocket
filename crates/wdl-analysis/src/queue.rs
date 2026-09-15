@@ -854,7 +854,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                    if !self.ensure_analyzed(None, context) {
                         completed.send(Vec::new()).ok();
                         continue;
                     }
@@ -1090,7 +1090,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                    if !self.ensure_analyzed(None, context) {
                         completed.send(None).ok();
                         continue;
                     }
