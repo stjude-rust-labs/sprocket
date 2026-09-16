@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.27.0 - 2026-09-16
+
 #### Removed
 
 * `crate::doc_comments()` is no longer a public API, use the `Documented` trait instead ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
