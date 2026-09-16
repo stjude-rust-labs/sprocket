@@ -1829,11 +1829,37 @@ pub(crate) mod tests {
 
         fn walk<'a>(
             &'a self,
-            _: &'a Url,
+            url: &'a Url,
             _: &'a CancellationToken,
             _: &'a Cache<Url, Arc<[String]>>,
         ) -> BoxFuture<'a, Result<Arc<[String]>>> {
-            unimplemented!()
+            async move {
+                assert_eq!(url.authority(), "example.com");
+                let root = self
+                    .0
+                    .join(url.path().strip_prefix('/').unwrap_or(url.path()));
+                if !root.is_dir() {
+                    return Ok(Vec::<String>::new().into());
+                }
+
+                let mut paths = Vec::new();
+                for entry in walkdir::WalkDir::new(&root).min_depth(1) {
+                    let entry = entry?;
+                    if entry.file_type().is_file() {
+                        paths.push(
+                            entry
+                                .path()
+                                .strip_prefix(&root)?
+                                .components()
+                                .map(|c| c.as_os_str().to_str().expect("path should be UTF-8"))
+                                .collect::<Vec<_>>()
+                                .join("/"),
+                        );
+                    }
+                }
+                Ok(paths.into())
+            }
+            .boxed()
         }
 
         fn exists<'a>(
