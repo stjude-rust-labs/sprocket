@@ -3,10 +3,12 @@
 mod indent;
 mod max_line_length;
 mod newline;
+mod quotes;
 
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
 pub use newline::NewlineStyle;
+pub use quotes::QuoteStyle;
 use schemars::JsonSchema;
 use toml_spanner::Toml;
 use toml_spanner::helper::display;
@@ -78,6 +80,10 @@ pub struct Config {
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
     pub newline_style: NewlineStyle,
+    /// The quote style.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
+    pub quote_style: QuoteStyle,
 }
 
 impl Default for Config {
@@ -91,6 +97,7 @@ impl Default for Config {
             reorder_sections: reorder_sections_default(),
             upgrade_deprecations: upgrade_deprecations_default(),
             newline_style: NewlineStyle::default(),
+            quote_style: QuoteStyle::default(),
         }
     }
 }
@@ -105,6 +112,12 @@ impl Config {
     /// Set the newline style.
     pub fn newline_style(mut self, newline_style: NewlineStyle) -> Self {
         self.newline_style = newline_style;
+        self
+    }
+
+    /// Set the quote style.
+    pub fn quote_style(mut self, quote_style: QuoteStyle) -> Self {
+        self.quote_style = quote_style;
         self
     }
 

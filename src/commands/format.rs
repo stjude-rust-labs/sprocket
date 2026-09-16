@@ -14,7 +14,6 @@ use wdl::ast::AstNode;
 use wdl::ast::Node;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
 use wdl::format::Indent;
 use wdl::format::MaxLineLength;
@@ -126,14 +125,16 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     let modules_config = config.modules.clone();
     let ignore_filename = config.common.ignore_filename();
 
-    let indent = if args.with_tabs || args.indentation_size.is_some() {
+    let mut config = config;
+
+    config.format.indent = if args.with_tabs || args.indentation_size.is_some() {
         Indent::try_new(args.with_tabs, args.indentation_size)
             .context("failed to create indentation configuration")?
     } else {
         config.format.indent
     };
 
-    let max_line_length = if let Some(max) = args.max_line_length {
+    config.format.max_line_length = if let Some(max) = args.max_line_length {
         let max = match max.as_str() {
             "none" => None,
             _ => Some(
@@ -146,16 +147,9 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
         config.format.max_line_length
     };
 
-    let newline_style = args.newline_style.unwrap_or(config.format.newline_style);
+    config.format.newline_style = args.newline_style.unwrap_or(config.format.newline_style);
 
-    let config = FormatConfig::default()
-        .indent(indent)
-        .max_line_length(max_line_length)
-        .sort_inputs(config.format.sort_inputs)
-        .sort_imports(config.format.sort_imports)
-        .trailing_commas(config.format.trailing_commas)
-        .newline_style(newline_style);
-    let formatter = Formatter::new(config);
+    let formatter = Formatter::new(config.format);
 
     let mut errors = 0;
     match args.command {

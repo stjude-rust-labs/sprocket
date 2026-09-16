@@ -87,6 +87,10 @@
         "newline_style": {
           "description": "The newline style.",
           "$ref": "#/$defs/NewlineStyle"
+        },
+        "quote_style": {
+          "description": "The quote style.",
+          "$ref": "#/$defs/QuoteStyle"
         }
       }
     },
@@ -141,6 +145,26 @@
           "description": "Use Windows-style newlines (`\\r\\n`).",
           "type": "string",
           "const": "windows"
+        }
+      ]
+    },
+    "QuoteStyle": {
+      "description": "The quote style to use when formatting.",
+      "oneOf": [
+        {
+          "description": "Use double quotes for all literal strings.",
+          "type": "string",
+          "const": "double"
+        },
+        {
+          "description": "Use single quotes for all literal strings.",
+          "type": "string",
+          "const": "single"
+        },
+        {
+          "description": "Preserve the quote style found in the input.",
+          "type": "string",
+          "const": "preserve"
         }
       ]
     },

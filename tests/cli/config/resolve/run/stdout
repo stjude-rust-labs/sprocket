@@ -7,6 +7,7 @@ trailing_commas = true
 reorder_sections = false
 upgrade_deprecations = false
 newline_style = "auto"
+quote_style = "preserve"
 
 [check]
 except = []
