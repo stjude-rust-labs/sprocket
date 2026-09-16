@@ -340,14 +340,20 @@ impl InputProcessor {
                         .join()
                         .expect("key to join");
 
-                    if self.type_signatures {
-                        self.results.insert(key, Value::from(format!("{}", ty)));
-                    } else if !ty.is_optional() {
+                    if !ty.is_optional() {
                         // required input
-                        self.results
-                            .insert(key, Value::String(format!("{ty} <REQUIRED>")));
+                        if self.type_signatures {
+                            self.results.insert(key, Value::from(format!("{}", ty)));
+                        } else {
+                            self.results
+                                .insert(key, Value::String(format!("{ty} <REQUIRED>")));
+                        }
                     } else if !self.hide_defaults {
-                        self.results.insert(key, Value::Null);
+                        if self.type_signatures {
+                            self.results.insert(key, Value::from(format!("{}", ty)));
+                        } else {
+                            self.results.insert(key, Value::Null);
+                        }
                     }
                 }
                 _ => {
