@@ -7,6 +7,7 @@ sort_imports = true
 sort_inputs = false
 trailing_commas = true
 reorder_sections = false
+upgrade_deprecations = false
 newline_style = "auto"
 
 [check]

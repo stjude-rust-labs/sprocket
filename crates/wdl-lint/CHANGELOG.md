@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `MetaSections` now supports checking both doc comments and `meta`/`parameter_meta` sections ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
+
 #### Removed
 
 * Removed `SectionOrder` lint rule. Use `format check` with `reorder_sections = true` to satisfy any ordering checks ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).

@@ -34,10 +34,10 @@ task test1 {
     }
 
     command  # my command block
-    <<<
-        echo 'hello ~{default="world" name}'
+    {
+        echo 'hello ${default="world" name}'
         echo '~{true="good" false="bad" flag}bye'
-    >>>
+    }
 
     Pair[String, Float] literal = ("hello", 3.14 - 6.8)
 

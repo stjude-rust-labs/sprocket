@@ -4192,7 +4192,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__inputs)
-            opts="-t -m -v -q -c -s -h -V --target --show-non-literals --hide-defaults --nested-inputs --yaml --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
+            opts="-t -m -v -q -c -s -h -V --target --show-non-literals --hide-defaults --nested-inputs --type-signatures --yaml --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
