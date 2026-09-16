@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added `--type-signatures` flag to `inputs` ([#1205](https://github.com/stjude-rust-labs/sprocket/pull/1205)).
+* Added `--type-signatures` flag to `inputs` ([#1205](https://github.com/stjude-rust-labs/sprocket/pull/1205),
+  [#1212](https://github.com/stjude-rust-labs/sprocket/pull/1212)).
 * `format check` notifies when the only diff is in newline style
   ([#1204](https://github.com/stjude-rust-labs/sprocket/pull/1204)).
 * Added configuration setting `run.digest_cache_capacity` and
