@@ -71,20 +71,65 @@ pub trait Documented<N: TreeNode> {
     /// Get all comment nodes preceding this node that start with
     /// [`DOC_COMMENT_PREFIX`].
     ///
-    /// If doc comments don't apply to this node, `None` will be returned.
+    /// This will return `None` if doc comments aren't valid for the node in the
+    /// current context. For example, an [`UnboundDecl`] can only have doc
+    /// comments if it represents a struct field or input. In any other
+    /// context, its comments would be ignored.
     ///
     /// The comments returned are ordered top to bottom.
+    ///
+    /// [`UnboundDecl`]: v1::UnboundDecl
     fn doc_comments(&self) -> Option<Vec<Comment<N::Token>>>;
 }
 
 /// Shared doc comment extraction logic.
+///
+/// NOTE: This is not a public API
+///
+/// `allow_floating` can be used to allow floating comments to be associated
+/// with this node. It's currently only used for preambles. For example:
+///
+/// ```wdl
+/// ## This is a preamble
+///
+/// version 1.3
+/// ```
+///
+/// That preamble comment is still associated with the version statement,
+/// despite floating above it. While in the following:
+///
+/// ```wdl
+/// ## This is a comment for `foo`
+///
+/// task foo {}
+/// ```
+///
+/// Since we don't allow floating comments on task definitions, that doc comment
+/// is *not* associated with it.
+#[allow(clippy::needless_bool)] // For clarity
+#[doc(hidden)] // Exported for `wdl-doc`
 pub fn doc_comments<N: TreeNode>(
-    preceding_trivia: impl IntoIterator<Item = N::Token>,
+    preceding_trivia: impl DoubleEndedIterator<Item = N::Token>,
+    allow_floating: bool,
 ) -> impl Iterator<Item = Comment<N::Token>> {
-    preceding_trivia
-        .into_iter()
-        .take_while(|token| {
-            token.kind() == SyntaxKind::Whitespace || token.kind() == SyntaxKind::Comment
+    let comments = preceding_trivia
+        .rev()
+        .take_while(move |token| {
+            if token.kind() == SyntaxKind::Comment {
+                return true;
+            }
+
+            if token.kind() != SyntaxKind::Whitespace {
+                return false;
+            }
+
+            let lines = token.text().chars().filter(|c| *c == '\n').count();
+            if lines > 1 && !allow_floating {
+                // Floating comment, don't associate with this node
+                return false;
+            }
+
+            true
         })
         .filter_map(|token| {
             if token.kind() == SyntaxKind::Comment && token.text().starts_with(DOC_COMMENT_PREFIX) {
@@ -93,6 +138,8 @@ pub fn doc_comments<N: TreeNode>(
                 None
             }
         })
+        .collect::<Vec<_>>();
+    comments.into_iter().rev()
 }
 
 /// A trait that abstracts the underlying representation of a syntax tree node.
@@ -502,7 +549,7 @@ impl Documented<SyntaxNode> for Document<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
         let version_statement = self.child::<VersionStatement>()?;
         let version_keyword = version_statement.keyword();
-        Some(doc_comments::<SyntaxNode>(version_keyword.inner().preceding_trivia()).collect())
+        Some(doc_comments::<SyntaxNode>(version_keyword.inner().preceding_trivia(), true).collect())
     }
 }
 

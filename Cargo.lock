@@ -3146,6 +3146,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.18.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d317b4b9eb398e6acce275758ec6125535505e7a146fb1a9b8bda2451b0ff4c"
+dependencies = [
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4662,9 +4671,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.43"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0283386ce02abc0151e1761d08802dfe86c173b0b494af5cbc086574e453da06"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "aws-lc-rs",
  "once_cell",
@@ -5326,7 +5335,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-py"
-version = "0.1.0"
+version = "0.30.1"
 dependencies = [
  "pyo3",
  "wdl-ast",
@@ -5819,7 +5828,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -6784,6 +6793,7 @@ dependencies = [
  "line-index",
  "lsp-types",
  "parking_lot",
+ "paste",
  "path-clean",
  "petgraph",
  "pretty_assertions",
@@ -6793,6 +6803,7 @@ dependencies = [
  "rowan",
  "schemars 1.2.2",
  "semver",
+ "sha2 0.11.0",
  "smallvec",
  "strsim",
  "tempfile",
@@ -6891,6 +6902,7 @@ dependencies = [
  "itertools 0.15.0",
  "libc",
  "libtest-mimic",
+ "lru",
  "nonempty",
  "num_enum",
  "ordered-float",
@@ -6999,11 +7011,13 @@ dependencies = [
  "blake3",
  "fs_extra",
  "futures",
+ "indexmap 2.14.0",
  "line-index",
  "parking_lot",
  "pretty_assertions",
  "serde",
  "serde_json",
+ "sprocket-test-types",
  "struct-patch",
  "tempfile",
  "tokio",

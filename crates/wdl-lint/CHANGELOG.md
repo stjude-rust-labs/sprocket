@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* `MetaSections` now supports checking both doc comments and `meta`/`parameter_meta` sections ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
 
 #### Removed

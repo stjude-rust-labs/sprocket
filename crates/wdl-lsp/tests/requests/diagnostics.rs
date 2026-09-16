@@ -51,7 +51,8 @@ async fn baseline_suppresses_matching_diagnostics() {
 
             server_options.baseline = Some(baseline);
         });
-    let (_, report) = ctx.initialize().await;
+    ctx.initialize().await;
+    let report = ctx.workspace_diagnostic().await;
     let codes = diagnostic_codes(&report);
 
     assert!(
@@ -79,7 +80,8 @@ async fn no_baseline_reports_all_diagnostics() {
             ..Default::default()
         })
         .build();
-    let (_, report) = ctx.initialize().await;
+    ctx.initialize().await;
+    let report = ctx.workspace_diagnostic().await;
     let codes = diagnostic_codes(&report);
 
     assert!(
@@ -117,7 +119,8 @@ async fn baseline_still_suppresses_after_repeated_pulls() {
             server_options.baseline = Some(baseline);
         });
 
-    let (_, first) = ctx.initialize().await;
+    ctx.initialize().await;
+    let first = ctx.workspace_diagnostic().await;
     let codes = diagnostic_codes(&first);
     assert!(
         !codes.contains(&"InputName".to_string()),

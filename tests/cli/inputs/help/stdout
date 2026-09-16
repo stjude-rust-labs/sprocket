@@ -19,6 +19,9 @@ Options:
       --nested-inputs
           Generate inputs for all tasks called in the workflow
 
+      --type-signatures
+          Render all input values as their type signature
+
       --yaml
           Output the template as a YAML file
 

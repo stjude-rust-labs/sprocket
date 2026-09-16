@@ -1,6 +1,6 @@
 [package]
 name = "sprocket-py"
-version = "0.1.0"
+version.workspace = true
 # This crate is not published on crates.io, rather it is bundled in a Python package that is
 # published to PyPI.
 publish = false

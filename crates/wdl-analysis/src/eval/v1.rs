@@ -236,8 +236,8 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                 graph.update_edge(hints, command, true);
             }
 
-            // The command section depends on any input or environment variable
-            // declaration All outputs depend on the command
+            // The command section depends on any input or private declaration;
+            // all outputs depend on the command
             for index in self.names.values() {
                 match &graph[*index] {
                     TaskGraphNode::Input(_) => {
@@ -245,7 +245,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             graph.update_edge(*index, command, true);
                         }
                     }
-                    TaskGraphNode::Decl(decl) if decl.env().is_some() => {
+                    TaskGraphNode::Decl(_) => {
                         if !graph.contains_edge(*index, command) {
                             graph.update_edge(*index, command, true);
                         }
@@ -1291,7 +1291,7 @@ impl<N: TreeNode> Default for CommonAncestorFinder<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use wdl_ast::Document;
 
     use super::*;
