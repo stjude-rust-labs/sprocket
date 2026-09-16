@@ -17,6 +17,8 @@ import "workflows/workflows/motifs.wdl"
 import "workflows/workflows/visualization.wdl" as viz
 
 workflow seaseq {
+    String pipeline_ver = "v2.0.0"
+
     meta {
         title: "SEAseq Analysis"
         summary: "Single-End Antibody Sequencing (SEAseq) Pipeline"
@@ -57,6 +59,25 @@ workflow seaseq {
                 help: "Analysis settings; such output analysis file name.",
             },
         }
+    }
+
+    input {
+        # group: reference_genome
+        File reference
+        File? spikein_reference
+        File? blacklist
+        File gtf
+        Array[File]? bowtie_index
+        Array[File]? spikein_bowtie_index
+        Array[File]? motif_databases
+
+        # group: input_genomic_data
+        Array[String]? sample_sraid
+        Array[File]? sample_fastq
+
+        # group: analysis_parameter
+        String? results_name
+        Boolean run_motifs = true
     }
 
     parameter_meta {
@@ -136,27 +157,6 @@ workflow seaseq {
             example: true,
         }
     }
-
-    input {
-        # group: reference_genome
-        File reference
-        File? spikein_reference
-        File? blacklist
-        File gtf
-        Array[File]? bowtie_index
-        Array[File]? spikein_bowtie_index
-        Array[File]? motif_databases
-
-        # group: input_genomic_data
-        Array[String]? sample_sraid
-        Array[File]? sample_fastq
-
-        # group: analysis_parameter
-        String? results_name
-        Boolean run_motifs = true
-    }
-
-    String pipeline_ver = "v2.0.0"
 
     ### ---------------------------------------- ###
     ### ------------ S E C T I O N 1 ----------- ###

@@ -74,6 +74,11 @@
           "type": "boolean",
           "default": true
         },
+        "reorder_sections": {
+          "description": "Whether to reorder task and workflow sections to Sprocket's opinionated\norder.",
+          "type": "boolean",
+          "default": false
+        },
         "upgrade_deprecations": {
           "description": "Whether to eagerly upgrade deprecated WDL constructs.\n\nCurrently this includes changing curly brace command sections (`{}`)\ninto heredoc command sections (`<<<>>>`) and changing dollar-style\nplaceholders (`${}`) into tilde-style placeholders (`~{}`).",
           "type": "boolean",

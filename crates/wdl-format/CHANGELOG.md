@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added an `upgrade_deprecations` config option to upgrade some deprecated WDL constructs to their replacement styles ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
 * Short literal arrays, if/then/else clauses, and symbolic import clauses are kept on the same line instead of being unconditionally line split ([#1154](https://github.com/stjude-rust-labs/sprocket/pull/1154)).
 
+#### Changed
+
+* Formatting no longer forces users to adopt Sprocket's opinionated section ordering of tasks and workflows. Set `reorder_sections = true` to retain prior behavior ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).
+
 #### Fixed
 
 * Formatting no longer forces command sections to use heredoc style or tilde-style placeholders. Set `upgrade_deprecations = true` to retain prior behavior ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
