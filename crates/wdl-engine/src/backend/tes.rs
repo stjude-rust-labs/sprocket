@@ -4,18 +4,18 @@ use std::fs;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use ::tes::v1::Client;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use cloud_copy::UrlExt;
 use crankshaft::config::backend;
-use crankshaft::config::backend::tes::http::HttpAuthConfig;
 use crankshaft::engine::Task;
 use crankshaft::engine::service::name::GeneratorIterator;
 use crankshaft::engine::service::name::UniqueAlphanumeric;
-use crankshaft::engine::service::runner::Backend;
+use crankshaft::engine::service::runner::Backend as _;
 use crankshaft::engine::service::runner::backend::TaskRunError;
-use crankshaft::engine::service::runner::backend::tes;
+use crankshaft::engine::service::runner::backend::tes::Backend;
 use crankshaft::engine::task::Execution;
 use crankshaft::engine::task::Input;
 use crankshaft::engine::task::Output;
@@ -27,9 +27,15 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use secrecy::ExposeSecret;
+use tes::auth::BasicAuthorizer;
+use tes::auth::BearerTokenAuthorizer;
+use tes::auth::oauth;
+use tes::auth::oauth::OAuthAuthorizer;
 use tokio::task::JoinSet;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
+use tracing_indicatif::indicatif_eprintln;
 
 use super::ExecuteTaskRequest;
 use super::TaskExecutionBackend;
@@ -69,14 +75,14 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
 /// The default poll interval, in seconds, for the TES backend.
-const DEFAULT_TES_INTERVAL: u64 = 1;
+const DEFAULT_TES_INTERVAL: u64 = 30;
 
 /// Represents the Task Execution Service (TES) backend.
 pub struct TesBackend {
     /// The engine configuration.
     config: Arc<Config>,
     /// The underlying Crankshaft backend.
-    inner: tes::Backend,
+    inner: Backend,
 }
 
 impl TesBackend {
@@ -92,36 +98,88 @@ impl TesBackend {
             .as_tes()
             .context("configured backend is not TES")?;
 
-        let mut http = backend::tes::http::Config::default();
-        match &backend_config.auth {
-            Some(TesBackendAuthConfig::Basic { config }) => {
-                http.auth = Some(HttpAuthConfig::Basic {
-                    username: config.username.clone(),
-                    password: config.password.inner().expose_secret().to_string(),
-                });
-            }
-            Some(TesBackendAuthConfig::Bearer { config }) => {
-                http.auth = Some(HttpAuthConfig::Bearer {
-                    token: config.token.inner().expose_secret().to_string(),
-                });
-            }
-            None => {}
-        }
-
-        http.retries = backend_config.retries;
-        http.max_concurrency = backend_config.max_concurrency.map(|c| c as usize);
+        let http = backend::tes::http::Config {
+            retries: backend_config.retries,
+            max_concurrency: backend_config.max_concurrency.map(|c| c as usize),
+            ..Default::default()
+        };
 
         let names = Arc::new(Mutex::new(GeneratorIterator::new(
             UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
             INITIAL_EXPECTED_NAMES,
         )));
 
-        let inner = tes::Backend::initialize(
+        // Construct the TES client for the backend
+        let client = Client::builder().url(backend_config.service.clone());
+        let client = match &backend_config.auth {
+            Some(TesBackendAuthConfig::Basic { config }) => {
+                client.authorizer(BasicAuthorizer::new(
+                    &config.username,
+                    config
+                        .password
+                        .as_ref()
+                        .map(|p| p.inner().expose_secret().to_string()),
+                ))
+            }
+            Some(TesBackendAuthConfig::Bearer { config }) => client.authorizer(
+                BearerTokenAuthorizer::new(config.token.inner().expose_secret()),
+            ),
+            Some(TesBackendAuthConfig::OAuth { config }) => {
+                let require_refresh = config.require_refresh;
+                let authorizer = OAuthAuthorizer::new(
+                    oauth::Config {
+                        client_id: config.client_id.clone(),
+                        client_secret: config
+                            .client_secret
+                            .as_ref()
+                            .map(|s| s.inner().expose_secret().to_string()),
+                        audience: Some(config.audience.clone().unwrap_or_else(|| {
+                            backend_config.service.origin().ascii_serialization()
+                        })),
+                        authorization: config.authorization.clone(),
+                        token: config.token.clone(),
+                        scopes: config.scopes.clone(),
+                    },
+                    |r| {
+                        indicatif_eprintln!(
+                            "TES backend authorization is required: visit {url} and enter code \
+                             `{code}`",
+                            url = r.verification_uri(),
+                            code = r.user_code().secret(),
+                        );
+                    },
+                )
+                .on_reauthorization(move |e| {
+                    async move {
+                        if let Some(e) = e {
+                            error!("error refreshing TES OAuth access token: {e}");
+                        }
+
+                        !require_refresh
+                    }
+                    .boxed()
+                });
+                let can_refresh = authorizer.initialize().await?;
+                if require_refresh && !can_refresh {
+                    bail!(
+                        "TES backend initialization failed: an OAuth refresh token was not \
+                         returned and token refresh is required"
+                    );
+                }
+
+                client.authorizer(authorizer)
+            }
+            None => client,
+        };
+
+        let inner = Backend::initialize_with_client(
             backend::tes::Config::builder()
-                .url(backend_config.url.clone().expect("should have URL"))
+                .url(backend_config.service.clone())
                 .http(http)
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
                 .build(),
+            // SAFETY: the URL is the only required field and it was supplied above
+            client.try_build().unwrap(),
             names.clone(),
         )
         .await;
@@ -215,14 +273,7 @@ impl TaskExecutionBackend for TesBackend {
                 )
             })?;
 
-            // SAFETY: currently `inputs` is required by configuration
-            // validation, so it should always unwrap
-            let inputs_url = Arc::new(
-                backend_config
-                    .inputs
-                    .clone()
-                    .expect("should have inputs URL"),
-            );
+            let inputs_url = Arc::new(backend_config.inputs.clone());
 
             // Start with the command file as an input
             let mut backend_inputs = vec![
@@ -338,8 +389,6 @@ impl TaskExecutionBackend for TesBackend {
             // validation, so it should always unwrap
             let outputs_url = backend_config
                 .outputs
-                .as_ref()
-                .expect("should have outputs URL")
                 .join(&output_dir)
                 .expect("should join");
 

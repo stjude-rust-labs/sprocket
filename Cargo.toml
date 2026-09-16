@@ -49,7 +49,7 @@ cloud-copy = { version = "0.10.1", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
 convert_case = "0.12.0"
-crankshaft = { version = "0.11.0", features = ["docker"] }
+crankshaft = { version = "0.11.0", features = ["docker"], git = "https://github.com/stjude-rust-labs/crankshaft", branch = "main" }
 criterion = "0.8.2"
 dialoguer = "0.12.0"
 dirs = "6.0.0"
@@ -120,6 +120,7 @@ struct-patch = "0.14.0"
 strum = { version = "0.28", features = ["derive"] }
 sysinfo = "0.39.0"
 tempfile = "3.24.0"
+tes = { version = "0.11.0", features = ["oauth"] }
 test-log = { version = "0.2.21", default-features = false, features = ["color", "trace"] }
 thirtyfour = "0.37.1"
 thiserror = "2.0.20"
@@ -151,10 +152,10 @@ zip = { version = "8.1.0", default-features = false, features = [] }
 
 [workspace.lints.rust]
 missing_docs = "warn"
-nonstandard-style = "warn"
-rust-2018-idioms = "warn"
-rust-2021-compatibility = "warn"
-rust-2024-compatibility = "warn"
+nonstandard_style = "warn"
+rust_2018_idioms = "warn"
+rust_2021_compatibility = "warn"
+rust_2024_compatibility = "warn"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(docker_tests_disabled)'] }
 
 [workspace.lints.rustdoc]

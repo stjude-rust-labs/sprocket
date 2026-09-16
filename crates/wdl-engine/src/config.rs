@@ -259,9 +259,8 @@ impl SecretString {
     ///
     /// By default, a [`SecretString`] is unredacted; when redacted, the string
     /// is replaced with `<REDACTED>` when serialized.
-    pub fn redact(mut self) -> Self {
+    pub fn redact(&mut self) {
         self.redacted = true;
-        self
     }
 
     /// Gets the inner [`secrecy::SecretString`].
@@ -589,24 +588,22 @@ impl Config {
     /// Redacts the secrets contained in the configuration.
     ///
     /// By default, secrets are redacted for serialization.
-    pub fn redact(mut self) -> Self {
+    pub fn redact(&mut self) {
         for backend in self.backends.values_mut() {
-            *backend = std::mem::take(backend).redact();
+            backend.redact();
         }
 
-        if let Some(auth) = self.storage.azure.auth.take() {
-            self.storage.azure.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.azure.auth.as_mut() {
+            auth.redact();
         }
 
-        if let Some(auth) = self.storage.s3.auth.take() {
-            self.storage.s3.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.s3.auth.as_mut() {
+            auth.redact();
         }
 
-        if let Some(auth) = self.storage.google.auth.take() {
-            self.storage.google.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.google.auth.as_mut() {
+            auth.redact();
         }
-
-        self
     }
 
     /// Gets the backend configuration.
@@ -830,9 +827,8 @@ impl AzureStorageAuthConfig {
 
     /// Redacts the secrets contained in the Azure Blob Storage storage
     /// authentication configuration.
-    pub fn redact(mut self) -> Self {
-        self.access_key = self.access_key.redact();
-        self
+    pub fn redact(&mut self) {
+        self.access_key.redact();
     }
 }
 
@@ -884,9 +880,8 @@ impl S3StorageAuthConfig {
 
     /// Redacts the secrets contained in the AWS S3 storage authentication
     /// configuration.
-    pub fn redact(mut self) -> Self {
-        self.secret_access_key = self.secret_access_key.redact();
-        self
+    pub fn redact(&mut self) {
+        self.secret_access_key.redact();
     }
 }
 
@@ -944,9 +939,8 @@ impl GoogleStorageAuthConfig {
 
     /// Redacts the secrets contained in the Google Cloud Storage authentication
     /// configuration.
-    pub fn redact(mut self) -> Self {
-        self.secret = self.secret.redact();
-        self
+    pub fn redact(&mut self) {
+        self.secret.redact();
     }
 }
 
@@ -1516,15 +1510,15 @@ impl BackendConfig {
     }
 
     /// Redacts the secrets contained in the backend configuration.
-    pub fn redact(self) -> Self {
+    pub fn redact(&mut self) {
         match self {
             Self::Local { .. }
             | Self::Docker { .. }
             | Self::LsfApptainer { .. }
-            | Self::SlurmApptainer { .. } => self,
-            Self::Tes { config } => Self::Tes {
-                config: config.redact(),
-            },
+            | Self::SlurmApptainer { .. } => {}
+            Self::Tes { config } => {
+                config.redact();
+            }
         }
     }
 }
@@ -1658,14 +1652,14 @@ impl Default for DockerBackendConfig {
 }
 
 /// Represents HTTP basic authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BasicAuthConfig {
     /// The HTTP basic authentication username.
     pub username: String,
     /// The HTTP basic authentication password.
-    pub password: SecretString,
+    pub password: Option<SecretString>,
 }
 
 impl BasicAuthConfig {
@@ -1675,14 +1669,15 @@ impl BasicAuthConfig {
     }
 
     /// Redacts the secrets contained in the HTTP basic auth configuration.
-    pub fn redact(mut self) -> Self {
-        self.password = self.password.redact();
-        self
+    pub fn redact(&mut self) {
+        if let Some(password) = &mut self.password {
+            password.redact();
+        }
     }
 }
 
 /// Represents HTTP bearer token authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BearerAuthConfig {
@@ -1697,9 +1692,82 @@ impl BearerAuthConfig {
     }
 
     /// Redacts the secrets contained in the HTTP bearer auth configuration.
-    pub fn redact(mut self) -> Self {
-        self.token = self.token.redact();
-        self
+    pub fn redact(&mut self) {
+        self.token.redact();
+    }
+}
+
+/// The default value for the `allow_reauthorization` field in [`OAuthConfig`].
+fn default_require_refresh() -> bool {
+    false
+}
+
+/// Represents HTTP bearer token authentication configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct OAuthConfig {
+    /// The OAuth application's client identifier.
+    pub client_id: String,
+    /// The OAuth application's client secret.
+    pub client_secret: Option<SecretString>,
+    /// The OAuth audience.
+    ///
+    /// When `None`, defaults to the base URI of the TES server.
+    pub audience: Option<String>,
+    /// The URL for OAuth authorization requests.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub authorization: Url,
+    /// The URL for OAuth token requests.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub token: Url,
+    /// The desired scopes for OAuth.
+    #[toml(default)]
+    #[schemars(default)]
+    pub scopes: Vec<String>,
+    /// Whether or not to require a refresh token.
+    ///
+    /// If `true` and the OAuth authorization does not return a refresh token,
+    /// an error will be returned when the TES backend is created.
+    ///
+    /// If `false` and the OAuth authorization does not return a refresh token,
+    /// a device reauthorization will occur.
+    ///
+    /// Defaults to `false`.
+    #[toml(default = default_require_refresh())]
+    #[schemars(default = "default_require_refresh")]
+    pub require_refresh: bool,
+}
+
+impl OAuthConfig {
+    /// Validates the HTTP bearer auth configuration.
+    pub fn validate(&self, insecure: bool) -> Result<()> {
+        if !insecure {
+            if self.authorization.scheme() != "https" {
+                bail!(
+                    "TES backend OAuth configuration value `authorization` has invalid value \
+                     `{url}`: URL must use a HTTPS scheme",
+                    url = self.authorization
+                );
+            }
+
+            if self.token.scheme() != "https" {
+                bail!(
+                    "TES backend OAuth configuration value `token` has invalid value `{url}`: URL \
+                     must use a HTTPS scheme",
+                    url = self.token
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Redacts the secrets contained in the OAuth configuration.
+    pub fn redact(&mut self) {
+        if let Some(secret) = &mut self.client_secret {
+            secret.redacted = true;
+        }
     }
 }
 
@@ -1722,27 +1790,39 @@ pub enum TesBackendAuthConfig {
         #[schemars(default, flatten)]
         config: BearerAuthConfig,
     },
+    /// Use OAuth authentication for the TES backend.
+    #[toml(rename = "oauth")]
+    OAuth {
+        /// The inner OAuth configuration.
+        #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
+        config: Box<OAuthConfig>,
+    },
 }
 
 impl TesBackendAuthConfig {
     /// Validates the TES backend authentication configuration.
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self, insecure: bool) -> Result<()> {
         match self {
             Self::Basic { config } => config.validate(),
             Self::Bearer { config } => config.validate(),
+            Self::OAuth { config } => config.validate(insecure),
         }
     }
 
     /// Redacts the secrets contained in the TES backend authentication
     /// configuration.
-    pub fn redact(self) -> Self {
+    pub fn redact(&mut self) {
         match self {
-            Self::Basic { config } => Self::Basic {
-                config: config.redact(),
-            },
-            Self::Bearer { config } => Self::Bearer {
-                config: config.redact(),
-            },
+            Self::Basic { config } => {
+                config.redact();
+            }
+            Self::Bearer { config } => {
+                config.redact();
+            }
+            Self::OAuth { config } => {
+                config.redact();
+            }
         }
     }
 }
@@ -1760,13 +1840,13 @@ impl From<BearerAuthConfig> for TesBackendAuthConfig {
 }
 
 /// Represents configuration for the Task Execution Service (TES) backend.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TesBackendConfig {
     /// The URL of the Task Execution Service.
-    #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub url: Option<Url>,
+    #[toml(FromToml with = parse_string, ToToml with = display, alias = "url")]
+    pub service: Url,
 
     /// The authentication configuration for the TES backend.
     #[toml(style = Header)]
@@ -1774,15 +1854,15 @@ pub struct TesBackendConfig {
 
     /// The root cloud storage URL for storing inputs.
     #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub inputs: Option<Url>,
+    pub inputs: Url,
 
     /// The root cloud storage URL for storing outputs.
     #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub outputs: Option<Url>,
+    pub outputs: Url,
 
     /// The polling interval, in seconds, for checking task status.
     ///
-    /// Defaults to 1 second.
+    /// Defaults to 30 seconds.
     pub interval: Option<u64>,
 
     /// The number of retries after encountering an error communicating with the
@@ -1807,20 +1887,20 @@ pub struct TesBackendConfig {
 impl TesBackendConfig {
     /// Validates the TES backend configuration.
     pub fn validate(&self) -> Result<()> {
-        match &self.url {
-            Some(url) => {
-                if !self.insecure && url.scheme() != "https" {
-                    bail!(
-                        "TES backend configuration value `url` has invalid value `{url}`: URL \
-                         must use a HTTPS scheme"
-                    );
-                }
+        match self.service.scheme() {
+            "https" => {}
+            "http" if self.insecure => {}
+            _ => {
+                bail!(
+                    "TES backend configuration value `service` has invalid value `{url}`: URL \
+                     must use a HTTPS scheme",
+                    url = self.service
+                );
             }
-            None => bail!("TES backend configuration value `url` is required"),
         }
 
         if let Some(auth) = &self.auth {
-            auth.validate()?;
+            auth.validate(self.insecure)?;
         }
 
         if let Some(max_concurrency) = self.max_concurrency
@@ -1829,54 +1909,46 @@ impl TesBackendConfig {
             bail!("TES backend configuration value `max_concurrency` cannot be zero");
         }
 
-        match &self.inputs {
-            Some(url) => {
-                if !is_supported_url(url.as_str()) {
-                    bail!(
-                        "TES backend storage configuration value `inputs` has invalid value \
-                         `{url}`: URL scheme is not supported"
-                    );
-                }
-
-                if !url.path().ends_with('/') {
-                    bail!(
-                        "TES backend storage configuration value `inputs` has invalid value \
-                         `{url}`: URL path must end with a slash"
-                    );
-                }
-            }
-            None => bail!("TES backend configuration value `inputs` is required"),
+        if !is_supported_url(self.inputs.as_str()) {
+            bail!(
+                "TES backend storage configuration value `inputs` has invalid value `{url}`: URL \
+                 scheme is not supported",
+                url = self.inputs
+            );
         }
 
-        match &self.outputs {
-            Some(url) => {
-                if !is_supported_url(url.as_str()) {
-                    bail!(
-                        "TES backend storage configuration value `outputs` has invalid value \
-                         `{url}`: URL scheme is not supported"
-                    );
-                }
+        if !self.inputs.path().ends_with('/') {
+            bail!(
+                "TES backend storage configuration value `inputs` has invalid value `{url}`: URL \
+                 path must end with a slash",
+                url = self.inputs
+            );
+        }
 
-                if !url.path().ends_with('/') {
-                    bail!(
-                        "TES backend storage configuration value `outputs` has invalid value \
-                         `{url}`: URL path must end with a slash"
-                    );
-                }
-            }
-            None => bail!("TES backend storage configuration value `outputs` is required"),
+        if !is_supported_url(self.outputs.as_str()) {
+            bail!(
+                "TES backend storage configuration value `outputs` has invalid value `{url}`: URL \
+                 scheme is not supported",
+                url = self.outputs
+            );
+        }
+
+        if !self.outputs.path().ends_with('/') {
+            bail!(
+                "TES backend storage configuration value `outputs` has invalid value `{url}`: URL \
+                 path must end with a slash",
+                url = self.outputs
+            );
         }
 
         Ok(())
     }
 
     /// Redacts the secrets contained in the TES backend configuration.
-    pub fn redact(mut self) -> Self {
-        if let Some(auth) = self.auth.take() {
-            self.auth = Some(auth.redact());
+    pub fn redact(&mut self) {
+        if let Some(auth) = &mut self.auth {
+            auth.redact();
         }
-
-        self
     }
 }
 
@@ -3299,26 +3371,38 @@ mod tests {
                 (
                     "first".to_string(),
                     TesBackendConfig {
+                        service: "https://example.com".parse().unwrap(),
+                        inputs: "https://example.com/inputs/".parse().unwrap(),
+                        outputs: "https://example.com/outputs/".parse().unwrap(),
                         auth: Some(TesBackendAuthConfig::Basic {
                             config: BasicAuthConfig {
                                 username: "foo".into(),
-                                password: "secret".into(),
+                                password: Some("secret".into()),
                             },
                         }),
-                        ..Default::default()
+                        insecure: false,
+                        interval: None,
+                        retries: None,
+                        max_concurrency: None,
                     }
                     .into(),
                 ),
                 (
                     "second".to_string(),
                     TesBackendConfig {
+                        service: "https://example.com".parse().unwrap(),
+                        inputs: "https://example.com/inputs/".parse().unwrap(),
+                        outputs: "https://example.com/outputs".parse().unwrap(),
                         auth: Some(
                             BearerAuthConfig {
                                 token: "secret".into(),
                             }
                             .into(),
                         ),
-                        ..Default::default()
+                        insecure: false,
+                        interval: None,
+                        retries: None,
+                        max_concurrency: None,
                     }
                     .into(),
                 ),
@@ -3526,24 +3610,19 @@ mod tests {
                 )
         );
 
-        // Test missing TES URL
-        let config = Config {
-            backends: [("default".to_string(), TesBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        assert_eq!(
-            config.validate().await.unwrap_err().to_string(),
-            "TES backend configuration value `url` is required"
-        );
-
         // Test TES invalid max concurrency
         let config = Config {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("https://example.com".parse().unwrap()),
+                    service: "https://example.com".parse().unwrap(),
+                    inputs: "https://example.com/inputs/".parse().unwrap(),
+                    outputs: "https://example.com/outputs/".parse().unwrap(),
+                    insecure: false,
+                    auth: None,
+                    interval: None,
+                    retries: None,
                     max_concurrency: Some(0),
-                    ..Default::default()
                 }
                 .into(),
             )]
@@ -3560,10 +3639,14 @@ mod tests {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
-                    ..Default::default()
+                    service: "http://example.com".parse().unwrap(),
+                    inputs: "http://example.com/inputs/".parse().unwrap(),
+                    outputs: "http://example.com/outputs/".parse().unwrap(),
+                    insecure: false,
+                    auth: None,
+                    interval: None,
+                    retries: None,
+                    max_concurrency: None,
                 }
                 .into(),
             )]
@@ -3581,11 +3664,14 @@ mod tests {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
+                    service: "http://example.com".parse().unwrap(),
+                    inputs: "http://example.com".parse().unwrap(),
+                    outputs: "http://example.com".parse().unwrap(),
                     insecure: true,
-                    ..Default::default()
+                    auth: None,
+                    interval: None,
+                    retries: None,
+                    max_concurrency: None,
                 }
                 .into(),
             )]
@@ -3770,6 +3856,9 @@ excluded_cache_inputs = ['6', '7', '8']
 
 [backends.baz]
 type = 'tes'
+url = "https://example.com"
+inputs = "https://example.com/inputs/"
+outputs = "https://example.com/outputs/"
 "#,
         );
 
@@ -3814,7 +3903,20 @@ type = 'lsf_apptainer'
                 backends: IndexMap::from_iter([
                     ("foo".to_string(), LocalBackendConfig::default().into()),
                     ("bar".to_string(), DockerBackendConfig::default().into()),
-                    ("baz".to_string(), TesBackendConfig::default().into()),
+                    (
+                        "baz".to_string(),
+                        TesBackendConfig {
+                            service: "https://example.com".parse().unwrap(),
+                            inputs: "https://example.com/inputs/".parse().unwrap(),
+                            outputs: "https://example.com/outputs/".parse().unwrap(),
+                            insecure: false,
+                            auth: None,
+                            interval: None,
+                            retries: None,
+                            max_concurrency: None,
+                        }
+                        .into()
+                    ),
                     (
                         "qux".to_string(),
                         LsfApptainerBackendConfig::default().into()

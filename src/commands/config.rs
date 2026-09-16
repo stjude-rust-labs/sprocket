@@ -68,7 +68,7 @@ pub fn config(args: Args, mut config: Config, output: CommandOutput) -> CommandR
         ConfigSubcommand::Resolve(args) => {
             // Redact any secrets unless explicitly requested not to
             if !args.unredact {
-                config.run.engine = config.run.engine.redact();
+                config.run.engine.redact();
             }
 
             config
