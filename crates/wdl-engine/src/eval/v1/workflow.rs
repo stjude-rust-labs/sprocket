@@ -39,6 +39,7 @@ use wdl_analysis::diagnostics::unknown_namespace;
 use wdl_analysis::diagnostics::unknown_task_or_workflow;
 use wdl_analysis::document::ScopeUnion;
 use wdl_analysis::document::Task;
+use wdl_analysis::document::Workflow;
 use wdl_analysis::eval::v1::WorkflowGraphBuilder;
 use wdl_analysis::eval::v1::WorkflowGraphNode;
 use wdl_analysis::types::ArrayType;
@@ -572,6 +573,8 @@ struct State {
     evaluator: Evaluator,
     /// The document containing the workflow being evaluated.
     document: Document,
+    /// The workflow being evaluated.
+    workflow: Workflow,
     /// The workflow's inputs.
     inputs: WorkflowInputs,
     /// The scopes used in workflow evaluation.
@@ -685,7 +688,7 @@ impl State {
                             .unwrap_or_else(|| stmt.target().names().last().unwrap());
                         debug!(
                             workflow_id = id.as_str(),
-                            workflow_name = self.document.workflow().unwrap().name(),
+                            workflow_name = self.workflow.name(),
                             document = %self.document.uri(),
                             call_name = call_name.text(),
                             "evaluation of call statement has completed",
@@ -693,7 +696,7 @@ impl State {
                     }
                     WorkflowGraphNode::ConditionalClause(clause, _) => debug!(
                         workflow_id = id.as_str(),
-                        workflow_name = self.document.workflow().unwrap().name(),
+                        workflow_name = self.workflow.name(),
                         document = %self.document.uri(),
                         clause_kind = format!("{}", clause.kind()),
                         expr = clause.expr().as_ref().map(|e| e.text().to_string()),
@@ -701,7 +704,7 @@ impl State {
                     ),
                     WorkflowGraphNode::Conditional(..) => debug!(
                         workflow_id = id.as_str(),
-                        workflow_name = self.document.workflow().unwrap().name(),
+                        workflow_name = self.workflow.name(),
                         document = %self.document.uri(),
                         "evaluation of conditional statement has completed",
                     ),
@@ -709,7 +712,7 @@ impl State {
                         let variable = stmt.variable();
                         debug!(
                             workflow_id = id.as_str(),
-                            workflow_name = self.document.workflow().unwrap().name(),
+                            workflow_name = self.workflow.name(),
                             document = %self.document.uri(),
                             variable = variable.text(),
                             "evaluation of scatter statement has completed",
@@ -730,7 +733,7 @@ impl State {
             for node in processing.iter().copied() {
                 trace!(
                     workflow_id = id.as_str(),
-                    workflow_name = self.document.workflow().unwrap().name(),
+                    workflow_name = self.workflow.name(),
                     document = %self.document.uri(),
                     "evaluating node `{n:?}` ({node:?})",
                     n = self.graph[node]
@@ -835,7 +838,7 @@ impl State {
                 {
                     debug!(
                         workflow_id = id,
-                        workflow_name = self.document.workflow().unwrap().name(),
+                        workflow_name = self.workflow.name(),
                         document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression",
@@ -853,7 +856,7 @@ impl State {
                 if let Some(expr) = expr {
                     debug!(
                         workflow_id = id,
-                        workflow_name = self.document.workflow().unwrap().name(),
+                        workflow_name = self.workflow.name(),
                         document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression",
@@ -900,10 +903,7 @@ impl State {
                 .map_err(|e| {
                     decl_evaluation_failed(
                         e,
-                        self.document
-                            .workflow()
-                            .expect("should have workflow")
-                            .name(),
+                        self.workflow.name(),
                         false,
                         name.text(),
                         Some(Io::Input),
@@ -934,7 +934,7 @@ impl State {
 
         debug!(
             workflow_id = id,
-            workflow_name = self.document.workflow().unwrap().name(),
+            workflow_name = self.workflow.name(),
             document = %self.document.uri(),
             decl_name = name.text(),
             "evaluating private declaration",
@@ -973,10 +973,7 @@ impl State {
                 .map_err(|e| {
                     decl_evaluation_failed(
                         e,
-                        self.document
-                            .workflow()
-                            .expect("should have workflow")
-                            .name(),
+                        self.workflow.name(),
                         false,
                         name.text(),
                         None,
@@ -1001,7 +998,7 @@ impl State {
 
         debug!(
             workflow_id = id,
-            workflow_name = self.document.workflow().unwrap().name(),
+            workflow_name = self.workflow.name(),
             document = %self.document.uri(),
             output_name = name.text(),
             "evaluating output",
@@ -1043,10 +1040,7 @@ impl State {
             .map_err(|e| {
                 decl_evaluation_failed(
                     e,
-                    self.document
-                        .workflow()
-                        .expect("should have workflow")
-                        .name(),
+                    self.workflow.name(),
                     false,
                     name.text(),
                     Some(Io::Output),
@@ -1095,7 +1089,7 @@ impl State {
             if let Some(expr) = clause.expr() {
                 debug!(
                     workflow_id = id.as_str(),
-                    workflow_name = self.document.workflow().unwrap().name(),
+                    workflow_name = self.workflow.name(),
                     document = %self.document.uri(),
                     expr = expr.text().to_string(),
                     "evaluating conditional statement expression",
@@ -1120,7 +1114,7 @@ impl State {
                 {
                     debug!(
                         workflow_id = id.as_str(),
-                        workflow_name = self.document.workflow().unwrap().name(),
+                        workflow_name = self.workflow.name(),
                         document = %self.document.uri(),
                         "conditional statement branch was not taken and subgraph will be skipped"
                     );
@@ -1129,7 +1123,7 @@ impl State {
 
                 debug!(
                     workflow_id = id.as_str(),
-                    workflow_name = self.document.workflow().unwrap().name(),
+                    workflow_name = self.workflow.name(),
                     document = %self.document.uri(),
                     expr = expr.text().to_string(),
                     "conditional statement branch was taken and subgraph will be evaluated"
@@ -1138,7 +1132,7 @@ impl State {
                 // No expression means this is an else clause
                 debug!(
                     workflow_id = id.as_str(),
-                    workflow_name = self.document.workflow().unwrap().name(),
+                    workflow_name = self.workflow.name(),
                     document = %self.document.uri(),
                     "else branch was taken and subgraph will be evaluated"
                 );
@@ -1205,7 +1199,7 @@ impl State {
 
         debug!(
             workflow_id = id.as_str(),
-            workflow_name = self.document.workflow().unwrap().name(),
+            workflow_name = self.workflow.name(),
             document = %self.document.uri(),
             "no conditional statement branch was taken"
         );
@@ -1286,7 +1280,7 @@ impl State {
 
         debug!(
             workflow_id = id.as_str(),
-            workflow_name = self.document.workflow().unwrap().name(),
+            workflow_name = self.workflow.name(),
             document = %self.document.uri(),
             variable = variable.text(),
             "evaluating scatter statement",
@@ -1440,7 +1434,7 @@ impl State {
         #[allow(clippy::missing_docs_in_private_items)]
         enum Target<'a> {
             Task(&'a Task),
-            Workflow,
+            Workflow(&'a str),
         }
 
         impl Target<'_> {
@@ -1470,11 +1464,12 @@ impl State {
                             .await?
                             .into_outputs()
                     }
-                    Target::Workflow => {
+                    Target::Workflow(workflow_name) => {
                         debug!(caller_id, callee_id, "evaluating call to workflow");
                         evaluator
                             .perform_workflow_evaluation(
                                 document,
+                                workflow_name,
                                 inputs.unwrap_workflow_inputs(),
                                 root_dir,
                                 callee_id,
@@ -1521,21 +1516,14 @@ impl State {
 
         debug!(
             workflow_id = id,
-            workflow_name = self.document.workflow().unwrap().name(),
+            workflow_name = self.workflow.name(),
             document = %self.document.uri(),
             call_name = alias.text(),
             "evaluating call statement",
         );
 
         // Check for a directly recursive workflow call
-        if namespace.is_none()
-            && target.text()
-                == self
-                    .document
-                    .workflow()
-                    .expect("should have workflow")
-                    .name()
-        {
+        if namespace.is_none() && target.text() == self.workflow.name() {
             return Err(EvaluationError::new(
                 self.document.clone(),
                 recursive_workflow_call(target.text(), target.span()),
@@ -1561,13 +1549,10 @@ impl State {
                     inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
                     Target::Task(task),
                 )
-            } else if document
-                .workflow()
-                .is_some_and(|w| w.name() == target.text())
-            {
+            } else if document.local_workflow_by_name(target.text()).is_some() {
                 (
                     inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
-                    Target::Workflow,
+                    Target::Workflow(target.text()),
                 )
             } else if let Some(imported) = document.imported_task_by_name(target.text())
                 && let Some(task) = imported.document().local_task_by_name(imported.name())
@@ -1580,13 +1565,13 @@ impl State {
             } else if let Some(imported) = document.imported_workflow_by_name(target.text())
                 && imported
                     .document()
-                    .workflow()
-                    .is_some_and(|w| w.name() == imported.name())
+                    .local_workflow_by_name(imported.name())
+                    .is_some()
             {
                 document = imported.document();
                 (
                     inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
-                    Target::Workflow,
+                    Target::Workflow(imported.name()),
                 )
             } else {
                 return Err(EvaluationError::new(
@@ -1645,9 +1630,7 @@ impl State {
             .with_name(alias.text());
 
         let ty = self
-            .document
-            .workflow()
-            .expect("should have workflow")
+            .workflow
             .calls()
             .get(alias.text())
             .expect("should have call");
@@ -1720,18 +1703,21 @@ impl State {
 }
 
 impl Evaluator {
-    /// Evaluates the workflow of the given document.
+    /// Evaluates the named workflow in the given document.
     ///
     /// Upon success, returns the outputs of the workflow.
     pub async fn evaluate_workflow(
         &self,
         document: &Document,
+        workflow_name: &str,
         inputs: WorkflowInputs,
         eval_root_dir: impl AsRef<Path>,
     ) -> EvaluationResult<Outputs> {
         let workflow = document
-            .workflow()
-            .context("document does not contain a workflow")?;
+            .local_workflow_by_name(workflow_name)
+            .with_context(|| {
+                format!("document does not contain a workflow named `{workflow_name}`")
+            })?;
 
         // We cannot evaluate a document with errors
         if document.has_errors() {
@@ -1739,7 +1725,13 @@ impl Evaluator {
         }
 
         let result = self
-            .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
+            .perform_workflow_evaluation(
+                document,
+                workflow.name(),
+                inputs,
+                eval_root_dir.as_ref(),
+                workflow.name(),
+            )
             .await;
 
         if self.cancellation().user_canceled()
@@ -1758,14 +1750,17 @@ impl Evaluator {
     async fn perform_workflow_evaluation(
         &self,
         document: &Document,
+        workflow_name: &str,
         inputs: WorkflowInputs,
         eval_root_dir: &Path,
         id: &str,
     ) -> EvaluationResult<Outputs> {
         // Validate the inputs for the workflow
         let workflow = document
-            .workflow()
-            .context("document does not contain a workflow")?;
+            .local_workflow_by_name(workflow_name)
+            .with_context(|| {
+                format!("document does not contain a workflow named `{workflow_name}`")
+            })?;
         inputs.validate(document, workflow, None).with_context(|| {
             format!(
                 "failed to validate the inputs to workflow `{workflow}`",
@@ -1796,8 +1791,13 @@ impl Evaluator {
         // Find the workflow in the AST
         let definition = ast
             .workflows()
-            .next()
-            .expect("workflow should exist in the AST");
+            .find(|workflow| workflow.name().text() == workflow_name)
+            .with_context(|| {
+                format!(
+                    "workflow `{workflow_name}` is missing from the AST for document `{document}`",
+                    document = document.uri()
+                )
+            })?;
 
         // Build an evaluation graph for the workflow
         let mut diagnostics = Diagnostics::default();
@@ -1852,6 +1852,7 @@ impl Evaluator {
         let state = Arc::new(State {
             evaluator: self.clone(),
             document: document.clone(),
+            workflow: workflow.clone(),
             inputs,
             scopes: Default::default(),
             graph,
@@ -1904,6 +1905,36 @@ mod tests {
     use crate::config::Config;
     use crate::config::FailureMode;
     use crate::v1::Engine;
+
+    async fn analyze_wdl_1_4(root_dir: &TempDir, source: &str) -> Document {
+        fs::write(root_dir.path().join("source.wdl"), source)
+            .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default()
+                .with_diagnostics_config(DiagnosticsConfig::except_all())
+                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results
+            .iter()
+            .find(|result| result.document().uri().path().ends_with("source.wdl"))
+            .expect("expected `source.wdl` analysis result")
+            .document();
+        assert!(
+            !document.has_errors(),
+            "source should analyze without errors"
+        );
+        document.clone()
+    }
 
     #[tokio::test]
     async fn it_writes_input_and_output_files() {
@@ -1994,6 +2025,7 @@ workflow test {
         let outputs = evaluator
             .evaluate_workflow(
                 results.first().expect("should have result").document(),
+                "test",
                 inputs,
                 &outputs_dir,
             )
@@ -2109,7 +2141,7 @@ workflow test {
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
-            .evaluate_workflow(document, WorkflowInputs::default(), &outputs_dir)
+            .evaluate_workflow(document, "test", WorkflowInputs::default(), &outputs_dir)
             .await
             .map_err(|e| e.to_string())
             .expect("failed to evaluate workflow");
@@ -2122,6 +2154,185 @@ workflow test {
                 .expect("expected string output")
                 .as_str(),
             "hello from selected import"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_a_non_first_workflow() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow first {
+    output {
+        String selected = "first"
+    }
+}
+
+workflow second {
+    output {
+        String selected = "second"
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "second",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate the second workflow");
+
+        assert_eq!(
+            outputs
+                .get("selected")
+                .expect("expected selected output")
+                .as_string()
+                .expect("expected string output")
+                .as_str(),
+            "second"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_a_same_document_subworkflow() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow parent {
+    input {
+        Int value
+    }
+
+    call child {
+        value = value
+    }
+
+    output {
+        Int result = child.result
+    }
+}
+
+workflow child {
+    input {
+        Int value
+    }
+
+    output {
+        Int result = value + 1
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+        let mut inputs = WorkflowInputs::default();
+        inputs.set("value", 41);
+
+        let outputs = evaluator
+            .evaluate_workflow(&document, "parent", inputs, root_dir.path().join("outputs"))
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate the parent workflow");
+
+        assert_eq!(
+            outputs
+                .get("result")
+                .expect("expected result output")
+                .as_integer()
+                .expect("expected integer output"),
+            42
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_a_reexported_workflow_by_its_defining_name() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("base.wdl"),
+            r#"
+version 1.4
+
+workflow child {
+    output {
+        String message = "from child"
+    }
+}
+"#,
+        )
+        .expect("failed to write base WDL source file");
+        fs::write(
+            root_dir.path().join("entry.wdl"),
+            r#"
+version 1.4
+
+import { child as exposed } from "base.wdl"
+
+struct Marker {
+    Int value
+}
+"#,
+        )
+        .expect("failed to write entry WDL source file");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+import "entry.wdl"
+
+workflow main {
+    call entry.exposed
+
+    output {
+        String message = exposed.message
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "main",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate the re-exported workflow");
+
+        assert_eq!(
+            outputs
+                .get("message")
+                .expect("expected message output")
+                .as_string()
+                .expect("expected string output")
+                .as_str(),
+            "from child"
         );
     }
 
@@ -2203,7 +2414,7 @@ workflow test {
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
-            .evaluate_workflow(document, WorkflowInputs::default(), &outputs_dir)
+            .evaluate_workflow(document, "test", WorkflowInputs::default(), &outputs_dir)
             .await
             .map_err(|e| e.to_string())
             .expect("failed to evaluate workflow");
@@ -2300,6 +2511,7 @@ workflow foo {
         let outputs = evaluator
             .evaluate_workflow(
                 results.first().expect("should have result").document(),
+                "foo",
                 inputs,
                 &outputs_dir,
             )
@@ -2331,6 +2543,7 @@ workflow foo {
         let outputs = evaluator
             .evaluate_workflow(
                 results.first().expect("should have result").document(),
+                "foo",
                 inputs,
                 &outputs_dir,
             )
@@ -2367,6 +2580,7 @@ workflow foo {
         let outputs = evaluator
             .evaluate_workflow(
                 results.first().expect("should have result").document(),
+                "foo",
                 inputs,
                 &outputs_dir,
             )
@@ -2402,6 +2616,7 @@ workflow foo {
         let outputs = evaluator
             .evaluate_workflow(
                 results.first().expect("should have result").document(),
+                "foo",
                 inputs,
                 &outputs_dir,
             )
@@ -2538,6 +2753,7 @@ workflow w {
                     .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
                     .expect("should have result")
                     .document(),
+                "w",
                 WorkflowInputs::default(),
                 root_dir.path(),
             )
@@ -2605,6 +2821,7 @@ workflow w {
                     .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
                     .expect("should have result")
                     .document(),
+                "w",
                 WorkflowInputs::default(),
                 root_dir.path(),
             )

@@ -103,17 +103,15 @@ impl<'a> Evaluator<'a> {
                 .await
                 .and_then(EvaluatedTask::into_outputs),
             Inputs::Workflow(mut inputs) => {
-                let workflow = self
-                    .document
-                    .workflow()
-                    .ok_or_else(|| anyhow!("document does not contain a workflow"))?;
-
-                if workflow.name() != self.name {
-                    return Err(EvaluationError::Other(anyhow!(
-                        "document does not contain a workflow named `{name}`",
-                        name = self.name
-                    )));
-                }
+                let workflow =
+                    self.document
+                        .local_workflow_by_name(self.name)
+                        .ok_or_else(|| {
+                            EvaluationError::Other(anyhow!(
+                                "document does not contain a workflow named `{name}`",
+                                name = self.name
+                            ))
+                        })?;
 
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
@@ -123,7 +121,7 @@ impl<'a> Evaluator<'a> {
 
                 self.engine
                     .create_v1_evaluator(events, cancellation)
-                    .evaluate_workflow(self.document, inputs, self.output_dir)
+                    .evaluate_workflow(self.document, workflow.name(), inputs, self.output_dir)
                     .await
             }
         }

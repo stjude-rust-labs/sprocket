@@ -66,6 +66,7 @@ use wdl_grammar::parser::ParserToken;
 use crate::Document;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
+use crate::WorkflowRef;
 use crate::document::ScopeRef;
 use crate::document::TASK_VAR_NAME;
 use crate::graph::DocumentGraph;
@@ -366,22 +367,34 @@ fn add_member_access_completions(
             })
         }
 
-        if let Some(workflow) = ns.document().workflow() {
-            let name = workflow.name();
+        for workflow_ref in ns.document().workflows() {
+            let name = workflow_ref.name();
+            let (workflow_document, workflow) = match workflow_ref {
+                WorkflowRef::Local(workflow) => (ns.document(), workflow),
+                WorkflowRef::Imported(imported) => {
+                    let Some(workflow) =
+                        imported.document().local_workflow_by_name(imported.name())
+                    else {
+                        continue;
+                    };
+                    (imported.document(), workflow)
+                }
+            };
+            let workflow_root = workflow_document.root();
             items.push(CompletionItem {
                 label: name.to_string(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some(format!("workflow {}", name)),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
+                documentation: provide_workflow_documentation(workflow, &workflow_root)
                     .and_then(make_md_docs),
                 ..Default::default()
             });
-            let snippet = build_call_snippet(name, workflow.inputs(), ns_doc_version);
+            let snippet = build_call_snippet(name, &workflow_ref.inputs(), ns_doc_version);
             items.push(CompletionItem {
                 label: format!("{} {{...}}", name),
                 kind: Some(CompletionItemKind::SNIPPET),
                 detail: Some(format!("call workflow {} with required inputs", name)),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
+                documentation: provide_workflow_documentation(workflow, &workflow_root)
                     .and_then(make_md_docs),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 insert_text: Some(snippet),
@@ -658,23 +671,34 @@ fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>
             ..Default::default()
         });
     }
-    if let Some(workflow) = document.workflow() {
-        let name = workflow.name();
+    for workflow_ref in document.workflows() {
+        let name = workflow_ref.name();
+        let (workflow_document, workflow) = match workflow_ref {
+            WorkflowRef::Local(workflow) => (document, workflow),
+            WorkflowRef::Imported(imported) => {
+                let Some(workflow) = imported.document().local_workflow_by_name(imported.name())
+                else {
+                    continue;
+                };
+                (imported.document(), workflow)
+            }
+        };
+        let workflow_root = workflow_document.root();
         items.push(CompletionItem {
             label: name.to_string(),
             kind: Some(CompletionItemKind::FUNCTION),
             detail: Some(format!("workflow {}", name)),
-            documentation: provide_workflow_documentation(workflow, &root_node)
+            documentation: provide_workflow_documentation(workflow, &workflow_root)
                 .and_then(make_md_docs),
             ..Default::default()
         });
 
-        let snippet = build_call_snippet(name, workflow.inputs(), version);
+        let snippet = build_call_snippet(name, &workflow_ref.inputs(), version);
         items.push(CompletionItem {
             label: format!("{} {{...}}", name),
             kind: Some(CompletionItemKind::SNIPPET),
-            detail: Some(format!("call task {} with required_inputs", name)),
-            documentation: provide_workflow_documentation(workflow, &root_node)
+            detail: Some(format!("call workflow {} with required inputs", name)),
+            documentation: provide_workflow_documentation(workflow, &workflow_root)
                 .and_then(make_md_docs),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             insert_text: Some(snippet),
@@ -707,25 +731,37 @@ fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>
                 ..Default::default()
             });
         }
-        if let Some(workflow) = ns.document().workflow() {
-            let name = workflow.name();
+        for workflow_ref in ns.document().workflows() {
+            let name = workflow_ref.name();
             let label = format!("{}.{name}", ns.name());
+            let (workflow_document, workflow) = match workflow_ref {
+                WorkflowRef::Local(workflow) => (ns.document(), workflow),
+                WorkflowRef::Imported(imported) => {
+                    let Some(workflow) =
+                        imported.document().local_workflow_by_name(imported.name())
+                    else {
+                        continue;
+                    };
+                    (imported.document(), workflow)
+                }
+            };
+            let workflow_root = workflow_document.root();
 
             items.push(CompletionItem {
                 label: label.clone(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some("workflow".to_string()),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
+                documentation: provide_workflow_documentation(workflow, &workflow_root)
                     .and_then(make_md_docs),
                 ..Default::default()
             });
 
-            let snippet = build_call_snippet(&label, workflow.inputs(), version);
+            let snippet = build_call_snippet(&label, &workflow_ref.inputs(), version);
             items.push(CompletionItem {
                 label: format!("{} {{...}}", label),
                 kind: Some(CompletionItemKind::SNIPPET),
                 detail: Some(format!("call workflow {} with required inputs", label)),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
+                documentation: provide_workflow_documentation(workflow, &workflow_root)
                     .and_then(make_md_docs),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 insert_text: Some(snippet),

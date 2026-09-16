@@ -1,11 +1,4 @@
-//! Integration tests for the single-workflow local-scope import invariant.
-//!
-//! These tests enforce that at most one workflow may occupy the local scope
-//! of a document via scope-merging (wildcard or selected) imports, that the
-//! first distinct workflow processed occupies local scope (imports run before
-//! local declarations, so an imported workflow beats a later local definition),
-//! and that re-importing the same underlying declaration is deduplicated.
-//! Namespaced imports are unrestricted and do not consume the workflow slot.
+//! Integration tests for workflows imported into WDL 1.4 global scope.
 
 use std::fs;
 
@@ -48,112 +41,63 @@ fn errors(document: &Document) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn wildcard_imported_workflow_precedes_local_workflow() {
-    let document = analyze(&[
-        ("lib.wdl", "version 1.4\n\nworkflow imported {}\n"),
-        (
-            "source.wdl",
-            "version 1.4\n\nimport * from \"lib.wdl\"\n\nworkflow local {}\n",
-        ),
-    ])
-    .await;
-
-    assert!(document.workflow().is_none());
-    assert!(document.imported_workflow_by_name("imported").is_some());
-    assert_eq!(
-        errors(&document),
-        ["cannot add workflow `local` because only one workflow may be in scope"]
-    );
-}
-
-#[tokio::test]
-async fn selected_imported_workflow_precedes_local_workflow() {
-    let document = analyze(&[
-        ("lib.wdl", "version 1.4\n\nworkflow imported {}\n"),
-        (
-            "source.wdl",
-            "version 1.4\n\nimport { imported } from \"lib.wdl\"\n\nworkflow local {}\n",
-        ),
-    ])
-    .await;
-
-    assert!(document.workflow().is_none());
-    assert!(document.imported_workflow_by_name("imported").is_some());
-    assert_eq!(
-        errors(&document),
-        ["cannot add workflow `local` because only one workflow may be in scope"]
-    );
-}
-
-async fn assert_first_import_wins(source: &str, first: &str, second: &str) {
-    let document = analyze(&[
-        ("a.wdl", "version 1.4\n\nworkflow alpha {}\n"),
-        ("b.wdl", "version 1.4\n\nworkflow beta {}\n"),
-        ("source.wdl", source),
-    ])
-    .await;
-
-    assert!(
-        document.imported_workflow_by_name(first).is_some(),
-        "expected workflow `{first}` to be imported"
-    );
-    assert!(
-        document.imported_workflow_by_name(second).is_none(),
-        "expected workflow `{second}` to not be imported"
-    );
-    assert_eq!(
-        errors(&document),
-        [format!(
-            "cannot add workflow `{second}` because only one workflow may be in scope"
-        )]
-    );
-}
-
-#[tokio::test]
-async fn distinct_imported_workflows_conflict_in_every_scope_merging_order() {
-    for (source, first, second) in [
-        (
-            r#"version 1.4
-
-import * from "a.wdl"
-import * from "b.wdl"
-
-struct Anchor { Int value }"#,
-            "alpha",
-            "beta",
-        ),
-        (
-            r#"version 1.4
-
-import { alpha } from "a.wdl"
-import { beta } from "b.wdl"
-
-struct Anchor { Int value }"#,
-            "alpha",
-            "beta",
-        ),
-        (
-            r#"version 1.4
-
-import * from "a.wdl"
-import { beta } from "b.wdl"
-
-struct Anchor { Int value }"#,
-            "alpha",
-            "beta",
-        ),
-        (
-            r#"version 1.4
-
-import { alpha } from "a.wdl"
-import * from "b.wdl"
-
-struct Anchor { Int value }"#,
-            "alpha",
-            "beta",
-        ),
+async fn local_and_scope_merged_workflows_coexist() {
+    for import in [
+        "import * from \"lib.wdl\"",
+        "import { imported } from \"lib.wdl\"",
     ] {
-        assert_first_import_wins(source, first, second).await;
+        let source = format!("version 1.4\n\n{import}\n\nworkflow local {{}}\n");
+        let document = analyze(&[
+            ("lib.wdl", "version 1.4\n\nworkflow imported {}\n"),
+            ("source.wdl", &source),
+        ])
+        .await;
+
+        assert!(errors(&document).is_empty());
+        assert!(document.local_workflow_by_name("local").is_some());
+        assert!(document.imported_workflow_by_name("imported").is_some());
+        assert_eq!(document.workflows().count(), 2);
+    }
+}
+
+#[tokio::test]
+async fn distinct_scope_merged_workflows_coexist_in_every_import_order() {
+    for source in [
+        r#"version 1.4
+
+import * from "a.wdl"
+import * from "b.wdl"
+
+struct Anchor { Int value }"#,
+        r#"version 1.4
+
+import { alpha } from "a.wdl"
+import { beta } from "b.wdl"
+
+struct Anchor { Int value }"#,
+        r#"version 1.4
+
+import * from "a.wdl"
+import { beta } from "b.wdl"
+
+struct Anchor { Int value }"#,
+        r#"version 1.4
+
+import { alpha } from "a.wdl"
+import * from "b.wdl"
+
+struct Anchor { Int value }"#,
+    ] {
+        let document = analyze(&[
+            ("a.wdl", "version 1.4\n\nworkflow alpha {}\n"),
+            ("b.wdl", "version 1.4\n\nworkflow beta {}\n"),
+            ("source.wdl", source),
+        ])
+        .await;
+
+        assert!(errors(&document).is_empty());
+        assert!(document.imported_workflow_by_name("alpha").is_some());
+        assert!(document.imported_workflow_by_name("beta").is_some());
     }
 }
 
@@ -175,10 +119,11 @@ async fn same_workflow_reimport_is_deduplicated() {
 
     assert!(errors(&document).is_empty());
     assert!(document.imported_workflow_by_name("shared").is_some());
+    assert_eq!(document.workflows().count(), 1);
 }
 
 #[tokio::test]
-async fn namespaced_workflows_do_not_occupy_the_local_workflow_slot() {
+async fn namespaced_workflows_do_not_enter_local_scope() {
     let document = analyze(&[
         ("a.wdl", "version 1.4\n\nworkflow alpha {}\n"),
         ("b.wdl", "version 1.4\n\nworkflow beta {}\n"),
@@ -191,29 +136,14 @@ async fn namespaced_workflows_do_not_occupy_the_local_workflow_slot() {
 
     assert!(errors(&document).is_empty());
     assert_eq!(
-        document.workflow().map(|workflow| workflow.name()),
-        Some("local")
+        document
+            .local_workflows()
+            .map(|workflow| workflow.name())
+            .collect::<Vec<_>>(),
+        ["local"]
     );
     assert!(document.namespace("a").is_some());
     assert!(document.namespace("b").is_some());
-}
-
-#[tokio::test]
-async fn selected_workflow_import_is_present_without_local_workflow() {
-    let document = analyze(&[
-        (
-            "lib.wdl",
-            "version 1.4\n\nworkflow run {\n    output {\n        Int out = 1\n    }\n}\n",
-        ),
-        (
-            "source.wdl",
-            "version 1.4\n\nimport { run } from \"lib.wdl\"\n\nstruct Anchor { Int value }\n",
-        ),
-    ])
-    .await;
-
-    assert!(errors(&document).is_empty());
-    assert!(document.imported_workflow_by_name("run").is_some());
 }
 
 #[tokio::test]
@@ -242,29 +172,7 @@ async fn selected_reexport_exposes_imported_task_and_workflow() {
 }
 
 #[tokio::test]
-async fn wildcard_reexport_exposes_imported_workflow() {
-    let document = analyze(&[
-        (
-            "base.wdl",
-            "version 1.4\n\nworkflow run {\n    output { Int out = 1 }\n}\n",
-        ),
-        (
-            "mid.wdl",
-            "version 1.4\n\nimport * from \"base.wdl\"\n\nstruct Marker { Int value }\n",
-        ),
-        (
-            "source.wdl",
-            "version 1.4\n\nimport * from \"mid.wdl\"\n\nstruct Anchor { Int value }\n",
-        ),
-    ])
-    .await;
-
-    assert!(errors(&document).is_empty());
-    assert!(document.imported_workflow_by_name("run").is_some());
-}
-
-#[tokio::test]
-async fn wildcard_all_kinds_exposes_task_workflow_struct_and_enum() {
+async fn wildcard_reexport_exposes_every_item_kind() {
     let document = analyze(&[
         (
             "lib.wdl",
@@ -289,41 +197,7 @@ async fn wildcard_all_kinds_exposes_task_workflow_struct_and_enum() {
 }
 
 #[tokio::test]
-async fn selected_import_workflow_rejection_does_not_block_task_import() {
-    // Characterization/regression: verifies selected-member isolation.
-    // `alpha` occupies the workflow slot via the first selected import; a
-    // second selected import lists both `beta` (workflow) and `run_task`
-    // (task) in the same member list.  `beta` must be rejected while
-    // `run_task` is still imported.  A GREEN result is expected because the
-    // production code already processes each member independently — this test
-    // was redesigned to cover the actual isolation path rather than the
-    // local-workflow-rejection path that the previous version exercised.
-    let document = analyze(&[
-        ("a.wdl", "version 1.4\n\nworkflow alpha {}\n"),
-        (
-            "b.wdl",
-            "version 1.4\n\ntask run_task {\n    command <<<>>>\n    output { Int out = 1 \
-             }\n}\n\nworkflow beta {\n    output { Int out = 2 }\n}\n",
-        ),
-        (
-            "source.wdl",
-            "version 1.4\n\nimport { alpha } from \"a.wdl\"\nimport { beta, run_task } from \
-             \"b.wdl\"\n\nstruct Anchor { Int value }\n",
-        ),
-    ])
-    .await;
-
-    assert!(document.imported_workflow_by_name("alpha").is_some());
-    assert!(document.imported_workflow_by_name("beta").is_none());
-    assert!(document.imported_task_by_name("run_task").is_some());
-    assert_eq!(
-        errors(&document),
-        ["cannot add workflow `beta` because only one workflow may be in scope"]
-    );
-}
-
-#[tokio::test]
-async fn aliased_distinct_workflows_still_conflict_retaining_first_alias() {
+async fn distinct_workflows_can_use_distinct_aliases() {
     let document = analyze(&[
         ("a.wdl", "version 1.4\n\nworkflow alpha {}\n"),
         ("b.wdl", "version 1.4\n\nworkflow beta {}\n"),
@@ -335,21 +209,25 @@ async fn aliased_distinct_workflows_still_conflict_retaining_first_alias() {
     ])
     .await;
 
-    assert!(document.imported_workflow_by_name("foo").is_some());
-    assert!(document.imported_workflow_by_name("bar").is_none());
-    // SAFETY: asserted Some above.
+    assert!(errors(&document).is_empty());
     assert_eq!(
-        document.imported_workflow_by_name("foo").unwrap().name(),
+        document
+            .imported_workflow_by_name("foo")
+            .expect("aliased workflow should exist")
+            .name(),
         "alpha"
     );
     assert_eq!(
-        errors(&document),
-        ["cannot add workflow `beta` because only one workflow may be in scope"]
+        document
+            .imported_workflow_by_name("bar")
+            .expect("aliased workflow should exist")
+            .name(),
+        "beta"
     );
 }
 
 #[tokio::test]
-async fn same_workflow_under_two_aliases_produces_no_error_and_both_resolve() {
+async fn same_workflow_under_two_aliases_resolves_both() {
     let document = analyze(&[
         ("a.wdl", "version 1.4\n\nworkflow alpha {}\n"),
         (
@@ -361,19 +239,19 @@ async fn same_workflow_under_two_aliases_produces_no_error_and_both_resolve() {
     .await;
 
     assert!(errors(&document).is_empty());
-    assert!(document.imported_workflow_by_name("foo").is_some());
-    assert!(document.imported_workflow_by_name("bar").is_some());
-    // SAFETY: both asserted Some above.
-    let foo = document.imported_workflow_by_name("foo").unwrap();
-    // SAFETY: both asserted Some above.
-    let bar = document.imported_workflow_by_name("bar").unwrap();
+    let foo = document
+        .imported_workflow_by_name("foo")
+        .expect("first alias should resolve");
+    let bar = document
+        .imported_workflow_by_name("bar")
+        .expect("second alias should resolve");
     assert_eq!(foo.name(), "alpha");
     assert_eq!(bar.name(), "alpha");
     assert_eq!(foo.document().uri(), bar.document().uri());
 }
 
 #[tokio::test]
-async fn same_name_selected_import_precedes_local_workflow() {
+async fn imported_workflow_name_conflicts_with_local_workflow() {
     let document = analyze(&[
         ("lib.wdl", "version 1.4\n\nworkflow foo {}\n"),
         (
@@ -383,10 +261,43 @@ async fn same_name_selected_import_precedes_local_workflow() {
     ])
     .await;
 
-    assert!(document.workflow().is_none());
+    assert!(document.local_workflow_by_name("foo").is_none());
     assert!(document.imported_workflow_by_name("foo").is_some());
     assert_eq!(
         errors(&document),
-        ["cannot add workflow `foo` because only one workflow may be in scope"]
+        ["import of `foo` conflicts with an existing definition"]
+    );
+}
+
+#[tokio::test]
+async fn namespaced_call_resolves_reexported_workflow() {
+    let document = analyze(&[
+        (
+            "base.wdl",
+            "version 1.4\n\nworkflow child {\n    output { Int out = 1 }\n}\n",
+        ),
+        (
+            "mid.wdl",
+            "version 1.4\n\nimport * from \"base.wdl\"\n\nstruct Marker { Int value }\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport \"mid.wdl\" as mid\n\nworkflow main {\n    call mid.child\n    \
+             output { Int out = child.out }\n}\n",
+        ),
+    ])
+    .await;
+
+    assert!(errors(&document).is_empty());
+    let workflow = document
+        .local_workflow_by_name("main")
+        .expect("local workflow should exist");
+    assert_eq!(
+        workflow
+            .calls()
+            .get("child")
+            .expect("workflow call should resolve")
+            .name(),
+        "child"
     );
 }
