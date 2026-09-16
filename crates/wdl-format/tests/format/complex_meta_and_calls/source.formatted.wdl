@@ -1,6 +1,32 @@
 version 1.0
 
 workflow test_wf {
+    input {
+        SpliceJunctionMotifs out_sj_filter_overhang_min = SpliceJunctionMotifs {
+            noncanonical_motifs: 30,
+            GT_AG_and_CT_AC_motif: 12,
+        }
+    }
+
+    parameter_meta {
+        out_sj_filter_overhang_min: {
+            type: "SpliceJunctionMotifs",
+            label: "Minimum overhang required to support a splicing junction",
+        }
+    }
+
+    output {
+        SpliceJunctionMotifs KAZAM = out_sj_filter_overhang_min
+        String a = "friend"
+        Int b = 1 + 2
+        String c = "Hello, ~{a}"
+        Map[String, Int] d = {
+            "a": 0,
+            "b": 1,
+            "c": 2,
+        }
+    }
+
     meta {
         a: "hello"
         b: 'world'
@@ -46,20 +72,6 @@ workflow test_wf {
         ]
     }
 
-    parameter_meta {
-        out_sj_filter_overhang_min: {
-            type: "SpliceJunctionMotifs",
-            label: "Minimum overhang required to support a splicing junction",
-        }
-    }
-
-    input {
-        SpliceJunctionMotifs out_sj_filter_overhang_min = SpliceJunctionMotifs {
-            noncanonical_motifs: 30,
-            GT_AG_and_CT_AC_motif: 12,
-        }
-    }
-
     call no_params
     call with_params { input:
         a,
@@ -97,34 +109,22 @@ workflow test_wf {
             }
         }
     }
-
-    output {
-        SpliceJunctionMotifs KAZAM = out_sj_filter_overhang_min
-        String a = "friend"
-        Int b = 1 + 2
-        String c = "Hello, ~{a}"
-        Map[String, Int] d = {
-            "a": 0,
-            "b": 1,
-            "c": 2,
-        }
-    }
 }
 
 task test_task {
+    command <<<
+    >>>
+
+    input {
+        String bowchicka
+    }
+
     parameter_meta {
         bowchicka: {
             type: "String",
             label: "Bowchicka",
         }
     }
-
-    input {
-        String bowchicka
-    }
-
-    command <<<
-    >>>
 }
 
 struct SpliceJunctionMotifs {

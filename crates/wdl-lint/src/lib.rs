@@ -139,7 +139,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::PascalCaseRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
-        Box::<rules::SectionOrderingRule>::default(),
         Box::<rules::MetaDescriptionRule>::default(),
         Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
         Box::<rules::EmptyDocCommentRule>::default(),

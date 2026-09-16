@@ -29,6 +29,11 @@ fn trailing_commas_default() -> bool {
     true
 }
 
+/// Default for whether task and workflow sections should be reordered.
+fn reorder_sections_default() -> bool {
+    false
+}
+
 /// Default for whether to upgrade deprecations.
 fn upgrade_deprecations_default() -> bool {
     false
@@ -58,6 +63,11 @@ pub struct Config {
     #[toml(default = trailing_commas_default())]
     #[schemars(default = "trailing_commas_default")]
     pub trailing_commas: bool,
+    /// Whether to reorder task and workflow sections to Sprocket's opinionated
+    /// order.
+    #[toml(default = reorder_sections_default())]
+    #[schemars(default = "reorder_sections_default")]
+    pub reorder_sections: bool,
     /// Whether to eagerly upgrade deprecated WDL constructs.
     ///
     /// Currently this includes changing curly brace command sections (`{}`)
@@ -84,6 +94,7 @@ impl Default for Config {
             sort_imports: sort_imports_default(),
             sort_inputs: sort_inputs_default(),
             trailing_commas: trailing_commas_default(),
+            reorder_sections: reorder_sections_default(),
             upgrade_deprecations: upgrade_deprecations_default(),
             newline_style: NewlineStyle::default(),
             quote_style: QuoteStyle::default(),
@@ -131,6 +142,12 @@ impl Config {
     /// Set whether trailing commas are enabled.
     pub fn trailing_commas(mut self, trailing_commas: bool) -> Self {
         self.trailing_commas = trailing_commas;
+        self
+    }
+
+    /// Set whether section reordering is enabled.
+    pub fn reorder_sections(mut self, reorder_sections: bool) -> Self {
+        self.reorder_sections = reorder_sections;
         self
     }
 

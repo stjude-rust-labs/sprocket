@@ -2,26 +2,7 @@
 version 1.3
 
 task test1 {
-    meta {
-    }
-
     parameter_meta {
-    }
-
-    input {
-        String? name = None
-        Float exponent = 2.7 ** 3
-    }
-
-    Pair[String, Float] literal = ("hello", 3.14 - 6.8)
-
-    Boolean flag = true
-    Int modulo = 42 % 7
-
-    command  # my command block
-    {
-        echo 'hello ${default='world' name}'
-        echo '~{true='good' false="bad" flag}bye'
     }
 
     output {
@@ -51,11 +32,28 @@ task test1 {
             },
         }
     }
+
+    command  # my command block
+    {
+        echo 'hello ${default='world' name}'
+        echo '~{true='good' false="bad" flag}bye'
+    }
+
+    Pair[String, Float] literal = ("hello", 3.14 - 6.8)
+
+    Boolean flag = true
+    Int modulo = 42 % 7
+
+    input {
+        String? name = None
+        Float exponent = 2.7 ** 3
+    }
+
+    meta {
+    }
 }
 
 workflow test2 {
-    Pair[String, Float] literal = ("hello", 3.14 - 6.8)
-
     output {
         Int math = 42 / 7
     }
@@ -76,4 +74,6 @@ workflow test2 {
             foo: "bar"
         }
     }
+
+    Pair[String, Float] literal = ("hello", 3.14 - 6.8)
 }
