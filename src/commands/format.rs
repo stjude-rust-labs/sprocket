@@ -193,7 +193,15 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                     };
                 if formatted != source {
                     warn!("difference in `{}`", result.document().path());
-                    if colorize {
+                    let newline_only = {
+                        let formatted_lines = formatted.lines();
+                        let source_lines = source.lines();
+
+                        formatted_lines.zip(source_lines).all(|(f, s)| f == s)
+                    };
+                    if newline_only {
+                        eprintln!("incorrect newline style");
+                    } else if colorize {
                         eprint!(
                             "{}",
                             pretty_assertions::StrComparison::new(&source, &formatted)

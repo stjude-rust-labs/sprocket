@@ -192,7 +192,10 @@ impl<N: TreeNode> AstNode<N> for WorkflowDefinition<N> {
 
 impl Documented<SyntaxNode> for WorkflowDefinition<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
-        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia(), false)
+                .collect(),
+        )
     }
 }
 

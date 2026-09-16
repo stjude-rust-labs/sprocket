@@ -133,17 +133,14 @@ pub fn format_placeholder(
     let syntax = open.element().inner();
     let text = syntax.as_token().expect("token").text();
     match text {
-        "${" => {
+        "${" if config.upgrade_deprecations => {
             stream.push_literal_in_place_of_token(
                 open.element().as_token().expect("token"),
                 "~{".to_owned(),
             );
         }
-        "~{" => {
-            (&open).write(stream, config);
-        }
         _ => {
-            unreachable!("unexpected placeholder open: {:?}", text);
+            (&open).write(stream, config);
         }
     }
 

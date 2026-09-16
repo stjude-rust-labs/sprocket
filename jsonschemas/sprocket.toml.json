@@ -74,6 +74,11 @@
           "type": "boolean",
           "default": true
         },
+        "upgrade_deprecations": {
+          "description": "Whether to eagerly upgrade deprecated WDL constructs.\n\nCurrently this includes changing curly brace command sections (`{}`)\ninto heredoc command sections (`<<<>>>`) and changing dollar-style\nplaceholders (`${}`) into tilde-style placeholders (`~{}`).",
+          "type": "boolean",
+          "default": false
+        },
         "newline_style": {
           "description": "The newline style.",
           "$ref": "#/$defs/NewlineStyle"
@@ -1402,7 +1407,7 @@
           "minimum": 0
         },
         "throttle": {
-          "description": "Delay between submitting initial test executions, in milliseconds.\n\nOnce the `parallelism`` permits are exhausted, this throttle delay is\nignored and new tests are submitted eagerly as prior tests complete and\nfree permits.\n\nThe default is `100` milliseconds.",
+          "description": "Delay between submitting initial test executions, in milliseconds.\n\nOnce the `parallelism` permits are exhausted, this throttle delay is\nignored and new tests are submitted eagerly as prior tests complete and\nfree permits.\n\nThe default is `100` milliseconds.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
