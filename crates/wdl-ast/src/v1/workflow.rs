@@ -1434,7 +1434,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsArray<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::Document;
 

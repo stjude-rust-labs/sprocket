@@ -140,7 +140,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         // directory
         let task = result
             .document()
-            .task_by_name(&name)
+            .local_task_by_name(&name)
             .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
         inputs
             .join_paths(task, |_| Ok(std::slice::from_ref(&test_dir_path)))

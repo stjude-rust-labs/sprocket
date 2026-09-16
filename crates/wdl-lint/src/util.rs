@@ -74,7 +74,7 @@ pub fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<Strin
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;

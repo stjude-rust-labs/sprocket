@@ -20,6 +20,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
+version = "0.30.1"
 license = "MIT OR Apache-2.0"
 edition = "2024"
 authors = ["The Sprocket project contributors"]
@@ -72,6 +73,7 @@ libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
+lru = "0.18.3"
 lsp-types = "=0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
@@ -171,7 +173,7 @@ manual_assert_eq = "warn"
 
 [package]
 name = "sprocket"
-version = "0.30.1"
+version.workspace = true
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
@@ -268,6 +270,10 @@ zip = { workspace = true, features = ["deflate"] }
 
 [lints]
 workspace = true
+
+[profile.bench]
+inherits = "release"
+debug = true
 
 [[test]]
 name = "cli"

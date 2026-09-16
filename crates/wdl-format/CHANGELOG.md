@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added an `upgrade_deprecations` config option to upgrade some deprecated WDL constructs to their replacement styles ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
+* Short literal arrays, if/then/else clauses, and symbolic import clauses are kept on the same line instead of being unconditionally line split ([#1154](https://github.com/stjude-rust-labs/sprocket/pull/1154)).
+
 #### Fixed
 
+* Formatting no longer forces command sections to use heredoc style or tilde-style placeholders. Set `upgrade_deprecations = true` to retain prior behavior ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
 * Formatting no longer panics when an `input` hints item has a value that is not a `hints` literal ([#1174](https://github.com/stjude-rust-labs/sprocket/pull/1174)).
 
 ## 0.20.2 - 2026-08-26

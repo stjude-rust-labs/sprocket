@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `--type-signatures` flag to `inputs` ([#1205](https://github.com/stjude-rust-labs/sprocket/pull/1205)).
+* `format check` notifies when the only diff is in newline style
+  ([#1204](https://github.com/stjude-rust-labs/sprocket/pull/1204)).
+* Added configuration setting `run.digest_cache_capacity` and
+  `server.engine.digest_cache_capacity` for specifying the evaluation digest
+  cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* Added configuration setting `run.choice_cache_capacity` and
+  `server.engine.choice_cache_capacity` for specifying the enum choice cache
+  capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* Added configuration setting `run.regex_cache_capacity` and
+  `server.engine.regex_cache_capacity` for specifying the compiled regular
+  expression cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* Added configuration setting `run.http.response_cache_capacity` and
+  `server.engine.http.response_cache_capacity` for specifying the HTTP response
+  cache capacity ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* Added a `--disable-retries` flag to `sprocket run`, which disables retries
+  for all task evaluations, including those with a `runtime.maxRetries`/
+  `requirements.maxRetries` value set ([#1190](https://github.com/stjude-rust-labs/sprocket/pull/1190)).
+
 ### Changed
 
+* API v1 read endpoints now query the database connection pool directly instead
+  of waiting on the run manager command queue
+  ([#578](https://github.com/stjude-rust-labs/sprocket/issues/578)).
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
   ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
@@ -18,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Input validation now identifies JSON and YAML input files that need an `@`
   prefix instead of reporting a misleading array type mismatch
   ([#906](https://github.com/stjude-rust-labs/sprocket/issues/906)).
+* Print an informative error when `dev test` `parallelism` argument or config
+  value is `0` instead of panicking ([#1196](https://github.com/stjude-rust-labs/sprocket/pull/1196)).
 
 ## 0.30.1 - 2026-08-27
 
