@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.21.0 - 2026-09-16
+
 #### Added
 
 * `quote_style` configuration option, with choices: `double`, `single`, `preserve`. Use `double` to preserve prior behavior. ([#1200](https://github.com/stjude-rust-labs/sprocket/pull/1200))
