@@ -33,19 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * API v1 read endpoints now query the database connection pool directly instead
   of waiting on the run manager command queue
-  ([#578](https://github.com/stjude-rust-labs/sprocket/issues/578),
-  [#1195](https://github.com/stjude-rust-labs/sprocket/pull/1195)).
+  ([#1195](https://github.com/stjude-rust-labs/sprocket/pull/1195)).
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
-  ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020),
-  [#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
+  ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
 
 ### Fixed
 
 * Input validation now identifies JSON and YAML input files that need an `@`
   prefix instead of reporting a misleading array type mismatch
-  ([#906](https://github.com/stjude-rust-labs/sprocket/issues/906),
-  [#1162](https://github.com/stjude-rust-labs/sprocket/pull/1162)).
+  ([#1162](https://github.com/stjude-rust-labs/sprocket/pull/1162)).
 * Print an informative error when `dev test` `parallelism` argument or config
   value is `0` instead of panicking ([#1196](https://github.com/stjude-rust-labs/sprocket/pull/1196)).
 
