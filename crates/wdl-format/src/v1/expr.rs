@@ -4,6 +4,7 @@ use wdl_ast::SyntaxKind;
 
 use crate::Config;
 use crate::PreToken;
+use crate::QuoteStyle;
 use crate::SPACE;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -166,14 +167,20 @@ pub fn format_literal_string(
     config: &Config,
 ) {
     for child in element.children().expect("literal string children") {
+        if config.quote_style == QuoteStyle::Preserve {
+            (&child).write(stream, config);
+            continue;
+        }
+
         match child.element().kind() {
-            SyntaxKind::SingleQuote => {
+            SyntaxKind::SingleQuote | SyntaxKind::DoubleQuote => {
                 stream.push_literal_in_place_of_token(
                     child.element().as_token().expect("token"),
-                    "\"".to_owned(),
+                    // SAFETY: quote style is not `Preserve` (due to `continue` above)
+                    config.quote_style.as_str().unwrap().to_owned(),
                 );
             }
-            SyntaxKind::OpenHeredoc | SyntaxKind::CloseHeredoc | SyntaxKind::DoubleQuote => {
+            SyntaxKind::OpenHeredoc | SyntaxKind::CloseHeredoc => {
                 (&child).write(stream, config);
             }
             SyntaxKind::LiteralStringText => {
@@ -182,28 +189,44 @@ pub fn format_literal_string(
                 let mut chars = syntax.as_token().expect("token").text().chars().peekable();
                 let mut prev_c = None;
                 while let Some(c) = chars.next() {
-                    match c {
-                        '\\' => {
-                            if let Some(next_c) = chars.peek()
-                                && *next_c == '\''
-                            {
-                                // Do not write this backslash as single quotes
-                                // don't need
-                                // escaping in a double-quoted string (and we
-                                // format all
-                                // LiteralStrings as double-quoted strings).
-                                prev_c = Some(c);
+                    match (c, config.quote_style) {
+                        ('\\', QuoteStyle::Double) => {
+                            if prev_c.is_none_or(|c| c != '\\') {
+                                if let Some(next_c) = chars.peek()
+                                    && *next_c == '\''
+                                {
+                                    // Do not write this backslash as it doesn't
+                                    // need an escape
+                                } else {
+                                    replacement.push(c);
+                                }
+                            } else {
+                                replacement.push(c);
+                                prev_c = None;
                                 continue;
                             }
-                            replacement.push(c);
                         }
-                        '"' => {
+                        ('\\', QuoteStyle::Single) => {
                             if prev_c.is_none_or(|c| c != '\\') {
-                                // This double quote sign is not escaped, so we
-                                // need to escape
-                                // it. This happens when a single quoted string
-                                // is re-formatted
-                                // as a double quoted string.
+                                if let Some(next_c) = chars.peek()
+                                    && *next_c == '"'
+                                {
+                                    // Do not write this backslash as it doesn't
+                                    // need an escape
+                                } else {
+                                    replacement.push(c);
+                                }
+                            } else {
+                                replacement.push(c);
+                                prev_c = None;
+                                continue;
+                            }
+                        }
+                        ('"', QuoteStyle::Double) | ('\'', QuoteStyle::Single) => {
+                            if prev_c.is_none_or(|c| c != '\\') {
+                                // This quote is not escaped and we need to
+                                // escape it. This happens when a quote is
+                                // re-formatted as its inverse.
                                 replacement.push('\\');
                             }
                             replacement.push(c);

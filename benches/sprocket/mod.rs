@@ -45,7 +45,6 @@ fn check_standalone_documents(c: &mut Criterion, workflows_repo: &Path) {
                         show_remote_diagnostics: false,
                         hide_notes: true,
                         hide_warnings: false,
-                        report_mode: None,
                         generate_baseline: false,
                         no_baseline: false,
                     };
