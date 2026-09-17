@@ -114,7 +114,7 @@ cfg_select! {
             std::thread::scope(|s| {
                 std::thread::Builder::new()
                     .stack_size(0x200000)
-                    .spawn_scoped(s, || Cli::parse())
+                    .spawn_scoped(s, Cli::parse)
                     .expect("failed to spawn CLI parsing thread")
                     .join()
                     .expect("failed to join CLI parsing thread")
