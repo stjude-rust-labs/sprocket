@@ -202,7 +202,7 @@ jobs:
           if [[ "${{ runner.os }}" != "Linux" ]]; then
             export RUSTFLAGS="--cfg docker_tests_disabled ${RUSTFLAGS}"
           fi
-          cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json --release
+          cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
