@@ -48,10 +48,6 @@ pub struct Args {
     /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
     /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
-
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 }
 
 /// Runs analysis on a single source and returns the resulting document.
@@ -188,7 +184,7 @@ async fn resolve_target_and_inputs(
 
 /// The main function for the `validate` subcommand.
 pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     if let Source::Directory(_) = args.source {
         return Err(
             anyhow!("directory sources are not supported for the `validate` command").into(),

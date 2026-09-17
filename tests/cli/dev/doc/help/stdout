@@ -79,30 +79,30 @@ Options:
 
           This argument is meant to be used by developers of the `wdl` crates; customizing the theme used for the generated documentation is currently unsupported.
 
-  -c, --config <CONFIG>
-          Path to the configuration file
-
       --install
           Install the theme if it is not already installed.
 
           `npm` and `npx` are expected to be available in the environment.
 
-  -s, --skip-config-search
-          Skip searching for and loading configuration files.
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
 
-          Only a configuration file specified as a command line argument will be used.
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -c, --config <CONFIG>
+          Path to the configuration file
 
       --with-doc-comments
           Enables support for documentation comments
 
           This option is *experimental* and will be removed in a future major version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
 
-  -m, --report-mode <MODE>
-          The report mode
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
 
-          Possible values:
-          - full:     Prints diagnostics as multiple lines
-          - one-line: Prints diagnostics as one line
+          Only a configuration file specified as a command line argument will be used.
 
   -h, --help
           Print help (see a summary with '-h')

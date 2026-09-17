@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
+
 ## 0.31.0 - 2026-09-16
 
 ### Added
