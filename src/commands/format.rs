@@ -15,9 +15,6 @@ use wdl::ast::Node;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::format::Formatter;
-use wdl::format::Indent;
-use wdl::format::MaxLineLength;
-use wdl::format::NewlineStyle;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
@@ -30,29 +27,6 @@ use crate::commands::CommandResult;
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// Use tabs for indentation (default is spaces).
-    #[arg(short = 't', long, global = true)]
-    pub with_tabs: bool,
-
-    /// The number of spaces to use for indentation levels (default is 4).
-    #[arg(
-        short,
-        long,
-        value_name = "SIZE",
-        conflicts_with = "with_tabs",
-        global = true
-    )]
-    pub indentation_size: Option<usize>,
-
-    /// The maximum line length (default is 90, valid range is 60–240). `none`
-    /// means do not use a maximum line length.
-    #[arg(long, value_name = "LENGTH", global = true)]
-    pub max_line_length: Option<String>,
-
-    /// The newline style to use.
-    #[arg(long, value_name = "STYLE", global = true, value_parser = ["auto", "unix", "windows"])]
-    pub newline_style: Option<NewlineStyle>,
-
     /// Subcommand for the `format` command.
     #[command(subcommand)]
     pub command: FormatSubcommand,
@@ -120,30 +94,6 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     let feature_flags = config.common.wdl.feature_flags;
     let modules_config = config.modules.clone();
     let ignore_filename = config.common.ignore_filename();
-
-    let mut config = config;
-
-    config.format.indent = if args.with_tabs || args.indentation_size.is_some() {
-        Indent::try_new(args.with_tabs, args.indentation_size)
-            .context("failed to create indentation configuration")?
-    } else {
-        config.format.indent
-    };
-
-    config.format.max_line_length = if let Some(max) = args.max_line_length {
-        let max = match max.as_str() {
-            "none" => None,
-            _ => Some(
-                max.parse::<usize>()
-                    .context("`--max-line-length` must be an integer")?,
-            ),
-        };
-        MaxLineLength::try_new(max).context("failed to create max line length configuration")?
-    } else {
-        config.format.max_line_length
-    };
-
-    config.format.newline_style = args.newline_style.unwrap_or(config.format.newline_style);
 
     let formatter = Formatter::new(config.format);
 
