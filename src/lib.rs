@@ -42,6 +42,7 @@ use tracing_subscriber::fmt::format::Format;
 use tracing_subscriber::layer::Layered;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::reload;
+use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 
 use crate::commands::CommandResult;
@@ -84,6 +85,10 @@ struct Cli {
     #[arg(long, default_value = "auto", global = true)]
     color: ColorMode,
 
+    /// The report mode for any emitted diagnostics.
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
+    report_mode: Option<Mode>,
+
     /// Path to the configuration file.
     #[arg(long, short, global = true)]
     config: Vec<PathBuf>,
@@ -101,8 +106,8 @@ async fn real_main() -> CommandResult<()> {
     let cli = Cli::parse();
 
     let mut config = match &cli.command {
-        Commands::Config(config_args) if config_args.is_init() => {
-            // For `config init`, skip loading and use default
+        Commands::Config(config_args) if config_args.is_default() => {
+            // For `config default`, skip loading and use default
             Config::default()
         }
         _ => {
@@ -148,6 +153,7 @@ async fn real_main() -> CommandResult<()> {
     };
 
     config.common.no_ignore |= cli.no_ignore;
+    config.common.report_mode = cli.report_mode.unwrap_or(config.common.report_mode);
 
     // Write effective configuration to the log
     trace!(

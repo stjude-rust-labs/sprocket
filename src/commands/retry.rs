@@ -4,7 +4,6 @@ use anyhow::Context;
 use clap::Parser;
 use serde_json::Value as JsonValue;
 use wdl::analysis::Document;
-use wdl::diagnostics::Mode;
 
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -65,10 +64,6 @@ pub struct Args {
     #[clap(long)]
     no_validate: bool,
 
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    report_mode: Option<Mode>,
-
     #[command(flatten)]
     client_args: ServerConnectionArgs,
 }
@@ -78,7 +73,7 @@ pub struct Args {
 /// Fetches the original run's details, optionally re-analyzes the source,
 /// merges any input overrides, then submits a new run.
 pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or_default();
+    let report_mode = config.common.report_mode;
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
@@ -129,7 +124,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             }
         })?;
 
-        ensure_no_analysis_errors(&document, args.report_mode.unwrap_or_default(), colorize)?;
+        ensure_no_analysis_errors(&document, report_mode, colorize)?;
 
         Some(document)
     } else {
@@ -264,6 +259,7 @@ mod tests {
     use serde_json::json;
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
+    use wdl::diagnostics::Mode;
 
     use super::*;
     use crate::analysis::Source;
