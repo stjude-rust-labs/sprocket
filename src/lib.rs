@@ -106,8 +106,8 @@ async fn real_main() -> CommandResult<()> {
     let cli = Cli::parse();
 
     let mut config = match &cli.command {
-        Commands::Config(config_args) if config_args.is_init() => {
-            // For `config init`, skip loading and use default
+        Commands::Config(config_args) if config_args.is_default() => {
+            // For `config default`, skip loading and use default
             Config::default()
         }
         _ => {
