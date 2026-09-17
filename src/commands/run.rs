@@ -37,7 +37,6 @@ use tracing_subscriber::fmt::layer;
 use wdl::analysis::Document;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::diagnostics::emit_diagnostics_with_backtrace;
 use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
@@ -158,10 +157,6 @@ pub struct Args {
     /// "project/$name"`).
     #[clap(long, value_name = "INDEX_PATH")]
     pub index_on: Option<IndexPath>,
-
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 
     /// The Azure Storage account name to use.
     #[clap(long, env, value_name = "NAME", requires = "azure_access_key")]
@@ -909,7 +904,7 @@ pub async fn run(
             .context("failed to modify tracing filter")?;
     }
 
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
     }

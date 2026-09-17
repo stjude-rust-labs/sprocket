@@ -30,10 +30,6 @@ use crate::commands::CommandResult;
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
-
     /// Use tabs for indentation (default is spaces).
     #[arg(short = 't', long, global = true)]
     pub with_tabs: bool,
@@ -119,7 +115,7 @@ fn format_document(
 
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     let fallback_version = config.common.wdl.fallback_version.into();
     let feature_flags = config.common.wdl.feature_flags;
     let modules_config = config.modules.clone();

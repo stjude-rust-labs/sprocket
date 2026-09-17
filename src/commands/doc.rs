@@ -11,7 +11,6 @@ use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
@@ -108,9 +107,6 @@ pub struct Args {
     /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
     #[arg(long)]
     pub with_doc_comments: bool,
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 }
 
 /// The default output directory for the generated documentation.
@@ -220,7 +216,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         theme_color: config.doc.seo.theme_color(),
     };
 
-    let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
+    let doc_config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .index_page(index_page)
         .init_light_mode(light_mode)
         .custom_theme(args.theme)
@@ -237,7 +233,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .check(args.check);
 
     let mut counts = DiagnosticCounts::default();
-    if let Err(e) = document_workspace(config).await {
+    if let Err(e) = document_workspace(doc_config).await {
         match e.kind() {
             DocErrorKind::AnalysisFailed(analysis_results) => {
                 for result in analysis_results {
@@ -255,7 +251,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
                             false
                         }),
-                        args.report_mode.unwrap_or_default(),
+                        config.common.report_mode,
                         colorize,
                     )
                     .context("failed to emit diagnostics")?;
