@@ -1,6 +1,6 @@
 [package]
 name = "wdl"
-version = "0.23.7"
+version = "0.23.8"
 authors.workspace = true
 description = "Lexing, parsing, validation, linting, documentation, analysis, and execution for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
@@ -44,8 +44,8 @@ wdl-doc = { path = "../wdl-doc", version = "0.16.2", optional = true }
 wdl-engine = { path = "../wdl-engine", version = "0.18.0", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.21.0", optional = true }
 wdl-grammar = { path = "../wdl-grammar", version = "0.26.0", optional = true }
-wdl-lint = { path = "../wdl-lint", version = "0.28.0", optional = true }
-wdl-lsp = { path = "../wdl-lsp", version = "0.23.0", optional = true }
+wdl-lint = { path = "../wdl-lint", version = "0.28.1", optional = true }
+wdl-lsp = { path = "../wdl-lsp", version = "0.23.1", optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

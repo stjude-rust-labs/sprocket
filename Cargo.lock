@@ -5260,7 +5260,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5335,7 +5335,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-py"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "pyo3",
  "wdl-ast",
@@ -6759,7 +6759,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.7"
+version = "0.23.8"
 dependencies = [
  "anyhow",
  "clap",
@@ -6969,7 +6969,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -7004,7 +7004,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "anyhow",
  "async-lsp",
