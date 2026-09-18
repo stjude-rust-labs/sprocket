@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `MixedDocSources` lint to enforce consistent usage of documentation sources project-wide
+  ([#1230](https://github.com/stjude-rust-labs/sprocket/pull/1334)).
 * New lint rule `StructOverMap` to detect usage of `Map[String, ...]` types, encouraging the use of
   `struct`s when possible ([#850](https://github.com/stjude-rust-labs/sprocket/pull/850)).
 

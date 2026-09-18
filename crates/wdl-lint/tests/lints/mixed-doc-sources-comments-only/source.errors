@@ -1,0 +1,51 @@
+warning[MixedDocSources]: task `bad1` is documented with a `meta` section
+   ┌─ tests/lints/mixed-doc-sources-comments-only/source.wdl:38:6
+   │
+38 │ task bad1 {
+   │      ^^^^
+39 │     meta {
+40 │         description: "Meta sections aren't allowed"
+   │         ----------- `description` defined here
+   │
+   = help: this workspace is configured to only allow doc comments
+   = fix: move the contents of `meta` into a doc comment
+
+warning[MixedDocSources]: input `x` is documented with a `parameter_meta` section
+   ┌─ tests/lints/mixed-doc-sources-comments-only/source.wdl:52:9
+   │
+52 │         x: "parameter_meta isn't allowed"
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: this workspace is configured to only allow doc comments
+   = fix: move the contents of `parameter_meta.x` into a doc comment
+
+warning[MixedDocSources]: output `x` is documented with a `meta.outputs` section
+   ┌─ tests/lints/mixed-doc-sources-comments-only/source.wdl:61:13
+   │
+61 │             x: "Meta sections aren't allowed"
+   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: this workspace is configured to only allow doc comments
+   = fix: move the contents of `meta.outputs.x` into a doc comment
+
+warning[MixedDocSources]: struct `Bad4` is documented with a `meta` section
+   ┌─ tests/lints/mixed-doc-sources-comments-only/source.wdl:72:8
+   │
+72 │ struct Bad4 {
+   │        ^^^^
+73 │     meta {
+74 │         description: "Meta sections aren't allowed"
+   │         ----------- `description` defined here
+   │
+   = help: this workspace is configured to only allow doc comments
+   = fix: move the contents of `meta` into a doc comment
+
+warning[MixedDocSources]: field `x` is documented with a `parameter_meta` section
+   ┌─ tests/lints/mixed-doc-sources-comments-only/source.wdl:82:9
+   │
+82 │         x: "parameter_meta isn't allowed"
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: this workspace is configured to only allow doc comments
+   = fix: move the contents of `parameter_meta.x` into a doc comment
+

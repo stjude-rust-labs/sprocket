@@ -184,6 +184,7 @@ fn all_rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::new(rules::ShellSplittingRule::new(config)),
         Box::new(rules::ParameterizedResourcesRule::new(config)),
         Box::new(rules::StructOverMap::new(config)),
+        Box::new(rules::MixedDocSourcesRule::new(config)),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules

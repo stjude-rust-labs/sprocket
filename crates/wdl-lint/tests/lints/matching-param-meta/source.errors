@@ -58,6 +58,19 @@ warning[MissingParameterMeta]: task `corge` is missing a doc comment for input `
     │
     = fix: add a doc comment to `second` with a detailed description of the input.
 
+warning[MixedDocSources]: input `first` has multiple documentation sources
+    ┌─ tests/lints/matching-param-meta/source.wdl:140:16
+    │
+139 │         ## `first` gets a doc comment
+    │         ----------------------------- this comment...
+140 │         String first
+    │                ^^^^^
+    ·
+146 │         first: "And a parameter_meta entry?!"
+    │         ------------------------------------- ...overwrites this meta key
+    │
+    = fix: remove one of the documentation sources
+
 warning[MissingParameterMeta]: task `missing_doc_comment` is missing a doc comment for input `second`
     ┌─ tests/lints/matching-param-meta/source.wdl:159:16
     │
