@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lint"
-version = "0.28.0"
+version = "0.28.1"
 description = "Lint rules for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
 authors.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lsp"
-version = "0.23.0"
+version = "0.23.1"
 description = "Language Server Protocol implementation for WDL"
 license.workspace = true
 rust-version.workspace = true
@@ -30,7 +30,7 @@ url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 wdl-analysis = { path = "../wdl-analysis", version = "0.26.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.27.0" }
-wdl-lint = { path = "../wdl-lint", version = "0.28.0" }
+wdl-lint = { path = "../wdl-lint", version = "0.28.1" }
 
 [dev-dependencies]
 blake3 = { workspace = true }
