@@ -332,6 +332,10 @@
             "MetaSections": {
               "severity": "note"
             },
+            "MixedDocSources": {
+              "severity": "warning",
+              "doc_source_adherence": "consistent"
+            },
             "MutableContainerTag": {
               "severity": "note"
             },
@@ -665,6 +669,14 @@
           "$ref": "#/$defs/MetaSectionsConfig",
           "default": {
             "severity": "note"
+          }
+        },
+        "MixedDocSources": {
+          "description": "The `MixedDocSources` rule.",
+          "$ref": "#/$defs/MixedDocSourcesConfig",
+          "default": {
+            "severity": "warning",
+            "doc_source_adherence": "consistent"
           }
         },
         "MutableContainerTag": {
@@ -1325,6 +1337,43 @@
         }
       },
       "additionalProperties": false
+    },
+    "MixedDocSourcesConfig": {
+      "description": "Configuration for the `MixedDocSources` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        },
+        "doc_source_adherence": {
+          "description": "Options:\n\n* `consistent` - The workspace can use doc comments _or_ `meta`/`parameter_meta`. Any case of a doc comment\n  overwriting a meta value will be flagged.\n* `comments` - Only doc comments are allowed in the workspace. Any documentation in `meta`/`parameter_meta`\n  sections will be flagged.\n* `meta` - Only `meta`/`parameter_meta` sections are allowed in the workspace. Any doc\n  comments will be unconditionally flagged.\n\n##### Example\n\n```toml\n[check.rules.MixedDocSources]\ndoc_source_adherence = \"comments\"\n```",
+          "$ref": "#/$defs/DocSourceAdherence",
+          "default": "consistent"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DocSourceAdherence": {
+      "description": "The behavior of the [`MixedDocSourcesRule`].",
+      "oneOf": [
+        {
+          "description": "The workspace should only use doc comments. Any documentation in\n`meta`/`parameter_meta` sections will be flagged.",
+          "type": "string",
+          "const": "comments"
+        },
+        {
+          "description": "The workspace should only use `meta`/`parameter_meta` sections. Any doc\ncomments will be unconditionally flagged.",
+          "type": "string",
+          "const": "meta"
+        },
+        {
+          "description": "The workspace can use doc comments _or_ `meta`/`parameter_meta`. Any\ncase of a doc comment overwriting a meta value will be flagged.",
+          "type": "string",
+          "const": "consistent"
+        }
+      ]
     },
     "MutableContainerTagConfig": {
       "description": "Configuration for the `MutableContainerTag` lint rule.",

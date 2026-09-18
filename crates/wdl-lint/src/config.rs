@@ -13,6 +13,7 @@ use wdl_ast::Severity;
 
 use crate::rules::BashSetOption;
 use crate::rules::CaseStyle;
+use crate::rules::DocSourceAdherence;
 
 /// The severity of a rule's diagnostics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Toml, JsonSchema)]
@@ -432,6 +433,25 @@ define_rules_config! {
         }
         "MetaSections" => meta_sections: MetaSectionsConfig {
             severity = RuleSeverity::Note;
+        }
+        "MixedDocSources" => mixed_doc_sources: MixedDocSourcesConfig {
+            severity = RuleSeverity::Warning;
+            /// Options:
+            ///
+            /// * `consistent` - The workspace can use doc comments _or_ `meta`/`parameter_meta`. Any case of a doc comment
+            ///   overwriting a meta value will be flagged.
+            /// * `comments` - Only doc comments are allowed in the workspace. Any documentation in `meta`/`parameter_meta`
+            ///   sections will be flagged.
+            /// * `meta` - Only `meta`/`parameter_meta` sections are allowed in the workspace. Any doc
+            ///   comments will be unconditionally flagged.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.MixedDocSources]
+            /// doc_source_adherence = "comments"
+            /// ```
+            doc_source_adherence: DocSourceAdherence = DocSourceAdherence::Consistent;
         }
         "MutableContainerTag" => mutable_container_tag: MutableContainerTagConfig {
             severity = RuleSeverity::Note;

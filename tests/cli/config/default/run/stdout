@@ -131,6 +131,10 @@ severity = "note"
 [check.rules.MetaSections]
 severity = "note"
 
+[check.rules.MixedDocSources]
+severity = "warning"
+doc_source_adherence = "consistent"
+
 [check.rules.MutableContainerTag]
 severity = "note"
 

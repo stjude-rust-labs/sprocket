@@ -102,6 +102,7 @@ Available rules:
   - MetaSections
   - MisleadingDeclarationOrder
   - MissingParameterMeta
+  - MixedDocSources
   - MutableContainerTag
   - NamingConvention
   - OutputMetaOrder
