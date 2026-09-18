@@ -787,6 +787,12 @@ impl DocumentGraph {
         self.indexes.get(uri).copied()
     }
 
+    /// Returns whether or not the document graph contains a document with the
+    /// given URI.
+    pub fn contains(&self, uri: &Url) -> bool {
+        self.indexes.contains_key(uri)
+    }
+
     /// Performs a breadth-first traversal of the graph starting at the given
     /// node.
     ///
