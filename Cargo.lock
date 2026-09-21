@@ -6949,6 +6949,7 @@ dependencies = [
  "schemars 1.2.2",
  "thiserror",
  "toml-spanner",
+ "tracing",
  "wdl-ast",
 ]
 

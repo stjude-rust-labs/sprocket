@@ -2,6 +2,7 @@
 
 use std::rc::Rc;
 
+use tracing::warn;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::StrippedCommandPart;
 
@@ -211,9 +212,9 @@ pub fn format_command_section(
         .strip_whitespace();
     match parts {
         None => {
-            // The command section has mixed indentation, so we format it as is.
-            // TODO: We may want to format this differently in the future, but
-            // for now we can say "ugly input, ugly output".
+            warn!(
+                "command section with mixed indentation: making a best-effort formatting attempt"
+            );
             for child in children {
                 match child.element().kind() {
                     SyntaxKind::CloseBrace => {
