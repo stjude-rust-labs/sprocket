@@ -181,7 +181,7 @@ impl std::fmt::Display for ColorMode {
 
 /// Represents the configuration for the Sprocket CLI tool.
 #[derive(Debug, Clone, Default, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// Configuration for the `format` command.
@@ -235,7 +235,7 @@ impl Config {
 
 /// Configuration for the `sprocket dev module` command group.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ModuleConfig {
     /// Configuration for `sprocket dev module init`.
@@ -246,7 +246,7 @@ pub struct ModuleConfig {
 
 /// Configuration for `sprocket dev module init`.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ModuleInitConfig {
     /// Default module author name.
@@ -278,7 +278,7 @@ impl ModuleInitConfig {
 
 /// Represents shared configuration options for Sprocket commands.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
@@ -369,7 +369,7 @@ impl fmt::Display for FallbackVersion {
 
 /// WDL-specific configuration options shared across all commands.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WdlConfig {
     /// The fallback version to use when a WDL document declares an
@@ -402,7 +402,7 @@ mod feature_flags {
 
 /// Represents the configuration for the Sprocket `check` and `lint` commands.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
     /// Rule IDs or tags to except from running.
@@ -442,7 +442,7 @@ pub struct CheckConfig {
 
 /// Represents the configuration for the Sprocket `analyzer` command.
 #[derive(Debug, Clone, Default, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AnalyzerConfig {
     /// Whether to enable lint rules.
@@ -453,7 +453,7 @@ pub struct AnalyzerConfig {
 
 /// Represents the configuration for the Sprocket `run` command.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RunConfig {
     /// The engine configuration.
@@ -497,7 +497,7 @@ impl Default for RunConfig {
 
 /// Database configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DatabaseConfig {
     /// Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db`
@@ -599,7 +599,7 @@ impl ToToml for MaxConcurrentRuns {
 
 /// Server configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerConfig {
     /// Host to bind to.
@@ -782,7 +782,8 @@ impl ServerConfig {
 
 /// `test` command configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TestConfig {
     /// Number of test executions to run in parallel.
     ///
@@ -836,7 +837,8 @@ fn sentinel_doc_config_value() -> &'static str {
 
 /// `doc` command configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocConfig {
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[toml(default = String::from(sentinel_doc_config_value()))]
@@ -987,7 +989,8 @@ impl DocConfig {
 
 /// `doc.extra_html` command configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocExtraHtmlConfig {
     /// Path to an HTML file that should have its contents embedded in each HTML
     /// page, immediately before the closing `<head>` tag.
@@ -1050,7 +1053,8 @@ impl Default for DocExtraHtmlConfig {
 /// Site-level search-engine-optimization metadata embedded into each page's
 /// `<head>`. Every field is optional.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocSeoConfig {
     /// Site title. When set, each page's `<title>` becomes `"<page> | <title>"`
     /// and drives `og:site_name`.
@@ -1198,7 +1202,8 @@ impl Config {
     pub fn new<'a>(
         paths: impl IntoIterator<Item = &'a Path>,
         skip_config_search: bool,
-    ) -> Result<Self, wdl::engine::config::BuilderError> {
+    ) -> Result<(Self, Vec<wdl::engine::config::BuilderError>), wdl::engine::config::BuilderError>
+    {
         let mut builder = Config::builder();
 
         if !skip_config_search {
@@ -1335,19 +1340,17 @@ impl Config {
         Ok(())
     }
 
-    /// Read a configuration file from the specified path.
-    pub fn read_config(path: &str) -> Result<Self> {
-        let data = std::fs::read(path).context("failed to open config file")?;
-        let text = String::from_utf8(data).expect("failed to read config file");
-        let config: Config =
-            toml_spanner::from_str(text.as_str()).context("failed to parse config file")?;
-        Ok(config)
+    /// Attempt to convert the `Config` into a TOML string
+    pub fn to_toml_string(&self) -> std::result::Result<String, ToTomlError> {
+        toml_spanner::to_string(self)
     }
+}
 
-    /// Write a configuration to the specified path.
-    pub fn write_config(&self, path: &str) -> Result<()> {
-        let data = toml_spanner::to_string(self).context("failed to serialize config")?;
-        std::fs::write(path, data).context("failed to write config file")
+impl FromStr for Config {
+    type Err = toml_spanner::FromTomlError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        toml_spanner::from_str(s)
     }
 }
 
@@ -1356,6 +1359,9 @@ mod tests {
     use std::collections::HashMap;
 
     use schemars::schema_for;
+    use strum::IntoEnumIterator;
+    use toml_spanner::ValueMut;
+    use wdl::engine::config::BackendConfigDiscriminants;
 
     use super::*;
 
@@ -1742,16 +1748,14 @@ mod tests {
             },
             ..Default::default()
         };
-        let config_path_str = config_path
-            .to_str()
-            .ok_or_else(|| anyhow!("temporary config path is not utf-8"))?;
-        config.write_config(config_path_str)?;
+        let config_str = config.to_toml_string()?;
+        std::fs::write(&config_path, &config_str)?;
 
-        let read = Config::read_config(config_path_str)?;
+        let read = Config::from_str(&config_str)?;
         assert_eq!(read.server.host, "0.0.0.0");
         assert_eq!(read.server.port, 9090);
 
-        let from_builder = Config::new([config_path.as_path()], true)?;
+        let (from_builder, _) = Config::new([config_path.as_path()], true)?;
         assert_eq!(from_builder.server.host, "0.0.0.0");
         assert_eq!(from_builder.server.port, 9090);
 
@@ -1764,6 +1768,82 @@ mod tests {
             panic!("zero events capacity should error");
         };
         assert_eq!(error.to_string(), "`events_capacity` must be at least 1");
+
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_fields_are_ignored() -> Result<()> {
+        // Every table in the config should ignore unknown keys
+
+        fn populate_table<'a>(
+            table: &mut Table<'a>,
+            arena: &'a Arena,
+            skip: bool,
+            is_engine_table: bool,
+        ) {
+            if !skip {
+                table.insert(Key::new("unknown_key"), Item::string("foo_bar"), arena);
+            }
+
+            for entry in table.entries_mut() {
+                // Special case since values in
+                // `run.backends`/`server.engine.backends` are tagged
+                if is_engine_table && entry.0.name == "backends" {
+                    for variant in BackendConfigDiscriminants::iter() {
+                        let type_value = match variant {
+                            BackendConfigDiscriminants::Local => "local",
+                            BackendConfigDiscriminants::Docker => "docker",
+                            BackendConfigDiscriminants::Tes => "tes",
+                            BackendConfigDiscriminants::LsfApptainer => "lsf_apptainer",
+                            BackendConfigDiscriminants::SlurmApptainer => "slurm_apptainer",
+                        };
+
+                        let ValueMut::Table(table) = entry.1.value_mut() else {
+                            panic!("should be a table");
+                        };
+
+                        let mut backend_config = Table::new();
+                        backend_config.insert(Key::new("type"), Item::string(type_value), arena);
+                        populate_table(&mut backend_config, arena, false, false);
+
+                        table.insert(Key::new(type_value), backend_config.into_item(), arena);
+                    }
+
+                    continue;
+                }
+
+                let ValueMut::Table(table) = entry.1.value_mut() else {
+                    continue;
+                };
+
+                populate_table(
+                    table,
+                    arena,
+                    false,
+                    entry.0.name == "run" || entry.0.name == "engine",
+                );
+            }
+        }
+
+        let tempdir = tempfile::TempDir::new()?;
+        let config_path = tempdir.path().join("sprocket.toml");
+
+        let expected_config = Config::default();
+
+        let arena = Arena::new();
+        let mut toml_item = expected_config.to_toml(&arena)?;
+        let ValueMut::Table(table) = toml_item.value_mut() else {
+            panic!("should be a table");
+        };
+
+        populate_table(table, &arena, true, false);
+
+        let new_config_str = toml_spanner::to_string(&toml_item)?;
+        std::fs::write(&config_path, &new_config_str)?;
+
+        let (_config, warnings) = Config::new([&*config_path], true)?;
+        assert!(!warnings.is_empty(), "should produce unknown key warnings");
 
         Ok(())
     }

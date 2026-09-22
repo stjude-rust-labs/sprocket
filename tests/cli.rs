@@ -258,8 +258,9 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     if !config_overridden {
         Ok(None)
     } else {
+        let config_str = sprocket_config.to_toml_string()?;
         let temp_config = tempfile::NamedTempFile::new()?;
-        sprocket_config.write_config(&temp_config.path().display().to_string())?;
+        fs::write(temp_config.path(), config_str)?;
         Ok(Some(temp_config))
     }
 }

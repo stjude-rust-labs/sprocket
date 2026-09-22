@@ -100,7 +100,7 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
             Ok((
                 name,
                 TestConfig {
-                    engine: builder.try_build()?,
+                    engine: builder.try_build()?.0,
                     ..Default::default()
                 },
             ))

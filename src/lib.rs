@@ -44,6 +44,7 @@ use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::reload;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
+use wdl::engine::config::BuilderError;
 
 use crate::commands::CommandResult;
 
@@ -137,6 +138,32 @@ cfg_select! {
     }
 }
 
+/// Emit parse diagnostics from [`Config`] parsing.
+fn emit_config_diagnostics(errors: &[BuilderError], color: ColorMode) -> CommandResult<bool> {
+    let mut emitted = false;
+    for error in errors {
+        // If there is source associated with the error, emit a
+        // diagnostic
+        if let Some(source) = error.source() {
+            emit_diagnostics(
+                &error.path().to_string(),
+                source,
+                &[error.to_diagnostic()],
+                Default::default(),
+                match color {
+                    ColorMode::Auto => stderr().is_terminal(),
+                    ColorMode::Always => true,
+                    ColorMode::Never => false,
+                },
+            )
+            .context("failed to emit diagnostics")?;
+            emitted = true;
+        }
+    }
+
+    Ok(emitted)
+}
+
 /// Logic for [`sprocket_main()`].
 async fn real_main() -> CommandResult<()> {
     let cli = with_large_stack(Cli::parse);
@@ -152,29 +179,15 @@ async fn real_main() -> CommandResult<()> {
                 cli.config.iter().map(PathBuf::as_path),
                 cli.skip_config_search,
             ) {
-                Ok(mut config) => {
+                Ok((mut config, warnings)) => {
+                    emit_config_diagnostics(&warnings, cli.color)?;
                     config
                         .validate()
                         .context("failed to validate configuration")?;
                     config
                 }
                 Err(e) => {
-                    // If there is source associated with the error, emit a
-                    // diagnostic
-                    if let Some(source) = e.source() {
-                        emit_diagnostics(
-                            &e.path().to_string(),
-                            source,
-                            &[e.to_diagnostic()],
-                            Default::default(),
-                            match cli.color {
-                                ColorMode::Auto => stderr().is_terminal(),
-                                ColorMode::Always => true,
-                                ColorMode::Never => false,
-                            },
-                        )
-                        .context("failed to emit diagnostics")?;
-
+                    if emit_config_diagnostics(std::slice::from_ref(&e), cli.color)? {
                         // Bail out without returning to caller as the
                         // diagnostic was displayed
                         std::process::exit(1);

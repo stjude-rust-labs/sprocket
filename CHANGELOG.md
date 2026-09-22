@@ -7,15 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `FromStr` impl for `Config` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234))
+
 ### Changed
 
 * Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).
 * `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
+* Unknown keys in `sprocket.toml` will now produce warnings, rather than error ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
 ### Fixed
 
 * Fixed a stack overflow occurring when parsing CLI options that occurred on
   debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
+
+### Removed
+
+* `Config::{read,write}_config` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234))
 
 ## 0.31.0 - 2026-09-16
 
