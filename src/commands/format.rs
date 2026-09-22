@@ -20,6 +20,7 @@ use wdl::format::element::node::AstNodeFormatExt;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::analysis::analyze_singular_source;
 use crate::commands::CommandError;
 use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
@@ -122,7 +123,7 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
 
                 if let Some(err) = result.error() {
                     errors += 1;
-                    warn!("error analyzing `{}`: {}", result.document().path(), err);
+                    warn!("error parsing `{}`: {}", result.document().path(), err);
                     continue;
                 }
 
@@ -169,27 +170,17 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
         }
         FormatSubcommand::View(s) => {
             let source = s.source;
-            match &source {
-                Source::File(_) | Source::Url(_) => {}
-                Source::Directory(p) => {
-                    return Err(anyhow!(
-                        "the `format view` command does not support formatting directory `{path}`",
-                        path = p.display()
-                    )
-                    .into());
-                }
-            };
 
-            let results = Analysis::default()
-                .add_source(source.clone())
-                .fallback_version(fallback_version)
-                .modules_config(modules_config.clone())
-                .feature_flags(feature_flags)
-                .ignore_filename(ignore_filename.clone())
-                .run(report_mode, output.colorize())
-                .await
-                .map_err(CommandError::from)?;
-            let result = results.filter(&[&source]).next().unwrap();
+            let result = analyze_singular_source(
+                &source,
+                fallback_version,
+                modules_config,
+                feature_flags,
+                ignore_filename,
+                report_mode,
+                colorize,
+            )
+            .await?;
 
             if let Some(err) = result.error() {
                 return Err(anyhow!(
@@ -236,7 +227,7 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                 if let Some(err) = result.error() {
                     errors += 1;
                     warn!(
-                        "error analyzing `{path}`: {err:#}",
+                        "error parsing `{path}`: {err:#}",
                         path = result.document().path()
                     );
                     continue;

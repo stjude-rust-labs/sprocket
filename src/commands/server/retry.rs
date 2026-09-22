@@ -10,12 +10,10 @@ use super::client::get_json;
 use super::client::resolve_run_id;
 use super::client::send_json;
 use crate::analysis::Source;
-use crate::commands::CommandError;
-use crate::commands::CommandOutput;
+use crate::analysis::analyze_singular_source;
+use crate::analysis::ensure_no_analysis_errors;
 use crate::commands::CommandResult;
 use crate::commands::run::inputs_to_json;
-use crate::commands::validate::analyze_source;
-use crate::commands::validate::ensure_no_analysis_errors;
 use crate::config::Config;
 use crate::inputs::FlattenedInputs;
 use crate::inputs::Invocation;
@@ -104,7 +102,7 @@ pub async fn retry(args: Args, config: Config, output: CommandOutput) -> Command
     // resulting `Document` is also used to drive path resolution on
     // override `File`/`Directory` values.
     let document = if !args.no_validate {
-        let document = analyze_source(
+        let document = analyze_singular_source(
             &source,
             config.common.wdl.fallback_version.into(),
             config.modules.clone(),
@@ -113,17 +111,7 @@ pub async fn retry(args: Args, config: Config, output: CommandOutput) -> Command
             report_mode,
             output.colorize(),
         )
-        .await
-        .map_err(|e| {
-            // Wrap with a hint to use --no-validate if the file is unreachable.
-            match e {
-                CommandError::Single(inner) => CommandError::Single(inner.context(format!(
-                    "cannot re-analyze source `{source}`; use --no-validate to skip local analysis",
-                    source = original.source
-                ))),
-                other => other,
-            }
-        })?;
+        .await?;
 
         ensure_no_analysis_errors(&document, report_mode, output.colorize())?;
 
@@ -263,7 +251,7 @@ mod tests {
 
     use super::*;
     use crate::analysis::Source;
-    use crate::commands::validate::analyze_source;
+    use crate::analysis::analyze_singular_source;
 
     /// Builds an empty base input map.
     fn base() -> serde_json::Map<String, JsonValue> {
@@ -282,7 +270,7 @@ mod tests {
         let path = dir.path().join("source.wdl");
         std::fs::write(&path, wdl).unwrap();
         let source: Source = path.to_str().unwrap().parse().unwrap();
-        let document = analyze_source(
+        let document = analyze_singular_source(
             &source,
             None,
             wdl_modules::resolver::ModulesConfig::default(),
