@@ -250,7 +250,8 @@
           },
           "default": []
         }
-      }
+      },
+      "additionalProperties": false
     },
     "BashSetOption": {
       "description": "Supported options for `set`.\n\nSee <https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html> for a description\nof each option.",
@@ -1432,6 +1433,7 @@
           ]
         }
       },
+      "additionalProperties": false,
       "required": [
         "parallelism",
         "throttle"
@@ -1489,7 +1491,8 @@
           "description": "Search-engine-optimization metadata embedded in each page's `<head>`.",
           "$ref": "#/$defs/DocSeoConfig"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "DocExtraHtmlConfig": {
       "description": "`doc.extra_html` command configuration.",
@@ -1510,7 +1513,8 @@
           "type": "string",
           "default": "none"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "DocSeoConfig": {
       "description": "`doc.seo` command configuration.\n\nSite-level search-engine-optimization metadata embedded into each page's\n`<head>`. Every field is optional.",
@@ -1569,7 +1573,8 @@
           "type": "string",
           "default": "none"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "CommonConfig": {
       "description": "Represents shared configuration options for Sprocket commands.",
@@ -1658,7 +1663,8 @@
           "type": "boolean",
           "default": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "ModuleConfig": {
       "description": "Configuration for the `sprocket dev module` command group.",
