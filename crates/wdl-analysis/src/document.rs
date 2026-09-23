@@ -1108,6 +1108,16 @@ impl Document {
         self.data.uri.clone()
     }
 
+    /// Gets the file name of the document.
+    pub fn file_name(&self) -> &str {
+        self.data
+            .uri
+            .path_segments()
+            .and_then(|mut s| s.next_back())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| self.data.uri.path())
+    }
+
     /// Gets the path to the document.
     ///
     /// If the scheme of the document's URI is not `file`, this will return the

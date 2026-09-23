@@ -8,6 +8,8 @@ use itertools::Itertools;
 use schemars::JsonSchema;
 use serde_json::Value;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Document;
+use wdl_analysis::document::Callable;
 use wdl_ast::Diagnostic;
 
 use crate::convert_yaml_span;
@@ -131,7 +133,7 @@ impl Group {
 #[derive(Clone, Debug)]
 pub struct InputSequence {
     /// The name of the input in the WDL target.
-    name: String,
+    name: Spanned<String>,
     /// The values for the input.
     values: Vec<Value>,
 }
@@ -203,6 +205,47 @@ impl InputMatrix {
             .map(|s| s.into_iter().flatten())
     }
 
+    /// Validate the inputs against the target [`Callable`].
+    pub(crate) fn validate(
+        &self,
+        associated_wdl: &Document,
+        target: Callable<'_>,
+        diagnostics: &mut Diagnostics,
+    ) {
+        fn check_sequence(
+            associated_wdl: &Document,
+            sequence: &InputSequence,
+            target: Callable<'_>,
+            diagnostics: &mut Diagnostics,
+        ) {
+            if target.inputs().contains_key(sequence.name.as_str()) {
+                return;
+            }
+
+            diagnostics.add(
+                Diagnostic::error(format!(
+                    "no input named `{name}` in `{file}`",
+                    name = sequence.name.as_str(),
+                    file = associated_wdl.file_name(),
+                ))
+                .with_highlight(convert_yaml_span(sequence.name.0.defined.span())),
+            );
+        }
+
+        for mapping in &self.0 {
+            match mapping {
+                InputMapping::Sequence(s) => {
+                    check_sequence(associated_wdl, s, target, diagnostics);
+                }
+                InputMapping::Group(g) => {
+                    for sequence in &g.0 {
+                        check_sequence(associated_wdl, sequence, target, diagnostics);
+                    }
+                }
+            }
+        }
+    }
+
     /// Parse the user-defined input matrix
     ///
     /// Each [`Mapping`] in `inputs` represents a set of input keys whose values
@@ -263,7 +306,7 @@ impl InputMatrix {
                     }
 
                     group.push(InputSequence {
-                        name: nested_key.0.value,
+                        name: nested_key,
                         values: vals.clone(),
                     });
                 }
@@ -289,10 +332,7 @@ impl InputMatrix {
                     continue;
                 };
 
-                results.push(InputMapping::Sequence(InputSequence {
-                    name: key.0.value,
-                    values,
-                }));
+                results.push(InputMapping::Sequence(InputSequence { name: key, values }));
             }
         }
 

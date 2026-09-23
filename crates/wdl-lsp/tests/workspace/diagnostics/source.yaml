@@ -1,0 +1,11 @@
+CamelCase:
+  - name: broken_assertions
+    inputs:
+      not_an_input:
+        - "foo"
+    assertions:
+      outputs:
+        not_an_output:
+          - Defined: true
+FakeTarget:
+  - name: broken_target
