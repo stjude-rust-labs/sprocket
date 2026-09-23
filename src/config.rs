@@ -1770,11 +1770,11 @@ mod tests {
             arena: &'a Arena,
             skip: bool,
             is_engine_table: bool,
-            mut count: usize,
-        ) -> usize {
+            count: &mut usize,
+        ) {
             if !skip {
                 table.insert(Key::new("unknown_key"), Item::string("foo_bar"), arena);
-                count += 1;
+                *count += 1;
             }
 
             for entry in table.entries_mut() {
@@ -1817,8 +1817,6 @@ mod tests {
                     count,
                 );
             }
-
-            count
         }
 
         let tempdir = tempfile::TempDir::new()?;
@@ -1832,7 +1830,8 @@ mod tests {
             panic!("should be a table");
         };
 
-        let unknown_entry_count = populate_table(table, &arena, true, false, 0);
+        let mut unknown_entry_count = 0;
+        populate_table(table, &arena, true, false, &mut unknown_entry_count);
 
         let new_config_str = toml_spanner::to_string(&toml_item)?;
         std::fs::write(&config_path, &new_config_str)?;
