@@ -968,7 +968,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__doc)
-            opts="-l -v -q -m -c -s -h -V --check --index-page --logo --homepage-url --github-url --slack-url --alt-light-logo --light-mode --output --overwrite --open --html-head --html-body-open --html-body-close --theme --install --with-doc-comments --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            opts="-v -q -m -c -s -h -V --check --index-page --logo --alt-light-logo --output --overwrite --open --html-head --html-body-open --html-body-close --theme --install --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -979,18 +979,6 @@ _sprocket() {
                     return 0
                     ;;
                 --logo)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --homepage-url)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --github-url)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --slack-url)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -3486,28 +3474,12 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__format)
-            opts="-t -i -v -q -m -c -s -h -V --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version check view overwrite help"
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version check view overwrite help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --indentation-size)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -i)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --max-line-length)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --newline-style)
-                    COMPREPLY=($(compgen -W "auto unix windows" -- "${cur}"))
-                    return 0
-                    ;;
                 --color)
                     COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
                     return 0
@@ -3536,28 +3508,12 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__format__subcmd__check)
-            opts="-t -i -v -q -m -c -s -h -V --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --indentation-size)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -i)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --max-line-length)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --newline-style)
-                    COMPREPLY=($(compgen -W "auto unix windows" -- "${cur}"))
-                    return 0
-                    ;;
                 --color)
                     COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
                     return 0
@@ -3656,28 +3612,12 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__format__subcmd__overwrite)
-            opts="-t -i -v -q -m -c -s -h -V --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --indentation-size)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -i)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --max-line-length)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --newline-style)
-                    COMPREPLY=($(compgen -W "auto unix windows" -- "${cur}"))
-                    return 0
-                    ;;
                 --color)
                     COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
                     return 0
@@ -3706,28 +3646,12 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__format__subcmd__view)
-            opts="-t -i -v -q -m -c -s -h -V --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --indentation-size)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -i)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --max-line-length)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --newline-style)
-                    COMPREPLY=($(compgen -W "auto unix windows" -- "${cur}"))
-                    return 0
-                    ;;
                 --color)
                     COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
                     return 0
