@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed a stack overflow occurring when parsing CLI options that occurred on
   debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
 
+### Removed
+
+* Removed `--with-doc-comments` from the `doc` command, as they are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* Removed many CL args from the `doc` command: `--homepage-url`, `--github-url`, `--slack-url`, `--light-mode`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* Removed many CL args from the `format` command: `--with-tabs`, `--indentation-size`, `--max-line-length`, `--newline-style`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+
 ## 0.31.0 - 2026-09-16
 
 ### Added
@@ -113,7 +119,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Analysis now warns when a discovered `module-lock.json` is out of date with
   its `module.json`, pointing to `sprocket dev module lock`
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-
 * `dev server` now reports finer-grained progress. A run is `analyzing` while
   its document is resolved and type checked, and a task reports `initializing`,
   `localizing` while its inputs are transferred, or `cached` when the call
@@ -195,11 +200,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that restores ownership of a work directory, is no longer reported among a
   run's tasks
   ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
-
 * Canceling a `dev server` run mid-transfer now records the run as `canceled`
   rather than `failed`, and no longer overwrites an outcome the run reached
   first ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
-
 * `--index-on` no longer panics when a run's output files live outside of the
   output directory; such outputs (e.g. a `File` input that a task passes
   straight through to an output) are reported and left out of the index, and
@@ -727,7 +730,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
   * `--entrypoint` is now required if no inputs are provided.
   * `--entrypoint` will be prefixed to the key of any key-value pairs
-      supplied on the command line.
+    supplied on the command line.
 
 ### Removed
 
@@ -831,9 +834,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
   * Fixed certain misplaced highlights from the `ShellCheck` lint.
   * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
-      many comments.
+    many comments.
   * The `ImportSort` lint rule now supplies the correct order of imports in
-      the `fix` message.
+    the `fix` message.
 * By default, when checking a local file, suppress diagnostics from remote
   files. Added a `--show-remote-diagnostics` flag to recreate the older
   behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
