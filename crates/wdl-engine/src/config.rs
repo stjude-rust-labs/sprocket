@@ -22,8 +22,6 @@ use indexmap::IndexMap;
 use rowan::GreenNode;
 use schemars::JsonSchema;
 use secrecy::ExposeSecret;
-use strum::EnumDiscriminants;
-use strum::EnumIter;
 use tokio::process::Command;
 use tokio_util::sync::CancellationToken;
 use toml_spanner::Arena;
@@ -1400,8 +1398,7 @@ pub enum TaskResourceLimitBehavior {
 }
 
 /// Represents supported task execution backends.
-#[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema, EnumDiscriminants)]
-#[strum_discriminants(derive(EnumIter))]
+#[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", tag = "type")]
 #[schemars(rename_all = "snake_case", tag = "type")]
 pub enum BackendConfig {
@@ -3035,6 +3032,18 @@ enum Source {
     String(String),
 }
 
+/// A parsed configuration.
+///
+///
+/// See [`ConfigBuilder::try_build()`].
+#[derive(Debug)]
+pub struct BuiltConfig<T> {
+    /// The parsed config type.
+    pub config: T,
+    /// Warnings produced during the config parsing.
+    pub warnings: Vec<BuilderError>,
+}
+
 /// Implements a configuration builder.
 ///
 /// The builder supports merging multiple TOML configuration files together.
@@ -3075,7 +3084,7 @@ impl<T> ConfigBuilder<T> {
     /// they were added to the builder.
     ///
     /// On success, this returns the parsed config and any warnings produced.
-    pub fn try_build(self) -> Result<(T, Vec<BuilderError>), BuilderError>
+    pub fn try_build(self) -> Result<BuiltConfig<T>, BuilderError>
     where
         T: ToToml + for<'de> FromToml<'de>,
     {
@@ -3115,19 +3124,20 @@ impl<T> ConfigBuilder<T> {
         for (index, mut document) in documents.into_iter().enumerate() {
             // Start by deserializing the document to ensure it is a valid
             // standalone configuration
-            let (ctx, table) = document.split();
 
             let (path, source) = &sources[index];
-            T::from_toml(ctx, table.as_item()).map_err(|_| BuilderError::Deserialize {
-                path: path.clone(),
-                source: source.clone(),
-                error: toml_spanner::FromTomlError {
-                    errors: std::mem::take(&mut ctx.errors),
-                },
-            })?;
+            let (_, mut error) =
+                document
+                    .to_allowing_errors::<T>()
+                    .map_err(|error| BuilderError::Deserialize {
+                        path: path.clone(),
+                        source: source.clone(),
+                        error,
+                    })?;
 
             warnings.extend(
-                ctx.errors
+                error
+                    .errors
                     .extract_if(.., |e| matches!(e.kind(), ErrorKind::UnexpectedKey { .. }))
                     .map(|error| BuilderError::UnknownKey {
                         path: path.clone(),
@@ -3138,13 +3148,11 @@ impl<T> ConfigBuilder<T> {
 
             // Catch anything else just in case. Though realistically, there
             // should only ever be `UnexpectedKey` errors.
-            if !ctx.errors.is_empty() {
+            if !error.errors.is_empty() {
                 return Err(BuilderError::Deserialize {
                     path: path.clone(),
                     source: source.clone(),
-                    error: toml_spanner::FromTomlError {
-                        errors: std::mem::take(&mut ctx.errors),
-                    },
+                    error,
                 });
             }
 
@@ -3175,7 +3183,10 @@ impl<T> ConfigBuilder<T> {
             }
         })?;
 
-        Ok((parsed, warnings))
+        Ok(BuiltConfig {
+            config: parsed,
+            warnings,
+        })
     }
 
     /// Merges the `src` table with the `dest` table.
@@ -3636,7 +3647,7 @@ mod tests {
 
     #[test]
     fn it_builds_with_no_sources() {
-        let (config, warnings) = Config::builder().try_build().expect("should build");
+        let BuiltConfig { config, warnings } = Config::builder().try_build().expect("should build");
         assert!(warnings.is_empty());
         assert_eq!(config, Config::default(), "should be equal");
     }
@@ -3645,7 +3656,7 @@ mod tests {
     fn it_builds_with_one_source() {
         let path = create_temp_file("backend = 'foo'");
 
-        let (config, warnings) = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&path)
             .try_build()
             .expect("should build");
@@ -3762,7 +3773,7 @@ excluded_cache_inputs = ['9', '10']
 type = 'lsf_apptainer'
 "#;
 
-        let (config, warnings) = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&first)
             .with_file_source(&second)
             .with_file_source(&third)

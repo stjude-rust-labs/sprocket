@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+
+#### Changed
+
+* `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+
 ## 0.18.0 - 2026-09-16
 
 #### Changed

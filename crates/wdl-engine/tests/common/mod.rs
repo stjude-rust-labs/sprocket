@@ -19,6 +19,7 @@ use pretty_assertions::StrComparison;
 use regex::Regex;
 use toml_spanner::Toml;
 use wdl_analysis::Config as AnalysisConfig;
+use wdl_engine::config::BuiltConfig;
 use wdl_engine::config::Config as EngineConfig;
 
 /// The set of tests that should only use the Docker backend
@@ -97,10 +98,16 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
                 builder = builder.with_file_source(&config_override_path);
             }
 
+            let BuiltConfig {
+                config: engine,
+                warnings,
+            } = builder.try_build()?;
+            anyhow::ensure!(warnings.is_empty());
+
             Ok((
                 name,
                 TestConfig {
-                    engine: builder.try_build()?.0,
+                    engine,
                     ..Default::default()
                 },
             ))

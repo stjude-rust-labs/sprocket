@@ -45,6 +45,7 @@ use tracing_subscriber::reload;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::config::BuilderError;
+use wdl::engine::config::BuiltConfig;
 
 use crate::commands::CommandResult;
 
@@ -139,7 +140,11 @@ cfg_select! {
 }
 
 /// Emit parse diagnostics from [`Config`] parsing.
-fn emit_config_diagnostics(errors: &[BuilderError], color: ColorMode) -> CommandResult<bool> {
+fn emit_config_diagnostics(
+    errors: &[BuilderError],
+    report_mode: Mode,
+    color: ColorMode,
+) -> CommandResult<bool> {
     let mut emitted = false;
     for error in errors {
         // If there is source associated with the error, emit a
@@ -149,7 +154,7 @@ fn emit_config_diagnostics(errors: &[BuilderError], color: ColorMode) -> Command
                 &error.path().to_string(),
                 source,
                 &[error.to_diagnostic()],
-                Default::default(),
+                report_mode,
                 match color {
                     ColorMode::Auto => stderr().is_terminal(),
                     ColorMode::Always => true,
@@ -179,15 +184,26 @@ async fn real_main() -> CommandResult<()> {
                 cli.config.iter().map(PathBuf::as_path),
                 cli.skip_config_search,
             ) {
-                Ok((mut config, warnings)) => {
-                    emit_config_diagnostics(&warnings, cli.color)?;
+                Ok(BuiltConfig {
+                    mut config,
+                    warnings,
+                }) => {
+                    emit_config_diagnostics(
+                        &warnings,
+                        cli.report_mode.unwrap_or_default(),
+                        cli.color,
+                    )?;
                     config
                         .validate()
                         .context("failed to validate configuration")?;
                     config
                 }
                 Err(e) => {
-                    if emit_config_diagnostics(std::slice::from_ref(&e), cli.color)? {
+                    if emit_config_diagnostics(
+                        std::slice::from_ref(&e),
+                        cli.report_mode.unwrap_or_default(),
+                        cli.color,
+                    )? {
                         // Bail out without returning to caller as the
                         // diagnostic was displayed
                         std::process::exit(1);

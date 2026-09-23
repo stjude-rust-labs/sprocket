@@ -1202,8 +1202,7 @@ impl Config {
     pub fn new<'a>(
         paths: impl IntoIterator<Item = &'a Path>,
         skip_config_search: bool,
-    ) -> Result<(Self, Vec<wdl::engine::config::BuilderError>), wdl::engine::config::BuilderError>
-    {
+    ) -> Result<wdl::engine::config::BuiltConfig<Self>, wdl::engine::config::BuilderError> {
         let mut builder = Config::builder();
 
         if !skip_config_search {
@@ -1340,17 +1339,9 @@ impl Config {
         Ok(())
     }
 
-    /// Attempt to convert the `Config` into a TOML string
+    /// Attempt to convert the `Config` into a TOML string.
     pub fn to_toml_string(&self) -> std::result::Result<String, ToTomlError> {
         toml_spanner::to_string(self)
-    }
-}
-
-impl FromStr for Config {
-    type Err = toml_spanner::FromTomlError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        toml_spanner::from_str(s)
     }
 }
 
@@ -1359,9 +1350,8 @@ mod tests {
     use std::collections::HashMap;
 
     use schemars::schema_for;
-    use strum::IntoEnumIterator;
     use toml_spanner::ValueMut;
-    use wdl::engine::config::BackendConfigDiscriminants;
+    use wdl::engine::config::BuiltConfig;
 
     use super::*;
 
@@ -1751,11 +1741,10 @@ mod tests {
         let config_str = config.to_toml_string()?;
         std::fs::write(&config_path, &config_str)?;
 
-        let read = Config::from_str(&config_str)?;
-        assert_eq!(read.server.host, "0.0.0.0");
-        assert_eq!(read.server.port, 9090);
-
-        let (from_builder, _) = Config::new([config_path.as_path()], true)?;
+        let BuiltConfig {
+            config: from_builder,
+            ..
+        } = Config::new([config_path.as_path()], true)?;
         assert_eq!(from_builder.server.host, "0.0.0.0");
         assert_eq!(from_builder.server.port, 9090);
 
@@ -1781,33 +1770,36 @@ mod tests {
             arena: &'a Arena,
             skip: bool,
             is_engine_table: bool,
-        ) {
+            mut count: usize,
+        ) -> usize {
             if !skip {
                 table.insert(Key::new("unknown_key"), Item::string("foo_bar"), arena);
+                count += 1;
             }
 
             for entry in table.entries_mut() {
                 // Special case since values in
                 // `run.backends`/`server.engine.backends` are tagged
                 if is_engine_table && entry.0.name == "backends" {
-                    for variant in BackendConfigDiscriminants::iter() {
-                        let type_value = match variant {
-                            BackendConfigDiscriminants::Local => "local",
-                            BackendConfigDiscriminants::Docker => "docker",
-                            BackendConfigDiscriminants::Tes => "tes",
-                            BackendConfigDiscriminants::LsfApptainer => "lsf_apptainer",
-                            BackendConfigDiscriminants::SlurmApptainer => "slurm_apptainer",
-                        };
+                    for variant in ["local", "docker", "tes", "lsf_apptainer", "slurm_apptainer"] {
+                        // Update the list above when extending this
+                        match BackendConfig::default() {
+                            BackendConfig::Local { .. }
+                            | BackendConfig::Docker { .. }
+                            | BackendConfig::Tes { .. }
+                            | BackendConfig::LsfApptainer { .. }
+                            | BackendConfig::SlurmApptainer { .. } => {}
+                        }
 
                         let ValueMut::Table(table) = entry.1.value_mut() else {
                             panic!("should be a table");
                         };
 
                         let mut backend_config = Table::new();
-                        backend_config.insert(Key::new("type"), Item::string(type_value), arena);
-                        populate_table(&mut backend_config, arena, false, false);
+                        backend_config.insert(Key::new("type"), Item::string(variant), arena);
+                        populate_table(&mut backend_config, arena, false, false, count);
 
-                        table.insert(Key::new(type_value), backend_config.into_item(), arena);
+                        table.insert(Key::new(variant), backend_config.into_item(), arena);
                     }
 
                     continue;
@@ -1822,8 +1814,11 @@ mod tests {
                     arena,
                     false,
                     entry.0.name == "run" || entry.0.name == "engine",
+                    count,
                 );
             }
+
+            count
         }
 
         let tempdir = tempfile::TempDir::new()?;
@@ -1837,13 +1832,13 @@ mod tests {
             panic!("should be a table");
         };
 
-        populate_table(table, &arena, true, false);
+        let unknown_entry_count = populate_table(table, &arena, true, false, 0);
 
         let new_config_str = toml_spanner::to_string(&toml_item)?;
         std::fs::write(&config_path, &new_config_str)?;
 
-        let (_config, warnings) = Config::new([&*config_path], true)?;
-        assert!(!warnings.is_empty(), "should produce unknown key warnings");
+        let BuiltConfig { warnings, .. } = Config::new([&*config_path], true)?;
+        assert_eq!(warnings.len(), unknown_entry_count);
 
         Ok(())
     }
