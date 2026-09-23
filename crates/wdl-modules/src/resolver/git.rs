@@ -58,6 +58,8 @@ use crate::resolver::error::GitRefKind;
 use crate::resolver::error::MissingFileKind;
 use crate::resolver::error::ResolverError;
 use crate::resolver::fetch::GitFetcher;
+use crate::resolver::git::ops::MaterializeMode;
+use crate::resolver::git::ops::Materialized;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
@@ -262,8 +264,30 @@ impl GitResolver {
                         },
                     )
                     .await?;
-                let root = self.materialize_git(name, url, scope, &plan).await?;
-                let manifest = read_manifest(&plan.module_path)?;
+                let root = self
+                    .materialize_git(name, url, scope, &plan, MaterializeMode::Reuse)
+                    .await?;
+                // Verify the content hash, signature, and trust pin against
+                // the lockfile. A reused cache leaf is never rewritten on
+                // the normal path, so content damaged on disk is restored
+                // from Git once and verified again.
+                let manifest = match self.verify_locked_git(consumer, name, &plan.module_path) {
+                    Ok(manifest) => manifest,
+                    Err(error)
+                        if matches!(root, MaterializedRoot::Cached { fetched: false, .. }) =>
+                    {
+                        tracing::warn!(
+                            dependency = name.manifest(),
+                            module_root = %plan.module_path.display(),
+                            %error,
+                            "cached module failed verification; restoring it from Git"
+                        );
+                        self.materialize_git(name, url, scope, &plan, MaterializeMode::Reconcile)
+                            .await?;
+                        self.verify_locked_git(consumer, name, &plan.module_path)?
+                    }
+                    Err(error) => return Err(error),
+                };
                 let resolved = ResolvedSource::Git {
                     git: url.clone(),
                     sha: plan.commit,
@@ -274,30 +298,12 @@ impl GitResolver {
             }
         };
 
-        // Verify the content hash, signature, and trust pin against the
-        // lockfile. Local path sources carry no checksum and are read
-        // as-is, so only structural validation runs for them.
+        // Local path sources carry no checksum and are read as-is, so only
+        // structural validation runs for them. Git sources were verified
+        // against the lockfile above.
         let root_path = module_root.module_root();
-        match &resolved_source {
-            ResolvedSource::Path { .. } => {
-                crate::resolver::verify::verify_structure(&self.policy, name, root_path)?;
-            }
-            ResolvedSource::Git { .. } => {
-                let verified = crate::resolver::verify::verify(&self.policy, name, root_path)?;
-
-                crate::resolver::verify::verify_against_lockfile(
-                    &self.lockfile,
-                    &self.trust,
-                    &consumer.lockfile_scope,
-                    name,
-                    &verified.checksum,
-                    verified.signer.as_ref().map(|signer| &signer.key),
-                    verified
-                        .signer
-                        .as_ref()
-                        .and_then(|signer| signer.identity.as_ref()),
-                )?;
-            }
+        if let ResolvedSource::Path { .. } = &resolved_source {
+            crate::resolver::verify::verify_structure(&self.policy, name, root_path)?;
         }
 
         // Resolve the symbolic path to a concrete `.wdl` file path.
@@ -351,6 +357,31 @@ impl GitResolver {
         })
     }
 
+    /// Reads a cached Git module's manifest and verifies its content hash,
+    /// signature, and trust pin against the lockfile.
+    fn verify_locked_git(
+        &self,
+        consumer: &Module,
+        name: &DependencyName,
+        module_root: &Path,
+    ) -> Result<Manifest, ResolverError> {
+        let manifest = read_manifest(module_root)?;
+        let verified = crate::resolver::verify::verify(&self.policy, name, module_root)?;
+        crate::resolver::verify::verify_against_lockfile(
+            &self.lockfile,
+            &self.trust,
+            &consumer.lockfile_scope,
+            name,
+            &verified.checksum,
+            verified.signer.as_ref().map(|signer| &signer.key),
+            verified
+                .signer
+                .as_ref()
+                .and_then(|signer| signer.identity.as_ref()),
+        )?;
+        Ok(manifest)
+    }
+
     /// Runs the sparse checkout for a Git dependency and returns its root.
     ///
     /// On failure, cleans up the cache leaf so a corrupt partial
@@ -361,6 +392,7 @@ impl GitResolver {
         url: &url::Url,
         scope: DependencyScope,
         plan: &GitMaterializationPlan,
+        mode: MaterializeMode,
     ) -> Result<MaterializedRoot, ResolverError> {
         let fetcher = self.fetcher();
         let url_for_clone = url.clone();
@@ -386,6 +418,7 @@ impl GitResolver {
                     root: &cache_root,
                     leaf: &leaf_for_clone,
                 },
+                mode,
             )
         })
         .await
@@ -394,7 +427,7 @@ impl GitResolver {
         // runtime shutdown.
         .unwrap();
 
-        let fetched = result?;
+        let fetched = result? == Materialized::Cloned;
 
         tracing::trace!(
             dependency = name.manifest(),
@@ -646,7 +679,12 @@ impl GitResolver {
                                 ResolutionMode::Fresh,
                             )
                             .await?;
-                        let root = self.materialize_git(name, url, scope, &plan).await?;
+                        // The checksum computed below is written into the
+                        // lockfile, so reused cache content is first
+                        // restored to match the pinned Git commit.
+                        let root = self
+                            .materialize_git(name, url, scope, &plan, MaterializeMode::Reconcile)
+                            .await?;
                         let manifest = read_manifest(&plan.module_path)?;
                         let selected_version = plan.selected_version.clone();
                         let resolved = ResolvedSource::Git {
@@ -936,7 +974,12 @@ impl GitResolver {
                     },
                 )
                 .await?;
-            let root = self.materialize_git(&name, &git, dep_scope, &plan).await?;
+            // Fetching is the explicit way to bring the cache in line with
+            // the lockfile, so reused content is restored where it differs
+            // from Git. Clean content is never rewritten.
+            let root = self
+                .materialize_git(&name, &git, dep_scope, &plan, MaterializeMode::Reconcile)
+                .await?;
             if matches!(root, MaterializedRoot::Cached { fetched: true, .. }) {
                 fetched += 1;
             }

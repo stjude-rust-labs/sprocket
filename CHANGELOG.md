@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed a stack overflow occurring when parsing CLI options that occurred on
   debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
+* Fixed intermittent `check` and `run` failures when a document imports several
+  files from one module dependency; resolving an import no longer deletes and
+  rewrites module files that other imports are reading. Cached module content
+  that fails lockfile verification is now restored from Git
+  ([#1236](https://github.com/stjude-rust-labs/sprocket/issues/1236)).
 
 ### Removed
 
