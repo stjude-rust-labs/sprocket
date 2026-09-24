@@ -6,6 +6,14 @@ note[EmptyDocComment]: empty doc comment block
   │
   = help: consider adding meaningful documentation text or removing the comment block
 
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/empty-doc-comment/source.wdl:10:1
+   │
+10 │ ##
+   │ ^^
+   │
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
+
 note[EmptyDocComment]: empty doc comment block
    ┌─ tests/lints/empty-doc-comment/source.wdl:10:1
    │  
@@ -23,6 +31,23 @@ note[EmptyDocComment]: empty doc comment block
    │ ^^^^^
    │
    = help: consider adding meaningful documentation text or removing the comment block
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/empty-doc-comment/source.wdl:39:1
+   │
+39 │ ## Multiple with text - should NOT flag
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/empty-doc-comment/source.wdl:41:1
+   │  
+41 │ ╭ ##
+42 │ │ ##
+   │ ╰──^
+   │  
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[EmptyDocComment]: empty doc comment block
    ┌─ tests/lints/empty-doc-comment/source.wdl:49:1
