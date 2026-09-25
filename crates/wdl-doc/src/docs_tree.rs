@@ -2009,7 +2009,11 @@ mod tests {
         let docs_dir = tempfile::tempdir().unwrap();
         let index_source = tempfile::tempdir().unwrap();
         let index_path = index_source.path().join("index.md");
-        fs::write(&index_path, "Custom homepage content marker").unwrap();
+        fs::write(
+            &index_path,
+            r#"<div class="wdl-tests-dark">Custom homepage content marker</div>"#,
+        )
+        .unwrap();
 
         let tree = DocsTreeBuilder::new(docs_dir.path())
             .maybe_workspace_metadata(None)
@@ -2029,6 +2033,7 @@ mod tests {
         let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
         assert!(!content.contains("main__homepage-header"));
         assert!(content.contains("Custom homepage content marker"));
+        assert!(content.contains("class=\"wdl-tests-dark\""));
         assert!(!content.contains("module-overview"));
     }
 

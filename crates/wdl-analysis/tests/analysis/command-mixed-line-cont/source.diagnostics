@@ -1,0 +1,21 @@
+warning[CommandSectionIndentation]: mixed indentation within a command
+   ┌─ tests/analysis/command-mixed-line-cont/source.wdl:12:2
+   │
+10 │     command <<<
+   │     ------- this command section uses both tabs and spaces in leading whitespace
+11 │         this line has a continuation /
+12 │            and should be a warning
+   │  ^^^ indented with spaces until this tab
+   │
+   = fix: use either tabs or spaces exclusively for indentation
+
+warning[CommandSectionIndentation]: mixed indentation within a command
+   ┌─ tests/analysis/command-mixed-line-cont/source.wdl:27:2
+   │
+25 │     command {
+   │     ------- this command section uses both tabs and spaces in leading whitespace
+26 │         this line has a continuation /
+27 │            and should be a warning
+   │  ^^^ indented with spaces until this tab
+   │
+   = fix: use either tabs or spaces exclusively for indentation

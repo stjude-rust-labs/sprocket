@@ -26,10 +26,10 @@ pub fn workspace_symbol(
     for index in graph.inner().node_indices() {
         let node = graph.get(index);
         if let Some(doc) = node.document()
-            && let Ok(Some(doc_symbols)) = handlers::document_symbol(graph, doc.uri())
+            && let Ok(Some(doc_symbols)) = handlers::document_symbol(graph, &doc.uri())
             && let DocumentSymbolResponse::Nested(nested) = doc_symbols
         {
-            flatten_document_symbols(doc.uri(), &nested, None, query, &mut symbols)?;
+            flatten_document_symbols(&doc.uri(), &nested, None, query, &mut symbols)?;
         }
     }
 

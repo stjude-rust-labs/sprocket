@@ -1,4 +1,4 @@
-#@ except: UnusedDeclaration
+#@ except: UnusedDeclaration, DeprecatedObject
 ## This is a test of supporting coercions of Map <-> Object/Struct
 ## See: https://github.com/stjude-rust-labs/wdl/issues/549
 version 1.1

@@ -352,6 +352,15 @@ impl Diagnostic {
         self
     }
 
+    /// Offsets the spans of all labels in the diagnostic by the given amount.
+    pub fn offset(&mut self, offset: isize) {
+        for label in &mut self.labels {
+            let start = (label.span.start() as isize + offset) as usize;
+            let len = label.span.len();
+            label.span = Span::new(start, len);
+        }
+    }
+
     /// Sets the severity of the diagnostic.
     pub fn with_severity(mut self, severity: Severity) -> Self {
         self.severity = severity;
@@ -385,13 +394,14 @@ impl Diagnostic {
         self.help.as_deref()
     }
 
-    /// Gets the labels of the diagnostic.
-    pub fn labels(&self) -> impl Iterator<Item = &Label> {
+    /// Gets an iterator over the labels of the diagnostic.
+    pub fn labels(&self) -> impl ExactSizeIterator<Item = &Label> {
         self.labels.iter()
     }
 
-    /// Gets the mutable labels of the diagnostic.
-    pub fn labels_mut(&mut self) -> impl Iterator<Item = &mut Label> {
+    /// Gets an iterator over mutable references to the labels of the
+    /// diagnostic.
+    pub fn labels_mut(&mut self) -> impl ExactSizeIterator<Item = &mut Label> {
         self.labels.iter_mut()
     }
 

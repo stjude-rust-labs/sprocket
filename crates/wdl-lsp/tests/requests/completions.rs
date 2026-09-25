@@ -11,6 +11,8 @@ use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::Completion;
 use pretty_assertions::assert_eq;
+use wdl_analysis::FeatureFlags;
+use wdl_lsp::ServerOptions;
 
 use crate::common::TestContext;
 use crate::common::TestContextBuilder;
@@ -703,4 +705,26 @@ async fn should_not_complete_shadowed_type_names() {
             .any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::ENUM)),
         "completions should NOT have contained an enum item for 'Status'"
     );
+}
+
+#[tokio::test]
+async fn should_complete_select_imported_task() {
+    let mut ctx = TestContextBuilder::new("completions_selected")
+        .server_options(ServerOptions {
+            feature_flags: FeatureFlags::default().with_wdl_1_4(),
+            ..ServerOptions::default()
+        })
+        .build();
+    ctx.initialize().await;
+
+    // Position of `add` in `call add` in source.wdl
+    let response = completion_request(&mut ctx, "source.wdl", Position::new(5, 9))
+        .await
+        .expect("request should succeed");
+
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_contains(&items, "add");
 }
