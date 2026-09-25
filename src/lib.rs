@@ -181,12 +181,12 @@ async fn real_main() -> CommandResult<()> {
         Commands::Inputs(args) => commands::inputs::inputs(args, config, output).await,
         Commands::Lint(args) => commands::check::lint(args, config, output).await,
         Commands::Run(args) => commands::run::run(args, config, output, file_handle, writer).await,
-        Commands::Validate(args) => commands::validate::validate(args, config, colorize).await,
+        Commands::Validate(args) => commands::validate::validate(args, config, output).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
-            commands::doc::doc(args, config, colorize).await
+            commands::doc::doc(args, config, output).await
         }
         Commands::Dev(commands::DevCommands::Lock(args)) => {
-            commands::lock::lock(args, config, colorize).await
+            commands::lock::lock(args, config, output).await
         }
         Commands::Dev(commands::DevCommands::Module(command)) => {
             commands::module::run(command, config, output).await

@@ -26,6 +26,13 @@ use wdl::doc::install_theme;
 use crate::Config;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+
+/// Documentation check action.
+const CHECK: Action = Action::new("Checked", "check");
+/// Documentation generation action.
+const GENERATE: Action = Action::new("Generated", "generate");
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -117,7 +124,8 @@ pub struct Args {
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     if args.with_doc_comments {
         tracing::warn!(
             "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
@@ -274,6 +282,18 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
     if let Some(e) = counts.verify_no_errors() {
         return Err(e.into());
+    }
+
+    if args.check {
+        output.completed(
+            CHECK,
+            format!("documentation for `{}`", workspace.display()),
+        );
+    } else {
+        output.completed(
+            GENERATE,
+            format!("documentation at `{}`", docs_dir.display()),
+        );
     }
 
     if args.open {
