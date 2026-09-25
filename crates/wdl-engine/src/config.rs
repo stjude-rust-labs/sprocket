@@ -2850,6 +2850,20 @@ impl fmt::Display for BuilderErrorDisplay<'_> {
     }
 }
 
+/// Helper for displaying unknown key errors.
+struct UnknownKeyErrorDisplay<'a>(&'a toml_spanner::Error);
+
+impl fmt::Display for UnknownKeyErrorDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown configuration field")?;
+        if let Some(path) = self.0.path() {
+            write!(f, " `{path}`")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Represents an error encountered while building a configuration.
 #[derive(Debug, thiserror::Error)]
 pub enum BuilderError {
@@ -2889,7 +2903,7 @@ pub enum BuilderError {
         error: toml_spanner::FromTomlError,
     },
     /// Encountered an unknown field key.
-    #[error("unknown configuration field")]
+    #[error("{}", UnknownKeyErrorDisplay(.error))]
     UnknownKey {
         /// The path to the file.
         ///
@@ -3034,7 +3048,6 @@ enum Source {
 
 /// A parsed configuration.
 ///
-///
 /// See [`ConfigBuilder::try_build()`].
 #[derive(Debug)]
 pub struct BuiltConfig<T> {
@@ -3173,13 +3186,10 @@ impl<T> ConfigBuilder<T> {
             })?;
 
         // Deserialize the merged contents back to the underlying config type
-        let (ctx, merged_table) = merged_doc.split();
-        let parsed = T::from_toml(ctx, merged_table.as_item()).map_err(|_| {
+        let (parsed, _) = merged_doc.to_allowing_errors::<T>().map_err(|error| {
             BuilderMergeError::Deserialize {
                 source: source.clone(),
-                error: toml_spanner::FromTomlError {
-                    errors: std::mem::take(&mut ctx.errors),
-                },
+                error,
             }
         })?;
 

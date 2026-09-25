@@ -190,7 +190,7 @@ async fn real_main() -> CommandResult<()> {
                 }) => {
                     emit_config_diagnostics(
                         &warnings,
-                        cli.report_mode.unwrap_or_default(),
+                        cli.report_mode.unwrap_or(config.common.report_mode),
                         cli.color,
                     )?;
                     config
