@@ -89,7 +89,6 @@ async fn status_single(
     json: bool,
     output: CommandOutput,
 ) -> CommandResult<()> {
-    let colorize = output.colorize();
     let uuid = resolve_run_id(run_id, base_url).await?;
 
     let url = format!("{base_url}{path}", path = paths::get_run(uuid));
@@ -114,14 +113,7 @@ async fn status_single(
     let run = &body.run;
 
     let status_str = run.status.to_string();
-    let status_display = if colorize {
-        status_str
-            .color(status_color(&run.status))
-            .bold()
-            .to_string()
-    } else {
-        status_str
-    };
+    let status_display = output.style(status_str.color(status_color(&run.status)).bold());
 
     // Calculate elapsed time if available.
     let elapsed = match (run.started_at, run.completed_at) {
@@ -149,7 +141,7 @@ async fn status_single(
         output.payload(format!("{:>14}  {target}", "Target:"));
     }
 
-    if let Some(summary) = task_counts_summary(&counts, colorize) {
+    if let Some(summary) = task_counts_summary(&counts, output) {
         output.payload(format!("{:>14}  {summary}", "Tasks:"));
     }
 
@@ -170,7 +162,6 @@ async fn status_list(
     json: bool,
     output: CommandOutput,
 ) -> CommandResult<()> {
-    let colorize = output.colorize();
     let client = reqwest::Client::new();
     let (runs, total_runs) = fetch_run_list(&client, base_url, status_filter, limit).await?;
 
@@ -186,14 +177,7 @@ async fn status_list(
 
     for run in &runs {
         let status_str = run.status.to_string();
-        let status_display = if colorize {
-            status_str
-                .color(status_color(&run.status))
-                .bold()
-                .to_string()
-        } else {
-            status_str.clone()
-        };
+        let status_display = output.style(status_str.color(status_color(&run.status)).bold());
 
         // Account for the ANSI color codes when padding the status column so
         // the visible width stays aligned.

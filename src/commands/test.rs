@@ -6,7 +6,6 @@ use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
-use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -311,9 +310,17 @@ impl TestIteration {
         clean: bool,
         quiet: bool,
         mut indicatif_writer: IndicatifWriter<Stdout>,
+        output: CommandOutput,
     ) -> Result<IterationResult> {
         let id = format!(
             "{doc}::{target}::{test} (iteration #{num})",
+            doc = self.id.doc_name,
+            target = self.id.target,
+            test = self.id.test_name,
+            num = self.id.iteration_num,
+        );
+        let label = format!(
+            "`{doc}::{target}::{test}` (iteration #{num})",
             doc = self.id.doc_name,
             target = self.id.target,
             test = self.id.test_name,
@@ -445,13 +452,19 @@ impl TestIteration {
         if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
-                    writeln!(&mut indicatif_writer, "{id}: ✅")?;
+                    output.write_completed(&mut indicatif_writer, PASS, &label)?;
                 }
                 Ok(IterationResult::Fail(_)) => {
-                    writeln!(&mut indicatif_writer, "{id}: ❌")?;
+                    output.write_failed(
+                        &mut indicatif_writer,
+                        format!("{label}: assertions failed"),
+                    )?;
                 }
                 Err(_) => {
-                    writeln!(&mut indicatif_writer, "{id}: ☠️")?;
+                    output.write_failed(
+                        &mut indicatif_writer,
+                        format!("{label}: execution errored"),
+                    )?;
                 }
             }
         }
@@ -615,6 +628,7 @@ struct Runner {
     engine: Engine,
     status_bar: StatusBar,
     indicatif_writer: IndicatifWriter<Stdout>,
+    output: CommandOutput,
     permits: usize,
     throttle: u64,
     cancellation: CancellationContext,
@@ -818,7 +832,7 @@ impl Runner {
             .expect("should have test results");
 
         let evaluation = test_iteration
-            .evaluate(clean, quiet, self.indicatif_writer.clone())
+            .evaluate(clean, quiet, self.indicatif_writer.clone(), self.output)
             .await;
         test_results.push(evaluation);
 
@@ -1167,6 +1181,7 @@ pub async fn test(
             StatusBar::new(colorize)
         },
         indicatif_writer,
+        output,
         permits: parallelism,
         throttle: config.test.throttle,
         cancellation: cancellation.clone(),
