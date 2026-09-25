@@ -3,4 +3,3 @@ error: type mismatch for placeholder option `sep`: expected type `Array[P]` wher
    │
 11 │         String out = "~{sep=', ' read_json("not-array.json")}"
    │                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Int`
-

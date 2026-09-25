@@ -68,16 +68,6 @@ warning[MatchingOutputMeta]: output `v` is missing from `meta.outputs` section i
    │
    = fix: add a description of output `v` to documentation in `meta.outputs`
 
-note[ExceptDirectiveValid]: `except` directive `MatchingOutputMeta` has no effect above metadata object item
-    ┌─ tests/lints/nonmatching-output/source.wdl:114:24
-    │
-114 │             #@ except: MatchingOutputMeta
-    │                        ^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
-115 │             v: "v",
-    │             ------ invalid element for this `except` directive
-    │
-    = fix: valid locations for this directive are above: version statement, task definition, workflow definition
-
 warning[MatchingOutputMeta]: `v` appears in `outputs` section of the task `garply` but is not a declared `output`
     ┌─ tests/lints/nonmatching-output/source.wdl:115:13
     │

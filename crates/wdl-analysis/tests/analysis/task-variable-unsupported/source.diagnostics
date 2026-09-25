@@ -9,4 +9,3 @@ error: the `task` variable may only be used within a task command section or tas
    │
 11 │         String name = task.name
    │                       ^^^^
-

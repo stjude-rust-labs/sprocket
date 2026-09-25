@@ -42,8 +42,8 @@ impl Outputs {
 
     /// Sorts the outputs according to a callback.
     pub(crate) fn sort_by(&mut self, mut cmp: impl FnMut(&str, &str) -> Ordering) {
-        // We can sort unstable as none of the keys are equivalent in ordering; thus the
-        // resulting sort is still considered to be stable
+        // We can sort unstable as none of the keys are equivalent in ordering;
+        // thus the resulting sort is still considered to be stable
         self.values.sort_unstable_by(move |a, _, b, _| {
             let ordering = cmp(a, b);
             assert_ne!(ordering, Ordering::Equal);

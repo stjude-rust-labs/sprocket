@@ -23,9 +23,9 @@ use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::format_meta_value;
 use wdl_ast::v1::get_param_meta;
 
-use crate::document::Enum;
-use crate::document::Struct;
-use crate::document::Task;
+use crate::EnumRef;
+use crate::StructRef;
+use crate::TaskRef;
 use crate::document::Workflow;
 
 /// Makes a LSP documentation from a definition text.
@@ -299,10 +299,20 @@ fn render_enum_doc(n: &EnumDefinition, computed_type: Option<&str>) -> String {
 
 /// Provides documentation for tasks which includes `inputs`, `outputs`,
 /// `metadata`, `runtime`
-pub fn provide_task_documentation(task: &Task, root: &wdl_ast::Document) -> Option<String> {
-    match TextSize::try_from(task.name_span().start()) {
+pub fn provide_task_documentation(task: &TaskRef<'_>, root: &wdl_ast::Document) -> Option<String> {
+    let (root, name_span) = match task {
+        TaskRef::Local(t) => (root.inner().clone(), t.name_span()),
+        TaskRef::Imported(t) => {
+            let root = t.document.root();
+            let ast = root.ast();
+            let mut tasks = ast.as_v1()?.tasks();
+            let target = tasks.find(|task| task.name().text() == t.name())?;
+            (root.inner().clone(), target.name().span())
+        }
+    };
+
+    match TextSize::try_from(name_span.start()) {
         Ok(offset) => root
-            .inner()
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(TaskDefinition::cast))
@@ -330,35 +340,30 @@ pub fn provide_workflow_documentation(
 
 /// Provides documentation for structs.
 pub fn provide_struct_documentation(
-    struct_info: &Struct,
+    struct_info: &StructRef<'_>,
     root: &wdl_ast::Document,
 ) -> Option<String> {
-    match TextSize::try_from(struct_info.name_span().start()) {
-        Ok(offset) => root
-            .inner()
-            .token_at_offset(offset)
-            .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(StructDefinition::cast))
-            .map(|n| render_struct_doc(&n)),
-        Err(_) => None,
-    }
+    let ast = root.ast();
+    let target = ast
+        .as_v1()?
+        .structs()
+        .find(|s| s.name().text() == struct_info.name())?;
+    Some(render_struct_doc(&target))
 }
 
 /// Provides documentation for enums.
-pub fn provide_enum_documentation(enum_info: &Enum, root: &wdl_ast::Document) -> Option<String> {
-    match TextSize::try_from(enum_info.name_span().start()) {
-        Ok(offset) => root
-            .inner()
-            .token_at_offset(offset)
-            .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(EnumDefinition::cast))
-            .map(|n| {
-                let computed_type = enum_info
-                    .ty()
-                    .and_then(|ty| ty.as_enum())
-                    .map(|enum_ty| enum_ty.inner_value_type().to_string());
-                render_enum_doc(&n, computed_type.as_deref())
-            }),
-        Err(_) => None,
-    }
+pub fn provide_enum_documentation(
+    enum_info: &EnumRef<'_>,
+    root: &wdl_ast::Document,
+) -> Option<String> {
+    let ast = root.ast();
+    let target = ast
+        .as_v1()?
+        .enums()
+        .find(|e| e.name().text() == enum_info.name())?;
+    let computed_type = enum_info
+        .ty()
+        .and_then(|ty| ty.as_enum())
+        .map(|enum_ty| enum_ty.inner_value_type().to_string());
+    Some(render_enum_doc(&target, computed_type.as_deref()))
 }

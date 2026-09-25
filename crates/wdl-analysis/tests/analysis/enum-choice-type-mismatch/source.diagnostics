@@ -16,7 +16,7 @@ error: cannot infer a common type for enum `DataSets`
 
 error: cannot infer a common type for enum `Config`
    ┌─ tests/analysis/enum-choice-type-mismatch/source.wdl:21:5
-   │    
+   │
 17 │   ╭     Ports = {
 18 │   │         "http": 80,
 19 │   │         "https": 443,
@@ -43,4 +43,3 @@ error: cannot infer a common type for enum `Mixed`
    │     --------- this is the last choice with a common type `Int`
 36 │     Second = "two",
    │     ^^^^^^^^^^^^^^ this is the first choice with type `String` that has no common type with type `Int`
-

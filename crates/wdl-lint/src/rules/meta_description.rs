@@ -9,11 +9,15 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Documented;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::SectionParent;
+use wdl_ast::v1::TaskDefinition;
+use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 
 use crate::Rule;
@@ -47,6 +51,8 @@ pub struct MetaDescriptionRule {
     version: Option<SupportedVersion>,
     /// Whether or not we're currently in a struct definition.
     in_struct: bool,
+    /// Whether or not the current item has a doc comment.
+    documented: bool,
 }
 
 impl Rule for MetaDescriptionRule {
@@ -55,13 +61,14 @@ impl Rule for MetaDescriptionRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures the `meta` section contains a `description` key."
+        "Ensures that items with a `meta` section either contain a `description` key or a doc \
+         comment."
     }
 
     fn explanation(&self) -> &'static str {
-        "Each task, workflow, and struct should have a description in the meta section. The \
-         description should be short, written in active voice, and be in complete sentences. More \
-         detailed information can be included in the `help` key."
+        "Each task, workflow, and struct should have a short description available. It should be \
+         written in active voice, and be in complete sentences. More detailed information can \
+         either be included in the `help` key, or subsequent paragraphs of a doc comment."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -134,6 +141,18 @@ task say_hello {
     }
 }
 
+impl MetaDescriptionRule {
+    /// Check if the current node has any doc comments.
+    fn check_doc_comments(&mut self, reason: VisitReason, node: &impl Documented<SyntaxNode>) {
+        match reason {
+            VisitReason::Enter => {
+                self.documented = node.doc_comments().is_some_and(|docs| !docs.is_empty())
+            }
+            VisitReason::Exit => self.documented = false,
+        }
+    }
+}
+
 impl Visitor for MetaDescriptionRule {
     fn reset(&mut self) {
         *self = Default::default();
@@ -157,9 +176,23 @@ impl Visitor for MetaDescriptionRule {
         &mut self,
         _: &mut Diagnostics,
         reason: VisitReason,
-        _: &wdl_ast::v1::StructDefinition,
+        s: &wdl_ast::v1::StructDefinition,
     ) {
+        self.check_doc_comments(reason, s);
         self.in_struct = reason == VisitReason::Enter;
+    }
+
+    fn task_definition(&mut self, _: &mut Diagnostics, reason: VisitReason, task: &TaskDefinition) {
+        self.check_doc_comments(reason, task);
+    }
+
+    fn workflow_definition(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        workflow: &WorkflowDefinition,
+    ) {
+        self.check_doc_comments(reason, workflow);
     }
 
     fn metadata_section(
@@ -168,7 +201,7 @@ impl Visitor for MetaDescriptionRule {
         reason: VisitReason,
         section: &MetadataSection,
     ) {
-        if reason == VisitReason::Exit {
+        if self.documented || reason == VisitReason::Exit {
             return;
         }
 

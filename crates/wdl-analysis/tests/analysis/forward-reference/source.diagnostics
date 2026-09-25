@@ -3,6 +3,5 @@ error: type mismatch: expected type `Int`, but found type `String`
    │
 12 │         Int y = z
    │             -   ^ this is type `String`
-   │             │    
+   │             │
    │             this expects type `Int`
-

@@ -14,16 +14,16 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use super::AppState;
+use super::Pagination;
 use super::SprocketCommand;
 use super::error::Error;
-use super::send_command;
-use crate::system::v1::exec::svc::RunManagerCmd;
+use crate::system::v1::db;
 use crate::system::v1::exec::svc::run_manager::commands;
 
 /// Query parameters for listing sessions.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
 pub struct ListSessionsQueryParams {
-    /// Number of results to return (default: `100`).
+    /// Number of results to return (default: `100`, maximum: `1000`).
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
@@ -66,8 +66,14 @@ pub struct SessionResponse {
 
 impl From<commands::SessionResponse> for SessionResponse {
     fn from(response: commands::SessionResponse) -> Self {
+        response.session.into()
+    }
+}
+
+impl From<db::Session> for SessionResponse {
+    fn from(session: db::Session) -> Self {
         Self {
-            session: response.session.into(),
+            session: session.into(),
         }
     }
 }
@@ -106,25 +112,17 @@ pub async fn list_sessions(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
+    let pagination = Pagination::new(query.limit, query.next_token.as_deref())?;
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListSessions {
-        limit: Some(limit),
-        offset: Some(offset),
-        rx,
-    })
-    .await?;
-
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
-    } else {
-        None
-    };
+    let page = state
+        .database()
+        .read_sessions(Some(pagination.limit), Some(pagination.offset))
+        .await?;
+    let next_token = pagination.next_token(page.total);
 
     Ok(Json(ListSessionsResponse {
-        sessions: response.sessions.into_iter().map(Into::into).collect(),
-        total: response.total,
+        sessions: page.records.into_iter().map(Into::into).collect(),
+        total: page.total,
         next_token,
     }))
 }
@@ -146,12 +144,8 @@ pub async fn get_session(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<SessionResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetSession {
-        id,
-        rx,
-    })
-    .await?;
-    Ok(Json(response.into()))
+    let session = state.database().read_session(id).await?;
+    Ok(Json(session.into()))
 }
 
 #[cfg(test)]
@@ -161,10 +155,11 @@ mod tests {
     use super::*;
     use crate::server::ServerFailureMode;
 
-    fn app_state() -> AppState {
+    async fn app_state() -> AppState {
         let (run_manager_tx, _run_manager_rx) = mpsc::channel(1);
         AppState::builder()
             .run_manager_tx(run_manager_tx)
+            .database(crate::server::api::test_database().await)
             .failure_mode(ServerFailureMode::Slow)
             .output_dir(String::new())
             .build()
@@ -176,6 +171,7 @@ mod tests {
             subcommand: SprocketCommand::Server,
             created_by: "tester".to_string(),
             created_at: Utc::now(),
+            heartbeat_at: None,
         }
     }
 
@@ -186,7 +182,7 @@ mod tests {
             next_token: Some("bad-token".to_string()),
         };
 
-        let error = list_sessions(State(app_state()), Ok(Query(query)))
+        let error = list_sessions(State(app_state().await), Ok(Query(query)))
             .await
             .unwrap_err();
         assert!(

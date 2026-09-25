@@ -23,6 +23,7 @@ use rowan::GreenNode;
 use schemars::JsonSchema;
 use secrecy::ExposeSecret;
 use tokio::process::Command;
+use tokio_util::sync::CancellationToken;
 use toml_spanner::Arena;
 use toml_spanner::ErrorKind;
 use toml_spanner::Failed;
@@ -36,7 +37,6 @@ use toml_spanner::helper::display;
 use toml_spanner::helper::flatten_any;
 use toml_spanner::helper::parse_string;
 use tracing::error;
-use tracing::warn;
 use url::Url;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
@@ -54,24 +54,22 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
 use wdl_ast::lexer::Lexer;
 use wdl_ast::v1::Expr;
+use wdl_grammar::Severity;
 use wdl_grammar::SyntaxKind;
 use wdl_grammar::construct_tree;
 use wdl_grammar::grammar::v1;
 use wdl_grammar::grammar::v1::Parser;
 
-use crate::CancellationContext;
 use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
-use crate::Events;
 use crate::NoneValue;
 use crate::Object;
 use crate::SYSTEM;
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::TaskExecutionBackend;
 use crate::convert_unit_string;
 use crate::diagnostics::unknown_enum_choice;
-use crate::http::Transferer;
 use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
@@ -112,11 +110,31 @@ const fn cache_dir_sentinel() -> &'static str {
     "system"
 }
 
+/// The default for runtime digest cache capacity.
+const fn default_digest_cache_capacity() -> u32 {
+    1000
+}
+
+/// The default for runtime choice cache capacity.
+const fn default_choice_cache_capacity() -> u32 {
+    1000
+}
+
+/// The default for runtime regex cache capacity.
+const fn default_regex_cache_capacity() -> u32 {
+    1000
+}
+
 /// The default for HTTP retries.
 ///
 /// Same default as defined in `cloud_copy`
 const fn default_http_retries() -> u32 {
     5
+}
+
+/// The default for evaluation HTTP response cache capacity.
+const fn default_http_response_cache_capacity() -> u32 {
+    1000
 }
 
 /// The default Apptainer executable name.
@@ -387,7 +405,7 @@ mod index_map {
 ///
 /// </div>
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(
     rename = "WdlEngineConfig",
     rename_all = "snake_case",
@@ -456,6 +474,43 @@ pub struct Config {
     #[toml(default, rename = "fail")]
     #[schemars(default, rename = "fail")]
     pub failure_mode: FailureMode,
+    /// The capacity for runtime digest caches.
+    ///
+    /// The file and directory digests calculated during evaluation are stored
+    /// in LRU caches with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_digest_cache_capacity())]
+    #[schemars(default = "default_digest_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub digest_cache_capacity: u32,
+    /// The capacity for the runtime enum choice cache.
+    ///
+    /// The values created for enums during evaluation are stored in an LRU
+    /// cache with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_choice_cache_capacity())]
+    #[schemars(default = "default_choice_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub choice_cache_capacity: u32,
+    /// The capacity for the runtime compiled regular expression cache.
+    ///
+    /// When a WDL stdlib function that takes a regular expression is called, a
+    /// newly seen regular expression is compiled and stored in an LRU cache
+    /// with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_regex_cache_capacity())]
+    #[schemars(default = "default_regex_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub regex_cache_capacity: u32,
 }
 
 impl Default for Config {
@@ -470,6 +525,9 @@ impl Default for Config {
             suppress_env_specific_output: Default::default(),
             experimental_features_enabled: Default::default(),
             failure_mode: Default::default(),
+            digest_cache_capacity: default_digest_cache_capacity(),
+            choice_cache_capacity: default_choice_cache_capacity(),
+            regex_cache_capacity: default_regex_cache_capacity(),
         }
     }
 }
@@ -478,6 +536,14 @@ impl Config {
     /// Gets a builder for [`Config`].
     pub fn builder() -> ConfigBuilder<Self> {
         ConfigBuilder::default()
+    }
+
+    /// Constructs a default configuration using a local backend.
+    pub fn local() -> Self {
+        Config {
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
+            ..Default::default()
+        }
     }
 
     /// Validates the evaluation configuration.
@@ -503,6 +569,18 @@ impl Config {
 
         if self.suppress_env_specific_output && !self.experimental_features_enabled {
             bail!("`suppress_env_specific_output` requires enabling experimental features");
+        }
+
+        if self.digest_cache_capacity == 0 {
+            bail!("configuration value `digest_cache_capacity` cannot be zero");
+        }
+
+        if self.choice_cache_capacity == 0 {
+            bail!("configuration value `choice_cache_capacity` cannot be zero");
+        }
+
+        if self.regex_cache_capacity == 0 {
+            bail!("configuration value `regex_cache_capacity` cannot be zero");
         }
 
         Ok(())
@@ -544,48 +622,6 @@ impl Config {
         }
         // Use the default
         Ok(Cow::Owned(BackendConfig::default()))
-    }
-
-    /// Creates a new task execution backend based on this configuration.
-    pub(crate) async fn create_backend(
-        self: &Arc<Self>,
-        run_root_dir: &Path,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Result<Arc<dyn TaskExecutionBackend>> {
-        use crate::backend::*;
-
-        match self.backend()?.as_ref() {
-            BackendConfig::Local { .. } => {
-                warn!(
-                    "the engine is configured to use the local backend: tasks will not be run \
-                     inside of a container"
-                );
-                Ok(Arc::new(LocalBackend::new(
-                    self.clone(),
-                    events,
-                    cancellation,
-                )?))
-            }
-            BackendConfig::Docker { .. } => Ok(Arc::new(
-                DockerBackend::new(self.clone(), events, cancellation).await?,
-            )),
-            BackendConfig::Tes { .. } => Ok(Arc::new(
-                TesBackend::new(self.clone(), events, cancellation).await?,
-            )),
-            BackendConfig::LsfApptainer { .. } => Ok(Arc::new(LsfApptainerBackend::new(
-                self.clone(),
-                run_root_dir,
-                events,
-                cancellation,
-            )?)),
-            BackendConfig::SlurmApptainer { .. } => Ok(Arc::new(SlurmApptainerBackend::new(
-                self.clone(),
-                run_root_dir,
-                events,
-                cancellation,
-            )?)),
-        }
     }
 }
 
@@ -650,7 +686,7 @@ impl ToToml for Parallelism {
 
 /// Represents HTTP configuration.
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct HttpConfig {
     /// The HTTP download cache location.
@@ -676,6 +712,21 @@ pub struct HttpConfig {
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default, with = "String")]
     pub hash_algorithm: cloud_copy::HashAlgorithm,
+    /// The capacity for the in-memory HTTP response cache.
+    ///
+    /// Each HTTP operation performed in evaluation gets its own LRU response
+    /// cache with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Note: this capacity affects only in-memory caches; it does not affect
+    /// the download cache.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_http_response_cache_capacity())]
+    #[schemars(default = "default_http_response_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub response_cache_capacity: u32,
 }
 
 impl Default for HttpConfig {
@@ -685,6 +736,7 @@ impl Default for HttpConfig {
             retries: default_http_retries(),
             parallelism: Default::default(),
             hash_algorithm: Default::default(),
+            response_cache_capacity: default_http_response_cache_capacity(),
         }
     }
 }
@@ -697,6 +749,11 @@ impl HttpConfig {
         {
             bail!("configuration value `http.parallelism` cannot be zero");
         }
+
+        if self.response_cache_capacity == 0 {
+            bail!("configuration value `http.response_cache_capacity` cannot be zero");
+        }
+
         Ok(())
     }
 
@@ -719,7 +776,7 @@ impl HttpConfig {
 
 /// Represents storage configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct StorageConfig {
     /// Azure Blob Storage configuration.
@@ -748,7 +805,7 @@ impl StorageConfig {
 
 /// Represents authentication information for Azure Blob Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageAuthConfig {
     /// The Azure Storage account name to use.
@@ -781,7 +838,7 @@ impl AzureStorageAuthConfig {
 
 /// Represents configuration for Azure Blob Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageConfig {
     /// The Azure Blob Storage authentication configuration.
@@ -802,7 +859,7 @@ impl AzureStorageConfig {
 
 /// Represents authentication information for AWS S3 storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageAuthConfig {
     /// The AWS Access Key ID to use.
@@ -835,7 +892,7 @@ impl S3StorageAuthConfig {
 
 /// Represents configuration for AWS S3 storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageConfig {
     /// The default region to use for S3-schemed URLs (e.g.
@@ -862,7 +919,7 @@ impl S3StorageConfig {
 
 /// Represents authentication information for Google Cloud Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageAuthConfig {
     /// The HMAC Access Key to use.
@@ -895,7 +952,7 @@ impl GoogleStorageAuthConfig {
 
 /// Represents configuration for Google Cloud Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageConfig {
     /// The Google Cloud Storage authentication configuration.
@@ -916,7 +973,7 @@ impl GoogleStorageConfig {
 
 /// Represents workflow evaluation configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WorkflowConfig {
     /// Scatter statement evaluation configuration.
@@ -935,7 +992,7 @@ impl WorkflowConfig {
 
 /// Represents scatter statement evaluation configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ScatterConfig {
     /// The number of scatter array elements to process concurrently.
@@ -1140,17 +1197,64 @@ impl ToToml for Retries {
     }
 }
 
+/// The maximum number of retries to attempt if a task fails.
+#[derive(Copy, Clone, Debug, Toml, PartialEq, Eq)]
+#[toml(Toml, untagged, from = Retries)]
+pub enum RetryConfig {
+    /// Disable retries entirely, including any retries specified in task
+    /// requirements.
+    Disabled,
+    /// Set a default maximum number of retries.
+    ///
+    /// A task's `max_retries` requirement will override this value.
+    Enabled(Retries),
+}
+
+impl RetryConfig {
+    /// Whether retries are disabled.
+    pub fn is_disabled(self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self::Enabled(Retries::default())
+    }
+}
+
+impl From<u64> for RetryConfig {
+    fn from(value: u64) -> Self {
+        Self::Enabled(value.into())
+    }
+}
+
+impl From<RetryConfig> for u64 {
+    fn from(value: RetryConfig) -> Self {
+        match value {
+            RetryConfig::Enabled(retries) => retries.into(),
+            RetryConfig::Disabled => 0,
+        }
+    }
+}
+
+impl From<Retries> for RetryConfig {
+    fn from(value: Retries) -> Self {
+        Self::Enabled(value)
+    }
+}
+
 /// Represents task evaluation configuration.
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
     /// A task's `max_retries` requirement will override this value.
     #[toml(default)]
-    #[schemars(default)]
-    pub retries: Retries,
+    #[schemars(default, with = "Retries")]
+    pub retries: RetryConfig,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
     #[toml(default = String::from(default_task_container()))]
@@ -1251,7 +1355,7 @@ impl Default for TaskConfig {
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
-        if let Retries::Use(value) = self.retries
+        if let RetryConfig::Enabled(Retries::Use(value)) = self.retries
             && value >= MAX_RETRIES
         {
             bail!("configuration value `task.retries` cannot exceed {MAX_RETRIES}");
@@ -1260,13 +1364,20 @@ impl TaskConfig {
         Ok(())
     }
 
-    /// Get the configured cache dir if it is set.
-    pub fn cache_dir(&self) -> Option<PathBuf> {
-        if self.cache_dir == cache_dir_sentinel() {
-            None
+    /// Gets the call cache directory.
+    pub fn cache_dir(&self) -> Result<PathBuf> {
+        const CALL_CACHE_SUBDIR: &str = "calls";
+
+        if self.using_system_cache_dir() {
+            cache_dir().map(|d| d.join(CALL_CACHE_SUBDIR))
         } else {
-            Some(PathBuf::from(&self.cache_dir))
+            Ok(PathBuf::from(&self.cache_dir))
         }
+    }
+
+    /// Determines if the system cache directory is being used.
+    pub fn using_system_cache_dir(&self) -> bool {
+        self.cache_dir == cache_dir_sentinel()
     }
 }
 
@@ -1455,7 +1566,7 @@ impl From<SlurmApptainerBackendConfig> for BackendConfig {
 /// directly without the use of a container; only use this backend on trusted
 /// WDL. </div>
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LocalBackendConfig {
     /// Set the number of CPUs available for task execution.
@@ -1520,7 +1631,7 @@ fn default_docker_cleanup() -> bool {
 
 /// Represents configuration for the Docker backend.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DockerBackendConfig {
     /// Whether or not to remove a task's container after the task completes.
@@ -1548,7 +1659,7 @@ impl Default for DockerBackendConfig {
 
 /// Represents HTTP basic authentication configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BasicAuthConfig {
     /// The HTTP basic authentication username.
@@ -1572,7 +1683,7 @@ impl BasicAuthConfig {
 
 /// Represents HTTP bearer token authentication configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BearerAuthConfig {
     /// The HTTP bearer authentication token.
@@ -1650,7 +1761,7 @@ impl From<BearerAuthConfig> for TesBackendAuthConfig {
 
 /// Represents configuration for the Task Execution Service (TES) backend.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TesBackendConfig {
     /// The URL of the Task Execution Service.
@@ -1771,7 +1882,7 @@ impl TesBackendConfig {
 
 /// Configuration for the Apptainer container runtime.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
     /// Path to the Apptainer (or Singularity) executable.
@@ -1785,10 +1896,10 @@ pub struct ApptainerConfig {
 
     /// Path to a shared directory for caching pulled `.sif` images.
     ///
-    /// When set, pulled images are stored in this directory and shared
-    /// across runs. When unset, images are stored in a per-run directory
-    /// that is not shared.
-    pub image_cache_dir: Option<PathBuf>,
+    /// Defaults to an operating system specific cache directory for the user.
+    #[toml(default = String::from(cache_dir_sentinel()))]
+    #[schemars(default = "cache_dir_sentinel")]
+    pub image_cache_dir: String,
 
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
@@ -1801,7 +1912,7 @@ impl Default for ApptainerConfig {
     fn default() -> Self {
         Self {
             executable: default_apptainer_executable().into(),
-            image_cache_dir: None,
+            image_cache_dir: cache_dir_sentinel().into(),
             extra_args: Default::default(),
         }
     }
@@ -1811,6 +1922,22 @@ impl ApptainerConfig {
     /// Validate that Apptainer is appropriately configured.
     pub async fn validate(&self) -> Result<(), anyhow::Error> {
         Ok(())
+    }
+
+    /// Get the image cache dir.
+    pub fn image_cache_dir(&self) -> Result<PathBuf> {
+        const IMAGES_CACHE_SUBDIR: &str = "images";
+
+        if self.image_cache_dir == cache_dir_sentinel() {
+            cache_dir().map(|d| d.join(IMAGES_CACHE_SUBDIR))
+        } else {
+            Ok(PathBuf::from(&self.image_cache_dir))
+        }
+    }
+
+    /// Determines if the system image cache directory is being used.
+    pub fn using_system_image_cache_dir(&self) -> bool {
+        self.image_cache_dir == cache_dir_sentinel()
     }
 }
 
@@ -1929,7 +2056,7 @@ impl Condition {
 
                 Ok(Self {
                     raw,
-                    expr: expr.inner().green().into_owned(),
+                    expr: expr.inner().green().to_owned(),
                 })
             }
             Err((marker, diagnostic)) => {
@@ -1943,18 +2070,9 @@ impl Condition {
     /// returns the result.
     ///
     /// Returns an error if the evaluation resulted in an error.
-    pub(crate) async fn evaluate(
-        &self,
-        request: &ExecuteTaskRequest<'_>,
-        transferer: &dyn Transferer,
-    ) -> Result<bool> {
+    pub(crate) async fn evaluate(&self, request: &ExecuteTaskRequest<'_>) -> Result<bool> {
         /// Helper that implements `EvaluationContext`.
-        struct Context<'a> {
-            /// The task execution request.
-            request: &'a ExecuteTaskRequest<'a>,
-            /// The file transferer for evaluation.
-            transferer: &'a dyn Transferer,
-        }
+        struct Context<'a>(&'a ExecuteTaskRequest<'a>);
 
         impl EvaluationContext for Context<'_> {
             fn version(&self) -> SupportedVersion {
@@ -1963,19 +2081,19 @@ impl Condition {
 
             fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
                 match name {
-                    "cpu" => Ok(self.request.constraints.cpu.into()),
-                    "memory" => Ok((self.request.constraints.memory as i64).into()),
-                    "gpu" => Ok((!self.request.constraints.gpu.is_empty()).into()),
-                    "fpga" => Ok((!self.request.constraints.fpga.is_empty()).into()),
+                    "cpu" => Ok(self.0.constraints.cpu.into()),
+                    "memory" => Ok((self.0.constraints.memory as i64).into()),
+                    "gpu" => Ok((!self.0.constraints.gpu.is_empty()).into()),
+                    "fpga" => Ok((!self.0.constraints.fpga.is_empty()).into()),
                     "disks" => Ok(self
-                        .request
+                        .0
                         .constraints
                         .disks
                         .iter()
                         .map(|(_, s)| *s)
                         .sum::<i64>()
                         .into()),
-                    "hint" => Ok(self.request.hints.clone().into()),
+                    "hint" => Ok(self.0.hints.clone().into()),
                     _ => Err(unknown_name(name, span)),
                 }
             }
@@ -1993,35 +2111,43 @@ impl Condition {
             }
 
             fn base_dir(&self) -> &EvaluationPath {
-                self.request.base_dir
+                self.0.base_dir
             }
 
             fn temp_dir(&self) -> &Path {
-                self.request.temp_dir
+                self.0.temp_dir
             }
 
-            fn transferer(&self) -> &dyn Transferer {
-                self.transferer
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+                (
+                    self.0.context.http_client(),
+                    self.0.context.cancellation().first(),
+                )
             }
 
             fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
-                // If the object being accessed is not the hint object, let the access proceed
-                // normally
-                if !Arc::ptr_eq(&object.members, &self.request.hints.members) {
+                // If the object being accessed is not the hint object, let the
+                // access proceed normally
+                if !Arc::ptr_eq(&object.members, &self.0.hints.members) {
                     return None;
                 }
 
-                // Access to the hints object first checks for a hint override in the inputs and
-                // then falls back to the task's hints; if the name is not present in either, a
+                // Access to the hints object first checks for a hint override
+                // in the inputs and then falls back to the
+                // task's hints; if the name is not present in either, a
                 // `None` value is returned instead of an error
                 Some(
-                    self.request
+                    self.0
                         .inputs
                         .hint(name)
                         .or_else(|| object.get(name))
                         .cloned()
                         .unwrap_or_else(|| NoneValue::untyped().into()),
                 )
+            }
+
+            fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
+                self.0.context.compile_regex(pattern)
             }
         }
 
@@ -2044,15 +2170,7 @@ impl Condition {
         }
 
         let expr = Expr::cast(self.expr.clone().into()).expect("should be an expression node");
-        match eval(
-            Context {
-                request,
-                transferer,
-            },
-            &expr,
-        )
-        .await
-        {
+        match eval(Context(request), &expr).await {
             Ok(res) => Ok(res),
             Err(diagnostic) => {
                 let file: SimpleFile<_, _> = SimpleFile::new("<condition>", &self.raw);
@@ -2095,12 +2213,13 @@ impl<'de> FromToml<'de> for Condition {
                     mapping[i].1
                 }
                 Err(i) => {
-                    // Not in the map, need to potentially offset the unescaped position
-                    // based on a preceding map entry
+                    // Not in the map, need to potentially offset the unescaped
+                    // position based on a preceding map
+                    // entry
                     unescaped
                         + if i == 0 {
-                            // No need to offset as this position comes before any
-                            // escape sequences
+                            // No need to offset as this position comes before
+                            // any escape sequences
                             0
                         } else {
                             // Offset by the last delta
@@ -2163,7 +2282,7 @@ impl<'de> FromToml<'de> for Condition {
 /// Conditional arguments are passed to the program responsible for queuing a
 /// task when the associated conditional expression evaluates to `true`.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ConditionalArgs {
     /// The condition for including the arguments.
@@ -2192,7 +2311,7 @@ impl ConditionalArgs {
 ///
 /// These arguments are passed to the executable responsible for queuing a task.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AdditionalArgs {
     /// The additional arguments to pass to the backend program.
@@ -2251,7 +2370,7 @@ mod byte_size {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
@@ -2312,7 +2431,7 @@ impl LsfQueueConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
@@ -2382,7 +2501,8 @@ impl LsfApptainerBackendConfig {
         // environment. These are a bit fraught, particularly if the behavior of
         // the external tools changes based on where a job gets dispatched, but
         // querying from the perspective of the current node allows
-        // us to get better error messages in circumstances typical to a cluster.
+        // us to get better error messages in circumstances typical to a
+        // cluster.
         if let Some(queue) = &self.default_lsf_queue {
             queue.validate("default").await?;
         }
@@ -2452,8 +2572,8 @@ impl LsfApptainerBackendConfig {
             return Some(queue);
         }
 
-        // Finally the default queue. If this is `None`, `bsub` gets run without a queue
-        // argument and the cluster's default is used.
+        // Finally the default queue. If this is `None`, `bsub` gets run without
+        // a queue argument and the cluster's default is used.
         self.default_lsf_queue.as_ref()
     }
 }
@@ -2467,7 +2587,7 @@ impl LsfApptainerBackendConfig {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmPartitionConfig {
     /// The name of the partition; this is the string passed to `sbatch
@@ -2540,7 +2660,7 @@ impl SlurmPartitionConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
@@ -2612,7 +2732,8 @@ impl SlurmApptainerBackendConfig {
         // environment. These are a bit fraught, particularly if the behavior of
         // the external tools changes based on where a job gets dispatched, but
         // querying from the perspective of the current node allows
-        // us to get better error messages in circumstances typical to a cluster.
+        // us to get better error messages in circumstances typical to a
+        // cluster.
         if let Some(partition) = &self.default_slurm_partition {
             partition.validate("default").await?;
         }
@@ -2645,8 +2766,9 @@ impl SlurmApptainerBackendConfig {
         hints: &Object,
     ) -> Option<&SlurmPartitionConfig> {
         // TODO ACF 2025-09-26: what's the relationship between this code and
-        // `TaskExecutionConstraints`? Should this be there instead, or be pulling
-        // values from that instead of directly from `requirements` and `hints`?
+        // `TaskExecutionConstraints`? Should this be there instead, or be
+        // pulling values from that instead of directly from
+        // `requirements` and `hints`?
 
         // Specialized hardware gets priority.
         if let Some(partition) = self.fpga_slurm_partition.as_ref()
@@ -2674,8 +2796,9 @@ impl SlurmApptainerBackendConfig {
             return Some(partition);
         }
 
-        // Finally the default partition. If this is `None`, `sbatch` gets run without a
-        // partition argument and the cluster's default is used.
+        // Finally the default partition. If this is `None`, `sbatch` gets run
+        // without a partition argument and the cluster's default is
+        // used.
         self.default_slurm_partition.as_ref()
     }
 }
@@ -2727,6 +2850,20 @@ impl fmt::Display for BuilderErrorDisplay<'_> {
     }
 }
 
+/// Helper for displaying unknown key errors.
+struct UnknownKeyErrorDisplay<'a>(&'a toml_spanner::Error);
+
+impl fmt::Display for UnknownKeyErrorDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown configuration field")?;
+        if let Some(path) = self.0.path() {
+            write!(f, " `{path}`")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Represents an error encountered while building a configuration.
 #[derive(Debug, thiserror::Error)]
 pub enum BuilderError {
@@ -2765,6 +2902,19 @@ pub enum BuilderError {
         #[source]
         error: toml_spanner::FromTomlError,
     },
+    /// Encountered an unknown field key.
+    #[error("{}", UnknownKeyErrorDisplay(.error))]
+    UnknownKey {
+        /// The path to the file.
+        ///
+        /// This is `None` when the source was a string.
+        path: Option<PathBuf>,
+        /// The TOML source that was parsed.
+        source: String,
+        /// The error that was encountered.
+        #[source]
+        error: toml_spanner::Error,
+    },
     /// Failed to merge configuration.
     #[error(transparent)]
     Merge(#[from] BuilderMergeError),
@@ -2791,9 +2941,13 @@ impl BuilderError {
                     }
                     | BuilderError::Deserialize {
                         path: Some(path), ..
+                    }
+                    | BuilderError::UnknownKey {
+                        path: Some(path), ..
                     } => path.display().fmt(f),
                     BuilderError::Parse { path: None, .. }
-                    | BuilderError::Deserialize { path: None, .. } => write!(f, "<string>"),
+                    | BuilderError::Deserialize { path: None, .. }
+                    | BuilderError::UnknownKey { path: None, .. } => write!(f, "<string>"),
                     BuilderError::Merge(_) => write!(f, "<merged>"),
                 }
             }
@@ -2808,9 +2962,9 @@ impl BuilderError {
     /// deserializing TOML.
     pub fn toml_error(&self) -> Option<&toml_spanner::Error> {
         match &self {
-            Self::Parse { error, .. } | Self::Merge(BuilderMergeError::Parse { error, .. }) => {
-                Some(error)
-            }
+            Self::Parse { error, .. }
+            | Self::UnknownKey { error, .. }
+            | Self::Merge(BuilderMergeError::Parse { error, .. }) => Some(error),
             Self::Deserialize { error, .. }
             | Self::Merge(BuilderMergeError::Deserialize { error, .. }) => error.errors.first(),
             _ => None,
@@ -2825,15 +2979,24 @@ impl BuilderError {
         match &self {
             Self::Parse { source, .. }
             | Self::Deserialize { source, .. }
+            | Self::UnknownKey { source, .. }
             | Self::Merge(BuilderMergeError::Parse { source, .. })
             | Self::Merge(BuilderMergeError::Deserialize { source, .. }) => Some(source),
             _ => None,
         }
     }
 
+    /// Get the [`Severity`] of the error.
+    pub fn severity(&self) -> Severity {
+        match &self {
+            Self::UnknownKey { .. } => Severity::Warning,
+            _ => Severity::Error,
+        }
+    }
+
     /// Converts the error into a [`Diagnostic`].
     pub fn to_diagnostic(&self) -> Diagnostic {
-        let mut diagnostic = Diagnostic::error(self.to_string());
+        let mut diagnostic = Diagnostic::error(self.to_string()).with_severity(self.severity());
 
         if let Some(e) = self.toml_error() {
             for (span, text) in [e.primary_label(), e.secondary_label()]
@@ -2883,6 +3046,17 @@ enum Source {
     String(String),
 }
 
+/// A parsed configuration.
+///
+/// See [`ConfigBuilder::try_build()`].
+#[derive(Debug)]
+pub struct BuiltConfig<T> {
+    /// The parsed config type.
+    pub config: T,
+    /// Warnings produced during the config parsing.
+    pub warnings: Vec<BuilderError>,
+}
+
 /// Implements a configuration builder.
 ///
 /// The builder supports merging multiple TOML configuration files together.
@@ -2921,7 +3095,9 @@ impl<T> ConfigBuilder<T> {
     ///
     /// Each configuration file is merged with the previous one in the order
     /// they were added to the builder.
-    pub fn try_build(self) -> Result<T, BuilderError>
+    ///
+    /// On success, this returns the parsed config and any warnings produced.
+    pub fn try_build(self) -> Result<BuiltConfig<T>, BuilderError>
     where
         T: ToToml + for<'de> FromToml<'de>,
     {
@@ -2956,18 +3132,42 @@ impl<T> ConfigBuilder<T> {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Merge the documents as TOML tables
+        let mut warnings = Vec::new();
         let mut merged_table: Table<'_> = Table::new();
         for (index, mut document) in documents.into_iter().enumerate() {
-            // Start by deserializing the document to ensure it is a valid standalone
-            // configuration
-            document.to::<T>().map_err(|e| {
-                let (path, source) = &sources[index];
-                BuilderError::Deserialize {
+            // Start by deserializing the document to ensure it is a valid
+            // standalone configuration
+
+            let (path, source) = &sources[index];
+            let (_, mut error) =
+                document
+                    .to_allowing_errors::<T>()
+                    .map_err(|error| BuilderError::Deserialize {
+                        path: path.clone(),
+                        source: source.clone(),
+                        error,
+                    })?;
+
+            warnings.extend(
+                error
+                    .errors
+                    .extract_if(.., |e| matches!(e.kind(), ErrorKind::UnexpectedKey { .. }))
+                    .map(|error| BuilderError::UnknownKey {
+                        path: path.clone(),
+                        source: source.clone(),
+                        error,
+                    }),
+            );
+
+            // Catch anything else just in case. Though realistically, there
+            // should only ever be `UnexpectedKey` errors.
+            if !error.errors.is_empty() {
+                return Err(BuilderError::Deserialize {
                     path: path.clone(),
                     source: source.clone(),
-                    error: e,
-                }
-            })?;
+                    error,
+                });
+            }
 
             // Merge the tables
             Self::merge_tables(document.into_table(), &mut merged_table, &arena);
@@ -2979,17 +3179,24 @@ impl<T> ConfigBuilder<T> {
         let source =
             toml_spanner::to_string(&merged_table).map_err(BuilderMergeError::Serialize)?;
 
+        let mut merged_doc =
+            toml_spanner::parse(&source, &arena).map_err(|e| BuilderMergeError::Parse {
+                source: source.clone(),
+                error: e,
+            })?;
+
         // Deserialize the merged contents back to the underlying config type
-        Ok(toml_spanner::parse(&source, &arena)
-            .map_err(|e| BuilderMergeError::Parse {
+        let (parsed, _) = merged_doc.to_allowing_errors::<T>().map_err(|error| {
+            BuilderMergeError::Deserialize {
                 source: source.clone(),
-                error: e,
-            })?
-            .to()
-            .map_err(|e| BuilderMergeError::Deserialize {
-                source: source.clone(),
-                error: e,
-            })?)
+                error,
+            }
+        })?;
+
+        Ok(BuiltConfig {
+            config: parsed,
+            warnings,
+        })
     }
 
     /// Merges the `src` table with the `dest` table.
@@ -3034,7 +3241,7 @@ impl<T> ConfigBuilder<T> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
     use std::io::Write;
 
@@ -3042,16 +3249,16 @@ mod test {
     use codespan_reporting::term::DisplayStyle;
     use codespan_reporting::term::emit_into_string;
     use codespan_reporting::term::{self};
-    use futures::future::BoxFuture;
     use pretty_assertions::assert_eq;
     use tempfile::TempPath;
     use tempfile::tempdir;
 
     use super::*;
+    use crate::Events;
     use crate::ONE_GIBIBYTE;
     use crate::TaskInputs;
     use crate::backend::TaskExecutionConstraints;
-    use crate::http::Location;
+    use crate::backend::tests::EvalContext;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_MEMORY;
@@ -3069,7 +3276,7 @@ mod test {
 
         assert_eq!(
             toml_spanner::to_string(&map).unwrap().trim(),
-            format!(r#"foo = "secret""#)
+            r#"foo = "secret""#
         );
 
         map.insert(
@@ -3161,6 +3368,36 @@ mod test {
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "configuration value `workflow.scatter.concurrency` cannot be zero"
+        );
+
+        // Test invalid digest cache capacity
+        let config = Config {
+            digest_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `digest_cache_capacity` cannot be zero"
+        );
+
+        // Test invalid choice cache capacity
+        let config = Config {
+            choice_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `choice_cache_capacity` cannot be zero"
+        );
+
+        // Test invalid regex cache capacity
+        let config = Config {
+            regex_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `regex_cache_capacity` cannot be zero"
         );
 
         // Test invalid backend name
@@ -3379,6 +3616,14 @@ mod test {
         config.http.parallelism = Parallelism::default();
         assert!(config.validate().await.is_ok(), "should pass for default");
 
+        // Test invalid HTTP response cache capacity
+        let mut config = Config::default();
+        config.http.response_cache_capacity = 0;
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `http.response_cache_capacity` cannot be zero"
+        );
+
         // Test invalid LSF job name prefix
         #[cfg(unix)]
         {
@@ -3412,7 +3657,8 @@ mod test {
 
     #[test]
     fn it_builds_with_no_sources() {
-        let config = Config::builder().try_build().expect("should build");
+        let BuiltConfig { config, warnings } = Config::builder().try_build().expect("should build");
+        assert!(warnings.is_empty());
         assert_eq!(config, Config::default(), "should be equal");
     }
 
@@ -3420,10 +3666,11 @@ mod test {
     fn it_builds_with_one_source() {
         let path = create_temp_file("backend = 'foo'");
 
-        let config = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&path)
             .try_build()
             .expect("should build");
+        assert!(warnings.is_empty());
         assert_eq!(
             config,
             Config {
@@ -3536,7 +3783,7 @@ excluded_cache_inputs = ['9', '10']
 type = 'lsf_apptainer'
 "#;
 
-        let config = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&first)
             .with_file_source(&second)
             .with_file_source(&third)
@@ -3544,6 +3791,7 @@ type = 'lsf_apptainer'
             .try_build()
             .expect("should build");
 
+        assert!(warnings.is_empty());
         assert_eq!(
             config,
             Config {
@@ -3584,7 +3832,7 @@ type = 'lsf_apptainer'
             HashMap::from_iter([("value", Parallelism::Available)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"available\"\n")
+            "value = \"available\"\n"
         );
 
         let map: HashMap<&str, Parallelism> =
@@ -3622,7 +3870,7 @@ type = 'lsf_apptainer'
         let map: HashMap<&str, Retries> = HashMap::from_iter([("value", Retries::Default)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"default\"\n")
+            "value = \"default\"\n"
         );
 
         let map: HashMap<&str, Retries> = HashMap::from_iter([("value", Retries::Use(123))]);
@@ -3663,8 +3911,8 @@ type = 'lsf_apptainer'
         // Check a string with no escape sequences
         assert!(escape_mapping("hello world!").is_empty());
 
-        // Check for a string containing only an escape sequences (should contain an
-        // exclusive-end mapping)
+        // Check for a string containing only an escape sequences (should
+        // contain an exclusive-end mapping)
         assert_eq!(escape_mapping(r#"\"\""#), &[(1, 2), (2, 4)]);
         assert_eq!(escape_mapping(r#"\u0022\u0022"#), &[(1, 6), (2, 12)]);
         assert_eq!(
@@ -3783,75 +4031,43 @@ type = 'lsf_apptainer'
             }
         }
 
-        struct Transferer;
-
-        impl crate::http::Transferer for Transferer {
-            fn download<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Location>> {
-                unimplemented!()
-            }
-
-            fn upload<'a>(&'a self, _: &'a Path, _: &'a Url) -> BoxFuture<'a, Result<()>> {
-                unimplemented!()
-            }
-
-            fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
-                unimplemented!()
-            }
-
-            fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
-                unimplemented!()
-            }
-
-            fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
-                unimplemented!()
-            }
-
-            fn digest<'a>(
-                &'a self,
-                _: &'a Url,
-            ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
-                unimplemented!()
-            }
-        }
-
         /// Helper for evaluating `Condition` from a WDL expression string.
         ///
         /// The string is expected to be a valid WDL expression.
         async fn eval(context: Context, expression: &str) -> Result<bool> {
             let dir = tempdir().context("failed to create temporary directory")?;
+            let eval_context = EvalContext::new(Events::disabled(), Default::default()).await;
             let condition = Condition::new(expression).expect("invalid expression");
             condition
-                .evaluate(
-                    &ExecuteTaskRequest {
-                        id: "test",
-                        command: "",
-                        inputs: &context.inputs,
-                        backend_inputs: &[],
-                        requirements: &Object::empty(),
-                        hints: &context.hints,
-                        env: &Default::default(),
-                        constraints: &TaskExecutionConstraints {
-                            container: None,
-                            cpu: context.cpu,
-                            memory: context.memory,
-                            gpu: if context.gpu {
-                                vec![String::new()]
-                            } else {
-                                Default::default()
-                            },
-                            fpga: if context.fpga {
-                                vec![String::new()]
-                            } else {
-                                Default::default()
-                            },
-                            disks: IndexMap::from_iter([("".into(), context.disks)]),
+                .evaluate(&ExecuteTaskRequest {
+                    context: &eval_context,
+                    name: "test",
+                    command: "",
+                    inputs: &context.inputs,
+                    backend_inputs: &[],
+                    requirements: &Object::empty(),
+                    hints: &context.hints,
+                    env: &Default::default(),
+                    constraints: &TaskExecutionConstraints {
+                        sources: Vec::new(),
+                        cpu: context.cpu,
+                        memory: context.memory,
+                        gpu: if context.gpu {
+                            vec![String::new()]
+                        } else {
+                            Default::default()
                         },
-                        base_dir: &EvaluationPath::from_local_path(dir.path().into()),
-                        attempt_dir: &dir.path().join("0"),
-                        temp_dir: &dir.path().join("tmp"),
+                        fpga: if context.fpga {
+                            vec![String::new()]
+                        } else {
+                            Default::default()
+                        },
+                        disks: IndexMap::from_iter([("".into(), context.disks)]),
                     },
-                    &Transferer,
-                )
+                    base_dir: &EvaluationPath::from_local_path(dir.path().into()),
+                    attempt_dir: &dir.path().join("0"),
+                    temp_dir: &dir.path().join("tmp"),
+                })
                 .await
         }
 

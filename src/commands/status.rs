@@ -36,8 +36,8 @@ pub struct Args {
 
     /// Filter the run list by status.
     ///
-    /// Valid values: `queued`, `running`, `completed`, `failed`, `canceling`,
-    /// `canceled`. Only used when no `RUN` is provided.
+    /// Valid values: `queued`, `analyzing`, `running`, `completed`, `failed`,
+    /// `canceling`, `canceled`. Only used when no `RUN` is provided.
     #[clap(long, value_name = "STATUS")]
     status: Option<String>,
 

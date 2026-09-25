@@ -48,106 +48,106 @@ error: enum choice value must be a literal expression
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:130:13
-    │  
+    │
 130 │       Value = {
     │ ╭─────────────^
 131 │ │         1 + 1: "value",
 132 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:137:13
-    │  
+    │
 137 │       Value = {
     │ ╭─────────────^
 138 │ │         1: 1 + 1,
 139 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:144:13
-    │  
+    │
 144 │       Value = {
     │ ╭─────────────^
 145 │ │         some_var: "value",
 146 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:151:13
-    │  
+    │
 151 │       Value = {
     │ ╭─────────────^
 152 │ │         1: some_var,
 153 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:158:13
-    │  
+    │
 158 │       Value = {
     │ ╭─────────────^
 159 │ │         "~{key}": "value",
 160 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:165:13
-    │  
+    │
 165 │       Value = {
     │ ╭─────────────^
 166 │ │         "key": "~{value}",
 167 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:172:13
-    │  
+    │
 172 │       Value = object {
     │ ╭─────────────^
 173 │ │         a: 1 + 1,
 174 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:179:13
-    │  
+    │
 179 │       Value = object {
     │ ╭─────────────^
 180 │ │         a: some_var,
 181 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:186:13
-    │  
+    │
 186 │       Value = object {
     │ ╭─────────────^
 187 │ │         a: "~{value}",
 188 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum choice value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:207:14
-    │  
+    │
 207 │       Values = {
     │ ╭──────────────^
 208 │ │         "outer": {
@@ -155,6 +155,5 @@ error: enum choice value must be a literal expression
 210 │ │         },
 211 │ │     },
     │ ╰─────^
-    │  
+    │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
-

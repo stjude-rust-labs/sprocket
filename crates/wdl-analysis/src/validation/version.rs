@@ -174,8 +174,8 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        // Emit a deprecation warning if the user explicitly disabled WDL 1.3 and we
-        // encounter a WDL 1.3 document.
+        // Emit a deprecation warning if the user explicitly disabled WDL 1.3
+        // and we encounter a WDL 1.3 document.
         if let Some(version) = self.version {
             match version {
                 SupportedVersion::V1(V1::Three)

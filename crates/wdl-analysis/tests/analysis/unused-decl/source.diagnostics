@@ -33,4 +33,3 @@ warning[UnusedDeclaration]: unused declaration `unused_decl`
    │
 54 │     Int unused_decl = 0
    │         ^^^^^^^^^^^
-

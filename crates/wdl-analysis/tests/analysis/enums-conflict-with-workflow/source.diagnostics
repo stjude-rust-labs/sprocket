@@ -6,4 +6,3 @@ error: conflicting workflow name `test`
    ·
 10 │ workflow test {}
    │          ^^^^ this workflow conflicts with a previously used name
-

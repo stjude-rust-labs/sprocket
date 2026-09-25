@@ -4,8 +4,9 @@ Usage: sprocket dev [OPTIONS] <COMMAND>
 
 Commands:
   doc        Document a workspace
-  flowchart  Renders a `WDL` workflow as a diagram
+  flowchart  Renders a WDL workflow as a diagram
   lock       Locks Docker images to a sha256 digest
+  module     Create and manage WDL modules
   server     Run-management server commands (start, submit, status, inspect, cancel, retry)
   test       Runs unit tests for a WDL workspace
   help       Print this message or the help of the given subcommand(s)
@@ -17,6 +18,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
       --color <COLOR>
           Controls output colorization
 
@@ -24,15 +28,22 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
+
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
 
   -c, --config <CONFIG>
           Path to the configuration file
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help

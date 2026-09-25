@@ -3,4 +3,3 @@ error: failed to import `foo.wdl`: No such file or directory (os error 2)
   │
 4 │ import "foo.wdl"
   │        ^^^^^^^^^
-

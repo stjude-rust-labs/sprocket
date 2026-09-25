@@ -6,6 +6,12 @@ use wdl_grammar::SyntaxTokenExt;
 
 use super::MetadataSection;
 use super::ParameterMetadataSection;
+#[cfg(feature = "unstable-python")]
+use super::PyMetadataSection;
+#[cfg(feature = "unstable-python")]
+use super::PyParameterMetadataSection;
+#[cfg(feature = "unstable-python")]
+use super::PyUnboundDecl;
 use super::StructKeyword;
 use super::UnboundDecl;
 use crate::AstNode;
@@ -19,8 +25,10 @@ use crate::TreeNode;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct StructDefinition<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> StructDefinition<N> {
     /// Gets the name of the struct.
     pub fn name(&self) -> Ident<N::Token> {
@@ -90,12 +98,16 @@ impl<N: TreeNode> AstNode<N> for StructDefinition<N> {
 
 impl Documented<SyntaxNode> for StructDefinition<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
-        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia(), false)
+                .collect(),
+        )
     }
 }
 
 /// Represents an item in a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum StructItem<N: TreeNode = SyntaxNode> {
     /// The item is a member declaration.
     Member(UnboundDecl<N>),
@@ -230,7 +242,7 @@ impl<N: TreeNode> StructItem<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::AstToken;

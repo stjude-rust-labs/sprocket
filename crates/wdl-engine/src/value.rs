@@ -22,6 +22,7 @@ use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
+use tokio_util::sync::CancellationToken;
 use url::Url;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
@@ -61,10 +62,10 @@ use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::version::V1;
 
 use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::Outputs;
 use crate::backend::TaskExecutionConstraints;
-use crate::http::Transferer;
 use crate::path;
 
 /// Represents a path to a file or directory on the host file system or a URL to
@@ -296,21 +297,55 @@ impl NoneValue {
     }
 }
 
+/// The inner value of [`TypeNameRefValue`].
+#[derive(Debug, Clone)]
+struct TypeNameRefValueInner {
+    /// The name used to reference the type.
+    name: String,
+    /// The referenced custom type.
+    ty: Type,
+}
+
 /// Represents a reference to a user-defined type name.
 ///
 /// Type name reference values are cheap to clone.
 #[derive(Debug, Clone)]
-pub struct TypeNameRefValue(Arc<Type>);
+pub struct TypeNameRefValue(Arc<TypeNameRefValueInner>);
 
 impl TypeNameRefValue {
     /// Constructs a new `TypeNameRefValue` with the given type.
-    pub fn new(ty: Type) -> Self {
-        Self(Arc::new(ty))
+    pub fn new(name: impl Into<String>, ty: impl Into<CustomType>) -> Self {
+        Self(
+            TypeNameRefValueInner {
+                name: name.into(),
+                ty: ty.into().into(),
+            }
+            .into(),
+        )
+    }
+
+    /// Gets the name used to referenced the type.
+    pub fn name(&self) -> &str {
+        &self.0.name
     }
 
     /// Gets the referenced type.
     pub fn ty(&self) -> &Type {
-        &self.0
+        &self.0.ty
+    }
+
+    /// Converts the referenced custom type to a struct type.
+    ///
+    /// Returns `None` if the referenced custom type is not a struct.
+    pub fn as_struct(&self) -> Option<&StructType> {
+        self.ty().as_struct()
+    }
+
+    /// Converts the referenced custom type to an enum type.
+    ///
+    /// Returns `None` if the referenced custom type is not an enum.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        self.ty().as_enum()
     }
 }
 
@@ -776,7 +811,7 @@ impl Value {
 
     /// Check that any paths referenced by a `File` or `Directory` value within
     /// this value exist, and return a new value with any relevant host
-    /// paths transformed by the given `translate()` function.
+    /// paths transformed by the given `translate` function.
     ///
     /// If a `File` or `Directory` value is optional and the path does not
     /// exist, it is replaced with a WDL none value.
@@ -787,7 +822,7 @@ impl Value {
     /// If a local base directory is provided, it will be joined with any
     /// relative local paths prior to checking for existence.
     ///
-    /// The provided transferer is used for checking remote URL existence.
+    /// The provided HTTP client is used for checking remote URL existence.
     ///
     /// TODO ACF 2025-11-10: this function is an intermediate step on the way to
     /// more thoroughly refactoring the code between `sprocket` and
@@ -796,7 +831,7 @@ impl Value {
         &self,
         optional: bool,
         base_dir: Option<&Path>,
-        transferer: Option<&dyn Transferer>,
+        http: Option<(&EvaluationHttpClient, &CancellationToken)>,
         translate: &F,
     ) -> Result<Self>
     where
@@ -813,14 +848,16 @@ impl Value {
         match self {
             Self::Primitive(v @ PrimitiveValue::File(path))
             | Self::Primitive(v @ PrimitiveValue::Directory(path)) => {
-                // We treat file and directory paths almost entirely the same, other than when
-                // reporting errors and choosing which variant to return in the result
+                // We treat file and directory paths almost entirely the same,
+                // other than when reporting errors and choosing
+                // which variant to return in the result
                 let is_file = v.as_file().is_some();
                 let path = translate(path)?;
 
                 if path::is_file_url(path.as_str()) {
-                    // File URLs must be absolute paths, so we just check whether it exists without
-                    // performing any joining
+                    // File URLs must be absolute paths, so we just check
+                    // whether it exists without performing
+                    // any joining
                     let exists = path
                         .as_str()
                         .parse::<Url>()
@@ -839,14 +876,15 @@ impl Value {
 
                     bail!("path `{path}` does not exist");
                 } else if path::is_supported_url(path.as_str()) {
-                    match transferer {
-                        Some(transferer) => {
-                            let exists = transferer
+                    match http {
+                        Some((client, token)) => {
+                            let exists = client
                                 .exists(
                                     &path
                                         .as_str()
                                         .parse()
                                         .with_context(|| format!("invalid URL `{path}`"))?,
+                                    token,
                                 )
                                 .await?;
                             if exists {
@@ -890,9 +928,7 @@ impl Value {
                 Ok(Self::Primitive(v))
             }
             Self::Compound(v) => Ok(Self::Compound(
-                v.resolve_paths(base_dir, transferer, translate)
-                    .boxed()
-                    .await?,
+                v.resolve_paths(base_dir, http, translate).boxed().await?,
             )),
             v => Ok(v.clone()),
         }
@@ -946,11 +982,7 @@ impl Coercible for Value {
                 // SAFETY: we just checked above that this is an enum type.
                 let enum_ty = target.as_enum().unwrap();
 
-                if enum_ty
-                    .choices()
-                    .iter()
-                    .any(|choice_name| choice_name == s.as_str())
-                {
+                if enum_ty.choices().contains(s.as_ref()) {
                     if let Some(context) = context {
                         if let Ok(value) = context.enum_choice_value(enum_ty.name(), s) {
                             return Ok(Value::Compound(CompoundValue::EnumChoice(
@@ -1109,6 +1141,12 @@ impl From<CallValue> for Value {
     }
 }
 
+impl From<TypeNameRefValue> for Value {
+    fn from(value: TypeNameRefValue) -> Self {
+        Self::TypeNameRef(value)
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for Value {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
@@ -1200,7 +1238,8 @@ impl<'de> serde::Deserialize<'de> for Value {
                     elements.push(element);
                 }
 
-                // Try to find a mutually-agreeable common type for the elements of the array.
+                // Try to find a mutually-agreeable common type for the elements
+                // of the array.
                 let mut candidate_ty = None;
                 for element in elements.iter() {
                     let new_candidate_ty = element.ty();
@@ -1540,14 +1579,14 @@ impl Hash for PrimitiveValue {
                 v.hash(state);
             }
             Self::Float(v) => {
-                // Hash this with the same discriminant as integer; this allows coercion from
-                // int to float.
+                // Hash this with the same discriminant as integer; this allows
+                // coercion from int to float.
                 1.hash(state);
                 v.hash(state);
             }
             Self::String(v) | Self::File(HostPath(v)) | Self::Directory(HostPath(v)) => {
-                // Hash these with the same discriminant; this allows coercion from file and
-                // directory to string
+                // Hash these with the same discriminant; this allows coercion
+                // from file and directory to string
                 2.hash(state);
                 v.hash(state);
             }
@@ -2625,7 +2664,7 @@ impl CompoundValue {
     fn resolve_paths<'a, F>(
         &'a self,
         base_dir: Option<&'a Path>,
-        transferer: Option<&'a dyn Transferer>,
+        http: Option<(&'a EvaluationHttpClient, &'a CancellationToken)>,
         translate: &'a F,
     ) -> BoxFuture<'a, Result<Self>>
     where
@@ -2640,12 +2679,12 @@ impl CompoundValue {
                     let fst = pair
                         .0
                         .left
-                        .resolve_paths(left_optional, base_dir, transferer, translate)
+                        .resolve_paths(left_optional, base_dir, http, translate)
                         .await?;
                     let snd = pair
                         .0
                         .right
-                        .resolve_paths(right_optional, base_dir, transferer, translate)
+                        .resolve_paths(right_optional, base_dir, http, translate)
                         .await?;
                     Ok(Self::Pair(Pair::new_unchecked(ty.clone(), fst, snd)))
                 }
@@ -2654,7 +2693,7 @@ impl CompoundValue {
                     let optional = ty.element_type().is_optional();
                     if !array.0.elements.is_empty() {
                         let resolved_elements = futures::stream::iter(array.0.elements.iter())
-                            .then(|v| v.resolve_paths(optional, base_dir, transferer, translate))
+                            .then(|v| v.resolve_paths(optional, base_dir, http, translate))
                             .try_collect::<Vec<Value>>()
                             .await?;
                         Ok(Self::Array(Array::new_unchecked(
@@ -2673,13 +2712,13 @@ impl CompoundValue {
                         let resolved_elements = futures::stream::iter(map.0.elements.iter())
                             .then(async |(k, v)| {
                                 let resolved_key = Value::from(k.clone())
-                                    .resolve_paths(key_optional, base_dir, transferer, translate)
+                                    .resolve_paths(key_optional, base_dir, http, translate)
                                     .await?
                                     .as_primitive()
                                     .cloned()
                                     .expect("key should be primitive");
                                 let resolved_value = v
-                                    .resolve_paths(value_optional, base_dir, transferer, translate)
+                                    .resolve_paths(value_optional, base_dir, http, translate)
                                     .await?;
                                 Ok::<_, anyhow::Error>((resolved_key, resolved_value))
                             })
@@ -2696,9 +2735,8 @@ impl CompoundValue {
                     } else {
                         let resolved_members = futures::stream::iter(object.iter())
                             .then(async |(n, v)| {
-                                let resolved = v
-                                    .resolve_paths(false, base_dir, transferer, translate)
-                                    .await?;
+                                let resolved =
+                                    v.resolve_paths(false, base_dir, http, translate).await?;
                                 Ok::<_, anyhow::Error>((n.to_string(), resolved))
                             })
                             .try_collect()
@@ -2715,7 +2753,7 @@ impl CompoundValue {
                                 .resolve_paths(
                                     ty.members()[n].is_optional(),
                                     base_dir,
-                                    transferer,
+                                    http,
                                     translate,
                                 )
                                 .await?;
@@ -2733,7 +2771,7 @@ impl CompoundValue {
                     let optional = e.enum_ty().inner_value_type().is_optional();
                     let value =
                         e.0.value
-                            .resolve_paths(optional, base_dir, transferer, translate)
+                            .resolve_paths(optional, base_dir, http, translate)
                             .await?;
 
                     Ok(Self::EnumChoice(EnumChoice::new(
@@ -2771,8 +2809,8 @@ impl Coercible for CompoundValue {
             match (self, target_ty) {
                 // Array[X] -> Array[Y](+) where X -> Y
                 (Self::Array(v), CompoundType::Array(target_ty)) => {
-                    // Don't allow coercion when the source is empty but the target has the
-                    // non-empty qualifier
+                    // Don't allow coercion when the source is empty but the
+                    // target has the non-empty qualifier
                     if v.is_empty() && target_ty.is_non_empty() {
                         bail!("cannot coerce empty array value to non-empty array {target:#}");
                     }
@@ -4027,11 +4065,12 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::iter::empty;
 
     use approx::assert_relative_eq;
     use pretty_assertions::assert_eq;
+    use regex::Regex;
     use wdl_analysis::types::ArrayType;
     use wdl_analysis::types::MapType;
     use wdl_analysis::types::PairType;
@@ -4042,7 +4081,6 @@ mod test {
 
     use super::*;
     use crate::EvaluationPath;
-    use crate::http::Transferer;
 
     #[test]
     fn boolean_coercion() {
@@ -4198,7 +4236,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4208,6 +4246,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4325,7 +4367,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4335,6 +4377,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4419,7 +4465,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4429,6 +4475,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4796,59 +4846,42 @@ mod test {
     fn type_name_ref_equality() {
         use wdl_analysis::types::EnumType;
 
-        let enum_type = Type::Compound(
-            CompoundType::Custom(CustomType::Enum(
-                EnumType::new(
-                    "MyEnum",
-                    Span::new(0, 0),
-                    Type::Primitive(PrimitiveType::Integer, false),
-                    Vec::<(String, Type)>::new(),
-                    &[],
-                )
-                .expect("should create enum type"),
-            )),
-            false,
-        );
+        let enum_type = EnumType::new(
+            "MyEnum",
+            Span::new(0, 0),
+            Type::Primitive(PrimitiveType::Integer, false),
+            Vec::<(String, Type)>::new(),
+            &[],
+        )
+        .expect("should create enum type");
 
-        let value1 = Value::TypeNameRef(TypeNameRefValue::new(enum_type.clone()));
-        let value2 = Value::TypeNameRef(TypeNameRefValue::new(enum_type.clone()));
+        let value1 = Value::TypeNameRef(TypeNameRefValue::new("MyEnum", enum_type.clone()));
+        let value2 = Value::TypeNameRef(TypeNameRefValue::new("MyEnum", enum_type));
 
         assert_eq!(value1.ty(), value2.ty());
     }
 
     #[test]
     fn type_name_ref_ty() {
-        let struct_type = Type::Compound(
-            CompoundType::Custom(CustomType::Struct(StructType::new(
-                "MyStruct",
-                empty::<(&str, Type)>(),
-            ))),
-            false,
-        );
-
-        let value = Value::TypeNameRef(TypeNameRefValue::new(struct_type.clone()));
-        assert_eq!(value.ty(), struct_type);
+        let struct_type = StructType::new("MyStruct", empty::<(&str, Type)>());
+        let value = Value::TypeNameRef(TypeNameRefValue::new("MyStruct", struct_type.clone()));
+        assert_eq!(value.ty(), Type::from(struct_type));
     }
 
     #[test]
     fn type_name_ref_display() {
         use wdl_analysis::types::EnumType;
 
-        let enum_type = Type::Compound(
-            CompoundType::Custom(CustomType::Enum(
-                EnumType::new(
-                    "Color",
-                    Span::new(0, 0),
-                    Type::Primitive(PrimitiveType::Integer, false),
-                    Vec::<(String, Type)>::new(),
-                    &[],
-                )
-                .expect("should create enum type"),
-            )),
-            false,
-        );
+        let enum_type = EnumType::new(
+            "Color",
+            Span::new(0, 0),
+            Type::Primitive(PrimitiveType::Integer, false),
+            Vec::<(String, Type)>::new(),
+            &[],
+        )
+        .expect("should create enum type");
 
-        let value = Value::TypeNameRef(TypeNameRefValue::new(enum_type));
+        let value = Value::TypeNameRef(TypeNameRefValue::new("Color", enum_type));
         assert_eq!(value.to_string(), "Color");
     }
 }

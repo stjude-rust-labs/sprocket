@@ -2,17 +2,16 @@ version 1.4
 
 import * from "lib.wdl"
 
-workflow main {
-    call run_task
-    call run_workflow
-
-    Record record = Record {
-        value: run_task.out,
+task use_types {
+    input {
+        Record rec
+        State state
     }
-    State state = State.Ready
+
+    command <<<>>>
 
     output {
-        Int combined = record.value + run_workflow.out
-        State selected_state = state
+        Int out = rec.value
+        State result = state
     }
 }

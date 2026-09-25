@@ -18,6 +18,7 @@ use sprocket::system::v1::db::LogSource;
 use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
 use tempfile::TempDir;
@@ -50,7 +51,9 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Wait for the manager to be ready.
     let (tx, rx) = oneshot::channel();
@@ -62,6 +65,7 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db.clone())
         .failure_mode(ServerFailureMode::Slow)
         .output_dir(output_dir)
         .build();
@@ -97,7 +101,9 @@ async fn seed_completed_task(db: &Arc<dyn Database>) -> Uuid {
     db.update_run_status(run_id, RunStatus::Running)
         .await
         .unwrap();
-    db.create_task("task-one", run_id).await.unwrap();
+    db.create_task("task-one", run_id, TaskStatus::Pending)
+        .await
+        .unwrap();
     db.update_task_started("task-one", Utc::now())
         .await
         .unwrap();
@@ -115,6 +121,7 @@ async fn seed_completed_task(db: &Arc<dyn Database>) -> Uuid {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -128,7 +135,9 @@ async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
     // Two pending (left as created), one running, one completed, one failed,
     // one canceled. No preempted tasks.
     for name in ["t1", "t2", "t3", "t4", "t5", "t6"] {
-        db.create_task(name, run_id).await.unwrap();
+        db.create_task(name, run_id, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
     assert!(db.update_task_started("t3", Utc::now()).await.unwrap());
     assert!(
@@ -145,7 +154,9 @@ async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
 
     // A task on a different run must not be counted.
     let other_run_id = seed_run(&db, session_id, "other-run").await;
-    db.create_task("other", other_run_id).await.unwrap();
+    db.create_task("other", other_run_id, TaskStatus::Pending)
+        .await
+        .unwrap();
 
     let response = app
         .clone()
@@ -174,6 +185,7 @@ async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn run_task_counts_unknown_run_is_all_zero(pool: sqlx::SqlitePool) {
     let (app, _db, _temp) = create_test_server(pool).await;
 
@@ -238,6 +250,7 @@ async fn list_run_tasks(
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_rejects_non_positive_limit(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -259,7 +272,7 @@ async fn list_run_tasks_rejects_non_positive_limit(pool: sqlx::SqlitePool) {
             body["message"]
                 .as_str()
                 .unwrap_or_default()
-                .contains("`limit` must be positive"),
+                .contains("`limit` must be between"),
             "unexpected message: {}",
             body["message"]
         );
@@ -267,6 +280,7 @@ async fn list_run_tasks_rejects_non_positive_limit(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_rejects_negative_next_token(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -290,6 +304,7 @@ async fn list_run_tasks_rejects_negative_next_token(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_rejects_unparsable_next_token(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -312,6 +327,7 @@ async fn list_run_tasks_rejects_unparsable_next_token(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_accepts_valid_pagination(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -331,6 +347,7 @@ async fn list_run_tasks_accepts_valid_pagination(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_filters_by_run(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -343,10 +360,14 @@ async fn list_run_tasks_filters_by_run(pool: sqlx::SqlitePool) {
     let run_b = seed_run(&db, session_id, "run-b").await;
 
     for name in ["a1", "a2", "a3"] {
-        db.create_task(name, run_a).await.unwrap();
+        db.create_task(name, run_a, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
     for name in ["b1", "b2"] {
-        db.create_task(name, run_b).await.unwrap();
+        db.create_task(name, run_b, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
 
     let (status, body) = list_run_tasks(&app, run_a, "").await;
@@ -374,6 +395,7 @@ async fn list_run_tasks_filters_by_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -386,7 +408,9 @@ async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
     // Two pending (untouched), one running, one completed, one failed, one
     // canceled, no preempted.
     for name in ["s1", "s2", "s3", "s4", "s5", "s6"] {
-        db.create_task(name, run_id).await.unwrap();
+        db.create_task(name, run_id, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
     assert!(db.update_task_started("s3", Utc::now()).await.unwrap());
     assert!(
@@ -441,6 +465,7 @@ async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_paginates(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -451,7 +476,9 @@ async fn list_run_tasks_paginates(pool: sqlx::SqlitePool) {
     let run_id = seed_run(&db, session_id, "paginate-run").await;
 
     for name in ["t1", "t2", "t3", "t4", "t5"] {
-        db.create_task(name, run_id).await.unwrap();
+        db.create_task(name, run_id, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
 
     // Helper: collect a page's task names.
@@ -511,6 +538,7 @@ async fn list_run_tasks_paginates(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_unknown_run_returns_empty(pool: sqlx::SqlitePool) {
     let (app, _db, _temp) = create_test_server(pool).await;
 
@@ -534,6 +562,7 @@ async fn list_run_tasks_unknown_run_returns_empty(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_tasks_returns_empty_initially(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server(pool).await;
 
@@ -560,6 +589,7 @@ async fn list_tasks_returns_empty_initially(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn task_endpoints_return_seeded_task_and_logs(pool: sqlx::SqlitePool) {
     let (app, db, ..) = create_test_server(pool).await;
     let run_id = seed_completed_task(&db).await;
@@ -677,6 +707,7 @@ async fn task_endpoints_return_seeded_task_and_logs(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn task_endpoints_return_expected_errors(pool: sqlx::SqlitePool) {
     let (app, db, ..) = create_test_server(pool).await;
     seed_completed_task(&db).await;

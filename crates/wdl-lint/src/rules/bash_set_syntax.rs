@@ -213,7 +213,8 @@ impl BashSetSyntax {
                 let (matched_opt, opt_name_span, should_break, is_interactive_only) = if opt == 'o'
                 {
                     if byte_offset + opt_len < chunk.len() {
-                        // Some invalid syntax, 'o' should be at the end of the chunk
+                        // Some invalid syntax, 'o' should be at the end of the
+                        // chunk
                         return (false, last_chunk_end);
                     }
 
