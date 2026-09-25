@@ -58,8 +58,8 @@ pub async fn cancel(args: Args, config: Config, output: CommandOutput) -> Comman
                 "Note",
                 format!(
                     "in slow-failure mode, currently executing tasks will be allowed to finish \
-                     before the run is marked as canceled. Use `sprocket dev server status {uuid}` \
-                     to track progress.",
+                     before the run is marked as canceled. Use `sprocket dev server status \
+                     {uuid}` to track progress.",
                     uuid = body.uuid,
                 ),
             );
