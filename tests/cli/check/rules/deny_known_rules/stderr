@@ -1,0 +1,9 @@
+error[KnownRules]: unknown rule `NotARealRule`
+  ┌─ source.wdl:3:12
+  │
+3 │ #@ except: NotARealRule
+  │            ^^^^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: remove the unknown rule from the exception list
+
+error: failing due to 1 error

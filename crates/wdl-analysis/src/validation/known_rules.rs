@@ -99,9 +99,9 @@ impl Visitor for KnownRules {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if self.severity.is_none() {
+        let Some(severity) = self.severity else {
             return;
-        }
+        };
 
         let Some(Directive::Except(except)) = comment.directive() else {
             return;
@@ -111,7 +111,8 @@ impl Visitor for KnownRules {
             // Deprecated aliases are not "unknown"; instead, emit a migration
             // note that points at the current replacement rule ID.
             if let Some(replacement) = replacement_rule_id(&rule.name) {
-                let diagnostic = deprecated_rule_alias(&rule.name, replacement, rule.span);
+                let diagnostic = deprecated_rule_alias(&rule.name, replacement, rule.span)
+                    .with_severity(severity);
 
                 if let Some(target) = comment
                     .inner()
@@ -144,7 +145,8 @@ impl Visitor for KnownRules {
                 &rule.name,
                 find_nearest_rule(self.known_rules.iter().map(String::as_str), &rule.name),
                 rule.span,
-            );
+            )
+            .with_severity(severity);
 
             if let Some(target) = comment
                 .inner()
