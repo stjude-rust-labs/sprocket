@@ -1,5 +1,6 @@
 //! Implementation of the `doc` command.
 
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -253,12 +254,12 @@ pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandRe
     if args.check {
         output.completed(
             CHECK,
-            format!("documentation for `{}`", workspace.display()),
+            format!("documentation for `{}`", relative_display(&workspace)),
         );
     } else {
         output.completed(
             GENERATE,
-            format!("documentation at `{}`", docs_dir.display()),
+            format!("documentation at `{}`", relative_display(&docs_dir)),
         );
     }
 
@@ -267,4 +268,21 @@ pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandRe
     }
 
     Ok(())
+}
+
+/// Displays a path relative to the current directory when it is inside it.
+fn relative_display(path: &Path) -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| path.strip_prefix(cwd).ok().map(Path::to_path_buf))
+        .map(|relative| {
+            if relative.as_os_str().is_empty() {
+                PathBuf::from(".")
+            } else {
+                relative
+            }
+        })
+        .unwrap_or_else(|| path.to_path_buf())
+        .display()
+        .to_string()
 }
