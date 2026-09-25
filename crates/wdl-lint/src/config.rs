@@ -285,21 +285,12 @@ macro_rules! define_rule_params {
         impl RuleConfig {
             /// Validates values that depend on the configured rule.
             pub fn validate(&self, rule_id: &str) -> Result<(), String> {
-                if rule_id == "TodoComment" {
-                    for (index, keyword) in self.keywords.iter().enumerate() {
-                        if keyword.is_empty() {
-                            return Err(String::from(
-                                "`keywords` entries for rule `TodoComment` cannot be empty",
-                            ));
-                        }
-
-                        if self.keywords[..index].contains(keyword) {
-                            return Err(format!(
-                                "`keywords` for rule `TodoComment` contains duplicate entry \
-                                 `{keyword}`"
-                            ));
-                        }
-                    }
+                // Duplicate keywords are tolerated because merged configuration
+                // files append arrays; the rule deduplicates them.
+                if rule_id == "TodoComment" && self.keywords.iter().any(String::is_empty) {
+                    return Err(String::from(
+                        "`keywords` entries for rule `TodoComment` cannot be empty",
+                    ));
                 }
 
                 Ok(())
@@ -662,18 +653,16 @@ mod test {
     }
 
     #[test]
-    fn rejects_invalid_todo_keywords() {
+    fn rejects_empty_todo_keywords() {
         let empty =
             toml_spanner::from_str::<Config>("[TodoComment]\nkeywords = [\"\"]\n").unwrap_err();
         assert!(empty.to_string().contains("cannot be empty"), "{empty}");
+    }
 
-        let duplicate =
-            toml_spanner::from_str::<Config>("[TodoComment]\nkeywords = [\"TODO\", \"TODO\"]\n")
-                .unwrap_err();
-        assert!(
-            duplicate.to_string().contains("duplicate entry `TODO`"),
-            "{duplicate}"
-        );
+    #[test]
+    fn accepts_duplicate_todo_keywords() {
+        toml_spanner::from_str::<Config>("[TodoComment]\nkeywords = [\"TODO\", \"TODO\"]\n")
+            .unwrap();
     }
 
     #[test]

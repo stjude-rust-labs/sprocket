@@ -28,9 +28,12 @@ pub struct TodoCommentRule {
 impl TodoCommentRule {
     /// Creates a new instance of the rule from the given configuration.
     pub fn new(config: &Config) -> Self {
-        Self {
-            keywords: config.resolved(ID).keywords,
-        }
+        let mut keywords = config.resolved(ID).keywords;
+        // Longer keywords are matched first so that a keyword containing
+        // another (e.g., `FIXME` and `FIX`) is reported once.
+        keywords.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+        keywords.dedup();
+        Self { keywords }
     }
 }
 
@@ -103,14 +106,28 @@ impl Visitor for TodoCommentRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+        let mut matches: Vec<(usize, &str, &str)> = Vec::new();
         for keyword in &self.keywords {
             for (offset, pattern) in comment.text().match_indices(keyword.as_str()) {
-                diagnostics.exceptable_add(
-                    todo_comment(keyword, pattern, comment.span(), offset),
-                    &TreeToken::parent(comment.inner()),
-                    &self.exceptable_nodes(),
-                );
+                let end = offset + pattern.len();
+                if matches
+                    .iter()
+                    .any(|(start, _, m)| offset < start + m.len() && *start < end)
+                {
+                    continue;
+                }
+
+                matches.push((offset, keyword, pattern));
             }
+        }
+
+        matches.sort_by_key(|(offset, ..)| *offset);
+        for (offset, keyword, pattern) in matches {
+            diagnostics.exceptable_add(
+                todo_comment(keyword, pattern, comment.span(), offset),
+                &TreeToken::parent(comment.inner()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 }
@@ -145,5 +162,39 @@ mod tests {
 
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics.as_mut_slice()[0].rule(), Some(ID));
+    }
+
+    #[test]
+    fn overlapping_keywords_emit_one_diagnostic() {
+        // SAFETY: the static configuration is valid.
+        let config =
+            toml_spanner::from_str("[TodoComment]\nkeywords = [\"FIX\", \"FIXME\", \"FIX\"]\n")
+                .unwrap();
+        let mut rule = TodoCommentRule::new(&config);
+        let (document, parse_diagnostics) = Document::parse(
+            "version 1.2\n\n# FIXME: finish this, then FIX that\nworkflow test {}\n",
+            None,
+        );
+        assert!(parse_diagnostics.is_empty());
+        // SAFETY: the parsed source contains one comment token.
+        let comment = document
+            .inner()
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find_map(Comment::cast)
+            .unwrap();
+        let mut diagnostics = Diagnostics::default();
+
+        rule.comment(&mut diagnostics, &comment);
+
+        let messages = diagnostics
+            .as_mut_slice()
+            .iter()
+            .map(|d| d.message().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            ["remaining `FIXME` item found", "remaining `FIX` item found"]
+        );
     }
 }
