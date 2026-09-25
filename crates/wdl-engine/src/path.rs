@@ -35,6 +35,12 @@ pub(crate) fn is_supported_url(s: &str) -> bool {
         .any(|scheme| starts_with_ignore_ascii_case(s.trim_start(), scheme))
 }
 
+/// Determines if the given local path is a symbolic link whose target cannot
+/// be resolved.
+pub(crate) fn is_broken_symlink(path: &Path) -> bool {
+    path.is_symlink() && !path.exists()
+}
+
 /// Represents the kind of an evaluation path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum EvaluationPathKind {

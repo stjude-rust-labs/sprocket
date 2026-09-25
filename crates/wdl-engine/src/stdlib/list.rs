@@ -50,8 +50,6 @@ enum EntryKind {
 }
 
 /// Lists files and directories, optionally recursively and with a file filter.
-///
-/// https://github.com/openwdl/wdl/blob/wdl-1.4/SPEC.md#-list
 fn list(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert!((1..=4).contains(&context.arguments.len()));
@@ -78,6 +76,8 @@ fn list(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
                         .unwrap_string(),
                 )
                 .literal_separator(true)
+                // Basenames never contain separators, so `\` always escapes.
+                .backslash_escape(true)
                 .build()
                 .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[3].span))?
                 .compile_matcher(),
@@ -151,9 +151,8 @@ async fn list_local(
     }
 
     let mut listing = Listing::default();
-    let mut pending = vec![String::new()];
-    while let Some(parent) = pending.pop() {
-        let path = root.join(&parent);
+    let mut pending = vec![(root.to_path_buf(), String::new())];
+    while let Some((path, parent)) = pending.pop() {
         let mut entries = fs::read_dir(&path)
             .await
             .with_context(|| format!("failed to read directory `{}`", path.display()))?;
@@ -200,7 +199,7 @@ async fn list_local(
             match kind {
                 EntryKind::Directory => {
                     if recursive && !symlink {
-                        pending.push(relative.clone());
+                        pending.push((entry.path(), relative.clone()));
                     }
                     listing.directories.insert(relative);
                 }
@@ -244,11 +243,13 @@ async fn list_remote(
     Ok(listing)
 }
 
-/// Resolves a listed path while preserving URL queries and literal file names.
+/// Resolves a listed path with native separators, preserving URL queries and
+/// literal file names.
 fn listed_path(root: &EvaluationPath, relative: &str) -> Result<String> {
     match root.kind() {
         EvaluationPathKind::Local(root) => {
-            let path = root.join(relative);
+            let mut path = root.to_path_buf();
+            path.extend(relative.split('/'));
             path.to_str()
                 .with_context(|| {
                     format!("path `{}` cannot be represented as UTF-8", path.display())
@@ -287,7 +288,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use url::Url;
     use wdl_analysis::stdlib::FunctionBindError;
-    use wdl_analysis::stdlib::STDLIB;
+    use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
     use wdl_analysis::types::ArrayType;
     use wdl_analysis::types::Optional;
     use wdl_analysis::types::PairType;
@@ -300,6 +301,160 @@ mod tests {
     use crate::Value;
     use crate::v1::tests::TestEnv;
     use crate::v1::tests::eval_v1_expr;
+
+    /// The first WDL version with `list`.
+    const VERSION: SupportedVersion = SupportedVersion::V1(V1::Four);
+
+    /// Returns a valid argument type for each `list` parameter.
+    fn valid_arguments() -> [Type; 4] {
+        [
+            PrimitiveType::Directory.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::Boolean.into(),
+            PrimitiveType::String.into(),
+        ]
+    }
+
+    #[test]
+    fn list_binds_all_argument_counts() {
+        let f = ANALYSIS_STDLIB
+            .function("list")
+            .expect("should have function");
+        let arguments = valid_arguments();
+        let expected: Type = PairType::new(
+            ArrayType::new(PrimitiveType::File),
+            ArrayType::new(PrimitiveType::Directory),
+        )
+        .into();
+
+        assert_eq!(f.param_min_max(VERSION), Some((1, 4)));
+        for count in 1..=arguments.len() {
+            let binding = f
+                .bind(VERSION, &arguments[..count])
+                .expect("binding should succeed");
+            assert_eq!(binding.index(), 0);
+            assert_eq!(binding.return_type(), &expected);
+        }
+    }
+
+    #[test]
+    fn list_binds_existing_coercions() {
+        let f = ANALYSIS_STDLIB
+            .function("list")
+            .expect("should have function");
+
+        for directory in [PrimitiveType::Directory, PrimitiveType::String] {
+            for pattern in [
+                PrimitiveType::String,
+                PrimitiveType::File,
+                PrimitiveType::Directory,
+            ] {
+                let mut arguments = valid_arguments();
+                arguments[0] = directory.into();
+                arguments[3] = pattern.into();
+                let binding = f.bind(VERSION, &arguments).expect("binding should succeed");
+                assert_eq!(
+                    binding.return_type().to_string(),
+                    "Pair[Array[File], Array[Directory]]"
+                );
+            }
+        }
+
+        let binding = f
+            .bind(VERSION, &[const { Type::Union }; 4])
+            .expect("binding should succeed");
+        assert_eq!(
+            binding.return_type().to_string(),
+            "Pair[Array[File], Array[Directory]]"
+        );
+    }
+
+    #[test]
+    fn list_rejects_incorrect_argument_counts() {
+        let f = ANALYSIS_STDLIB
+            .function("list")
+            .expect("should have function");
+        assert_eq!(
+            f.bind(VERSION, &[]).expect_err("binding should fail"),
+            FunctionBindError::TooFewArguments(1)
+        );
+
+        let mut arguments = valid_arguments().to_vec();
+        arguments.push(PrimitiveType::String.into());
+        assert_eq!(
+            f.bind(VERSION, &arguments)
+                .expect_err("binding should fail"),
+            FunctionBindError::TooManyArguments(4)
+        );
+    }
+
+    #[test]
+    fn list_rejects_incorrect_argument_types() {
+        let f = ANALYSIS_STDLIB
+            .function("list")
+            .expect("should have function");
+        let valid = valid_arguments();
+
+        for (index, invalid) in [
+            (0, PrimitiveType::File.into()),
+            (0, PrimitiveType::Integer.into()),
+            (0, ArrayType::new(PrimitiveType::Directory).into()),
+            (1, PrimitiveType::String.into()),
+            (2, PrimitiveType::Integer.into()),
+            (3, PrimitiveType::Boolean.into()),
+        ] {
+            let mut arguments = valid.clone();
+            arguments[index] = invalid;
+            assert_eq!(
+                f.bind(VERSION, &arguments)
+                    .expect_err("binding should fail"),
+                FunctionBindError::ArgumentTypeMismatch {
+                    index,
+                    expected: format!("{:#}", valid[index]),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn list_rejects_optional_and_none_arguments() {
+        let f = ANALYSIS_STDLIB
+            .function("list")
+            .expect("should have function");
+        let valid = valid_arguments();
+
+        for (index, ty) in valid.iter().enumerate() {
+            for invalid in [ty.optional(), Type::None] {
+                let mut arguments = valid.clone();
+                arguments[index] = invalid;
+                assert_eq!(
+                    f.bind(VERSION, &arguments)
+                        .expect_err("binding should fail"),
+                    FunctionBindError::ArgumentTypeMismatch {
+                        index,
+                        expected: format!("{ty:#}"),
+                    }
+                );
+            }
+        }
+
+        for (index, ty) in [
+            (0, PrimitiveType::String),
+            (3, PrimitiveType::File),
+            (3, PrimitiveType::Directory),
+        ] {
+            let mut arguments = valid.clone();
+            arguments[index] = Type::from(ty).optional();
+            assert_eq!(
+                f.bind(VERSION, &arguments)
+                    .expect_err("binding should fail"),
+                FunctionBindError::ArgumentTypeMismatch {
+                    index,
+                    expected: format!("{:#}", valid[index]),
+                }
+            );
+        }
+    }
 
     /// Creates an unsorted directory tree with hidden and nested entries.
     fn test_env() -> TestEnv {
@@ -374,187 +529,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_requires_wdl_1_4() {
-        let env = test_env();
-        for version in [V1::Zero, V1::One, V1::Two, V1::Three] {
-            let diagnostic = eval_v1_expr(&env, version, "list(directory)")
-                .await
-                .unwrap_err();
-            assert_eq!(
-                diagnostic.message(),
-                "this use of function `list` requires a minimum WDL version of 1.4"
-            );
-        }
-    }
-
-    #[test]
-    fn it_binds_list_with_all_argument_counts() {
-        let f = STDLIB.function("list").expect("should have function");
-        let version = SupportedVersion::V1(V1::Four);
-        let arguments = [
-            PrimitiveType::Directory.into(),
-            PrimitiveType::Boolean.into(),
-            PrimitiveType::Boolean.into(),
-            PrimitiveType::String.into(),
-        ];
-        let expected: Type = PairType::new(
-            ArrayType::new(PrimitiveType::File),
-            ArrayType::new(PrimitiveType::Directory),
-        )
-        .into();
-
-        assert_eq!(f.param_min_max(version), Some((1, 4)));
-        for count in 1..=arguments.len() {
-            let binding = f
-                .bind(version, &arguments[..count])
-                .expect("binding should succeed");
-            assert_eq!(binding.index(), 0);
-            assert_eq!(binding.return_type(), &expected);
-        }
-    }
-
-    #[test]
-    fn list_rejects_incorrect_argument_counts() {
-        let f = STDLIB.function("list").expect("should have function");
-        let version = SupportedVersion::V1(V1::Four);
-        assert_eq!(
-            f.bind(version, &[]).expect_err("binding should fail"),
-            FunctionBindError::TooFewArguments(1)
-        );
-        assert_eq!(
-            f.bind(
-                version,
-                &[
-                    PrimitiveType::Directory.into(),
-                    PrimitiveType::Boolean.into(),
-                    PrimitiveType::Boolean.into(),
-                    PrimitiveType::String.into(),
-                    PrimitiveType::String.into(),
-                ]
-            )
-            .expect_err("binding should fail"),
-            FunctionBindError::TooManyArguments(4)
-        );
-    }
-
-    #[test]
-    fn list_rejects_incorrect_argument_types() {
-        let f = STDLIB.function("list").expect("should have function");
-        let valid: [Type; 4] = [
-            PrimitiveType::Directory.into(),
-            PrimitiveType::Boolean.into(),
-            PrimitiveType::Boolean.into(),
-            PrimitiveType::String.into(),
-        ];
-
-        for (index, invalid) in [
-            (0, PrimitiveType::File.into()),
-            (0, PrimitiveType::Integer.into()),
-            (0, ArrayType::new(PrimitiveType::Directory).into()),
-            (1, PrimitiveType::String.into()),
-            (2, PrimitiveType::Integer.into()),
-            (3, PrimitiveType::Boolean.into()),
-        ] {
-            let mut arguments = valid.clone();
-            arguments[index] = invalid;
-            assert_eq!(
-                f.bind(SupportedVersion::V1(V1::Four), &arguments)
-                    .expect_err("binding should fail"),
-                FunctionBindError::ArgumentTypeMismatch {
-                    index,
-                    expected: format!("{:#}", valid[index]),
-                }
-            );
-        }
-    }
-
-    #[test]
-    fn list_rejects_optional_and_none_arguments() {
-        let f = STDLIB.function("list").expect("should have function");
-        let valid: [Type; 4] = [
-            PrimitiveType::Directory.into(),
-            PrimitiveType::Boolean.into(),
-            PrimitiveType::Boolean.into(),
-            PrimitiveType::String.into(),
-        ];
-
-        for (index, ty) in valid.iter().enumerate() {
-            for invalid in [ty.optional(), Type::None] {
-                let mut arguments = valid.clone();
-                arguments[index] = invalid;
-                assert_eq!(
-                    f.bind(SupportedVersion::V1(V1::Four), &arguments)
-                        .expect_err("binding should fail"),
-                    FunctionBindError::ArgumentTypeMismatch {
-                        index,
-                        expected: format!("{ty:#}"),
-                    }
-                );
-            }
-        }
-
-        for (index, ty) in [
-            (0, PrimitiveType::String),
-            (3, PrimitiveType::File),
-            (3, PrimitiveType::Directory),
-        ] {
-            let mut arguments = valid.clone();
-            arguments[index] = Type::from(ty).optional();
-            assert_eq!(
-                f.bind(SupportedVersion::V1(V1::Four), &arguments)
-                    .expect_err("binding should fail"),
-                FunctionBindError::ArgumentTypeMismatch {
-                    index,
-                    expected: format!("{:#}", valid[index]),
-                }
-            );
-        }
-    }
-
-    #[test]
-    fn it_binds_list_with_existing_coercions() {
-        let f = STDLIB.function("list").expect("should have function");
-        let version = SupportedVersion::V1(V1::Four);
-
-        for directory in [PrimitiveType::Directory, PrimitiveType::String] {
-            for pattern in [
-                PrimitiveType::String,
-                PrimitiveType::File,
-                PrimitiveType::Directory,
-            ] {
-                let binding = f
-                    .bind(
-                        version,
-                        &[
-                            directory.into(),
-                            PrimitiveType::Boolean.into(),
-                            PrimitiveType::Boolean.into(),
-                            pattern.into(),
-                        ],
-                    )
-                    .expect("binding should succeed");
-                assert_eq!(
-                    binding.return_type().to_string(),
-                    "Pair[Array[File], Array[Directory]]"
-                );
-            }
-        }
-
-        let binding = f
-            .bind(version, &[const { Type::Union }; 4])
-            .expect("binding should succeed");
-        assert_eq!(
-            binding.return_type().to_string(),
-            "Pair[Array[File], Array[Directory]]"
-        );
-    }
-
-    #[tokio::test]
     async fn list_recursive() {
         let env = test_env();
         let value = eval_v1_expr(&env, V1::Four, "list(directory, true)")
             .await
             .unwrap();
+        let nested = env
+            .base_dir()
+            .join("data")
+            .unwrap()
+            .unwrap_local()
+            .join("a")
+            .join("nested")
+            .join("z.txt");
+        assert!(
+            value
+                .as_pair()
+                .unwrap()
+                .left()
+                .as_array()
+                .unwrap()
+                .as_slice()
+                .iter()
+                .any(|v| v.as_file().unwrap().as_str() == nested.to_str().unwrap()),
+            "listed paths should use native separators"
+        );
         let (files, directories) = relative_paths(&env, value);
         assert_eq!(
             files,
@@ -635,6 +634,32 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(relative_paths(&env, value).0, ["data/a.txt", "data/z.txt"]);
+    }
+
+    #[tokio::test]
+    async fn list_patterns_escape_with_backslashes() {
+        let env = test_env();
+        fs::create_dir(env.base_dir().join("data/escaped").unwrap().unwrap_local()).unwrap();
+        env.write_file("data/escaped/[a].txt", "");
+        env.write_file("data/escaped/a.txt", "");
+
+        for (pattern, expected) in [
+            (r"\\[a\\].txt", "data/escaped/[a].txt"),
+            ("[a].txt", "data/escaped/a.txt"),
+        ] {
+            let value = eval_v1_expr(
+                &env,
+                V1::Four,
+                &format!("list('data/escaped', false, true, '{pattern}')"),
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                relative_paths(&env, value).0,
+                [expected],
+                "pattern: {pattern}"
+            );
+        }
     }
 
     #[tokio::test]

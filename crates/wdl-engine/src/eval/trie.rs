@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::path::Component;
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -147,8 +148,64 @@ impl InputTrie {
         &mut self.inputs
     }
 
+    /// Reserves a guest path for a local path without adding an input.
+    ///
+    /// This maps a path that cannot be provided as an input, such as a broken
+    /// symbolic link, next to the guest paths of its siblings.
+    ///
+    /// Returns `Ok(None)` if the trie has no guest inputs directory or if the
+    /// path is already a guest input path.
+    ///
+    /// Returns an error for an invalid path.
+    pub fn reserve_guest_path(&mut self, path: &Path) -> Result<Option<GuestPath>> {
+        if self
+            .guest_inputs_dir
+            .is_none_or(|dir| path.starts_with(dir))
+        {
+            return Ok(None);
+        }
+
+        let (_, guest_path) = Self::local_node(
+            &mut self.paths,
+            &mut self.next_id,
+            self.guest_inputs_dir,
+            path,
+        )?;
+        Ok(guest_path)
+    }
+
     /// Inserts an input with a local path into the trie.
     fn insert_path(&mut self, kind: ContentKind, path: PathBuf) -> Result<usize> {
+        let (node, guest_path) = Self::local_node(
+            &mut self.paths,
+            &mut self.next_id,
+            self.guest_inputs_dir,
+            &path,
+        )?;
+
+        // Check to see if the input already exists in the trie
+        if let Some(index) = node.index {
+            return Ok(index);
+        }
+
+        let index = self.inputs.len();
+        self.inputs.push(Input::new(
+            kind,
+            EvaluationPath::from_local_path(path),
+            guest_path,
+        ));
+        node.index = Some(index);
+        Ok(index)
+    }
+
+    /// Gets the node for a local path, adding any missing nodes, along with
+    /// the path's guest path.
+    fn local_node<'a>(
+        paths: &'a mut HashMap<String, InputTrieNode>,
+        next_id: &mut usize,
+        guest_inputs_dir: Option<&str>,
+        path: &Path,
+    ) -> Result<(&'a mut InputTrieNode, Option<GuestPath>)> {
         let mut components = path.components();
 
         let component = components
@@ -159,9 +216,9 @@ impl InputTrie {
             .with_context(|| format!("input path `{path}` is not UTF-8", path = path.display()))?;
 
         let mut parent_id = 0;
-        let mut node = self.paths.entry(component.to_string()).or_insert_with(|| {
-            let node = InputTrieNode::new(self.next_id);
-            self.next_id += 1;
+        let mut node = paths.entry(component.to_string()).or_insert_with(|| {
+            let node = InputTrieNode::new(*next_id);
+            *next_id += 1;
             node
         });
 
@@ -187,20 +244,15 @@ impl InputTrie {
                 .children
                 .entry(component.to_string())
                 .or_insert_with(|| {
-                    let node = InputTrieNode::new(self.next_id);
-                    self.next_id += 1;
+                    let node = InputTrieNode::new(*next_id);
+                    *next_id += 1;
                     node
                 });
 
             last_component = Some(component);
         }
 
-        // Check to see if the input already exists in the trie
-        if let Some(index) = node.index {
-            return Ok(index);
-        }
-
-        let guest_path = self.guest_inputs_dir.map(|d| {
+        let guest_path = guest_inputs_dir.map(|d| {
             GuestPath::new(format!(
                 "{d}{parent_id}/{last}",
                 // On Windows, `last_component` might be `Some` despite being a root due to the
@@ -213,14 +265,7 @@ impl InputTrie {
             ))
         });
 
-        let index = self.inputs.len();
-        self.inputs.push(Input::new(
-            kind,
-            EvaluationPath::from_local_path(path),
-            guest_path,
-        ));
-        node.index = Some(index);
-        Ok(index)
+        Ok((node, guest_path))
     }
 
     /// Inserts an input with a URL into the trie.
@@ -454,6 +499,47 @@ mod tests {
                 ("https://foo.com/bar".to_string(), "/inputs/28/bar"),
                 ("/base/foo.txt".to_string(), "/inputs/30/foo.txt"),
             ]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reserved_guest_paths_unix() {
+        let mut trie = InputTrie::new_with_guest_dir("/inputs/");
+        let base_dir: EvaluationPath = "/base".parse().unwrap();
+        trie.insert(ContentKind::File, "/foo/bar/foo.txt", &base_dir)
+            .unwrap()
+            .unwrap();
+
+        // A reserved path is next to its siblings but doesn't add an input
+        let reserved = trie
+            .reserve_guest_path(Path::new("/foo/bar/broken"))
+            .unwrap()
+            .expect("should have guest path");
+        assert_eq!(reserved.as_str(), "/inputs/3/broken");
+        assert_eq!(
+            trie.reserve_guest_path(Path::new("/foo/bar/broken"))
+                .unwrap()
+                .expect("should have guest path")
+                .as_str(),
+            "/inputs/3/broken"
+        );
+        assert_eq!(trie.as_slice().len(), 1);
+        assert_eq!(
+            trie.as_slice()[0].guest_path().unwrap().as_str(),
+            "/inputs/3/foo.txt"
+        );
+
+        assert!(
+            trie.reserve_guest_path(Path::new("/inputs/3/broken"))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            InputTrie::new()
+                .reserve_guest_path(Path::new("/foo/bar/broken"))
+                .unwrap()
+                .is_none()
         );
     }
 
