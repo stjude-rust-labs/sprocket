@@ -423,6 +423,7 @@ pub fn format_literal_array(
     if !empty {
         stream.fit_or_split_start("".to_string().into(), SPACE.to_string().into(), true);
     }
+
     let mut items = items.iter().peekable();
     let mut commas = commas.iter();
     let mut trailing_comma_inserted = false;
