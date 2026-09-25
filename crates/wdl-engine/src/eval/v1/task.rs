@@ -2450,7 +2450,7 @@ mod engine_event_tests {
     async fn emits_task_retrying_then_task_failed_when_retries_are_exhausted() {
         let (result, events) = evaluate_source(
             r#"
-version 1.2
+version 1.3
 
 task test {
   command <<<
@@ -2486,7 +2486,7 @@ task test {
     async fn emits_task_failed_without_retry_when_task_fails_before_running() {
         let (result, events) = evaluate_source(
             r#"
-version 1.2
+version 1.3
 
 task test {
   input {
@@ -2516,7 +2516,7 @@ task test {
     async fn emits_task_retrying_without_task_failed_when_retry_succeeds() {
         let (result, events) = evaluate_source(
             r#"
-version 1.2
+version 1.3
 
 task test {
   command <<<
@@ -2548,7 +2548,7 @@ task test {
         let results = analyze_source(
             root_dir.path(),
             r#"
-version 1.2
+version 1.3
 
 task test {
   command <<<
