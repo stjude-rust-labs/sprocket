@@ -126,32 +126,21 @@ fn search_siblings_for_doc_comment_target(comment: &Comment) -> Option<DocCommen
                     floating,
                 });
             }
-            SyntaxElement::Token(t) => {
-                match t.kind() {
-                    SyntaxKind::Whitespace => {
-                        let lines = t.text().chars().filter(|c| *c == '\n').count();
-                        if !floating {
-                            floating = lines > 1;
-                        }
-                    }
-                    SyntaxKind::Comment => {
-                        let c = Comment::cast(t.clone()).unwrap();
-                        if c.kind() != CommentKind::Documentation
-                            && !matches!(c.kind(), CommentKind::Directive(_))
-                        {
-                            // A regular comment means we are not immediately
-                            // touching the target
-                            floating = true;
-                        }
-                    }
-                    _ => {
-                        return Some(DocCommentTarget {
-                            element: sibling,
-                            floating,
-                        });
+            SyntaxElement::Token(t) => match t.kind() {
+                SyntaxKind::Whitespace => {
+                    let lines = t.text().chars().filter(|c| *c == '\n').count();
+                    if !floating {
+                        floating = lines > 1;
                     }
                 }
-            }
+                SyntaxKind::Comment => {}
+                _ => {
+                    return Some(DocCommentTarget {
+                        element: sibling,
+                        floating,
+                    });
+                }
+            },
         }
     }
     None
@@ -210,7 +199,6 @@ impl UnusedDocCommentsRule {
             }
             if let Some(continued_comment) =
                 sibling.as_token().and_then(|t| Comment::cast(t.clone()))
-                && continued_comment.kind() == CommentKind::Documentation
             {
                 self.skip_count += 1;
                 span_end = continued_comment.span().end();
@@ -239,15 +227,15 @@ impl UnusedDocCommentsRule {
                 )
             })
             .unwrap_or((None, false));
-        let mut valid_target = target
+        let valid_target = target
             .as_ref()
             .is_some_and(|t| valid_target_for_doc_comment(&t.element));
         let valid_floater = target
             .as_ref()
             .is_some_and(|t| VALID_SYNTAX_KINDS_FOR_FLOATING_COMMENTS.contains(&t.element.kind()));
 
+        let block_span = self.collect_consecutive_doc_comments(comment);
         if valid_target && (!floating || valid_floater) {
-            self.collect_consecutive_doc_comments(comment);
             return; // Valid doc comment
         }
 
@@ -255,10 +243,8 @@ impl UnusedDocCommentsRule {
         // separately, without targeting the node below them.
         if floating && !valid_floater {
             target_span = None;
-            valid_target = false;
         }
 
-        let block_span = self.collect_consecutive_doc_comments(comment);
         diagnostics.add(unused_doc_comment_diagnostic(
             block_span,
             target_span,
