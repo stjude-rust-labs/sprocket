@@ -1,0 +1,5 @@
+error: arguments `read_group.json` after `align.threads`, `align.json` after `align.threads` look like input files but have no `@` prefix, so they were treated as additional values; prefix each input file with `@`
+
+Caused by:
+    0: invalid input value for key `align.threads`
+    1: a common element type does not exist between type `Int` and type `String`

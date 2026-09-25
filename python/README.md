@@ -95,3 +95,17 @@ cargo llvm-cov report -p sprocket-py -p wdl-diagnostics -p wdl-grammar -p wdl-as
 ```
 
 Code coverage of Python code is generated using [`pytest-cov`](https://pytest-cov.readthedocs.io/en/latest/), which is installed as part of the `cov` dependency group. The Python report is printed when you run `pytest` with the `--cov` option. The Rust coverage data is generated when you run `pytest` as well, but the report must be printed after the fact using `cargo-llvm-cov`.
+
+### API Documentation
+
+In order to build the API docs, you must have Python 3.12 or greater installed. You can then install the necessary dependencies and generate the website with the following commands:
+
+```bash
+# Install dependencies necessary to build API docs.
+maturin develop --group docs
+
+# Build website.
+sphinx-build --fail-on-warning python/docs python/docs/_build
+```
+
+The API docs are built using [Sphinx](https://www.sphinx-doc.org/) with the [Read the Docs theme](https://sphinx-rtd-theme.readthedocs.io/). The source is in `python/docs`, and the output is in `python/docs/_build`. The API docs are hosted online at <https://sprocket-bio.readthedocs.io/>.

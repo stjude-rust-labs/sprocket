@@ -95,12 +95,13 @@ async fn create_server_app(
         config.clone(),
         report_mode,
         colorize,
-        db,
+        db.clone(),
     )
     .await?;
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db)
         .failure_mode(failure_mode)
         .output_dir(output_dir)
         .build();
@@ -156,13 +157,20 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+    use crate::system::v1::db::SqliteDatabase;
     use crate::system::v1::exec::svc::RunManagerCmd;
 
     #[tokio::test]
     async fn router_serves_openapi_and_nested_api_routes() -> anyhow::Result<()> {
         let (run_manager_tx, _run_manager_rx) = mpsc::channel::<RunManagerCmd>(1);
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await?;
+        let database = std::sync::Arc::new(SqliteDatabase::from_pool(pool).await?);
         let state = AppState::builder()
             .run_manager_tx(run_manager_tx)
+            .database(database)
             .failure_mode(ServerFailureMode::Slow)
             .output_dir(String::new())
             .build();

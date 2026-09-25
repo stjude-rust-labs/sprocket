@@ -14,16 +14,17 @@ diagnostics = [
 
 
 def main() -> None:
-    # Get the full path of `example.wdl` from this script's location.
-    workflow_path = os.path.join(
+    # Read the packaged workflow by its absolute path, but keep diagnostics portable.
+    workflow_source_path = os.path.join(
         os.path.dirname(os.path.realpath(__file__)), "example.wdl"
     )
+    workflow_display_path = "sprocket_bio/examples/example.wdl"
 
-    with open(workflow_path, mode="rt", encoding="utf-8") as f:
+    with open(workflow_source_path, mode="rt", encoding="utf-8") as f:
         workflow_source = f.read()
 
     emit_diagnostics(
-        workflow_path,
+        workflow_display_path,
         workflow_source,
         diagnostics,
         report_mode=Mode.FULL,

@@ -1,0 +1,16 @@
+{
+  "test.foo": "Foo",
+  "test.bar": "Bar",
+  "test.baz": "Baz",
+  "test.x": "Int?",
+  "test.required_file": "File",
+  "test.required_directory": "Directory",
+  "test.required_string": "String",
+  "test.default_string": "String",
+  "test.y": "Array[Float]",
+  "test.empty": "String",
+  "test.interpolated": "String",
+  "test.my_call.foo": "Foo",
+  "test.my_call.string_map": "Map[String, String]",
+  "test.my_call.int_map": "Map[Int, String]"
+}

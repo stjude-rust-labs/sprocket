@@ -76,7 +76,7 @@ impl Document {
     pub fn render_preamble(&self) -> Option<Markup> {
         let keyword = self.version_statement.keyword();
         let preamble_comments =
-            wdl_ast::doc_comments::<SyntaxNode>(keyword.inner().preceding_trivia());
+            wdl_ast::doc_comments::<SyntaxNode>(keyword.inner().preceding_trivia(), true);
         let preamble = doc_comments(preamble_comments).full_description()?;
 
         Some(html! {

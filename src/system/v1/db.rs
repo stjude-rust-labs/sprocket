@@ -5,6 +5,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use chrono::DateTime;
 use chrono::Utc;
+use serde_json::Value;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -55,12 +56,28 @@ pub enum DatabaseError {
     },
 
     /// Resource not found.
-    #[error("not found")]
-    NotFound,
+    #[error("{0}")]
+    NotFound(String),
 }
 
 /// Result type for database operations.
 pub type Result<T> = std::result::Result<T, DatabaseError>;
+
+/// A page of database records and the total number of matching records.
+#[derive(Debug)]
+pub struct ReadPage<T> {
+    /// The records in the requested page.
+    pub records: Vec<T>,
+    /// The total number of matching records before pagination.
+    pub total: i64,
+}
+
+/// Returns a total that is no smaller than the end of the returned page.
+fn page_total<T>(records: &[T], total: i64, offset: Option<i64>) -> i64 {
+    let record_count = i64::try_from(records.len()).unwrap_or(i64::MAX);
+    let page_end = offset.unwrap_or_default().saturating_add(record_count);
+    total.max(page_end)
+}
 
 /// A database trait containing needed provenance operations.
 #[async_trait]
@@ -76,11 +93,30 @@ pub trait Database: Send + Sync {
     /// Get a session by ID.
     async fn get_session(&self, id: Uuid) -> Result<Option<Session>>;
 
+    /// Get a session by ID, returning an error if it does not exist.
+    async fn read_session(&self, id: Uuid) -> Result<Session> {
+        self.get_session(id)
+            .await?
+            .ok_or_else(|| DatabaseError::NotFound(format!("the run with id `{id}` was not found")))
+    }
+
     /// List sessions.
     async fn list_sessions(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<Session>>;
 
     /// Count total sessions.
     async fn count_sessions(&self) -> Result<i64>;
+
+    /// List sessions and return the total count before pagination.
+    async fn read_sessions(
+        &self,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<ReadPage<Session>> {
+        let (records, total) =
+            tokio::try_join!(self.list_sessions(limit, offset), self.count_sessions())?;
+        let total = page_total(&records, total, offset);
+        Ok(ReadPage { records, total })
+    }
 
     /// Create a new run.
     ///
@@ -142,6 +178,25 @@ pub trait Database: Send + Sync {
     /// Get a run by ID.
     async fn get_run(&self, id: Uuid) -> Result<Option<Run>>;
 
+    /// Get a run by ID, returning an error if it does not exist.
+    async fn read_run(&self, id: Uuid) -> Result<Run> {
+        self.get_run(id)
+            .await?
+            .ok_or_else(|| DatabaseError::NotFound(format!("run not found: `{id}`")))
+    }
+
+    /// Get parsed outputs for a run.
+    async fn read_run_outputs(&self, id: Uuid) -> Result<Option<Value>> {
+        let run = self.get_run(id).await?.ok_or_else(|| {
+            DatabaseError::NotFound(format!("the run with id `{id}` was not found"))
+        })?;
+
+        Ok(run
+            .outputs
+            .as_ref()
+            .and_then(|outputs| serde_json::from_str(outputs).ok()))
+    }
+
     /// List runs with optional filtering and pagination.
     async fn list_runs(
         &self,
@@ -152,6 +207,21 @@ pub trait Database: Send + Sync {
 
     /// Count runs with optional filtering.
     async fn count_runs(&self, status: Option<RunStatus>) -> Result<i64>;
+
+    /// List runs and return the total count before pagination.
+    async fn read_runs(
+        &self,
+        status: Option<RunStatus>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<ReadPage<Run>> {
+        let (records, total) = tokio::try_join!(
+            self.list_runs(status, limit, offset),
+            self.count_runs(status)
+        )?;
+        let total = page_total(&records, total, offset);
+        Ok(ReadPage { records, total })
+    }
 
     /// List runs by session ID.
     async fn list_runs_by_session(&self, session_id: Uuid) -> Result<Vec<Run>>;
@@ -248,6 +318,11 @@ pub trait Database: Send + Sync {
     /// Get task by name.
     async fn get_task(&self, name: &str) -> Result<Task>;
 
+    /// Get a task by name.
+    async fn read_task(&self, name: &str) -> Result<Task> {
+        self.get_task(name).await
+    }
+
     /// List all tasks with pagination and optional filters.
     async fn list_tasks(
         &self,
@@ -260,10 +335,31 @@ pub trait Database: Send + Sync {
     /// Count total tasks with optional filters.
     async fn count_tasks(&self, run_id: Option<Uuid>, status: Option<TaskStatus>) -> Result<i64>;
 
+    /// List tasks and return the total count before pagination.
+    async fn read_tasks(
+        &self,
+        run_id: Option<Uuid>,
+        status: Option<TaskStatus>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<ReadPage<Task>> {
+        let (records, total) = tokio::try_join!(
+            self.list_tasks(run_id, status, limit, offset),
+            self.count_tasks(run_id, status)
+        )?;
+        let total = page_total(&records, total, offset);
+        Ok(ReadPage { records, total })
+    }
+
     /// Count the tasks of a run grouped by status.
     ///
     /// Only statuses that have at least one task are returned.
     async fn count_tasks_by_status(&self, run_id: Uuid) -> Result<Vec<(TaskStatus, i64)>>;
+
+    /// Count the tasks of a run grouped by status.
+    async fn read_run_task_counts(&self, run_id: Uuid) -> Result<Vec<(TaskStatus, i64)>> {
+        self.count_tasks_by_status(run_id).await
+    }
 
     /// Insert a task log entry.
     async fn insert_task_log(&self, task_name: &str, source: LogSource, chunk: &[u8])
@@ -280,6 +376,23 @@ pub trait Database: Send + Sync {
 
     /// Count task logs with optional source filter.
     async fn count_task_logs(&self, task_name: &str, source: Option<LogSource>) -> Result<i64>;
+
+    /// Get task logs and return the total count before pagination.
+    async fn read_task_logs(
+        &self,
+        task_name: &str,
+        source: Option<LogSource>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<ReadPage<TaskLog>> {
+        self.read_task(task_name).await?;
+        let (records, total) = tokio::try_join!(
+            self.get_task_logs(task_name, source, limit, offset),
+            self.count_task_logs(task_name, source)
+        )?;
+        let total = page_total(&records, total, offset);
+        Ok(ReadPage { records, total })
+    }
 
     /// Transition a run to `Running` status with `started_at` timestamp.
     async fn start_run(&self, id: Uuid, started_at: DateTime<Utc>) -> Result<()> {

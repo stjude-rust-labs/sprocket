@@ -7,6 +7,7 @@ use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_comma_separated_items;
 
 /// Formats an [`EnumDefinition`](wdl_ast::v1::EnumDefinition).
 ///
@@ -63,21 +64,7 @@ pub fn format_enum_definition(
         }
     }
 
-    let mut choices = choices.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(choice) = choices.next() {
-        (&choice).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (choices.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if choices.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(&choices, &commas, stream, config);
 
     stream.decrement_indent();
     stream.end_line();

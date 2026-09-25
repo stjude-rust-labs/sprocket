@@ -504,11 +504,11 @@ pub enum GetRunError {
 
 /// Gets a run by ID.
 async fn get_run(db: &Arc<dyn Database>, id: Uuid) -> Result<RunResponse, GetRunError> {
-    let run = db.get_run(id).await?;
-    match run {
-        Some(run) => Ok(RunResponse { run }),
-        None => Err(GetRunError::NotFound(id)),
-    }
+    let run = db.read_run(id).await.map_err(|error| match error {
+        DatabaseError::NotFound(_) => GetRunError::NotFound(id),
+        error => GetRunError::Database(error),
+    })?;
+    Ok(RunResponse { run })
 }
 
 /// Lists all runs given the filter criteria.
@@ -518,9 +518,11 @@ async fn list_runs(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListRunsResponse, DatabaseError> {
-    let runs = db.list_runs(status, limit, offset).await?;
-    let total = db.count_runs(status).await?;
-    Ok(ListRunsResponse { runs, total })
+    let page = db.read_runs(status, limit, offset).await?;
+    Ok(ListRunsResponse {
+        runs: page.records,
+        total: page.total,
+    })
 }
 
 /// Error type for canceling a run.
@@ -641,15 +643,10 @@ async fn get_run_outputs(
     db: &Arc<dyn Database>,
     id: Uuid,
 ) -> Result<RunOutputsResponse, GetRunOutputsError> {
-    let run = db
-        .get_run(id)
-        .await?
-        .ok_or(GetRunOutputsError::NotFound(id))?;
-
-    let outputs = run
-        .outputs
-        .as_ref()
-        .and_then(|s| serde_json::from_str(s).ok());
+    let outputs = db.read_run_outputs(id).await.map_err(|error| match error {
+        DatabaseError::NotFound(_) => GetRunOutputsError::NotFound(id),
+        error => GetRunOutputsError::Database(error),
+    })?;
 
     Ok(RunOutputsResponse { outputs })
 }
@@ -660,9 +657,11 @@ async fn list_sessions(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListSessionsResponse, DatabaseError> {
-    let sessions = db.list_sessions(limit, offset).await?;
-    let total = db.count_sessions().await?;
-    Ok(ListSessionsResponse { sessions, total })
+    let page = db.read_sessions(limit, offset).await?;
+    Ok(ListSessionsResponse {
+        sessions: page.records,
+        total: page.total,
+    })
 }
 
 /// Error type for getting an session.
@@ -681,10 +680,10 @@ async fn get_session_for_run(
     db: &Arc<dyn Database>,
     id: Uuid,
 ) -> Result<SessionResponse, GetSessionError> {
-    let session = db
-        .get_session(id)
-        .await?
-        .ok_or(GetSessionError::NotFound(id))?;
+    let session = db.read_session(id).await.map_err(|error| match error {
+        DatabaseError::NotFound(_) => GetSessionError::NotFound(id),
+        error => GetSessionError::Database(error),
+    })?;
 
     Ok(SessionResponse { session })
 }
@@ -697,9 +696,11 @@ async fn list_tasks(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListTasksResponse, DatabaseError> {
-    let tasks = db.list_tasks(run_id, status, limit, offset).await?;
-    let total = db.count_tasks(run_id, status).await?;
-    Ok(ListTasksResponse { tasks, total })
+    let page = db.read_tasks(run_id, status, limit, offset).await?;
+    Ok(ListTasksResponse {
+        tasks: page.records,
+        total: page.total,
+    })
 }
 
 /// Counts a run's tasks grouped by status.
@@ -707,13 +708,13 @@ async fn count_run_tasks_by_status(
     db: &Arc<dyn Database>,
     run_id: Uuid,
 ) -> Result<RunTaskCountsResponse, DatabaseError> {
-    let counts = db.count_tasks_by_status(run_id).await?;
+    let counts = db.read_run_task_counts(run_id).await?;
     Ok(RunTaskCountsResponse { counts })
 }
 
 /// Gets a task with a given name.
 async fn get_task(db: &Arc<dyn Database>, name: String) -> Result<GetTaskResponse, DatabaseError> {
-    let task = db.get_task(&name).await?;
+    let task = db.read_task(&name).await?;
     Ok(GetTaskResponse { task })
 }
 
@@ -725,10 +726,11 @@ async fn get_task_logs(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListTaskLogsResponse, DatabaseError> {
-    db.get_task(&name).await?;
-    let logs = db.get_task_logs(&name, stream, limit, offset).await?;
-    let total = db.count_task_logs(&name, stream).await?;
-    Ok(ListTaskLogsResponse { logs, total })
+    let page = db.read_task_logs(&name, stream, limit, offset).await?;
+    Ok(ListTaskLogsResponse {
+        logs: page.records,
+        total: page.total,
+    })
 }
 
 #[cfg(test)]
@@ -739,6 +741,29 @@ mod tests {
     use super::*;
     use crate::system::v1::db::SprocketCommand;
     use crate::system::v1::db::SqliteDatabase;
+
+    #[sqlx::test]
+    async fn read_compatibility_helpers_preserve_not_found_errors(pool: SqlitePool) {
+        let db: Arc<dyn Database> = Arc::new(
+            SqliteDatabase::from_pool(pool)
+                .await
+                .expect("failed to create database"),
+        );
+        let id = Uuid::new_v4();
+
+        assert!(matches!(
+            get_run(&db, id).await,
+            Err(GetRunError::NotFound(found)) if found == id
+        ));
+        assert!(matches!(
+            get_run_outputs(&db, id).await,
+            Err(GetRunOutputsError::NotFound(found)) if found == id
+        ));
+        assert!(matches!(
+            get_session_for_run(&db, id).await,
+            Err(GetSessionError::NotFound(found)) if found == id
+        ));
+    }
 
     #[sqlx::test]
     async fn cancel_run_errors_on_orphaned_run(pool: SqlitePool) {

@@ -155,13 +155,13 @@ fn collect_references_from_document(
             let source_pos = SourcePosition::new(token_pos.line, token_pos.character);
 
             let resolved_location =
-                handlers::goto_definition(graph, document.uri(), source_pos, encoding)
+                handlers::goto_definition(graph, &document.uri(), source_pos, encoding)
                     .context("failed to resolve token definition")?;
 
             if let Some(location) = resolved_location
                 && location == target.location
             {
-                let reference_location = location_from_span(document.uri(), token.span(), lines)
+                let reference_location = location_from_span(&document.uri(), token.span(), lines)
                     .context("failed to create reference location")?;
 
                 locations.push(reference_location);

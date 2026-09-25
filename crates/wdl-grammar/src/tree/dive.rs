@@ -173,7 +173,7 @@ workflow world {
                 );
 
                 assert!(diagnostics.is_empty());
-                tree.green().into()
+                tree.green().to_owned()
             })
             .clone();
 

@@ -1,0 +1,1 @@
+validate source.wdl align.threads=20 read_group.json align.json

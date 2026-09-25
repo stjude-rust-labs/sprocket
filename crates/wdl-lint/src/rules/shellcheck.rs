@@ -30,6 +30,7 @@ use wdl_analysis::types::Type;
 use wdl_analysis::types::TypeNameRef;
 use wdl_analysis::types::v1::EvaluationContext;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
+use wdl_analysis::util::lines_with_offset;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -52,7 +53,6 @@ use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
 use crate::util::is_quote_balanced;
-use crate::util::lines_with_offset;
 use crate::util::program_exists;
 
 /// The shellcheck executable
@@ -817,6 +817,7 @@ impl Visitor for ShellCheckRule {
 mod tests {
     use ftree::FenwickTree;
     use pretty_assertions::assert_eq;
+    use wdl_analysis::util::lines_with_offset;
     use wdl_ast::Document;
     use wdl_ast::v1::Expr;
 
@@ -824,7 +825,6 @@ mod tests {
     use super::normalize_replacements;
     use crate::fix;
     use crate::fix::Fixer;
-    use crate::util::lines_with_offset;
 
     #[test]
     fn test_normalize_replacements() {

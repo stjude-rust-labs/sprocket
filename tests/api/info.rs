@@ -51,7 +51,7 @@ async fn create_test_server(
         },
         Mode::default(),
         true,
-        db,
+        db.clone(),
     )
     .await
     .expect("failed to spawn run manager service");
@@ -66,6 +66,7 @@ async fn create_test_server(
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db)
         .failure_mode(failure_mode)
         .output_dir(output_dir.clone())
         .build();

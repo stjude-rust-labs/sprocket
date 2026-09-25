@@ -307,7 +307,8 @@ impl Assertions {
         }
 
         for (output, assertions) in outputs {
-            let Some(ty) = target.outputs().get(&output.0.value).map(|o| o.ty()) else {
+            let target_outputs = target.outputs();
+            let Some(ty) = target_outputs.get(&output.0.value).map(|o| o.ty()) else {
                 diagnostics.add(missing_output(&output.0.value, output.0.defined.span()));
                 continue;
             };

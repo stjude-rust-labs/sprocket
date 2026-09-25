@@ -552,7 +552,7 @@ impl Monitor {
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");
-        state.add_job(job_id, crankshaft_id, request.events, tx);
+        state.add_job(job_id, crankshaft_id, request.context.events(), tx);
         drop(state);
 
         Ok(SubmittedJob {
@@ -872,7 +872,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             // cancellation context
             let task_token = CancellationToken::new();
             send_event!(
-                request.events.crankshaft(),
+                request.context.events().crankshaft(),
                 CrankshaftEvent::TaskCreated {
                     id: crankshaft_id,
                     name: name.clone(),
@@ -931,7 +931,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                     .await?
                 else {
                     send_event!(
-                        request.events.crankshaft(),
+                        request.context.events().crankshaft(),
                         CrankshaftEvent::TaskCanceled {
                             id: crankshaft_id,
                         },
@@ -973,14 +973,14 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
                 let cancelled = async {
                     send_event!(
-                        request.events.crankshaft(),
+                        request.context.events().crankshaft(),
                         CrankshaftEvent::TaskCanceled { id: crankshaft_id },
                     );
 
                     self.kill_job(job_id).await
                 };
 
-                let token = request.cancellation.second();
+                let token = request.context.cancellation().second();
                 let exit_code = tokio::select! {
                     _ = task_token.cancelled() => {
                         if let Err(e) = cancelled.await {
@@ -1011,7 +1011,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                             let status = ExitStatus::from_raw(exit_code as u32);
 
                             send_event!(
-                                request.events.crankshaft(),
+                                request.context.events().crankshaft(),
                                 CrankshaftEvent::TaskCompleted {
                                     id: crankshaft_id,
                                     exit_statuses: NonEmpty::new(status),
@@ -1050,7 +1050,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             let result = run.await;
             if let Err(e) = &result {
                 send_event!(
-                    request.events.crankshaft(),
+                    request.context.events().crankshaft(),
                     CrankshaftEvent::TaskFailed {
                         id: crankshaft_id,
                         message: e.to_string(),

@@ -61,6 +61,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::config::Config;
 use crate::document::Document;
+use crate::document::cache::AnalysisCache;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
 use crate::graph::EdgeKind;
@@ -87,9 +88,9 @@ pub enum Request<Context> {
     /// A request to analyze documents.
     Analyze(AnalyzeRequest<Context>),
     /// A request to get all callers of a symbol.
-    CallHierarchy(CallHierarchyRequest),
+    CallHierarchy(CallHierarchyRequest<Context>),
     /// A request to get all code lenses in a document.
-    CodeLens(CodeLensRequest),
+    CodeLens(CodeLensRequest<Context>),
     /// A request to unroot documents in the graph.
     UnrootDocuments(UnrootDocumentsRequest),
     /// A request to delete documents from the graph.
@@ -103,29 +104,29 @@ pub enum Request<Context> {
     /// A request to format a document.
     Format(FormatRequest),
     /// A request to goto definition of a symbol.
-    GotoDefinition(GotoDefinitionRequest),
+    GotoDefinition(GotoDefinitionRequest<Context>),
     /// A request to find all references of a symbol.
-    FindAllReferences(FindAllReferencesRequest),
+    FindAllReferences(FindAllReferencesRequest<Context>),
     /// A request to get completions at a position.
     Completion(CompletionRequest<Context>),
     /// A request to get information about a symbol on hover.
-    Hover(HoverRequest),
+    Hover(HoverRequest<Context>),
     /// A request to rename a symbol workspace wide.
-    Rename(RenameRequest),
+    Rename(RenameRequest<Context>),
     /// A request to get semantic tokens for a document.
-    SemanticTokens(SemanticTokenRequest),
+    SemanticTokens(SemanticTokenRequest<Context>),
     /// A request to get symbols for a document.
     DocumentSymbol(DocumentSymbolRequest),
     /// A request to get symbols for the workspace.
-    WorkspaceSymbol(WorkspaceSymbolRequest),
+    WorkspaceSymbol(WorkspaceSymbolRequest<Context>),
     /// A request to get all incoming calls from a symbol.
-    IncomingCalls(IncomingCallsRequest),
+    IncomingCalls(IncomingCallsRequest<Context>),
     /// A request to get all outgoing calls from a symbol.
-    OutgoingCalls(OutgoingCallsRequest),
+    OutgoingCalls(OutgoingCallsRequest<Context>),
     /// A request to get signature help.
     SignatureHelp(SignatureHelpRequest),
     /// A request to get inlay hints for a document.
-    InlayHints(InlayHintsRequest),
+    InlayHints(InlayHintsRequest<Context>),
     /// Replace the current validator.
     SwapValidator(SwapValidatorRequest),
 }
@@ -151,7 +152,7 @@ pub struct AnalyzeRequest<Context> {
 }
 
 /// Represents a request to get the call hierarchy for a symbol.
-pub struct CallHierarchyRequest {
+pub struct CallHierarchyRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -160,14 +161,18 @@ pub struct CallHierarchyRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CallHierarchyItem>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the code lenses for a document.
-pub struct CodeLensRequest {
+pub struct CodeLensRequest<Context> {
     /// The document to search.
     pub document: Url,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CodeLens>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to unroot documents in the document graph.
@@ -225,7 +230,7 @@ pub struct FormatRequest {
 }
 
 /// Represents a request to find the definition of a symbol at a given position.
-pub struct GotoDefinitionRequest {
+pub struct GotoDefinitionRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -234,10 +239,12 @@ pub struct GotoDefinitionRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<GotoDefinitionResponse>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to find all references to a symbol at a given position.
-pub struct FindAllReferencesRequest {
+pub struct FindAllReferencesRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -248,6 +255,8 @@ pub struct FindAllReferencesRequest {
     pub include_declaration: bool,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Vec<Location>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get completions.
@@ -265,7 +274,7 @@ pub struct CompletionRequest<Context> {
 }
 
 /// Represents a request to get information of a symbol on hover
-pub struct HoverRequest {
+pub struct HoverRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -274,10 +283,12 @@ pub struct HoverRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Hover>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to rename a symbol at a given position.
-pub struct RenameRequest {
+pub struct RenameRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -288,14 +299,18 @@ pub struct RenameRequest {
     pub new_name: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<WorkspaceEdit>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the semantic tokens for a document
-pub struct SemanticTokenRequest {
+pub struct SemanticTokenRequest<Context> {
     /// The document to get semantic tokens for
     pub document: Url,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<SemanticTokensResult>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the symbols for a document.
@@ -307,15 +322,17 @@ pub struct DocumentSymbolRequest {
 }
 
 /// Represents a request to get symbols for the workspace.
-pub struct WorkspaceSymbolRequest {
+pub struct WorkspaceSymbolRequest<Context> {
     /// The query string to filter symbols.
     pub query: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<SymbolInformation>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the incoming calls for a symbol.
-pub struct IncomingCallsRequest {
+pub struct IncomingCallsRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -324,10 +341,12 @@ pub struct IncomingCallsRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CallHierarchyIncomingCall>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the outgoing calls for a symbol.
-pub struct OutgoingCallsRequest {
+pub struct OutgoingCallsRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -336,6 +355,8 @@ pub struct OutgoingCallsRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CallHierarchyOutgoingCall>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request for signature help.
@@ -351,13 +372,15 @@ pub struct SignatureHelpRequest {
 }
 
 /// Represents a request for inlay hints.
-pub struct InlayHintsRequest {
+pub struct InlayHintsRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The visible range for which inlay hints should be computed.
     pub range: lsp_types::Range,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to swap the analyzer's current validator.
@@ -571,6 +594,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -578,6 +602,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::call_hierarchy(&graph, document, position, encoding) {
@@ -601,12 +630,18 @@ where
                 Request::CodeLens(CodeLensRequest {
                     document,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
                         "received request for code lenses in {document}",
                         document = document
                     );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::code_lens(&graph, &document) {
@@ -688,6 +723,11 @@ where
                 }) => {
                     let start = Instant::now();
 
+                    if !self.ensure_parsed(&document) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
                     let graph = self.graph.read();
                     match handlers::folding_range(&graph, document) {
                         Ok(result) => {
@@ -765,6 +805,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -772,6 +813,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::goto_definition(&graph, &document, position, encoding) {
@@ -799,6 +845,7 @@ where
                     encoding,
                     include_declaration,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -806,6 +853,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(Vec::new()).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::find_all_references(
@@ -843,10 +895,7 @@ where
                         char = position.character
                     );
 
-                    if let Cancelable::Completed(Err(e)) =
-                        self.analyze(Some(document.clone()), context, None)
-                    {
-                        error!("analysis failed before completion could run: {e}");
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -874,6 +923,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -882,8 +932,12 @@ where
                         char = position.character
                     );
 
-                    let graph = self.graph.read();
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
+                    let graph = self.graph.read();
                     match handlers::hover(&graph, &document, position, encoding) {
                         Ok(result) => {
                             debug!(
@@ -906,6 +960,7 @@ where
                     encoding,
                     new_name,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -913,6 +968,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::rename(&graph, &document, position, encoding, new_name) {
@@ -933,9 +993,15 @@ where
                 Request::SemanticTokens(SemanticTokenRequest {
                     document,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!("received request for semantic tokens for {document}");
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::semantic_tokens(&graph, &document) {
@@ -962,38 +1028,9 @@ where
                     let start = Instant::now();
                     debug!("received request for document symbols for {document}");
 
-                    let parse_result;
-                    {
-                        let graph = self.graph.read();
-                        let Some(index) = graph.get_index(&document) else {
-                            debug!("document '{document}' not found in graph");
-                            completed.send(None).ok();
-                            continue;
-                        };
-                        let node = graph.get(index);
-
-                        if node.needs_parse() {
-                            parse_result = Some(node.parse(&self.tokio, &self.client));
-                        } else {
-                            parse_result = None;
-                        }
-                    }
-
-                    match parse_result {
-                        Some(Ok(state)) => {
-                            let mut graph = self.graph.write();
-                            let index = graph.get_index(&document).unwrap();
-                            graph.get_mut(index).parse_completed(state);
-                        }
-                        Some(Err(e)) => {
-                            debug!(
-                                "error occurred while parsing document in document symbol \
-                                 request: {e:?}"
-                            );
-                            completed.send(None).ok();
-                            continue;
-                        }
-                        None => {}
+                    if !self.ensure_parsed(&document) {
+                        completed.send(None).ok();
+                        continue;
                     }
 
                     let graph = self.graph.read();
@@ -1011,9 +1048,18 @@ where
                         }
                     }
                 }
-                Request::WorkspaceSymbol(WorkspaceSymbolRequest { query, completed }) => {
+                Request::WorkspaceSymbol(WorkspaceSymbolRequest {
+                    query,
+                    completed,
+                    context,
+                }) => {
                     let start = Instant::now();
                     debug!("received request for workspace symbols with query `{query}`");
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::workspace_symbol(&graph, &query) {
@@ -1035,6 +1081,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -1042,6 +1089,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::incoming_calls(&graph, &document, position, encoding) {
@@ -1067,6 +1119,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -1074,6 +1127,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::outgoing_calls(&graph, &document, position, encoding) {
@@ -1107,6 +1165,11 @@ where
                         char = position.character
                     );
 
+                    if !self.ensure_parsed(&document) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
                     let graph = self.graph.read();
                     match handlers::signature_help(&graph, &document, position, encoding) {
                         Ok(result) => {
@@ -1126,9 +1189,15 @@ where
                     document,
                     range,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!("received request for inlay hints at {document}");
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::inlay_hints(&graph, &document, range) {
@@ -1177,6 +1246,83 @@ where
             graph.add_node(document, true);
         }
         self.document_modules.record_all(modules);
+    }
+
+    /// Ensures that the `document` is parsed.
+    ///
+    /// Returns `true` if the document was successfully parsed, and `false` if
+    /// the document either doesn't exist or fails parsing.
+    fn ensure_parsed(&self, document: &Url) -> bool {
+        let parse_result;
+        {
+            let graph = self.graph.read();
+            let Some(index) = graph.get_index(document) else {
+                debug!("document '{document}' not found in graph");
+                return false;
+            };
+            let node = graph.get(index);
+
+            if node.needs_parse() {
+                parse_result = node.parse(&self.tokio, &self.client);
+            } else {
+                // Already parsed
+                return true;
+            }
+        }
+
+        match parse_result {
+            Ok(state) => {
+                let mut graph = self.graph.write();
+                let index = graph.get_index(document).unwrap();
+                graph.get_mut(index).parse_completed(state);
+                true
+            }
+            Err(e) => {
+                debug!("error occurred while parsing document: {e:?}");
+                false
+            }
+        }
+    }
+
+    /// Ensures that the `document` (or workspace) is analyzed.
+    ///
+    /// Returns `true` if the document was successfully analyzed, and `false` if
+    /// the document either doesn't exist or fails analysis.
+    ///
+    /// If the document is `None`, the entire workspace is analyzed.
+    fn ensure_analyzed(&self, document: Option<Url>, context: Context) -> bool {
+        let index = match &document {
+            Some(uri) => {
+                let graph = self.graph.read();
+
+                let Some(index) = graph.get_index(uri) else {
+                    debug!("document `{uri:?}` not found in graph");
+                    return false;
+                };
+
+                Some(index)
+            }
+            None => None,
+        };
+
+        match self.analyze(document, context, None) {
+            Cancelable::Completed(Ok(_)) => {
+                if let Some(index) = index {
+                    let graph = self.graph.read();
+                    return graph.get(index).document().is_some();
+                }
+
+                true
+            }
+            Cancelable::Completed(Err(e)) => {
+                debug!("failed to analyze document: {e:?}");
+                false
+            }
+            Cancelable::Canceled => {
+                debug!("failed to analyze document, task was canceled");
+                false
+            }
+        }
     }
 
     /// Analyzes the requested documents.
@@ -1272,7 +1418,6 @@ where
         let mut results: Vec<AnalysisResult> = Vec::new();
         while subgraph.node_count() > 0 {
             if completed.is_some_and(|c| c.is_closed()) {
-                debug!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
 
@@ -1315,8 +1460,16 @@ where
                     let config = self.config.clone();
                     let validator = validator.clone();
                     handles.push(RayonHandle::spawn(move || {
+                        let existing_cache = { graph.write().get_mut(index).take_cache() };
+
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                            Self::analyze_node(
+                                &config,
+                                &graph.read(),
+                                index,
+                                existing_cache,
+                                &mut (validator)(),
+                            )
                         }));
 
                         let mut graph = graph.write();
@@ -1362,7 +1515,7 @@ where
             }));
         }
 
-        results.sort_by(|a, b| a.document().uri().cmp(b.document().uri()));
+        results.sort_by_key(|a| a.document().uri());
         Cancelable::Completed(Ok(results))
     }
 
@@ -1420,10 +1573,8 @@ where
         }
 
         let total = tasks.len();
-        if completed.is_some() {
-            self.tokio
-                .block_on((self.progress)(context.clone(), kind, 0, total));
-        }
+        self.tokio
+            .block_on((self.progress)(context.clone(), kind, 0, total));
 
         let update_progress = self.progress.clone();
         let results = self.tokio.block_on(async move {
@@ -1438,39 +1589,33 @@ where
                 results.push(result);
                 count += 1;
 
-                if completed.is_some() {
-                    let now = Instant::now();
-                    if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS
-                    {
-                        debug!("{count} out of {total} {kind} task(s) have completed");
-                        last_progress = now;
-                        update_progress(context.clone(), kind, count, total).await;
-                    }
+                let now = Instant::now();
+                if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS {
+                    debug!("{count} out of {total} {kind} task(s) have completed");
+                    last_progress = now;
+                    update_progress(context.clone(), kind, count, total).await;
                 }
             }
 
             results
         });
 
-        if completed.is_some() {
-            if results.len() < total {
-                debug!(
-                    "{count} out of {total} {kind} task(s) have completed; canceled {canceled} \
-                     tasks",
-                    count = results.len(),
-                    canceled = total - results.len()
-                );
-            } else {
-                debug!(
-                    "{count} out of {total} {kind} task(s) have completed",
-                    count = results.len()
-                );
-            }
-
-            // Report all have completed even if there are cancellations
-            self.tokio
-                .block_on((self.progress)(context.clone(), kind, total, total));
+        if results.len() < total {
+            debug!(
+                "{count} out of {total} {kind} task(s) have completed; canceled {canceled} tasks",
+                count = results.len(),
+                canceled = total - results.len()
+            );
+        } else {
+            debug!(
+                "{count} out of {total} {kind} task(s) have completed",
+                count = results.len()
+            );
         }
+
+        // Report all have completed even if there are cancellations
+        self.tokio
+            .block_on((self.progress)(context.clone(), kind, total, total));
 
         if completed.is_some_and(|c| c.is_closed()) {
             Cancelable::Canceled
@@ -1837,15 +1982,16 @@ where
     }
 
     /// Analyzes a node in the document graph.
+    #[tracing::instrument(name = "analysis", skip_all)]
     fn analyze_node(
         config: &Config,
-        graph: Arc<RwLock<DocumentGraph>>,
+        graph: &DocumentGraph,
         index: NodeIndex,
+        existing_cache: Option<Arc<AnalysisCache>>,
         validator: &mut crate::Validator,
     ) -> (NodeIndex, Document) {
         let start = Instant::now();
-        let graph = graph.read();
-        let mut document = Document::from_graph_node(config, &graph, index);
+        let mut document = Document::from_graph_node(config, graph, index, existing_cache);
 
         match &graph.get(index).parse_state() {
             ParseState::Parsed { diagnostics, .. }

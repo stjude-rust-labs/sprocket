@@ -406,6 +406,8 @@ mod feature_flags {
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
     /// Rule IDs or tags to except from running.
+    ///
+    /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
     #[schemars(default)]
     pub except: Vec<String>,
@@ -447,10 +449,6 @@ pub struct AnalyzerConfig {
     #[toml(default)]
     #[schemars(default)]
     pub lint: bool,
-    /// Rule IDs to except from running.
-    #[toml(default)]
-    #[schemars(default)]
-    pub except: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `run` command.
@@ -793,7 +791,7 @@ pub struct TestConfig {
     pub parallelism: u32,
     /// Delay between submitting initial test executions, in milliseconds.
     ///
-    /// Once the `parallelism`` permits are exhausted, this throttle delay is
+    /// Once the `parallelism` permits are exhausted, this throttle delay is
     /// ignored and new tests are submitted eagerly as prior tests complete and
     /// free permits.
     ///
@@ -818,6 +816,16 @@ impl Default for TestConfig {
             fixtures_dir: None,
             run_dir: None,
         }
+    }
+}
+
+impl TestConfig {
+    /// Validates the configuration.
+    fn validate(&self) -> Result<()> {
+        if self.parallelism == 0 {
+            return Err(anyhow!("`parallelism` must be greater than `0`"));
+        }
+        Ok(())
     }
 }
 
@@ -1322,6 +1330,7 @@ impl Config {
         // Validate inner configs
         self.server.validate()?;
         self.doc.validate()?;
+        self.test.validate()?;
 
         Ok(())
     }
@@ -1343,7 +1352,7 @@ impl Config {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use schemars::schema_for;

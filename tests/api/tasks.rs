@@ -65,6 +65,7 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db.clone())
         .failure_mode(ServerFailureMode::Slow)
         .output_dir(output_dir)
         .build();
@@ -271,7 +272,7 @@ async fn list_run_tasks_rejects_non_positive_limit(pool: sqlx::SqlitePool) {
             body["message"]
                 .as_str()
                 .unwrap_or_default()
-                .contains("`limit` must be positive"),
+                .contains("`limit` must be between"),
             "unexpected message: {}",
             body["message"]
         );

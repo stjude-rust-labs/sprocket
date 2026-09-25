@@ -16,18 +16,18 @@ use crate::cache::CallCacheExclusions;
 use crate::config::BackendConfig;
 use crate::config::CallCachingMode;
 use crate::config::Config;
-use crate::http::HttpTransferer;
-use crate::http::Transferer;
+use crate::http::DefaultHttpClient;
+use crate::http::HttpClient;
 use crate::v1;
 
-/// The inner workings of [`Engine`].
+/// The inner state of [`Engine`].
 struct EngineInner {
     /// The configuration for evaluation.
     config: Arc<Config>,
     /// The task execution backend for evaluation.
     backend: Box<dyn TaskExecutionBackend>,
-    /// The transferer for evaluation.
-    transferer: Box<dyn Transferer>,
+    /// The HTTP client to use for evaluation.
+    http_client: Box<dyn HttpClient>,
     /// The call cache for evaluation.
     ///
     /// This is `None` when the call cache is disabled.
@@ -36,8 +36,8 @@ struct EngineInner {
 
 /// Represents a WDL evaluation engine.
 ///
-/// A WDL engine will share configuration, a task execution backend, a file
-/// transferer, and various caches.
+/// A WDL engine will share configuration, a task execution backend, and call
+/// cache.
 ///
 /// Typically there will be one WDL evaluation engine per process.
 ///
@@ -50,18 +50,16 @@ pub struct Engine(Arc<EngineInner>);
 
 impl Engine {
     /// Constructs a new engine given the evaluation configuration.
-    ///
-    /// This method uses the default HTTP transferer for transferring files.
     pub async fn new(config: Config) -> Result<Self> {
-        let transferer = HttpTransferer::new(&config)?;
-        Self::new_with_transferer(config, transferer).await
+        let client = DefaultHttpClient::new(&config)?;
+        Self::new_with_http_client(config, client).await
     }
 
-    /// Constructs a new engine with the given evaluation configuration and file
-    /// transferer.
-    pub async fn new_with_transferer<T>(config: Config, transferer: T) -> Result<Self>
+    /// Constructs a new engine given the evaluation configuration and HTTP
+    /// client to use.
+    pub(crate) async fn new_with_http_client<T>(config: Config, client: T) -> Result<Self>
     where
-        T: Transferer + 'static,
+        T: HttpClient + 'static,
     {
         config
             .validate()
@@ -97,15 +95,12 @@ impl Engine {
             ),
         };
 
-        Ok(Self(
-            EngineInner {
-                config,
-                backend,
-                transferer: Box::new(transferer),
-                call_cache,
-            }
-            .into(),
-        ))
+        Ok(Self(Arc::new(EngineInner {
+            config,
+            backend,
+            http_client: Box::new(client),
+            call_cache,
+        })))
     }
 
     /// Creates a new WDL 1.x evaluator from the engine using the provided
@@ -115,17 +110,17 @@ impl Engine {
         events: Events,
         cancellation: CancellationContext,
     ) -> v1::Evaluator {
-        v1::Evaluator::new(self.clone(), events, cancellation)
+        v1::Evaluator::new(self, events, cancellation)
     }
 
     /// Gets the configuration associated with the engine.
-    pub fn config(&self) -> &Config {
+    pub fn config(&self) -> &Arc<Config> {
         &self.0.config
     }
 
-    /// Gets the file transferer associated with the engine.
-    pub(crate) fn transferer(&self) -> &dyn Transferer {
-        self.0.transferer.as_ref()
+    /// Gets the HTTP client associated with the engine.
+    pub(crate) fn http_client(&self) -> &dyn HttpClient {
+        self.0.http_client.as_ref()
     }
 
     /// Gets the task execution backend associated with the engine.

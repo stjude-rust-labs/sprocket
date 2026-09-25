@@ -7,7 +7,9 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+mod handlers;
 mod proto;
 mod server;
+pub(crate) mod test;
 
 pub use server::*;

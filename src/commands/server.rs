@@ -9,7 +9,6 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Parser;
 use clap::Subcommand;
-use wdl::diagnostics::Mode;
 
 use crate::Config;
 use crate::commands::CommandResult;
@@ -75,10 +74,6 @@ pub struct StartArgs {
     /// Allowed CORS origins.
     #[arg(long)]
     pub allowed_origins: Vec<String>,
-
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
 }
 
 impl StartArgs {
@@ -114,7 +109,7 @@ impl StartArgs {
 
 /// Starts the HTTP API server.
 async fn start(args: StartArgs, mut config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or_default();
+    let report_mode = config.common.report_mode;
     args.apply(&mut config);
     config
         .validate()

@@ -321,7 +321,7 @@ impl fmt::Debug for SyntaxNode {
 
 impl NewRoot<wdl_ast::SyntaxNode> for SyntaxNode {
     fn new_root(root: wdl_ast::SyntaxNode) -> Self {
-        Self(Arc::new(ElementData::new_root(root.green().into())))
+        Self(Arc::new(ElementData::new_root(root.green().to_owned())))
     }
 }
 
