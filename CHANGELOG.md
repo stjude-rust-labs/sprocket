@@ -78,6 +78,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Replaced the flat `[check.lint]` configuration table with per-rule
   `[check.rules.<RuleId>]` tables. A configuration that still uses `[check.lint]`
   now produces a migration error describing the move.
+* Replaced the `SnakeCase` and `PascalCase` lint rules with a configurable
+  `NamingConvention` rule. The old IDs are now rejected with a migration error
+  in `--except`, `--deny`, `--warn`, `--note`, `check.except`,
+  `analyzer.except`, and `[check.rules]`; `#@ except` comments that name them
+  still suppress `NamingConvention` but report a deprecation note.
 * Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
 * `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
 * Replaced the `peak_alloc` global allocator with `mimalloc` and now query peak memory usage from the operating system on exit, removing per-allocation tracking overhead ([#990](https://github.com/stjude-rust-labs/sprocket/pull/990)).
