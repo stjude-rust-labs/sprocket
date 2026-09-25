@@ -1,5 +1,6 @@
 //! Sparse checkout and materialization operations for Git cache leaves.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
@@ -36,10 +37,11 @@ enum SparsePath {
 
 impl SparsePath {
     /// Parses a sparse path, treating `.` and the empty string as the root.
-    fn new(path: &str) -> Self {
-        match path {
+    fn new<'a>(path: impl Into<Cow<'a, str>>) -> Self {
+        let path = path.into();
+        match path.as_ref() {
             "" | "." => Self::Root,
-            _ => Self::Sub(path.to_string()),
+            _ => Self::Sub(path.into_owned()),
         }
     }
 
@@ -80,10 +82,9 @@ impl SparsePath {
 
     /// Returns the proper ancestors of `self` below the root, outermost
     /// first.
-    fn ancestors(&self) -> impl Iterator<Item = Self> + '_ {
+    fn ancestors(&self) -> impl Iterator<Item = &str> {
         let path = self.as_sub().unwrap_or_default();
-        path.match_indices('/')
-            .map(|(index, _)| Self::Sub(path[..index].to_string()))
+        path.match_indices('/').map(|(index, _)| &path[..index])
     }
 
     /// Returns whether this is the leaf's own `.git` directory.
@@ -116,13 +117,16 @@ impl SparsePath {
 
 impl From<String> for SparsePath {
     fn from(path: String) -> Self {
-        Self::new(&path)
+        Self::new(path)
     }
 }
 
 impl From<SparsePath> for String {
     fn from(path: SparsePath) -> Self {
-        path.as_str().to_string()
+        match path {
+            SparsePath::Root => ".".into(),
+            SparsePath::Sub(path) => path,
+        }
     }
 }
 
@@ -716,7 +720,7 @@ impl<'a> CacheLeaf<'a> {
                 }
                 Err(error) if error.code() == git2::ErrorCode::NotFound => {
                     let below_non_tree = path.ancestors().any(|ancestor| {
-                        tree.get_path(Path::new(ancestor.as_str()))
+                        tree.get_path(Path::new(ancestor))
                             .is_ok_and(|e| e.kind() != Some(git2::ObjectType::Tree))
                     });
                     if below_non_tree {
@@ -744,7 +748,7 @@ impl<'a> CacheLeaf<'a> {
         out: &mut Vec<PathBuf>,
     ) -> Result<(), GitError> {
         for ancestor in path.ancestors() {
-            let dir = ancestor.worktree_path(self.path);
+            let dir = self.path.join(ancestor);
             match std::fs::symlink_metadata(&dir) {
                 Ok(metadata) if metadata.is_dir() => {}
                 Ok(_) => {
@@ -1604,7 +1608,7 @@ mod tests {
 
     /// Extends the cache leaf at `leaf` to cover `paths`.
     fn extend(leaf: &Path, paths: &[&str], limits: TreeLimits) -> Result<(), GitError> {
-        let paths = SparsePath::normalize(paths.iter().map(|p| SparsePath::new(p)));
+        let paths = SparsePath::normalize(paths.iter().map(|p| SparsePath::new(*p)));
         CacheLeaf::open(leaf)?.extend(&paths, limits)
     }
 
@@ -1675,7 +1679,7 @@ mod tests {
         assert!(!covers("lib/common", "lib"));
         assert!(!covers("lib", "."));
         let normalize = |paths: &[&str]| -> Vec<String> {
-            SparsePath::normalize(paths.iter().map(|p| SparsePath::new(p)))
+            SparsePath::normalize(paths.iter().map(|p| SparsePath::new(*p)))
                 .into_iter()
                 .map(String::from)
                 .collect()
