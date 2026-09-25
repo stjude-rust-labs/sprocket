@@ -102,6 +102,7 @@ Available rules:
   - OutputName
   - ParameterDescription
   - ParameterMetaMatched
+  - ParameterizedResources
   - PascalCase
   - RedundantNone
   - RequirementsSection
