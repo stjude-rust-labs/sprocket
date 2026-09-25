@@ -1,7 +1,5 @@
 //! Implementation of utility functions for reading task hints.
 
-use std::collections::HashMap;
-
 use anyhow::Result;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::v1::TASK_HINT_CACHEABLE;
@@ -11,8 +9,8 @@ use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY_ALIAS;
 
 use crate::Coercible;
+use crate::Object;
 use crate::TaskInputs;
-use crate::Value;
 use crate::config::CallCachingMode;
 use crate::config::Config;
 use crate::v1::task::find_key_value;
@@ -22,7 +20,7 @@ use crate::v1::validators::ensure_non_negative_i64;
 use crate::v1::validators::invalid_numeric_value_message;
 
 /// Gets the `max_cpu` hint from a hints map.
-pub(crate) fn max_cpu(inputs: &TaskInputs, hints: &HashMap<String, Value>) -> Option<f64> {
+pub(crate) fn max_cpu(inputs: &TaskInputs, hints: &Object) -> Option<f64> {
     find_key_value(&[TASK_HINT_MAX_CPU, TASK_HINT_MAX_CPU_ALIAS], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     })
@@ -34,10 +32,7 @@ pub(crate) fn max_cpu(inputs: &TaskInputs, hints: &HashMap<String, Value>) -> Op
 }
 
 /// Gets the `max_memory` hint from a hints map.
-pub(crate) fn max_memory(
-    inputs: &TaskInputs,
-    hints: &HashMap<String, Value>,
-) -> Result<Option<i64>> {
+pub(crate) fn max_memory(inputs: &TaskInputs, hints: &Object) -> Result<Option<i64>> {
     match find_key_value(&[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     }) {
@@ -56,7 +51,7 @@ pub(crate) fn max_memory(
 /// This hint is not part of the WDL standard but is used for compatibility with
 /// Cromwell where backends can support preemptible retries before using
 /// dedicated instances.
-pub(crate) fn preemptible(inputs: &TaskInputs, hints: &HashMap<String, Value>) -> Result<i64> {
+pub(crate) fn preemptible(inputs: &TaskInputs, hints: &Object) -> Result<i64> {
     const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
     const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
 
@@ -74,11 +69,7 @@ pub(crate) fn preemptible(inputs: &TaskInputs, hints: &HashMap<String, Value>) -
 }
 
 /// Gets the `cacheable` hint from a hints map with config fallback.
-pub(crate) fn cacheable(
-    inputs: &TaskInputs,
-    hints: &HashMap<String, Value>,
-    config: &Config,
-) -> bool {
+pub(crate) fn cacheable(inputs: &TaskInputs, hints: &Object, config: &Config) -> bool {
     find_key_value(&[TASK_HINT_CACHEABLE], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     })
@@ -91,13 +82,17 @@ pub(crate) fn cacheable(
 
 #[cfg(test)]
 mod tests {
+    use indexmap::IndexMap;
+
     use super::*;
     use crate::PrimitiveValue;
+    use crate::Value;
 
     #[test]
     fn preemptible_disallows_negative_values() {
-        let mut hints = HashMap::new();
+        let mut hints = IndexMap::new();
         hints.insert("preemptible".to_string(), Value::from(-3));
+        let hints = Object::new(hints);
         let err = preemptible(&TaskInputs::default(), &hints)
             .expect_err("`preemptible` should reject negatives");
         assert!(
@@ -114,11 +109,12 @@ mod tests {
         inputs.override_hint("preemptible", 1234);
         inputs.override_hint("cacheable", true);
 
-        let mut hints: HashMap<String, Value> = Default::default();
+        let mut hints: IndexMap<String, Value> = Default::default();
         hints.insert("max_cpu".to_string(), PrimitiveValue::from(1).into());
         hints.insert("max_memory".to_string(), PrimitiveValue::from(1).into());
         hints.insert("preemptible".to_string(), PrimitiveValue::from(1).into());
         hints.insert("cacheable".to_string(), PrimitiveValue::from(false).into());
+        let hints = Object::new(hints);
 
         assert_eq!(max_cpu(&inputs, &hints), Some(1234.0));
         assert_eq!(max_memory(&inputs, &hints).unwrap(), Some(1234));

@@ -12,13 +12,6 @@ use anyhow::bail;
 use path_clean::PathClean;
 use url::Url;
 
-use crate::ContentKind;
-use crate::config::ContentDigestMode;
-use crate::digest::Digest;
-use crate::digest::calculate_local_digest;
-use crate::digest::calculate_remote_digest;
-use crate::http::Transferer;
-
 /// The URL schemes supported by this crate.
 const SUPPORTED_SCHEMES: &[&str] = &["http://", "https://", "file://", "az://", "s3://", "gs://"];
 
@@ -105,6 +98,16 @@ impl EvaluationPath {
     /// Converts to the underlying evaluation path kind.
     pub(crate) fn into_kind(self) -> EvaluationPathKind {
         self.0
+    }
+
+    /// Gets a string representation of the path.
+    ///
+    /// Returns `None` if the path can't be represented as UTF-8.
+    pub fn as_str(&self) -> Option<&str> {
+        match &self.0 {
+            EvaluationPathKind::Local(path) => path.to_str(),
+            EvaluationPathKind::Remote(url) => Some(url.as_str()),
+        }
     }
 
     /// Returns `true` if the path is local.
@@ -205,19 +208,6 @@ impl EvaluationPath {
             }
         }
     }
-
-    /// Calculates the content digest of the evaluation path.
-    pub(crate) async fn calculate_digest(
-        &self,
-        transferer: &dyn Transferer,
-        kind: ContentKind,
-        mode: ContentDigestMode,
-    ) -> Result<Digest> {
-        match &self.0 {
-            EvaluationPathKind::Local(path) => calculate_local_digest(path, kind, mode).await,
-            EvaluationPathKind::Remote(url) => calculate_remote_digest(transferer, url, kind).await,
-        }
-    }
 }
 
 impl FromStr for EvaluationPath {
@@ -287,7 +277,7 @@ impl TryFrom<Url> for EvaluationPath {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;

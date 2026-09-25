@@ -36,7 +36,7 @@ const FUNCTION_NAME: &str = "write_object";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_object
 fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::File));
 
         // Helper for handling errors while writing to the file.
@@ -134,7 +134,7 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
 
     use pretty_assertions::assert_eq;
@@ -142,8 +142,8 @@ mod test {
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn write_object() {

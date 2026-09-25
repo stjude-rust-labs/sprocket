@@ -1,6 +1,7 @@
 ## # Header
-## part of preamble
 # regular comment
+
+## part of preamble
 #@ except: CommentWhitespace, DeprecatedObject, MatchingOutputMeta, MetaDescription
 #@ except: ParameterMetaMatched
 version 1.3
@@ -12,7 +13,7 @@ struct AStruct {
 
 task a_task {
     meta
-        # Here is a comment between `meta` and the open brace.
+    # Here is a comment between `meta` and the open brace.
     {
         # Here is a comment within `meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -35,7 +36,7 @@ task a_task {
     }
 
     parameter_meta
-        # Here is a comment between `parameter_meta` and the open brace.
+    # Here is a comment between `parameter_meta` and the open brace.
     {
         # Here is a comment within `parameter_meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -58,7 +59,7 @@ task a_task {
     }
 
     input
-        # Here is a comment between `input` and the open brace.
+    # Here is a comment between `input` and the open brace.
     {
         Object an_object
         String a_string
@@ -73,7 +74,7 @@ task a_task {
     >>>
 
     output
-        # Here is a comment between `output` and the open brace.
+    # Here is a comment between `output` and the open brace.
     {
         Object some_other_object = {
         }
@@ -88,7 +89,7 @@ task a_task {
     }
 
     requirements
-        # This is a comment between `requirements` and the open brace.
+    # This is a comment between `requirements` and the open brace.
     {
         container: "ubuntu:latest"
     }
@@ -102,7 +103,7 @@ task a_task {
 ## blah blah blah.
 workflow hello {
     meta
-        # Here is a comment between `meta` and the open brace.
+    # Here is a comment between `meta` and the open brace.
     {
         # Here is a comment within `meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -125,7 +126,7 @@ workflow hello {
     }
 
     parameter_meta
-        # Here is a comment between `parameter_meta` and the open brace.
+    # Here is a comment between `parameter_meta` and the open brace.
     {
         # Here is a comment within `parameter_meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -157,8 +158,7 @@ workflow hello {
     # the TextMate language that it's a custom struct.
     }
 
-    call a_task {
-    }
+    call a_task
 
     scatter (name in name_array) {
         call say_task {
@@ -167,12 +167,11 @@ workflow hello {
     }
 
     if (some_condition_task) {
-        call a_task as task_two {
-        }
+        call a_task as task_two
     }
 
     output
-        # Here is a comment before the output.
+    # Here is a comment before the output.
     {
         Object some_other_object = {
         }

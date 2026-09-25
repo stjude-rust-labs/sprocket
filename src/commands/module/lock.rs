@@ -1,0 +1,160 @@
+//! `sprocket dev module lock`.
+
+use clap::Parser;
+use wdl_modules::resolver::lock::RelockStats;
+
+use super::project::Locator;
+use super::project::LockfileWrite;
+use super::project::WriteIntent;
+use super::project::discover;
+use super::project::load_lockfile;
+use super::project::trace_project;
+use super::project::write_lockfile;
+use super::relock::RelockPlanner;
+use super::signer_policy::TrustModeArg;
+use super::signer_policy::signer_change_mode;
+use crate::commands::CommandResult;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::config::Config;
+
+const LOCK: Action = Action::new("Locked", "lock");
+
+/// Arguments to `sprocket dev module lock`.
+#[derive(Parser, Debug)]
+pub struct Args {
+    /// Fail if `module-lock.json` is missing or out of date.
+    #[arg(long)]
+    pub locked: bool,
+
+    /// Print relock changes without writing `module-lock.json`.
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Override signer trust behavior for this command.
+    #[arg(long, value_enum)]
+    trust_mode: Option<TrustModeArg>,
+
+    /// Shared module locator.
+    #[command(flatten)]
+    locator: Locator,
+}
+
+/// Runs `sprocket dev module lock`.
+pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    tracing::trace!(
+        locked = args.locked,
+        dry_run = args.dry_run,
+        "starting `sprocket dev module lock`"
+    );
+    let project = discover(&args.locator)?;
+    trace_project("module lock", &project);
+    let lock = load_lockfile(&project)?;
+    let satisfied = lock
+        .as_ref()
+        .is_some_and(|l| l.satisfies_manifest(project.manifest()));
+    tracing::debug!(
+        lockfile_present = lock.is_some(),
+        satisfied,
+        "loaded module lockfile"
+    );
+
+    if args.locked {
+        if !satisfied {
+            tracing::debug!("`--locked` failed because lockfile is not current");
+            return Err(
+                anyhow::anyhow!("`module-lock.json` is out of date with `module.json`").into(),
+            );
+        }
+        tracing::debug!("`--locked` succeeded");
+        output.current("module lockfile is up to date");
+        return Ok(());
+    }
+
+    if satisfied {
+        tracing::debug!("skipped relock because lockfile is current");
+        output.current("module lockfile is up to date");
+        return Ok(());
+    }
+
+    if args.dry_run {
+        let baseline = lock.clone().unwrap_or_default();
+        let plan = RelockPlanner::new(&config, &project, &baseline)
+            .plan(std::sync::Arc::new(project.manifest().clone()))
+            .await?;
+        tracing::debug!("dry run completed without writing lockfile or trust store");
+        let changes = relock_change_count(&plan.outcome.stats);
+        output.planned(
+            LOCK,
+            format!(
+                "{changes} dependency {}",
+                if changes == 1 { "change" } else { "changes" }
+            ),
+        );
+        let dependencies = plan.outcome.lockfile.dependencies.len();
+        output.detail(
+            "Lockfile",
+            format!(
+                "{dependencies} {}",
+                if dependencies == 1 {
+                    "dependency"
+                } else {
+                    "dependencies"
+                }
+            ),
+        );
+        return Ok(());
+    }
+
+    let baseline = lock.clone().unwrap_or_default();
+    let outcome = RelockPlanner::new(&config, &project, &baseline)
+        .plan_and_enforce(
+            std::sync::Arc::new(project.manifest().clone()),
+            signer_change_mode(&config, args.trust_mode),
+            output,
+        )
+        .await?;
+    if write_lockfile(
+        &project,
+        &outcome.lockfile,
+        project.manifest(),
+        WriteIntent::Satisfy,
+    )? == LockfileWrite::Kept
+    {
+        output.current("module lockfile is up to date");
+        return Ok(());
+    }
+
+    let dependencies = outcome.lockfile.dependencies.len();
+    output.completed(
+        LOCK,
+        format!(
+            "{dependencies} {}",
+            if dependencies == 1 {
+                "dependency"
+            } else {
+                "dependencies"
+            }
+        ),
+    );
+    let changes = relock_change_count(&outcome.stats);
+    if changes > 0 {
+        output.detail(
+            "Changed",
+            format!(
+                "{changes} {}",
+                if changes == 1 {
+                    "dependency"
+                } else {
+                    "dependencies"
+                }
+            ),
+        );
+    }
+    Ok(())
+}
+
+/// Counts all dependency additions, removals, and updates in a relock.
+fn relock_change_count(stats: &RelockStats) -> usize {
+    stats.added.len() + stats.removed.len() + stats.updated.len()
+}

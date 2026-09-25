@@ -29,6 +29,7 @@ use async_lsp::tracing::TracingLayer;
 use futures::future::BoxFuture;
 use serde::Deserialize;
 use serde::Deserializer;
+use serde_json::Value;
 use serde_json::to_value;
 use struct_patch::Patch;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -46,6 +47,7 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::FeatureFlags;
+use wdl_analysis::FormatConfig;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
@@ -57,7 +59,10 @@ use wdl_analysis::path_to_uri;
 use wdl_lint::Linter;
 use wdl_lint::Rule;
 
+use crate::handlers;
 use crate::proto;
+use crate::test::SprocketTestCache;
+use crate::test::is_sprocket_test_file;
 
 /// Normalizes the path of a URI.
 ///
@@ -71,7 +76,8 @@ fn normalize_uri_path(uri: &mut Url) {
 
     // Call `to_file_path` which will automatically decode any encoded sequences
     if let Ok(path) = uri.to_file_path() {
-        // On windows we need to normalize any drive letter prefixes to uppercase
+        // On windows we need to normalize any drive letter prefixes to
+        // uppercase
         let path = if cfg!(windows) {
             let mut comps = path.components();
             match comps.next() {
@@ -265,6 +271,9 @@ pub struct ServerOptions {
     /// Feature flags for enabling experimental features.
     pub feature_flags: FeatureFlags,
 
+    /// Context for resolving symbolic module imports.
+    pub resolution_context: wdl_analysis::ResolutionContext,
+
     /// Analysis or lint rule IDs to except (ignore).
     pub exceptions: Vec<String>,
 
@@ -273,6 +282,9 @@ pub struct ServerOptions {
 
     /// The diagnostic baseline for suppressing known diagnostics.
     pub baseline: Option<wdl_lint::Baseline>,
+
+    /// The formatting configuration to use.
+    pub format: FormatConfig,
 }
 
 impl ServerOptions {
@@ -293,7 +305,9 @@ impl Default for ServerOptions {
             exceptions: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
+            resolution_context: Default::default(),
             baseline: None,
+            format: FormatConfig::default(),
         }
     }
 }
@@ -337,7 +351,7 @@ pub struct LintOptions {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize)]
 #[serde(transparent)]
 pub struct LevelFilter(
-    #[serde(deserialize_with = "deserialize_level_filter")] tracing::metadata::LevelFilter,
+    #[serde(deserialize_with = "deserialize_level_filter")] pub tracing::metadata::LevelFilter,
 );
 
 impl From<tracing::metadata::LevelFilter> for LevelFilter {
@@ -378,36 +392,39 @@ pub type FilterReloadHandle<S> = tracing_subscriber::reload::Handle<EnvFilter, S
 
 /// Mutable server state.
 #[derive(Debug)]
-struct ServerState<S> {
+pub(crate) struct ServerState<S> {
     /// The current set of workspace folders.
     folders: Vec<WorkspaceFolder>,
     /// Mutable configuration fields.
     config: ServerConfig,
     /// Level filter reload handle.
     log_handle: Option<FilterReloadHandle<S>>,
+    /// Known `sprocket dev test` YAML files.
+    pub(crate) test_yamls: SprocketTestCache,
 }
 
 impl<S> ServerState<S> {
     /// Patch the config with the new values from the client.
-    fn apply_config_patch(
-        &mut self,
-        client: ClientSocket,
-        options: &ServerOptions,
-        patch: UserOptionsPatch,
-    ) {
+    async fn apply_config_patch(&mut self, options: &ServerOptions, patch: UserOptionsPatch) {
         if let Some(log_level) = patch.log_level
             && let Some(reload_handle) = self.log_handle.as_ref()
             && let Err(e) = reload_handle.modify(|filter| {
-                let current_directives = filter.to_string();
-                *filter = EnvFilter::builder()
-                    .parse_lossy(format!("{},{}", current_directives, log_level.0));
+                *filter = filter.clone().add_directive(log_level.0.into());
             })
         {
             error!("failed to set log level: {e:?}");
         }
 
         self.config.options.apply(patch);
-        self.config.analyzer = options.analyzer(client.clone(), &self.config.options.lint);
+
+        if let Err(e) = self
+            .config
+            .analyzer
+            .swap_validator(validator(options, &self.config.options.lint))
+            .await
+        {
+            error!("failed to update analyzer validator: {e}");
+        }
     }
 }
 
@@ -437,6 +454,33 @@ struct ServerConfig {
     analyzer: Analyzer<ProgressToken>,
 }
 
+/// Create an [`Analyzer`] validator for the current LSP configuration.
+fn validator(
+    options: &ServerOptions,
+    lint_options: &LintOptions,
+) -> impl Fn() -> Validator + Send + Sync + 'static {
+    let exceptions = options.exceptions.clone();
+    let linting_enabled = lint_options.enabled;
+    let lint_config = lint_options.config.clone();
+
+    move || {
+        let mut validator = Validator::default();
+        if linting_enabled {
+            validator.add_visitor(Linter::new(
+                wdl_lint::rules(&lint_config)
+                    .into_iter()
+                    .filter(|r| !exceptions.contains(&r.id().into()))
+                    .map(|r| r as Box<dyn Rule>),
+            ));
+        }
+
+        // Even if linting isn't enabled, we need to make the validator aware of
+        // `wdl-lint` rules for `KnownRules`.
+        validator.extend_rules(wdl_lint::RULE_MAP.clone());
+        validator
+    }
+}
+
 impl ServerOptions {
     /// Create an [`Analyzer`] based on this config.
     fn analyzer(
@@ -444,7 +488,6 @@ impl ServerOptions {
         client: ClientSocket,
         lint_options: &LintOptions,
     ) -> Analyzer<ProgressToken> {
-        let linting_enabled = lint_options.enabled;
         let exceptions = self.exceptions.clone();
         let ignore_name = self.ignore_filename.clone();
         let analyzer_client = client.clone();
@@ -457,8 +500,8 @@ impl ServerOptions {
         all_rules.sort_unstable();
         all_rules.dedup();
 
-        // TODO ACF 2025-07-07: add configurability around the fallback behavior; see
-        // https://github.com/stjude-rust-labs/wdl/issues/517
+        // TODO ACF 2025-07-07: add configurability around the fallback
+        // behavior; see https://github.com/stjude-rust-labs/wdl/issues/517
         let analyzer_config = AnalysisConfig::default()
             .with_fallback_version(Some(Default::default()))
             .with_diagnostics_config(DiagnosticsConfig::new(
@@ -468,11 +511,12 @@ impl ServerOptions {
             ))
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
-            .with_feature_flags(self.feature_flags);
+            .with_feature_flags(self.feature_flags)
+            .with_format_config(self.format);
 
-        let wdl_lint_config = lint_options.config.clone();
-        Analyzer::<ProgressToken>::new_with_validator(
+        Analyzer::<ProgressToken>::new_with_validator_and_resolution(
             analyzer_config,
+            self.resolution_context.clone(),
             move |token, kind, current, total| {
                 let client = analyzer_client.clone();
                 async move {
@@ -484,18 +528,7 @@ impl ServerOptions {
                     let _ = token.update(&client, message, percentage);
                 }
             },
-            move || {
-                let mut validator = Validator::default();
-                if linting_enabled {
-                    validator.add_visitor(Linter::new(
-                        wdl_lint::rules(&wdl_lint_config)
-                            .into_iter()
-                            .filter(|r| !exceptions.contains(&r.id().into()))
-                            .map(|r| r as Box<dyn Rule>),
-                    ));
-                }
-                validator
-            },
+            validator(self, lint_options),
         )
     }
 }
@@ -522,6 +555,11 @@ enum Notification {
 #[derive(Debug)]
 #[allow(clippy::enum_variant_names, clippy::missing_docs_in_private_items)]
 enum Request {
+    /// `textDocument/codeLens`
+    CodeLens {
+        params: CodeLensParams,
+        tx: RequestResponseSender<Option<Vec<CodeLens>>>,
+    },
     /// `textDocument/completion`
     Completion {
         params: CompletionParams,
@@ -617,6 +655,77 @@ enum Message {
     Request(Request),
 }
 
+/// Server-defined commands to send to the client.
+pub(crate) enum Command {
+    /// Run a single test.
+    TestIndividual {
+        /// The source WDL file URI.
+        source: Url,
+        /// The entrypoint the test lives under.
+        target: String,
+        /// The filter to apply when running the test.
+        filter: String,
+    },
+    /// Run all tests under an entrypoint.
+    TestEntrypoint {
+        /// The source WDL file URI.
+        source: Url,
+        /// The test entrypoint to run.
+        target: String,
+    },
+}
+
+impl Command {
+    /// Get the title of the command, shown to the user by the client.
+    fn title(&self) -> String {
+        match self {
+            Command::TestIndividual { filter, .. } => format!("Run test '{filter}'"),
+            Command::TestEntrypoint { target, .. } => format!("Run '{target}' tests"),
+        }
+    }
+
+    /// Get the command to run.
+    fn command(&self) -> &'static str {
+        match self {
+            Command::TestEntrypoint { .. } => "sprocket.testTarget",
+            Command::TestIndividual { .. } => "sprocket.testSingle",
+        }
+    }
+
+    /// Get the command's arguments.
+    fn args(&self) -> Vec<Value> {
+        match self {
+            Command::TestIndividual {
+                source,
+                target,
+                filter,
+            } => {
+                vec![
+                    Value::String(source.to_string()),
+                    Value::String(target.clone()),
+                    Value::String(filter.clone()),
+                ]
+            }
+            Command::TestEntrypoint { source, target } => {
+                vec![
+                    Value::String(source.to_string()),
+                    Value::String(target.clone()),
+                ]
+            }
+        }
+    }
+}
+
+impl From<Command> for async_lsp::lsp_types::Command {
+    fn from(input: Command) -> Self {
+        async_lsp::lsp_types::Command {
+            title: input.title(),
+            command: input.command().to_string(),
+            arguments: Some(input.args()),
+        }
+    }
+}
+
 impl<S: 'static> Server<S> {
     /// Creates a new WDL language server.
     ///
@@ -639,6 +748,7 @@ impl<S: 'static> Server<S> {
                 analyzer,
             },
             log_handle,
+            test_yamls: SprocketTestCache::default(),
         }));
 
         let state_clone = state.clone();
@@ -816,6 +926,10 @@ impl<S: 'static> Server<S> {
                     }
                 },
                 Message::Request(request) => match request {
+                    Request::CodeLens { params, tx } => {
+                        let state = state.read().await;
+                        Self::code_lens(params, tx, &state).await
+                    }
                     Request::Completion { params, tx } => {
                         let state = state.read().await;
                         Self::completion(params, tx, &state).await
@@ -943,6 +1057,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .goto_definition(
+                ProgressToken::default(),
                 params.text_document_position_params.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1054,15 +1169,46 @@ impl<S: 'static> Server<S> {
 
         let _ = tx.send(result);
     }
+}
+
+impl<S: 'static> Server<S> {
+    /// `textDocument/codeLens` request handler.
+    async fn code_lens(
+        params: CodeLensParams,
+        tx: RequestResponseSender<Option<Vec<CodeLens>>>,
+        state: &ServerState<S>,
+    ) {
+        if is_sprocket_test_file(&params.text_document.uri) {
+            let _ = tx.send(
+                handlers::code_lens::code_lens(params.text_document.uri, state)
+                    .await
+                    .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e)),
+            );
+            return;
+        }
+
+        if to_wdl_file_path(&params.text_document.uri).is_none() {
+            // Not a file we care about
+            let _ = tx.send(Ok(None));
+            return;
+        }
+
+        let result = state
+            .config
+            .analyzer
+            .code_lens(ProgressToken::default(), params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
 
     /// `textDocument/hover` request handler.
     async fn hover(
-        mut params: HoverParams,
+        params: HoverParams,
         tx: RequestResponseSender<Option<Hover>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1072,6 +1218,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .hover(
+                ProgressToken::default(),
                 params.text_document_position_params.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1084,12 +1231,10 @@ impl<S: 'static> Server<S> {
 
     /// `callHierarchy/incomingCalls` request handler.
     async fn incoming_calls(
-        mut params: CallHierarchyIncomingCallsParams,
+        params: CallHierarchyIncomingCallsParams,
         tx: RequestResponseSender<Option<Vec<CallHierarchyIncomingCall>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.item.uri);
-
         let position = SourcePosition::new(
             params.item.selection_range.start.line,
             params.item.selection_range.start.character,
@@ -1098,7 +1243,12 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .incoming_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .incoming_calls(
+                ProgressToken::default(),
+                params.item.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1107,22 +1257,18 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/inlayHint` request handler.
     async fn inlay_hint(
-        mut params: InlayHintParams,
+        params: InlayHintParams,
         tx: RequestResponseSender<Option<Vec<InlayHint>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        // Analyze the document first to ensure we have up-to-date information
-        if let Err(e) = state.config.analyzer.analyze(ProgressToken(None)).await {
-            let _ = tx.send(Err(ResponseError::new(ErrorCode::INTERNAL_ERROR, e)));
-            return;
-        }
-
         let result = state
             .config
             .analyzer
-            .inlay_hints(params.text_document.uri, params.range)
+            .inlay_hints(
+                ProgressToken::default(),
+                params.text_document.uri,
+                params.range,
+            )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1131,12 +1277,10 @@ impl<S: 'static> Server<S> {
 
     /// `callHierarchy/outgoingCalls` request handler.
     async fn outgoing_calls(
-        mut params: CallHierarchyOutgoingCallsParams,
+        params: CallHierarchyOutgoingCallsParams,
         tx: RequestResponseSender<Option<Vec<CallHierarchyOutgoingCall>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.item.uri);
-
         let position = SourcePosition::new(
             params.item.selection_range.start.line,
             params.item.selection_range.start.character,
@@ -1145,7 +1289,12 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .outgoing_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .outgoing_calls(
+                ProgressToken::default(),
+                params.item.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1154,12 +1303,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/prepareCallHierarchy` request handler.
     async fn prepare_call_hierarchy(
-        mut params: CallHierarchyPrepareParams,
+        params: CallHierarchyPrepareParams,
         tx: RequestResponseSender<Option<Vec<CallHierarchyItem>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1169,6 +1316,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .call_hierarchy(
+                ProgressToken::default(),
                 params.text_document_position_params.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1181,12 +1329,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/references` request handler.
     async fn references(
-        mut params: ReferenceParams,
+        params: ReferenceParams,
         tx: RequestResponseSender<Option<Vec<Location>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1196,6 +1342,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .find_all_references(
+                ProgressToken::default(),
                 params.text_document_position.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1209,12 +1356,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/rename` request handler.
     async fn rename(
-        mut params: RenameParams,
+        params: RenameParams,
         tx: RequestResponseSender<Option<WorkspaceEdit>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1224,6 +1369,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .rename(
+                ProgressToken::default(),
                 params.text_document_position.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1237,16 +1383,14 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/semanticTokens/full` request handler.
     async fn semantic_tokens_full(
-        mut params: SemanticTokensParams,
+        params: SemanticTokensParams,
         tx: RequestResponseSender<Option<SemanticTokensResult>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
-
         let result = state
             .config
             .analyzer
-            .semantic_tokens(params.text_document.uri)
+            .semantic_tokens(ProgressToken::default(), params.text_document.uri)
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1255,12 +1399,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/signatureHelp` request handler.
     async fn signature_help(
-        mut params: SignatureHelpParams,
+        params: SignatureHelpParams,
         tx: RequestResponseSender<Option<SignatureHelp>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1289,7 +1431,7 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .workspace_symbol(params.query)
+            .workspace_symbol(ProgressToken::default(), params.query)
             .await
             .map(|opt| opt.map(WorkspaceSymbolResponse::Flat))
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
@@ -1325,8 +1467,20 @@ impl<S: 'static> Server<S> {
     }
 
     /// `textDocument/didOpen` notification handler.
-    async fn did_open(mut params: DidOpenTextDocumentParams, state: &ServerState<S>) {
-        normalize_uri_path(&mut params.text_document.uri);
+    async fn did_open(params: DidOpenTextDocumentParams, state: &ServerState<S>) {
+        if is_sprocket_test_file(&params.text_document.uri) {
+            if let Err(e) = state
+                .test_yamls
+                .open(params.text_document.uri.clone(), params.text_document.text)
+                .await
+            {
+                error!(
+                    "failed to open document {uri}: {e}",
+                    uri = params.text_document.uri
+                );
+            }
+            return;
+        }
 
         if let Err(e) = state
             .config
@@ -1353,8 +1507,8 @@ impl<S: 'static> Server<S> {
     }
 
     /// `textDocument/didClose` notification handler.
-    async fn did_close(mut params: DidCloseTextDocumentParams, state: &ServerState<S>) {
-        normalize_uri_path(&mut params.text_document.uri);
+    async fn did_close(params: DidCloseTextDocumentParams, state: &ServerState<S>) {
+        state.test_yamls.close(&params.text_document.uri).await;
 
         if let Err(e) = state
             .config
@@ -1367,8 +1521,6 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/didChange` notification handler.
     async fn did_change(mut params: DidChangeTextDocumentParams, state: &ServerState<S>) {
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!(
             "document `{uri}` is now client version {version}",
             uri = params.text_document.uri,
@@ -1388,25 +1540,49 @@ impl<S: 'static> Server<S> {
             None => (None, &mut params.content_changes[..]),
         };
 
-        if let Err(e) = state.config.analyzer.notify_incremental_change(
-            params.text_document.uri,
-            IncrementalChange {
-                version: params.text_document.version,
-                start,
-                edits: changes
-                    .iter_mut()
-                    .map(|e| {
-                        let range = e.range.expect("edit should be after the last full change");
-                        SourceEdit::new(
-                            SourcePosition::new(range.start.line, range.start.character)
-                                ..SourcePosition::new(range.end.line, range.end.character),
-                            SourcePositionEncoding::UTF16,
-                            mem::take(&mut e.text),
-                        )
-                    })
-                    .collect(),
-            },
-        ) {
+        let edits = changes
+            .iter_mut()
+            .map(|e| {
+                let range = e.range.expect("edit should be after the last full change");
+                SourceEdit::new(
+                    SourcePosition::new(range.start.line, range.start.character)
+                        ..SourcePosition::new(range.end.line, range.end.character),
+                    SourcePositionEncoding::UTF16,
+                    mem::take(&mut e.text),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>();
+
+        let edits = match edits {
+            Ok(edits) => edits,
+            Err(e) => {
+                error!("received a malformed edit from the client: {e}");
+                return;
+            }
+        };
+
+        let change = IncrementalChange {
+            version: params.text_document.version,
+            start,
+            edits,
+        };
+
+        if state.test_yamls.contains(&params.text_document.uri).await {
+            if let Err(e) = state
+                .test_yamls
+                .change(params.text_document.uri.clone(), change)
+                .await
+            {
+                error!("failed to apply change: {e}");
+            }
+            return;
+        }
+
+        if let Err(e) = state
+            .config
+            .analyzer
+            .notify_incremental_change(params.text_document.uri, change)
+        {
             error!("failed to notify incremental change: {e}");
         }
     }
@@ -1421,7 +1597,7 @@ impl<S: 'static> Server<S> {
             && let Err(e) = state
                 .config
                 .analyzer
-                .remove_documents(
+                .unroot_documents(
                     params
                         .event
                         .removed
@@ -1476,7 +1652,7 @@ impl<S: 'static> Server<S> {
         match workspace_configs {
             Ok(mut configs) if !configs.is_empty() => {
                 match serde_json::from_value::<UserOptionsPatch>(configs.remove(0)) {
-                    Ok(patch) => state.apply_config_patch(client, options, patch),
+                    Ok(patch) => state.apply_config_patch(options, patch).await,
                     Err(e) => error!("failed to deserialize `UserOptionsPatch`: {e:?}"),
                 }
             }
@@ -1487,8 +1663,8 @@ impl<S: 'static> Server<S> {
 
     /// `workspace/didChangeWatchedFiles` notification handler.
     async fn did_change_watched_files(params: DidChangeWatchedFilesParams, state: &ServerState<S>) {
-        /// Converts a URI into a WDL file path.
-        fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
+        /// Converts a URI into an existing WDL file path.
+        fn to_existing_wdl_file_path(uri: &Url) -> Option<PathBuf> {
             if let Ok(path) = uri.to_file_path()
                 && path.is_file()
                 && path.extension().and_then(OsStr::to_str) == Some("wdl")
@@ -1506,7 +1682,7 @@ impl<S: 'static> Server<S> {
 
             match event.typ {
                 FileChangeType::CREATED => {
-                    let Some(path) = to_wdl_file_path(&event.uri) else {
+                    let Some(path) = to_existing_wdl_file_path(&event.uri) else {
                         continue;
                     };
 
@@ -1514,7 +1690,7 @@ impl<S: 'static> Server<S> {
                     added.push(path_to_uri(&path).expect("should convert to uri"));
                 }
                 FileChangeType::CHANGED => {
-                    if to_wdl_file_path(&event.uri).is_some() {
+                    if to_existing_wdl_file_path(&event.uri).is_some() {
                         debug!("document `{uri}` has been changed", uri = event.uri);
                         if let Err(e) = state.config.analyzer.notify_change(event.uri, false) {
                             error!("failed to notify change: {e}");
@@ -1522,11 +1698,7 @@ impl<S: 'static> Server<S> {
                     }
                 }
                 FileChangeType::DELETED => {
-                    if to_wdl_file_path(&event.uri).is_none() {
-                        continue;
-                    }
-
-                    debug!("document `{uri}` has been deleted", uri = event.uri);
+                    debug!("`{uri}` has been deleted", uri = event.uri);
                     deleted.push(event.uri);
                 }
                 _ => {}
@@ -1542,11 +1714,22 @@ impl<S: 'static> Server<S> {
         }
 
         if !deleted.is_empty()
-            && let Err(e) = state.config.analyzer.remove_documents(deleted).await
+            && let Err(e) = state.config.analyzer.delete_documents(deleted).await
         {
             error!("failed to remove documents from analyzer: {e}");
         }
     }
+}
+
+/// Converts a URI into a WDL file path.
+fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
+    if let Ok(path) = uri.to_file_path()
+        && path.extension().and_then(OsStr::to_str) == Some("wdl")
+    {
+        return Some(path);
+    }
+
+    None
 }
 
 impl<S: 'static> LanguageServer for Server<S> {
@@ -1668,6 +1851,9 @@ impl<S: 'static> LanguageServer for Server<S> {
                     inlay_hint_provider: Some(OneOf::Left(true)),
                     call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
                     folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+                    code_lens_provider: Some(CodeLensOptions {
+                        resolve_provider: Some(false),
+                    }),
                     ..Default::default()
                 },
                 server_info: Some(info),
@@ -1693,25 +1879,88 @@ impl<S: 'static> LanguageServer for Server<S> {
         })
     }
 
+    fn folding_range(
+        &mut self,
+        mut params: FoldingRangeParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<FoldingRange>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+        self.request(move |tx| Message::Request(Request::FoldingRange { params, tx }))
+    }
+
+    fn prepare_call_hierarchy(
+        &mut self,
+        mut params: CallHierarchyPrepareParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyItem>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::PrepareCallHierarchy { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
+    }
+
+    fn incoming_calls(
+        &mut self,
+        mut params: CallHierarchyIncomingCallsParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyIncomingCall>>, Self::Error>> {
+        normalize_uri_path(&mut params.item.uri);
+        if to_wdl_file_path(&params.item.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::IncomingCalls { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
+    }
+
+    fn outgoing_calls(
+        &mut self,
+        mut params: CallHierarchyOutgoingCallsParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyOutgoingCall>>, Self::Error>> {
+        normalize_uri_path(&mut params.item.uri);
+        if to_wdl_file_path(&params.item.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::OutgoingCalls { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
+    }
+
     fn semantic_tokens_full(
         &mut self,
-        params: SemanticTokensParams,
+        mut params: SemanticTokensParams,
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::SemanticTokensFull { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::SemanticTokensFull { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn inlay_hint(
         &mut self,
-        params: InlayHintParams,
+        mut params: InlayHintParams,
     ) -> BoxFuture<'static, Result<Option<Vec<InlayHint>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::InlayHint { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::InlayHint { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn document_diagnostic(
         &mut self,
-        params: DocumentDiagnosticParams,
+        mut params: DocumentDiagnosticParams,
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::DocumentDiagnostic { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::DocumentDiagnostic { params, tx }))
+        } else {
+            Box::pin(async {
+                Ok(DocumentDiagnosticReportResult::Report(
+                    DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport::default()),
+                ))
+            })
+        }
     }
 
     fn workspace_diagnostic(
@@ -1723,72 +1972,74 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     fn completion(
         &mut self,
-        params: CompletionParams,
+        mut params: CompletionParams,
     ) -> BoxFuture<'static, Result<Option<CompletionResponse>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Completion { params, tx }))
-    }
-
-    fn prepare_call_hierarchy(
-        &mut self,
-        params: CallHierarchyPrepareParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyItem>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::PrepareCallHierarchy { params, tx }))
-    }
-
-    fn incoming_calls(
-        &mut self,
-        params: CallHierarchyIncomingCallsParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyIncomingCall>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::IncomingCalls { params, tx }))
-    }
-
-    fn outgoing_calls(
-        &mut self,
-        params: CallHierarchyOutgoingCallsParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyOutgoingCall>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::OutgoingCalls { params, tx }))
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Completion { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn hover(
         &mut self,
-        params: HoverParams,
+        mut params: HoverParams,
     ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Hover { params, tx }))
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Hover { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn signature_help(
         &mut self,
-        params: SignatureHelpParams,
+        mut params: SignatureHelpParams,
     ) -> BoxFuture<'static, Result<Option<SignatureHelp>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::SignatureHelp { params, tx }))
-    }
-
-    fn folding_range(
-        &mut self,
-        params: FoldingRangeParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<FoldingRange>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::FoldingRange { params, tx }))
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::SignatureHelp { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn definition(
         &mut self,
-        params: GotoDefinitionParams,
+        mut params: GotoDefinitionParams,
     ) -> BoxFuture<'static, Result<Option<GotoDefinitionResponse>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Definition { params, tx }))
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Definition { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn references(
         &mut self,
-        params: ReferenceParams,
+        mut params: ReferenceParams,
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::References { params, tx }))
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::References { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn document_symbol(
         &mut self,
-        params: DocumentSymbolParams,
+        mut params: DocumentSymbolParams,
     ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::DocumentSymbol { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::DocumentSymbol { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn symbol(
@@ -1798,18 +2049,36 @@ impl<S: 'static> LanguageServer for Server<S> {
         self.request(move |tx| Message::Request(Request::Symbol { params, tx }))
     }
 
+    fn code_lens(
+        &mut self,
+        mut params: CodeLensParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CodeLens>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+        self.request(move |tx| Message::Request(Request::CodeLens { params, tx }))
+    }
+
     fn formatting(
         &mut self,
-        params: DocumentFormattingParams,
+        mut params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Formatting { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Formatting { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn rename(
         &mut self,
-        params: RenameParams,
+        mut params: RenameParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Rename { params, tx }))
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Rename { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn initialized(&mut self, _: InitializedParams) -> Self::NotifyResult {
@@ -1881,15 +2150,18 @@ impl<S: 'static> LanguageServer for Server<S> {
         )))
     }
 
-    fn did_open(&mut self, params: DidOpenTextDocumentParams) -> Self::NotifyResult {
+    fn did_open(&mut self, mut params: DidOpenTextDocumentParams) -> Self::NotifyResult {
+        normalize_uri_path(&mut params.text_document.uri);
         self.queue(Message::Notification(Notification::DidOpen(params)))
     }
 
-    fn did_change(&mut self, params: DidChangeTextDocumentParams) -> Self::NotifyResult {
+    fn did_change(&mut self, mut params: DidChangeTextDocumentParams) -> Self::NotifyResult {
+        normalize_uri_path(&mut params.text_document.uri);
         self.queue(Message::Notification(Notification::DidChange(params)))
     }
 
-    fn did_close(&mut self, params: DidCloseTextDocumentParams) -> Self::NotifyResult {
+    fn did_close(&mut self, mut params: DidCloseTextDocumentParams) -> Self::NotifyResult {
+        normalize_uri_path(&mut params.text_document.uri);
         self.queue(Message::Notification(Notification::DidClose(params)))
     }
 

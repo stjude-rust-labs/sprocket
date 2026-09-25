@@ -11,6 +11,8 @@ use std::ops::DerefMut;
 
 use indexmap::IndexSet;
 use logos::Logos;
+#[cfg(feature = "unstable-python")]
+pub use python::PyEvent;
 
 use super::Diagnostic;
 use super::Span;
@@ -578,9 +580,9 @@ where
     pub fn peek2(&mut self) -> Option<Peek2<T>> {
         let first = self.peek()?;
 
-        // We have to clone the lexer here since it only supports a single lookahead.
-        // The clone is cheap, but it does mean we'll re-tokenize this second lookahead
-        // eventually.
+        // We have to clone the lexer here since it only supports a single
+        // lookahead. The clone is cheap, but it does mean we'll
+        // re-tokenize this second lookahead eventually.
         let mut lexer = self
             .lexer
             .as_ref()
@@ -747,8 +749,9 @@ where
                 if let Some((Ok(token), _)) = lexer.as_mut().expect("should have a lexer").peek()
                     && !recovery.contains(token.into_raw())
                 {
-                    // Determine if the token is recoverable in the parent recovery set
-                    // If so, we'll restart where we first attempted to parse this item
+                    // Determine if the token is recoverable in the parent
+                    // recovery set If so, we'll restart
+                    // where we first attempted to parse this item
                     if let Some(parent) = &parent
                         && parent.contains(token.into_raw())
                     {
@@ -781,8 +784,9 @@ where
                 }
 
                 if let Err(mut e) = self.expect(delimiter) {
-                    // Attach a label to the diagnostic hinting at where we expected the
-                    // delimiter to be; to do this, look back at the last non-trivia token event
+                    // Attach a label to the diagnostic hinting at where we
+                    // expected the delimiter to be; to do
+                    // this, look back at the last non-trivia token event
                     // in the parser events and use its span for the label.
                     let span = self.events.iter().rev().find_map(|e| match e {
                         Event::Token { kind, span }
@@ -863,15 +867,16 @@ where
             // to move past the entire set of tokens that are part
             // of the interpolation
             if T::recover_interpolation(token, span, self) {
-                // If the diagnostic label started at this token, we need to extend its length
-                // to cover the interpolation
+                // If the diagnostic label started at this token, we need to
+                // extend its length to cover the interpolation
                 for label in diagnostic.inner.labels_mut() {
                     let label_span = label.span();
                     if label_span.start() != span.start() {
                         continue;
                     }
 
-                    // The label should include everything up to the current start
+                    // The label should include everything up to the current
+                    // start
                     label.set_span(Span::new(
                         label_span.start(),
                         self.lexer
@@ -898,8 +903,8 @@ where
 
     /// Starts a new node event.
     pub fn start(&mut self) -> Marker {
-        // Peek before starting the node so that any trivia appears as siblings to this
-        // node
+        // Peek before starting the node so that any trivia appears as siblings
+        // to this node
         if !self.events.is_empty() {
             self.peek();
 
@@ -1217,8 +1222,8 @@ where
                     lexer.next();
                 }
 
-                // Consecutive unknown tokens of the same type get condensed into a single
-                // diagnostic and event
+                // Consecutive unknown tokens of the same type get condensed
+                // into a single diagnostic and event
                 while let Some((Err(_), peeked_span)) = lexer.peek() {
                     unknown_span = Span::new(
                         unknown_span.start(),
@@ -1284,6 +1289,101 @@ where
         }
 
         None
+    }
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::IntoPyObjectExt;
+    use pyo3::prelude::*;
+    use pyo3::types::PyType;
+
+    use crate::Span;
+    use crate::SyntaxKind;
+    use crate::parser::Event;
+
+    /// Represents an event produced by the parser.
+    ///
+    /// The parser produces a stream of events that can be used to construct
+    /// a CST.
+    #[pyclass(module = "sprocket_bio.grammar.parser", name = "Event", eq)]
+    #[derive(PartialEq)]
+    #[expect(missing_debug_implementations)]
+    pub enum PyEvent {
+        /// A new node has started.
+        NodeStarted {
+            /// The kind of the node.
+            kind: SyntaxKind,
+            /// For left-recursive syntactic constructs, the parser produces
+            /// a child node before it sees a parent. `forward_parent`
+            /// saves the position of current event's parent.
+            forward_parent: Option<usize>,
+        },
+
+        /// A node has finished.
+        NodeFinished(),
+
+        /// A token was encountered.
+        Token {
+            /// The syntax kind of the token.
+            kind: SyntaxKind,
+            /// The source span of the token.
+            span: Span,
+        },
+    }
+
+    #[pymethods]
+    impl PyEvent {
+        /// Gets an start node event for an abandoned node.
+        #[classmethod]
+        fn abandoned(_cls: &Bound<'_, PyType>) -> Self {
+            Self::from_event(Event::abandoned())
+        }
+
+        /// Returns a printable representation of this object.
+        fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+            match self {
+                Self::NodeStarted {
+                    kind,
+                    forward_parent,
+                } => Ok(format!(
+                    "Event.NodeStarted({}, {})",
+                    // Equivalent to `repr(SyntaxKind)`.
+                    kind.into_bound_py_any(py)?.repr()?.to_str()?,
+                    // If `forward_parent` is `Some` write the plain integer, else write "None".
+                    match forward_parent {
+                        Some(x) => x.to_string(),
+                        None => "None".to_owned(),
+                    },
+                )),
+                Self::NodeFinished() => Ok("Event.NodeFinished()".to_owned()),
+                Self::Token { kind, span } => Ok(format!(
+                    "Event.Token({}, {})",
+                    // Equivalent to `repr(SyntaxKind)`.
+                    kind.into_bound_py_any(py)?.repr()?.to_str()?,
+                    span.__repr__(),
+                )),
+            }
+        }
+    }
+
+    /// Internal utilities not exposed to Python.
+    impl PyEvent {
+        /// Converts an [`Event`] into a [`PyEvent`].
+        pub(crate) fn from_event(event: Event) -> Self {
+            match event {
+                Event::NodeStarted {
+                    kind,
+                    forward_parent,
+                } => Self::NodeStarted {
+                    kind,
+                    forward_parent,
+                },
+                Event::NodeFinished => Self::NodeFinished(),
+                Event::Token { kind, span } => Self::Token { kind, span },
+            }
+        }
     }
 }
 

@@ -1,0 +1,1 @@
+-qq run source.wdl greet.file=a.txt greet.file=b.txt

@@ -11,7 +11,6 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
@@ -147,7 +146,7 @@ impl Visitor for RuntimeSectionRule {
             let name = task.name();
             diagnostics.exceptable_add(
                 missing_runtime_section(name.text(), name.span()),
-                SyntaxElement::from(task.inner().clone()),
+                task.inner(),
                 &self.exceptable_nodes(),
             );
         }

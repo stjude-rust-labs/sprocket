@@ -19,6 +19,7 @@ use tracing::debug;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::Example;
+use wdl_analysis::Exceptable;
 use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
@@ -26,15 +27,17 @@ use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
+use wdl_analysis::types::TypeNameRef;
 use wdl_analysis::types::v1::EvaluationContext;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
+use wdl_analysis::util::lines_with_offset;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::TreeNode;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::Expr;
@@ -50,7 +53,6 @@ use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
 use crate::util::is_quote_balanced;
-use crate::util::lines_with_offset;
 use crate::util::program_exists;
 
 /// The shellcheck executable
@@ -378,7 +380,7 @@ impl EvaluationContext for CommandContext<'_> {
         self.document.version().expect("document has a version")
     }
 
-    fn resolve_name(&self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
+    fn resolve_name(&mut self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
         // Check if there are any variables with this name and return if so.
         if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
             return Some(var);
@@ -386,8 +388,13 @@ impl EvaluationContext for CommandContext<'_> {
 
         if let Some(ty) = self.document.get_custom_type(name) {
             return Some(
-                ty.type_name_ref()
-                    .expect("type name ref to be created from custom type"),
+                TypeNameRef::new(
+                    name,
+                    ty.as_custom()
+                        .expect("type should be a custom type")
+                        .clone(),
+                )
+                .into(),
             );
         }
 
@@ -414,6 +421,15 @@ impl EvaluationContext for CommandContext<'_> {
     }
 
     fn add_diagnostic(&mut self, _diagnostic: Diagnostic) {
+        // do nothing
+    }
+
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        _diagnostic: Diagnostic,
+        _element: &N,
+        _exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    ) {
         // do nothing
     }
 }
@@ -626,7 +642,8 @@ fn map_shellcheck_lines(
                         continue;
                     }
 
-                    // The first line is removed entirely, UNLESS there is content on it.
+                    // The first line is removed entirely, UNLESS there is
+                    // content on it.
                     if !skipped_first_line && line.is_empty() {
                         skipped_first_line = true;
                         continue;
@@ -720,7 +737,7 @@ impl Visitor for ShellCheckRule {
                         .with_fix(
                             "install shellcheck (https://www.shellcheck.net) or disable this lint.",
                         ),
-                    SyntaxElement::from(section.inner().clone()),
+                    section.inner(),
                     &self.exceptable_nodes(),
                 );
                 return false;
@@ -735,7 +752,8 @@ impl Visitor for ShellCheckRule {
         let Some(scope) = doc.find_scope_by_position(section.inner().text_range().start().into())
         else {
             // This is the case where the command section has not been analyzed
-            // e.g. it is in a task that has not been analyzed because it is a duplicate.
+            // e.g. it is in a task that has not been analyzed because it is a
+            // duplicate.
             return;
         };
         let mut context = CommandContext::new(doc.clone(), scope);
@@ -774,7 +792,7 @@ impl Visitor for ShellCheckRule {
                     }
                     diagnostics.exceptable_add(
                         shellcheck_lint(&sc_diagnostic, &sanitized_command, &line_map, &shift_tree),
-                        SyntaxElement::from(section.inner().clone()),
+                        section.inner(),
                         &self.exceptable_nodes(),
                     )
                 }
@@ -787,7 +805,7 @@ impl Visitor for ShellCheckRule {
                         .with_label(e.to_string(), command_keyword.text_range())
                         .with_rule(ID)
                         .with_fix("address reported error."),
-                    SyntaxElement::from(section.inner().clone()),
+                    section.inner(),
                     &self.exceptable_nodes(),
                 );
             }
@@ -799,6 +817,7 @@ impl Visitor for ShellCheckRule {
 mod tests {
     use ftree::FenwickTree;
     use pretty_assertions::assert_eq;
+    use wdl_analysis::util::lines_with_offset;
     use wdl_ast::Document;
     use wdl_ast::v1::Expr;
 
@@ -806,7 +825,6 @@ mod tests {
     use super::normalize_replacements;
     use crate::fix;
     use crate::fix::Fixer;
-    use crate::util::lines_with_offset;
 
     #[test]
     fn test_normalize_replacements() {

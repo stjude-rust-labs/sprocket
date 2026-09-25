@@ -6,19 +6,6 @@
 /* Custom brand theme variables */
 @theme {
     --font-sans: "DM Sans";
-    --color-brand-emerald-200: var(--color-brand-emerald-200);
-    --color-brand-emerald-400: var(--color-brand-emerald-400);
-    --color-brand-emerald-950: var(--color-brand-emerald-950);
-    --color-brand-violet-400: var(--color-brand-violet-400);
-    --color-brand-pink-400: var(--color-brand-pink-400);
-    --color-brand-cyan-400: var(--color-brand-cyan-400);
-    --color-brand-lime-300: var(--color-brand-lime-300);
-    --color-brand-red-400: var(--color-brand-red-400);
-    --color-brand-yellow-50: var(--color-brand-yellow-50);
-    --color-brand-yellow-400: var(--color-brand-yellow-400);
-    --color-brand-yellow-700: var(--color-brand-yellow-700);
-    --color-brand-yellow-900: var(--color-brand-yellow-900);
-    --color-brand-yellow-950: var(--color-brand-yellow-950);
 }
 
 @layer base {
@@ -27,7 +14,7 @@
     }
 
     h1, h2, h3, h4, h5, h6 {
-        @apply leading-none break-words;
+        @apply leading-tight break-words;
     }
 
     h1 {
@@ -57,3 +44,39 @@
 }
 
 @variant light (.light &);
+
+/*
+ * Syntax highlighting palette.
+ *
+ * Shiki's css-variables theme emits `color: var(--shiki-token-*)` on
+ * highlighted spans; custom properties inherit into each code block's shadow
+ * DOM. The slate scale resolves in both modes, so neutrals stay token-driven.
+ * The brand `@theme` tokens, however, are self-referential at the default
+ * `:root` in this project and only resolve under `:root.light` (see
+ * colors.css) — so the accent colors are pinned to their dark values here and
+ * overridden with the light tokens under `:root.light`. Dark hex values mirror
+ * the brand tokens in colors.css.
+ */
+:root {
+    --shiki-foreground: var(--color-slate-100);
+    --shiki-background: var(--color-slate-900);
+    --shiki-token-comment: var(--color-slate-500);
+    --shiki-token-punctuation: var(--color-slate-400);
+    --shiki-token-parameter: var(--color-slate-200);
+    --shiki-token-keyword: #a78bfa; /* brand-violet-400 (dark) */
+    --shiki-token-string: #34d399; /* brand-emerald-400 (dark) */
+    --shiki-token-string-expression: #f472b6; /* brand-pink-400 (dark) */
+    --shiki-token-constant: #facc15; /* brand-yellow-400 (dark) */
+    --shiki-token-function: #f472b6; /* brand-pink-400 (dark) */
+    --shiki-token-type: #f472b6; /* brand-pink-400 (dark) */
+    --shiki-token-link: #f472b6; /* brand-pink-400 (dark) */
+}
+:root.light {
+    --shiki-token-keyword: var(--color-brand-violet-400);
+    --shiki-token-string: var(--color-brand-emerald-400);
+    --shiki-token-string-expression: var(--color-brand-pink-400);
+    --shiki-token-constant: var(--color-brand-yellow-400);
+    --shiki-token-function: var(--color-brand-pink-400);
+    --shiki-token-type: var(--color-brand-pink-400);
+    --shiki-token-link: var(--color-brand-pink-400);
+}

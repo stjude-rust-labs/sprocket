@@ -1,0 +1,6 @@
+{
+  "name": "test-module",
+  "version": "0.1.0",
+  "license": "MIT",
+  "entrypoint": "main.wdl"
+}

@@ -65,7 +65,7 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
     SyntaxKind::StructDefinitionNode,
     SyntaxKind::EnumDefinitionNode,
     SyntaxKind::TaskDefinitionNode,
-    SyntaxKind::EnumVariantNode,
+    SyntaxKind::EnumChoiceNode,
     SyntaxKind::UnboundDeclNode,
     SyntaxKind::BoundDeclNode,
 ];
@@ -75,8 +75,8 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
 fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
     let kind = doc_comment_target.kind();
 
-    // A BoundDeclNode can only have doc comments if it is a part of an InputSection
-    // or OutputSection.
+    // A BoundDeclNode can only have doc comments if it is a part of an
+    // InputSection or OutputSection.
     if kind == SyntaxKind::BoundDeclNode {
         let Some(parent) = doc_comment_target.parent() else {
             return false;
@@ -196,7 +196,7 @@ impl Rule for UnusedDocCommentsRule {
         - Fields in Input Sections
         - Fields in Output Sections
         - Enum Definitions
-        - Enum Variants"
+        - Enum Choices"
     }
 
     fn examples(&self) -> &'static [Example] {

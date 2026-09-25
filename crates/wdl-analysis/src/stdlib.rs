@@ -197,7 +197,7 @@ impl GenericType {
             Self::Map(map) => map.infer_type_parameters(ty, params, ignore_constraints),
             Self::EnumInnerValue(_) => {
                 // NOTE: this is an intentional no-op—the value type is derived
-                // from the variant parameter, not inferred from arguments.
+                // from the choice parameter, not inferred from arguments.
             }
         }
     }
@@ -588,12 +588,12 @@ impl GenericEnumInnerValueType {
 
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let (_, variant_ty) = self
+                let (_, choice_ty) = self
                     .params
                     .get(self.ty.param)
-                    .expect("variant parameter should be present");
+                    .expect("choice parameter should be present");
 
-                match variant_ty.as_ref().and_then(|t| t.as_enum()) {
+                match choice_ty.as_ref().and_then(|t| t.as_enum()) {
                     Some(enum_ty) => write!(f, "{}", enum_ty.inner_value_type()),
                     // NOTE: non-enums should gracefully fail.
                     _ => write!(f, "{}", self.ty.param),
@@ -606,12 +606,12 @@ impl GenericEnumInnerValueType {
 
     /// Realizes the generic type to the enum's inner value type.
     fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
-        let (_, variant_ty) = params
+        let (_, choice_ty) = params
             .get(self.param)
-            .expect("variant parameter should be present");
+            .expect("choice parameter should be present");
 
         // NOTE: non-enums should gracefully fail.
-        variant_ty
+        choice_ty
             .as_ref()
             .and_then(|t| t.as_enum())
             .map(|enum_ty| enum_ty.inner_value_type().clone())
@@ -621,7 +621,7 @@ impl GenericEnumInnerValueType {
     fn assert_type_parameters(&self, parameters: &[TypeParameter]) {
         assert!(
             parameters.iter().any(|p| p.name == self.param),
-            "generic enum variant type references unknown type parameter `{}`",
+            "generic enum choice type references unknown type parameter `{}`",
             self.param
         );
     }
@@ -1107,8 +1107,9 @@ impl FunctionSignature {
         for (i, (parameter, argument)) in self.parameters.iter().zip(arguments.iter()).enumerate() {
             match parameter.ty.realize(&type_parameters) {
                 Some(ty) => {
-                    // If a coercion hasn't occurred yet, check for type equivalence
-                    // For the purpose of this check, also accept equivalence of `T` if the
+                    // If a coercion hasn't occurred yet, check for type
+                    // equivalence For the purpose of this
+                    // check, also accept equivalence of `T` if the
                     // parameter type is `T?`; otherwise, fall back to coercion
                     if !coerced && argument != &ty && argument != &ty.require() {
                         coerced = true;
@@ -1144,9 +1145,10 @@ impl FunctionSignature {
             }
         }
 
-        // Finally, realize the return type; if it fails to realize, it means there was
-        // at least one uninferred type parameter; we return `Union` instead to indicate
-        // that the return value is indeterminate.
+        // Finally, realize the return type; if it fails to realize, it means
+        // there was at least one uninferred type parameter; we return
+        // `Union` instead to indicate that the return value is
+        // indeterminate.
         let ret = self.ret().realize(&type_parameters).unwrap_or(Type::Union);
 
         if coerced {
@@ -1266,7 +1268,8 @@ impl FunctionSignatureBuilder {
             "too many parameters"
         );
 
-        // Ensure any generic type parameters indexes are in range for the parameters
+        // Ensure any generic type parameters indexes are in range for the
+        // parameters
         for parameter in sig.parameters.iter() {
             parameter.ty.assert_type_parameters(&sig.type_parameters)
         }
@@ -1371,8 +1374,8 @@ impl Function {
             Self::Polymorphic(f) => {
                 let mut ty = None;
 
-                // For polymorphic functions, the calculated return type must be the same for
-                // each overload
+                // For polymorphic functions, the calculated return type must be
+                // the same for each overload
                 for signature in &f.signatures {
                     let type_parameters = signature.infer_type_parameters(arguments, true);
                     let ret_ty = signature
@@ -1525,7 +1528,8 @@ impl PolymorphicFunction {
         version: SupportedVersion,
         arguments: &[Type],
     ) -> Result<Binding<'a>, FunctionBindError> {
-        // Ensure that there is at least one signature with a matching minimum version.
+        // Ensure that there is at least one signature with a matching minimum
+        // version.
         let min_version = self.minimum_version();
         if version < min_version {
             return Err(FunctionBindError::RequiresVersion(min_version));
@@ -1543,7 +1547,8 @@ impl PolymorphicFunction {
             return Err(FunctionBindError::TooManyArguments(max));
         }
 
-        // Overload resolution precedence is from most specific to least specific:
+        // Overload resolution precedence is from most specific to least
+        // specific:
         // * Non-generic exact match
         // * Non-generic with coercion
         // * Generic exact match
@@ -1582,8 +1587,10 @@ impl PolymorphicFunction {
                         exact = Some((index, ty));
                     }
                     Ok(BindingKind::Coercion(ty)) => {
-                        // If this is the first coercion, store it; otherwise, store the second
-                        // coercion index; if there's more than one coercion, we'll report an error
+                        // If this is the first coercion, store it; otherwise,
+                        // store the second
+                        // coercion index; if there's more than one coercion,
+                        // we'll report an error
                         // below after ensuring there's no exact match
                         if coercion1.is_none() {
                             coercion1 = Some((index, ty));
@@ -1592,7 +1599,8 @@ impl PolymorphicFunction {
                         }
                     }
                     Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
-                        // We'll report an argument mismatch for the greatest argument index
+                        // We'll report an argument mismatch for the greatest
+                        // argument index
                         if index > max_mismatch_index {
                             max_mismatch_index = index;
                             expected_types.clear();
@@ -4979,22 +4987,22 @@ task collect_by_key {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Three))
                         .any_type_parameter("T")
-                        .type_parameter("V", EnumVariantConstraint)
+                        .type_parameter("V", EnumChoiceConstraint)
                         .parameter(
-                            "variant",
+                            "choice",
                             GenericType::Parameter("V"),
-                            "An enum variant of any enum type.",
+                            "An enum choice of any enum type.",
                         )
                         .ret(GenericEnumInnerValueType::new("T"))
                         .definition(
                             r##"
-Returns the underlying value associated with an enum variant.
+Returns the underlying value associated with an enum choice.
 
 **Parameters**
 
-1. `Enum`: an enum variant of any enum type.
+1. `Enum`: an enum choice of any enum type.
 
-**Returns**: The variant's associated value.
+**Returns**: The choice's associated value.
 
 Example: test_enum_value.wdl
 
@@ -5020,11 +5028,11 @@ workflow test_enum_value {
   }
 
   output {
-    String variant_name = "~{color}"   # "Red"
+    String choice_name = "~{color}"   # "Red"
     String hex_value = value(color)    # "#FF0000"
     Int priority_num = value(priority) # 10
     Boolean values_equal = value(Color.Red) == value(Color.Red) # true
-    Boolean variants_equal = Color.Red == Color.Red             # true
+    Boolean choices_equal = Color.Red == Color.Red              # true
   }
 }
 ```
@@ -5181,12 +5189,12 @@ task length_array {
 });
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn verify_stdlib_signatures() {
         let mut signatures = Vec::new();
         for (name, f) in STDLIB.functions() {
@@ -5296,7 +5304,7 @@ mod test {
                 "values(map: Map[K, V]) -> Array[V] where `K`: any non-optional primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
                  non-optional primitive type",
-                "value(variant: V) -> T where `V`: any enum variant",
+                "value(choice: V) -> T where `V`: any enum choice",
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
                 "length(map: Map[K, V]) -> Int",
@@ -5306,7 +5314,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_a_simple_function() {
         let f = STDLIB.function("floor").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Zero));
@@ -5367,7 +5375,7 @@ mod test {
         assert_eq!(binding.return_type().to_string(), "Int");
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_a_generic_function() {
         let f = STDLIB.function("values").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Two));
@@ -5433,7 +5441,7 @@ mod test {
         assert_eq!(binding.return_type().to_string(), "Array[Object]");
     }
 
-    #[test]
+    #[test_log::test]
     fn it_removes_qualifiers() {
         let f = STDLIB.function("select_all").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Zero));
@@ -5472,7 +5480,7 @@ mod test {
         assert_eq!(binding.return_type().to_string(), "Array[Array[String]]");
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_concrete_overloads() {
         let f = STDLIB.function("max").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::One));
@@ -5595,7 +5603,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_generic_overloads() {
         let f = STDLIB
             .function("select_first")

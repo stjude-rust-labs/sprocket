@@ -1,4 +1,4 @@
-#@ except: MetaDescription, EmptyOutputs
+#@ except: MetaDescription, EmptyOutputs, BashSetSyntax
 
 ## This is a test of the `missing_runtime_block` lint
 

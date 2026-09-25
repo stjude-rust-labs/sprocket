@@ -9,4 +9,3 @@ error: type mismatch: expected type `Int`, but found type `Int?`
    │
 45 │         input4,
    │         ^^^^^^ input `input4` is type `Int`, but name `input4` is type `Int?`
-

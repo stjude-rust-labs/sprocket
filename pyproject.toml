@@ -1,11 +1,11 @@
 [build-system]
-requires = ["maturin>=1.13,<2.0"]
+requires = ["maturin>=1.15.0,<2.0"]
 build-backend = "maturin"
 
 [project]
 name = "sprocket_bio"
 readme = "python/README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
@@ -20,6 +20,41 @@ dynamic = ["version"]
 [project.urls]
 repository = "https://github.com/stjude-rust-labs/sprocket"
 
+# Dependencies for local development, not visible to downstream consumers.
+[dependency-groups]
+# Installed by default with `maturin develop`.
+dev = ["pytest~=9.1", "mypy~=2.3", "black~=26.5", "isort~=8.0"]
+# Required to generate code coverage.
+cov = ["pytest-cov~=7.1"]
+# Required to build API docs, needs Python 3.12 or greater.
+docs = ["sphinx~=9.1", "sphinx_rtd_theme~=3.1", "myst-parser~=5.1"]
+
 [tool.maturin]
+module-name = "sprocket_bio._sprocket_bio"
 manifest-path = "crates/sprocket-py/Cargo.toml"
 python-source = "python"
+include = [{ path = "LICENSE-*", format = "sdist" }]
+
+[tool.pytest]
+strict = true
+addopts = ["--import-mode=importlib"]
+testpaths = ["python/tests"]
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
+# Requires Python 3.12, cannot be type checked by Python 3.10.
+exclude = ["python/docs/"]
+
+[tool.black]
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+py_version = 310
+# Do not modify files specified in `.gitignore`, such as `.venv` and `.git`.
+skip_gitignore = true
+# Place one blank line between direct and from imports.
+lines_between_types = 1
+# `sprocket_bio` is a first-party package, not a third-party one.
+known_first_party = ["sprocket_bio"]

@@ -2,7 +2,6 @@
 
 pub mod dive;
 
-use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
@@ -28,6 +27,18 @@ use crate::parser::Parser;
 /// This enumeration is a union of all supported WDL tokens and nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, VariantArray)]
 #[repr(u16)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        from_py_object,
+        eq,
+        ord,
+        hash
+    )
+)]
 pub enum SyntaxKind {
     /// The token is unknown to WDL.
     Unknown,
@@ -223,8 +234,8 @@ pub enum SyntaxKind {
     EnumDefinitionNode,
     /// Represents an enum type parameter node.
     EnumTypeParameterNode,
-    /// Represents an enum variant node.
-    EnumVariantNode,
+    /// Represents an enum choice node.
+    EnumChoiceNode,
     /// Represents a task definition node.
     TaskDefinitionNode,
     /// Represents a workflow definition node.
@@ -505,7 +516,7 @@ impl SyntaxKind {
             Self::StructDefinitionNode => "struct definition",
             Self::EnumDefinitionNode => "enum definition",
             Self::EnumTypeParameterNode => "enum type parameter",
-            Self::EnumVariantNode => "enum variant",
+            Self::EnumChoiceNode => "enum choice",
             Self::TaskDefinitionNode => "task definition",
             Self::WorkflowDefinitionNode => "workflow definition",
             Self::UnboundDeclNode => "declaration without assignment",
@@ -743,8 +754,9 @@ pub fn construct_tree(source: &str, mut events: Vec<Event>) -> SyntaxNode {
                     };
                 }
 
-                // As the current node was pushed first and then its ancestors, walk
-                // the list in reverse to start the "oldest" ancestor first
+                // As the current node was pushed first and then its ancestors,
+                // walk the list in reverse to start the
+                // "oldest" ancestor first
                 for kind in ancestors.drain(..).rev() {
                     if kind != SyntaxKind::Abandoned {
                         builder.start_node(kind.into());
@@ -803,7 +815,7 @@ impl SyntaxTree {
     }
 
     /// Gets a copy of the underlying root green node for the tree.
-    pub fn green(&self) -> Cow<'_, GreenNodeData> {
+    pub fn green(&self) -> &GreenNodeData {
         self.0.green()
     }
 
@@ -828,7 +840,7 @@ impl fmt::Debug for SyntaxTree {
 /// An extension trait for [`SyntaxToken`]s.
 pub trait SyntaxTokenExt {
     /// Gets all of the substantial preceding trivia for an element.
-    fn preceding_trivia(&self) -> impl Iterator<Item = SyntaxToken>;
+    fn preceding_trivia(&self) -> impl DoubleEndedIterator<Item = SyntaxToken>;
 
     /// Get any inline comment directly following an element on the
     /// same line.
@@ -836,7 +848,7 @@ pub trait SyntaxTokenExt {
 }
 
 impl SyntaxTokenExt for SyntaxToken {
-    fn preceding_trivia(&self) -> impl Iterator<Item = SyntaxToken> {
+    fn preceding_trivia(&self) -> impl DoubleEndedIterator<Item = SyntaxToken> {
         let mut tokens = VecDeque::new();
         let mut cur = self.prev_token();
         while let Some(token) = cur {
@@ -899,6 +911,72 @@ impl SyntaxTokenExt for SyntaxToken {
             true
         })
         .find(|t| t.kind() == SyntaxKind::Comment)
+    }
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl SyntaxKind {
+        /// Returns whether the token is a symbolic `SyntaxKind`.
+        ///
+        /// Generally speaking, symbolic `SyntaxKind`s have special meanings
+        /// during parsing—they are not real elements of the grammar but rather
+        /// an implementation detail.
+        #[pyo3(name = "is_symbolic")]
+        fn py_is_symbolic(&self) -> bool {
+            self.is_symbolic()
+        }
+
+        /// Describes the syntax kind.
+        ///
+        /// # Errors
+        ///
+        /// This method will throw `ValueError` if the `SyntaxKind` is symbolic
+        /// (when `SyntaxKind.is_symbolic()` returns true).
+        #[pyo3(name = "describe")]
+        fn py_describe(&self) -> PyResult<&'static str> {
+            if self.is_symbolic() {
+                return Err(PyValueError::new_err(format!(
+                    "cannot describe symbolic syntax kind: {}",
+                    self.__pyo3__repr__()
+                )));
+            }
+
+            Ok(self.describe())
+        }
+
+        /// Returns whether the `SyntaxKind` is trivia.
+        #[pyo3(name = "is_trivia")]
+        fn py_is_trivia(&self) -> bool {
+            self.is_trivia()
+        }
+
+        /// Returns whether the `SyntaxKind` is a keyword.
+        ///
+        /// NOTE: This does not include types, see `SyntaxKind.is_type()`.
+        #[pyo3(name = "is_keyword")]
+        fn py_is_keyword(&self) -> bool {
+            self.is_keyword()
+        }
+
+        /// Returns whether the `SyntaxKind` is a predefined type keyword.
+        #[pyo3(name = "is_type")]
+        fn py_is_type(&self) -> bool {
+            self.is_type()
+        }
+
+        /// Returns whether the `SyntaxKind` is an operator.
+        #[pyo3(name = "is_operator")]
+        fn py_is_operator(&self) -> bool {
+            self.is_operator()
+        }
     }
 }
 

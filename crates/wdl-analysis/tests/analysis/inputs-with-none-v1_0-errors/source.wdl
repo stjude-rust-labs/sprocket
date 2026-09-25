@@ -1,5 +1,5 @@
-## This is a test that passing `None` to a required input without a
-## default is still an error in WDL 1.0.
+## This is a test that passing an absent optional value to a required
+## input without a default is still an error in WDL 1.0.
 ## See: https://github.com/stjude-rust-labs/sprocket/issues/812
 #@ except: UnusedCall, UnusedDeclaration, UnusedInput
 version 1.0
@@ -26,20 +26,24 @@ task t {
 }
 
 workflow test {
+    input {
+        Int? absent
+    }
+
     call t as t1 { input:
-        input1 = None,
-        input2 = None,
-        input3 = None,
-        input4 = None,
+        input1 = absent,
+        input2 = absent,
+        input3 = absent,
+        input4 = absent,
     }
 
     call t as t2
 
     call w.w as w1 { input:
-        input1 = None,
-        input2 = None,
-        input3 = None,
-        input4 = None,
+        input1 = absent,
+        input2 = absent,
+        input3 = absent,
+        input4 = absent,
     }
 
     call w.w as w2

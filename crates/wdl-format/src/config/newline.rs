@@ -3,6 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use thiserror::Error;
 
 /// Unix-style newline.
@@ -12,7 +13,8 @@ const UNIX_NEWLINE: &str = "\n";
 const WINDOWS_NEWLINE: &str = "\r\n";
 
 /// The newline style to use when formatting.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum NewlineStyle {
     /// Use the native newline style of the platform.
     #[default]

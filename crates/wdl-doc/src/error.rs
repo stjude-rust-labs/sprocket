@@ -70,6 +70,8 @@ pub enum DocErrorKind {
     Npm(NpmError),
     /// An I/O operation failed.
     Io(IoError),
+    /// A WDL module manifest could not be loaded.
+    Manifest(wdl_modules::manifest::ManifestError),
 }
 
 /// Errors that can occur while generating documentation.
@@ -125,11 +127,19 @@ impl Display for DocError {
             }
             DocErrorKind::Npm(e) => write!(f, "{e}"),
             DocErrorKind::Io(e) => write!(f, "{e}"),
+            DocErrorKind::Manifest(e) => write!(f, "failed to load WDL module manifest: {e}"),
         }
     }
 }
 
-impl Error for DocError {}
+impl Error for DocError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match &self.kind {
+            DocErrorKind::Manifest(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 impl From<NpmError> for DocError {
     fn from(e: NpmError) -> Self {
@@ -140,6 +150,12 @@ impl From<NpmError> for DocError {
 impl From<IoError> for DocError {
     fn from(e: IoError) -> Self {
         DocError::new(DocErrorKind::Io(e))
+    }
+}
+
+impl From<wdl_modules::manifest::ManifestError> for DocError {
+    fn from(e: wdl_modules::manifest::ManifestError) -> Self {
+        DocError::new(DocErrorKind::Manifest(e))
     }
 }
 

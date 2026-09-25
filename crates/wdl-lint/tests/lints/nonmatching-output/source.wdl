@@ -1,4 +1,5 @@
-#@ except: EmptyOutputs, MetaDescription, OutputName, RuntimeSection
+#@ except: BashSetSyntax, EmptyOutputs, MetaDescription, OutputName
+#@ except: RuntimeSection
 
 version 1.1
 

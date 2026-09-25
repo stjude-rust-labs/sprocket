@@ -6,4 +6,3 @@ error: conflicting enum name `Status`
    ·
 10 │ enum Status {
    │      ^^^^^^ this enum conflicts with a previously used name
-

@@ -4,8 +4,11 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use wdl::analysis::Document;
+use wdl::ast::AstNode;
+use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::Inputs as EngineInputs;
 
 use crate::Config;
@@ -45,27 +48,57 @@ pub struct Args {
     /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
     /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
-
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 }
 
 /// Runs analysis on a single source and returns the resulting document.
 pub async fn analyze_source(
     source: &Source,
     fallback_version: Option<SupportedVersion>,
+    modules_config: wdl_modules::resolver::ModulesConfig,
+    feature_flags: wdl::analysis::FeatureFlags,
+    ignore_filename: Option<String>,
+    report_mode: Mode,
+    colorize: bool,
 ) -> CommandResult<Document> {
     let results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(fallback_version)
-        .run()
+        .modules_config(modules_config)
+        .feature_flags(feature_flags)
+        .ignore_filename(ignore_filename)
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
     // SAFETY: this must exist, as we added it as the only source to be
     // analyzed above.
     Ok(results.filter(&[source]).next().unwrap().document().clone())
+}
+
+/// Emits any error diagnostics for the document and fails if any are present.
+///
+/// Only error-severity diagnostics are emitted; warnings and notes are left
+/// unreported. Returns `Ok(())` when the document analyzed without errors.
+pub fn ensure_no_analysis_errors(
+    document: &Document,
+    report_mode: Mode,
+    colorize: bool,
+) -> CommandResult<()> {
+    let mut diagnostics = document
+        .diagnostics()
+        .filter(|d| d.severity() == Severity::Error)
+        .peekable();
+
+    if diagnostics.peek().is_none() {
+        return Ok(());
+    }
+
+    let path = document.path().to_string();
+    let source = document.root().text().to_string();
+    emit_diagnostics(&path, &source, diagnostics, report_mode, colorize)
+        .context("failed to emit diagnostics")?;
+
+    Err(anyhow!("source contains analysis errors").into())
 }
 
 /// Resolves the target and inputs against an already-analyzed document,
@@ -81,7 +114,7 @@ pub async fn validate_inputs(
         EngineInputs::Task(inputs) => {
             // SAFETY: we wouldn't have a task inputs if a task didn't exist
             // that matched the user's criteria.
-            let task = document.task_by_name(&target).unwrap();
+            let task = document.local_task_by_name(&target).unwrap();
             inputs.validate(document, task, None)?
         }
         EngineInputs::Workflow(inputs) => {
@@ -150,14 +183,24 @@ async fn resolve_target_and_inputs(
 }
 
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
+pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = config.common.report_mode;
     if let Source::Directory(_) = args.source {
         return Err(
             anyhow!("directory sources are not supported for the `validate` command").into(),
         );
     }
 
-    let document = analyze_source(&args.source, config.common.wdl.fallback_version.into()).await?;
+    let document = analyze_source(
+        &args.source,
+        config.common.wdl.fallback_version.into(),
+        config.modules.clone(),
+        config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
+        report_mode,
+        colorize,
+    )
+    .await?;
 
     validate_inputs(&document, &args.inputs, args.target).await?;
 

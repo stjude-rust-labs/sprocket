@@ -27,7 +27,8 @@
   "enabledManagers": [
     "cargo",
     "npm",
-    "github-actions"
+    "github-actions",
+    "pep621"
   ],
   "lockFileMaintenance": {
     "enabled": true,
@@ -50,7 +51,7 @@
       ]
     },
     {
-      "description": "Group all npm updates into one PR",
+      "description": "Group all npm minor and patch updates into one PR",
       "matchManagers": [
         "npm"
       ],
@@ -86,6 +87,37 @@
       "addLabels": [
         "cargo"
       ]
+    },
+    {
+      "description": "Do not update lsp-types",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "lsp-types"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Group all Python updates into one PR",
+      "matchManagers": [
+        "pep621"
+      ],
+      "groupName": "python updates",
+      "rangeStrategy": "bump",
+      "addLabels": [
+        "python"
+      ]
+    },
+    {
+      "description": "Do not update Python interpreter",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {
@@ -100,4 +132,3 @@
   },
   "osvVulnerabilityAlerts": true
 }
-

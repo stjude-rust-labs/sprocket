@@ -41,7 +41,7 @@ fn find_tests() -> Vec<Trial> {
             }
 
             let test_name = path
-                .file_stem()
+                .file_name()
                 .map(OsStr::to_string_lossy)
                 .unwrap()
                 .into_owned();

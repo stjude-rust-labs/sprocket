@@ -22,6 +22,7 @@ use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
+use tokio_util::sync::CancellationToken;
 use url::Url;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
@@ -61,10 +62,10 @@ use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::version::V1;
 
 use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::Outputs;
 use crate::backend::TaskExecutionConstraints;
-use crate::http::Transferer;
 use crate::path;
 
 /// Represents a path to a file or directory on the host file system or a URL to
@@ -72,12 +73,22 @@ use crate::path;
 ///
 /// The host in this context is where the WDL evaluation is taking place.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct HostPath(pub Arc<String>);
+pub struct HostPath(Arc<String>);
 
 impl HostPath {
     /// Constructs a new host path from a string.
+    ///
+    /// NOTE: Any trailing slashes will be stripped.
     pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
+        let path = path.into();
+
+        if path.ends_with('/') {
+            // https://github.com/openwdl/wdl/pull/745
+            let trimmed = path.trim_end_matches('/');
+            return Self(Arc::new(trimmed.into()));
+        }
+
+        Self(Arc::new(path))
     }
 
     /// Gets the string representation of the host path.
@@ -105,13 +116,25 @@ impl HostPath {
 
     /// Determines if the host path is relative.
     pub fn is_relative(&self) -> bool {
-        !path::is_supported_url(&self.0) && Path::new(self.0.as_str()).is_relative()
+        !path::is_supported_url(&self.0) && Path::new(&*self.0).is_relative()
+    }
+}
+
+impl AsRef<str> for HostPath {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for HostPath {
+    fn as_ref(&self) -> &Path {
+        Path::new(&*self.0)
     }
 }
 
 impl fmt::Display for HostPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        f.write_str(&self.0)
     }
 }
 
@@ -137,7 +160,7 @@ fn write_escaped_wdl_string(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result 
 
 impl From<Arc<String>> for HostPath {
     fn from(path: Arc<String>) -> Self {
-        Self(path)
+        Self::new(Arc::unwrap_or_clone(path))
     }
 }
 
@@ -149,13 +172,13 @@ impl From<HostPath> for Arc<String> {
 
 impl From<String> for HostPath {
     fn from(s: String) -> Self {
-        Arc::new(s).into()
+        HostPath::new(s)
     }
 }
 
-impl<'a> From<&'a str> for HostPath {
-    fn from(s: &'a str) -> Self {
-        s.to_string().into()
+impl From<&str> for HostPath {
+    fn from(s: &str) -> Self {
+        HostPath::new(s)
     }
 }
 
@@ -167,7 +190,7 @@ impl From<url::Url> for HostPath {
 
 impl From<HostPath> for PathBuf {
     fn from(path: HostPath) -> Self {
-        PathBuf::from(path.0.as_str())
+        PathBuf::from(path.as_str())
     }
 }
 
@@ -181,12 +204,14 @@ impl From<&HostPath> for PathBuf {
 ///
 /// The guest in this context is the container where tasks are run.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct GuestPath(pub Arc<String>);
+pub struct GuestPath(Arc<String>);
 
 impl GuestPath {
     /// Constructs a new guest path from a string.
+    ///
+    /// NOTE: Any trailing slashes will be stripped.
     pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
+        HostPath::new(path).into()
     }
 
     /// Gets the string representation of the guest path.
@@ -197,19 +222,37 @@ impl GuestPath {
 
 impl fmt::Display for GuestPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        f.write_str(&self.0)
+    }
+}
+
+impl AsRef<Path> for GuestPath {
+    fn as_ref(&self) -> &Path {
+        Path::new(&*self.0)
     }
 }
 
 impl From<Arc<String>> for GuestPath {
     fn from(path: Arc<String>) -> Self {
-        Self(path)
+        Self::new(Arc::unwrap_or_clone(path))
     }
 }
 
 impl From<GuestPath> for Arc<String> {
     fn from(path: GuestPath) -> Self {
         path.0
+    }
+}
+
+impl From<HostPath> for GuestPath {
+    fn from(path: HostPath) -> Self {
+        Self(path.0)
+    }
+}
+
+impl From<&HostPath> for GuestPath {
+    fn from(path: &HostPath) -> Self {
+        Self(path.0.clone())
     }
 }
 
@@ -254,21 +297,55 @@ impl NoneValue {
     }
 }
 
+/// The inner value of [`TypeNameRefValue`].
+#[derive(Debug, Clone)]
+struct TypeNameRefValueInner {
+    /// The name used to reference the type.
+    name: String,
+    /// The referenced custom type.
+    ty: Type,
+}
+
 /// Represents a reference to a user-defined type name.
 ///
 /// Type name reference values are cheap to clone.
 #[derive(Debug, Clone)]
-pub struct TypeNameRefValue(Arc<Type>);
+pub struct TypeNameRefValue(Arc<TypeNameRefValueInner>);
 
 impl TypeNameRefValue {
     /// Constructs a new `TypeNameRefValue` with the given type.
-    pub fn new(ty: Type) -> Self {
-        Self(Arc::new(ty))
+    pub fn new(name: impl Into<String>, ty: impl Into<CustomType>) -> Self {
+        Self(
+            TypeNameRefValueInner {
+                name: name.into(),
+                ty: ty.into().into(),
+            }
+            .into(),
+        )
+    }
+
+    /// Gets the name used to referenced the type.
+    pub fn name(&self) -> &str {
+        &self.0.name
     }
 
     /// Gets the referenced type.
     pub fn ty(&self) -> &Type {
-        &self.0
+        &self.0.ty
+    }
+
+    /// Converts the referenced custom type to a struct type.
+    ///
+    /// Returns `None` if the referenced custom type is not a struct.
+    pub fn as_struct(&self) -> Option<&StructType> {
+        self.ty().as_struct()
+    }
+
+    /// Converts the referenced custom type to an enum type.
+    ///
+    /// Returns `None` if the referenced custom type is not an enum.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        self.ty().as_enum()
     }
 }
 
@@ -734,7 +811,7 @@ impl Value {
 
     /// Check that any paths referenced by a `File` or `Directory` value within
     /// this value exist, and return a new value with any relevant host
-    /// paths transformed by the given `translate()` function.
+    /// paths transformed by the given `translate` function.
     ///
     /// If a `File` or `Directory` value is optional and the path does not
     /// exist, it is replaced with a WDL none value.
@@ -745,7 +822,7 @@ impl Value {
     /// If a local base directory is provided, it will be joined with any
     /// relative local paths prior to checking for existence.
     ///
-    /// The provided transferer is used for checking remote URL existence.
+    /// The provided HTTP client is used for checking remote URL existence.
     ///
     /// TODO ACF 2025-11-10: this function is an intermediate step on the way to
     /// more thoroughly refactoring the code between `sprocket` and
@@ -754,7 +831,7 @@ impl Value {
         &self,
         optional: bool,
         base_dir: Option<&Path>,
-        transferer: Option<&dyn Transferer>,
+        http: Option<(&EvaluationHttpClient, &CancellationToken)>,
         translate: &F,
     ) -> Result<Self>
     where
@@ -771,14 +848,16 @@ impl Value {
         match self {
             Self::Primitive(v @ PrimitiveValue::File(path))
             | Self::Primitive(v @ PrimitiveValue::Directory(path)) => {
-                // We treat file and directory paths almost entirely the same, other than when
-                // reporting errors and choosing which variant to return in the result
+                // We treat file and directory paths almost entirely the same,
+                // other than when reporting errors and choosing
+                // which variant to return in the result
                 let is_file = v.as_file().is_some();
                 let path = translate(path)?;
 
                 if path::is_file_url(path.as_str()) {
-                    // File URLs must be absolute paths, so we just check whether it exists without
-                    // performing any joining
+                    // File URLs must be absolute paths, so we just check
+                    // whether it exists without performing
+                    // any joining
                     let exists = path
                         .as_str()
                         .parse::<Url>()
@@ -797,14 +876,15 @@ impl Value {
 
                     bail!("path `{path}` does not exist");
                 } else if path::is_supported_url(path.as_str()) {
-                    match transferer {
-                        Some(transferer) => {
-                            let exists = transferer
+                    match http {
+                        Some((client, token)) => {
+                            let exists = client
                                 .exists(
                                     &path
                                         .as_str()
                                         .parse()
                                         .with_context(|| format!("invalid URL `{path}`"))?,
+                                    token,
                                 )
                                 .await?;
                             if exists {
@@ -848,9 +928,7 @@ impl Value {
                 Ok(Self::Primitive(v))
             }
             Self::Compound(v) => Ok(Self::Compound(
-                v.resolve_paths(base_dir, transferer, translate)
-                    .boxed()
-                    .await?,
+                v.resolve_paths(base_dir, http, translate).boxed().await?,
             )),
             v => Ok(v.clone()),
         }
@@ -900,53 +978,47 @@ impl Coercible for Value {
                     bail!("cannot coerce `None` to non-optional {target:#}");
                 }
             }
-            // String -> Enum Variant
             Self::Primitive(PrimitiveValue::String(s)) if target.as_enum().is_some() => {
                 // SAFETY: we just checked above that this is an enum type.
                 let enum_ty = target.as_enum().unwrap();
 
-                if enum_ty
-                    .variants()
-                    .iter()
-                    .any(|variant_name| variant_name == s.as_str())
-                {
+                if enum_ty.choices().contains(s.as_ref()) {
                     if let Some(context) = context {
-                        if let Ok(value) = context.enum_variant_value(enum_ty.name(), s) {
-                            return Ok(Value::Compound(CompoundValue::EnumVariant(
-                                EnumVariant::new(enum_ty.clone(), s.as_str(), value),
+                        if let Ok(value) = context.enum_choice_value(enum_ty.name(), s) {
+                            return Ok(Value::Compound(CompoundValue::EnumChoice(
+                                EnumChoice::new(enum_ty.clone(), s.as_str(), value),
                             )));
                         } else {
                             bail!(
-                                "enum variant value lookup failed for variant `{s}` in enum `{}`",
+                                "enum choice value lookup failed for choice `{s}` in enum `{}`",
                                 enum_ty.name()
                             );
                         }
                     } else {
                         bail!(
-                            "context does not exist when creating enum variant value `{s}` in \
-                             enum `{}`",
+                            "context does not exist when creating enum choice value `{s}` in enum \
+                             `{}`",
                             enum_ty.name()
                         );
                     }
                 }
 
-                let variants = if enum_ty.variants().is_empty() {
+                let choices = if enum_ty.choices().is_empty() {
                     None
                 } else {
-                    let mut variant_names = enum_ty.variants().to_vec();
-                    variant_names.sort();
-                    Some(format!(" (variants: `{}`)", variant_names.join("`, `")))
+                    let mut choice_names = enum_ty.choices().to_vec();
+                    choice_names.sort();
+                    Some(format!(" (choices: `{}`)", choice_names.join("`, `")))
                 }
                 .unwrap_or_default();
 
                 bail!(
-                    "cannot coerce type `String` to {target:#}: variant `{s}` not found in enum \
-                     `{}`{variants}",
+                    "cannot coerce type `String` to {target:#}: choice `{s}` not found in enum \
+                     `{}`{choices}",
                     enum_ty.name()
                 );
             }
-            // Enum Variant -> String
-            Self::Compound(CompoundValue::EnumVariant(e))
+            Self::Compound(CompoundValue::EnumChoice(e))
                 if target
                     .as_primitive()
                     .map(|t| matches!(t, PrimitiveType::String))
@@ -964,6 +1036,12 @@ impl Coercible for Value {
                 bail!("type name references cannot be coerced to any other type");
             }
         }
+    }
+}
+
+impl From<NoneValue> for Value {
+    fn from(value: NoneValue) -> Self {
+        Self::None(value)
     }
 }
 
@@ -1063,6 +1141,12 @@ impl From<CallValue> for Value {
     }
 }
 
+impl From<TypeNameRefValue> for Value {
+    fn from(value: TypeNameRefValue) -> Self {
+        Self::TypeNameRef(value)
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for Value {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
@@ -1154,7 +1238,8 @@ impl<'de> serde::Deserialize<'de> for Value {
                     elements.push(element);
                 }
 
-                // Try to find a mutually-agreeable common type for the elements of the array.
+                // Try to find a mutually-agreeable common type for the elements
+                // of the array.
                 let mut candidate_ty = None;
                 for element in elements.iter() {
                     let new_candidate_ty = element.ty();
@@ -1443,14 +1528,10 @@ impl PrimitiveValue {
                         )
                     }
                     PrimitiveValue::Directory(v) => {
-                        write!(
-                            f,
-                            "{v}",
-                            v = self
-                                .context
-                                .and_then(|c| c.guest_path(v).map(|p| Cow::Owned(p.0)))
-                                .unwrap_or(Cow::Borrowed(&v.0))
-                        )
+                        match self.context.and_then(|c| c.guest_path(v)) {
+                            Some(guest_path) => write!(f, "{guest_path}"),
+                            None => write!(f, "{v}"),
+                        }
                     }
                 }
             }
@@ -1498,14 +1579,14 @@ impl Hash for PrimitiveValue {
                 v.hash(state);
             }
             Self::Float(v) => {
-                // Hash this with the same discriminant as integer; this allows coercion from
-                // int to float.
+                // Hash this with the same discriminant as integer; this allows
+                // coercion from int to float.
                 1.hash(state);
                 v.hash(state);
             }
             Self::String(v) | Self::File(HostPath(v)) | Self::Directory(HostPath(v)) => {
-                // Hash these with the same discriminant; this allows coercion from file and
-                // directory to string
+                // Hash these with the same discriminant; this allows coercion
+                // from file and directory to string
                 2.hash(state);
                 v.hash(state);
             }
@@ -1969,7 +2050,7 @@ impl fmt::Display for Map {
 /// Represents an `Object` value.
 ///
 /// Objects are cheap to clone.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Object {
     /// The members of the object.
     pub(crate) members: Arc<IndexMap<String, Value>>,
@@ -1987,7 +2068,7 @@ impl Object {
 
     /// Returns an empty object.
     pub fn empty() -> Self {
-        Self::new(IndexMap::default())
+        Self::default()
     }
 
     /// Creates an object from an iterator of V1 AST metadata items.
@@ -2217,50 +2298,49 @@ impl fmt::Display for Struct {
     }
 }
 
-/// The inner representation of an enum variant value.
+/// The inner representation of an enum choice value.
 #[derive(Debug)]
-struct EnumVariantInner {
-    /// The type of the enum containing this variant.
+struct EnumChoiceInner {
+    /// The type of the enum containing this choice.
     enum_ty: EnumType,
-    /// The index of the variant in the enum type.
-    variant_index: usize,
-    /// The value of the variant.
+    /// The index of the choice in the enum type.
+    choice_index: usize,
+    /// The value of the choice.
     value: Value,
 }
 
-/// An enum variant value.
+/// An enum choice value.
 ///
-/// A variant enum is the name of the enum variant and the type of the enum from
-/// which that variant can be looked up.
+/// An enum choice is identified by its enum type and choice name.
 ///
 /// This type is cheaply cloneable.
 #[derive(Debug, Clone)]
-pub struct EnumVariant(Arc<EnumVariantInner>);
+pub struct EnumChoice(Arc<EnumChoiceInner>);
 
-impl PartialEq for EnumVariant {
+impl PartialEq for EnumChoice {
     fn eq(&self, other: &Self) -> bool {
-        self.0.enum_ty == other.0.enum_ty && self.0.variant_index == other.0.variant_index
+        self.0.enum_ty == other.0.enum_ty && self.0.choice_index == other.0.choice_index
     }
 }
 
-impl EnumVariant {
-    /// Attempts to create a new enum variant from a enum type and variant name.
+impl EnumChoice {
+    /// Attempts to create a new enum choice from an enum type and choice name.
     ///
     /// # Panics
     ///
-    /// Panics if the given variant name is not present in the given enum type.
+    /// Panics if the given choice name is not present in the given enum type.
     pub fn new(enum_ty: impl Into<EnumType>, name: &str, value: impl Into<Value>) -> Self {
         let enum_ty = enum_ty.into();
 
-        let variant_index = enum_ty
-            .variants()
+        let choice_index = enum_ty
+            .choices()
             .iter()
             .position(|v| v == name)
-            .expect("variant name must exist in enum type");
+            .expect("choice name must exist in enum type");
 
-        Self(Arc::new(EnumVariantInner {
+        Self(Arc::new(EnumChoiceInner {
             enum_ty,
-            variant_index,
+            choice_index,
             value: value.into(),
         }))
     }
@@ -2270,26 +2350,26 @@ impl EnumVariant {
         self.0.enum_ty.clone()
     }
 
-    /// Gets the name of the variant.
+    /// Gets the name of the choice.
     pub fn name(&self) -> &str {
-        &self.0.enum_ty.variants()[self.0.variant_index]
+        &self.0.enum_ty.choices()[self.0.choice_index]
     }
 
-    /// Gets the value of the variant.
+    /// Gets the value of the choice.
     pub fn value(&self) -> &Value {
         &self.0.value
     }
 }
 
-/// Displays the variant name when an enum is used in string interpolation.
+/// Displays the choice name when an enum is used in string interpolation.
 ///
 /// # Design Decision
 ///
-/// When an enum variant is interpolated in a WDL string (e.g., `"~{Color.Red}"`
-/// where `Red = "#FF0000"`), this implementation displays the **variant name**
+/// When an enum choice is interpolated in a WDL string (e.g., `"~{Color.Red}"`
+/// where `Red = "#FF0000"`), this implementation displays the **choice name**
 /// (`"Red"`) rather than the underlying **value** (`"#FF0000"`).
 ///
-/// This design choice treats enum variants as named identifiers, providing
+/// This design choice treats enum choices as named identifiers, providing
 /// stable, human-readable output that doesn't depend on the underlying value
 /// representation. To access the underlying value explicitly, use the `value()`
 /// standard library function.
@@ -2305,7 +2385,7 @@ impl EnumVariant {
 /// String name = "~{Color.Red}"       # Produces "Red"
 /// String hex_value = value(Color.Red)  # Produces "#FF0000"
 /// ```
-impl fmt::Display for EnumVariant {
+impl fmt::Display for EnumChoice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name())
     }
@@ -2326,8 +2406,8 @@ pub enum CompoundValue {
     Object(Object),
     /// The value is a struct.
     Struct(Struct),
-    /// The value is an enum variant.
-    EnumVariant(EnumVariant),
+    /// The value is an enum choice.
+    EnumChoice(EnumChoice),
 }
 
 impl CompoundValue {
@@ -2339,7 +2419,7 @@ impl CompoundValue {
             CompoundValue::Map(v) => v.ty(),
             CompoundValue::Object(v) => v.ty(),
             CompoundValue::Struct(v) => v.ty(),
-            CompoundValue::EnumVariant(v) => v.enum_ty().into(),
+            CompoundValue::EnumChoice(v) => v.enum_ty().into(),
         }
     }
 
@@ -2453,25 +2533,25 @@ impl CompoundValue {
         }
     }
 
-    /// Gets the value as an `EnumVariant`.
+    /// Gets the value as an `EnumChoice`.
     ///
-    /// Returns `None` if the value is not an `EnumVariant`.
-    pub fn as_enum_variant(&self) -> Option<&EnumVariant> {
+    /// Returns `None` if the value is not an `EnumChoice`.
+    pub fn as_enum_choice(&self) -> Option<&EnumChoice> {
         match self {
-            Self::EnumVariant(v) => Some(v),
+            Self::EnumChoice(v) => Some(v),
             _ => None,
         }
     }
 
-    /// Unwraps the value into an `EnumVariant`.
+    /// Unwraps the value into an `EnumChoice`.
     ///
     /// # Panics
     ///
-    /// Panics if the value is not an `EnumVariant`.
-    pub fn unwrap_enum_variant(self) -> EnumVariant {
+    /// Panics if the value is not an `EnumChoice`.
+    pub fn unwrap_enum_choice(self) -> EnumChoice {
         match self {
-            Self::EnumVariant(v) => v,
-            _ => panic!("value is not an enum"),
+            Self::EnumChoice(v) => v,
+            _ => panic!("value is not an enum choice"),
         }
     }
 
@@ -2525,7 +2605,7 @@ impl CompoundValue {
                             None => false,
                         }),
             ),
-            (CompoundValue::EnumVariant(left), CompoundValue::EnumVariant(right)) => {
+            (CompoundValue::EnumChoice(left), CompoundValue::EnumChoice(right)) => {
                 Some(left.enum_ty() == right.enum_ty() && left.name() == right.name())
             }
             _ => None,
@@ -2571,7 +2651,7 @@ impl CompoundValue {
                     v.visit_paths(cb)?;
                 }
             }
-            Self::EnumVariant(e) => {
+            Self::EnumChoice(e) => {
                 e.value().visit_paths(cb)?;
             }
         }
@@ -2584,7 +2664,7 @@ impl CompoundValue {
     fn resolve_paths<'a, F>(
         &'a self,
         base_dir: Option<&'a Path>,
-        transferer: Option<&'a dyn Transferer>,
+        http: Option<(&'a EvaluationHttpClient, &'a CancellationToken)>,
         translate: &'a F,
     ) -> BoxFuture<'a, Result<Self>>
     where
@@ -2599,12 +2679,12 @@ impl CompoundValue {
                     let fst = pair
                         .0
                         .left
-                        .resolve_paths(left_optional, base_dir, transferer, translate)
+                        .resolve_paths(left_optional, base_dir, http, translate)
                         .await?;
                     let snd = pair
                         .0
                         .right
-                        .resolve_paths(right_optional, base_dir, transferer, translate)
+                        .resolve_paths(right_optional, base_dir, http, translate)
                         .await?;
                     Ok(Self::Pair(Pair::new_unchecked(ty.clone(), fst, snd)))
                 }
@@ -2613,7 +2693,7 @@ impl CompoundValue {
                     let optional = ty.element_type().is_optional();
                     if !array.0.elements.is_empty() {
                         let resolved_elements = futures::stream::iter(array.0.elements.iter())
-                            .then(|v| v.resolve_paths(optional, base_dir, transferer, translate))
+                            .then(|v| v.resolve_paths(optional, base_dir, http, translate))
                             .try_collect::<Vec<Value>>()
                             .await?;
                         Ok(Self::Array(Array::new_unchecked(
@@ -2632,13 +2712,13 @@ impl CompoundValue {
                         let resolved_elements = futures::stream::iter(map.0.elements.iter())
                             .then(async |(k, v)| {
                                 let resolved_key = Value::from(k.clone())
-                                    .resolve_paths(key_optional, base_dir, transferer, translate)
+                                    .resolve_paths(key_optional, base_dir, http, translate)
                                     .await?
                                     .as_primitive()
                                     .cloned()
                                     .expect("key should be primitive");
                                 let resolved_value = v
-                                    .resolve_paths(value_optional, base_dir, transferer, translate)
+                                    .resolve_paths(value_optional, base_dir, http, translate)
                                     .await?;
                                 Ok::<_, anyhow::Error>((resolved_key, resolved_value))
                             })
@@ -2655,9 +2735,8 @@ impl CompoundValue {
                     } else {
                         let resolved_members = futures::stream::iter(object.iter())
                             .then(async |(n, v)| {
-                                let resolved = v
-                                    .resolve_paths(false, base_dir, transferer, translate)
-                                    .await?;
+                                let resolved =
+                                    v.resolve_paths(false, base_dir, http, translate).await?;
                                 Ok::<_, anyhow::Error>((n.to_string(), resolved))
                             })
                             .try_collect()
@@ -2674,7 +2753,7 @@ impl CompoundValue {
                                 .resolve_paths(
                                     ty.members()[n].is_optional(),
                                     base_dir,
-                                    transferer,
+                                    http,
                                     translate,
                                 )
                                 .await?;
@@ -2688,13 +2767,14 @@ impl CompoundValue {
                         resolved_members,
                     )))
                 }
-                Self::EnumVariant(e) => {
+                Self::EnumChoice(e) => {
                     let optional = e.enum_ty().inner_value_type().is_optional();
                     let value =
                         e.0.value
-                            .resolve_paths(optional, base_dir, transferer, translate)
+                            .resolve_paths(optional, base_dir, http, translate)
                             .await?;
-                    Ok(Self::EnumVariant(EnumVariant::new(
+
+                    Ok(Self::EnumChoice(EnumChoice::new(
                         e.0.enum_ty.clone(),
                         e.name(),
                         value,
@@ -2714,7 +2794,7 @@ impl fmt::Display for CompoundValue {
             Self::Map(v) => v.fmt(f),
             Self::Object(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
-            Self::EnumVariant(v) => v.fmt(f),
+            Self::EnumChoice(v) => v.fmt(f),
         }
     }
 }
@@ -2729,8 +2809,8 @@ impl Coercible for CompoundValue {
             match (self, target_ty) {
                 // Array[X] -> Array[Y](+) where X -> Y
                 (Self::Array(v), CompoundType::Array(target_ty)) => {
-                    // Don't allow coercion when the source is empty but the target has the
-                    // non-empty qualifier
+                    // Don't allow coercion when the source is empty but the
+                    // target has the non-empty qualifier
                     if v.is_empty() && target_ty.is_non_empty() {
                         bail!("cannot coerce empty array value to non-empty array {target:#}");
                     }
@@ -3979,17 +4059,18 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 
                 map.end()
             }
-            CompoundValue::EnumVariant(e) => serializer.serialize_str(e.name()),
+            CompoundValue::EnumChoice(e) => serializer.serialize_str(e.name()),
         }
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::iter::empty;
 
     use approx::assert_relative_eq;
     use pretty_assertions::assert_eq;
+    use regex::Regex;
     use wdl_analysis::types::ArrayType;
     use wdl_analysis::types::MapType;
     use wdl_analysis::types::PairType;
@@ -4000,7 +4081,6 @@ mod test {
 
     use super::*;
     use crate::EvaluationPath;
-    use crate::http::Transferer;
 
     #[test]
     fn boolean_coercion() {
@@ -4144,7 +4224,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+            fn enum_choice_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 
@@ -4156,7 +4236,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4166,6 +4246,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4271,7 +4355,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+            fn enum_choice_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 
@@ -4283,7 +4367,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4293,6 +4377,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4365,7 +4453,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+            fn enum_choice_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 
@@ -4377,7 +4465,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn transferer(&self) -> &dyn Transferer {
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
                 unimplemented!()
             }
 
@@ -4387,6 +4475,10 @@ mod test {
                 } else {
                     None
                 }
+            }
+
+            fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+                unimplemented!()
             }
         }
 
@@ -4754,59 +4846,42 @@ mod test {
     fn type_name_ref_equality() {
         use wdl_analysis::types::EnumType;
 
-        let enum_type = Type::Compound(
-            CompoundType::Custom(CustomType::Enum(
-                EnumType::new(
-                    "MyEnum",
-                    Span::new(0, 0),
-                    Type::Primitive(PrimitiveType::Integer, false),
-                    Vec::<(String, Type)>::new(),
-                    &[],
-                )
-                .expect("should create enum type"),
-            )),
-            false,
-        );
+        let enum_type = EnumType::new(
+            "MyEnum",
+            Span::new(0, 0),
+            Type::Primitive(PrimitiveType::Integer, false),
+            Vec::<(String, Type)>::new(),
+            &[],
+        )
+        .expect("should create enum type");
 
-        let value1 = Value::TypeNameRef(TypeNameRefValue::new(enum_type.clone()));
-        let value2 = Value::TypeNameRef(TypeNameRefValue::new(enum_type.clone()));
+        let value1 = Value::TypeNameRef(TypeNameRefValue::new("MyEnum", enum_type.clone()));
+        let value2 = Value::TypeNameRef(TypeNameRefValue::new("MyEnum", enum_type));
 
         assert_eq!(value1.ty(), value2.ty());
     }
 
     #[test]
     fn type_name_ref_ty() {
-        let struct_type = Type::Compound(
-            CompoundType::Custom(CustomType::Struct(StructType::new(
-                "MyStruct",
-                empty::<(&str, Type)>(),
-            ))),
-            false,
-        );
-
-        let value = Value::TypeNameRef(TypeNameRefValue::new(struct_type.clone()));
-        assert_eq!(value.ty(), struct_type);
+        let struct_type = StructType::new("MyStruct", empty::<(&str, Type)>());
+        let value = Value::TypeNameRef(TypeNameRefValue::new("MyStruct", struct_type.clone()));
+        assert_eq!(value.ty(), Type::from(struct_type));
     }
 
     #[test]
     fn type_name_ref_display() {
         use wdl_analysis::types::EnumType;
 
-        let enum_type = Type::Compound(
-            CompoundType::Custom(CustomType::Enum(
-                EnumType::new(
-                    "Color",
-                    Span::new(0, 0),
-                    Type::Primitive(PrimitiveType::Integer, false),
-                    Vec::<(String, Type)>::new(),
-                    &[],
-                )
-                .expect("should create enum type"),
-            )),
-            false,
-        );
+        let enum_type = EnumType::new(
+            "Color",
+            Span::new(0, 0),
+            Type::Primitive(PrimitiveType::Integer, false),
+            Vec::<(String, Type)>::new(),
+            &[],
+        )
+        .expect("should create enum type");
 
-        let value = Value::TypeNameRef(TypeNameRefValue::new(enum_type));
+        let value = Value::TypeNameRef(TypeNameRefValue::new("Color", enum_type));
         assert_eq!(value.to_string(), "Color");
     }
 }

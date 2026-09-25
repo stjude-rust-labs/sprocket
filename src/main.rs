@@ -5,6 +5,11 @@
 
 mod memory_stats;
 
+/// The allocation-heavy, multithreaded parse and analysis workload benefits
+/// measurably from mimalloc over the system allocator.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[tokio::main]
 async fn main() {
     sprocket::sprocket_main(memory_stats::MemoryStatsGuard).await

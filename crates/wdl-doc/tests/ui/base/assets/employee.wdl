@@ -18,6 +18,7 @@ struct Employee {
 
     meta {
         description: "An `Employee` is a `Person` who is formally employed by the organization."
+        help: "### Modeling notes"
     }
 
     parameter_meta {

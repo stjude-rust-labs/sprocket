@@ -83,7 +83,7 @@ task hello {
 
         let container = section.items().filter_map(|p| p.into_container());
 
-        assert!(container.count() == 1);
+        assert_eq!(container.count(), 1);
     }
 
     #[test]
@@ -113,7 +113,7 @@ task hello {
 
         let container = section.items().filter_map(|p| p.into_container());
 
-        assert!(container.count() == 0);
+        assert_eq!(container.count(), 0);
     }
 
     #[test]
@@ -143,6 +143,6 @@ task hello {
 
         let container = section.items().filter_map(|p| p.into_container());
 
-        assert!(container.count() == 1);
+        assert_eq!(container.count(), 1);
     }
 }

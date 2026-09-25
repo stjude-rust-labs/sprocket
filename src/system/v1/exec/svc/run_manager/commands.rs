@@ -15,6 +15,7 @@ use crate::system::v1::db::Task;
 use crate::system::v1::db::TaskLog;
 use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::JsonObject;
+use crate::system::v1::fs::IndexPath;
 
 /// Response for run submission.
 #[derive(Debug)]
@@ -84,6 +85,15 @@ pub struct ListTasksResponse {
     pub total: i64,
 }
 
+/// Response for a run's per-status task counts.
+#[derive(Debug)]
+pub struct RunTaskCountsResponse {
+    /// The per-status task counts.
+    ///
+    /// Only statuses with at least one task are present.
+    pub counts: Vec<(TaskStatus, i64)>,
+}
+
 /// Response for task query.
 #[derive(Debug)]
 pub struct GetTaskResponse {
@@ -117,8 +127,8 @@ pub enum RunManagerCmd {
         inputs: JsonObject,
         /// Optional target workflow or task name to execute.
         target: Option<String>,
-        /// Optional output directory to index on.
-        index_on: Option<String>,
+        /// Optional index path to index the run outputs under.
+        index_on: Option<IndexPath>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<SubmitResponse, super::SubmitRunError>>,
     },
@@ -189,6 +199,14 @@ pub enum RunManagerCmd {
         offset: Option<i64>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<ListTasksResponse, DatabaseError>>,
+    },
+
+    /// Count a run's tasks grouped by status.
+    CountRunTasksByStatus {
+        /// Run ID.
+        run_id: Uuid,
+        /// Channel to send the response back.
+        rx: oneshot::Sender<Result<RunTaskCountsResponse, DatabaseError>>,
     },
 
     /// Get task by name.

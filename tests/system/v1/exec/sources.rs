@@ -79,7 +79,8 @@ fn validate_file_with_path_traversal() -> Result<()> {
     let traversal_path = allowed_dir.join("..").join("secret.wdl");
     let result = validate_source(traversal_path.to_str().unwrap(), &config);
 
-    // Should be rejected as forbidden (canonicalization resolves `..` and checks)
+    // Should be rejected as forbidden (canonicalization resolves `..` and
+    // checks)
     assert!(matches!(result, Err(ConfigError::FilePathForbidden(_))));
 
     Ok(())

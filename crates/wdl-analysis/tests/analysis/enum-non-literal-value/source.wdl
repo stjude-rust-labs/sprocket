@@ -1,4 +1,5 @@
-## This test ensures that enum variant values must be literal expressions only.
+## This test ensures that enum choice values must be literal expressions only.
+
 version 1.3
 
 # Valid examples with literal values:

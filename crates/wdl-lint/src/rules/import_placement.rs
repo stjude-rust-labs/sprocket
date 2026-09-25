@@ -8,7 +8,6 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::StructDefinition;
@@ -113,7 +112,7 @@ impl Visitor for ImportPlacementRule {
         if self.invalid {
             diagnostics.exceptable_add(
                 misplaced_import(stmt.span()),
-                SyntaxElement::from(stmt.inner().clone()),
+                stmt.inner(),
                 &self.exceptable_nodes(),
             );
         }

@@ -1,0 +1,1 @@
+validate source.wdl --target collect jsons=foo.json bar.json

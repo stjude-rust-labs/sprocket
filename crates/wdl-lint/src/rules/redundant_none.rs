@@ -10,7 +10,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
@@ -126,11 +125,7 @@ impl Visitor for RedundantNone {
         let expr = decl.expr();
         if matches!(expr, Expr::Literal(LiteralExpr::None(_))) {
             let diagnostic = redundant_none(expr.span(), decl.name().text());
-            diagnostics.exceptable_add(
-                diagnostic,
-                SyntaxElement::from(decl.inner().clone()),
-                &self.exceptable_nodes(),
-            );
+            diagnostics.exceptable_add(diagnostic, decl.inner(), &self.exceptable_nodes());
         }
     }
 }

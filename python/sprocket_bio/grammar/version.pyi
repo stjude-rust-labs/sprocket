@@ -1,0 +1,33 @@
+import typing
+
+from typing_extensions import disjoint_base
+
+@typing.final
+class V1:
+    ZERO: V1
+    ONE: V1
+    TWO: V1
+    THREE: V1
+    FOUR: V1
+
+    def __lt__(self, other: typing.Any, /) -> bool: ...
+    def __le__(self, other: typing.Any, /) -> bool: ...
+    def __gt__(self, other: typing.Any, /) -> bool: ...
+    def __ge__(self, other: typing.Any, /) -> bool: ...
+
+@disjoint_base
+class SupportedVersion:
+    @typing.final
+    class V1(SupportedVersion):
+        _0: typing.Final[V1]
+        __match_args__ = ("_0",)
+
+        def __new__(cls, _0: V1) -> SupportedVersion.V1: ...
+
+    def has_same_major_version(self, other: SupportedVersion) -> bool: ...
+    def __lt__(self, other: typing.Any, /) -> bool: ...
+    def __le__(self, other: typing.Any, /) -> bool: ...
+    def __gt__(self, other: typing.Any, /) -> bool: ...
+    def __ge__(self, other: typing.Any, /) -> bool: ...
+
+__all__ = ["V1", "SupportedVersion"]

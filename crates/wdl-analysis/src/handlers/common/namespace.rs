@@ -21,27 +21,21 @@ pub struct ImportedDocContext<'a> {
     pub uri: &'a Url,
 }
 
-/// Gets the context for a document imported through a namespace.
+/// Gets the context for an imported document by its URI.
 ///
 /// This is a convenience function that performs the common pattern of looking
-/// up a namespace, getting the graph node, and extracting the document and line
+/// up the source document in the graph and extracting the document and line
 /// information.
 ///
-/// Returns an [`ImportedDocContext`] if the namespace and document exist,
+/// Returns an [`ImportedDocContext`] if the document exists in the graph,
 /// otherwise [`None`].
 pub fn get_imported_doc_context<'a>(
-    namespace_name: &str,
-    analysis_doc: &'a Document,
+    uri: &'a Url,
     graph: &'a DocumentGraph,
 ) -> Option<ImportedDocContext<'a>> {
-    let ns = analysis_doc.namespace(namespace_name)?;
-    let node = graph.get(graph.get_index(ns.source())?);
+    let node = graph.get(graph.get_index(uri)?);
     let doc = node.document()?;
     let lines = node.parse_state().lines()?;
 
-    Some(ImportedDocContext {
-        doc,
-        lines,
-        uri: ns.source(),
-    })
+    Some(ImportedDocContext { doc, lines, uri })
 }

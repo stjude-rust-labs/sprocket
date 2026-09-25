@@ -532,7 +532,8 @@ pub fn items(parser: &mut Parser<'_>) {
 
     parser.pop_recovery_set();
 
-    // This call to `next` is important as `next` adds any remaining buffered events
+    // This call to `next` is important as `next` adds any remaining buffered
+    // events
     assert!(parser.next().is_none(), "parser is not finished");
 }
 
@@ -865,16 +866,16 @@ fn enum_definition(
         marker,
         Some(Token::Comma),
         ENUM_SECTION_RECOVERY_SET,
-        enum_variant
+        enum_choice
     );
 
     marker.complete(parser, SyntaxKind::EnumDefinitionNode);
     Ok(())
 }
 
-/// Parses a variant in an enum definition.
-fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
-    ident!(parser, marker, "enum variant name");
+/// Parses a choice in an enum definition.
+fn enum_choice(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
+    ident!(parser, marker, "enum choice name");
 
     // Optional value, i.e., `= <expr>`.
     if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
@@ -886,7 +887,7 @@ fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, 
         }
     }
 
-    marker.complete(parser, SyntaxKind::EnumVariantNode);
+    marker.complete(parser, SyntaxKind::EnumChoiceNode);
     Ok(())
 }
 
@@ -2206,8 +2207,9 @@ fn call_statement(
     }
 
     if let Some((Token::OpenBrace, _)) = parser.peek() {
-        // Given the optional `input:` that we need to parse after the open brace, we
-        // unfortunately can't use `Parser::matching_delimited` here
+        // Given the optional `input:` that we need to parse after the open
+        // brace, we unfortunately can't use
+        // `Parser::matching_delimited` here
         let open_span = parser.require(Token::OpenBrace);
 
         if parser.next_if(Token::InputKeyword) {
@@ -2342,7 +2344,8 @@ fn expr_with_precedence(
         // Check for either an infix or postfix operation
         match parser.peek() {
             Some((token, _)) if INFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
-                // The operation is an infix operation; check the precedence level
+                // The operation is an infix operation; check the precedence
+                // level
                 let (precedence, kind, associativity) = infix_precedence(token);
                 if precedence < min_precedence {
                     break;
@@ -2369,7 +2372,8 @@ fn expr_with_precedence(
                 lhs = infix.complete(&mut parser, kind);
             }
             Some((token, _)) if POSTFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
-                // The operation is a postfix operation; check the precedence level
+                // The operation is a postfix operation; check the precedence
+                // level
                 let precedence = postfix_precedence(token);
                 if precedence < min_precedence {
                     break;
@@ -2415,7 +2419,9 @@ fn atom_expr(
     peeked: Token,
 ) -> Result<CompletedMarker, (Marker, ParseDiagnostic)> {
     match peeked {
-        Token::NoneKeyword => none(parser, marker),
+        Token::NoneKeyword if parser.version() >= SupportedVersion::V1(V1::One) => {
+            none(parser, marker)
+        }
         Token::Float | Token::Integer => number(parser, marker, false),
         Token::TrueKeyword | Token::FalseKeyword => boolean(parser, marker),
         Token::SingleQuote => single_quote_string(parser, marker, true),

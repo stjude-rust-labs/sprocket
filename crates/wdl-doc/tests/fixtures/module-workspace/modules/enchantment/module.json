@@ -1,0 +1,6 @@
+{
+  "name": "enchantment",
+  "version": "1.0.0",
+  "license": "MIT",
+  "entrypoint": "enchantment.wdl"
+}

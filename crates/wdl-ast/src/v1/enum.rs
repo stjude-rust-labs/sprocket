@@ -19,8 +19,10 @@ use crate::TreeNode;
 
 /// Represents an enum definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumDefinition<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> EnumDefinition<N> {
     /// Gets the name of the enum.
     pub fn name(&self) -> Ident<N::Token> {
@@ -34,19 +36,19 @@ impl<N: TreeNode> EnumDefinition<N> {
 
     /// Gets the optional type parameter of the enum definition.
     ///
-    /// The type parameter specifies the common type that all variant values
+    /// The type parameter specifies the common type that all choice values
     /// must coerce to. For example, `enum Status[String]` has a type parameter
     /// of `String`.
     ///
     /// Returns `None` if no explicit type parameter was specified. In this
-    /// case, the type is inferred from the variant values, or defaults to
+    /// case, the type is inferred from the choice values, or defaults to
     /// `Union` if the enum has no values.
     pub fn type_parameter(&self) -> Option<EnumTypeParameter<N>> {
         self.children().next()
     }
 
-    /// Gets the variants in the enum definition.
-    pub fn variants(&self) -> impl Iterator<Item = EnumVariant<N>> + use<'_, N> {
+    /// Gets the choices in the enum definition.
+    pub fn choices(&self) -> impl Iterator<Item = EnumChoice<N>> + use<'_, N> {
         self.children()
     }
 
@@ -72,6 +74,7 @@ impl<N: TreeNode> EnumDefinition<N> {
     ///     Red = "#FF0000",
     /// }
     /// ```
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn display<'a>(&'a self, computed_type: Option<&'a str>) -> EnumDefinitionDisplay<'a, N> {
         EnumDefinitionDisplay {
             definition: self,
@@ -101,9 +104,9 @@ impl<N: TreeNode> fmt::Display for EnumDefinitionDisplay<'_, N> {
 
         writeln!(f, " {{")?;
 
-        for variant in self.definition.variants() {
-            write!(f, "  {}", variant.name().text())?;
-            if let Some(value) = variant.value() {
+        for choice in self.definition.choices() {
+            write!(f, "  {}", choice.name().text())?;
+            if let Some(value) = choice.value() {
                 write!(f, " = {}", value.inner().text())?;
             }
             writeln!(f, ",")?;
@@ -133,14 +136,19 @@ impl<N: TreeNode> AstNode<N> for EnumDefinition<N> {
 
 impl Documented<SyntaxNode> for EnumDefinition<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
-        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia(), false)
+                .collect(),
+        )
     }
 }
 
 /// Represents an enum type parameter (e.g., [String]).
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumTypeParameter<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> EnumTypeParameter<N> {
     /// Gets the inner type.
     pub fn ty(&self) -> Type<N> {
@@ -168,14 +176,16 @@ impl<N: TreeNode> AstNode<N> for EnumTypeParameter<N> {
     }
 }
 
-/// Represents an enum variant.
+/// Represents an enum choice.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EnumVariant<N: TreeNode = SyntaxNode>(N);
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
+pub struct EnumChoice<N: TreeNode = SyntaxNode>(N);
 
-impl<N: TreeNode> EnumVariant<N> {
-    /// Gets the variant name.
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
+impl<N: TreeNode> EnumChoice<N> {
+    /// Gets the choice name.
     pub fn name(&self) -> Ident<N::Token> {
-        self.token().expect("variant should have a name")
+        self.token().expect("choice should have a name")
     }
 
     /// Gets the optional value expression.
@@ -184,14 +194,14 @@ impl<N: TreeNode> EnumVariant<N> {
     }
 }
 
-impl<N: TreeNode> AstNode<N> for EnumVariant<N> {
+impl<N: TreeNode> AstNode<N> for EnumChoice<N> {
     fn can_cast(kind: SyntaxKind) -> bool {
-        kind == SyntaxKind::EnumVariantNode
+        kind == SyntaxKind::EnumChoiceNode
     }
 
     fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
-            SyntaxKind::EnumVariantNode => Some(Self(inner)),
+            SyntaxKind::EnumChoiceNode => Some(Self(inner)),
             _ => None,
         }
     }
@@ -201,14 +211,17 @@ impl<N: TreeNode> AstNode<N> for EnumVariant<N> {
     }
 }
 
-impl Documented<SyntaxNode> for EnumVariant<SyntaxNode> {
+impl Documented<SyntaxNode> for EnumChoice<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
-        Some(crate::doc_comments::<SyntaxNode>(self.name().inner().preceding_trivia()).collect())
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.name().inner().preceding_trivia(), false)
+                .collect(),
+        )
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::Ast;
     use crate::Document;
@@ -260,19 +273,19 @@ workflow test {}
                 let empty = &enums[0];
                 assert_eq!(empty.name().text(), "Empty");
                 assert!(empty.type_parameter().is_none());
-                assert_eq!(empty.variants().count(), 0);
+                assert_eq!(empty.choices().count(), 0);
 
                 // Basic enum without type parameter
                 let color = &enums[1];
                 assert_eq!(color.name().text(), "Color");
                 assert!(color.type_parameter().is_none());
-                let variants: Vec<_> = color.variants().collect();
-                assert_eq!(variants.len(), 3);
-                assert_eq!(variants[0].name().text(), "Red");
-                assert_eq!(variants[1].name().text(), "Green");
-                assert_eq!(variants[2].name().text(), "Blue");
-                for variant in &variants {
-                    assert!(variant.value().is_none());
+                let choices: Vec<_> = color.choices().collect();
+                assert_eq!(choices.len(), 3);
+                assert_eq!(choices[0].name().text(), "Red");
+                assert_eq!(choices[1].name().text(), "Green");
+                assert_eq!(choices[2].name().text(), "Blue");
+                for choice in &choices {
+                    assert!(choice.value().is_none());
                 }
 
                 // Enum with String type parameter
@@ -280,7 +293,7 @@ workflow test {}
                 assert_eq!(status.name().text(), "Status");
                 let type_param = status.type_parameter().expect("should have type parameter");
                 assert_eq!(type_param.ty().inner().text(), "String");
-                assert_eq!(status.variants().count(), 3);
+                assert_eq!(status.choices().count(), 3);
 
                 // Enum with Int type parameter and values
                 let priority = &enums[3];
@@ -289,20 +302,20 @@ workflow test {}
                     .type_parameter()
                     .expect("should have type parameter");
                 assert_eq!(type_param.ty().inner().text(), "Int");
-                let variants: Vec<_> = priority.variants().collect();
-                assert_eq!(variants.len(), 3);
-                for variant in &variants {
-                    assert!(variant.value().is_some());
+                let choices: Vec<_> = priority.choices().collect();
+                assert_eq!(choices.len(), 3);
+                for choice in &choices {
+                    assert!(choice.value().is_some());
                 }
 
                 // Enum with mixed values (some with, some without)
                 let mixed = &enums[4];
                 assert_eq!(mixed.name().text(), "Mixed");
-                let variants: Vec<_> = mixed.variants().collect();
-                assert_eq!(variants.len(), 3);
-                assert!(variants[0].value().is_some());
-                assert!(variants[1].value().is_none());
-                assert!(variants[2].value().is_some());
+                let choices: Vec<_> = mixed.choices().collect();
+                assert_eq!(choices.len(), 3);
+                assert!(choices[0].value().is_some());
+                assert!(choices[1].value().is_none());
+                assert!(choices[2].value().is_some());
             }
             _ => panic!("expected V1 AST"),
         }

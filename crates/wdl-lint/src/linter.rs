@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document as AnalysisDocument;
 use wdl_analysis::Exceptable;
+use wdl_analysis::RuleMap;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -77,6 +78,13 @@ impl Default for Linter {
 }
 
 impl Visitor for Linter {
+    fn rules(&self) -> RuleMap {
+        self.rules
+            .iter()
+            .map(|(id, rule)| (id.to_string(), rule.exceptable_nodes()))
+            .collect()
+    }
+
     fn reset(&mut self) {
         // Reset the state of each rule
         for rule in self.rules.values_mut() {
@@ -100,7 +108,9 @@ impl Visitor for Linter {
                     .version_statement()
                     .expect("document should have version statement")
                     .inner()
-                    .rule_exceptions(),
+                    .rule_exceptions()
+                    .into_iter()
+                    .map(|e| e.name),
             );
         }
 

@@ -1,5 +1,6 @@
 //! Configuration for max line length formatting.
 
+use schemars::JsonSchema;
 use toml_spanner::Arena;
 use toml_spanner::Context;
 use toml_spanner::Failed;
@@ -30,7 +31,21 @@ pub const MAX_MAX_LINE_LENGTH: usize = 240;
 const SENTINEL: &str = "none";
 
 /// The maximum line length.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(JsonSchema)]
+#[schemars(inline)]
+#[expect(dead_code, reason = "Only used for schema generation.")]
+enum MaxLineLengthSchema {
+    /// No maximum.
+    #[schemars(rename = "none")]
+    None,
+    /// Maximum line length in characters.
+    #[schemars(untagged)]
+    Value(#[schemars(range(min = MIN_MAX_LINE_LENGTH, max = MAX_MAX_LINE_LENGTH))] usize),
+}
+
+/// The maximum line length.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, JsonSchema)]
+#[schemars(with = "MaxLineLengthSchema")]
 pub struct MaxLineLength(Option<usize>);
 
 impl MaxLineLength {
@@ -93,7 +108,7 @@ impl ToToml for MaxLineLength {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use super::*;
@@ -123,7 +138,7 @@ mod test {
 
         let expected_error = format!(
             "expected a positive integer between {MIN_MAX_LINE_LENGTH} and {MAX_MAX_LINE_LENGTH} \
-             or `{SENTINEL}` for max line length value"
+             or `{SENTINEL}` for max line length value at `value`"
         );
 
         let error = toml_spanner::from_str::<HashMap<String, MaxLineLength>>("value = 'wrong'")

@@ -1,0 +1,19 @@
+add:
+  - name: valid_types
+    inputs:
+      lhs:
+        - 80
+      rhs:
+        - 20
+  - name: partially_invalid
+    inputs:
+      lhs:
+        - "Foo"
+      rhs:
+        - 123
+  - name: fully_invalid_types
+    inputs:
+      lhs:
+        - "Foo"
+      rhs:
+        - true

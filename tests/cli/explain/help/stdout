@@ -27,7 +27,7 @@ Options:
           Possible values:
           - default: The default, human-readable output
           - json:    Machine-readable JSON
-          
+
           [default: default]
 
   -v, --verbose...
@@ -36,6 +36,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
       --color <COLOR>
           Controls output colorization
 
@@ -43,15 +46,22 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
+
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
 
   -c, --config <CONFIG>
           Path to the configuration file
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help
@@ -61,6 +71,7 @@ Options:
           Print version
 
 Available rules:
+  - BashSetSyntax
   - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
@@ -69,10 +80,10 @@ Available rules:
   - DenyGlobStar
   - DeprecatedObject
   - DeprecatedPlaceholder
+  - DeprecatedRuntimeSection
   - DescriptionLength
   - DocCommentTabs
   - DocMetaStrings
-  - DoubleQuotes
   - EmptyDocComment
   - EmptyOutputs
   - ExceptDirectiveValid
@@ -80,9 +91,11 @@ Available rules:
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
+  - InlineInstall
   - InputName
   - KnownRules
   - MatchingOutputMeta
+  - MeaninglessLintDirective
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder
@@ -93,7 +106,6 @@ Available rules:
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
-  - SectionOrdering
   - ShellCheck
   - SnakeCase
   - TodoComment
@@ -106,12 +118,14 @@ Available rules:
   - UsingFallbackVersion
 
 Available tags:
+  - All
   - Clarity
   - Completeness
   - Correctness
   - Deprecated
   - Documentation
   - Naming
+  - Performance
   - Portability
   - Sorting
   - Spacing

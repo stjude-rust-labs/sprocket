@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `unnecessary` and `deprecated` `DiagnosticTag`s to applicable diagnostics ([#1235](https://github.com/stjude-rust-labs/sprocket/pull/1235)).
+
+## 0.23.0 - 2026-09-16
+
+### Added
+
+* Added support for the `textDocument/codeLens` request on `sprocket test` YAML files
+  ([#1130](https://github.com/stjude-rust-labs/sprocket/pull/1130)).
+
+## 0.22.0 - 2026-08-26
+
+## 0.21.1 - 2026-08-05
+
+## 0.21.0 - 2026-07-15
+
+### Added
+
+* Added support for the `textDocument/codeLens` request on tasks/workflows with no required
+  inputs ([#981](https://github.com/stjude-rust-labs/sprocket/pull/981)).
+
+### Changed
+
+* `[format]` configuration now honored when formatting documents, matching
+  `sprocket format` output ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+
+## 0.20.1 - 2026-06-26
+
 ## 0.20.0 - 2026-06-03
 
 ### Added

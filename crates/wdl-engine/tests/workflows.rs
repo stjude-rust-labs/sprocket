@@ -34,10 +34,10 @@ use tracing::level_filters::LevelFilter;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
+use wdl_engine::Engine;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
-use wdl_engine::v1::Evaluator;
 
 mod common;
 
@@ -100,7 +100,8 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         let test_dir = absolute(test).expect("failed to get absolute directory");
         let test_dir_path = test_dir.as_path().into();
 
-        // Make any paths specified in the inputs file relative to the test directory
+        // Make any paths specified in the inputs file relative to the test
+        // directory
         let workflow = result
             .document()
             .workflow()
@@ -117,13 +118,9 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         } else {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
-        let evaluator = Evaluator::new(
-            dir.path(),
-            config.engine.into(),
-            Default::default(),
-            Events::disabled(),
-        )
-        .await?;
+
+        let engine = Engine::new(config.engine).await?;
+        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
         match evaluator
             .evaluate_workflow(result.document(), inputs.clone(), &dir)
             .await
@@ -149,8 +146,8 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
 }
 
 fn main() -> Result<()> {
-    // Default log level to off as some tests are designed to fail and we don't want
-    // to log errors during the test
+    // Default log level to off as some tests are designed to fail and we don't
+    // want to log errors during the test
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::builder()

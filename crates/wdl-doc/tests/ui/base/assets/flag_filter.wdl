@@ -60,6 +60,19 @@
 ## In short, those are all flags corresponding to the quality of the read
 ## and them being `true` may indicate that the read is of low quality and
 ## should be excluded.
+##
+## ## Example WDL usage
+##
+## The unsupported `json` fence above must not prevent this authored `wdl`
+## fence from being highlighted and decorated:
+##
+## ```wdl
+## task sprocket_fence_demo {
+##     command <<<
+##         echo "highlighted from markdown"
+##     >>>
+## }
+## ```
 
 version 1.1
 

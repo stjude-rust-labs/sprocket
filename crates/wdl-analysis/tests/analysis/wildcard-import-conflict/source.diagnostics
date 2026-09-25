@@ -1,0 +1,10 @@
+error: conflicting struct name `Record`
+  ┌─ tests/analysis/wildcard-import-conflict/source.wdl:3:8
+  │
+3 │ struct Record {
+  │        ^^^^^^ this name conflicts with an imported struct
+  ·
+7 │ import * from "lib.wdl"
+  │               --------- the import that introduced the struct is here
+  │
+  = fix: either rename the struct or use an `alias` clause on the import with a different name

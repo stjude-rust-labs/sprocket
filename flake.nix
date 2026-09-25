@@ -54,7 +54,7 @@
 
         sprocket = pkgs.rustPlatform.buildRustPackage {
           pname = "sprocket";
-          version = cargoToml.package.version;
+          version = cargoToml.workspace.package.version;
 
           src = lib.cleanSourceWith {
             src = ./.;
@@ -66,16 +66,14 @@
               !(base == "target" || base == "result" || lib.hasPrefix "result-" base || base == ".direnv");
           };
 
-          # We use `cargoHash` (→ `fetchCargoVendor`) rather than `cargoLock`
-          # (→ `importCargoLock`) because the latter pulls crates via
-          # `fetchurl`/curl, which crates.io now 403s for missing User-Agent
-          # headers. `fetchCargoVendor` runs Python+`requests` which sends a
-          # proper UA. As a bonus, it handles git-sourced crates (the
-          # thirtyfour fork) without per-crate hash entries.
-          #
-          # Replace fakeHash with the hash Nix prints on the first build.
-          # Any change to Cargo.lock will require updating this hash.
-          cargoHash = "sha256-lCHGTjYX+pSptdZ2fBuRUIbKaKXnCyTgkWrSOlzKRhQ=";
+          # Vendor dependencies straight from Cargo.lock via `importCargoLock`.
+          # Registry crate hashes come from Cargo.lock itself, so routine
+          # dependency bumps need no Nix changes—there is no whole-vendor hash
+          # to go stale. The pinned nixpkgs downloads crates directly from the
+          # crates.io CDN, avoiding the API endpoint's rate limit.
+          # (`outputHashes` would only be needed for git-sourced crates, of
+          # which the workspace currently has none.)
+          cargoLock.lockFile = ./Cargo.lock;
 
           inherit nativeBuildInputs buildInputs;
 
@@ -152,7 +150,7 @@
 
           packages = with pkgs; [
             # Rust toolchain (matches the version nixpkgs ships, which on
-            # nixos-unstable should satisfy the workspace MSRV of 1.91.1).
+            # nixos-unstable should satisfy the workspace MSRV of 1.95).
             rustc
             cargo
             clippy

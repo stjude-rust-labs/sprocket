@@ -46,7 +46,8 @@ struct Lock {
 }
 
 /// Performs the `lock` command.
-pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
+pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = config.common.report_mode;
     let output_path = args
         .output
         .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))
@@ -56,7 +57,10 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
     let results = Analysis::default()
         .add_source(s)
         .fallback_version(config.common.wdl.fallback_version.into())
-        .run()
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
+        .ignore_filename(config.common.ignore_filename())
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 

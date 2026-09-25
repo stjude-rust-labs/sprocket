@@ -3,4 +3,3 @@ error: this use of function `contains` requires a minimum WDL version of 1.2
   │
 8 │     Boolean x = contains(["foo"], "foo")
   │                 ^^^^^^^^
-

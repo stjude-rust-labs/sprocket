@@ -21,6 +21,8 @@
 //! visiting a V2 document; the hope is that enables some visitors to be
 //! "shared" across different WDL versions.
 
+use std::collections::HashMap;
+
 use rowan::WalkEvent;
 use tracing::trace;
 use wdl_ast::AstNode;
@@ -75,6 +77,13 @@ pub enum VisitReason {
     Exit,
 }
 
+/// A mapping of lint rule names to their exceptable nodes.
+///
+/// See [`Rule::exceptable_nodes()`].
+///
+/// [`Rule::exceptable_nodes()`]: crate::Rule::exceptable_nodes
+pub type RuleMap = HashMap<String, Option<&'static [SyntaxKind]>>;
+
 /// A trait used to implement an AST visitor.
 ///
 /// Each encountered node will receive a corresponding method call
@@ -82,6 +91,15 @@ pub enum VisitReason {
 /// matching [VisitReason::Exit] call.
 #[allow(unused_variables)]
 pub trait Visitor {
+    /// Get all lint rules known to this `Visitor`.
+    ///
+    /// Note that [`Validator`]s will expect this value to be static.
+    ///
+    /// [`Validator`]: crate::Validator
+    fn rules(&self) -> RuleMap {
+        HashMap::new()
+    }
+
     /// Registers configuration with a visitor.
     fn register(&mut self, config: &Config) {}
 

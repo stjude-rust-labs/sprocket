@@ -8,7 +8,9 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use ordered_float::Pow;
+use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Exceptable;
 use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::ambiguous_argument;
 use wdl_analysis::diagnostics::argument_type_mismatch;
@@ -31,6 +33,7 @@ use wdl_analysis::diagnostics::not_a_previous_task_data_member;
 use wdl_analysis::diagnostics::not_a_struct;
 use wdl_analysis::diagnostics::not_a_struct_member;
 use wdl_analysis::diagnostics::not_a_task_member;
+use wdl_analysis::diagnostics::not_an_enum_choice;
 use wdl_analysis::diagnostics::numeric_mismatch;
 use wdl_analysis::diagnostics::too_few_arguments;
 use wdl_analysis::diagnostics::too_many_arguments;
@@ -39,7 +42,6 @@ use wdl_analysis::diagnostics::unknown_call_io;
 use wdl_analysis::diagnostics::unknown_function;
 use wdl_analysis::diagnostics::unknown_task_io;
 use wdl_analysis::diagnostics::unsupported_function;
-use wdl_analysis::document::Enum;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::v1::infer_type_from_literal;
 use wdl_analysis::stdlib::FunctionBindError;
@@ -65,6 +67,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::TreeNode;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::Expr;
@@ -90,11 +93,12 @@ use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedStringPart;
 use wdl_ast::version::V1;
+use wdl_grammar::SyntaxKind;
 
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
-use crate::EnumVariant;
+use crate::EnumChoice;
 use crate::EvaluationContext;
 use crate::HiddenValue;
 use crate::HintsValue;
@@ -118,8 +122,6 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::diagnostics::unknown_enum_variant;
-use crate::diagnostics::unknown_enum_variant_access;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -395,9 +397,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Value::Compound(CompoundValue::Array(v))
                     if matches!(placeholder.option(), Some(PlaceholderOption::Sep(_)))
                         && v.as_slice()
-                            .first()
-                            .map(|e| !matches!(e, Value::None(_) | Value::Compound(_)))
-                            .unwrap_or(false) =>
+                            .iter()
+                            .all(|e| matches!(e, Value::Primitive(_))) =>
                 {
                     let option = placeholder.option().unwrap().unwrap_sep();
 
@@ -411,7 +412,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
 
                         match e {
-                            Value::None(_) => {}
                             Value::Primitive(v) => {
                                 write!(buffer, "{v}", v = v.raw(Some(&evaluator.context))).unwrap()
                             }
@@ -421,7 +421,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                     }
                 }
-                Value::Compound(CompoundValue::EnumVariant(e)) => {
+                Value::Compound(CompoundValue::EnumChoice(e)) => {
                     write!(buffer, "{}", e.name()).unwrap()
                 }
                 v => {
@@ -433,7 +433,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         async {
-            // Keep track of the start in case there is a `None` evaluated and an error
+            // Keep track of the start in case there is a `None` evaluated and
+            // an error
             let start = buffer.len();
 
             // Bump the placeholder count while evaluating the placeholder
@@ -441,12 +442,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let result = imp(self, placeholder, buffer).await;
             self.placeholders -= 1;
 
-            // Reset the evaluated none flag when we're done evaluating placeholders
+            // Reset the evaluated none flag when we're done evaluating
+            // placeholders
             if self.placeholders == 0 {
                 let evaluated_none = std::mem::replace(&mut self.evaluated_none, false);
 
-                // If a `None` was evaluated and an error occurred, truncate to the start of the
-                // placeholder evaluation
+                // If a `None` was evaluated and an error occurred, truncate to
+                // the start of the placeholder evaluation
                 if evaluated_none && result.is_err() {
                     buffer.truncate(start);
                     return Ok(());
@@ -858,8 +860,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let mut name = String::new();
         let value = self.evaluate_expr(&expr).await?;
 
-        // The first name should be an input/output and then the remainder should be a
-        // struct member
+        // The first name should be an input/output and then the remainder
+        // should be a struct member
         let mut span = None;
         let mut struct_ty: Option<&StructType> = None;
         while let Some((i, segment)) = segments.next() {
@@ -944,7 +946,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             /// The expression evaluation context.
             context: &'a C,
             /// The diagnostics from evaluating the type of an expression.
-            diagnostics: Vec<Diagnostic>,
+            diagnostics: Diagnostics,
         }
 
         impl<C: EvaluationContext> wdl_analysis::types::v1::EvaluationContext for TypeContext<'_, C> {
@@ -952,7 +954,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 self.context.version()
             }
 
-            fn resolve_name(&self, name: &str, span: Span) -> Option<Type> {
+            fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type> {
                 self.context.resolve_name(name, span).map(|v| v.ty()).ok()
             }
 
@@ -969,49 +971,63 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
 
             fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-                self.diagnostics.push(diagnostic);
+                self.diagnostics.add(diagnostic);
+            }
+
+            fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+                &mut self,
+                diagnostic: Diagnostic,
+                element: &N,
+                exceptable_nodes: &Option<&'static [SyntaxKind]>,
+            ) {
+                self.diagnostics
+                    .exceptable_add(diagnostic, element, exceptable_nodes);
             }
         }
 
         let (cond_expr, true_expr, false_expr) = expr.exprs();
 
-        // Evaluate the conditional expression and the true expression or the false
-        // expression, depending on the result of the conditional expression
+        // Evaluate the conditional expression and the true expression or the
+        // false expression, depending on the result of the conditional
+        // expression
         let cond = self.evaluate_expr(&cond_expr).await?;
         let (value, true_ty, false_ty) = if cond
             .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| if_conditional_mismatch(&cond.ty(), cond_expr.span()))?
             .unwrap_boolean()
         {
-            // Evaluate the `true` expression and calculate the type of the `false`
-            // expression
+            // Evaluate the `true` expression and calculate the type of the
+            // `false` expression
             let value = self.evaluate_expr(&true_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Vec::new(),
+                diagnostics: Diagnostics::default(),
             };
             let false_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&false_expr)
                 .unwrap_or(Type::Union);
 
-            if let Some(diagnostic) = context.diagnostics.pop() {
+            let mut diagnostics: Vec<Diagnostic> = context.diagnostics.into();
+            if let Some(diagnostic) = diagnostics.pop() {
                 return Err(diagnostic);
             }
 
             let true_ty = value.ty();
             (value, true_ty, false_ty)
         } else {
-            // Evaluate the `false` expression and calculate the type of the `true`
-            // expression
+            // Evaluate the `false` expression and calculate the type of the
+            // `true` expression
             let value = self.evaluate_expr(&false_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Vec::new(),
+                diagnostics: Diagnostics::default(),
             };
             let true_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&true_expr)
                 .unwrap_or(Type::Union);
-            if let Some(diagnostic) = context.diagnostics.pop() {
+
+            let mut diagnostics: Vec<Diagnostic> = context.diagnostics.into();
+            if let Some(diagnostic) = diagnostics.pop() {
                 return Err(diagnostic);
             }
 
@@ -1297,8 +1313,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             | (Value::None(_), Value::Primitive(PrimitiveValue::String(_)))
                 if op == NumericOperator::Addition && self.placeholders > 0 =>
             {
-                // Allow string concatenation with `None` in placeholders, which evaluates to
-                // `None`
+                // Allow string concatenation with `None` in placeholders, which
+                // evaluates to `None`
                 Some(Value::new_none(Type::None))
             }
             _ => None,
@@ -1329,7 +1345,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     count += 1;
                 }
 
-                // First bind the function based on the argument types, then dispatch the call
+                // First bind the function based on the argument types, then
+                // dispatch the call
                 let types = &types[..count.min(MAX_PARAMETERS)];
                 let arguments = &arguments[..count.min(MAX_PARAMETERS)];
                 if count <= MAX_PARAMETERS {
@@ -1439,7 +1456,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .expect("should be a map type")
                     .key_type()
                     .as_primitive()
-                    .expect("key type should be primitive");
+                    .ok_or_else(|| map_key_not_found(index.span()))?;
 
                 let key = match self.evaluate_expr(&index).await? {
                     Value::Primitive(key) if key.ty().is_coercible_to(&key_type.into()) => key,
@@ -1467,7 +1484,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         expr: &AccessExpr<SyntaxNode>,
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
-
         let target_value = self.evaluate_expr(&target).await?;
         match target_value {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
@@ -1482,10 +1498,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     &name,
                 )),
             },
-            Value::Compound(CompoundValue::Object(object)) => match object.get(name.text()) {
-                Some(value) => Ok(value.clone()),
-                None => Err(not_an_object_member(&name)),
-            },
+            Value::Compound(CompoundValue::Object(object)) => self
+                .context
+                .object_access(&object, name.text())
+                .or_else(|| object.get(name.text()).cloned())
+                .ok_or_else(|| not_an_object_member(&name)),
             Value::Hidden(HiddenValue::TaskPreEvaluation(task)) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
@@ -1505,16 +1522,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
             Value::TypeNameRef(v) => {
-                let ty = v.ty();
-                if let Some(enum_ty) = ty.as_enum() {
+                if let Some(enum_ty) = v.as_enum() {
                     let value = self
                         .context()
-                        .enum_variant_value(enum_ty.name(), name.text())
-                        .map_err(|_| unknown_enum_variant_access(enum_ty.name(), &name))?;
-                    let variant = EnumVariant::new(enum_ty.clone(), name.text(), value);
-                    Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
+                        .enum_choice_value(v.name(), name.text())
+                        .map_err(|_| not_an_enum_choice(v.name(), &name))?;
+
+                    let choice = EnumChoice::new(enum_ty.clone(), name.text(), value);
+                    Ok(Value::Compound(CompoundValue::EnumChoice(choice)))
                 } else {
-                    Err(cannot_access(ty, target.span()))
+                    Err(cannot_access(v.ty(), target.span()))
                 }
             }
             value => Err(cannot_access(&value.ty(), target.span())),
@@ -1548,7 +1565,7 @@ macro_rules! match_literal_value {
 /// Panics if any of the expressions do not match their expected literal type
 /// _or_ if the provided value does not coerce to the inner enum type. Both of
 /// these issues should be caught at analysis time.
-fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
+pub(super) fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     let value = match target_ty {
         Type::Primitive(PrimitiveType::Boolean, _) => {
             match_literal_value!(expr, Boolean(b), PrimitiveType::Boolean);
@@ -1645,7 +1662,8 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                     let (name, val_expr) = item.name_value();
                     let name_str = name.text().to_string();
 
-                    // Infer the type from the literal expression and recursively extract value
+                    // Infer the type from the literal expression and
+                    // recursively extract value
                     let inferred_ty = infer_type_from_literal(&val_expr)?;
                     let val = parse_constant_value(&inferred_ty, &val_expr)?;
                     Some((name_str, val))
@@ -1662,49 +1680,22 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     Some(value.coerce(None, target_ty).unwrap())
 }
 
-/// Resolves the value of an enum variant by looking up the variant's expression
-/// in the AST and resolving it to its literal value.
-///
-/// # Panics
-///
-/// The function panics if the variant value cannot be parsed as a literal or if
-/// the variant's value does not coerce to the enum's inner value type.
-///
-/// All of these should be caught by `wdl-analysis` checks.
-pub(crate) fn resolve_enum_variant_value(
-    r#enum: &Enum,
-    variant_name: &str,
-) -> Result<Value, Diagnostic> {
-    // SAFETY: we can assume that any type associated with an [`Enum`] entry is
-    // an [`EnumType`] at this point in analysis.
-    let enum_ty = r#enum.ty().unwrap().as_enum().unwrap();
-
-    let variant = r#enum
-        .definition()
-        .variants()
-        .find(|variant| variant.name().text() == variant_name)
-        .ok_or(unknown_enum_variant(enum_ty.name(), variant_name))?;
-
-    if let Some(value_expr) = variant.value() {
-        // SAFETY: see the panic notice for this function.
-        Ok(parse_constant_value(enum_ty.inner_value_type(), &value_expr).unwrap())
-    } else {
-        // NOTE: when no expression is provided, the default is the
-        // variant name as a string.
-        Ok(Value::Primitive(PrimitiveValue::new_string(variant_name)))
-    }
-}
-
 #[cfg(test)]
-pub(crate) mod test {
+pub(crate) mod tests {
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
+    use std::path::PathBuf;
     use std::sync::Arc;
 
     use anyhow::Result;
+    use cloud_copy::ContentDigest;
+    use cloud_copy::TransferEvent;
     use pretty_assertions::assert_eq;
+    use regex::Regex;
     use tempfile::TempDir;
+    use tokio::sync::broadcast;
+    use tokio_util::sync::CancellationToken;
     use url::Url;
     use wdl_analysis::diagnostics::unknown_name;
     use wdl_analysis::diagnostics::unknown_type;
@@ -1715,12 +1706,17 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
+    use crate::Cache;
+    use crate::Config;
+    use crate::Engine;
+    use crate::EvaluationHttpClient;
     use crate::EvaluationPath;
+    use crate::Events;
     use crate::TypeNameRefValue;
     use crate::eval::Scope;
     use crate::eval::ScopeRef;
+    use crate::http::HttpClient;
     use crate::http::Location;
-    use crate::http::Transferer;
 
     /// Represents a test environment.
     pub(crate) struct TestEnv {
@@ -1784,15 +1780,25 @@ pub(crate) mod test {
         }
     }
 
-    impl Transferer for TestEnv {
-        fn download<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Location>> {
+    /// A test HTTP client that supports URLs that use `example.com` as the host
+    /// name.
+    struct TestHttpClient(PathBuf);
+
+    impl HttpClient for TestHttpClient {
+        fn download<'a>(
+            &'a self,
+            source: &'a Url,
+            _: Option<broadcast::Sender<TransferEvent>>,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Location>,
+        ) -> BoxFuture<'a, Result<Location>> {
             async {
-                // For tests, redirect requests to example.com to files relative to the work dir
-                if url.authority() == "example.com" {
+                // For tests, redirect requests to example.com to files relative
+                // to the work dir
+                if source.authority() == "example.com" {
                     return Ok(Location::Path(
-                        self.test_dir
-                            .path()
-                            .join(url.path().strip_prefix('/').unwrap_or(url.path())),
+                        self.0
+                            .join(source.path().strip_prefix('/').unwrap_or(source.path())),
                     ));
                 }
 
@@ -1801,33 +1807,62 @@ pub(crate) mod test {
             .boxed()
         }
 
-        fn upload<'a>(&'a self, _: &'a Path, _: &'a Url) -> BoxFuture<'a, Result<()>> {
+        fn upload<'a>(
+            &'a self,
+            _: &'a Path,
+            _: &'a Url,
+            _: Option<broadcast::Sender<TransferEvent>>,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, ()>,
+        ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
         }
 
-        fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
+        fn size<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Option<u64>>,
+        ) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
             std::future::ready(Ok(Some(1234))).boxed()
         }
 
-        fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
+        fn walk<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Arc<[String]>>,
+        ) -> BoxFuture<'a, Result<Arc<[String]>>> {
             unimplemented!()
         }
 
-        fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
+        fn exists<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, bool>,
+        ) -> BoxFuture<'a, Result<bool>> {
             unimplemented!()
         }
 
         fn digest<'a>(
             &'a self,
             _: &'a Url,
-        ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
+            _: &'a CancellationToken,
+            _: &'a Cache<Url, Option<Arc<ContentDigest>>>,
+        ) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
             unimplemented!()
         }
     }
 
     /// Represents test evaluation context to an expression evaluator.
     pub struct TestEvaluationContext<'a> {
+        /// The test environment.
         env: &'a TestEnv,
+        /// The evaluation HTTP client.
+        client: EvaluationHttpClient,
+        /// The cancellation token for HTTP operations.
+        token: CancellationToken,
         /// The supported version of WDL being evaluated.
         version: SupportedVersion,
         /// The stdout value from a task's execution.
@@ -1837,9 +1872,20 @@ pub(crate) mod test {
     }
 
     impl<'a> TestEvaluationContext<'a> {
-        pub fn new(env: &'a TestEnv, version: SupportedVersion) -> Self {
+        pub async fn new(env: &'a TestEnv, version: SupportedVersion) -> Self {
+            let engine = Engine::new_with_http_client(
+                Config::local(),
+                TestHttpClient(env.test_dir.path().into()),
+            )
+            .await
+            .unwrap();
+
+            let client = EvaluationHttpClient::new(&engine, &Events::disabled());
+
             Self {
                 env,
+                client,
+                token: Default::default(),
                 version,
                 stdout: None,
                 stderr: None,
@@ -1870,14 +1916,24 @@ pub(crate) mod test {
                 return Ok(var);
             }
 
-            // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+            // If the name is a reference to a struct, return it as a
+            // [`Value::TypeNameRef`].
             if let Some(ty) = self.env.structs.get(name) {
-                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
+                return Ok(TypeNameRefValue::new(
+                    name,
+                    ty.as_struct().expect("should be struct type").clone(),
+                )
+                .into());
             }
 
-            // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+            // If the name is a reference to an enum, return it as a
+            // [`Value::TypeNameRef`].
             if let Some(ty) = self.env.enums.get(name) {
-                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
+                return Ok(TypeNameRefValue::new(
+                    name,
+                    ty.as_enum().expect("should be enum type").clone(),
+                )
+                .into());
             }
 
             Err(unknown_name(name, span))
@@ -1892,10 +1948,10 @@ pub(crate) mod test {
                 .ok_or_else(|| unknown_type(name, span))
         }
 
-        fn enum_variant_value(
+        fn enum_choice_value(
             &self,
             _enum_name: &str,
-            _variant_name: &str,
+            _choice_name: &str,
         ) -> Result<Value, Diagnostic> {
             unimplemented!();
         }
@@ -1916,8 +1972,12 @@ pub(crate) mod test {
             self.stderr.as_ref()
         }
 
-        fn transferer(&self) -> &dyn Transferer {
-            self.env
+        fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+            (&self.client, &self.token)
+        }
+
+        fn compile_regex(&self, pattern: &str) -> Result<Regex, regex::Error> {
+            Regex::new(pattern)
         }
     }
 
@@ -1927,7 +1987,7 @@ pub(crate) mod test {
         source: &str,
     ) -> Result<Value, Diagnostic> {
         eval_v1_expr_with_context(
-            TestEvaluationContext::new(env, SupportedVersion::V1(version)),
+            TestEvaluationContext::new(env, SupportedVersion::V1(version)).await,
             source,
         )
         .await
@@ -1942,6 +2002,7 @@ pub(crate) mod test {
     ) -> Result<Value, Diagnostic> {
         eval_v1_expr_with_context(
             TestEvaluationContext::new(env, SupportedVersion::V1(version))
+                .await
                 .with_stdout(stdout)
                 .with_stderr(stderr),
             source,
@@ -1958,7 +2019,8 @@ pub(crate) mod test {
         let marker = parser.start();
         match v1::expr(&mut parser, marker) {
             Ok(()) => {
-                // This call to `next` is important as `next` adds any remaining buffered events
+                // This call to `next` is important as `next` adds any remaining
+                // buffered events
                 assert!(
                     parser.next().is_none(),
                     "parser is not finished; expected a single expression with no remaining tokens"
@@ -2165,6 +2227,20 @@ pub(crate) mod test {
             .await
             .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "1+2+3 = 6");
+
+        env.insert_name(
+            "empty",
+            Array::new(ArrayType::new(PrimitiveType::String), Vec::<Value>::new()).unwrap(),
+        );
+        let value = eval_v1_expr(&env, V1::Two, r#""~{sep="+" empty}""#)
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "");
+
+        let value = eval_v1_expr(&env, V1::Two, r#""~{sep="+" prefix("-i ", empty)}""#)
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "");
 
         let diagnostic = eval_v1_expr(&env, V1::Two, r#""~{[1, 2, 3]}""#)
             .await
@@ -3534,8 +3610,8 @@ pub(crate) mod test {
 
     #[tokio::test]
     async fn call_expr() {
-        // This test will just check for errors; testing of the function implementations
-        // is in `stdlib.rs`
+        // This test will just check for errors; testing of the function
+        // implementations is in `stdlib.rs`
         let env = TestEnv::default();
         let diagnostic = eval_v1_expr(&env, V1::Zero, "min(1, 2)").await.unwrap_err();
         assert_eq!(
@@ -3732,5 +3808,16 @@ pub(crate) mod test {
             .await
             .unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access type `Int`");
+    }
+
+    #[tokio::test]
+    async fn empty_map_access() {
+        // This test will to ensure accessing an empty map does not panic
+        let env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, "{}['foo']").await.unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "the map does not contain an entry for the specified key"
+        );
     }
 }

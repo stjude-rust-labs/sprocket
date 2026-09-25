@@ -10,7 +10,9 @@ use serde_json::json;
 use sprocket::Config;
 use sprocket::ServerConfig;
 use sprocket::server::AppState;
+use sprocket::server::ServerFailureMode;
 use sprocket::server::create_router;
+use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
@@ -19,6 +21,7 @@ use tempfile::TempDir;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
+use wdl::diagnostics::Mode;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -39,6 +42,7 @@ async fn create_test_server(
         ..Default::default()
     };
     server_config.validate().unwrap();
+    let output_dir = server_config.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -49,8 +53,12 @@ async fn create_test_server(
             server: server_config,
             ..Default::default()
         },
+        Mode::default(),
+        true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Wait for manager to be ready
     let (tx, rx) = oneshot::channel();
@@ -60,7 +68,12 @@ async fn create_test_server(
         .unwrap();
     rx.await.unwrap().unwrap();
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .database(db.clone())
+        .failure_mode(ServerFailureMode::Slow)
+        .output_dir(output_dir)
+        .build();
     let router = create_router()
         .state(state)
         .cors_layer(CorsLayer::new())
@@ -81,14 +94,15 @@ workflow test {
 "#;
 
 #[sqlx::test]
-async fn list_sessions_returns_empty_initially(pool: sqlx::SqlitePool) {
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn list_sessions_starts_with_only_the_server_session(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions")
+                .uri(paths::LIST_SESSIONS)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -100,12 +114,17 @@ async fn list_sessions_returns_empty_initially(pool: sqlx::SqlitePool) {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(json["sessions"].is_array());
+    // The server claims a session as soon as it starts, before serving any
+    // command, and heartbeats it from that moment on. That session is what
+    // marks this process's runs as belonging to a live server, so a sweep by
+    // any other server leaves them alone.
+    let sessions = json["sessions"].as_array().unwrap();
     assert_eq!(
-        json["sessions"].as_array().unwrap().len(),
-        0,
-        "should have no sessions initially"
+        sessions.len(),
+        1,
+        "the server's own session should be the only one"
     );
+    assert_eq!(sessions[0]["subcommand"], "server");
 }
 
 #[sqlx::test]
@@ -128,7 +147,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -144,7 +163,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions")
+                .uri(paths::LIST_SESSIONS)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -169,7 +188,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/sessions/{}", session_id))
+                .uri(paths::get_session(session_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -188,6 +207,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn get_nonexistent_session_returns_404(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 
@@ -197,7 +217,7 @@ async fn get_nonexistent_session_returns_404(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/sessions/{}", fake_id))
+                .uri(paths::get_session(fake_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -226,7 +246,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -240,7 +260,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions?limit=1")
+                .uri(format!("{}?limit=1", paths::LIST_SESSIONS))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -263,7 +283,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions?next_token=1")
+                .uri(format!("{}?next_token=1", paths::LIST_SESSIONS))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -279,5 +299,32 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         json["sessions"].as_array().unwrap().len(),
         0,
         "`next_token` beyond available items should return empty"
+    );
+}
+
+#[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn invalid_session_next_token_returns_error(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/sessions?next_token=not_a_number")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("invalid `next_token`")
     );
 }

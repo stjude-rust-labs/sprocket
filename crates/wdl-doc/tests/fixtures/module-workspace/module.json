@@ -1,0 +1,10 @@
+{
+  "name": "spellcraft-showcase",
+  "version": "1.0.0",
+  "license": "MIT",
+  "entrypoint": "main.wdl",
+  "dependencies": {
+    "wards": { "path": "modules/wards" },
+    "enchantment": { "path": "modules/enchantment" }
+  }
+}

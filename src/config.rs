@@ -5,16 +5,21 @@ use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::ValueEnum;
+use schemars::JsonSchema;
 use toml_spanner::Arena;
 use toml_spanner::Failed;
 use toml_spanner::FromToml;
 use toml_spanner::Item;
+use toml_spanner::Key;
+use toml_spanner::Table;
+use toml_spanner::TableStyle;
 use toml_spanner::ToToml;
 use toml_spanner::ToTomlError;
 use toml_spanner::Toml;
@@ -27,23 +32,39 @@ use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::config::BackendConfig;
+use wdl::engine::config::LsfApptainerBackendConfig;
+use wdl::engine::config::SlurmApptainerBackendConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
 
+use crate::IGNORE_FILENAME;
+
 /// Default host.
-const DEFAULT_HOST: &str = "127.0.0.1";
+const fn default_host() -> &'static str {
+    "127.0.0.1"
+}
 
 /// Default port.
-const DEFAULT_PORT: u16 = 8080;
+const fn default_port() -> u16 {
+    8080
+}
 
 /// Default database filename.
 pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
 /// Sentinel value for using a local database.
-const SENTINEL_DATABASE_FILENAME: &str = "default";
+fn sentinel_database_filename() -> &'static str {
+    "default"
+}
 
 /// Default output directory.
 pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
+
+/// Default output directory.
+fn default_output_directory() -> &'static str {
+    DEFAULT_OUTPUT_DIRECTORY
+}
 
 /// The name of the Sprocket configuration file.
 const CONFIG_FILENAME: &str = "sprocket.toml";
@@ -52,11 +73,18 @@ const CONFIG_FILENAME: &str = "sprocket.toml";
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
 /// alongside the user's Sprocket config.
 ///
-/// On macOS this is `$HOME/.config/sprocket/`, on Linux it follows
+/// The `SPROCKET_CONFIG_ROOT` environment variable, when set, overrides the
+/// platform-specific default (this is primarily used to isolate configuration
+/// during testing).
+///
+/// Otherwise, on macOS this is `$HOME/.config/sprocket/`, on Linux it follows
 /// `$XDG_CONFIG_HOME` (typically `~/.config/sprocket/`), on Windows it lands
 /// in `%APPDATA%/sprocket/`. Returns `None` when the underlying base
 /// directory cannot be determined (no `$HOME`, etc.).
 pub fn config_root() -> Option<PathBuf> {
+    if let Some(root) = std::env::var_os("SPROCKET_CONFIG_ROOT") {
+        return Some(PathBuf::from(root));
+    }
     #[cfg(target_os = "macos")]
     let base = dirs::home_dir().map(|p| p.join(".config"));
     #[cfg(not(target_os = "macos"))]
@@ -83,7 +111,31 @@ pub fn config_root() -> Option<PathBuf> {
 ///
 /// The value of `5000` was chosen as a reasonable amount to make reaching
 /// capacity unlikely without allocating too much space unnecessarily.
-const DEFAULT_EVENTS_CHANNEL_CAPACITY: u32 = 5000;
+fn default_events_channel_capacity() -> u32 {
+    5000
+}
+
+/// The default number of minutes a session may go without recording a
+/// heartbeat before the runs it owns are considered orphaned.
+///
+/// Processes heartbeat far more often than this (see
+/// [`ServerConfig::heartbeat_interval`]), so five minutes tolerates several
+/// missed heartbeats and some clock drift between hosts sharing a database.
+fn default_orphan_timeout_minutes() -> u64 {
+    5
+}
+
+/// How many heartbeats a process aims to record per orphan timeout window.
+///
+/// Dividing the timeout by this keeps the interval under it, so a process must
+/// miss several heartbeats before its runs are swept.
+const HEARTBEATS_PER_ORPHAN_TIMEOUT: u32 = 5;
+
+/// The longest a process goes between heartbeats.
+///
+/// The sweep shares this interval, so a ceiling keeps it responsive however
+/// long the timeout is.
+const MAX_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// The default parallelism for the `sprocket test` command.
 const DEFAULT_TEST_PARALLELISM: u32 = 50;
@@ -92,7 +144,8 @@ const DEFAULT_TEST_PARALLELISM: u32 = 50;
 const DEFAULT_TEST_THROTTLE: u64 = 100;
 
 /// Represents the supported output color modes.
-#[derive(Debug, Default, Clone, ValueEnum, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, ValueEnum, Copy, PartialEq, Eq, Hash, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum ColorMode {
     /// Automatically colorize output depending on output device.
     #[default]
@@ -127,35 +180,49 @@ impl std::fmt::Display for ColorMode {
 }
 
 /// Represents the configuration for the Sprocket CLI tool.
-#[derive(Debug, Clone, Default, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, Default, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// Configuration for the `format` command.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub format: FormatConfig,
     /// Configuration for the `check` and `lint` commands.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub check: CheckConfig,
     /// Configuration for the `analyzer` command.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub analyzer: AnalyzerConfig,
     /// Configuration for the `run` command.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub run: RunConfig,
     /// Configuration for the `server` command.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub server: ServerConfig,
     /// Configuration for the `test` command.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub test: TestConfig,
     /// Configuration for the `doc` command.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub doc: DocConfig,
     /// Common configuration options for all commands.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub common: CommonConfig,
+    /// Configuration for the `module` command group (`[module]` section).
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub module: ModuleConfig,
     /// Configuration for the module system (`[modules]` section).
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub modules: ModulesConfig,
 }
 
@@ -166,23 +233,82 @@ impl Config {
     }
 }
 
+/// Configuration for the `sprocket dev module` command group.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleConfig {
+    /// Configuration for `sprocket dev module init`.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub init: ModuleInitConfig,
+}
+
+/// Configuration for `sprocket dev module init`.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleInitConfig {
+    /// Default module author name.
+    pub author: Option<String>,
+    /// Default module author email.
+    pub email: Option<String>,
+    /// Default SPDX license expression.
+    pub license: Option<String>,
+}
+
+impl ModuleInitConfig {
+    /// Validates that configured module fields are not blank.
+    fn validate(&self) -> Result<()> {
+        for (field, value) in [
+            ("author", &self.author),
+            ("email", &self.email),
+            ("license", &self.license),
+        ] {
+            if value
+                .as_deref()
+                .is_some_and(|value| value.trim().is_empty())
+            {
+                bail!("`module.init.{field}` cannot be empty");
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Represents shared configuration options for Sprocket commands.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
     pub color: ColorMode,
+    /// Ignore `.sprocketignore` files while discovering WDL documents.
+    #[toml(skip)]
+    #[schemars(skip)]
+    pub no_ignore: bool,
     /// The report mode.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
     pub report_mode: Mode,
     /// WDL-specific configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub wdl: WdlConfig,
 }
 
+impl CommonConfig {
+    /// Gets the ignore filename for document discovery.
+    pub fn ignore_filename(&self) -> Option<String> {
+        (!self.no_ignore).then(|| IGNORE_FILENAME.to_string())
+    }
+}
+
 /// Represents a fallback WDL version to use.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, JsonSchema)]
+#[schemars(with = "String")]
 pub enum FallbackVersion {
     /// Do not use a fallback WDL version.
     #[default]
@@ -242,77 +368,104 @@ impl fmt::Display for FallbackVersion {
 }
 
 /// WDL-specific configuration options shared across all commands.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WdlConfig {
     /// The fallback version to use when a WDL document declares an
     /// unrecognized version (e.g., `version development`).
     #[toml(default, ToToml with = display)]
+    #[schemars(default)]
     pub fallback_version: FallbackVersion,
+    /// Feature flags for experimental WDL versions.
+    #[toml(default, ToToml with = feature_flags)]
+    #[schemars(default)]
+    pub feature_flags: wdl::analysis::FeatureFlags,
+}
+
+/// TOML serialization adapter for WDL analysis feature flags.
+mod feature_flags {
+    use super::*;
+
+    /// Serializes feature flags as a TOML table.
+    pub fn to_toml<'a>(
+        value: &wdl::analysis::FeatureFlags,
+        arena: &'a Arena,
+    ) -> Result<Item<'a>, ToTomlError> {
+        let mut table = Table::new();
+        table.set_style(TableStyle::Header);
+        table.insert(Key::new("wdl_1_3"), value.wdl_1_3().into(), arena);
+        table.insert(Key::new("wdl_1_4"), value.wdl_1_4().into(), arena);
+        Ok(table.into_item())
+    }
 }
 
 /// Represents the configuration for the Sprocket `check` and `lint` commands.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Rule IDs to except from running.
+    /// Rule IDs or tags to except from running.
+    ///
+    /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
+    #[schemars(default)]
     pub except: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
     #[toml(default)]
+    #[schemars(default)]
     pub deny_warnings: bool,
     /// Causes the command to fail if any notes or warnings are reported.
     #[toml(default)]
+    #[schemars(default)]
     pub deny_notes: bool,
     /// Hide diagnostics with `note` severity.
     #[toml(default)]
+    #[schemars(default)]
     pub hide_notes: bool,
     /// Hide diagnostics with `warning` and `note` severity.
     #[toml(default)]
+    #[schemars(default)]
     pub hide_warnings: bool,
-    /// Enable all lint rules, even those outside the default set.
-    ///
-    /// This cannot be `true` while `only_lint_tags` is populated.
-    #[toml(default)]
-    pub all_lint_rules: bool,
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
     #[toml(default)]
-    pub only_lint_tags: Vec<String>,
-    /// Set of lint tags to filter out of the enabled lint rules.
-    #[toml(default)]
-    pub filter_lint_tags: Vec<String>,
+    #[schemars(default)]
+    pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
     /// Lint rule configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub lint: wdl::lint::Config,
 }
 
 /// Represents the configuration for the Sprocket `analyzer` command.
-#[derive(Debug, Clone, Default, Toml, PartialEq, Eq)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, Default, Toml, PartialEq, Eq, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AnalyzerConfig {
     /// Whether to enable lint rules.
     #[toml(default)]
+    #[schemars(default)]
     pub lint: bool,
-    /// Rule IDs to except from running.
-    #[toml(default)]
-    pub except: Vec<String>,
 }
 
 /// Represents the configuration for the Sprocket `run` command.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RunConfig {
     /// The engine configuration.
     #[toml(default, flatten, with = flatten_any)]
+    #[schemars(default, flatten)]
     pub engine: EngineConfig,
 
     /// The output directory (default: `./out`).
     ///
     /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
-    #[toml(default = DEFAULT_OUTPUT_DIRECTORY.into())]
+    #[toml(default = PathBuf::from(default_output_directory()))]
+    #[schemars(default = "default_output_directory")]
     pub output_dir: PathBuf,
 
     /// The capacity of the events channel used to display progress statistics.
@@ -327,7 +480,8 @@ pub struct RunConfig {
     /// made by the events channel.
     ///
     /// The default is `5000`.
-    #[toml(default = DEFAULT_EVENTS_CHANNEL_CAPACITY)]
+    #[toml(default = default_events_channel_capacity())]
+    #[schemars(default = "default_events_channel_capacity")]
     pub events_capacity: u32,
 }
 
@@ -335,37 +489,55 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: EngineConfig::default(),
-            output_dir: DEFAULT_OUTPUT_DIRECTORY.into(),
-            events_capacity: DEFAULT_EVENTS_CHANNEL_CAPACITY,
+            output_dir: default_output_directory().into(),
+            events_capacity: default_events_channel_capacity(),
         }
     }
 }
 
-/// Server database configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
-pub struct ServerDatabaseConfig {
+/// Database configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct DatabaseConfig {
     /// Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db`
     /// in the output directory. in the output directory.
-    #[toml(default = SENTINEL_DATABASE_FILENAME.into())]
+    #[toml(default = String::from(sentinel_database_filename()))]
+    #[schemars(default = "sentinel_database_filename")]
     pub url: String,
 }
 
-impl Default for ServerDatabaseConfig {
+impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
-            url: SENTINEL_DATABASE_FILENAME.into(),
+            url: sentinel_database_filename().into(),
+        }
+    }
+}
+
+impl DatabaseConfig {
+    /// Resolves the database URL for the given output directory.
+    pub(crate) fn resolve_url(&self, output_dir: &Path) -> String {
+        if self.url == sentinel_database_filename() {
+            output_dir
+                .join(DEFAULT_DATABASE_FILENAME)
+                .to_string_lossy()
+                .to_string()
+        } else {
+            self.url.clone()
         }
     }
 }
 
 /// Represents the maximum concurrent runs for the server.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum MaxConcurrentRuns {
     /// Do not limit the number of concurrent runs.
     #[default]
     Unlimited,
     /// Use the specified maximum number of concurrent runs.
+    #[schemars(untagged)]
     Limited(usize),
 }
 
@@ -426,65 +598,88 @@ impl ToToml for MaxConcurrentRuns {
 }
 
 /// Server configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerConfig {
     /// Host to bind to.
-    #[toml(default = DEFAULT_HOST.into())]
+    #[toml(default = String::from(default_host()))]
+    #[schemars(default = "default_host")]
     pub host: String,
     /// Port to bind to.
-    #[toml(default = DEFAULT_PORT)]
+    #[toml(default = default_port())]
+    #[schemars(default = "default_port")]
     pub port: u16,
     /// Allowed CORS origins.
     #[toml(default)]
+    #[schemars(default)]
     pub allowed_origins: Vec<String>,
     /// Database configuration.
     #[toml(default, style = Header)]
-    pub database: ServerDatabaseConfig,
+    #[schemars(default)]
+    pub database: DatabaseConfig,
     /// Directory for workflow outputs.
-    #[toml(default = DEFAULT_OUTPUT_DIRECTORY.into())]
+    #[toml(default = PathBuf::from(default_output_directory()))]
+    #[schemars(default = "default_output_directory")]
     pub output_dir: PathBuf,
     /// Allowed file paths for file-based workflows.
     #[toml(default)]
+    #[schemars(default)]
     pub allowed_file_paths: Vec<PathBuf>,
     /// Allowed URL prefixes for URL-based workflows.
     #[toml(default)]
+    #[schemars(default)]
     pub allowed_urls: Vec<String>,
     /// Maximum concurrent workflows.
     #[toml(default)]
+    #[schemars(default)]
     pub max_concurrent_runs: MaxConcurrentRuns,
     /// The engine configuration to use during execution.
     #[toml(default)]
+    #[schemars(default)]
     pub engine: EngineConfig,
+    /// How many minutes a session may go without recording a heartbeat before
+    /// the runs it owns are marked `orphaned`. Applies to `sprocket run`
+    /// invocations as well as servers.
+    #[toml(default = default_orphan_timeout_minutes())]
+    #[schemars(default = "default_orphan_timeout_minutes")]
+    pub orphan_timeout_minutes: u64,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            host: DEFAULT_HOST.into(),
-            port: DEFAULT_PORT,
+            host: default_host().into(),
+            port: default_port(),
             allowed_origins: Vec::new(),
-            database: ServerDatabaseConfig::default(),
+            database: DatabaseConfig::default(),
             output_dir: DEFAULT_OUTPUT_DIRECTORY.into(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
             max_concurrent_runs: Default::default(),
             engine: EngineConfig::default(),
+            orphan_timeout_minutes: default_orphan_timeout_minutes(),
         }
     }
 }
 
 impl ServerConfig {
-    /// Get the database URL.
-    pub fn database_url(&self) -> String {
-        if self.database.url == SENTINEL_DATABASE_FILENAME {
-            self.output_dir
-                .join(DEFAULT_DATABASE_FILENAME)
-                .to_string_lossy()
-                .to_string()
-        } else {
-            self.database.url.to_string()
-        }
+    /// The interval at which a process records a liveness heartbeat on the
+    /// session it owns, and a server re-sweeps for sessions that have stopped
+    /// recording one.
+    ///
+    /// Derived from [`Self::orphan_timeout_minutes`] rather than configured
+    /// separately: an interval at or above the timeout would let a server
+    /// declare its own live runs orphaned. [`Self::validate`] rejects a zero
+    /// timeout, which `tokio::time::interval` would panic on.
+    pub fn heartbeat_interval(&self) -> Duration {
+        (self.orphan_timeout() / HEARTBEATS_PER_ORPHAN_TIMEOUT).min(MAX_HEARTBEAT_INTERVAL)
+    }
+
+    /// The duration a session may go without a heartbeat before the runs it
+    /// owns are considered orphaned.
+    pub fn orphan_timeout(&self) -> Duration {
+        Duration::from_secs(self.orphan_timeout_minutes * 60)
     }
 
     /// Validates and normalizes the server configuration.
@@ -506,6 +701,11 @@ impl ServerConfig {
             && max == 0
         {
             anyhow::bail!("`max_concurrent_runs` must be at least 1");
+        }
+
+        // Validate the orphan timeout is at least a minute
+        if self.orphan_timeout_minutes == 0 {
+            anyhow::bail!("`orphan_timeout_minutes` must be at least 1");
         }
 
         // Validate that all allowed URLs can be parsed
@@ -581,8 +781,9 @@ impl ServerConfig {
 }
 
 /// `test` command configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TestConfig {
     /// Number of test executions to run in parallel.
     ///
@@ -591,7 +792,7 @@ pub struct TestConfig {
     pub parallelism: u32,
     /// Delay between submitting initial test executions, in milliseconds.
     ///
-    /// Once the `parallelism`` permits are exhausted, this throttle delay is
+    /// Once the `parallelism` permits are exhausted, this throttle delay is
     /// ignored and new tests are submitted eagerly as prior tests complete and
     /// free permits.
     ///
@@ -619,57 +820,88 @@ impl Default for TestConfig {
     }
 }
 
+impl TestConfig {
+    /// Validates the configuration.
+    fn validate(&self) -> Result<()> {
+        if self.parallelism == 0 {
+            return Err(anyhow!("`parallelism` must be greater than `0`"));
+        }
+        Ok(())
+    }
+}
+
 /// Sentinel value used throughout `DocConfig`.
-const SENTINEL_DOC_CONFIG_VALUE: &str = "none";
+fn sentinel_doc_config_value() -> &'static str {
+    "none"
+}
 
 /// `doc` command configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocConfig {
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub index_page: String,
     /// Path to an SVG logo to embed on each page.
     ///
     /// If not supplied, the default Sprocket logo will be used.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub logo: String,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `logo` SVG will be used; or if that is also not
     /// supplied, the default Sprocket logo will be used.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub alt_light_logo: String,
     /// An optional link to the project's homepage.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub homepage_url: String,
     /// An optional link to the project's GitHub repository.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub github_url: String,
+    /// An optional link to the project's Slack workspace.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub slack_url: String,
     /// Initialize pages in light mode instead of the default dark mode.
     #[toml(default)]
+    #[schemars(default)]
     pub light_mode: bool,
     /// Enables support for documentation comments
     ///
     /// This option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
     #[toml(default)]
+    #[schemars(default)]
     pub with_doc_comments: bool,
     /// Configuration for custom HTML to embed in generated pages.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub extra_html: DocExtraHtmlConfig,
+    /// Search-engine-optimization metadata embedded in each page's `<head>`.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub seo: DocSeoConfig,
 }
 
 impl Default for DocConfig {
     fn default() -> Self {
         Self {
-            index_page: SENTINEL_DOC_CONFIG_VALUE.into(),
-            logo: SENTINEL_DOC_CONFIG_VALUE.into(),
-            alt_light_logo: SENTINEL_DOC_CONFIG_VALUE.into(),
-            homepage_url: SENTINEL_DOC_CONFIG_VALUE.into(),
-            github_url: SENTINEL_DOC_CONFIG_VALUE.into(),
+            index_page: sentinel_doc_config_value().into(),
+            logo: sentinel_doc_config_value().into(),
+            alt_light_logo: sentinel_doc_config_value().into(),
+            homepage_url: sentinel_doc_config_value().into(),
+            github_url: sentinel_doc_config_value().into(),
+            slack_url: sentinel_doc_config_value().into(),
             light_mode: false,
             with_doc_comments: false,
             extra_html: DocExtraHtmlConfig::default(),
+            seo: DocSeoConfig::default(),
         }
     }
 }
@@ -678,7 +910,7 @@ impl DocConfig {
     /// Get the path to the Markdown file to be embedded in the root index page,
     /// if configured.
     pub fn index_page(&self) -> Option<PathBuf> {
-        if self.index_page == SENTINEL_DOC_CONFIG_VALUE {
+        if self.index_page == sentinel_doc_config_value() {
             None
         } else {
             Some(PathBuf::from(&self.index_page))
@@ -687,7 +919,7 @@ impl DocConfig {
 
     /// Get the path to the logo file, if configured.
     pub fn logo(&self) -> Option<PathBuf> {
-        if self.logo == SENTINEL_DOC_CONFIG_VALUE {
+        if self.logo == sentinel_doc_config_value() {
             None
         } else {
             Some(PathBuf::from(&self.logo))
@@ -696,7 +928,7 @@ impl DocConfig {
 
     /// Get the path to the alternate light mode logo file, if configured.
     pub fn alt_light_logo(&self) -> Option<PathBuf> {
-        if self.alt_light_logo == SENTINEL_DOC_CONFIG_VALUE {
+        if self.alt_light_logo == sentinel_doc_config_value() {
             None
         } else {
             Some(PathBuf::from(&self.alt_light_logo))
@@ -705,7 +937,7 @@ impl DocConfig {
 
     /// Get the URL to the project's homepage, if configured.
     pub fn homepage_url(&self) -> Option<Url> {
-        if self.homepage_url == SENTINEL_DOC_CONFIG_VALUE {
+        if self.homepage_url == sentinel_doc_config_value() {
             None
         } else {
             Some(Url::from_str(&self.homepage_url).expect("validated already"))
@@ -714,53 +946,73 @@ impl DocConfig {
 
     /// Get the URL to the project's GitHub, if configured.
     pub fn github_url(&self) -> Option<Url> {
-        if self.github_url == SENTINEL_DOC_CONFIG_VALUE {
+        if self.github_url == sentinel_doc_config_value() {
             None
         } else {
             Some(Url::from_str(&self.github_url).expect("validated already"))
         }
     }
 
+    /// Get the URL to the project's Slack workspace, if configured.
+    pub fn slack_url(&self) -> Option<Url> {
+        if self.slack_url == sentinel_doc_config_value() {
+            None
+        } else {
+            Some(Url::from_str(&self.slack_url).expect("validated already"))
+        }
+    }
+
     /// Validates the configuration.
     pub fn validate(&self) -> Result<()> {
-        if self.homepage_url != SENTINEL_DOC_CONFIG_VALUE {
+        if self.homepage_url != sentinel_doc_config_value() {
             match Url::from_str(&self.homepage_url) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(anyhow!("error while parsing configured homepage URL: {e}")),
             }?;
         }
-        if self.github_url != SENTINEL_DOC_CONFIG_VALUE {
+        if self.github_url != sentinel_doc_config_value() {
             match Url::from_str(&self.github_url) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(anyhow!("error while parsing configured GitHub URL: {e}")),
             }?;
         }
+        if self.slack_url != sentinel_doc_config_value() {
+            match Url::from_str(&self.slack_url) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(anyhow!("error while parsing configured slack url: {e}")),
+            }?;
+        }
+        self.seo.validate()?;
         Ok(())
     }
 }
 
 /// `doc.extra_html` command configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocExtraHtmlConfig {
     /// Path to an HTML file that should have its contents embedded in each HTML
     /// page, immediately before the closing `<head>` tag.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub head: String,
     /// Path to an HTML file that should have its contents embedded in each HTML
     /// page, immediately after the opening `<body>` tag.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub body_open: String,
     /// Path to an HTML file that should have its contents embedded in each HTML
     /// page, immediately before the closing `<body>` tag.
-    #[toml(default = SENTINEL_DOC_CONFIG_VALUE.into())]
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
     pub body_close: String,
 }
 
 impl DocExtraHtmlConfig {
     /// Get the path to the head open HTML file, if configured.
     pub fn head(&self) -> Option<PathBuf> {
-        if self.head == SENTINEL_DOC_CONFIG_VALUE {
+        if self.head == sentinel_doc_config_value() {
             None
         } else {
             Some(PathBuf::from(&self.head))
@@ -769,7 +1021,7 @@ impl DocExtraHtmlConfig {
 
     /// Get the path to the body open HTML file, if configured.
     pub fn body_open(&self) -> Option<PathBuf> {
-        if self.body_open == SENTINEL_DOC_CONFIG_VALUE {
+        if self.body_open == sentinel_doc_config_value() {
             None
         } else {
             Some(PathBuf::from(&self.body_open))
@@ -778,7 +1030,7 @@ impl DocExtraHtmlConfig {
 
     /// Get the path to the body close HTML file, if configured.
     pub fn body_close(&self) -> Option<PathBuf> {
-        if self.body_close == SENTINEL_DOC_CONFIG_VALUE {
+        if self.body_close == sentinel_doc_config_value() {
             None
         } else {
             Some(PathBuf::from(&self.body_close))
@@ -789,9 +1041,154 @@ impl DocExtraHtmlConfig {
 impl Default for DocExtraHtmlConfig {
     fn default() -> Self {
         Self {
-            head: SENTINEL_DOC_CONFIG_VALUE.into(),
-            body_open: SENTINEL_DOC_CONFIG_VALUE.into(),
-            body_close: SENTINEL_DOC_CONFIG_VALUE.into(),
+            head: sentinel_doc_config_value().into(),
+            body_open: sentinel_doc_config_value().into(),
+            body_close: sentinel_doc_config_value().into(),
+        }
+    }
+}
+
+/// `doc.seo` command configuration.
+///
+/// Site-level search-engine-optimization metadata embedded into each page's
+/// `<head>`. Every field is optional.
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct DocSeoConfig {
+    /// Site title. When set, each page's `<title>` becomes `"<page> | <title>"`
+    /// and drives `og:site_name`.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub title: String,
+    /// Default page description (`<meta name="description">` and the Open Graph
+    /// and Twitter Card descriptions).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub description: String,
+    /// Content author (`<meta name="author">`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub author: String,
+    /// Keywords (`<meta name="keywords">`).
+    #[toml(default)]
+    #[schemars(default)]
+    pub keywords: Vec<String>,
+    /// Absolute site base URL used to build per-page `<link rel="canonical">`
+    /// and `og:url` values.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub base_url: String,
+    /// Social-preview image URL (`og:image`, `twitter:image`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub image_url: String,
+    /// Open Graph locale (`og:locale`); defaults to `en_US` when unset.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub locale: String,
+    /// Twitter handle, including the leading `@` (`twitter:site`,
+    /// `twitter:creator`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub twitter_handle: String,
+    /// Robots directive (`<meta name="robots">`, e.g. `index, follow`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub robots: String,
+    /// Browser theme color (`<meta name="theme-color">`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub theme_color: String,
+}
+
+impl DocSeoConfig {
+    /// Returns the value unless it is the unset sentinel.
+    fn present(value: &str) -> Option<String> {
+        if value == sentinel_doc_config_value() {
+            None
+        } else {
+            Some(value.to_string())
+        }
+    }
+
+    /// Get the configured site title, if any.
+    pub fn title(&self) -> Option<String> {
+        Self::present(&self.title)
+    }
+
+    /// Get the configured page description, if any.
+    pub fn description(&self) -> Option<String> {
+        Self::present(&self.description)
+    }
+
+    /// Get the configured author, if any.
+    pub fn author(&self) -> Option<String> {
+        Self::present(&self.author)
+    }
+
+    /// Get the configured keywords.
+    pub fn keywords(&self) -> Vec<String> {
+        self.keywords.clone()
+    }
+
+    /// Get the configured base URL, if any.
+    pub fn base_url(&self) -> Option<Url> {
+        Self::present(&self.base_url).map(|u| Url::from_str(&u).expect("validated already"))
+    }
+
+    /// Get the configured social-preview image URL, if any.
+    pub fn image_url(&self) -> Option<Url> {
+        Self::present(&self.image_url).map(|u| Url::from_str(&u).expect("validated already"))
+    }
+
+    /// Get the configured Open Graph locale, if any.
+    pub fn locale(&self) -> Option<String> {
+        Self::present(&self.locale)
+    }
+
+    /// Get the configured Twitter handle, if any.
+    pub fn twitter_handle(&self) -> Option<String> {
+        Self::present(&self.twitter_handle)
+    }
+
+    /// Get the configured robots directive, if any.
+    pub fn robots(&self) -> Option<String> {
+        Self::present(&self.robots)
+    }
+
+    /// Get the configured theme color, if any.
+    pub fn theme_color(&self) -> Option<String> {
+        Self::present(&self.theme_color)
+    }
+
+    /// Validates the SEO configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.base_url != sentinel_doc_config_value() {
+            Url::from_str(&self.base_url)
+                .map_err(|e| anyhow!("error while parsing configured SEO base URL: {e}"))?;
+        }
+        if self.image_url != sentinel_doc_config_value() {
+            Url::from_str(&self.image_url)
+                .map_err(|e| anyhow!("error while parsing configured SEO image URL: {e}"))?;
+        }
+        Ok(())
+    }
+}
+
+impl Default for DocSeoConfig {
+    fn default() -> Self {
+        Self {
+            title: sentinel_doc_config_value().into(),
+            description: sentinel_doc_config_value().into(),
+            author: sentinel_doc_config_value().into(),
+            keywords: Vec::new(),
+            base_url: sentinel_doc_config_value().into(),
+            image_url: sentinel_doc_config_value().into(),
+            locale: sentinel_doc_config_value().into(),
+            twitter_handle: sentinel_doc_config_value().into(),
+            robots: sentinel_doc_config_value().into(),
+            theme_color: sentinel_doc_config_value().into(),
         }
     }
 }
@@ -805,7 +1202,7 @@ impl Config {
     pub fn new<'a>(
         paths: impl IntoIterator<Item = &'a Path>,
         skip_config_search: bool,
-    ) -> Result<Self, wdl::engine::config::BuilderError> {
+    ) -> Result<wdl::engine::config::BuiltConfig<Self>, wdl::engine::config::BuilderError> {
         let mut builder = Config::builder();
 
         if !skip_config_search {
@@ -865,9 +1262,7 @@ impl Config {
 
     /// Validate a configuration.
     pub fn validate(&mut self) -> Result<()> {
-        if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
-            bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
-        }
+        self.module.init.validate()?;
 
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
@@ -887,73 +1282,76 @@ impl Config {
                 }
             }
         }
+
+        // Expands the paths in the given engine configuration.
+        fn expand_paths(config: &mut EngineConfig) -> Result<()> {
+            // Expand the call cache directory
+            if !config.task.using_system_cache_dir() {
+                config.task.cache_dir = config
+                    .task
+                    .cache_dir()
+                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+            }
+
+            // Expand the download cache directory
+            if !config.http.using_system_cache_dir() {
+                config.http.cache_dir = config
+                    .http
+                    .cache_dir()
+                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+            }
+
+            // Expand the apptainer image cache directory
+            for backend in config.backends.values_mut() {
+                match backend {
+                    BackendConfig::LsfApptainer {
+                        config: LsfApptainerBackendConfig { apptainer, .. },
+                    }
+                    | BackendConfig::SlurmApptainer {
+                        config: SlurmApptainerBackendConfig { apptainer, .. },
+                    } if !apptainer.using_system_image_cache_dir() => {
+                        apptainer.image_cache_dir = apptainer
+                            .image_cache_dir()
+                            .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok(())
+        }
+
+        // Expand paths in the configuration for both the `run` and `server`
+        // sections
         self.run.output_dir = expand(&self.run.output_dir)?;
         self.server.output_dir = expand(&self.server.output_dir)?;
-        self.run.engine.task.cache_dir = match self
-            .run
-            .engine
-            .task
-            .cache_dir()
-            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
-            .transpose()?
-        {
-            Some(s) => s,
-            None => self.run.engine.task.cache_dir.clone(),
-        };
-        if !self.run.engine.http.using_system_cache_dir() {
-            self.run.engine.http.cache_dir = self
-                .run
-                .engine
-                .http
-                .cache_dir()
-                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
-        }
-        self.server.engine.task.cache_dir = match self
-            .server
-            .engine
-            .task
-            .cache_dir()
-            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
-            .transpose()?
-        {
-            Some(s) => s,
-            None => self.server.engine.task.cache_dir.clone(),
-        };
-        if !self.server.engine.http.using_system_cache_dir() {
-            self.server.engine.http.cache_dir = self
-                .server
-                .engine
-                .http
-                .cache_dir()
-                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
-        }
+
+        // Expand the paths in the engine configuration for both `run` and
+        // `server`
+        expand_paths(&mut self.run.engine)?;
+        expand_paths(&mut self.server.engine)?;
 
         // Validate inner configs
         self.server.validate()?;
         self.doc.validate()?;
+        self.test.validate()?;
 
         Ok(())
     }
 
-    /// Read a configuration file from the specified path.
-    pub fn read_config(path: &str) -> Result<Self> {
-        let data = std::fs::read(path).context("failed to open config file")?;
-        let text = String::from_utf8(data).expect("failed to read config file");
-        let config: Config =
-            toml_spanner::from_str(text.as_str()).context("failed to parse config file")?;
-        Ok(config)
-    }
-
-    /// Write a configuration to the specified path.
-    pub fn write_config(&self, path: &str) -> Result<()> {
-        let data = toml_spanner::to_string(self).context("failed to serialize config")?;
-        std::fs::write(path, data).context("failed to write config file")
+    /// Attempt to convert the `Config` into a TOML string.
+    pub fn to_toml_string(&self) -> std::result::Result<String, ToTomlError> {
+        toml_spanner::to_string(self)
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
+
+    use schemars::schema_for;
+    use toml_spanner::ValueMut;
+    use wdl::engine::config::BuiltConfig;
 
     use super::*;
 
@@ -963,7 +1361,7 @@ mod test {
             HashMap::from_iter([("value", MaxConcurrentRuns::Unlimited)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"unlimited\"\n")
+            "value = \"unlimited\"\n"
         );
 
         let map: HashMap<&str, MaxConcurrentRuns> =
@@ -981,7 +1379,7 @@ mod test {
         assert_eq!(map["value"], MaxConcurrentRuns::Limited(12));
 
         let expected_error =
-            "expected a positive integer or `unlimited` for maximum concurrent runs";
+            "expected a positive integer or `unlimited` for maximum concurrent runs at `value`";
 
         let error = toml_spanner::from_str::<HashMap<String, MaxConcurrentRuns>>("value = 'wrong'")
             .unwrap_err();
@@ -994,5 +1392,453 @@ mod test {
         let error = toml_spanner::from_str::<HashMap<String, MaxConcurrentRuns>>("value = -10")
             .unwrap_err();
         assert_eq!(error.to_string(), expected_error);
+    }
+
+    #[test]
+    fn color_mode_parsing_and_display() -> Result<()> {
+        assert_eq!(<ColorMode as FromStr>::from_str("auto")?, ColorMode::Auto);
+        assert_eq!(
+            <ColorMode as FromStr>::from_str("always")?,
+            ColorMode::Always
+        );
+        assert_eq!(<ColorMode as FromStr>::from_str("never")?, ColorMode::Never);
+        assert_eq!(ColorMode::Always.to_string(), "always");
+        assert_eq!(ColorMode::Never.to_string(), "never");
+
+        let Err(error) = <ColorMode as FromStr>::from_str("sometimes") else {
+            panic!("invalid color mode should error");
+        };
+        assert_eq!(error.to_string(), "invalid color mode `sometimes`");
+
+        Ok(())
+    }
+
+    #[test]
+    fn fallback_version_conversions_and_toml() -> Result<()> {
+        let version = SupportedVersion::V1(wdl::ast::version::V1::Zero);
+
+        assert_eq!(
+            FallbackVersion::from(version),
+            FallbackVersion::Version(version)
+        );
+        assert_eq!(
+            FallbackVersion::from(Some(version)),
+            FallbackVersion::Version(version)
+        );
+        assert_eq!(FallbackVersion::from(None), FallbackVersion::None);
+
+        let converted: Option<SupportedVersion> = FallbackVersion::Version(version).into();
+        assert_eq!(converted, Some(version));
+        let converted: Option<SupportedVersion> = FallbackVersion::None.into();
+        assert_eq!(converted, None);
+
+        let map: HashMap<String, FallbackVersion> = toml_spanner::from_str("value = 'none'")?;
+        assert_eq!(map["value"], FallbackVersion::None);
+        let map: HashMap<String, FallbackVersion> = toml_spanner::from_str("value = '1.0'")?;
+        assert_eq!(map["value"], FallbackVersion::Version(version));
+        assert_eq!(FallbackVersion::Version(version).to_string(), "1.0");
+        assert_eq!(FallbackVersion::None.to_string(), "none");
+
+        let Err(error) =
+            toml_spanner::from_str::<HashMap<String, FallbackVersion>>("value = 'development'")
+        else {
+            panic!("invalid fallback version should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "expected a supported WDL version or `none` at `value`"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn max_concurrent_runs_conversions() {
+        assert_eq!(MaxConcurrentRuns::from(3), MaxConcurrentRuns::Limited(3));
+        assert_eq!(
+            MaxConcurrentRuns::from(Some(4)),
+            MaxConcurrentRuns::Limited(4)
+        );
+        assert_eq!(MaxConcurrentRuns::from(None), MaxConcurrentRuns::Unlimited);
+
+        let converted: Option<usize> = MaxConcurrentRuns::Limited(5).into();
+        assert_eq!(converted, Some(5));
+        let converted: Option<usize> = MaxConcurrentRuns::Unlimited.into();
+        assert_eq!(converted, None);
+    }
+
+    #[test]
+    fn database_url_uses_output_dir_for_default() {
+        let config = DatabaseConfig::default();
+        assert_eq!(
+            PathBuf::from(config.resolve_url(Path::new("custom-output"))),
+            PathBuf::from("custom-output").join("sprocket.db")
+        );
+
+        let config = DatabaseConfig {
+            url: "sqlite://custom.db".to_string(),
+        };
+        assert_eq!(
+            config.resolve_url(Path::new("ignored")),
+            "sqlite://custom.db"
+        );
+    }
+
+    #[test]
+    fn server_validate_normalizes_allowed_locations() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let allowed = tempdir.path().join("allowed");
+        std::fs::create_dir(&allowed)?;
+        let file_url = Url::from_directory_path(&allowed)
+            .map_err(|_| anyhow!("failed to convert temp directory to URL"))?
+            .to_string();
+
+        let mut config = ServerConfig {
+            allowed_file_paths: vec![allowed.clone(), allowed.clone()],
+            allowed_urls: vec![
+                "https://example.com/workflows/".to_string(),
+                file_url.clone(),
+                "https://example.com/workflows/".to_string(),
+            ],
+            ..Default::default()
+        };
+
+        config.validate()?;
+
+        let canonical = allowed.canonicalize()?;
+        let file_url_path = Url::parse(&file_url)
+            .map_err(|e| anyhow!("failed to parse file URL: {e}"))?
+            .to_file_path()
+            .map_err(|_| anyhow!("failed to convert file URL to path"))?;
+        let mut expected_file_paths = vec![canonical.clone(), file_url_path];
+        expected_file_paths.sort();
+        expected_file_paths.dedup();
+        assert_eq!(config.allowed_file_paths, expected_file_paths);
+        let mut expected_urls = vec![
+            file_url,
+            Url::from_file_path(canonical)
+                .map_err(|_| anyhow!("failed to convert canonical path to URL"))?
+                .to_string(),
+            "https://example.com/workflows/".to_string(),
+        ];
+        expected_urls.sort();
+        expected_urls.dedup();
+        assert_eq!(config.allowed_urls, expected_urls);
+
+        Ok(())
+    }
+
+    #[test]
+    fn server_validate_reports_bad_locations() {
+        let mut config = ServerConfig {
+            allowed_urls: vec!["not a url".to_string()],
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid allowed URL should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "invalid URL in `allowed_urls`: `not a url`"
+        );
+
+        let mut config = ServerConfig {
+            allowed_file_paths: vec![PathBuf::from("does-not-exist")],
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid allowed file path should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "failed to canonicalize path in `allowed_file_paths`: `does-not-exist`"
+        );
+    }
+
+    fn json_schema_path() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("jsonschemas")
+            .join("sprocket.toml.json")
+    }
+
+    fn json_schema() -> String {
+        std::fs::read_to_string(json_schema_path()).unwrap()
+    }
+
+    #[test]
+    fn public_schema_up_to_date() {
+        let current_schema = schema_for!(Config);
+        let current_schema_pretty = serde_json::to_string_pretty(&current_schema).unwrap();
+
+        pretty_assertions::assert_eq!(
+            current_schema_pretty,
+            json_schema().trim(),
+            "The sprocket.toml schema at `{}` is out of date! Update it with the output of \
+             `sprocket config schema`.",
+            json_schema_path().display()
+        );
+    }
+
+    #[test]
+    fn schema_matches_config() {
+        let config_str = toml_spanner::to_string(&Config::default()).unwrap();
+
+        let schema = serde_json::from_str::<serde_json::Value>(&json_schema()).unwrap();
+        let toml_data = toml::from_str::<serde_json::Value>(&config_str).unwrap();
+
+        let mut failed = false;
+        let validator = jsonschema::draft202012::new(&schema).unwrap();
+        for error in validator.iter_errors(&toml_data) {
+            failed = true;
+            eprintln!("{error}");
+        }
+        assert!(
+            !failed,
+            "the generated schema does not match the current `sprocket.toml`!"
+        );
+    }
+
+    #[test]
+    fn module_init_config_parses() {
+        let config = toml_spanner::from_str::<Config>(
+            "[module.init]\nauthor = \"Jane Doe\"\nemail = \"jane@example.com\"\nlicense = \
+             \"MIT\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(config.module.init.author.as_deref(), Some("Jane Doe"));
+        assert_eq!(
+            config.module.init.email.as_deref(),
+            Some("jane@example.com")
+        );
+        assert_eq!(config.module.init.license.as_deref(), Some("MIT"));
+    }
+
+    #[test]
+    fn module_init_config_rejects_blank_fields() {
+        for (field, value) in [("author", "   "), ("email", "\t"), ("license", "\n")] {
+            let source = format!("[module.init]\n{field} = {value:?}\n");
+            let mut config = toml_spanner::from_str::<Config>(&source).unwrap();
+            let error = config.validate().unwrap_err();
+
+            assert_eq!(
+                error.to_string(),
+                format!("`module.init.{field}` cannot be empty")
+            );
+        }
+    }
+
+    #[test]
+    fn doc_slack_url_is_optional_and_validated() {
+        let mut config = DocConfig::default();
+        assert_eq!(config.slack_url(), None);
+
+        config.slack_url = "https://example.slack.com".to_string();
+        assert_eq!(
+            config.slack_url().as_ref().map(Url::as_str),
+            Some("https://example.slack.com/")
+        );
+        assert!(config.validate().is_ok());
+
+        config.slack_url = "not a url".to_string();
+        // SAFETY: the configured value is deliberately invalid.
+        let error = config.validate().unwrap_err().to_string();
+        assert!(
+            error.contains("configured slack url"),
+            "unexpected validation error: {error}"
+        );
+    }
+
+    #[test]
+    fn doc_config_accessors_and_validation() -> Result<()> {
+        let default = DocConfig::default();
+        assert_eq!(default.index_page(), None);
+        assert_eq!(default.logo(), None);
+        assert_eq!(default.alt_light_logo(), None);
+        assert_eq!(default.homepage_url(), None);
+        assert_eq!(default.github_url(), None);
+        default.validate()?;
+
+        let config = DocConfig {
+            index_page: "index.md".to_string(),
+            logo: "logo.svg".to_string(),
+            alt_light_logo: "light.svg".to_string(),
+            homepage_url: "https://sprocket.bio/".to_string(),
+            github_url: "https://github.com/stjude-rust-labs/sprocket".to_string(),
+            ..Default::default()
+        };
+
+        assert_eq!(config.index_page(), Some(PathBuf::from("index.md")));
+        assert_eq!(config.logo(), Some(PathBuf::from("logo.svg")));
+        assert_eq!(config.alt_light_logo(), Some(PathBuf::from("light.svg")));
+        assert_eq!(
+            config.homepage_url(),
+            Some(Url::parse("https://sprocket.bio/")?)
+        );
+        assert_eq!(
+            config.github_url(),
+            Some(Url::parse("https://github.com/stjude-rust-labs/sprocket")?)
+        );
+        config.validate()?;
+
+        let config = DocConfig {
+            homepage_url: "not a url".to_string(),
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid homepage URL should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "error while parsing configured homepage URL: relative URL without a base"
+        );
+
+        let config = DocConfig {
+            github_url: "not a url".to_string(),
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid GitHub URL should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "error while parsing configured GitHub URL: relative URL without a base"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn doc_extra_html_accessors() {
+        let default = DocExtraHtmlConfig::default();
+        assert_eq!(default.head(), None);
+        assert_eq!(default.body_open(), None);
+        assert_eq!(default.body_close(), None);
+
+        let config = DocExtraHtmlConfig {
+            head: "head.html".to_string(),
+            body_open: "open.html".to_string(),
+            body_close: "close.html".to_string(),
+        };
+        assert_eq!(config.head(), Some(PathBuf::from("head.html")));
+        assert_eq!(config.body_open(), Some(PathBuf::from("open.html")));
+        assert_eq!(config.body_close(), Some(PathBuf::from("close.html")));
+    }
+
+    #[test]
+    fn config_read_write_new_and_validate() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let config_path = tempdir.path().join("sprocket.toml");
+
+        let config = Config {
+            server: ServerConfig {
+                host: "0.0.0.0".to_string(),
+                port: 9090,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let config_str = config.to_toml_string()?;
+        std::fs::write(&config_path, &config_str)?;
+
+        let BuiltConfig {
+            config: from_builder,
+            ..
+        } = Config::new([config_path.as_path()], true)?;
+        assert_eq!(from_builder.server.host, "0.0.0.0");
+        assert_eq!(from_builder.server.port, 9090);
+
+        let mut config = Config::default();
+        config.validate()?;
+
+        let mut config = Config::default();
+        config.run.events_capacity = 0;
+        let Err(error) = config.validate() else {
+            panic!("zero events capacity should error");
+        };
+        assert_eq!(error.to_string(), "`events_capacity` must be at least 1");
+
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_fields_are_ignored() -> Result<()> {
+        // Every table in the config should ignore unknown keys
+
+        fn populate_table<'a>(
+            table: &mut Table<'a>,
+            arena: &'a Arena,
+            skip: bool,
+            is_engine_table: bool,
+            count: &mut usize,
+        ) {
+            if !skip {
+                table.insert(Key::new("unknown_key"), Item::string("foo_bar"), arena);
+                *count += 1;
+            }
+
+            for entry in table.entries_mut() {
+                // Special case since values in
+                // `run.backends`/`server.engine.backends` are tagged
+                if is_engine_table && entry.0.name == "backends" {
+                    for variant in ["local", "docker", "tes", "lsf_apptainer", "slurm_apptainer"] {
+                        // Update the list above when extending this
+                        match BackendConfig::default() {
+                            BackendConfig::Local { .. }
+                            | BackendConfig::Docker { .. }
+                            | BackendConfig::Tes { .. }
+                            | BackendConfig::LsfApptainer { .. }
+                            | BackendConfig::SlurmApptainer { .. } => {}
+                        }
+
+                        let ValueMut::Table(table) = entry.1.value_mut() else {
+                            panic!("should be a table");
+                        };
+
+                        let mut backend_config = Table::new();
+                        backend_config.insert(Key::new("type"), Item::string(variant), arena);
+                        populate_table(&mut backend_config, arena, false, false, count);
+
+                        table.insert(Key::new(variant), backend_config.into_item(), arena);
+                    }
+
+                    continue;
+                }
+
+                let ValueMut::Table(table) = entry.1.value_mut() else {
+                    continue;
+                };
+
+                populate_table(
+                    table,
+                    arena,
+                    false,
+                    entry.0.name == "run" || entry.0.name == "engine",
+                    count,
+                );
+            }
+        }
+
+        let tempdir = tempfile::TempDir::new()?;
+        let config_path = tempdir.path().join("sprocket.toml");
+
+        let expected_config = Config::default();
+
+        let arena = Arena::new();
+        let mut toml_item = expected_config.to_toml(&arena)?;
+        let ValueMut::Table(table) = toml_item.value_mut() else {
+            panic!("should be a table");
+        };
+
+        let mut unknown_entry_count = 0;
+        populate_table(table, &arena, true, false, &mut unknown_entry_count);
+
+        let new_config_str = toml_spanner::to_string(&toml_item)?;
+        std::fs::write(&config_path, &new_config_str)?;
+
+        let BuiltConfig { warnings, .. } = Config::new([&*config_path], true)?;
+        assert_eq!(warnings.len(), unknown_entry_count);
+
+        Ok(())
     }
 }

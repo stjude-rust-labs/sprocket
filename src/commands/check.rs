@@ -9,25 +9,19 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
-use codespan_reporting::diagnostic::Diagnostic;
-use codespan_reporting::files::SimpleFiles;
-use strum::VariantArray;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Baseline;
 use wdl::lint::BaselineEntry;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
-use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
 use crate::Config;
@@ -55,12 +49,13 @@ pub struct Common {
     #[clap(value_name = "SOURCE")]
     pub sources: Vec<Source>,
 
-    /// Excepts (ignores) an analysis or lint rule.
+    /// Excepts (ignores) a lint rule or tag from running if it would have been
+    /// included otherwise.
     ///
-    /// Repeat the flag multiple times to except multiple rules. This is
+    /// Repeat the flag multiple times to except multiple rules or tags. This is
     /// additive with exceptions found in config files.
     #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter().chain(ALL_TAG_NAMES.iter())),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
@@ -68,31 +63,10 @@ pub struct Common {
     )]
     pub except: Vec<String>,
 
-    /// Enable all lint rules. This includes additional rules outside the
-    /// default set.
-    ///
-    /// `--except <RULE>` and `--filter-lint-tag <TAG>` can be used in
-    /// conjunction with this argument.
-    #[clap(short, long, conflicts_with_all = ["only_lint_tag"])]
-    pub all_lint_rules: bool,
-
-    /// Excludes a lint tag from running if it would have been included
-    /// otherwise.
-    ///
-    /// Repeat the flag multiple times to filter multiple tags. This is additive
-    /// with filtered tags found in config files.
-    #[clap(long, value_name = "TAG",
-        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
-        ignore_case = true,
-        action = clap::ArgAction::Append,
-        num_args = 1,
-    )]
-    pub filter_lint_tag: Vec<String>,
-
     /// Includes a lint tag for running.
     ///
     /// Repeat the flag multiple times to include multiple tags. `--except
-    /// <RULE>` and `--filter-lint-tag <TAG>` can be used in conjunction with
+    /// <RULE|TAG>` can be used in conjunction with
     /// this argument. This is additive with tags selected via config files.
     #[clap(long, value_name = "TAG",
         value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
@@ -100,7 +74,7 @@ pub struct Common {
         action = clap::ArgAction::Append,
         num_args = 1,
     )]
-    pub only_lint_tag: Vec<String>,
+    pub tag: Vec<String>,
 
     /// Causes the command to fail if warnings were reported.
     #[clap(long)]
@@ -134,10 +108,6 @@ pub struct Common {
     /// Hide diagnostics with `warning` or `note` severity.
     #[arg(long, conflicts_with_all = ["deny_warnings"])]
     pub hide_warnings: bool,
-
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 
     /// Generate a baseline file from current diagnostics and exit.
     #[arg(long, conflicts_with = "no_baseline")]
@@ -175,26 +145,20 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     let mut except = args.common.except;
     except.extend(config.check.except.iter().cloned());
 
+    let disabled_tags = except
+        .extract_if(.., |i| Tag::from_str(i).is_ok())
+        .collect::<Vec<_>>();
+
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
     let hide_warnings = args.common.hide_warnings || config.check.hide_warnings;
     let hide_notes = args.common.hide_notes || config.check.hide_notes || hide_warnings;
-    let report_mode = args.common.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
 
-    let lint = args.lint
-        || !args.common.filter_lint_tag.is_empty()
-        || !args.common.only_lint_tag.is_empty()
-        || args.common.all_lint_rules;
+    let lint = args.lint || !args.common.tag.is_empty();
 
-    let all_lint_rules = args.common.all_lint_rules || config.check.all_lint_rules;
-
-    let mut filter_lint_tag = args.common.filter_lint_tag;
-    filter_lint_tag.extend(config.check.filter_lint_tags.iter().cloned());
-
-    let mut only_lint_tag = args.common.only_lint_tag;
-    if !all_lint_rules {
-        only_lint_tag.extend(config.check.only_lint_tags.iter().cloned());
-    }
+    let mut enabled_tags = config.check.tags;
+    enabled_tags.extend(args.common.tag);
 
     let mut sources = args.common.sources;
     if sources.is_empty() {
@@ -241,51 +205,54 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     };
     let mut matcher = baseline.as_ref().map(|b| b.matcher());
 
-    report_unknown_rules(&except, report_mode, colorize)?;
-
     let provided_source_uris = sources
         .iter()
         .flat_map(|s| s.as_url())
         .cloned()
         .collect::<HashSet<_>>();
 
-    let enabled_tags = if lint {
-        if all_lint_rules {
-            TagSet::new(Tag::VARIANTS)
-        } else if !only_lint_tag.is_empty() {
-            TagSet::new(
-                only_lint_tag
-                    .iter()
-                    .filter_map(|t| Tag::from_str(t).ok())
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            )
-        } else {
-            DEFAULT_TAG_SET
-        }
-    } else {
-        TagSet::new(&[])
-    };
-
-    let disabled_tags = if lint && !filter_lint_tag.is_empty() {
+    let disabled_tags = if lint && !disabled_tags.is_empty() {
         TagSet::new(
-            filter_lint_tag
+            disabled_tags
                 .iter()
                 .filter_map(|t| Tag::from_str(t).ok())
                 .collect::<Vec<_>>()
                 .as_slice(),
         )
     } else {
-        TagSet::new(&[])
+        TagSet::EMPTY
+    };
+
+    let explicit_tags = if lint {
+        TagSet::new(
+            enabled_tags
+                .iter()
+                .filter_map(|t| Tag::from_str(t).ok())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+    } else {
+        TagSet::EMPTY
+    };
+
+    let enabled_tags = if lint {
+        DEFAULT_TAG_SET
+            .difference(disabled_tags)
+            // `--tag` takes precedence over `--except`
+            .union(explicit_tags)
+    } else {
+        TagSet::EMPTY
     };
 
     let results = Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
-        .disabled_lint_tags(disabled_tags)
         .fallback_version(config.common.wdl.fallback_version.into())
-        .run()
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
+        .ignore_filename(config.common.ignore_filename())
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
@@ -337,7 +304,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
             for d in result.document().diagnostics() {
                 if matches!(d.severity(), Severity::Warning | Severity::Note)
                     && args.common.suppress_imports
-                    && !provided_source_uris.contains(uri)
+                    && !provided_source_uris.contains(&uri)
                 {
                     continue;
                 }
@@ -487,54 +454,4 @@ pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResu
         colorize,
     )
     .await
-}
-
-/// Reports any unknown rules as diagnostics.
-fn report_unknown_rules(
-    excepted: &[String],
-    report_mode: Mode,
-    colorize: bool,
-) -> anyhow::Result<()> {
-    let rules = ALL_RULE_IDS.clone();
-
-    let mut unknown_rules = excepted
-        .iter()
-        .filter(|exception| {
-            !rules
-                .iter()
-                .any(|rule| rule.eq_ignore_ascii_case(exception))
-        })
-        .map(|rule| (rule, find_nearest_rule(rule)))
-        .collect::<Vec<_>>();
-
-    if !unknown_rules.is_empty() {
-        unknown_rules.sort();
-
-        let (config, writer) = get_diagnostics_display_config(report_mode, colorize);
-        let mut writer = writer.lock();
-        let files = SimpleFiles::<String, String>::new();
-
-        for (unknown_rule, nearest_rule) in unknown_rules {
-            let mut notes = Vec::new();
-
-            if let Some(nearest_rule) = nearest_rule {
-                notes.push(format!("fix: did you mean the `{nearest_rule}` rule?"));
-            }
-
-            notes.push(String::from(
-                "run `sprocket explain --help` to see available rules",
-            ));
-
-            let warning = Diagnostic::warning()
-                .with_message(format!(
-                    "ignoring unknown rule provided via --except: {unknown_rule}",
-                ))
-                .with_notes(notes);
-
-            codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
-                .expect("failed to emit unknown rule warning");
-        }
-    }
-
-    Ok(())
 }

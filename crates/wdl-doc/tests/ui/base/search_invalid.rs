@@ -1,5 +1,6 @@
 //! Test for an invalid search query.
 
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::bail;
@@ -19,8 +20,8 @@ impl UiTest for SearchInvalid {
         "search_invalid"
     }
 
-    async fn run(&self, driver: &mut WebDriver) -> anyhow::Result<()> {
-        driver.search("this does not exist").await?;
+    async fn run(&self, driver: &mut WebDriver, _docs_path: &Path) -> anyhow::Result<()> {
+        driver.search("does_not_exist").await?;
 
         let no_results = driver
             .query(By::ClassName("search-result"))

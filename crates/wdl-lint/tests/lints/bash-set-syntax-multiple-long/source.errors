@@ -1,0 +1,9 @@
+warning[BashSetSyntax]: bad `set` command
+  ┌─ tests/lints/bash-set-syntax-multiple-long/source.wdl:8:9
+  │
+8 │         set -e
+  │         ^^^^^^
+  │
+  = help: the config expects the following options to be present: errexit, pipefail, posix
+  = fix: update the `set` command to: `set -eo pipefail -o posix`
+

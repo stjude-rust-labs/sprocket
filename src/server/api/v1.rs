@@ -10,6 +10,7 @@ use tracing::warn;
 use utoipa::OpenApi;
 
 use self::error::Error;
+use self::info::*;
 use self::runs::*;
 use self::sessions::*;
 use self::tasks::*;
@@ -17,6 +18,8 @@ use super::AppState;
 use crate::system::v1::exec::svc::run_manager::RunManagerCmd;
 
 pub mod error;
+pub mod info;
+pub mod paths;
 pub mod runs;
 pub mod sessions;
 pub mod tasks;
@@ -39,8 +42,11 @@ pub use crate::system::v1::db::TaskStatus;
         list_sessions,
         get_session,
         list_tasks,
+        list_run_tasks,
+        get_run_task_counts,
         get_task,
         get_task_logs,
+        get_server_info,
     ),
     components(schemas(
         CancelRunResponse,
@@ -51,6 +57,7 @@ pub use crate::system::v1::db::TaskStatus;
         ListSessionsResponse,
         ListTaskLogsQueryParams,
         ListTaskLogsResponse,
+        ListRunTasksQueryParams,
         ListTasksQueryParams,
         ListTasksResponse,
         LogSource,
@@ -58,6 +65,9 @@ pub use crate::system::v1::db::TaskStatus;
         RunOutputsResponse,
         RunResponse,
         RunStatus,
+        RunTaskCountsResponse,
+        ServerFailureMode,
+        ServerInfoResponse,
         Session,
         SessionResponse,
         SprocketCommand,
@@ -70,7 +80,8 @@ pub use crate::system::v1::db::TaskStatus;
     tags(
         (name = "runs", description = "Run management endpoints"),
         (name = "tasks", description = "Task management endpoints"),
-        (name = "sessions", description = "Session management endpoints")
+        (name = "sessions", description = "Session management endpoints"),
+        (name = "server", description = "Server metadata endpoints")
     )
 )]
 pub struct ApiDoc;
@@ -78,15 +89,39 @@ pub struct ApiDoc;
 /// Create the V1 API router.
 pub fn create_router(state: AppState) -> Router {
     Router::new()
-        .route("/runs", post(submit_run).get(list_runs))
-        .route("/runs/{id}", get(get_run))
-        .route("/runs/{id}/cancel", post(cancel_run))
-        .route("/runs/{id}/outputs", get(get_run_outputs))
-        .route("/sessions", get(list_sessions))
-        .route("/sessions/{id}", get(get_session))
-        .route("/tasks", get(list_tasks))
-        .route("/tasks/{name}", get(get_task))
-        .route("/tasks/{name}/logs", get(get_task_logs))
+        .route(
+            paths::route_template(paths::LIST_RUNS),
+            post(submit_run).get(list_runs),
+        )
+        .route(paths::route_template(paths::GET_RUN), get(get_run))
+        .route(paths::route_template(paths::CANCEL_RUN), post(cancel_run))
+        .route(
+            paths::route_template(paths::GET_RUN_OUTPUTS),
+            get(get_run_outputs),
+        )
+        .route(
+            paths::route_template(paths::LIST_RUN_TASKS),
+            get(list_run_tasks),
+        )
+        .route(
+            paths::route_template(paths::RUN_TASK_COUNTS),
+            get(get_run_task_counts),
+        )
+        .route(
+            paths::route_template(paths::LIST_SESSIONS),
+            get(list_sessions),
+        )
+        .route(paths::route_template(paths::GET_SESSION), get(get_session))
+        .route(paths::route_template(paths::LIST_TASKS), get(list_tasks))
+        .route(paths::route_template(paths::GET_TASK), get(get_task))
+        .route(
+            paths::route_template(paths::GET_TASK_LOGS),
+            get(get_task_logs),
+        )
+        .route(
+            paths::route_template(paths::SERVER_INFO),
+            get(get_server_info),
+        )
         .with_state(state)
 }
 
@@ -118,5 +153,190 @@ where
             Err(Error::from(e))
         }
         Ok(Ok(response)) => Ok(response),
+    }
+}
+
+/// The default number of records returned by a paginated endpoint.
+const DEFAULT_PAGE_LIMIT: i64 = 100;
+
+/// The maximum number of records returned by a paginated endpoint.
+const MAX_PAGE_LIMIT: i64 = 1000;
+
+/// Validated pagination parameters.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Pagination {
+    /// Number of records to return.
+    pub(super) limit: i64,
+    /// Number of records to skip.
+    pub(super) offset: i64,
+    /// Offset for the next page.
+    next_offset: i64,
+}
+
+impl Pagination {
+    /// Validates pagination query parameters.
+    pub(super) fn new(limit: Option<i64>, next_token: Option<&str>) -> Result<Self, Error> {
+        let limit = limit.unwrap_or(DEFAULT_PAGE_LIMIT);
+        if !(1..=MAX_PAGE_LIMIT).contains(&limit) {
+            return Err(Error::BadRequest(format!(
+                "`limit` must be between `1` and `{MAX_PAGE_LIMIT}`"
+            )));
+        }
+
+        let offset = match next_token {
+            Some(token) => token
+                .parse::<i64>()
+                .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{token}`")))?,
+            None => 0,
+        };
+        if offset < 0 {
+            return Err(Error::BadRequest(
+                "`next_token` must be non-negative".to_string(),
+            ));
+        }
+
+        let next_offset = offset
+            .checked_add(limit)
+            .ok_or_else(|| Error::BadRequest("`next_token` is too large".to_string()))?;
+
+        Ok(Self {
+            limit,
+            offset,
+            next_offset,
+        })
+    }
+
+    /// Returns a token when another page is available.
+    pub(super) fn next_token(self, total: i64) -> Option<String> {
+        (self.next_offset < total).then(|| self.next_offset.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::system::v1::exec::svc::run_manager::commands;
+
+    #[tokio::test]
+    async fn send_command_returns_manager_response() {
+        let (manager_tx, mut manager_rx) = mpsc::channel(1);
+        let manager = tokio::spawn(async move {
+            // SAFETY: the test sends one command before awaiting this task.
+            let command = manager_rx.recv().await.unwrap();
+            let RunManagerCmd::ListSessions { limit, offset, rx } = command else {
+                panic!("expected list sessions command");
+            };
+
+            assert_eq!(limit, Some(10));
+            assert_eq!(offset, Some(20));
+            rx.send(Ok(commands::ListSessionsResponse {
+                sessions: Vec::new(),
+                total: 0,
+            }))
+            // SAFETY: `send_command` is awaiting the response channel.
+            .unwrap();
+        });
+
+        let response = send_command(&manager_tx, |rx| RunManagerCmd::ListSessions {
+            limit: Some(10),
+            offset: Some(20),
+            rx,
+        })
+        .await
+        // SAFETY: the spawned manager sends a successful response.
+        .unwrap();
+
+        assert_eq!(response.total, 0);
+        assert!(response.sessions.is_empty());
+        // SAFETY: the spawned manager task completes after replying.
+        manager.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn send_command_maps_closed_manager_to_internal_error() {
+        let (manager_tx, manager_rx) = mpsc::channel(1);
+        drop(manager_rx);
+
+        let error = send_command(&manager_tx, |rx| RunManagerCmd::ListSessions {
+            limit: None,
+            offset: None,
+            rx,
+        })
+        .await
+        .unwrap_err();
+
+        assert!(matches!(error, Error::Internal));
+    }
+
+    /// Asserts that a [`Pagination::new`] result is a `BadRequest` whose
+    /// message contains the given substring.
+    fn assert_bad_request(result: Result<Pagination, Error>, contains: &str) {
+        match result {
+            Err(Error::BadRequest(msg)) => assert!(
+                msg.contains(contains),
+                "expected message to contain `{contains}`, got `{msg}`"
+            ),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn defaults_when_unspecified() {
+        let pagination = Pagination::new(None, None).unwrap();
+        assert_eq!(pagination.limit, DEFAULT_PAGE_LIMIT);
+        assert_eq!(pagination.offset, 0);
+        assert_eq!(pagination.next_token(101), Some("100".to_string()));
+    }
+
+    #[test]
+    fn accepts_positive_limit_and_non_negative_token() {
+        let pagination = Pagination::new(Some(50), Some("0")).unwrap();
+        assert_eq!(pagination.limit, 50);
+        assert_eq!(pagination.offset, 0);
+
+        let pagination = Pagination::new(Some(1), Some("250")).unwrap();
+        assert_eq!(pagination.limit, 1);
+        assert_eq!(pagination.offset, 250);
+        assert_eq!(pagination.next_token(251), None);
+    }
+
+    #[test]
+    fn rejects_zero_limit() {
+        assert_bad_request(Pagination::new(Some(0), None), "`limit` must be between");
+    }
+
+    #[test]
+    fn rejects_negative_limit() {
+        assert_bad_request(Pagination::new(Some(-1), None), "`limit` must be between");
+    }
+
+    #[test]
+    fn rejects_limit_above_maximum() {
+        assert_bad_request(
+            Pagination::new(Some(MAX_PAGE_LIMIT + 1), None),
+            "`limit` must be between",
+        );
+    }
+
+    #[test]
+    fn rejects_negative_next_token() {
+        assert_bad_request(
+            Pagination::new(None, Some("-5")),
+            "`next_token` must be non-negative",
+        );
+    }
+
+    #[test]
+    fn rejects_unparsable_next_token() {
+        assert_bad_request(Pagination::new(None, Some("nope")), "invalid `next_token`");
+        assert_bad_request(Pagination::new(None, Some("")), "invalid `next_token`");
+    }
+
+    #[test]
+    fn rejects_next_offset_overflow() {
+        assert_bad_request(
+            Pagination::new(Some(1), Some(&i64::MAX.to_string())),
+            "`next_token` is too large",
+        );
     }
 }

@@ -1,0 +1,10 @@
+error: conflicting enum name `Status`
+  ┌─ tests/analysis/wildcard-import-enum-conflict/source.wdl:3:6
+  │
+3 │ enum Status {
+  │      ^^^^^^ this name conflicts with an imported enum
+  ·
+7 │ import * from "lib.wdl"
+  │               --------- the import that introduced the enum is here
+  │
+  = fix: either rename the enum or use an `alias` clause on the import with a different name

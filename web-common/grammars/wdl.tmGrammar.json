@@ -1,0 +1,783 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "wdl",
+  "patterns": [
+    {
+      "include": "#single-number-sign-comments"
+    },
+    {
+      "include": "#double-number-sign-comments"
+    },
+    {
+      "comment": "version",
+      "name": "entity.version.wdl",
+      "match": "(version)\\s+(.*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.version.wdl"
+        },
+        "2": {
+          "name": "entity.version.number.wdl"
+        }
+      }
+    },
+    {
+      "comment": "structs",
+      "begin": "(struct)\\s+([A-Za-z][A-Za-z0-9_]+)?",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.struct.wdl"
+        },
+        "2": {
+          "name": "variable.name.struct.wdl"
+        }
+      },
+      "contentName": "entity.struct.wdl",
+      "end": "({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.struct-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    {
+      "comment": "enums",
+      "begin": "(enum)\\s+([A-Za-z][A-Za-z0-9_]+)?",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.enum.wdl"
+        },
+        "2": {
+          "name": "variable.name.enum.wdl"
+        }
+      },
+      "contentName": "entity.enum.wdl",
+      "end": "({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.enum-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    {
+      "comment": "tasks",
+      "begin": "(task)\\s+([A-Za-z][A-Za-z0-9_]+)?",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.task.wdl"
+        },
+        "2": {
+          "name": "variable.name.task.wdl"
+        }
+      },
+      "contentName": "entity.task.wdl",
+      "end": "({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.task-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    {
+      "comment": "workflows",
+      "begin": "(workflow)\\s+([A-Za-z][A-Za-z0-9_]+)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.workflow.wdl"
+        },
+        "2": {
+          "name": "variable.name.workflow.wdl"
+        }
+      },
+      "end": "({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.workflow-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    {
+      "include": "#input-block"
+    },
+    {
+      "include": "#command-block-curly"
+    },
+    {
+      "include": "#command-block-heredoc"
+    },
+    {
+      "include": "#output-block"
+    },
+    {
+      "include": "#requirements-block"
+    },
+    {
+      "include": "#hints-block"
+    },
+    {
+      "include": "#runtime-block"
+    },
+    {
+      "include": "#meta-block"
+    },
+    {
+      "include": "#parameter_meta-block"
+    },
+    {
+      "include": "#atom"
+    }
+  ],
+  "repository": {
+    "single-number-sign-comments": {
+      "comment": "single number sign comments",
+      "name": "comment.line.number-sign.documentation",
+      "begin": "(?:\\s*)(?:#(?!#))",
+      "while": "(?:^|\\G)(?:\\s*)(?:#(?!#))"
+    },
+    "double-number-sign-comments": {
+      "comment": "double number sign comments",
+      "name": "comment.line.double-number-sign.documentation",
+      "begin": "(?:\\s*)(?:##) ?",
+      "while": "(?:^|\\G)\\s*(?:##) ?",
+      "patterns": [
+        {
+          "include": "text.html.markdown"
+        }
+      ]
+    },
+    "input-block": {
+      "comment": "`input` blocks",
+      "name": "entity.input-block.wdl",
+      "begin": "(?:\\s*)(input)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.input.wdl"
+        }
+      },
+      "end": "(?:\\s*)({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.input-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    "command-block-curly": {
+      "comment": "curly bracket `command` blocks",
+      "begin": "(?:\\s*)(command)\\s+({)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.command.wdl"
+        },
+        "2": {
+          "name": "punctuation.bracket.curly.command-start.wdl"
+        }
+      },
+      "end": "^(?:\\s*)(})(?:\\s*)$",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.command-end.wdl"
+        }
+      },
+      "contentName": "source.shell.embedded.wdl",
+      "patterns": [
+        {
+          "include": "#placeholder"
+        },
+        {
+          "include": "#bash-in-wdl"
+        }
+      ]
+    },
+    "command-block-heredoc": {
+      "comment": "heredoc `command` blocks",
+      "begin": "(?:\\s*)(command)\\s+(<<<)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.command.wdl"
+        },
+        "2": {
+          "name": "punctuation.heredoc.command-start.wdl"
+        }
+      },
+      "end": "^(?:\\s*)(>>>)(?:\\s*)$",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.command-end.wdl"
+        }
+      },
+      "contentName": "source.shell.embedded.wdl",
+      "patterns": [
+        {
+          "include": "#placeholder"
+        },
+        {
+          "include": "#bash-in-wdl"
+        }
+      ]
+    },
+    "output-block": {
+      "comment": "`output` blocks",
+      "name": "entity.output-block.wdl",
+      "begin": "(?:\\s*)(output)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.output.wdl"
+        }
+      },
+      "end": "(?:\\s*)({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.output-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    "requirements-block": {
+      "comment": "`requirements` blocks",
+      "name": "entity.requirements-block.wdl",
+      "begin": "(?:\\s*)(requirements)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.requirements.wdl"
+        }
+      },
+      "end": "(?:\\s*)({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.requirements-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    "hints-block": {
+      "comment": "`hints` blocks",
+      "name": "entity.hints-block.wdl",
+      "begin": "(?:\\s*)(hints)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.hints.wdl"
+        }
+      },
+      "end": "(?:\\s*)({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.hints-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    "runtime-block": {
+      "comment": "`runtime` blocks",
+      "name": "entity.runtime-block.wdl",
+      "begin": "(?:\\s*)(runtime)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.runtime.wdl"
+        }
+      },
+      "end": "(?:\\s*)({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.runtime-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    "meta-block": {
+      "comment": "`meta` blocks",
+      "name": "entity.meta-block.wdl",
+      "begin": "(?:\\s*)(meta)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.meta.wdl"
+        }
+      },
+      "end": "(?:\\s*)({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.meta-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    "parameter_meta-block": {
+      "comment": "`parameter_meta` blocks",
+      "name": "entity.parameter_meta-block.wdl",
+      "begin": "(?:\\s*)(parameter_meta)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.parameter_meta.wdl"
+        }
+      },
+      "end": "(?:\\s*)({)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.bracket.curly.parameter_meta-start.wdl"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#atom"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "include": "#single-quoted-strings"
+        },
+        {
+          "include": "#double-quoted-strings"
+        },
+        {
+          "include": "#multi-line-strings"
+        }
+      ]
+    },
+    "single-quoted-strings": {
+      "name": "string.quoted.single.wdl",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "include": "#placeholder"
+        },
+        {
+          "include": "#escaped-character"
+        }
+      ]
+    },
+    "double-quoted-strings": {
+      "name": "string.quoted.double.wdl",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "include": "#placeholder"
+        },
+        {
+          "include": "#escaped-character"
+        }
+      ]
+    },
+    "multi-line-strings": {
+      "name": "string.unquoted.multi-line.wdl",
+      "begin": "<<<",
+      "end": ">>>",
+      "patterns": [
+        {
+          "include": "#placeholder"
+        },
+        {
+          "include": "#escaped-character"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.other.wdl",
+          "match": "\\b(import|version)\\b"
+        },
+        {
+          "name": "storage.modifier.wdl",
+          "match": "\\b(alias|as|in|scatter)\\b"
+        },
+        {
+          "name": "keyword.control.wdl",
+          "match": "\\b(call|else|if|then)\\b"
+        },
+        {
+          "name": "storage.type",
+          "match": "\\b(command|hints|inputs|meta|object|outputs|parameter_meta|requirements|runtime)\\b\\s*(?!:)"
+        },
+        {
+          "name": "constant.language.wdl",
+          "match": "\\b(true|false|left|right|null)\\b"
+        },
+        {
+          "name": "keyword.wdl",
+          "match": "\\b(after|alias|as|call|command|else|enum|env|false|hints|if|in|import|input|meta|null|object|output|parameter_meta|requirements|runtime|scatter|then|true|version)\\b\\s*(?!:)"
+        },
+        {
+          "name": "entity.name.type.wdl",
+          "match": "\\b(Array|Boolean|Directory|File|Float|Int|Map|None|Object|Pair|String)\\b"
+        }
+      ]
+    },
+    "numeric": {
+      "comment": "a numeric",
+      "name": "constant.numeric.wdl",
+      "match": "-?(?:[0-9]+\\.[0-9]*(e|E)?|[0-9]+(e|E)?|[1-9][0-9]*|0[0-7]+|0[xX][0-9a-fA-F]|0)"
+    },
+    "identity": {
+      "match": "\\b[A-Za-z][A-Za-z0-9_]*\\b",
+      "name": "variable.other.wdl"
+    },
+    "escaped-character": {
+      "name": "constant.character.escape.wdl",
+      "match": "(\\\\\\\\)|(\\\\n)|(\\\\t)|(\\\\')|(\\\\\")|(\\\\~)|(\\\\\\$)|(\\\\[0-7]{3})|(\\\\x[0-9a-fA-F]{2})|(\\\\u[0-9a-fA-F]{4})|(\\\\U[0-9a-fA-F]{8})",
+      "captures": {
+        "1": {
+          "name": "constant.character.escape.backslash.wdl"
+        },
+        "2": {
+          "name": "constant.character.escape.newline.wdl"
+        },
+        "3": {
+          "name": "constant.character.escape.tab.wdl"
+        },
+        "4": {
+          "name": "constant.character.escape.single-quote.wdl"
+        },
+        "5": {
+          "name": "constant.character.escape.double-quote.wdl"
+        },
+        "6": {
+          "name": "constant.character.escape.tilde.wdl"
+        },
+        "7": {
+          "name": "constant.character.escape.dollar-sign.wdl"
+        },
+        "8": {
+          "name": "constant.character.escape.octal.wdl"
+        },
+        "9": {
+          "name": "constant.character.escape.hex.wdl"
+        },
+        "10": {
+          "name": "constant.character.escape.four-byte-unicode.wdl"
+        },
+        "11": {
+          "name": "constant.character.escape.eight-byte-unicode.wdl"
+        }
+      }
+    },
+    "placeholder": {
+      "begin": "[$~]{",
+      "end": "}",
+      "name": "meta.other.placeholder.wdl",
+      "patterns": [
+        {
+          "include": "source.wdl"
+        }
+      ]
+    },
+    "atom": {
+      "patterns": [
+        {
+          "include": "#double-number-sign-comments"
+        },
+        {
+          "include": "#single-number-sign-comments"
+        },
+        {
+          "include": "#numeric"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#keywords"
+        },
+        {
+          "include": "#identity"
+        }
+      ]
+    },
+    "bash-in-wdl": {
+      "comment": "custom bash highlighting",
+      "patterns": [
+        {
+          "include": "#bash-heredocs"
+        },
+        {
+          "include": "#bash-comments"
+        },
+        {
+          "include": "#bash-strings"
+        },
+        {
+          "include": "#bash-arithmetic"
+        },
+        {
+          "include": "#bash-variables"
+        },
+        {
+          "include": "#bash-assignments"
+        },
+        {
+          "include": "#bash-options"
+        },
+        {
+          "include": "#bash-keywords"
+        },
+        {
+          "include": "#bash-commands"
+        },
+        {
+          "include": "#bash-arguments"
+        }
+      ]
+    },
+    "bash-comments": {
+      "name": "comment.line.number-sign.shell",
+      "match": "#.*$"
+    },
+    "bash-strings": {
+      "patterns": [
+        {
+          "include": "#bash-single-quoted-strings"
+        },
+        {
+          "include": "#bash-double-quoted-strings"
+        }
+      ]
+    },
+    "bash-heredocs": {
+      "patterns": [
+        {
+          "include": "#bash-heredoc-python"
+        },
+        {
+          "include": "#bash-heredoc-generic"
+        }
+      ]
+    },
+    "bash-heredoc-python": {
+      "begin": "(<<-?)\\s*([pP][yY][tT][hH][oO][nN])",
+      "end": "^\\s*(\\2)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.operator.heredoc.shell"
+        },
+        "2": {
+          "name": "entity.name.tag.heredoc.python.shell"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "entity.name.tag.heredoc.python.shell"
+        }
+      },
+      "contentName": "source.python.embedded.shell",
+      "patterns": [
+        {
+          "include": "#placeholder"
+        },
+        {
+          "include": "source.python"
+        }
+      ]
+    },
+    "bash-heredoc-generic": {
+      "name": "string.unquoted.heredoc.shell",
+      "begin": "(<<-?)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+      "end": "^\\s*(\\2)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.operator.heredoc.shell"
+        },
+        "2": {
+          "name": "entity.name.tag.heredoc.shell"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "entity.name.tag.heredoc.shell"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#placeholder"
+        }
+      ]
+    },
+    "bash-single-quoted-strings": {
+      "name": "string.quoted.single.shell",
+      "begin": "'",
+      "end": "'"
+    },
+    "bash-double-quoted-strings": {
+      "name": "string.quoted.double.shell",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "include": "#bash-variables"
+        },
+        {
+          "name": "constant.character.escape.shell",
+          "match": "\\\\([\"$`\\\\\\r\\n])"
+        }
+      ]
+    },
+    "bash-variables": {
+      "patterns": [
+        {
+          "name": "variable.other.shell",
+          "match": "(\\$)[a-zA-Z_][a-zA-Z0-9_]*",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.shell"
+            }
+          }
+        },
+        {
+          "name": "variable.other.shell",
+          "begin": "\\$\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.variable.shell"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.variable.shell"
+            }
+          }
+        },
+        {
+          "name": "variable.parameter.special.shell",
+          "match": "\\$([0-9@*#?$$!_])"
+        }
+      ]
+    },
+    "bash-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.shell",
+          "match": "\\b(if|then|else|fi|for|in|while|do|done|case|esac|until|select)\\b"
+        },
+        {
+          "name": "support.function.builtin.shell",
+          "match": "\\b(echo|set|unset|export|readonly|shift|source|local|declare|getopts|read|let)\\b"
+        }
+      ]
+    },
+    "bash-options": {
+      "patterns": [
+        {
+          "name": "constant.other.option.shell",
+          "match": "(?<=^|\\s)(--[a-zA-Z0-9][a-zA-Z0-9-]*|-\\w+)\\b"
+        }
+      ]
+    },
+    "bash-arguments": {
+      "name": "string.unquoted.argument.shell",
+      "match": "\\b[a-zA-Z0-9/._][a-zA-Z0-9/._-]*\\b"
+    },
+    "bash-commands": {
+      "patterns": [
+        {
+          "name": "entity.name.function.shell",
+          "match": "(?<=^\\s*|;\\s*|&\\s*|\\|\\s*|\\(\\s*|`\\s*|do\\s+|then\\s+|else\\s+)\\b([a-zA-Z._/][a-zA-Z0-9_.-]*)\\b"
+        }
+      ]
+    },
+    "bash-assignments": {
+      "patterns": [
+        {
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(=)",
+          "captures": {
+            "1": {
+              "name": "variable.other.assignment.shell"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.shell"
+            }
+          }
+        }
+      ]
+    },
+    "bash-arithmetic": {
+      "name": "meta.expression.arithmetic.shell",
+      "begin": "(\\(\\()",
+      "end": "(\\)\\))",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.evaluation.begin.shell"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.evaluation.end.shell"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#bash-variables"
+        },
+        {
+          "include": "#bash-arithmetic-operators"
+        },
+        {
+          "include": "#bash-numeric"
+        },
+        {
+          "include": "#bash-arithmetic-variables"
+        }
+      ]
+    },
+    "bash-arithmetic-operators": {
+      "name": "keyword.operator.arithmetic.shell",
+      "match": "\\*\\*|==|!=|<=|>=|&&|\\|\\||<<|>>|[!~+\\-*/%<>&|^=]"
+    },
+    "bash-numeric": {
+      "name": "constant.numeric.shell",
+      "match": "\\b(0[xX][0-9a-fA-F]+|\\d+)\\b"
+    },
+    "bash-arithmetic-variables": {
+      "name": "variable.other.shell",
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+    }
+  },
+  "fileTypes": ["wdl"],
+  "scopeName": "source.wdl"
+}

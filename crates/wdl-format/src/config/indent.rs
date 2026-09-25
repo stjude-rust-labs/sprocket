@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use schemars::JsonSchema;
 use toml_spanner::Arena;
 use toml_spanner::Context;
 use toml_spanner::Failed;
@@ -35,12 +36,14 @@ pub const DEFAULT_INDENT: Indent = Indent::Spaces(DEFAULT_SPACE_INDENT);
 pub const MAX_SPACE_INDENT: usize = 16;
 
 /// An indentation level.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum Indent {
     /// Tabs.
     Tabs,
     /// Spaces.
-    Spaces(usize),
+    #[schemars(untagged)]
+    Spaces(#[schemars(range(max = "MAX_SPACE_INDENT"))] usize),
 }
 
 impl Default for Indent {
@@ -137,7 +140,7 @@ impl ToToml for Indent {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use super::*;
@@ -164,7 +167,7 @@ mod test {
 
         let expected_error = format!(
             "expected an integer less than or equal to {MAX_SPACE_INDENT} or `tabs` for \
-             indentation value"
+             indentation value at `value`"
         );
 
         let error =

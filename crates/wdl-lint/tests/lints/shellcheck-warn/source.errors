@@ -122,7 +122,7 @@ note[ShellCheck]: occurs_after_multiline is referenced but not assigned.
 note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval if intentional).
     ┌─ tests/lints/shellcheck-warn/source.wdl:112:9
     │    
-112 │ ╭ ╭         $(echo This is a 
+112 │ ╭ ╭         $(echo This is a
 113 │ │ │           very long string that should be quoted)
     │ ╰─│─────────────────────────────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
     │   ╰─────────────────────────────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
@@ -133,7 +133,7 @@ note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval 
     ┌─ tests/lints/shellcheck-warn/source.wdl:115:9
     │    
 115 │ ╭ ╭         $(echo This is an
-116 │ │ │           even longer very long string that should really 
+116 │ │ │           even longer very long string that should really
 117 │ │ │           be quoted)
     │ ╰─│────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
     │   ╰────────────────────' more info: https://www.shellcheck.net/wiki/SC2091
@@ -145,7 +145,7 @@ note[ShellCheck]: Remove surrounding $() to avoid executing output (or use eval 
     │    
 119 │ ╭ ╭         $(echo This is an
 120 │ │ │           even longer very long string that should really
-121 │ │ │           really really really 
+121 │ │ │           really really really
 122 │ │ │           ought to be quoted)
     │ ╰─│─────────────────────────────^ SC2091[warning]: Remove surrounding $() to avoid executing output (or use eval if intentional).
     │   ╰─────────────────────────────' more info: https://www.shellcheck.net/wiki/SC2091

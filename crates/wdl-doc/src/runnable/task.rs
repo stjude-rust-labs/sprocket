@@ -18,6 +18,7 @@ use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
+use crate::page::DeclarationHero;
 use crate::parameter::Parameter;
 
 /// A task in a WDL document.
@@ -101,9 +102,8 @@ impl Task {
     ///
     /// This will render all metadata key-value pairs except for `description`
     /// and `outputs`.
-    pub fn render_meta(&self, assets: &Path) -> Option<Markup> {
-        self.meta()
-            .render_remaining(&[DESCRIPTION_KEY, "outputs"], assets)
+    pub fn render_meta(&self, _assets: &Path) -> Option<Markup> {
+        self.meta().render_remaining(&[DESCRIPTION_KEY, "outputs"])
     }
 
     /// Render the runtime section of the task as HTML.
@@ -157,7 +157,7 @@ impl Task {
                 html! {
                     div class="main__section" {
                         h2 id="command" class="main__section-header" { "Command" }
-                        sprocket-code language="wdl" class="pt-8" {
+                        sprocket-code language="bash" class="pt-8" copyable expandable line-numbers {
                             (command_section.script())
                         }
                     }
@@ -170,20 +170,33 @@ impl Task {
     }
 
     /// Render the task as HTML.
-    pub fn render(&self, assets: &Path) -> (Markup, PageSections) {
+    pub fn render(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> (Markup, PageSections) {
         let mut headers = PageSections::default();
 
-        let (input_markup, inner_headers) = self.render_inputs(assets);
+        let (input_markup, inner_headers) = self.render_inputs(assets, links, page_dir);
         headers.extend(inner_headers);
+        let output_markup = self.render_outputs(assets, links, page_dir);
+        if output_markup.is_some() {
+            headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
+        }
+
+        let mut hero = DeclarationHero::new("Task", self.name(), self.render_description(false))
+            .kind_class("text-brand-violet-400")
+            .pagefind_type("task")
+            .badge(self.render_version());
+        if let Some(path) = self.wdl_path.as_deref() {
+            hero = hero.source_path(path);
+        }
 
         let markup = html! {
-            span class="text-brand-violet-400" data-pagefind-filter="type:task" { "Task" }
-            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
-            div class="markdown-body mb-4" {
-                (self.render_description(false))
-            }
-            div class="main__badge-container" {
-                (self.render_version())
+            (hero.render(assets))
+            @if let Some(body) = self.meta().render_authored_body(assets) {
+                (body)
             }
             (self.render_run_with(assets))
             @if let Some(meta) = self.render_meta(assets) {
@@ -192,11 +205,12 @@ impl Task {
                 }
             }
             (input_markup)
-            (self.render_outputs(assets))
+            @if let Some(output_markup) = output_markup {
+                (output_markup)
+            }
             (self.render_runtime_section())
             (self.render_command_section())
         };
-        headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
         headers.push(Header::Header("Runtime".to_string(), "runtime".to_string()));
         headers.push(Header::Header("Command".to_string(), "command".to_string()));
 
@@ -290,6 +304,67 @@ mod tests {
         assert_eq!(task.outputs().len(), 1);
     }
 
+    /// Parses a single task from `source` and builds a [`Task`] documented at
+    /// `wdl_path`.
+    fn task_at_path(source: &str, wdl_path: &str) -> Task {
+        let (doc, _) = Document::parse(source, None);
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_task = doc_item.into_task_definition().unwrap();
+        Task::new(
+            ast_task.name().text().to_owned(),
+            SupportedVersion::V1(V1::Zero),
+            ast_task,
+            Some(PathBuf::from(wdl_path)),
+            false,
+        )
+    }
+
+    #[test]
+    fn run_with_control_has_static_initial_markup() {
+        // A nested path contains a separator, so the Unix/Windows toggle is
+        // offered.
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+            }
+            "#,
+            "modules/tasks.wdl",
+        );
+        let html = task.render_run_with(Path::new("assets")).into_string();
+
+        assert!(html.contains("main__run-with-toggle-label--unix"));
+        assert!(html.contains("main__run-with-toggle-label--windows"));
+        assert!(html.contains("main__run-with-path--unix"));
+        assert!(html.contains("main__run-with-path--windows"));
+        assert!(!html.contains("x-bind:class"));
+        assert!(!html.contains("x-show"));
+    }
+
+    #[test]
+    fn run_with_control_omits_toggle_without_path_separator() {
+        // A top-level file has no path separator, so the Unix/Windows paths are
+        // identical and the toggle must not be offered.
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+            }
+            "#,
+            "tasks.wdl",
+        );
+        let html = task.render_run_with(Path::new("assets")).into_string();
+
+        assert!(html.contains("main__run-with-container"));
+        assert!(!html.contains("main__run-with-toggle"));
+    }
+
     #[test]
     fn task_with_doc_comments() {
         let (doc, _) = Document::parse(
@@ -362,6 +437,61 @@ mod tests {
                 .text()
                 .unwrap(),
             "The generated greeting."
+        );
+    }
+
+    #[test]
+    fn render_omits_outputs_when_task_has_none() {
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+            }
+            "#,
+            "tasks.wdl",
+        );
+        let links = PageLinkIndex::default();
+        let (markup, sections) = task.render(Path::new("assets"), &links, Path::new(""));
+
+        assert!(!markup.into_string().contains("id=\"outputs\""));
+        assert!(
+            !sections
+                .render()
+                .into_string()
+                .contains("href=\"#outputs\"")
+        );
+    }
+
+    #[test]
+    fn render_includes_outputs_when_task_has_any() {
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+                output {
+                    String greeting = "hello"
+                }
+            }
+            "#,
+            "tasks.wdl",
+        );
+        let links = PageLinkIndex::default();
+        let (markup, sections) = task.render(Path::new("assets"), &links, Path::new(""));
+        let html = markup.into_string();
+
+        assert!(html.contains("id=\"outputs\""));
+        assert!(html.contains("Expression"));
+        assert!(
+            sections
+                .render()
+                .into_string()
+                .contains("href=\"#outputs\"")
         );
     }
 }

@@ -13,7 +13,6 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::v1::CallStatement;
 
 use crate::Rule;
@@ -164,7 +163,7 @@ impl Visitor for ConciseInputRule {
                 {
                     diagnostics.exceptable_add(
                         redundant_input_assignment(input.span(), input.name().text()),
-                        SyntaxElement::from(input.inner().clone()),
+                        input.inner(),
                         &self.exceptable_nodes(),
                     );
                 }

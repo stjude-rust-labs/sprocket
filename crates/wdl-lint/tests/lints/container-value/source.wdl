@@ -1,6 +1,7 @@
 ## This is a test of the `ContainerUri` lint.
 
-#@ except: EmptyOutputs, MetaDescription, RequirementsSection, TodoComment
+#@ except: BashSetSyntax, DeprecatedRuntimeSection, EmptyOutputs, MetaDescription, RequirementsSection
+#@ except: TodoComment
 
 version 1.3
 
@@ -222,5 +223,49 @@ task l {
         # TODO(clay): perhaps we can parse out just the tags in this particular
         # case where the placeholder gives the container image name?
         container: "~{image}:latest"
+    }
+}
+
+task m {
+    meta {}
+    parameter_meta {}
+    command <<<
+        echo "Hello, World!"
+    >>>
+    output {}
+    requirements {
+        # This should NOT be flagged because the per-entry except suppresses it.
+        #@ except: ContainerUri
+        container: "ubuntu:latest"
+    }
+}
+
+task n {
+    meta {}
+    parameter_meta {}
+    command <<<
+        echo "Hello, World!"
+    >>>
+    output {}
+    runtime {
+        # This should NOT be flagged because the per-entry except suppresses it.
+        #@ except: ContainerUri
+        docker: "ubuntu"
+    }
+}
+
+task o {
+    meta {}
+    parameter_meta {}
+    command <<<
+        echo "Hello, World!"
+    >>>
+    output {}
+    requirements {
+        # This sibling task intentionally has no per-entry except, so the
+        # diagnostic for the floating tag below should still fire. This
+        # guards against the per-entry except being applied too broadly
+        # (e.g., leaking across sibling tasks/sections).
+        container: "ubuntu:latest"
     }
 }

@@ -29,7 +29,8 @@ use crate::commands::CommandResult;
 /// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// A source WDL document or URL.
+    /// A source WDL document, URL, or a WDL module directory containing a
+    /// `module.json`.
     #[arg(value_name = "SOURCE")]
     pub source: Source,
 
@@ -38,7 +39,7 @@ pub struct Args {
     pub target: Option<String>,
 
     /// Show inputs with non-literal default values.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "type_signatures")]
     pub show_non_literals: bool,
 
     /// Hide inputs with default values.
@@ -48,6 +49,10 @@ pub struct Args {
     /// Generate inputs for all tasks called in the workflow.  
     #[arg(long)]
     pub nested_inputs: bool,
+
+    /// Render all input values as their type signature.
+    #[arg(long, conflicts_with = "show_non_literals")]
+    pub type_signatures: bool,
 
     /// Output the template as a YAML file.
     #[arg(long)]
@@ -94,16 +99,25 @@ pub struct InputProcessor {
 
     /// Whether or not to include defaults.
     hide_defaults: bool,
+
+    /// Whether or not to render all values as type signatures.
+    type_signatures: bool,
 }
 
 impl InputProcessor {
     /// Creates a new input processor.
-    pub fn new(include_nested_inputs: bool, show_expressions: bool, hide_defaults: bool) -> Self {
+    pub fn new(
+        include_nested_inputs: bool,
+        show_expressions: bool,
+        hide_defaults: bool,
+        type_signatures: bool,
+    ) -> Self {
         Self {
             results: Default::default(),
             include_nested_inputs,
             show_expressions,
             hide_defaults,
+            type_signatures,
         }
     }
 
@@ -290,13 +304,20 @@ impl InputProcessor {
                 Decl::Bound(decl) if !self.hide_defaults => {
                     let name = decl.name();
                     let expr = decl.expr();
+                    let key = namespace
+                        .clone()
+                        .push(name.text())
+                        .join()
+                        .expect("key to join");
 
-                    if let Some(value) = self.expression(&expr) {
+                    if self.type_signatures {
                         self.results
-                            .insert(namespace.clone().push(name.text()).join().unwrap(), value);
+                            .insert(key, Value::from(format!("{}", decl.ty())));
+                    } else if let Some(value) = self.expression(&expr) {
+                        self.results.insert(key, value);
                     } else if self.show_expressions {
                         self.results.insert(
-                            namespace.clone().push(name.text()).join().unwrap(),
+                            key,
                             Value::from(format!(
                                 "{ty} <NON-LITERAL: `{expr}`>",
                                 ty = decl.ty(),
@@ -308,26 +329,26 @@ impl InputProcessor {
                 Decl::Unbound(decl) => {
                     let name = decl.name();
                     let ty = decl.ty();
+                    let key = namespace
+                        .clone()
+                        .push(name.text())
+                        .join()
+                        .expect("key to join");
 
                     if !ty.is_optional() {
                         // required input
-                        self.results.insert(
-                            namespace
-                                .clone()
-                                .push(name.text())
-                                .join()
-                                .expect("key to join"),
-                            Value::String(format!("{ty} <REQUIRED>")),
-                        );
+                        if self.type_signatures {
+                            self.results.insert(key, Value::from(format!("{}", ty)));
+                        } else {
+                            self.results
+                                .insert(key, Value::String(format!("{ty} <REQUIRED>")));
+                        }
                     } else if !self.hide_defaults {
-                        self.results.insert(
-                            namespace
-                                .clone()
-                                .push(name.text())
-                                .join()
-                                .expect("key to join"),
-                            Value::Null,
-                        );
+                        if self.type_signatures {
+                            self.results.insert(key, Value::from(format!("{}", ty)));
+                        } else {
+                            self.results.insert(key, Value::Null);
+                        }
                     }
                 }
                 _ => {
@@ -437,7 +458,8 @@ impl InputProcessor {
                             &workflow,
                         )?;
 
-                        // Any inputs specified by the workflow itself cannot be overridden.
+                        // Any inputs specified by the workflow itself cannot be
+                        // overridden.
                         specified.iter().for_each(|s| {
                             let key = namespace.clone().push(s).join().expect("key to join");
                             self.results.remove(&key);
@@ -452,27 +474,35 @@ impl InputProcessor {
 }
 
 /// Displays the input schema for a WDL document.
-pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
-    if let Source::Directory(_) = args.source {
-        return Err(anyhow!("directory sources are not supported for the `inputs` command").into());
-    }
+pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = config.common.report_mode;
+    let source = match args.source {
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
+        ref other => other.clone(),
+    };
+
     let results = Analysis::default()
-        .add_source(args.source.clone())
+        .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
-        .run()
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
+        .ignore_filename(config.common.ignore_filename())
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
     let document = results
-        .filter(&[&args.source])
+        .filter(&[&source])
         .next()
-        .expect("the root source should always be included in the results")
+        // SAFETY: the root source was added to the analysis above.
+        .unwrap()
         .document();
 
     let mut processor = InputProcessor::new(
         args.nested_inputs,
         args.show_non_literals,
         args.hide_defaults,
+        args.type_signatures,
     );
 
     let ast = document

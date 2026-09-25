@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "dependencies": {
+    "coffeeshop": {
+      "source": { "path": "coffeeshop" },
+      "dependencies": {}
+    }
+  }
+}

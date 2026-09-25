@@ -1,7 +1,7 @@
 FROM alpine:latest AS builder
 
 # Install the necessary packages and Rust.
-RUN apk add --update pkgconfig curl clang openssl-libs-static openssl-dev
+RUN apk add --update pkgconfig curl gcc musl-dev openssl-libs-static openssl-dev
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     sh -s -- -y --profile minimal
 
@@ -17,9 +17,10 @@ COPY ./benches ./benches
 COPY ./crates ./crates
 COPY ./tests ./tests
 COPY ./migrations ./migrations
+COPY ./fuzz ./fuzz
 
 # Build the release version of Sprocket
-RUN cargo build --release
+RUN cargo build --release --bin sprocket
 
 RUN strip target/release/sprocket
 

@@ -1,0 +1,4 @@
+Sprocket test result summary:
+✅ `foo::say_hello::loose1` success! (1 successful test execution)
+✅ `foo::say_hello::loose2` success! (1 successful test execution)
+✅ `foo::say_hello::stillloose3` success! (1 successful test execution)

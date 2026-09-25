@@ -10,7 +10,7 @@ use url::Url;
 use crate::Array;
 use crate::CompoundValue;
 use crate::ContentKind;
-use crate::EnumVariant;
+use crate::EnumChoice;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::HiddenValue;
@@ -66,8 +66,8 @@ enum ValueKind {
     Input,
     /// The value is an `Output` (hidden type).
     Output,
-    /// The value is an `EnumVariant`.
-    EnumVariant,
+    /// The value is an `EnumChoice`.
+    EnumChoice,
 }
 
 impl Hashable for ValueKind {
@@ -207,8 +207,9 @@ impl Hashable for Option<PrimitiveValue> {
         match self {
             Some(v) => v.hash(hasher),
             None => {
-                // A `None` for an optional primitive value (used in map keys) represents a WDL
-                // `None` value, so hash it as one
+                // A `None` for an optional primitive value (used in map keys)
+                // represents a WDL `None` value, so hash it as
+                // one
                 Value::None(NoneValue::untyped()).hash(hasher)
             }
         }
@@ -295,7 +296,7 @@ impl Hashable for CompoundValue {
             Self::Map(v) => v.hash(hasher),
             Self::Object(v) => v.hash(hasher),
             Self::Struct(v) => v.hash(hasher),
-            Self::EnumVariant(v) => v.hash(hasher),
+            Self::EnumChoice(v) => v.hash(hasher),
         }
     }
 }
@@ -336,9 +337,9 @@ impl Hashable for Struct {
     }
 }
 
-impl Hashable for EnumVariant {
+impl Hashable for EnumChoice {
     fn hash(&self, hasher: &mut Hasher) {
-        ValueKind::EnumVariant.hash(hasher);
+        ValueKind::EnumChoice.hash(hasher);
         self.name().hash(hasher);
         self.value().hash(hasher);
     }
@@ -366,7 +367,7 @@ impl Hashable for OutputValue {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use blake3::Hash;
     use cloud_copy::ContentDigest;
     use indexmap::IndexMap;

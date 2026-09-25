@@ -1,0 +1,56 @@
+every_option:
+  - name: every_option
+    tags: [some_tag]
+    inputs:
+      $names:
+        person1:
+          - James
+          - John
+        person2:
+          - Jimmy
+          - Jermaine
+      age:
+        - 25
+    assertions:
+      exit_code: 0
+      should_fail: false
+      stdout:
+        - "Hello, world!"
+        - "Goodbye, world!"
+      stderr:
+        - "This is a test"
+        - ""
+      outputs:
+        out1:
+          - Defined: true
+        out2:
+          - BoolEquals: true
+        out3:
+          - StrEquals: "Hello"
+        out4:
+          - IntEquals: 0
+        out5:
+          - FloatEquals: 1.0
+        out6:
+          - Contains: "Hello"
+        out7:
+          - Name: "greeting"
+        out8:
+          - First:
+              Defined: true
+        out9:
+          - Last:
+              Defined: true
+        out10:
+          - Length: 1
+        out11:
+          - Left:
+              Defined: true
+        out12:
+          - Right:
+              Defined: true
+        out13:
+          - Empty: true
+  - name: second_test
+second_target:
+  - name: test

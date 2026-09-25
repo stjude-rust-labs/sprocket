@@ -7,21 +7,54 @@ use std::sync::Arc;
 use clap::Subcommand;
 use colored::Colorize;
 use nonempty::NonEmpty;
+use tracing::warn;
+use wdl::engine::Config as EngineConfig;
 
 pub mod analyzer;
+pub mod cancel;
 pub mod check;
+pub mod client;
 pub mod completions;
 pub mod config;
 pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
+pub mod inspect;
 pub mod lock;
+pub mod module;
+pub(crate) mod output;
+pub mod retry;
 pub mod run;
 pub mod server;
+pub mod status;
 pub mod submit;
 pub mod test;
 pub mod validate;
+
+/// Determines whether the engine is configured to run tasks with Docker.
+///
+/// A misnamed backend is reported as not using Docker; the configuration is
+/// validated before evaluation starts, which is where that is diagnosed.
+pub fn uses_docker_backend(engine: &EngineConfig) -> bool {
+    engine
+        .backend()
+        .map(|config| config.as_docker().is_some())
+        .unwrap_or(false)
+}
+
+/// Warns that terminating Sprocket leaves Docker containers, and the files
+/// those containers created, behind.
+///
+/// Call this only when [`uses_docker_backend`] holds and Sprocket is about to
+/// exit without waiting for executing tasks to cancel.
+pub fn warn_docker_termination() {
+    warn!(
+        "terminating Sprocket does not remove Docker containers that are still running; files \
+         that were created by containers may remain owned by another user (e.g. `root`) and \
+         require elevated privileges to remove"
+    );
+}
 
 /// Represents an error that may result from a command.
 ///
@@ -136,10 +169,12 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
-    /// Runs the HTTP API server for run execution.
+    /// Create and manage WDL modules.
+    #[command(subcommand)]
+    Module(module::ModuleCommands),
+    /// Run-management server commands (start, submit, status, inspect, cancel,
+    /// retry).
     Server(server::Args),
-    /// Submit a workflow to a Sprocket HTTP API server.
-    Submit(submit::Args),
     /// Runs unit tests for a WDL workspace.
     Test(test::Args),
 }

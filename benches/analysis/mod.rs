@@ -69,6 +69,18 @@ impl AnalyzeWorkflows {
             analyzer.analyze(()).await.unwrap()
         })
     }
+
+    /// Analyze the given set of documents as a single batch.
+    fn analyze_documents(&self, documents: &[Url]) -> Vec<AnalysisResult> {
+        self.runtime.block_on(async {
+            let config = AnalysisConfig::default();
+            let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+            for document in documents {
+                analyzer.add_document(document.clone()).await.unwrap();
+            }
+            analyzer.analyze(()).await.unwrap()
+        })
+    }
 }
 
 /// Benchmark the analysis of a single document from the `workflows` repo.
@@ -87,14 +99,15 @@ fn bench_analyze_workflows_document<M: Measurement>(
 /// Benchmarks of `wdl-analysis` functions.
 pub fn bench(c: &mut Criterion) {
     let workflows_repo = get_workflows_repo().unwrap();
-    // NOTE ACF 2025-12-03: these "analyze the whole repo" benchmarks are disabled
-    // for now, as the inclusion of `import https://` statements means the runtime is dominated by fetching those
+    // NOTE ACF 2025-12-03: these "analyze the whole repo" benchmarks are
+    // disabled for now, as the inclusion of `import https://` statements means the runtime is dominated by fetching those
     // resources. In the future, if these dependencies change or some caching
     // mechanism is introduced for remote imports, this would be a decent metric
     // for "analyze as much real WDL as possible".
     if false {
-        // Analyze the whole workflows repo with a varying number of Tokio worker
-        // threads and the system default number of blocking threads.
+        // Analyze the whole workflows repo with a varying number of Tokio
+        // worker threads and the system default number of blocking
+        // threads.
         let mut workers_group = c.benchmark_group("analyze_workflows_with_worker_threads");
         for worker_threads in 1..=std::thread::available_parallelism().unwrap().get() {
             let analyze = AnalyzeWorkflows::new(&workflows_repo, Some(worker_threads), None);
@@ -105,8 +118,8 @@ pub fn bench(c: &mut Criterion) {
         workers_group.finish();
     }
     if false {
-        // Analyze the whole workflows repo with a single worker thread and a varying
-        // number of Tokio blocking threads.
+        // Analyze the whole workflows repo with a single worker thread and a
+        // varying number of Tokio blocking threads.
         let mut blocking_group = c.benchmark_group("analyze_workflows_with_blocking_threads");
         for blocking_threads_exponent in 0..10 {
             let blocking_threads = 2usize.pow(blocking_threads_exponent);
@@ -124,9 +137,9 @@ pub fn bench(c: &mut Criterion) {
     // Add a bench target to analyze each WDL file in the workflows repo.
     //
     // This includes WDL files that directly or transitively `import https://` documents. The timing
-    // of these benchmarks should not be considered stable. The time to fetch remote
-    // resources dominates the overall benchmark time, and can vary dramatically
-    // based on whether they're run on wifi, with a VPN, etc.
+    // of these benchmarks should not be considered stable. The time to fetch
+    // remote resources dominates the overall benchmark time, and can vary
+    // dramatically based on whether they're run on wifi, with a VPN, etc.
     let mut standalone_documents = c.benchmark_group("analyze_standalone_documents");
     for entry in walkdir::WalkDir::new(workflows_repo.path()) {
         if let Ok(e) = entry
@@ -140,5 +153,32 @@ pub fn bench(c: &mut Criterion) {
             );
         }
     }
+    standalone_documents.finish();
+
+    // A deterministic, network-free benchmark. Analyzes every WDL file in the
+    // repo that performs no imports, as a single batch. Because none of these
+    // files import remote resources, the timing reflects CPU and allocator cost
+    // rather than network variance, which makes it suitable for comparing
+    // allocators.
+    let import_free: Vec<Url> = walkdir::WalkDir::new(workflows_repo.path())
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension() == Some(OsStr::new("wdl")))
+        .filter(|e| {
+            std::fs::read_to_string(e.path())
+                .map(|s| !s.lines().any(|l| l.trim_start().starts_with("import")))
+                .unwrap_or(false)
+        })
+        .map(|e| Url::from_file_path(e.path()).unwrap())
+        .collect();
+
+    let analyze = AnalyzeWorkflows::new(workflows_repo.path(), None, None);
+    let mut corpus_group = c.benchmark_group("analyze_local_corpus");
+    corpus_group.bench_function(
+        format!("import_free_{count}_files", count = import_free.len()),
+        |b| b.iter(|| analyze.analyze_documents(&import_free)),
+    );
+    corpus_group.finish();
+
     drop(workflows_repo);
 }

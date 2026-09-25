@@ -12,8 +12,8 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
 use wdl_ast::v1::StructDefinition;
 
 use crate::Rule;
@@ -94,7 +94,7 @@ fn check_name(
     name: &str,
     span: Span,
     diagnostics: &mut Diagnostics,
-    element: SyntaxElement,
+    node: &SyntaxNode,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     let converter = Converter::new()
@@ -104,7 +104,7 @@ fn check_name(
     if name != properly_cased_name {
         diagnostics.exceptable_add(
             use_pascal_case(name, &properly_cased_name, span),
-            element,
+            node,
             exceptable_nodes,
         );
     }
@@ -130,7 +130,7 @@ impl Visitor for PascalCaseRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(def.inner().clone()),
+            def.inner(),
             &self.exceptable_nodes(),
         );
     }

@@ -1,0 +1,9 @@
+{
+  "name": "cafe-menu",
+  "version": "0.1.0",
+  "license": "MIT",
+  "entrypoint": "cafe_menu.wdl",
+  "dependencies": {
+    "coffeeshop": { "path": "../coffeeshop" }
+  }
+}

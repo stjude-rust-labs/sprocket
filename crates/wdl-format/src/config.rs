@@ -3,43 +3,87 @@
 mod indent;
 mod max_line_length;
 mod newline;
+mod quotes;
 
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
 pub use newline::NewlineStyle;
+pub use quotes::QuoteStyle;
+use schemars::JsonSchema;
 use toml_spanner::Toml;
 use toml_spanner::helper::display;
 use toml_spanner::helper::parse_string;
 
 /// Default for whether import sorting is enabled.
-const SORT_IMPORTS_DEFAULT: bool = true;
+fn sort_imports_default() -> bool {
+    true
+}
+
 /// Default for whether input sorting is enabled.
-const SORT_INPUTS_DEFAULT: bool = false;
+fn sort_inputs_default() -> bool {
+    false
+}
+
 /// Default for whether trailing commas are enabled.
-const TRAILING_COMMAS_DEFAULT: bool = true;
+fn trailing_commas_default() -> bool {
+    true
+}
+
+/// Default for whether task and workflow sections should be reordered.
+fn reorder_sections_default() -> bool {
+    false
+}
+
+/// Default for whether to upgrade deprecations.
+fn upgrade_deprecations_default() -> bool {
+    false
+}
 
 /// Configuration for formatting.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml)]
-#[toml(Toml, deny_unknown_fields)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, warn_unknown_fields)]
 pub struct Config {
     /// The indentation configuration.
     #[toml(default)]
+    #[schemars(default)]
     pub indent: Indent,
     /// The maximum line length.
     #[toml(default)]
+    #[schemars(default)]
     pub max_line_length: MaxLineLength,
     /// Whether to sort import statements alphabetically.
-    #[toml(default = SORT_IMPORTS_DEFAULT)]
+    #[toml(default = sort_imports_default())]
+    #[schemars(default = "sort_imports_default")]
     pub sort_imports: bool,
     /// Whether to sort input sections.
-    #[toml(default = SORT_INPUTS_DEFAULT)]
+    #[toml(default = sort_inputs_default())]
+    #[schemars(default = "sort_inputs_default")]
     pub sort_inputs: bool,
     /// Whether to add trailing commas to multiline lists.
-    #[toml(default = TRAILING_COMMAS_DEFAULT)]
+    #[toml(default = trailing_commas_default())]
+    #[schemars(default = "trailing_commas_default")]
     pub trailing_commas: bool,
+    /// Whether to reorder task and workflow sections to Sprocket's opinionated
+    /// order.
+    #[toml(default = reorder_sections_default())]
+    #[schemars(default = "reorder_sections_default")]
+    pub reorder_sections: bool,
+    /// Whether to eagerly upgrade deprecated WDL constructs.
+    ///
+    /// Currently this includes changing curly brace command sections (`{}`)
+    /// into heredoc command sections (`<<<>>>`) and changing dollar-style
+    /// placeholders (`${}`) into tilde-style placeholders (`~{}`).
+    #[toml(default = upgrade_deprecations_default())]
+    #[schemars(default = "upgrade_deprecations_default")]
+    pub upgrade_deprecations: bool,
     /// The newline style.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
     pub newline_style: NewlineStyle,
+    /// The quote style.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
+    pub quote_style: QuoteStyle,
 }
 
 impl Default for Config {
@@ -47,10 +91,13 @@ impl Default for Config {
         Self {
             indent: Indent::default(),
             max_line_length: MaxLineLength::default(),
-            sort_imports: SORT_IMPORTS_DEFAULT,
-            sort_inputs: SORT_INPUTS_DEFAULT,
-            trailing_commas: TRAILING_COMMAS_DEFAULT,
+            sort_imports: sort_imports_default(),
+            sort_inputs: sort_inputs_default(),
+            trailing_commas: trailing_commas_default(),
+            reorder_sections: reorder_sections_default(),
+            upgrade_deprecations: upgrade_deprecations_default(),
             newline_style: NewlineStyle::default(),
+            quote_style: QuoteStyle::default(),
         }
     }
 }
@@ -65,6 +112,12 @@ impl Config {
     /// Set the newline style.
     pub fn newline_style(mut self, newline_style: NewlineStyle) -> Self {
         self.newline_style = newline_style;
+        self
+    }
+
+    /// Set the quote style.
+    pub fn quote_style(mut self, quote_style: QuoteStyle) -> Self {
+        self.quote_style = quote_style;
         self
     }
 
@@ -89,6 +142,18 @@ impl Config {
     /// Set whether trailing commas are enabled.
     pub fn trailing_commas(mut self, trailing_commas: bool) -> Self {
         self.trailing_commas = trailing_commas;
+        self
+    }
+
+    /// Set whether section reordering is enabled.
+    pub fn reorder_sections(mut self, reorder_sections: bool) -> Self {
+        self.reorder_sections = reorder_sections;
+        self
+    }
+
+    /// Set whether to upgrade deprecations.
+    pub fn upgrade_deprecations(mut self, upgrade_deprecations: bool) -> Self {
+        self.upgrade_deprecations = upgrade_deprecations;
         self
     }
 }

@@ -22,3 +22,5 @@ out/
 .venv/
 __pycache__/
 *.so
+.coverage
+python/docs/_build/

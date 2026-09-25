@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "dependencies": {
+    "shapes": {
+      "source": { "path": "shapes" },
+      "dependencies": {}
+    }
+  }
+}

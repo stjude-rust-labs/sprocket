@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs
+#@ except: BashSetSyntax, EmptyOutputs
 
 version 1.3
 

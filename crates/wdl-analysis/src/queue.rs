@@ -1,9 +1,12 @@
 //! Implements the analysis queue.
 
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
 use std::panic::AssertUnwindSafe;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -13,10 +16,12 @@ use anyhow::anyhow;
 use futures::Future;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
+use indexmap::IndexMap;
 use indexmap::IndexSet;
 use lsp_types::CallHierarchyIncomingCall;
 use lsp_types::CallHierarchyItem;
 use lsp_types::CallHierarchyOutgoingCall;
+use lsp_types::CodeLens;
 use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::FoldingRange;
@@ -45,6 +50,9 @@ use wdl_ast::Severity;
 use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
+use wdl_modules::module::Module;
+use wdl_modules::module::ModuleId;
+use wdl_modules::symbolic_path::SymbolicPath;
 
 use crate::AnalysisResult;
 use crate::IncrementalChange;
@@ -53,14 +61,25 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::config::Config;
 use crate::document::Document;
+use crate::document::cache::AnalysisCache;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
+use crate::graph::EdgeKind;
 use crate::graph::ParseState;
 use crate::handlers;
 use crate::rayon::RayonHandle;
 
+/// A validator constructor function.
+pub(crate) type ValidatorFn = Arc<dyn Fn() -> crate::Validator + Send + Sync + 'static>;
+
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;
+
+/// The maximum number of symbolic-import `materialize` calls allowed to run
+/// concurrently. This bounds the parallel git clones and fetches a single
+/// document's imports can trigger so that a manifest with many dependencies
+/// cannot exhaust file descriptors, disk, or network during analysis.
+const MAX_CONCURRENT_MATERIALIZATIONS: usize = 8;
 
 /// Represents a request to the analysis queue.
 pub enum Request<Context> {
@@ -69,9 +88,13 @@ pub enum Request<Context> {
     /// A request to analyze documents.
     Analyze(AnalyzeRequest<Context>),
     /// A request to get all callers of a symbol.
-    CallHierarchy(CallHierarchyRequest),
-    /// A request to remove documents from the graph.
-    Remove(RemoveRequest),
+    CallHierarchy(CallHierarchyRequest<Context>),
+    /// A request to get all code lenses in a document.
+    CodeLens(CodeLensRequest<Context>),
+    /// A request to unroot documents in the graph.
+    UnrootDocuments(UnrootDocumentsRequest),
+    /// A request to delete documents from the graph.
+    Delete(DeleteRequest),
     /// A request to process a document's incremental change.
     NotifyIncrementalChange(NotifyIncrementalChangeRequest),
     /// A request to process a document's change.
@@ -81,29 +104,31 @@ pub enum Request<Context> {
     /// A request to format a document.
     Format(FormatRequest),
     /// A request to goto definition of a symbol.
-    GotoDefinition(GotoDefinitionRequest),
+    GotoDefinition(GotoDefinitionRequest<Context>),
     /// A request to find all references of a symbol.
-    FindAllReferences(FindAllReferencesRequest),
+    FindAllReferences(FindAllReferencesRequest<Context>),
     /// A request to get completions at a position.
     Completion(CompletionRequest<Context>),
     /// A request to get information about a symbol on hover.
-    Hover(HoverRequest),
+    Hover(HoverRequest<Context>),
     /// A request to rename a symbol workspace wide.
-    Rename(RenameRequest),
+    Rename(RenameRequest<Context>),
     /// A request to get semantic tokens for a document.
-    SemanticTokens(SemanticTokenRequest),
+    SemanticTokens(SemanticTokenRequest<Context>),
     /// A request to get symbols for a document.
     DocumentSymbol(DocumentSymbolRequest),
     /// A request to get symbols for the workspace.
-    WorkspaceSymbol(WorkspaceSymbolRequest),
+    WorkspaceSymbol(WorkspaceSymbolRequest<Context>),
     /// A request to get all incoming calls from a symbol.
-    IncomingCalls(IncomingCallsRequest),
+    IncomingCalls(IncomingCallsRequest<Context>),
     /// A request to get all outgoing calls from a symbol.
-    OutgoingCalls(OutgoingCallsRequest),
+    OutgoingCalls(OutgoingCallsRequest<Context>),
     /// A request to get signature help.
     SignatureHelp(SignatureHelpRequest),
     /// A request to get inlay hints for a document.
-    InlayHints(InlayHintsRequest),
+    InlayHints(InlayHintsRequest<Context>),
+    /// Replace the current validator.
+    SwapValidator(SwapValidatorRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -127,7 +152,7 @@ pub struct AnalyzeRequest<Context> {
 }
 
 /// Represents a request to get the call hierarchy for a symbol.
-pub struct CallHierarchyRequest {
+pub struct CallHierarchyRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -136,11 +161,31 @@ pub struct CallHierarchyRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CallHierarchyItem>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
-/// Represents a request to remove documents from the document graph.
-pub struct RemoveRequest {
+/// Represents a request to get the code lenses for a document.
+pub struct CodeLensRequest<Context> {
+    /// The document to search.
+    pub document: Url,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<CodeLens>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
+}
+
+/// Represents a request to unroot documents in the document graph.
+pub struct UnrootDocumentsRequest {
     /// The documents to remove.
+    pub documents: Vec<Url>,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<()>,
+}
+
+/// Represents a request to delete documents from the document graph.
+pub struct DeleteRequest {
+    /// The documents to delete.
     pub documents: Vec<Url>,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<()>,
@@ -185,7 +230,7 @@ pub struct FormatRequest {
 }
 
 /// Represents a request to find the definition of a symbol at a given position.
-pub struct GotoDefinitionRequest {
+pub struct GotoDefinitionRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -194,10 +239,12 @@ pub struct GotoDefinitionRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<GotoDefinitionResponse>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to find all references to a symbol at a given position.
-pub struct FindAllReferencesRequest {
+pub struct FindAllReferencesRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -208,6 +255,8 @@ pub struct FindAllReferencesRequest {
     pub include_declaration: bool,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Vec<Location>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get completions.
@@ -225,7 +274,7 @@ pub struct CompletionRequest<Context> {
 }
 
 /// Represents a request to get information of a symbol on hover
-pub struct HoverRequest {
+pub struct HoverRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -234,10 +283,12 @@ pub struct HoverRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Hover>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to rename a symbol at a given position.
-pub struct RenameRequest {
+pub struct RenameRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -248,14 +299,18 @@ pub struct RenameRequest {
     pub new_name: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<WorkspaceEdit>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the semantic tokens for a document
-pub struct SemanticTokenRequest {
+pub struct SemanticTokenRequest<Context> {
     /// The document to get semantic tokens for
     pub document: Url,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<SemanticTokensResult>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the symbols for a document.
@@ -267,15 +322,17 @@ pub struct DocumentSymbolRequest {
 }
 
 /// Represents a request to get symbols for the workspace.
-pub struct WorkspaceSymbolRequest {
+pub struct WorkspaceSymbolRequest<Context> {
     /// The query string to filter symbols.
     pub query: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<SymbolInformation>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the incoming calls for a symbol.
-pub struct IncomingCallsRequest {
+pub struct IncomingCallsRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -284,10 +341,12 @@ pub struct IncomingCallsRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CallHierarchyIncomingCall>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get the outgoing calls for a symbol.
-pub struct OutgoingCallsRequest {
+pub struct OutgoingCallsRequest<Context> {
     /// The document to search for the symbol definition.
     pub document: Url,
     /// The position of the symbol in the document.
@@ -296,6 +355,8 @@ pub struct OutgoingCallsRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CallHierarchyOutgoingCall>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request for signature help.
@@ -311,16 +372,27 @@ pub struct SignatureHelpRequest {
 }
 
 /// Represents a request for inlay hints.
-pub struct InlayHintsRequest {
+pub struct InlayHintsRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The visible range for which inlay hints should be computed.
     pub range: lsp_types::Range,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
+}
+
+/// Represents a request to swap the analyzer's current validator.
+pub struct SwapValidatorRequest {
+    /// The new validator function.
+    pub validator: ValidatorFn,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<()>,
 }
 
 /// A simple enumeration to signal a cancellation to the caller.
+#[derive(Debug)]
 enum Cancelable<T> {
     /// The operation completed and yielded a value.
     Completed(T),
@@ -328,8 +400,77 @@ enum Cancelable<T> {
     Canceled,
 }
 
+/// Maps document URIs to the [`Module`] that governs each.
+///
+/// This is the single place the analysis queue records and looks up module
+/// context for a document, so the locking discipline lives behind one API
+/// rather than being spread across the queue's methods.
+#[derive(Default)]
+struct ModuleRegistry {
+    /// The URI-to-module map guarded for concurrent access during analysis.
+    ///
+    /// Modules are stored behind an [`Arc`] so the many documents governed by
+    /// the same module share one instance and lookups hand out cheap clones
+    /// rather than copying a module's path and scope each time.
+    modules: parking_lot::Mutex<HashMap<Url, Arc<Module>>>,
+}
+
+impl ModuleRegistry {
+    /// Returns the [`Module`] governing the document at `uri`, if recorded.
+    fn module_for(&self, uri: &Url) -> Option<Arc<Module>> {
+        self.modules.lock().get(uri).cloned()
+    }
+
+    /// Records many document-to-module mappings under a single lock
+    /// acquisition, avoiding per-item lock churn in tight loops.
+    fn record_all(&self, entries: impl IntoIterator<Item = (Url, Arc<Module>)>) {
+        self.modules.lock().extend(entries);
+    }
+
+    /// Drops mappings whose document is no longer present, keeping the map from
+    /// growing without bound across edit and remove cycles.
+    fn retain(&self, mut keep: impl FnMut(&Url) -> bool) {
+        self.modules.lock().retain(|uri, _| keep(uri));
+    }
+}
+
+/// Symbolic import work collected for a pass, deduplicated by module identity
+/// and symbolic path so each distinct dependency is materialized once.
+type SymbolicWorkSet = IndexMap<(ModuleId, SymbolicPath), MaterializeWork>;
+
+/// A deduplicated unit of materialization work shared by every importer that
+/// requested the same dependency.
+struct MaterializeWork {
+    /// The nodes that contain an import of this dependency.
+    importers: Vec<NodeIndex>,
+    /// The consumer module captured during collection. Reused to build the
+    /// child module for the materialized dependency.
+    consumer_module: Arc<Module>,
+    /// The parsed symbolic path from the import statement.
+    symbolic_path: SymbolicPath,
+    /// The raw text of the module-path token, used as the edge label and for
+    /// error messages.
+    path_text: String,
+}
+
+/// The result of materializing one deduplicated dependency, carried back to the
+/// graph-stitching step.
+struct MaterializeOutcome {
+    /// The nodes that contain an import of this dependency.
+    importers: Vec<NodeIndex>,
+    /// The consumer module captured during collection.
+    consumer_module: Arc<Module>,
+    /// The parsed symbolic path from the import statement.
+    symbolic_path: SymbolicPath,
+    /// The raw text of the module-path token, used as the edge label and for
+    /// error messages.
+    path_text: String,
+    /// The result of the `materialize` call.
+    result: Result<wdl_modules::resolver::MaterializedFile, wdl_modules::resolver::ResolverError>,
+}
+
 /// Represents the analysis queue.
-pub struct AnalysisQueue<Progress, Context, Return, Validator> {
+pub struct AnalysisQueue<Progress, Context, Return> {
     /// The document graph maintained by the analysis queue.
     graph: Arc<RwLock<DocumentGraph>>,
     /// The configuration to use.
@@ -338,31 +479,59 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     tokio: Handle,
     /// The HTTP client to use for fetching documents.
     client: Client,
+    /// The module resolver used for resolving WDL module imports.
+    ///
+    /// `None` when module resolution is disabled; in that case no symbolic
+    /// import work is ever collected, so the resolver is never needed.
+    resolver: Option<Arc<dyn wdl_modules::Resolver>>,
+    /// The consumer's [`Module`], if a `module.json` was found.
+    consumer_module: Option<Arc<Module>>,
+    /// Maps each document URI to the [`Module`] that governs it.
+    /// Populated at resolution time so the lookup is direct.
+    document_modules: ModuleRegistry,
+    /// Caches whether a directory is a module root so repeated ancestry walks
+    /// during import scanning do not re-stat the filesystem for the same path.
+    module_root_cache: parking_lot::Mutex<HashMap<PathBuf, bool>>,
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
-    validator: Arc<Validator>,
+    validator: Arc<RwLock<ValidatorFn>>,
     /// A marker for the `Context` and `Return` types.
     marker: PhantomData<(Context, Return)>,
 }
 
-impl<Progress, Context, Return, Validator> AnalysisQueue<Progress, Context, Return, Validator>
+impl<Progress, Context, Return> AnalysisQueue<Progress, Context, Return>
 where
     Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
     Context: Send + Clone,
     Return: Future<Output = ()>,
-    Validator: Fn() -> crate::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
-    pub fn new(config: Config, tokio: Handle, progress: Progress, validator: Validator) -> Self {
+    pub fn new(
+        config: Config,
+        tokio: Handle,
+        resolution: crate::ResolutionContext,
+        progress: Progress,
+        validator: ValidatorFn,
+    ) -> Self {
+        // The consumer module was loaded once when the resolution context was
+        // built, so reuse it here instead of re-reading `module.json`. Wrap it
+        // in an `Arc` so the many documents it governs share one instance.
+        let (resolver, consumer_module) = resolution.into_parts();
+        let consumer_module = consumer_module.map(Arc::new);
+
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
             tokio,
+            resolver,
+            consumer_module,
+            document_modules: ModuleRegistry::default(),
+            module_root_cache: parking_lot::Mutex::new(HashMap::new()),
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
-            validator: Arc::new(validator),
+            validator: Arc::new(RwLock::new(validator)),
         }
     }
 
@@ -425,6 +594,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -432,6 +602,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::call_hierarchy(&graph, document, position, encoding) {
@@ -452,20 +627,73 @@ where
                         }
                     }
                 }
-                Request::Remove(RemoveRequest {
+                Request::CodeLens(CodeLensRequest {
+                    document,
+                    completed,
+                    context,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for code lenses in {document}",
+                        document = document
+                    );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
+                    let graph = self.graph.read();
+                    match handlers::code_lens(&graph, &document) {
+                        Ok(result) => {
+                            debug!(
+                                "code lens request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!(
+                                "error occurred while completing the code lens request: {err:?}"
+                            );
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::UnrootDocuments(UnrootDocumentsRequest {
                     documents,
                     completed,
                 }) => {
                     let start = Instant::now();
                     debug!(
-                        "received request to remove {count} documents(s)",
+                        "received request to unroot {count} documents(s)",
                         count = documents.len()
                     );
 
-                    self.remove_documents(documents);
+                    self.remove_roots(documents);
 
                     debug!(
-                        "request to remove documents completed in {elapsed:?}",
+                        "request to unroot documents completed in {elapsed:?}",
+                        elapsed = start.elapsed()
+                    );
+
+                    completed.send(()).ok();
+                }
+                Request::Delete(DeleteRequest {
+                    documents,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request to delete {count} document(s)",
+                        count = documents.len()
+                    );
+
+                    self.delete_documents(documents);
+
+                    debug!(
+                        "request to delete documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
 
@@ -494,6 +722,11 @@ where
                     completed,
                 }) => {
                     let start = Instant::now();
+
+                    if !self.ensure_parsed(&document) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::folding_range(&graph, document) {
@@ -534,7 +767,8 @@ where
                                         lines, diagnostics, ..
                                     } => {
                                         // If there are any diagnostics that are
-                                        // errors, we shouldn't attempt to format the
+                                        // errors, we shouldn't attempt to
+                                        // format the
                                         // document.
                                         if diagnostics
                                             .iter()
@@ -554,7 +788,7 @@ where
                                 .ast_with_version_fallback(self.config.fallback_version())
                                 .into_v1()
                                 .and_then(|ast| {
-                                    let formatter = Formatter::default();
+                                    let formatter = Formatter::new(*self.config.format());
                                     let element = Node::Ast(ast).into_format_element();
 
                                     formatter
@@ -571,6 +805,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -578,6 +813,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::goto_definition(&graph, &document, position, encoding) {
@@ -605,6 +845,7 @@ where
                     encoding,
                     include_declaration,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -612,6 +853,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(Vec::new()).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::find_all_references(
@@ -649,10 +895,7 @@ where
                         char = position.character
                     );
 
-                    if let Cancelable::Completed(Err(e)) =
-                        self.analyze(Some(document.clone()), context, None)
-                    {
-                        error!("analysis failed before completion could run: {e}");
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
@@ -680,6 +923,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -688,8 +932,12 @@ where
                         char = position.character
                     );
 
-                    let graph = self.graph.read();
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
+                    let graph = self.graph.read();
                     match handlers::hover(&graph, &document, position, encoding) {
                         Ok(result) => {
                             debug!(
@@ -712,6 +960,7 @@ where
                     encoding,
                     new_name,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -719,6 +968,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::rename(&graph, &document, position, encoding, new_name) {
@@ -739,9 +993,15 @@ where
                 Request::SemanticTokens(SemanticTokenRequest {
                     document,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!("received request for semantic tokens for {document}");
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::semantic_tokens(&graph, &document) {
@@ -768,38 +1028,9 @@ where
                     let start = Instant::now();
                     debug!("received request for document symbols for {document}");
 
-                    let parse_result;
-                    {
-                        let graph = self.graph.read();
-                        let Some(index) = graph.get_index(&document) else {
-                            debug!("document '{document}' not found in graph");
-                            completed.send(None).ok();
-                            continue;
-                        };
-                        let node = graph.get(index);
-
-                        if node.needs_parse() {
-                            parse_result = Some(node.parse(&self.tokio, &self.client));
-                        } else {
-                            parse_result = None;
-                        }
-                    }
-
-                    match parse_result {
-                        Some(Ok(state)) => {
-                            let mut graph = self.graph.write();
-                            let index = graph.get_index(&document).unwrap();
-                            graph.get_mut(index).parse_completed(state);
-                        }
-                        Some(Err(e)) => {
-                            debug!(
-                                "error occurred while parsing document in document symbol \
-                                 request: {e:?}"
-                            );
-                            completed.send(None).ok();
-                            continue;
-                        }
-                        None => {}
+                    if !self.ensure_parsed(&document) {
+                        completed.send(None).ok();
+                        continue;
                     }
 
                     let graph = self.graph.read();
@@ -817,9 +1048,18 @@ where
                         }
                     }
                 }
-                Request::WorkspaceSymbol(WorkspaceSymbolRequest { query, completed }) => {
+                Request::WorkspaceSymbol(WorkspaceSymbolRequest {
+                    query,
+                    completed,
+                    context,
+                }) => {
                     let start = Instant::now();
                     debug!("received request for workspace symbols with query `{query}`");
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::workspace_symbol(&graph, &query) {
@@ -841,6 +1081,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -848,6 +1089,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::incoming_calls(&graph, &document, position, encoding) {
@@ -873,6 +1119,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -880,6 +1127,11 @@ where
                         line = position.line,
                         char = position.character
                     );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::outgoing_calls(&graph, &document, position, encoding) {
@@ -913,6 +1165,11 @@ where
                         char = position.character
                     );
 
+                    if !self.ensure_parsed(&document) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
                     let graph = self.graph.read();
                     match handlers::signature_help(&graph, &document, position, encoding) {
                         Ok(result) => {
@@ -932,9 +1189,15 @@ where
                     document,
                     range,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!("received request for inlay hints at {document}");
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
 
                     let graph = self.graph.read();
                     match handlers::inlay_hints(&graph, &document, range) {
@@ -951,6 +1214,21 @@ where
                         }
                     }
                 }
+                Request::SwapValidator(SwapValidatorRequest {
+                    validator,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request to update validator");
+
+                    self.swap_validator(validator);
+
+                    debug!(
+                        "request to update validator completed in {:?}",
+                        start.elapsed()
+                    );
+                    completed.send(()).ok();
+                }
             }
         }
 
@@ -960,8 +1238,90 @@ where
     /// Adds a set of documents to the document graph.
     fn add_documents(&self, documents: IndexSet<Url>) {
         let mut graph = self.graph.write();
+        let mut modules = Vec::new();
         for document in documents {
+            if let Some(module) = self.module_for_root_document(&document) {
+                modules.push((document.clone(), module));
+            }
             graph.add_node(document, true);
+        }
+        self.document_modules.record_all(modules);
+    }
+
+    /// Ensures that the `document` is parsed.
+    ///
+    /// Returns `true` if the document was successfully parsed, and `false` if
+    /// the document either doesn't exist or fails parsing.
+    fn ensure_parsed(&self, document: &Url) -> bool {
+        let parse_result;
+        {
+            let graph = self.graph.read();
+            let Some(index) = graph.get_index(document) else {
+                debug!("document '{document}' not found in graph");
+                return false;
+            };
+            let node = graph.get(index);
+
+            if node.needs_parse() {
+                parse_result = node.parse(&self.tokio, &self.client);
+            } else {
+                // Already parsed
+                return true;
+            }
+        }
+
+        match parse_result {
+            Ok(state) => {
+                let mut graph = self.graph.write();
+                let index = graph.get_index(document).unwrap();
+                graph.get_mut(index).parse_completed(state);
+                true
+            }
+            Err(e) => {
+                debug!("error occurred while parsing document: {e:?}");
+                false
+            }
+        }
+    }
+
+    /// Ensures that the `document` (or workspace) is analyzed.
+    ///
+    /// Returns `true` if the document was successfully analyzed, and `false` if
+    /// the document either doesn't exist or fails analysis.
+    ///
+    /// If the document is `None`, the entire workspace is analyzed.
+    fn ensure_analyzed(&self, document: Option<Url>, context: Context) -> bool {
+        let index = match &document {
+            Some(uri) => {
+                let graph = self.graph.read();
+
+                let Some(index) = graph.get_index(uri) else {
+                    debug!("document `{uri:?}` not found in graph");
+                    return false;
+                };
+
+                Some(index)
+            }
+            None => None,
+        };
+
+        match self.analyze(document, context, None) {
+            Cancelable::Completed(Ok(_)) => {
+                if let Some(index) = index {
+                    let graph = self.graph.read();
+                    return graph.get(index).document().is_some();
+                }
+
+                true
+            }
+            Cancelable::Completed(Err(e)) => {
+                debug!("failed to analyze document: {e:?}");
+                false
+            }
+            Cancelable::Canceled => {
+                debug!("failed to analyze document, task was canceled");
+                false
+            }
         }
     }
 
@@ -974,9 +1334,10 @@ where
     ) -> Cancelable<Result<Vec<AnalysisResult>>> {
         // Analysis works by building a subgraph of what needs to be analyzed.
         // We start with the requested node or all roots. We then perform a
-        // breadth-first traversal maintaining the set of nodes that compromises the
-        // subgraph. At each step of the traversal, we reparse what has changed. The
-        // traversal is complete when no new nodes are added to the subgraph node set.
+        // breadth-first traversal maintaining the set of nodes that compromises
+        // the subgraph. At each step of the traversal, we reparse what
+        // has changed. The traversal is complete when no new nodes are
+        // added to the subgraph node set.
 
         let mut subgraph = {
             let graph = self.graph.read();
@@ -1011,7 +1372,8 @@ where
                 .get_range(offset..)
                 .expect("offset should be valid");
 
-            // If there's no more nodes to process, we're done building the subgraph
+            // If there's no more nodes to process, we're done building the
+            // subgraph
             if slice.is_empty() {
                 break;
             }
@@ -1056,11 +1418,11 @@ where
         let mut results: Vec<AnalysisResult> = Vec::new();
         while subgraph.node_count() > 0 {
             if completed.is_some_and(|c| c.is_closed()) {
-                debug!("analysis request has been canceled");
                 return Cancelable::Canceled;
             }
 
-            // Build a set of nodes with no incoming edges (i.e. no unanalyzed dependencies)
+            // Build a set of nodes with no incoming edges (i.e. no unanalyzed
+            // dependencies)
             set.clear();
             for node in subgraph.node_indices() {
                 if subgraph
@@ -1082,6 +1444,7 @@ where
 
             let tasks = {
                 let graph = self.graph.read();
+                let validator = self.validator.read().clone();
 
                 let handles = FuturesUnordered::new();
                 for index in set.iter().copied() {
@@ -1095,10 +1458,18 @@ where
 
                     let graph = self.graph.clone();
                     let config = self.config.clone();
-                    let validator = self.validator.clone();
+                    let validator = validator.clone();
                     handles.push(RayonHandle::spawn(move || {
+                        let existing_cache = { graph.write().get_mut(index).take_cache() };
+
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                            Self::analyze_node(
+                                &config,
+                                &graph.read(),
+                                index,
+                                existing_cache,
+                                &mut (validator)(),
+                            )
                         }));
 
                         let mut graph = graph.write();
@@ -1144,19 +1515,42 @@ where
             }));
         }
 
-        results.sort_by(|a, b| a.document().uri().cmp(b.document().uri()));
+        results.sort_by_key(|a| a.document().uri());
         Cancelable::Completed(Ok(results))
     }
 
-    /// Removes documents from the graph.
+    /// Removes document roots from the graph.
     ///
     /// If any of the removed documents are roots that have no outgoing edges,
     /// the nodes will be removed from the graph.
-    fn remove_documents(&self, uris: Vec<Url>) {
+    fn remove_roots(&self, uris: Vec<Url>) {
         let mut graph = self.graph.write();
 
         for uri in uris {
             graph.remove_root(&uri);
+        }
+
+        graph.gc();
+
+        // Drop module mappings for any document the collection removed from
+        // the graph so the map does not grow unbounded across edit and remove
+        // cycles in a long-lived session.
+        self.document_modules
+            .retain(|uri| graph.get_index(uri).is_some());
+
+        // Clear the module-root probe cache on a remove cycle so it cannot grow
+        // without bound across a long-lived session; it refills lazily from the
+        // filesystem on the next ancestry walk.
+        self.module_root_cache.lock().clear();
+    }
+
+    /// Deletes documents from the graph, even if they are still referenced by
+    /// other documents.
+    fn delete_documents(&self, uris: Vec<Url>) {
+        let mut graph = self.graph.write();
+
+        for uri in uris {
+            graph.delete(&uri);
         }
 
         graph.gc();
@@ -1179,10 +1573,8 @@ where
         }
 
         let total = tasks.len();
-        if completed.is_some() {
-            self.tokio
-                .block_on((self.progress)(context.clone(), kind, 0, total));
-        }
+        self.tokio
+            .block_on((self.progress)(context.clone(), kind, 0, total));
 
         let update_progress = self.progress.clone();
         let results = self.tokio.block_on(async move {
@@ -1197,39 +1589,33 @@ where
                 results.push(result);
                 count += 1;
 
-                if completed.is_some() {
-                    let now = Instant::now();
-                    if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS
-                    {
-                        debug!("{count} out of {total} {kind} task(s) have completed");
-                        last_progress = now;
-                        update_progress(context.clone(), kind, count, total).await;
-                    }
+                let now = Instant::now();
+                if count < total && (now - last_progress).as_millis() > MINIMUM_PROGRESS_MILLIS {
+                    debug!("{count} out of {total} {kind} task(s) have completed");
+                    last_progress = now;
+                    update_progress(context.clone(), kind, count, total).await;
                 }
             }
 
             results
         });
 
-        if completed.is_some() {
-            if results.len() < total {
-                debug!(
-                    "{count} out of {total} {kind} task(s) have completed; canceled {canceled} \
-                     tasks",
-                    count = results.len(),
-                    canceled = total - results.len()
-                );
-            } else {
-                debug!(
-                    "{count} out of {total} {kind} task(s) have completed",
-                    count = results.len()
-                );
-            }
-
-            // Report all have completed even if there are cancellations
-            self.tokio
-                .block_on((self.progress)(context.clone(), kind, total, total));
+        if results.len() < total {
+            debug!(
+                "{count} out of {total} {kind} task(s) have completed; canceled {canceled} tasks",
+                count = results.len(),
+                canceled = total - results.len()
+            );
+        } else {
+            debug!(
+                "{count} out of {total} {kind} task(s) have completed",
+                count = results.len()
+            );
         }
+
+        // Report all have completed even if there are cancellations
+        self.tokio
+            .block_on((self.progress)(context.clone(), kind, total, total));
 
         if completed.is_some_and(|c| c.is_closed()) {
             Cancelable::Canceled
@@ -1251,10 +1637,11 @@ where
         })
     }
 
-    /// Updates the graph and subgraphs.
+    /// Updates the graph and subgraphs for the given parsed nodes.
     ///
-    /// This processes parsed nodes and also adding the direct dependencies of
-    /// nodes added to the subgraph.
+    /// This runs in three steps; collect the import work for the parsed nodes,
+    /// materialize symbolic imports concurrently, then apply the results back
+    /// into the graph and queue dependents for reanalysis.
     fn update_graphs(
         &self,
         parsed: Vec<(NodeIndex, Result<ParseState>)>,
@@ -1262,97 +1649,349 @@ where
         range: Range<usize>,
         space: &mut DfsSpace,
     ) -> Result<()> {
-        let mut graph = self.graph.write();
+        let (parsed_indices, symbolic_work) = self.collect_import_work(parsed, subgraph, space)?;
+        let results = self.materialize_symbolic_imports(symbolic_work);
+        self.apply_materialization_results(results, &parsed_indices, subgraph, range, space);
+        Ok(())
+    }
 
-        // Start by updating the parsed nodes
-        for (index, state) in parsed {
-            let node = graph.get_mut(index);
-            let state = state
-                .with_context(|| format!("failed to parse document `{uri}`", uri = node.uri()))?;
-            node.parse_completed(state);
+    /// Collects import work for the parsed nodes under a single graph write.
+    ///
+    /// URI imports are wired directly into the graph here; symbolic imports are
+    /// returned as work items so their I/O can run outside the lock. Returns
+    /// the parsed node indices and the symbolic work to materialize.
+    fn collect_import_work(
+        &self,
+        parsed: Vec<(NodeIndex, Result<ParseState>)>,
+        subgraph: &mut IndexSet<NodeIndex>,
+        space: &mut DfsSpace,
+    ) -> Result<(Vec<NodeIndex>, SymbolicWorkSet)> {
+        // Handle parse completion and URI imports under graph.write(). Symbolic
+        // imports are collected (and deduplicated by module identity plus
+        // symbolic path) for concurrent materialization outside the lock, so
+        // the write lock is held for as short a time as possible.
+        let mut uri_import_modules: Vec<(Url, Arc<Module>)> = Vec::new();
+        let (parsed_indices, symbolic_work): (Vec<NodeIndex>, SymbolicWorkSet) = {
+            let mut graph = self.graph.write();
+            let mut indices = Vec::new();
+            let mut work = IndexMap::new();
 
-            // Remove all dependency edges from the node as the imports might have changed
-            graph.remove_dependency_edges(index);
+            for (index, state) in parsed {
+                let node = graph.get_mut(index);
+                let state = state.with_context(|| {
+                    format!("failed to parse document `{uri}`", uri = node.uri())
+                })?;
+                node.parse_completed(state);
 
-            // Add back dependency edges for the document's imports
-            match graph
-                .get(index)
-                .root()
-                .map(|d| d.ast_with_version_fallback(self.config.fallback_version()))
+                // Remove all dependency edges from the node as the imports
+                // might have changed, and clear any stale
+                // failed-symbolic-import diagnostics at the same time so they
+                // do not survive into the re-analysis pass.
+                graph.remove_dependency_edges(index);
+                graph.get_mut(index).clear_failed_symbolic_imports();
+
+                // Add back dependency edges for URI imports; queue symbolic
+                // imports for concurrent materialization.
+                match graph
+                    .get(index)
+                    .root()
+                    .map(|d| d.ast_with_version_fallback(self.config.fallback_version()))
+                {
+                    None | Some(Ast::Unsupported) => {}
+                    Some(Ast::V1(ast)) => {
+                        let symbolic_imports_enabled = graph
+                            .get(index)
+                            .parse_state()
+                            .symbolic_imports_enabled(&self.config);
+                        for import in ast.imports() {
+                            match import.source() {
+                                ImportSource::Uri(uri) => {
+                                    let text = match uri.text() {
+                                        Some(text) => text,
+                                        None => continue,
+                                    };
+
+                                    let import_uri = match graph.get(index).uri().join(text.text())
+                                    {
+                                        Ok(uri) => uri,
+                                        Err(_) => continue,
+                                    };
+
+                                    // Only probe module ownership when a
+                                    // consumer module exists; without one no
+                                    // document is governed by a module, so the
+                                    // registry lookup would always miss.
+                                    if self.consumer_module.is_some()
+                                        && let Some(module) = self.module_for_uri_import(
+                                            graph.get(index).uri(),
+                                            &import_uri,
+                                        )
+                                    {
+                                        uri_import_modules.push((import_uri.clone(), module));
+                                    }
+
+                                    let import_index = graph
+                                        .get_index(&import_uri)
+                                        .unwrap_or_else(|| graph.add_node(import_uri, false));
+                                    graph.add_dependency_edge(
+                                        index,
+                                        import_index,
+                                        EdgeKind::Uri,
+                                        space,
+                                    );
+                                    subgraph.insert(import_index);
+                                }
+                                ImportSource::ModulePath(module_path) => {
+                                    if !symbolic_imports_enabled {
+                                        continue;
+                                    }
+
+                                    let consumer_module = match self
+                                        .find_module_for_document(graph.get(index).uri())
+                                    {
+                                        Some(m) => m,
+                                        None => continue,
+                                    };
+
+                                    let symbolic_path: SymbolicPath = match module_path
+                                        .text()
+                                        .parse()
+                                    {
+                                        Ok(path) => path,
+                                        Err(e) => {
+                                            // Record the syntax failure so the
+                                            // import surfaces a precise
+                                            // diagnostic
+                                            // instead of the generic "not in a
+                                            // module" message during analysis.
+                                            graph.insert_failed_symbolic_import(
+                                                index,
+                                                module_path.text().to_string(),
+                                                e.to_string(),
+                                            );
+                                            continue;
+                                        }
+                                    };
+
+                                    // Collapse imports of the same dependency
+                                    // from the same module into one
+                                    // materialization, keyed on full module
+                                    // identity plus the symbolic path, so each
+                                    // dependency is resolved once and the
+                                    // result
+                                    // fanned out to every importer.
+                                    work.entry((consumer_module.id(), symbolic_path.clone()))
+                                        .or_insert_with(|| MaterializeWork {
+                                            importers: Vec::new(),
+                                            consumer_module,
+                                            symbolic_path,
+                                            path_text: module_path.text().to_string(),
+                                        })
+                                        .importers
+                                        .push(index);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                indices.push(index);
+            }
+
+            (indices, work)
+        };
+        // graph write lock is released here.
+
+        // Record URI-import module mappings collected above in one batch.
+        self.document_modules.record_all(uri_import_modules);
+
+        Ok((parsed_indices, symbolic_work))
+    }
+
+    /// Materializes the collected symbolic import work concurrently.
+    ///
+    /// The work arrives already deduplicated by module identity plus symbolic
+    /// path, so each distinct dependency is materialized once and the result is
+    /// fanned out to every importer that requested it. The calls run capped at
+    /// `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a manifest declaring many
+    /// dependencies cannot drive an unbounded number of parallel clones or
+    /// fetches.
+    fn materialize_symbolic_imports(
+        &self,
+        unique_work: SymbolicWorkSet,
+    ) -> Vec<MaterializeOutcome> {
+        if unique_work.is_empty() {
+            return Vec::new();
+        }
+
+        tracing::debug!(
+            count = unique_work.len(),
+            "resolving symbolic imports concurrently",
+        );
+        // SAFETY: symbolic work is only collected when a consumer module
+        // governs a document, which only happens when resolution is
+        // enabled with a resolver; a disabled context produces no work
+        // and returned above.
+        let resolver = Arc::clone(self.resolver.as_ref().unwrap());
+        let stream = futures::stream::iter(unique_work.into_values().map(|work| {
+            let resolver = Arc::clone(&resolver);
+            async move {
+                tracing::debug!(path = %work.path_text, "resolving symbolic import");
+                let result = resolver
+                    .materialize(&work.consumer_module, &work.symbolic_path)
+                    .await;
+                MaterializeOutcome {
+                    importers: work.importers,
+                    consumer_module: work.consumer_module,
+                    symbolic_path: work.symbolic_path,
+                    path_text: work.path_text,
+                    result,
+                }
+            }
+        }))
+        .buffer_unordered(MAX_CONCURRENT_MATERIALIZATIONS);
+
+        self.tokio
+            .block_on(stream.collect::<Vec<MaterializeOutcome>>())
+    }
+
+    /// Applies materialization results to the graph and queues dependents for
+    /// reanalysis under a single graph write.
+    ///
+    /// Each materialized dependency is added to the graph once and connected to
+    /// every importer that requested it. Because WDL implicitly introduces
+    /// import names into document scope, every transitive dependent of a
+    /// changed document is also queued for reanalysis.
+    fn apply_materialization_results(
+        &self,
+        results: Vec<MaterializeOutcome>,
+        parsed_indices: &[NodeIndex],
+        subgraph: &mut IndexSet<NodeIndex>,
+        range: Range<usize>,
+        space: &mut DfsSpace,
+    ) {
+        let mut symbolic_import_modules: Vec<(Url, Arc<Module>)> = Vec::new();
+        {
+            let mut graph = self.graph.write();
+
+            for MaterializeOutcome {
+                importers,
+                consumer_module,
+                symbolic_path,
+                path_text,
+                result,
+            } in results
             {
-                None | Some(Ast::Unsupported) => {}
-                Some(Ast::V1(ast)) => {
-                    for import in ast.imports() {
-                        // Only quoted imports contribute dependency edges;
-                        // symbolic imports resolve through the module
-                        // resolver and do not add graph nodes here.
-                        let ImportSource::Uri(uri) = import.source() else {
-                            continue;
-                        };
-                        let text = match uri.text() {
-                            Some(text) => text,
-                            None => continue,
+                match result {
+                    Ok(materialized) => {
+                        let import_uri = match Url::from_file_path(&materialized.path) {
+                            Ok(u) => u,
+                            Err(()) => {
+                                let message = format!(
+                                    "materialized path is not absolute: `{}`",
+                                    materialized.path.display()
+                                );
+                                for importer in &importers {
+                                    graph.insert_failed_symbolic_import(
+                                        *importer,
+                                        path_text.clone(),
+                                        message.clone(),
+                                    );
+                                }
+                                continue;
+                            }
                         };
 
-                        let import_uri = match graph.get(index).uri().join(text.text()) {
-                            Ok(uri) => uri,
-                            Err(_) => continue,
-                        };
+                        // Ask the resolved file for the module that owns it,
+                        // extending the consumer module captured during
+                        // collection. The queue does not reassemble module
+                        // state from the file's raw
+                        // manifest and root itself.
+                        let import_module = materialized
+                            .child_module(&consumer_module, symbolic_path.dep_name().clone());
 
-                        // Add a dependency edge to the import
+                        symbolic_import_modules.push((import_uri.clone(), Arc::new(import_module)));
+
+                        // Materialization happens once per dependency, so add
+                        // the node once and connect every importer that
+                        // requested it.
                         let import_index = graph
                             .get_index(&import_uri)
-                            .unwrap_or_else(|| graph.add_node(import_uri, false));
-                        graph.add_dependency_edge(index, import_index, space);
-
-                        // Add the import to the subgraph
+                            .unwrap_or_else(|| graph.add_node(import_uri.clone(), false));
+                        for importer in &importers {
+                            graph.add_dependency_edge(
+                                *importer,
+                                import_index,
+                                EdgeKind::Symbolic(path_text.clone()),
+                                space,
+                            );
+                        }
                         subgraph.insert(import_index);
+                    }
+                    Err(e) => {
+                        let message = e.to_string();
+                        for importer in &importers {
+                            graph.insert_failed_symbolic_import(
+                                *importer,
+                                path_text.clone(),
+                                message.clone(),
+                            );
+                        }
                     }
                 }
             }
 
-            // Because of the way WDL works by implicitly introducing import names into
-            // document scope, any change to a file must cause all transitive dependencies
-            // to be reanalyzed; therefore, do a BFS from the parsed node and add any
-            // discovered nodes to the subgraph
-            graph.bfs_mut(index, |graph, dependent: NodeIndex| {
-                if index == dependent {
-                    return;
-                }
+            // Because of the way WDL works by implicitly introducing import
+            // names into document scope, any change to a file must cause all
+            // transitive dependents to be reanalyzed; therefore, do a BFS
+            // from each parsed node and add any discovered nodes to the
+            // subgraph.
+            for index in parsed_indices {
+                let index = *index;
+                graph.bfs_mut(index, |graph, dependent: NodeIndex| {
+                    if index == dependent {
+                        return;
+                    }
 
-                let node = graph.get_mut(dependent);
-                if !subgraph.contains(&dependent) {
-                    trace!(
-                        "adding dependent document `{uri}` for analysis",
-                        uri = node.uri()
-                    );
-                    subgraph.insert(dependent);
-                }
+                    let node = graph.get_mut(dependent);
+                    if !subgraph.contains(&dependent) {
+                        trace!(
+                            "adding dependent document `{uri}` for analysis",
+                            uri = node.uri()
+                        );
+                        subgraph.insert(dependent);
+                    }
 
-                node.reanalyze();
-            });
+                    node.reanalyze();
+                });
+            }
+
+            // Add the direct dependencies of the subgraph slice to the
+            // subgraph.
+            let mut dependencies = Vec::new();
+            for index in subgraph.get_range(range).expect("range should be valid") {
+                dependencies.extend(graph.dependencies(*index));
+            }
+
+            subgraph.extend(dependencies);
         }
 
-        // Add the direct dependencies of the subgraph slice to the subgraph
-        let mut dependencies = Vec::new();
-        for index in subgraph.get_range(range).expect("range should be valid") {
-            dependencies.extend(graph.dependencies(*index));
-        }
-
-        subgraph.extend(dependencies);
-        Ok(())
+        // Record symbolic-import module mappings collected above in one batch
+        // now that the graph write lock has been released.
+        self.document_modules.record_all(symbolic_import_modules);
     }
 
     /// Analyzes a node in the document graph.
+    #[tracing::instrument(name = "analysis", skip_all)]
     fn analyze_node(
         config: &Config,
-        graph: Arc<RwLock<DocumentGraph>>,
+        graph: &DocumentGraph,
         index: NodeIndex,
+        existing_cache: Option<Arc<AnalysisCache>>,
         validator: &mut crate::Validator,
     ) -> (NodeIndex, Document) {
         let start = Instant::now();
-        let graph = graph.read();
-        let mut document = Document::from_graph_node(config, &graph, index);
+        let mut document = Document::from_graph_node(config, graph, index, existing_cache);
 
         match &graph.get(index).parse_state() {
             ParseState::Parsed { diagnostics, .. }
@@ -1373,6 +2012,71 @@ where
         );
 
         (index, document)
+    }
+
+    /// Returns the [`Module`] that governs the document at `uri`.
+    fn find_module_for_document(&self, uri: &Url) -> Option<Arc<Module>> {
+        self.document_modules.module_for(uri)
+    }
+
+    /// Returns the consumer module for a root document governed by it.
+    fn module_for_root_document(&self, uri: &Url) -> Option<Arc<Module>> {
+        let module = self.consumer_module.clone()?;
+        let path = uri.to_file_path().ok()?;
+        self.module_if_path_within_root(module, &path)
+    }
+
+    /// Returns the importer module for a URI import inside the same module.
+    fn module_for_uri_import(&self, importer_uri: &Url, import_uri: &Url) -> Option<Arc<Module>> {
+        let module = self.find_module_for_document(importer_uri)?;
+        let import_path = import_uri.to_file_path().ok()?;
+        self.module_if_path_within_root(module, &import_path)
+    }
+
+    /// Returns `module` when `path` is governed by it, that is, when `path`
+    /// sits at or below `module.root` without crossing into a nested module
+    /// declared by its own `module.json`.
+    fn module_if_path_within_root(&self, module: Arc<Module>, path: &Path) -> Option<Arc<Module>> {
+        if !path.starts_with(&module.root) {
+            return None;
+        }
+
+        let mut dir = path.parent();
+        while let Some(current) = dir {
+            if current == module.root {
+                return Some(module);
+            }
+
+            if self.is_module_root_cached(current) {
+                return None;
+            }
+
+            dir = current.parent();
+        }
+
+        None
+    }
+
+    /// Returns whether `dir` is a module root, caching the filesystem probe so
+    /// repeated ancestry walks during one session do not re-stat the same path.
+    fn is_module_root_cached(&self, dir: &Path) -> bool {
+        if let Some(&cached) = self.module_root_cache.lock().get(dir) {
+            return cached;
+        }
+
+        let result = wdl_modules::module::is_module_root(dir);
+        self.module_root_cache
+            .lock()
+            .insert(dir.to_path_buf(), result);
+        result
+    }
+
+    /// Replace the current validator function.
+    fn swap_validator(&self, validator: ValidatorFn) {
+        *self.validator.write() = validator;
+
+        // Invalidate the *entire* graph
+        self.graph.write().reanalyze_all();
     }
 }
 

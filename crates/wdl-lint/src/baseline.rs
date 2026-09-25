@@ -344,7 +344,7 @@ impl<'a> BaselineMatcher<'a> {
             && let Some(label) = diagnostic.labels().next()
             && let Some(hash) = document.hash_span(label.span())
         {
-            return self.matches_entry(rule, document.uri(), hash.as_str());
+            return self.matches_entry(rule, &document.uri(), hash.as_str());
         }
 
         false

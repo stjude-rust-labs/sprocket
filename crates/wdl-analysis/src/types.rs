@@ -5,10 +5,11 @@ use std::fmt;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use url::Url;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
-use crate::diagnostics::enum_variant_does_not_coerce_to_type;
+use crate::diagnostics::enum_choice_does_not_coerce_to_type;
 use crate::diagnostics::no_common_inferred_type_for_enum;
 use crate::document::Input;
 use crate::document::Output;
@@ -194,7 +195,7 @@ pub enum Type {
     /// The type is a call output.
     Call(CallType),
     /// A reference to a custom type name (struct or enum).
-    TypeNameRef(CustomType),
+    TypeNameRef(TypeNameRef),
 }
 
 // NOTE: `Type` was optimized to `24` bytes as part of the type representation
@@ -288,9 +289,9 @@ impl Type {
     /// Converts the type to a type name reference.
     ///
     /// Returns `None` if the type is not a type name reference.
-    pub fn as_type_name_ref(&self) -> Option<&CustomType> {
+    pub fn as_type_name_ref(&self) -> Option<&TypeNameRef> {
         match self {
-            Self::TypeNameRef(custom_ty) => Some(custom_ty),
+            Self::TypeNameRef(ty) => Some(ty),
             _ => None,
         }
     }
@@ -320,7 +321,8 @@ impl Type {
     /// For most types, this wraps them in an array. For call types, this
     /// promotes each output type into an array.
     pub fn promote_scatter(&self) -> Self {
-        // For calls, the outputs of the call are promoted instead of the call itself
+        // For calls, the outputs of the call are promoted instead of the call
+        // itself
         if let Self::Call(ty) = self {
             return Self::Call(ty.promote_scatter());
         }
@@ -342,13 +344,14 @@ impl Type {
             return Some(other.clone());
         }
 
-        // If the other type is `None`, then the common type would be an optional this
-        // type
+        // If the other type is `None`, then the common type would be an
+        // optional this type
         if other.is_none() {
             return Some(self.optional());
         }
 
-        // If this type is `None`, then the common type would be an optional other type
+        // If this type is `None`, then the common type would be an optional
+        // other type
         if self.is_none() {
             return Some(other.optional());
         }
@@ -378,16 +381,6 @@ impl Type {
         }
 
         None
-    }
-
-    /// Attempts to transform the type into the analogous type name reference.
-    ///
-    /// This is only supported for custom types (structs and enums).
-    pub fn type_name_ref(&self) -> Option<Type> {
-        match self {
-            Type::Compound(CompoundType::Custom(ty), _) => Some(Type::TypeNameRef(ty.clone())),
-            _ => None,
-        }
     }
 }
 
@@ -579,7 +572,8 @@ impl Coercible for Type {
                         Type::from(PrimitiveType::String).is_coercible_to(target.key_type())
                     }
                     CompoundType::Custom(CustomType::Struct(_)) => {
-                        // Note: checking object keys and values is a runtime constraint
+                        // Note: checking object keys and values is a runtime
+                        // constraint
                         true
                     }
                     _ => false,
@@ -654,6 +648,18 @@ impl From<EnumType> for Type {
 impl From<CallType> for Type {
     fn from(value: CallType) -> Self {
         Self::Call(value)
+    }
+}
+
+impl From<CustomType> for Type {
+    fn from(value: CustomType) -> Self {
+        Self::Compound(CompoundType::Custom(value), false)
+    }
+}
+
+impl From<TypeNameRef> for Type {
+    fn from(value: TypeNameRef) -> Self {
+        Self::TypeNameRef(value)
     }
 }
 
@@ -796,8 +802,8 @@ impl CompoundType {
     /// This method does not attempt coercion; it only attempts to find common
     /// inner types for the same outer type.
     fn common_type(&self, other: &Self) -> Option<CompoundType> {
-        // Check to see if the types are both `Array`, `Pair`, or `Map`; if so, attempt
-        // to find a common type for their inner types
+        // Check to see if the types are both `Array`, `Pair`, or `Map`; if so,
+        // attempt to find a common type for their inner types
         match (self, other) {
             (Self::Array(this), Self::Array(other)) => {
                 let element_type = this.element_type().common_type(other.element_type())?;
@@ -866,7 +872,8 @@ impl Coercible for CompoundType {
                     return false;
                 }
 
-                // Ensure the value type is coercible to every struct member type
+                // Ensure the value type is coercible to every struct member
+                // type
                 if !target
                     .members()
                     .values()
@@ -1002,7 +1009,8 @@ impl fmt::Display for ArrayType {
 
 impl Coercible for ArrayType {
     fn is_coercible_to(&self, target: &Self) -> bool {
-        // Note: non-empty constraints are enforced at runtime and are not checked here.
+        // Note: non-empty constraints are enforced at runtime and are not
+        // checked here.
         self.0.element_type.is_coercible_to(&target.0.element_type)
     }
 }
@@ -1167,21 +1175,24 @@ impl Coercible for StructType {
     }
 }
 
-/// Cache key for enum variant values.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-pub struct EnumVariantCacheKey {
+/// Cache key for enum choice values.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EnumChoiceCacheKey {
+    /// The URI of the document containing the enum.
+    uri: Arc<Url>,
     /// The index of the enum in the document.
     enum_index: usize,
-    /// The index of the variant within the enum.
-    variant_index: usize,
+    /// The index of the choice within the enum.
+    choice_index: usize,
 }
 
-impl EnumVariantCacheKey {
-    /// Constructs a new enum variant cache key.
-    pub(crate) fn new(enum_index: usize, variant_index: usize) -> Self {
+impl EnumChoiceCacheKey {
+    /// Constructs a new enum choice cache key.
+    pub(crate) fn new(uri: Arc<Url>, enum_index: usize, choice_index: usize) -> Self {
         Self {
+            uri,
             enum_index,
-            variant_index,
+            choice_index,
         }
     }
 }
@@ -1191,10 +1202,10 @@ impl EnumVariantCacheKey {
 struct EnumTypeInner {
     /// The name of the enum.
     name: String,
-    /// The common coerced type computed from all variant values.
+    /// The common coerced type computed from all choice values.
     inner_value_type: Type,
-    /// The variants.
-    variants: Arc<[String]>,
+    /// The choices.
+    choices: Arc<[String]>,
 }
 
 /// Represents the type of an enum.
@@ -1206,63 +1217,63 @@ pub struct EnumType(Arc<EnumTypeInner>);
 impl EnumType {
     /// Constructs a new enum type with a known coerced type.
     ///
-    /// Validates that all variant types are coercible to the provided type.
+    /// Validates that all choice types are coercible to the provided type.
     ///
-    /// Returns an error if any variant cannot be coerced.
+    /// Returns an error if any choice cannot be coerced.
     pub fn new(
         enum_name: impl Into<String>,
         enum_span: Span,
         explicit_inner_type: Type,
-        variants: Vec<(String, Type)>,
-        variant_spans: &[Span],
+        choices: Vec<(String, Type)>,
+        choice_spans: &[Span],
     ) -> Result<Self, Diagnostic> {
-        assert_eq!(variants.len(), variant_spans.len());
+        assert_eq!(choices.len(), choice_spans.len());
         let enum_name = enum_name.into();
-        let mut results = Vec::with_capacity(variants.len());
+        let mut results = Vec::with_capacity(choices.len());
 
-        // Validate that all variant types are coercible to the value type
-        for (variant_idx, (variant_name, variant_type)) in variants.iter().enumerate() {
-            if !variant_type.is_coercible_to(&explicit_inner_type) {
-                return Err(enum_variant_does_not_coerce_to_type(
+        // Validate that all choice types are coercible to the value type.
+        for (choice_idx, (choice_name, choice_type)) in choices.iter().enumerate() {
+            if !choice_type.is_coercible_to(&explicit_inner_type) {
+                return Err(enum_choice_does_not_coerce_to_type(
                     &enum_name,
                     enum_span,
-                    variant_name,
-                    variant_spans[variant_idx],
+                    choice_name,
+                    choice_spans[choice_idx],
                     &explicit_inner_type,
-                    variant_type,
+                    choice_type,
                 ));
             }
 
-            results.push(variant_name.to_owned());
+            results.push(choice_name.to_owned());
         }
 
         Ok(Self(Arc::new(EnumTypeInner {
             name: enum_name,
             inner_value_type: explicit_inner_type,
-            variants: results.into(),
+            choices: results.into(),
         })))
     }
 
     /// Attempts to create a new enum type by computing the common inner type
     /// through coercion.
     ///
-    /// Finds the common inner type among all variant types. If the enum has no
-    /// variants, the coerced inner type is [`Type::Union`].
+    /// Finds the common inner type among all choice types. If the enum has no
+    /// choices, the coerced inner type is [`Type::Union`].
     ///
-    /// Returns an error if no common type can be found among the variants.
+    /// Returns an error if no common type can be found among the choices.
     pub fn infer(
         enum_name: impl Into<String>,
-        variants: Vec<(String, Type)>,
-        variant_spans: &[Span],
+        choices: Vec<(String, Type)>,
+        choice_spans: &[Span],
     ) -> Result<Self, Diagnostic> {
-        assert_eq!(variants.len(), variant_spans.len());
+        assert_eq!(choices.len(), choice_spans.len());
         let enum_name = enum_name.into();
 
         let mut common_ty: Option<Type> = None;
-        let mut names = Vec::with_capacity(variants.len());
-        for (i, (name, variant_ty)) in variants.into_iter().enumerate() {
+        let mut names = Vec::with_capacity(choices.len());
+        for (i, (name, choice_ty)) in choices.into_iter().enumerate() {
             match common_ty {
-                Some(current_common_ty) => match current_common_ty.common_type(&variant_ty) {
+                Some(current_common_ty) => match current_common_ty.common_type(&choice_ty) {
                     Some(new_common_ty) => {
                         common_ty = Some(new_common_ty);
                     }
@@ -1270,13 +1281,13 @@ impl EnumType {
                         return Err(no_common_inferred_type_for_enum(
                             &enum_name,
                             &current_common_ty,
-                            variant_spans[i - 1],
-                            &variant_ty,
-                            variant_spans[i],
+                            choice_spans[i - 1],
+                            &choice_ty,
+                            choice_spans[i],
                         ));
                     }
                 },
-                None => common_ty = Some(variant_ty),
+                None => common_ty = Some(choice_ty),
             }
 
             names.push(name);
@@ -1285,7 +1296,7 @@ impl EnumType {
         Ok(Self(Arc::new(EnumTypeInner {
             name: enum_name,
             inner_value_type: common_ty.unwrap_or(Type::Union),
-            variants: names.into(),
+            choices: names.into(),
         })))
     }
 
@@ -1294,14 +1305,14 @@ impl EnumType {
         &self.0.name
     }
 
-    /// Gets the inner value type that all variants coerce to.
+    /// Gets the inner value type that all choices coerce to.
     pub fn inner_value_type(&self) -> &Type {
         &self.0.inner_value_type
     }
 
-    /// Gets the variants with their types.
-    pub fn variants(&self) -> &[String] {
-        &self.0.variants
+    /// Gets the choices.
+    pub fn choices(&self) -> &[String] {
+        &self.0.choices
     }
 }
 
@@ -1499,13 +1510,75 @@ impl PartialEq for CallType {
     }
 }
 
+/// The inner type for [`TypeNameRef`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TypeNameRefInner {
+    /// The name used to refer to the type.
+    name: String,
+    /// The custom type that was referred to.
+    ty: CustomType,
+}
+
+/// Represents a reference to a custom type (struct or enum).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeNameRef(Arc<TypeNameRefInner>);
+
+impl TypeNameRef {
+    /// Constructs a new [`TypeNameRef`].
+    pub fn new(name: impl Into<String>, ty: CustomType) -> Self {
+        Self(
+            TypeNameRefInner {
+                name: name.into(),
+                ty,
+            }
+            .into(),
+        )
+    }
+
+    /// Gets the name used to reference the type.
+    pub fn name(&self) -> &str {
+        &self.0.name
+    }
+
+    /// Gets the referenced custom type.
+    pub fn ty(&self) -> &CustomType {
+        &self.0.ty
+    }
+
+    /// Converts the referenced custom type to a struct type.
+    ///
+    /// Returns `None` if the referenced custom type is not a struct.
+    pub fn as_struct(&self) -> Option<&StructType> {
+        match &self.0.ty {
+            CustomType::Struct(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the referenced custom type to an enum type.
+    ///
+    /// Returns `None` if the referenced custom type is not an enum.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        match &self.0.ty {
+            CustomType::Enum(ty) => Some(ty),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for TypeNameRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.name.fmt(f)
+    }
+}
+
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn primitive_type_display() {
         assert_eq!(PrimitiveType::Boolean.to_string(), "Boolean");
         assert_eq!(PrimitiveType::Integer.to_string(), "Int");
@@ -1539,7 +1612,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn array_type_display() {
         assert_eq!(
             ArrayType::new(PrimitiveType::String).to_string(),
@@ -1563,7 +1636,7 @@ mod test {
         assert_eq!(ty.to_string(), "Array[Array[String?]+?]+?");
     }
 
-    #[test]
+    #[test_log::test]
     fn pair_type_display() {
         assert_eq!(
             PairType::new(PrimitiveType::String, PrimitiveType::Boolean).to_string(),
@@ -1591,7 +1664,7 @@ mod test {
         assert_eq!(ty.to_string(), "Pair[Array[File?]+?, Array[File?]+?]?");
     }
 
-    #[test]
+    #[test_log::test]
     fn map_type_display() {
         assert_eq!(
             MapType::new(PrimitiveType::String, PrimitiveType::Boolean).to_string(),
@@ -1616,7 +1689,7 @@ mod test {
         assert_eq!(ty.to_string(), "Map[String, Array[File?]+?]?");
     }
 
-    #[test]
+    #[test_log::test]
     fn struct_type_display() {
         assert_eq!(
             StructType::new("Foobar", std::iter::empty::<(String, Type)>()).to_string(),
@@ -1624,26 +1697,26 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn object_type_display() {
         assert_eq!(Type::Object.to_string(), "Object");
         assert_eq!(Type::OptionalObject.to_string(), "Object?");
     }
 
-    #[test]
+    #[test_log::test]
     fn union_type_display() {
         assert_eq!(Type::Union.to_string(), "Union");
     }
 
-    #[test]
+    #[test_log::test]
     fn none_type_display() {
         assert_eq!(Type::None.to_string(), "None");
     }
 
-    #[test]
+    #[test_log::test]
     fn primitive_type_coercion() {
-        // All types should be coercible to self, and required should coerce to optional
-        // (but not vice versa)
+        // All types should be coercible to self, and required should coerce to
+        // optional (but not vice versa)
         for ty in [
             Type::from(PrimitiveType::Boolean),
             PrimitiveType::Directory.into(),
@@ -1667,7 +1740,7 @@ mod test {
         assert!(!PrimitiveType::Float.is_coercible_to(&PrimitiveType::Integer));
     }
 
-    #[test]
+    #[test_log::test]
     fn object_type_coercion() {
         assert!(Type::Object.is_coercible_to(&Type::Object));
         assert!(Type::Object.is_coercible_to(&Type::OptionalObject));
@@ -1719,7 +1792,7 @@ mod test {
         assert!(!Type::OptionalObject.is_coercible_to(&ty));
     }
 
-    #[test]
+    #[test_log::test]
     fn array_type_coercion() {
         // Array[X] -> Array[Y]
         assert!(
@@ -1778,7 +1851,7 @@ mod test {
         assert!(!type2.is_coercible_to(&type1));
     }
 
-    #[test]
+    #[test_log::test]
     fn pair_type_coercion() {
         // Pair[W, X] -> Pair[Y, Z]
         assert!(
@@ -1833,7 +1906,7 @@ mod test {
         assert!(!type2.is_coercible_to(&type1));
     }
 
-    #[test]
+    #[test_log::test]
     fn map_type_coercion() {
         // Map[W, X] -> Map[Y, Z]
         assert!(
@@ -1979,7 +2052,7 @@ mod test {
         assert!(!type1.is_coercible_to(&Type::Object));
     }
 
-    #[test]
+    #[test_log::test]
     fn struct_type_coercion() {
         // S -> S (identical)
         let type1: Type = StructType::new(
@@ -2150,7 +2223,7 @@ mod test {
         assert!(!type1.is_coercible_to(&Type::Object));
     }
 
-    #[test]
+    #[test_log::test]
     fn union_type_coercion() {
         // Union -> anything (ok)
         for ty in [
@@ -2194,7 +2267,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn none_type_coercion() {
         // None -> optional type (ok)
         for ty in [
@@ -2253,7 +2326,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn primitive_equality() {
         for ty in [
             Type::from(PrimitiveType::Boolean),
@@ -2274,7 +2347,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn array_equality() {
         // Array[String] == Array[String]
         let a: Type = ArrayType::new(PrimitiveType::String).into();
@@ -2310,7 +2383,7 @@ mod test {
         assert!(!a.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn pair_equality() {
         // Pair[String, Int] == Pair[String, Int]
         let a: Type = PairType::new(PrimitiveType::String, PrimitiveType::Integer).into();
@@ -2338,7 +2411,7 @@ mod test {
         assert!(!a.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn map_equality() {
         // Map[String, Int] == Map[String, Int]
         let a: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
@@ -2364,7 +2437,7 @@ mod test {
         assert!(!a.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn struct_equality() {
         let a: Type = StructType::new("Foo", [("foo", PrimitiveType::String)]).into();
         assert!(a.eq(&a));
@@ -2378,7 +2451,7 @@ mod test {
         assert!(!a.eq(&b));
     }
 
-    #[test]
+    #[test_log::test]
     fn object_equality() {
         assert!(Type::Object.eq(&Type::Object));
         assert!(!Type::OptionalObject.eq(&Type::Object));
@@ -2386,7 +2459,7 @@ mod test {
         assert!(Type::OptionalObject.eq(&Type::OptionalObject));
     }
 
-    #[test]
+    #[test_log::test]
     fn union_equality() {
         assert!(Type::Union.eq(&Type::Union));
         assert!(!Type::None.eq(&Type::Union));
@@ -2394,9 +2467,10 @@ mod test {
         assert!(Type::None.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_new_with_explicit_type() {
-        // Create enum with explicit `String` type, all variants coerce to `String`.
+        // Create enum with explicit `String` type, all choices coerce to
+        // `String`.
         let status = EnumType::new(
             "Status",
             Span::new(0, 0),
@@ -2415,12 +2489,12 @@ mod test {
             status.inner_value_type(),
             &Type::from(PrimitiveType::String)
         );
-        assert_eq!(status.variants().len(), 3);
+        assert_eq!(status.choices().len(), 3);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_new_fails_when_not_coercible() {
-        // Try to create enum with `Int` type but `String` variants.
+        // Try to create enum with `Int` type but `String` choices.
         let result = EnumType::new(
             "Bad",
             Span::new(0, 0),
@@ -2433,13 +2507,13 @@ mod test {
         );
 
         assert!(
-            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce variant `First` in enum `Bad` from type `String` to type `Int`")
+            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce choice `First` in enum `Bad` from type `String` to type `Int`")
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_infer_finds_common_type() {
-        // All `Int` variants should infer `Int` type.
+        // All `Int` choices should infer `Int` type.
         let priority = EnumType::infer(
             "Priority",
             vec![
@@ -2456,10 +2530,10 @@ mod test {
             priority.inner_value_type(),
             &Type::from(PrimitiveType::Integer)
         );
-        assert_eq!(priority.variants().len(), 3);
+        assert_eq!(priority.choices().len(), 3);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_infer_coerces_int_to_float() {
         // Mix of `Int` and `Float` should coerce to `Float`.
         let mixed = EnumType::infer(
@@ -2474,10 +2548,10 @@ mod test {
 
         assert_eq!(mixed.name(), "Mixed");
         assert_eq!(mixed.inner_value_type(), &Type::from(PrimitiveType::Float));
-        assert_eq!(mixed.variants().len(), 2);
+        assert_eq!(mixed.choices().len(), 2);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_infer_fails_without_common_type() {
         // `String` and `Int` have no common type.
         let result = EnumType::infer(
@@ -2494,7 +2568,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_empty_has_union_type() {
         // Empty enum should have `Union` type.
         let result = EnumType::infer("Empty", Vec::<(String, Type)>::new(), &[]);
@@ -2502,10 +2576,10 @@ mod test {
         let empty = result.unwrap();
         assert_eq!(empty.name(), "Empty");
         assert_eq!(empty.inner_value_type(), &Type::Union);
-        assert_eq!(empty.variants().len(), 0);
+        assert_eq!(empty.choices().len(), 0);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_display() {
         let enum_type = EnumType::new(
             "Color",
@@ -2518,7 +2592,7 @@ mod test {
         assert_eq!(enum_type.to_string(), "Color");
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_not_coercible_to_other_enums() {
         let color = EnumType::new(
             "Color",

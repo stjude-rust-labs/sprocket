@@ -3,4 +3,3 @@ warning[UnusedImport]: unused import namespace `bar`
   │
 5 │ import "bar.wdl"
   │        ^^^^^^^^^
-

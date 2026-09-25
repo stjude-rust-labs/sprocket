@@ -1,6 +1,8 @@
+#@ except: BashSetSyntax
+
 version 1.3
 
-#@ except: RequirementsSection, SnakeCase
+#@ except: DeprecatedRuntimeSection, RequirementsSection, SnakeCase
 task foo {
     meta {
         description: "This is a test of disallowed output names"

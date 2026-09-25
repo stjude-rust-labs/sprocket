@@ -5,4 +5,3 @@ error: type mismatch: expected type `Object`, but found type `String`
    │                               ------------      ^^^^^ this is type `String`
    │                               │                  
    │                               this expects type `Object`
-
