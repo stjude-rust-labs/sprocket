@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added the experimental WDL 1.4 `list` function for listing a directory's files
+  and subdirectories, with recursion, symlink inclusion, and file filtering.
+  This implements [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800)
+  and requires `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+
 ### Changed
 
 * Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).

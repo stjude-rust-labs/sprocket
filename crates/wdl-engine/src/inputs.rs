@@ -119,7 +119,7 @@ async fn resolve_with_origins(
         let mut resolved = Vec::with_capacity(array.as_slice().len());
         for (elem, base_dir) in array.as_slice().iter().zip(origins) {
             resolved.push(
-                elem.resolve_paths(optional, None, None, &|p| p.expand(base_dir))
+                elem.resolve_paths(optional, false, None, None, &|p| p.expand(base_dir))
                     .await?,
             );
         }
@@ -131,7 +131,7 @@ async fn resolve_with_origins(
 
     let base_dir = &origins[0];
     value
-        .resolve_paths(ty.is_optional(), None, None, &|p| p.expand(base_dir))
+        .resolve_paths(ty.is_optional(), false, None, None, &|p| p.expand(base_dir))
         .await
 }
 

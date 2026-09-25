@@ -25,6 +25,8 @@ use wdl_analysis::Document;
 use wdl_analysis::types::EnumChoiceCacheKey;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::SupportedVersion;
+use wdl_ast::version::V1;
 
 use super::CancellationContext;
 use super::Events;
@@ -53,6 +55,14 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
         .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
     serde_json::to_writer_pretty(BufWriter::new(file), value)
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))
+}
+
+/// Determines if a document's `File` values may be broken symbolic links.
+///
+/// WDL 1.4 `list` returns broken symbolic links as files, so they must remain
+/// valid after they are bound to declarations.
+fn allows_broken_symlinks(document: &Document) -> bool {
+    document.version() >= Some(SupportedVersion::V1(V1::Four))
 }
 
 /// The inner state of [`Evaluator`].

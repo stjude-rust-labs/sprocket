@@ -819,6 +819,9 @@ impl Value {
     /// If a `File` or `Directory` value is required and the path does not
     /// exist, an error is returned.
     ///
+    /// If `allow_broken_symlinks` is `true`, a local `File` path that is a
+    /// symbolic link with an unresolvable target is treated as existing.
+    ///
     /// If a local base directory is provided, it will be joined with any
     /// relative local paths prior to checking for existence.
     ///
@@ -830,6 +833,7 @@ impl Value {
     pub(crate) async fn resolve_paths<F>(
         &self,
         optional: bool,
+        allow_broken_symlinks: bool,
         base_dir: Option<&Path>,
         http: Option<(&EvaluationHttpClient, &CancellationToken)>,
         translate: &F,
@@ -843,6 +847,10 @@ impl Value {
             } else {
                 PrimitiveValue::Directory(path.into())
             }
+        }
+
+        fn file_exists(path: &Path, allow_broken_symlinks: bool) -> bool {
+            path.is_file() || (allow_broken_symlinks && path::is_broken_symlink(path))
         }
 
         match self {
@@ -863,7 +871,10 @@ impl Value {
                         .parse::<Url>()
                         .ok()
                         .and_then(|url| url.to_file_path().ok())
-                        .map(|p| p.exists())
+                        .map(|p| {
+                            p.exists()
+                                || (is_file && allow_broken_symlinks && path::is_broken_symlink(&p))
+                        })
                         .unwrap_or(false);
                     if exists {
                         let v = new_file_or_directory(is_file, path);
@@ -910,7 +921,7 @@ impl Value {
                 let exists_path: Cow<'_, Path> = base_dir
                     .map(|d| d.join(path.as_str()).into())
                     .unwrap_or_else(|| Path::new(path.as_str()).into());
-                if is_file && !exists_path.is_file() {
+                if is_file && !file_exists(&exists_path, allow_broken_symlinks) {
                     if optional {
                         return Ok(Value::new_none(self.ty().optional()));
                     } else {
@@ -928,7 +939,9 @@ impl Value {
                 Ok(Self::Primitive(v))
             }
             Self::Compound(v) => Ok(Self::Compound(
-                v.resolve_paths(base_dir, http, translate).boxed().await?,
+                v.resolve_paths(allow_broken_symlinks, base_dir, http, translate)
+                    .boxed()
+                    .await?,
             )),
             v => Ok(v.clone()),
         }
@@ -2663,6 +2676,7 @@ impl CompoundValue {
     /// [`CompoundValue`]s.
     fn resolve_paths<'a, F>(
         &'a self,
+        allow_broken_symlinks: bool,
         base_dir: Option<&'a Path>,
         http: Option<(&'a EvaluationHttpClient, &'a CancellationToken)>,
         translate: &'a F,
@@ -2679,12 +2693,24 @@ impl CompoundValue {
                     let fst = pair
                         .0
                         .left
-                        .resolve_paths(left_optional, base_dir, http, translate)
+                        .resolve_paths(
+                            left_optional,
+                            allow_broken_symlinks,
+                            base_dir,
+                            http,
+                            translate,
+                        )
                         .await?;
                     let snd = pair
                         .0
                         .right
-                        .resolve_paths(right_optional, base_dir, http, translate)
+                        .resolve_paths(
+                            right_optional,
+                            allow_broken_symlinks,
+                            base_dir,
+                            http,
+                            translate,
+                        )
                         .await?;
                     Ok(Self::Pair(Pair::new_unchecked(ty.clone(), fst, snd)))
                 }
@@ -2693,7 +2719,15 @@ impl CompoundValue {
                     let optional = ty.element_type().is_optional();
                     if !array.0.elements.is_empty() {
                         let resolved_elements = futures::stream::iter(array.0.elements.iter())
-                            .then(|v| v.resolve_paths(optional, base_dir, http, translate))
+                            .then(|v| {
+                                v.resolve_paths(
+                                    optional,
+                                    allow_broken_symlinks,
+                                    base_dir,
+                                    http,
+                                    translate,
+                                )
+                            })
                             .try_collect::<Vec<Value>>()
                             .await?;
                         Ok(Self::Array(Array::new_unchecked(
@@ -2712,13 +2746,25 @@ impl CompoundValue {
                         let resolved_elements = futures::stream::iter(map.0.elements.iter())
                             .then(async |(k, v)| {
                                 let resolved_key = Value::from(k.clone())
-                                    .resolve_paths(key_optional, base_dir, http, translate)
+                                    .resolve_paths(
+                                        key_optional,
+                                        allow_broken_symlinks,
+                                        base_dir,
+                                        http,
+                                        translate,
+                                    )
                                     .await?
                                     .as_primitive()
                                     .cloned()
                                     .expect("key should be primitive");
                                 let resolved_value = v
-                                    .resolve_paths(value_optional, base_dir, http, translate)
+                                    .resolve_paths(
+                                        value_optional,
+                                        allow_broken_symlinks,
+                                        base_dir,
+                                        http,
+                                        translate,
+                                    )
                                     .await?;
                                 Ok::<_, anyhow::Error>((resolved_key, resolved_value))
                             })
@@ -2735,8 +2781,15 @@ impl CompoundValue {
                     } else {
                         let resolved_members = futures::stream::iter(object.iter())
                             .then(async |(n, v)| {
-                                let resolved =
-                                    v.resolve_paths(false, base_dir, http, translate).await?;
+                                let resolved = v
+                                    .resolve_paths(
+                                        false,
+                                        allow_broken_symlinks,
+                                        base_dir,
+                                        http,
+                                        translate,
+                                    )
+                                    .await?;
                                 Ok::<_, anyhow::Error>((n.to_string(), resolved))
                             })
                             .try_collect()
@@ -2752,6 +2805,7 @@ impl CompoundValue {
                             let resolved = v
                                 .resolve_paths(
                                     ty.members()[n].is_optional(),
+                                    allow_broken_symlinks,
                                     base_dir,
                                     http,
                                     translate,
@@ -2769,10 +2823,11 @@ impl CompoundValue {
                 }
                 Self::EnumChoice(e) => {
                     let optional = e.enum_ty().inner_value_type().is_optional();
-                    let value =
-                        e.0.value
-                            .resolve_paths(optional, base_dir, http, translate)
-                            .await?;
+                    let value = e
+                        .0
+                        .value
+                        .resolve_paths(optional, allow_broken_symlinks, base_dir, http, translate)
+                        .await?;
 
                     Ok(Self::EnumChoice(EnumChoice::new(
                         e.0.enum_ty.clone(),
@@ -4883,5 +4938,67 @@ mod tests {
 
         let value = Value::TypeNameRef(TypeNameRefValue::new("Color", enum_type));
         assert_eq!(value.to_string(), "Color");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn resolve_paths_allows_broken_symlinks_only_when_requested() {
+        let dir = tempfile::tempdir().expect("should create a temporary directory");
+        std::os::unix::fs::symlink("missing", dir.path().join("broken"))
+            .expect("should create a symbolic link");
+        let file = Value::from(PrimitiveValue::new_file("broken"));
+        let directory = Value::from(PrimitiveValue::new_directory("broken"));
+        let translate = |path: &HostPath| Ok(path.clone());
+
+        let error = file
+            .resolve_paths(false, false, Some(dir.path()), None, &translate)
+            .await
+            .expect_err("a broken symbolic link should not be a file");
+        assert!(error.to_string().contains("does not exist"), "{error:#}");
+        assert!(
+            file.resolve_paths(true, false, Some(dir.path()), None, &translate)
+                .await
+                .expect("an optional file should resolve")
+                .is_none()
+        );
+        assert_eq!(
+            file.resolve_paths(false, true, Some(dir.path()), None, &translate)
+                .await
+                .expect("a broken symbolic link should be allowed")
+                .as_file()
+                .expect("value should be a file")
+                .as_str(),
+            "broken"
+        );
+        assert!(
+            directory
+                .resolve_paths(false, true, Some(dir.path()), None, &translate)
+                .await
+                .is_err()
+        );
+
+        let url = Url::from_file_path(dir.path().join("broken")).expect("should be a file URL");
+        let file = Value::from(PrimitiveValue::new_file(url.as_str()));
+        let directory = Value::from(PrimitiveValue::new_directory(url.as_str()));
+        assert!(
+            file.resolve_paths(false, false, None, None, &translate)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            file.resolve_paths(false, true, None, None, &translate)
+                .await
+                .expect("a broken symbolic link URL should be allowed")
+                .as_file()
+                .expect("value should be a file")
+                .as_str(),
+            url.as_str()
+        );
+        assert!(
+            directory
+                .resolve_paths(false, true, None, None, &translate)
+                .await
+                .is_err()
+        );
     }
 }
