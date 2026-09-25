@@ -11,8 +11,8 @@ use toml_spanner::helper::parse_string;
 
 /// The `[modules]` configuration section.
 #[derive(Clone, Debug, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, deny_unknown_fields)]
-#[schemars(deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ModulesConfig {
     /// Override the global cache location for this project.
     pub cache_path: Option<PathBuf>,
