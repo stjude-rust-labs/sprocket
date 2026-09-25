@@ -89,8 +89,10 @@ pub type RuleMap = HashMap<String, Option<&'static [SyntaxKind]>>;
 /// Each encountered node will receive a corresponding method call
 /// that receives both a [VisitReason::Enter] call and a
 /// matching [VisitReason::Exit] call.
+///
+/// Visitors must be transferable between analysis worker threads.
 #[allow(unused_variables)]
-pub trait Visitor {
+pub trait Visitor: Send {
     /// Get all lint rules known to this `Visitor`.
     ///
     /// Note that [`Validator`]s will expect this value to be static.
