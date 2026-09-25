@@ -100,10 +100,10 @@ compatibility contract:
 - Human-readable output details excluded under
   [Exit Status and Stream Conventions](#exit-status-and-stream-conventions).
 - The exact layout that `sprocket format` produces. Any release may change the
-  formatting algorithm, so a file that passes `sprocket format --check` in one
+  formatting algorithm, so a file that passes `sprocket format check` in one
   release may fail in a later release until it is reformatted. The `format`
-  command, its options, its documented configuration keys, and the meaning of
-  its exit statuses remain stable.
+  subcommands, their options, documented formatting configuration keys, and
+  the meaning of their exit statuses remain stable.
 
 The `sprocket analyzer` command's documented invocation is stable, but LSP
 capabilities and protocol behavior are stable only when Sprocket documentation
