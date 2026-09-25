@@ -19,7 +19,8 @@ Review user-facing changes against [`COMPATIBILITY.md`](./COMPATIBILITY.md):
   record the earliest eligible removal release and date.
 - Confirm a removal has passed both the 90-day and two-minor-release minimums.
 - Confirm a feature graduating from `dev` lists the commands, formats, schemas,
-  and behavior that become stable.
+  and behavior that become stable. Confirm a graduated command's `sprocket dev`
+  form still works as a deprecated alias that warns on standard error.
 - Confirm a breaking HTTP API uses a new `/api/vN` prefix and retains the
   previous version through its deprecation period.
 - Confirm database schema changes include a tested forward migration that

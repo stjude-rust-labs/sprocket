@@ -99,6 +99,11 @@ compatibility contract:
 - Undocumented interfaces and implementation details.
 - Human-readable output details excluded under
   [Exit Status and Stream Conventions](#exit-status-and-stream-conventions).
+- The exact layout that `sprocket format` produces. Any release may change the
+  formatting algorithm, so a file that passes `sprocket format --check` in one
+  release may fail in a later release until it is reformatted. The `format`
+  command, its options, its documented configuration keys, and the meaning of
+  its exit statuses remain stable.
 
 The `sprocket analyzer` command's documented invocation is stable, but LSP
 capabilities and protocol behavior are stable only when Sprocket documentation
@@ -107,6 +112,12 @@ explicitly describes them.
 A pull request that moves a command or feature out of `dev` must list every
 command, option, file format, schema, and behavior that becomes stable. The
 release notes must announce that transition.
+
+When a command graduates, its `sprocket dev` form must keep working as a
+deprecated alias for the stable command. Invoking the alias must write a
+deprecation warning to standard error that names the stable command. The alias
+follows the [deprecation](#deprecation) process and its removal thresholds, so
+users who tested the command under `dev` have time to migrate.
 
 The server must graduate from `sprocket dev server` before Sprocket 1.0 makes
 `/api/v1` stable. Sprocket 1.0 must not be released while `/api/v1` is available
@@ -135,7 +146,8 @@ include:
 
 - Adding an optional command-line option without changing existing defaults.
 - Accepting an input that an earlier release rejected.
-- Adding an optional `sprocket.toml` key.
+- Adding a new `sprocket.toml` key, so long as its default value is consistent
+  with existing behavior.
 - Adding an optional field to an extensible JSON object.
 - Adding an HTTP endpoint without changing an existing endpoint.
 - Fixing behavior that contradicts the documentation.

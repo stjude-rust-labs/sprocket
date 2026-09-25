@@ -17,9 +17,6 @@ is defined by the [Sprocket compatibility policy](COMPATIBILITY.md).
 
 ### Changed
 
-* `sprocket config init` now references the `sprocket.toml` schema from its
-  release tag instead of the changing `main` branch
-  ([#1071](https://github.com/stjude-rust-labs/sprocket/issues/1071)).
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
   ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
