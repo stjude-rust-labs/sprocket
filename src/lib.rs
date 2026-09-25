@@ -11,9 +11,11 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::fmt::Arguments;
 use std::fs::File;
+use std::io::IoSlice;
 use std::io::IsTerminal as _;
-use std::io::stderr;
+use std::io::Write;
 use std::path::PathBuf;
 
 use anyhow::Context as _;
@@ -33,10 +35,10 @@ use tracing::level_filters::LevelFilter;
 use tracing::trace;
 use tracing_indicatif::IndicatifLayer;
 use tracing_indicatif::IndicatifWriter;
-use tracing_indicatif::writer::Stdout;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::fmt;
+use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::fmt::format::DefaultFields;
 use tracing_subscriber::fmt::format::Format;
 use tracing_subscriber::layer::Layered;
@@ -141,6 +143,7 @@ cfg_select! {
 async fn real_main() -> CommandResult<()> {
     let cli = with_large_stack(Cli::parse);
 
+    let is_terminal = std::io::stderr().is_terminal();
     let mut config = match &cli.command {
         Commands::Config(config_args) if config_args.is_default() => {
             // For `config default`, skip loading and use default
@@ -168,7 +171,7 @@ async fn real_main() -> CommandResult<()> {
                             &[e.to_diagnostic()],
                             Default::default(),
                             match cli.color {
-                                ColorMode::Auto => stderr().is_terminal(),
+                                ColorMode::Auto => is_terminal,
                                 ColorMode::Always => true,
                                 ColorMode::Never => false,
                             },
@@ -198,7 +201,7 @@ async fn real_main() -> CommandResult<()> {
     );
 
     let colorize = match (cli.color, config.common.color) {
-        (ColorMode::Auto, ColorMode::Auto) => stderr().is_terminal(),
+        (ColorMode::Auto, ColorMode::Auto) => is_terminal,
         (ColorMode::Auto, ColorMode::Always) => true,
         (ColorMode::Auto, ColorMode::Never) => false,
         (ColorMode::Always, _) => true,
@@ -207,7 +210,8 @@ async fn real_main() -> CommandResult<()> {
 
     colored::control::set_override(colorize);
     let (writer, file_handle, indicatif_writers) =
-        initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
+        initialize_logging(cli.verbosity, colorize, is_terminal)
+            .context("failed to initialize logging")?;
 
     match cli.command {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args, config, writer).await,
@@ -249,7 +253,7 @@ async fn real_main() -> CommandResult<()> {
 }
 
 /// The type of the logging subscriber.
-pub type Subscriber = FmtSubscriber<DefaultFields, Format, LevelFilter, IndicatifWriter>;
+pub type Subscriber = FmtSubscriber<DefaultFields, Format, LevelFilter, Stderr>;
 
 /// Represents the type of the filter (i.e. controls logging output) layer.
 pub type FilterLayer = Layered<reload::Layer<EnvFilter, Subscriber>, Subscriber>;
@@ -266,17 +270,139 @@ pub type FilterReloadHandle = reload::Handle<EnvFilter, Subscriber>;
 /// run directory has been created.
 pub type FileReloadHandle = reload::Handle<
     Option<
-        fmt::Layer<Layered<IndicatifLayer<FilterLayer>, FilterLayer>, DefaultFields, Format, File>,
+        fmt::Layer<
+            Layered<Option<IndicatifLayer<FilterLayer>>, FilterLayer>,
+            DefaultFields,
+            Format,
+            File,
+        >,
     >,
-    Layered<IndicatifLayer<FilterLayer>, FilterLayer>,
+    Layered<Option<IndicatifLayer<FilterLayer>>, FilterLayer>,
 >;
 
-/// Writers for the `tracing-indicatif` layer.
-struct IndicatifWriters {
+/// Writer for stdout.
+#[derive(Clone)]
+#[allow(missing_debug_implementations)] // Can't, `IndicatifWriter` doesn't implement `Debug`.
+pub enum Stdout {
+    /// `tracing-indicatif` proxy writer.
+    IndicatifWriter(IndicatifWriter<tracing_indicatif::writer::Stdout>),
+    /// Direct `stdout` writer.
+    Stdout,
+}
+
+impl Write for Stdout {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.write(buf),
+            Stdout::Stdout => std::io::stdout().write(buf),
+        }
+    }
+
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.write_vectored(bufs),
+            Stdout::Stdout => std::io::stdout().write_vectored(bufs),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.flush(),
+            Stdout::Stdout => std::io::stdout().flush(),
+        }
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.write_all(buf),
+            Stdout::Stdout => std::io::stdout().write_all(buf),
+        }
+    }
+
+    fn write_fmt(&mut self, args: Arguments<'_>) -> std::io::Result<()> {
+        match self {
+            Stdout::IndicatifWriter(writer) => writer.write_fmt(args),
+            Stdout::Stdout => std::io::stdout().write_fmt(args),
+        }
+    }
+}
+
+impl<'a> MakeWriter<'a> for Stdout {
+    type Writer = Self;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+/// Writer for stderr.
+#[derive(Clone)]
+#[allow(missing_debug_implementations)] // Can't, `IndicatifWriter` doesn't implement `Debug`.
+pub enum Stderr {
+    /// `tracing-indicatif` proxy writer.
+    IndicatifWriter(IndicatifWriter),
+    /// Direct `stderr` writer.
+    Stderr,
+}
+
+impl<'a> MakeWriter<'a> for Stderr {
+    type Writer = Self;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+impl Write for Stderr {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.write(buf),
+            Stderr::Stderr => std::io::stderr().write(buf),
+        }
+    }
+
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> std::io::Result<usize> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.write_vectored(bufs),
+            Stderr::Stderr => std::io::stderr().write_vectored(bufs),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.flush(),
+            Stderr::Stderr => std::io::stderr().flush(),
+        }
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.write_all(buf),
+            Stderr::Stderr => std::io::stderr().write_all(buf),
+        }
+    }
+
+    fn write_fmt(&mut self, args: Arguments<'_>) -> std::io::Result<()> {
+        match self {
+            Stderr::IndicatifWriter(writer) => writer.write_fmt(args),
+            Stderr::Stderr => std::io::stderr().write_fmt(args),
+        }
+    }
+}
+
+/// Stdio writers.
+///
+/// This is used to dispatch between the `tracing-indicatif` writers and direct
+/// `std::io::{stdout, stderr}()`, depending on if the output is a terminal.
+///
+/// We can't just unconditionally use the `IndicatifWriter` due to a panic in debug mode, see <https://github.com/emersonford/tracing-indicatif/issues/24>.
+#[derive(Clone)]
+#[allow(missing_debug_implementations)] // Can't, `IndicatifWriter` doesn't implement `Debug`.
+pub struct Stdio {
     /// Writer for stdout.
-    stdout: IndicatifWriter<Stdout>,
+    pub stdout: Stdout,
     /// Writer for stderr.
-    stderr: IndicatifWriter,
+    pub stderr: Stderr,
 }
 
 /// Initializes logging given the verbosity level and whether or not to colorize
@@ -288,7 +414,8 @@ struct IndicatifWriters {
 fn initialize_logging(
     verbosity: Verbosity<WarnLevel>,
     colorize: bool,
-) -> Result<(FilterReloadHandle, FileReloadHandle, IndicatifWriters)> {
+    is_terminal: bool,
+) -> Result<(FilterReloadHandle, FileReloadHandle, Stdio)> {
     // Try to get a default environment filter via `RUST_LOG`
     let env_filter = match EnvFilter::try_from_default_env()
         .context("invalid `RUST_LOG` environment variable")
@@ -314,24 +441,40 @@ fn initialize_logging(
     // This layer should always come first in the subscriber
     let (filter_layer, filter_reload_handle) = reload::Layer::new(env_filter);
 
-    // Set up an indicatif layer so that progress bars don't interfere with
-    // logging output
-    let indicatif_layer = IndicatifLayer::new()
-        .with_span_child_prefix_indent("    ")
-        .with_span_child_prefix_symbol("↳ ");
-    let indicatif_writers = IndicatifWriters {
-        stdout: indicatif_layer.get_stdout_writer(),
-        stderr: indicatif_layer.get_stderr_writer(),
-    };
-
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_reload_handle) =
         reload::Layer::new(None::<File>.map(|f| fmt::layer().with_writer(f).with_ansi(false)));
 
+    let (indicatif_layer, stdio) = if is_terminal {
+        // Set up an indicatif layer so that progress bars don't interfere with
+        // logging output
+        let indicatif_layer = IndicatifLayer::new()
+            .with_span_child_prefix_indent("    ")
+            .with_span_child_prefix_symbol("↳ ");
+
+        let stdout = indicatif_layer.get_stdout_writer();
+        let stderr = indicatif_layer.get_stderr_writer();
+        (
+            Some(indicatif_layer),
+            Stdio {
+                stdout: Stdout::IndicatifWriter(stdout),
+                stderr: Stderr::IndicatifWriter(stderr),
+            },
+        )
+    } else {
+        (
+            None,
+            Stdio {
+                stdout: Stdout::Stdout,
+                stderr: Stderr::Stderr,
+            },
+        )
+    };
+
     // Build the subscriber and set it as the global default
     let subscriber = fmt::Subscriber::builder()
         .with_max_level(LevelFilter::TRACE)
-        .with_writer(indicatif_writers.stderr.clone())
+        .with_writer(stdio.stderr.clone())
         .with_ansi(colorize)
         .with_ansi_sanitization(false)
         .finish()
@@ -342,7 +485,7 @@ fn initialize_logging(
     tracing::subscriber::set_global_default(subscriber)
         .context("failed to set tracing subscriber")?;
 
-    Ok((filter_reload_handle, file_reload_handle, indicatif_writers))
+    Ok((filter_reload_handle, file_reload_handle, stdio))
 }
 
 /// The Sprocket command line entrypoint.
