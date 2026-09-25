@@ -254,7 +254,7 @@ macro_rules! define_rule_params {
         /// A rule's table may set `severity` to override its severity (or `off`
         /// to disable it) along with any parameters applicable to that rule.
         #[derive(Clone, Debug, PartialEq, Eq, Toml, JsonSchema)]
-        #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+        #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
         #[schemars(rename_all = "snake_case", deny_unknown_fields, default)]
         pub struct RuleConfig {
             /// The severity override for the rule.
@@ -601,7 +601,8 @@ mod test {
 
     #[test]
     fn parses_struct_member_case_style() {
-        // SAFETY: the test input is static and known to use valid rule parameters.
+        // SAFETY: the test input is static and known to use valid rule
+        // parameters.
         let config: Config =
             toml_spanner::from_str("[NamingConvention]\nstruct_member = \"camelCase\"\n").unwrap();
         assert_eq!(

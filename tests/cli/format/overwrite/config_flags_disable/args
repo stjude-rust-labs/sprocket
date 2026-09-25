@@ -1,1 +1,0 @@
---config sprocket.toml format --no-sort-imports --no-sort-inputs --no-trailing-commas overwrite file.wdl

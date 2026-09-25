@@ -2,7 +2,7 @@
 
 version 1.3
 
-#@ except: RequirementsSection
+#@ except: DeprecatedRuntimeSection, RequirementsSection
 task foo {
     meta {
         description: "This is a test of disallowed output names"

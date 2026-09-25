@@ -27,8 +27,10 @@ use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
+use wdl_analysis::types::TypeNameRef;
 use wdl_analysis::types::v1::EvaluationContext;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
+use wdl_analysis::util::lines_with_offset;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -51,7 +53,6 @@ use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
 use crate::util::is_quote_balanced;
-use crate::util::lines_with_offset;
 use crate::util::program_exists;
 
 /// The shellcheck executable
@@ -387,8 +388,13 @@ impl EvaluationContext for CommandContext<'_> {
 
         if let Some(ty) = self.document.get_custom_type(name) {
             return Some(
-                ty.type_name_ref()
-                    .expect("type name ref to be created from custom type"),
+                TypeNameRef::new(
+                    name,
+                    ty.as_custom()
+                        .expect("type should be a custom type")
+                        .clone(),
+                )
+                .into(),
             );
         }
 
@@ -636,7 +642,8 @@ fn map_shellcheck_lines(
                         continue;
                     }
 
-                    // The first line is removed entirely, UNLESS there is content on it.
+                    // The first line is removed entirely, UNLESS there is
+                    // content on it.
                     if !skipped_first_line && line.is_empty() {
                         skipped_first_line = true;
                         continue;
@@ -745,7 +752,8 @@ impl Visitor for ShellCheckRule {
         let Some(scope) = doc.find_scope_by_position(section.inner().text_range().start().into())
         else {
             // This is the case where the command section has not been analyzed
-            // e.g. it is in a task that has not been analyzed because it is a duplicate.
+            // e.g. it is in a task that has not been analyzed because it is a
+            // duplicate.
             return;
         };
         let mut context = CommandContext::new(doc.clone(), scope);
@@ -809,6 +817,7 @@ impl Visitor for ShellCheckRule {
 mod tests {
     use ftree::FenwickTree;
     use pretty_assertions::assert_eq;
+    use wdl_analysis::util::lines_with_offset;
     use wdl_ast::Document;
     use wdl_ast::v1::Expr;
 
@@ -816,7 +825,6 @@ mod tests {
     use super::normalize_replacements;
     use crate::fix;
     use crate::fix::Fixer;
-    use crate::util::lines_with_offset;
 
     #[test]
     fn test_normalize_replacements() {

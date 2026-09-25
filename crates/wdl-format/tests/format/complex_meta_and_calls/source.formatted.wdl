@@ -1,9 +1,35 @@
 version 1.0
 
 workflow test_wf {
+    input {
+        SpliceJunctionMotifs out_sj_filter_overhang_min = SpliceJunctionMotifs {
+            noncanonical_motifs: 30,
+            GT_AG_and_CT_AC_motif: 12,
+        }
+    }
+
+    parameter_meta {
+        out_sj_filter_overhang_min: {
+            type: "SpliceJunctionMotifs",
+            label: "Minimum overhang required to support a splicing junction",
+        }
+    }
+
+    output {
+        SpliceJunctionMotifs KAZAM = out_sj_filter_overhang_min
+        String a = "friend"
+        Int b = 1 + 2
+        String c = "Hello, ~{a}"
+        Map[String, Int] d = {
+            "a": 0,
+            "b": 1,
+            "c": 2,
+        }
+    }
+
     meta {
         a: "hello"
-        b: "world"
+        b: 'world'
         c: 5
         d: -0xf
         e: 1.0e10
@@ -33,7 +59,7 @@ workflow test_wf {
                 a: {},
                 b: 0,
                 c: "",
-                d: "",
+                d: '',
                 e: [],
             },
             {
@@ -46,37 +72,27 @@ workflow test_wf {
         ]
     }
 
-    parameter_meta {
-        out_sj_filter_overhang_min: {
-            type: "SpliceJunctionMotifs",
-            label: "Minimum overhang required to support a splicing junction",
-        }
-    }
-
-    input {
-        SpliceJunctionMotifs out_sj_filter_overhang_min = SpliceJunctionMotifs {
-            noncanonical_motifs: 30,
-            GT_AG_and_CT_AC_motif: 12,
-        }
-    }
-
-    call no_params call with_params { input:
+    call no_params
+    call with_params { input:
         a,
         b,
         c,
         d = 1,
     }
-    call qualified.name call qualified.name { input:
+    call qualified.name
+    call qualified.name { input:
         a = 1,
         b = 2,
         c = "3",
     }
-    call aliased as x call aliased as x { input:
-    }
-    call f after x after y call f after x after y { input:
+    call aliased as x
+    call aliased as x
+    call f after x after y
+    call f after x after y { input:
         a = [],
     }
-    call f as x after x call f as x after x after y { input:
+    call f as x after x
+    call f as x after x after y { input:
         name = "hello",
     }
     call test_task as foo { input:
@@ -93,34 +109,22 @@ workflow test_wf {
             }
         }
     }
-
-    output {
-        SpliceJunctionMotifs KAZAM = out_sj_filter_overhang_min
-        String a = "friend"
-        Int b = 1 + 2
-        String c = "Hello, ~{a}"
-        Map[String, Int] d = {
-            "a": 0,
-            "b": 1,
-            "c": 2,
-        }
-    }
 }
 
 task test_task {
+    command <<<
+    >>>
+
+    input {
+        String bowchicka
+    }
+
     parameter_meta {
         bowchicka: {
             type: "String",
             label: "Bowchicka",
         }
     }
-
-    input {
-        String bowchicka
-    }
-
-    command <<<
-    >>>
 }
 
 struct SpliceJunctionMotifs {

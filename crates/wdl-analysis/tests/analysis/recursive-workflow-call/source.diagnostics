@@ -3,4 +3,3 @@ error: cannot recursively call workflow `test`
   │
 8 │     call test
   │          ^^^^
-

@@ -52,17 +52,18 @@ impl Visitor for NumberVisitor {
             return;
         }
 
-        // Check for either a literal integer, literal float, or a negation with an
-        // immediate literal integer or literal float operand.
+        // Check for either a literal integer, literal float, or a negation with
+        // an immediate literal integer or literal float operand.
         //
-        // In the case of floats, we can simply check if `value` returns `is_none`,
-        // which will indicate that the literal is not in range.
+        // In the case of floats, we can simply check if `value` returns
+        // `is_none`, which will indicate that the literal is not in
+        // range.
         //
-        // For integers, we need to call the `negate` method if the literal is part
-        // of a negation expression; otherwise, we use `value`.
+        // For integers, we need to call the `negate` method if the literal is
+        // part of a negation expression; otherwise, we use `value`.
         //
-        // If a value is not in range and an operand to a negation expression, we start
-        // the error span at the minus token.
+        // If a value is not in range and an operand to a negation expression,
+        // we start the error span at the minus token.
         match expr {
             Expr::Literal(LiteralExpr::Integer(i)) => {
                 let in_range = if self.negation_start.is_some() {
@@ -104,7 +105,8 @@ impl Visitor for NumberVisitor {
                 diagnostics.add(float_not_in_range(span));
             }
             Expr::Negation(negation) => {
-                // Check to see if the very next expression is a literal integer or float
+                // Check to see if the very next expression is a literal integer
+                // or float
                 if matches!(
                     negation.operand(),
                     Expr::Literal(LiteralExpr::Integer(_)) | Expr::Literal(LiteralExpr::Float(_))

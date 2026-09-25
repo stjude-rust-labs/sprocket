@@ -136,9 +136,10 @@ pub fn completion(
             return Ok(items);
         }
 
-        // NOTE: Custom handling for version completion. If the token to the immediate
-        // left of the cursor (ignoring whitespace) is the `version` keyword, we are
-        // very likely completing the version number.
+        // NOTE: Custom handling for version completion. If the token to the
+        // immediate left of the cursor (ignoring whitespace) is the
+        // `version` keyword, we are very likely completing the version
+        // number.
         let mut non_trivia = token.clone();
         if non_trivia.kind().is_trivia()
             && let Some(prev) = non_trivia.prev_token()
@@ -348,16 +349,16 @@ fn add_member_access_completions(
                 label: task.name().to_string(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some(format!("task {}", task.name())),
-                documentation: provide_task_documentation(task, &ns_root).and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 ..Default::default()
             });
 
-            let snippet = build_call_snippet(task.name(), task.inputs(), ns_doc_version);
+            let snippet = build_call_snippet(task.name(), &task.inputs(), ns_doc_version);
             items.push(CompletionItem {
                 label: format!("{} {{...}}", task.name()),
                 kind: Some(CompletionItemKind::SNIPPET),
                 detail: Some(format!("call task {} with required inputs", task.name())),
-                documentation: provide_task_documentation(task, &ns_root).and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 insert_text: Some(snippet),
                 filter_text: Some(task.name().to_string()),
@@ -500,16 +501,17 @@ fn add_member_access_completions(
                 ..Default::default()
             });
         }
-        (SyntaxKind::Dot, Type::TypeNameRef(CustomType::Enum(e))) => {
-            if let Some(version) = document.version()
+        (SyntaxKind::Dot, Type::TypeNameRef(ty)) => {
+            if let Some(ty) = ty.as_enum()
+                && let Some(version) = document.version()
                 && version >= SupportedVersion::V1(V1::Three)
             {
-                let enum_type = e.inner_value_type();
-                for choice_name in e.choices() {
+                let enum_type = ty.inner_value_type();
+                for choice_name in ty.choices() {
                     items.push(CompletionItem {
                         label: choice_name.to_string(),
                         kind: Some(CompletionItemKind::ENUM_MEMBER),
-                        detail: Some(format!("{}[{}]", e.name(), enum_type)),
+                        detail: Some(format!("{}[{}]", ty.name(), enum_type)),
                         ..Default::default()
                     });
                 }
@@ -641,16 +643,16 @@ fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>
             label: name.to_string(),
             kind: Some(CompletionItemKind::FUNCTION),
             detail: Some(format!("task {}", name)),
-            documentation: provide_task_documentation(task, &root_node).and_then(make_md_docs),
+            documentation: provide_task_documentation(&task, &root_node).and_then(make_md_docs),
             ..Default::default()
         });
 
-        let snippet = build_call_snippet(name, task.inputs(), version);
+        let snippet = build_call_snippet(name, &task.inputs(), version);
         items.push(CompletionItem {
             label: format!("{} {{...}}", name),
             kind: Some(CompletionItemKind::SNIPPET),
             detail: Some(format!("call task {} with required inputs", name)),
-            documentation: provide_task_documentation(task, &root_node).and_then(make_md_docs),
+            documentation: provide_task_documentation(&task, &root_node).and_then(make_md_docs),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             insert_text: Some(snippet),
             ..Default::default()
@@ -680,26 +682,26 @@ fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>
         });
     }
 
-    for (ns_name, ns) in document.namespaces() {
+    for ns in document.namespaces() {
         let ns_root = ns.document().root();
 
         for task in ns.document().tasks() {
             let name = task.name();
-            let label = format!("{ns_name}.{name}");
+            let label = format!("{}.{name}", ns.name());
             items.push(CompletionItem {
                 label: label.clone(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some("task".to_string()),
-                documentation: provide_task_documentation(task, &ns_root).and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 ..Default::default()
             });
 
-            let snippet = build_call_snippet(&label, task.inputs(), version);
+            let snippet = build_call_snippet(&label, &task.inputs(), version);
             items.push(CompletionItem {
                 label: format!("{} {{...}}", label),
                 kind: Some(CompletionItemKind::SNIPPET),
                 detail: Some(format!("call task {} with required inputs", label)),
-                documentation: provide_task_documentation(task, &ns_root).and_then(make_md_docs),
+                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 insert_text: Some(snippet),
                 ..Default::default()
@@ -707,7 +709,7 @@ fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>
         }
         if let Some(workflow) = ns.document().workflow() {
             let name = workflow.name();
-            let label = format!("{ns_name}.{name}");
+            let label = format!("{}.{name}", ns.name());
 
             items.push(CompletionItem {
                 label: label.clone(),
@@ -820,19 +822,19 @@ fn add_struct_completions(
     items: &mut Vec<CompletionItem>,
 ) {
     let root = document.root();
-    for (name, s) in document.structs() {
+    for s in document.structs() {
         // Skip if this struct name is shadowed by a variable in scope
         if let Some(scope) = scope
-            && scope.lookup(name).is_some()
+            && scope.lookup(s.name()).is_some()
         {
             continue;
         }
 
         items.push(CompletionItem {
-            label: name.to_string(),
+            label: s.name().to_string(),
             kind: Some(CompletionItemKind::STRUCT),
-            detail: Some(format!("struct {name}")),
-            documentation: provide_struct_documentation(s, &root).and_then(make_md_docs),
+            detail: Some(format!("struct {}", s.name())),
+            documentation: provide_struct_documentation(&s, &root).and_then(make_md_docs),
             ..Default::default()
         });
 
@@ -841,13 +843,13 @@ fn add_struct_completions(
         {
             let members = struct_ty.members();
             if !members.is_empty() {
-                let (label, snippet) = build_struct_snippet(name, members);
+                let (label, snippet) = build_struct_snippet(s.name(), members);
 
                 items.push(CompletionItem {
                     label,
                     kind: Some(CompletionItemKind::SNIPPET),
-                    detail: Some(format!("struct {} with members", name)),
-                    documentation: provide_struct_documentation(s, &root).and_then(make_md_docs),
+                    detail: Some(format!("struct {} with members", s.name())),
+                    documentation: provide_struct_documentation(&s, &root).and_then(make_md_docs),
                     insert_text_format: Some(InsertTextFormat::SNIPPET),
                     insert_text: Some(snippet),
                     ..Default::default()
@@ -867,31 +869,31 @@ fn add_enum_type_completions(
     items: &mut Vec<CompletionItem>,
 ) {
     let root = document.root();
-    for (name, r#enum) in document.enums() {
+    for r#enum in document.enums() {
         // Skip if this enum name is shadowed by a variable in scope
         if let Some(scope) = scope
-            && scope.lookup(name).is_some()
+            && scope.lookup(r#enum.name()).is_some()
         {
             continue;
         }
 
         items.push(CompletionItem {
-            label: name.to_string(),
+            label: r#enum.name().to_string(),
             kind: Some(CompletionItemKind::ENUM),
-            detail: Some(format!("enum {name}")),
-            documentation: provide_enum_documentation(r#enum, &root).and_then(make_md_docs),
+            detail: Some(format!("enum {}", r#enum.name())),
+            documentation: provide_enum_documentation(&r#enum, &root).and_then(make_md_docs),
             ..Default::default()
         });
     }
 }
 
-/// Adds completions for imported namespaces (aliases).
+/// Adds completions for imported namespaces.
 fn add_namespace_completions(document: &Document, items: &mut Vec<CompletionItem>) {
-    for (name, _) in document.namespaces() {
+    for ns in document.namespaces() {
         items.push(CompletionItem {
-            label: name.to_string(),
+            label: ns.name().to_string(),
             kind: Some(CompletionItemKind::MODULE),
-            detail: Some(format!("import alias {name}")),
+            detail: Some(format!("import namespace {}", ns.name())),
             ..Default::default()
         });
     }

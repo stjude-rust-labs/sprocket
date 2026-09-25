@@ -95,10 +95,12 @@ fn glob_local_path(
             } else {
                 // Currently this is at odd with the 1.3 spec, specifically:
                 //
-                // `Broken symlinks (those that point to non-existent targets) are included.`
+                // `Broken symlinks (those that point to non-existent targets)
+                // are included.`
                 //
-                // However, since this function returns `Array[File]` and 1.3 also says that
-                // non-optional files should exist, including them doesn't seem appropriate.
+                // However, since this function returns `Array[File]` and 1.3
+                // also says that non-optional files should
+                // exist, including them doesn't seem appropriate.
                 //
                 // For now, we'll exclude them until that matter is resolved.
                 false
@@ -143,10 +145,10 @@ async fn glob_remote_path(
 ) -> Result<Vec<Value>, Diagnostic> {
     let mut matches: Vec<Value> = Vec::new();
 
-    // Use `Transferer::walk` to walk the URL looking for matches
-    let paths = context
-        .transferer()
-        .walk(url)
+    // Walk the URL looking for matches
+    let (client, token) = context.http();
+    let paths = client
+        .walk(url, token)
         .await
         .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
 
@@ -173,19 +175,18 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
 
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn glob() {
         let env = TestEnv::default();
-
         let diagnostic = eval_v1_expr(&env, V1::Two, "glob('invalid{')")
             .await
             .unwrap_err();

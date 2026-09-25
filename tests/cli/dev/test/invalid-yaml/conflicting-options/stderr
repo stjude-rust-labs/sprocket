@@ -1,0 +1,17 @@
+error: cannot use `should_fail` with `exit_code`
+  ┌─ foo.yml:5:7
+  │
+4 │       exit_code: 0
+  │       --------- `exit_code` specified here
+5 │       should_fail: true
+  │       ^^^^^^^^^^^ `should_fail` specified here
+
+error: cannot use `should_fail` with `exit_code`
+  ┌─ foo.yml:9:7
+  │
+8 │       exit_code: 1
+  │       --------- `exit_code` specified here
+9 │       should_fail: false
+  │       ^^^^^^^^^^^ `should_fail` specified here
+
+error: failing due to 2 errors

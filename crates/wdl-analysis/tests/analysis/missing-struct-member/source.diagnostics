@@ -27,4 +27,3 @@ error: struct `Foo` requires a value for members `a`, `x`, and `z`
    │
 26 │     Foo f = Foo { }
    │             ^^^
-

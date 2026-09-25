@@ -1,4 +1,4 @@
-#@ except: BashSetSyntax, MatchingOutputMeta, MetaSections, RequirementsSection
+#@ except: BashSetSyntax, DeprecatedRuntimeSection, MatchingOutputMeta, MetaSections, RequirementsSection
 
 version 1.3
 

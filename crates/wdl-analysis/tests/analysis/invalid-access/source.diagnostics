@@ -3,4 +3,3 @@ error: cannot access type `String`
   │
 8 │     String x = a.bar
   │                ^ this is type `String`
-

@@ -1,0 +1,23 @@
+warning: useless `exit_code` assertion
+  ┌─ foo.yml:4:7
+  │
+4 │       exit_code: 0
+  │       ^^^^^^^^^
+  │
+  = help: `exit_code` assertions have no effect for workflows
+
+warning: useless `stdout` assertion
+  ┌─ foo.yml:5:7
+  │
+5 │       stdout:
+  │       ^^^^^^
+  │
+  = help: `stdout` assertions have no effect for workflows
+
+warning: useless `stderr` assertion
+  ┌─ foo.yml:7:7
+  │
+7 │       stderr:
+  │       ^^^^^^
+  │
+  = help: `stderr` assertions have no effect for workflows

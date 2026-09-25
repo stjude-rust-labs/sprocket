@@ -1,14 +1,9 @@
 //! Implementation of the `retry` subcommand.
 
-use std::collections::BTreeMap;
-
 use anyhow::Context;
 use clap::Parser;
 use serde_json::Value as JsonValue;
 use wdl::analysis::Document;
-use wdl::diagnostics::Mode;
-use wdl::engine::EvaluationPath;
-use wdl::engine::Inputs as EngineInputs;
 
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -21,11 +16,13 @@ use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::ensure_no_analysis_errors;
 use crate::config::Config;
+use crate::inputs::FlattenedInputs;
 use crate::inputs::Invocation;
 use crate::inputs::join_paths_for_target;
 use crate::server::RunResponse;
 use crate::server::SubmitRunRequest;
 use crate::server::paths;
+use crate::system::v1::fs::IndexPath;
 
 /// Arguments for the `retry` subcommand.
 #[derive(Parser, Debug)]
@@ -52,9 +49,11 @@ pub struct Args {
     #[clap(short, long, value_name = "NAME")]
     target: Option<String>,
 
-    /// Override the output name to index on.
-    #[clap(long, value_name = "OUTPUT_NAME")]
-    index_on: Option<String>,
+    /// Override the index path to index the run outputs under.
+    ///
+    /// The path must be relative and cannot contain `.` or `..` components.
+    #[clap(long, value_name = "INDEX_PATH")]
+    index_on: Option<IndexPath>,
 
     /// Skip local re-analysis of the WDL source file.
     ///
@@ -65,10 +64,6 @@ pub struct Args {
     #[clap(long)]
     no_validate: bool,
 
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    report_mode: Option<Mode>,
-
     #[command(flatten)]
     client_args: ServerConnectionArgs,
 }
@@ -78,7 +73,7 @@ pub struct Args {
 /// Fetches the original run's details, optionally re-analyzes the source,
 /// merges any input overrides, then submits a new run.
 pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or_default();
+    let report_mode = config.common.report_mode;
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
@@ -113,6 +108,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             config.common.wdl.fallback_version.into(),
             config.modules.clone(),
             config.common.wdl.feature_flags,
+            config.common.ignore_filename(),
             report_mode,
             colorize,
         )
@@ -128,7 +124,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             }
         })?;
 
-        ensure_no_analysis_errors(&document, args.report_mode.unwrap_or_default(), colorize)?;
+        ensure_no_analysis_errors(&document, report_mode, colorize)?;
 
         Some(document)
     } else {
@@ -161,7 +157,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
         source: original.source.clone(),
         inputs: JsonValue::Object(merged_inputs),
         target: effective_target,
-        index_on: args.index_on,
+        index_on: args.index_on.map(|path| path.to_string()),
     };
 
     let submit_response: JsonValue = send_json(
@@ -206,17 +202,17 @@ async fn merge_overrides_into(
         .await
         .context("failed to parse override inputs")?;
 
-    let (origins, override_map) = invocation.into_json_with_origins();
+    let override_inputs = invocation.into_json_with_origins();
 
-    if override_map.is_empty() {
+    if override_inputs.is_empty() {
         return Ok(());
     }
 
     // Resolve paths via wdl-engine when a document is available.
     let resolved_map = if let Some(document) = document {
-        resolve_override_paths(document, override_map, origins).await?
+        resolve_override_paths(document, &override_inputs).await?
     } else {
-        override_map
+        override_inputs.into_values()
     };
 
     for (key, value) in resolved_map {
@@ -237,17 +233,16 @@ async fn merge_overrides_into(
 /// subset.
 async fn resolve_override_paths(
     document: &Document,
-    overrides: serde_json::Map<String, JsonValue>,
-    origins: BTreeMap<String, Vec<EvaluationPath>>,
+    overrides: &FlattenedInputs,
 ) -> CommandResult<serde_json::Map<String, JsonValue>> {
-    let Some((target, mut inputs)) =
-        EngineInputs::parse_json_object(document, overrides.clone())
-            .context("failed to parse override inputs against the WDL document")?
+    let Some((target, mut inputs)) = overrides
+        .parse_engine_inputs(document)
+        .context("failed to parse override inputs against the WDL document")?
     else {
-        return Ok(overrides);
+        return Ok(overrides.values().clone());
     };
 
-    join_paths_for_target(document, &target, &mut inputs, &origins).await?;
+    join_paths_for_target(document, &target, &mut inputs, overrides.origins()).await?;
 
     let json_str =
         inputs_to_json(&target, &inputs).context("failed to serialize override inputs")?;
@@ -264,6 +259,7 @@ mod tests {
     use serde_json::json;
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
+    use wdl::diagnostics::Mode;
 
     use super::*;
     use crate::analysis::Source;
@@ -291,6 +287,7 @@ mod tests {
             None,
             wdl_modules::resolver::ModulesConfig::default(),
             wdl::analysis::FeatureFlags::default(),
+            Some(crate::IGNORE_FILENAME.to_string()),
             Mode::default(),
             true,
         )
@@ -502,5 +499,50 @@ task t {
         .await;
 
         assert!(result.is_err(), "expected error for unknown override key");
+    }
+
+    #[tokio::test]
+    async fn merge_unprefixed_input_file_reports_missing_at_prefix() {
+        let wdl = r#"
+version 1.3
+
+task t {
+    input {
+        Array[File] jsons
+        Int threads
+    }
+    command <<< >>>
+}
+"#;
+        let (document, _wdl_dir) = analyze(wdl).await;
+        let input_dir = TempDir::new().unwrap();
+        let input_file = input_dir.path().join("inputs.json");
+        let first_json = input_dir.path().join("first.json");
+        let second_json = input_dir.path().join("second.json");
+        std::fs::write(&input_file, "{}").unwrap();
+        std::fs::write(&first_json, "{}").unwrap();
+        std::fs::write(&second_json, "{}").unwrap();
+
+        let mut base = base();
+        let error = merge_overrides_into(
+            &mut base,
+            &overrides(&[
+                &format!("t.jsons={}", first_json.display()),
+                second_json.to_str().unwrap(),
+                "t.threads=20",
+                input_file.to_str().unwrap(),
+            ]),
+            Some("t".to_string()),
+            Some(&document),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("looks like an input file"));
+        assert!(error.contains("prefix input files with `@`"));
+        assert!(error.contains(input_file.to_str().unwrap()));
+        assert!(!error.contains(second_json.to_str().unwrap()));
+        assert!(error.contains("invalid input value for key `t.threads`"));
     }
 }

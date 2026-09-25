@@ -118,51 +118,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:145:109: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:145:118: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:145:45: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:222:40: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L222"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:222:87: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L222"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:222:96: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L222"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:223:109: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L223"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:223:118: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L223"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:223:45: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L223"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
 message = "ww-aws-sso.wdl:234:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L234"
 
@@ -175,36 +130,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
 message = "ww-aws-sso.wdl:234:54: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L234"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:61:40: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:61:87: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:61:96: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:62:109: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:62:118: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:62:45: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L62"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
@@ -238,28 +163,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
-message = "ww-bcftools.wdl:100:52: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L100"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
 message = "ww-bcftools.wdl:154:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L154"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
-message = "ww-bcftools.wdl:169:17: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L169"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
 message = "ww-bcftools.wdl:61:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
-message = "ww-bcftools.wdl:99:46: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L99"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
@@ -315,11 +225,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:177:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L177"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:198:24: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L198"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
@@ -543,18 +448,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:105:14: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L105"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:105:8: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L105"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:106:14: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L106"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -598,26 +493,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:240:21: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L240"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:241:21: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L241"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:281:14: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L281"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:282:14: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L282"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:359:3: note[ExpectedRuntimeKeys]: the following runtime key is recommended by the WDL 1.0 specification: `docker`"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L359"
 
@@ -643,28 +518,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:422:21: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L422"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:423:21: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L423"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:42:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:463:14: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L463"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:464:14: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L464"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -688,17 +543,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:64:21: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L64"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:65:15: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L65"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:65:21: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L65"
 
 [[diagnostics]]
@@ -878,17 +723,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:62:22: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:63:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L63"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:63:22: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L63"
 
 [[diagnostics]]
@@ -1653,21 +1488,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:73:26: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L73"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:74:53: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L74"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:76:51: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
 message = "ww-ena.wdl:87:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L87"
 
@@ -2088,11 +1908,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:194:7: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gdc/ww-gdc.wdl/#L194"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
 message = "ww-gdc.wdl:208:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gdc/ww-gdc.wdl/#L208"
 
@@ -2198,33 +2013,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:22:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:22:20: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:25:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:25:20: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:31:15: note[DeclarationName]: declaration identifier 'cram_directory' contains type name 'Directory'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:34:3: note[RequirementsSection]: task `create_cram_directory` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L34"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
@@ -2288,11 +2078,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:155:3: note[RequirementsSection]: task `glimpse2_split_reference` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L155"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:198:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L198"
 
@@ -2305,11 +2090,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:212:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:237:3: note[RequirementsSection]: task `glimpse2_phase` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L237"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2348,11 +2128,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:361:3: note[RequirementsSection]: task `glimpse2_phase_cram` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L361"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:410:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L410"
 
@@ -2368,38 +2143,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:421:21: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L421"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:421:25: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L421"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:422:20: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L422"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:422:22: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L422"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:422:26: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L422"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:427:12: note[ShellCheck]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L427"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:447:3: note[RequirementsSection]: task `glimpse2_ligate` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L447"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2418,11 +2168,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:528:3: note[RequirementsSection]: task `glimpse2_concordance` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L528"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:568:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L568"
 
@@ -2435,16 +2180,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:580:19: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L580"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:584:3: note[RequirementsSection]: task `parse_chunks_file` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L584"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:79:3: note[RequirementsSection]: task `glimpse2_chunk` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
@@ -2468,36 +2203,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:157:20: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L157"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:158:17: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L158"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:159:28: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L159"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:160:31: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L160"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:161:25: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L161"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:162:19: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:27:3: note[ParameterMetaMatched]: parameter metadata in task `readcounter_wig` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L27"
 
@@ -2510,11 +2215,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:56:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:61:22: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L61"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -2545,11 +2245,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
 message = "ww-jcast.wdl:118:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L118"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:40:19: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L40"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
@@ -2703,11 +2398,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/ww-multiqc.wdl"
-message = "ww-multiqc.wdl:56:20: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/ww-multiqc.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/ww-multiqc.wdl"
 message = "ww-multiqc.wdl:67:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/ww-multiqc.wdl/#L67"
 
@@ -2773,11 +2463,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:212:17: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
 message = "ww-rmats-turbo.wdl:225:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L225"
 
@@ -2805,11 +2490,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
 message = "ww-rmats-turbo.wdl:314:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L314"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:322:28: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L322"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
@@ -2860,16 +2540,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
 message = "ww-rmats-turbo.wdl:84:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L84"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:91:17: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L91"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:92:17: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L92"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
@@ -3098,11 +2768,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:76:53: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
 message = "ww-shapemapper.wdl:82:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L82"
 
@@ -3175,21 +2840,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:89:39: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L89"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:106:14: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L106"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:56:26: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:57:32: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
@@ -3355,16 +3005,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
 message = "ww-star.wdl:133:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/ww-star.wdl/#L133"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
-message = "ww-star.wdl:146:51: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/ww-star.wdl/#L146"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
-message = "ww-star.wdl:146:62: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/ww-star.wdl/#L146"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
@@ -3555,11 +3195,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:67:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/ww-template.wdl/#L67"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:450:29: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/testrun.wdl/#L450"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
@@ -3998,33 +3633,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:22:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:22:20: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:25:16: note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:25:20: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:31:15: note[DeclarationName]: declaration identifier 'cram_directory' contains type name 'Directory'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:34:3: note[RequirementsSection]: task `create_cram_directory` contains a deprecated `runtime` section"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L34"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
@@ -4408,17 +4018,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:268:16: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L268"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:269:12: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L269"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:269:18: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L269"
 
 [[diagnostics]]
@@ -4438,17 +4038,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:350:23: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L350"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:351:11: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L351"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:351:17: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L351"
 
 [[diagnostics]]
@@ -4458,17 +4048,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:352:16: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L352"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:353:14: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L353"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:353:20: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L353"
 
 [[diagnostics]]
@@ -4478,17 +4058,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:354:21: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L354"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:355:10: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L355"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:355:16: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L355"
 
 [[diagnostics]]
@@ -4498,17 +4068,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:356:22: note[DoubleQuotes]: string defined with single quotes"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L356"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:357:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L357"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:357:24: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L357"
 
 [[diagnostics]]

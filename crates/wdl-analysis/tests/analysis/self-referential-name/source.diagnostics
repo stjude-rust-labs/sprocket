@@ -3,4 +3,3 @@ error: declaration of `c` is self-referential
   │
 9 │     Int c = a + b + c
   │         -           ^ self-reference is here
-

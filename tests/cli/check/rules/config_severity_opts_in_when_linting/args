@@ -1,1 +1,1 @@
---config sprocket.toml check --lint --only-lint-tag Portability source.wdl
+--config sprocket.toml check --lint --except MetaSections source.wdl

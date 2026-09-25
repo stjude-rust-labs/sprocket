@@ -80,10 +80,10 @@ async fn should_respect_lint_settings() {
     let mut ctx = TestContextBuilder::new("diagnostics")
         .client(client)
         .build();
-    let (_, diagnostics) = ctx.initialize().await;
+    ctx.initialize().await;
 
     // Linting is disabled by default, should return nothing
-    match diagnostics {
+    match ctx.workspace_diagnostic().await {
         WorkspaceDiagnosticReportResult::Report(report) => {
             assert_eq!(report.items.len(), 1);
             let WorkspaceDocumentDiagnosticReport::Full(report) = &report.items[0] else {

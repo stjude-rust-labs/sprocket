@@ -5,13 +5,11 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
-use url::Url;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
@@ -24,7 +22,6 @@ use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
 
 use crate::Config;
-use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
 
@@ -45,24 +42,12 @@ pub struct Args {
     /// If not supplied, the default Sprocket logo will be used.
     #[arg(long, value_name = "SVG FILE")]
     pub logo: Option<PathBuf>,
-    /// An optional link to the project's homepage.
-    #[arg(long, value_name = "LINK TO HOMEPAGE")]
-    pub homepage_url: Option<Url>,
-    /// An optional link to the project's GitHub repository.
-    #[arg(long, value_name = "LINK TO GITHUB")]
-    pub github_url: Option<Url>,
-    /// An optional link to the project's Slack workspace.
-    #[arg(long, value_name = "LINK TO SLACK")]
-    pub slack_url: Option<Url>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `--logo` SVG will be used; or if that is also not
     /// supplied, the default Sprocket logo will be used.
     #[arg(long, value_name = "SVG FILE")]
     pub alt_light_logo: Option<PathBuf>,
-    /// Initialize pages in light mode instead of the default dark mode.
-    #[arg(short, long)]
-    pub light_mode: bool,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
     /// `<workspace>/docs`.
@@ -103,15 +88,6 @@ pub struct Args {
     /// `npm` and `npx` are expected to be available in the environment.
     #[arg(long, requires = "theme")]
     pub install: bool,
-    /// Enables support for documentation comments
-    ///
-    /// This option is *experimental* and will be removed in a future major
-    /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
-    #[arg(long)]
-    pub with_doc_comments: bool,
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 }
 
 /// The default output directory for the generated documentation.
@@ -119,16 +95,6 @@ const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
 pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    if args.with_doc_comments {
-        tracing::warn!(
-            "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
-        );
-    } else if config.doc.with_doc_comments {
-        tracing::warn!(
-            "documentation comments support is **experimental**. See https://github.com/openwdl/wdl/issues/757"
-        );
-    }
-
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
@@ -197,17 +163,16 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     let analysis_config = AnalysisConfig::default()
         .with_fallback_version(config.common.wdl.fallback_version.into())
         .with_feature_flags(config.common.wdl.feature_flags)
-        .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
+        .with_ignore_filename(config.common.ignore_filename())
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
     let index_page = args.index_page.or(config.doc.index_page());
-    let light_mode = args.light_mode || config.doc.light_mode;
+    let light_mode = config.doc.light_mode;
     let logo = args.logo.or(config.doc.logo());
     let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
-    let homepage_url = args.homepage_url.or(config.doc.homepage_url());
-    let github_url = args.github_url.or(config.doc.github_url());
-    let slack_url = args.slack_url.or(config.doc.slack_url());
-    let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
+    let homepage_url = config.doc.homepage_url();
+    let github_url = config.doc.github_url();
+    let slack_url = config.doc.slack_url();
     let seo = Seo {
         title: config.doc.seo.title(),
         description: config.doc.seo.description(),
@@ -221,7 +186,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         theme_color: config.doc.seo.theme_color(),
     };
 
-    let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
+    let doc_config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .index_page(index_page)
         .init_light_mode(light_mode)
         .custom_theme(args.theme)
@@ -234,11 +199,11 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         })
         .additional_html(addl_html)
         .seo(seo)
-        .enable_doc_comments(with_doc_comments)
+        .enable_doc_comments(true)
         .check(args.check);
 
     let mut counts = DiagnosticCounts::default();
-    if let Err(e) = document_workspace(config).await {
+    if let Err(e) = document_workspace(doc_config).await {
         match e.kind() {
             DocErrorKind::AnalysisFailed(analysis_results) => {
                 for result in analysis_results {
@@ -256,7 +221,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
                             false
                         }),
-                        args.report_mode.unwrap_or_default(),
+                        config.common.report_mode,
                         colorize,
                     )
                     .context("failed to emit diagnostics")?;
@@ -282,25 +247,4 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_slack_url() {
-        // SAFETY: the argument list contains a valid absolute URL.
-        let args = Args::try_parse_from([
-            "doc",
-            "--slack-url",
-            "https://example.slack.com/archives/community",
-        ])
-        .unwrap();
-
-        assert_eq!(
-            args.slack_url.as_ref().map(Url::as_str),
-            Some("https://example.slack.com/archives/community")
-        );
-    }
 }

@@ -5,6 +5,7 @@ use std::path::Path;
 
 use criterion::Criterion;
 use url::Url;
+use wdl::lint::Tag;
 
 use crate::get_workflows_repo;
 
@@ -40,16 +41,13 @@ fn check_standalone_documents(c: &mut Criterion, workflows_repo: &Path) {
                         deny: vec![],
                         warn: vec![],
                         note: vec![],
-                        all_lint_rules: true,
-                        filter_lint_tag: vec![],
-                        only_lint_tag: vec![],
+                        tag: vec![Tag::All.to_string()],
                         deny_warnings: false,
                         deny_notes: false,
                         suppress_imports: false,
                         show_remote_diagnostics: false,
                         hide_notes: true,
                         hide_warnings: false,
-                        report_mode: None,
                         generate_baseline: false,
                         no_baseline: false,
                     };

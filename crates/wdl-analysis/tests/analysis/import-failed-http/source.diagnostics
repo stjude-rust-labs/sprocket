@@ -3,4 +3,3 @@ error: failed to import `https://www.google.com/404`: server response for `https
   │
 5 │ import "https://www.google.com/404" as foo
   │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-

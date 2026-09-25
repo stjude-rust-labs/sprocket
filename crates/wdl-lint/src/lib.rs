@@ -29,6 +29,7 @@ use std::sync::LazyLock;
 use dyn_clone::DynClone;
 use strum::VariantArray;
 use wdl_analysis::Example;
+use wdl_analysis::RuleMap;
 use wdl_analysis::Visitor;
 use wdl_ast::Severity;
 use wdl_ast::SyntaxKind;
@@ -82,6 +83,16 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
         .collect();
     ids.sort();
     ids
+});
+
+/// All rule IDs and their exceptable nodes.
+pub static RULE_MAP: LazyLock<RuleMap> = LazyLock::new(|| {
+    let rules = rules(&Config::default());
+    let mut map = HashMap::with_capacity(rules.len());
+    for rule in rules {
+        map.insert(String::from(rule.id()), rule.exceptable_nodes());
+    }
+    map
 });
 
 /// All tag names sorted alphabetically.
@@ -140,19 +151,14 @@ dyn_clone::clone_trait_object!(Rule);
 /// Gets all of the lint rules.
 pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
     let rules: Vec<Box<dyn Rule + Send + Sync>> = vec![
-        Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
         Box::new(rules::NamingConventionRule::new(config)),
         Box::<rules::RuntimeSectionRule>::default(),
         Box::<rules::ParameterMetaMatchedRule>::default(),
-        Box::<rules::CommandSectionIndentationRule>::default(),
         Box::<rules::ImportPlacementRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
-        Box::<rules::SectionOrderingRule>::default(),
-        Box::<rules::DeprecatedObjectRule>::default(),
         Box::<rules::MetaDescriptionRule>::default(),
-        Box::<rules::DeprecatedPlaceholderRule>::default(),
         Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
         Box::<rules::EmptyDocCommentRule>::default(),
         Box::new(rules::DocMetaStringsRule::new(config)),
@@ -165,7 +171,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::HostPathLiteralsRule>::default(),
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
-        Box::<rules::ExceptDirectiveValidRule>::default(),
         Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),
@@ -178,8 +183,8 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::InlineInstall>::default(),
     ];
 
-    // Ensure all the rule IDs are unique and pascal case and that related rules are
-    // valid, exist and not self-referential.
+    // Ensure all the rule IDs are unique and pascal case and that related rules
+    // are valid, exist and not self-referential.
     #[cfg(debug_assertions)]
     {
         use std::collections::HashSet;

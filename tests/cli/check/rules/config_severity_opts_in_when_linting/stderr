@@ -5,4 +5,3 @@ warning[TodoComment]: remaining `TODO` item found
   │   ^^^^
   │
   = fix: remove the `TODO` item once it has been implemented
-

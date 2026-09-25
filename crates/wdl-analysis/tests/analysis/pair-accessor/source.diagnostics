@@ -5,4 +5,3 @@ error: cannot access a pair with name `nope`
    │               ^^^^
    │
    = fix: use `left` or `right` to access a pair
-

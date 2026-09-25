@@ -14,11 +14,7 @@ use wdl::ast::AstNode;
 use wdl::ast::Node;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
-use wdl::format::Indent;
-use wdl::format::MaxLineLength;
-use wdl::format::NewlineStyle;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
@@ -31,59 +27,6 @@ use crate::commands::CommandResult;
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
-
-    /// Use tabs for indentation (default is spaces).
-    #[arg(short = 't', long, global = true)]
-    pub with_tabs: bool,
-
-    /// The number of spaces to use for indentation levels (default is 4).
-    #[arg(
-        short,
-        long,
-        value_name = "SIZE",
-        conflicts_with = "with_tabs",
-        global = true
-    )]
-    pub indentation_size: Option<usize>,
-
-    /// The maximum line length (default is 90, valid range is 60–240). `none`
-    /// means do not use a maximum line length.
-    #[arg(long, value_name = "LENGTH", global = true)]
-    pub max_line_length: Option<String>,
-
-    /// The newline style to use.
-    #[arg(long, value_name = "STYLE", global = true, value_parser = ["auto", "unix", "windows"])]
-    pub newline_style: Option<NewlineStyle>,
-
-    /// Sort import statements alphabetically (use `--no-sort-imports` to
-    /// disable).
-    #[arg(long, global = true, overrides_with = "no_sort_imports")]
-    pub sort_imports: bool,
-
-    /// Do not sort import statements.
-    #[arg(long, global = true, overrides_with = "sort_imports", hide = true)]
-    pub no_sort_imports: bool,
-
-    /// Sort input declarations (use `--no-sort-inputs` to disable).
-    #[arg(long, global = true, overrides_with = "no_sort_inputs")]
-    pub sort_inputs: bool,
-
-    /// Do not sort input declarations.
-    #[arg(long, global = true, overrides_with = "sort_inputs", hide = true)]
-    pub no_sort_inputs: bool,
-
-    /// Add trailing commas to multiline lists (use `--no-trailing-commas` to
-    /// disable).
-    #[arg(long, global = true, overrides_with = "no_trailing_commas")]
-    pub trailing_commas: bool,
-
-    /// Do not add trailing commas to multiline lists.
-    #[arg(long, global = true, overrides_with = "trailing_commas", hide = true)]
-    pub no_trailing_commas: bool,
-
     /// Subcommand for the `format` command.
     #[command(subcommand)]
     pub command: FormatSubcommand,
@@ -146,68 +89,13 @@ fn format_document(
 
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     let fallback_version = config.common.wdl.fallback_version.into();
     let feature_flags = config.common.wdl.feature_flags;
     let modules_config = config.modules.clone();
+    let ignore_filename = config.common.ignore_filename();
 
-    let indent = if args.with_tabs || args.indentation_size.is_some() {
-        Indent::try_new(args.with_tabs, args.indentation_size)
-            .context("failed to create indentation configuration")?
-    } else {
-        config.format.indent
-    };
-
-    let max_line_length = if let Some(max) = args.max_line_length {
-        let max = match max.as_str() {
-            "none" => None,
-            _ => Some(
-                max.parse::<usize>()
-                    .context("`--max-line-length` must be an integer")?,
-            ),
-        };
-        MaxLineLength::try_new(max).context("failed to create max line length configuration")?
-    } else {
-        config.format.max_line_length
-    };
-
-    let newline_style = args.newline_style.unwrap_or(config.format.newline_style);
-
-    // Command line flags override the configured values; when neither the
-    // enable nor the disable flag is present, the configured value is used.
-    let resolve = |enable: bool, disable: bool, configured: bool| {
-        if enable {
-            true
-        } else if disable {
-            false
-        } else {
-            configured
-        }
-    };
-    let sort_imports = resolve(
-        args.sort_imports,
-        args.no_sort_imports,
-        config.format.sort_imports,
-    );
-    let sort_inputs = resolve(
-        args.sort_inputs,
-        args.no_sort_inputs,
-        config.format.sort_inputs,
-    );
-    let trailing_commas = resolve(
-        args.trailing_commas,
-        args.no_trailing_commas,
-        config.format.trailing_commas,
-    );
-
-    let config = FormatConfig::default()
-        .indent(indent)
-        .max_line_length(max_line_length)
-        .sort_inputs(sort_inputs)
-        .sort_imports(sort_imports)
-        .trailing_commas(trailing_commas)
-        .newline_style(newline_style);
-    let formatter = Formatter::new(config);
+    let formatter = Formatter::new(config.format);
 
     let mut errors = 0;
     match args.command {
@@ -222,6 +110,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
+                .ignore_filename(ignore_filename.clone())
                 .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
@@ -250,7 +139,15 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                     };
                 if formatted != source {
                     warn!("difference in `{}`", result.document().path());
-                    if colorize {
+                    let newline_only = {
+                        let formatted_lines = formatted.lines();
+                        let source_lines = source.lines();
+
+                        formatted_lines.zip(source_lines).all(|(f, s)| f == s)
+                    };
+                    if newline_only {
+                        eprintln!("incorrect newline style");
+                    } else if colorize {
                         eprint!(
                             "{}",
                             pretty_assertions::StrComparison::new(&source, &formatted)
@@ -283,6 +180,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
+                .ignore_filename(ignore_filename.clone())
                 .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
@@ -317,6 +215,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
+                .ignore_filename(ignore_filename.clone())
                 .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;

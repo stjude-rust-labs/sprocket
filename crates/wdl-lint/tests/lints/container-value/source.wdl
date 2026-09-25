@@ -1,6 +1,6 @@
 ## This is a test of the `ContainerUri` lint.
 
-#@ except: BashSetSyntax, EmptyOutputs, MetaDescription, RequirementsSection
+#@ except: BashSetSyntax, DeprecatedRuntimeSection, EmptyOutputs, MetaDescription, RequirementsSection
 #@ except: TodoComment
 
 version 1.3

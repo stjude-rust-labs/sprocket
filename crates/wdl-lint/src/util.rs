@@ -5,7 +5,7 @@ use std::process::Stdio;
 
 use wdl_analysis::rules as analysis_rules;
 
-use crate::rules::RULE_MAP;
+use crate::RULE_MAP;
 
 /// Determines whether or not a string containing embedded quotes is balanced.
 pub fn is_quote_balanced(s: &str, quote_char: char) -> bool {
@@ -21,42 +21,6 @@ pub fn is_quote_balanced(s: &str, quote_char: char) -> bool {
         }
     });
     closed
-}
-
-/// Iterates over the lines of a string and returns the line, starting offset,
-/// and next possible starting offset.
-pub fn lines_with_offset(s: &str) -> impl Iterator<Item = (&str, usize, usize)> {
-    let mut offset = 0;
-    std::iter::from_fn(move || {
-        if offset >= s.len() {
-            return None;
-        }
-
-        let start = offset;
-        loop {
-            match s[offset..].find(|c| ['\r', '\n'].contains(&c)) {
-                Some(i) => {
-                    let end = offset + i;
-                    offset = end + 1;
-
-                    if s.as_bytes().get(end) == Some(&b'\r') {
-                        if s.as_bytes().get(end + 1) != Some(&b'\n') {
-                            continue;
-                        }
-
-                        // There are two characters in the newline
-                        offset += 1;
-                    }
-
-                    return Some((&s[start..end], start, offset));
-                }
-                None => {
-                    offset = s.len();
-                    return Some((&s[start..], start, offset));
-                }
-            }
-        }
-    })
 }
 
 /// Check whether or not a program exists.
@@ -84,7 +48,7 @@ pub fn find_nearest_rule(unknown_rule_id: &str) -> Option<String> {
     let analysis = analysis_rules();
     let known = RULE_MAP
         .keys()
-        .copied()
+        .map(String::as_str)
         .chain(analysis.iter().map(|rule| rule.id()));
     wdl_analysis::find_nearest_rule(known, unknown_rule_id)
 }
@@ -129,28 +93,10 @@ pub fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<Strin
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    #[test]
-    fn test_lines_with_offset() {
-        let s = "This string\nhas many\n\nnewlines, including Windows\r\n\r\nand even a \r that \
-                 should not be a newline\n";
-        let lines = lines_with_offset(s).collect::<Vec<_>>();
-        assert_eq!(
-            lines,
-            &[
-                ("This string", 0, 12),
-                ("has many", 12, 21),
-                ("", 21, 22),
-                ("newlines, including Windows", 22, 51),
-                ("", 51, 53),
-                ("and even a \r that should not be a newline", 53, 95),
-            ]
-        );
-    }
 
     #[test]
     fn test_program_exists() {

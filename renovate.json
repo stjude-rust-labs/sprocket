@@ -89,6 +89,16 @@
       ]
     },
     {
+      "description": "Do not update lsp-types",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "lsp-types"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Group all Python updates into one PR",
       "matchManagers": [
         "pep621"
@@ -98,6 +108,16 @@
       "addLabels": [
         "python"
       ]
+    },
+    {
+      "description": "Do not update Python interpreter",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {

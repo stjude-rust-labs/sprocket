@@ -6,11 +6,3 @@ warning[NamingConvention]: struct member name `NotOk` is not snake case
    │
    = fix: replace `NotOk` with `not_ok`
 
-note[DoubleQuotes]: string defined with single quotes
-   ┌─ tests/lints/except/source.wdl:21:18
-   │
-21 │     String bad = 'bad string'   # NOT OK
-   │                  ^^^^^^^^^^^^
-   │
-   = fix: change the string to use double quotes
-

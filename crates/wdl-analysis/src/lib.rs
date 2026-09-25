@@ -61,6 +61,7 @@ pub use config::Config;
 pub use config::DiagnosticsConfig;
 pub use config::FeatureFlags;
 pub use document::Document;
+pub use document::cache::*;
 pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
@@ -121,8 +122,8 @@ impl Exceptable for SyntaxNode {
             .collect();
 
         // Expand deprecated alias exceptions by inserting a replacement
-        // `ExceptRule` that shares the alias's span. The original alias entry is
-        // retained so that migration diagnostics can still point at it.
+        // `ExceptRule` that shares the alias's span. The original alias entry
+        // is retained so that migration diagnostics can still point at it.
         let replacements = exceptions
             .iter()
             .filter_map(|rule| {
@@ -137,7 +138,7 @@ impl Exceptable for SyntaxNode {
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
-        self.rule_exceptions().iter().any(|e| e.name == id)
+        self.rule_exceptions().iter().any(|e| &*e.name == id)
     }
 }
 

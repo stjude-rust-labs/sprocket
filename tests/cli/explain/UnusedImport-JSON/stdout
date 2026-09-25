@@ -6,11 +6,11 @@
   "examples": [
     {
       "negative": {
-        "snippet": "version 1.2\n\nimport \"foo.wdl\"\n\nworkflow example {\n}\n"
+        "snippet": "version 1.3\n\nimport \"bar.wdl\"\nimport \"foo.wdl\" as used\n\nworkflow example {\n    call used.test\n}\n"
       },
       "revised": {
         "label": "Consider removing the import entirely",
-        "snippet": "version 1.2\n\nworkflow example {\n}\n"
+        "snippet": "version 1.3\n\nimport \"foo.wdl\" as used\n\nworkflow example {\n    call used.test\n}\n"
       }
     }
   ],

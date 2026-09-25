@@ -3,4 +3,3 @@ error: type mismatch: expected `logical not` operand to be type `Boolean`, but f
    │
 10 │     Boolean d = !c
    │                  ^ this is type `String`
-

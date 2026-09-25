@@ -1,0 +1,1 @@
+check --lint --except all --tag portability source.wdl

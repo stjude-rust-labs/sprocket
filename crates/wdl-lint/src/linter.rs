@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document as AnalysisDocument;
 use wdl_analysis::Exceptable;
+use wdl_analysis::RuleMap;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -120,8 +121,11 @@ impl Default for Linter {
 }
 
 impl Visitor for Linter {
-    fn known_rules(&self) -> HashSet<String> {
-        self.rules.keys().map(ToString::to_string).collect()
+    fn rules(&self) -> RuleMap {
+        self.rules
+            .iter()
+            .map(|(id, rule)| (id.to_string(), rule.exceptable_nodes()))
+            .collect()
     }
 
     fn reset(&mut self) {
