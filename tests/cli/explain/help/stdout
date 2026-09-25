@@ -107,6 +107,7 @@ Available rules:
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
+  - ShellSplitting
   - SnakeCase
   - TodoComment
   - UnnecessaryFunctionCall

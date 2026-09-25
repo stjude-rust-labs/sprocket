@@ -18,6 +18,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
+message = "testrun.wdl:67:31: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:69:40: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L69"
 
@@ -48,22 +53,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:76:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:76:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/ww-annotsv.wdl/#L76"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:77:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:77:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/ww-annotsv.wdl/#L77"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:80:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:80:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/ww-annotsv.wdl/#L80"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:81:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:81:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/ww-annotsv.wdl/#L81"
 
 [[diagnostics]]
@@ -83,6 +88,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
+message = "testrun.wdl:65:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L65"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:67:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L67"
 
@@ -95,6 +105,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:74:39: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L74"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
+message = "testrun.wdl:92:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L92"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
@@ -118,27 +133,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:234:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:234:15: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L234"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:234:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:234:36: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L234"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:234:54: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:234:54: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L234"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:73:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:73:15: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L73"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:81:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:81:45: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/ww-aws-sso.wdl/#L81"
 
 [[diagnostics]]
@@ -153,7 +168,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:67:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:67:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/testrun.wdl/#L67"
 
 [[diagnostics]]
@@ -183,17 +198,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:54:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedparse.wdl:54:58: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedparse/ww-bedparse.wdl/#L54"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:55:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedparse.wdl:55:54: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedparse/ww-bedparse.wdl/#L55"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:56:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedparse.wdl:56:56: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedparse/ww-bedparse.wdl/#L56"
 
 [[diagnostics]]
@@ -218,13 +233,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:112:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedtools.wdl:112:24: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L112"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:177:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L177"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
+message = "ww-bedtools.wdl:180:28: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L180"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
@@ -278,7 +298,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
-message = "ww-bowtie2.wdl:157:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bowtie2.wdl:157:9: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L157"
 
 [[diagnostics]]
@@ -293,12 +313,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
-message = "ww-bowtie2.wdl:170:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bowtie2.wdl:170:9: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L170"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
-message = "ww-bowtie2.wdl:178:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bowtie2.wdl:178:25: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L178"
 
 [[diagnostics]]
@@ -323,12 +343,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:91:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:91:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L91"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:92:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:92:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L92"
 
 [[diagnostics]]
@@ -378,27 +398,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
-message = "ww-cellbender.wdl:79:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cellbender.wdl:79:15: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
-message = "ww-cellbender.wdl:82:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cellbender.wdl:82:13: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L82"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
-message = "ww-cellbender.wdl:84:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L84"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
-message = "ww-cellbender.wdl:85:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L85"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
-message = "ww-cellbender.wdl:86:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cellbender.wdl:86:38: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L86"
 
 [[diagnostics]]
@@ -448,12 +458,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:105:8: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cellranger.wdl:105:18: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L105"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:106:8: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cellranger.wdl:106:18: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L106"
 
 [[diagnostics]]
@@ -463,12 +473,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:124:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L124"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:125:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cellranger.wdl:125:26: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L125"
 
 [[diagnostics]]
@@ -490,6 +495,36 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:236:7: note[ShellCheck]: Not following: /app/lmod/lmod/init/bash was not specified as input (see shellcheck -x)."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L236"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:237:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L237"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:240:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L240"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:241:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L241"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:281:18: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L281"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:282:18: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L282"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:301:26: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L301"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -518,8 +553,38 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:419:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L419"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:422:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L422"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:423:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L423"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:42:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L42"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:463:18: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L463"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:464:18: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L464"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
+message = "ww-cellranger.wdl:483:26: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L483"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -538,12 +603,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:64:15: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-cellranger.wdl:64:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:65:15: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-cellranger.wdl:65:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L65"
 
 [[diagnostics]]
@@ -618,37 +683,37 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
-message = "ww-clair3.wdl:75:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-clair3.wdl:75:16: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L75"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
-message = "ww-clair3.wdl:76:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-clair3.wdl:76:16: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L76"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
-message = "ww-clair3.wdl:79:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-clair3.wdl:79:18: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
-message = "ww-clair3.wdl:80:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-clair3.wdl:80:20: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L80"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
-message = "ww-clair3.wdl:81:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-clair3.wdl:81:21: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L81"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
-message = "ww-clair3.wdl:83:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-clair3.wdl:83:47: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L83"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
-message = "ww-clair3.wdl:84:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-clair3.wdl:84:49: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L84"
 
 [[diagnostics]]
@@ -668,42 +733,42 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:172:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:172:9: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L172"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:173:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:173:18: warning[ShellSplitting]: unquoted `File?` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L173"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:174:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:174:21: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L174"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:175:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:175:26: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L175"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:181:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:181:9: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L181"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:182:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:182:21: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L182"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:183:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:183:26: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L183"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:189:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:189:27: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L189"
 
 [[diagnostics]]
@@ -718,12 +783,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:62:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-cnvkit.wdl:62:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L62"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:63:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-cnvkit.wdl:63:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L63"
 
 [[diagnostics]]
@@ -733,17 +798,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:85:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:85:19: warning[ShellSplitting]: unquoted `File?` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L85"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:86:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:86:30: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L86"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:87:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:87:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L87"
 
 [[diagnostics]]
@@ -753,7 +818,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:97:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:97:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L97"
 
 [[diagnostics]]
@@ -773,7 +838,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
-message = "testrun.wdl:74:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:74:14: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L74"
 
 [[diagnostics]]
@@ -793,27 +858,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
-message = "ww-colabfold.wdl:145:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-colabfold.wdl:145:14: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L145"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
-message = "ww-colabfold.wdl:149:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-colabfold.wdl:149:7: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L149"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
-message = "ww-colabfold.wdl:154:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-colabfold.wdl:154:18: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L154"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
-message = "ww-colabfold.wdl:158:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-colabfold.wdl:158:20: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L158"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
-message = "ww-colabfold.wdl:159:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-colabfold.wdl:159:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L159"
 
 [[diagnostics]]
@@ -863,7 +928,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
-message = "testrun.wdl:85:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:85:28: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L85"
 
 [[diagnostics]]
@@ -888,37 +953,37 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:154:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:154:18: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L154"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:155:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:155:18: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L155"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:157:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:157:23: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L157"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:159:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:159:19: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L159"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:160:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:160:24: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L160"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:161:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:161:28: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L161"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:163:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:163:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L163"
 
 [[diagnostics]]
@@ -928,27 +993,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:234:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:234:19: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L234"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:235:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:235:33: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L235"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:236:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:236:25: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L236"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:239:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:239:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L239"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:244:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:244:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L244"
 
 [[diagnostics]]
@@ -958,17 +1023,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:305:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:305:20: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L305"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:307:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:307:18: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L307"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:308:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:308:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L308"
 
 [[diagnostics]]
@@ -978,12 +1043,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:366:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:366:20: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L366"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:368:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:368:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L368"
 
 [[diagnostics]]
@@ -993,27 +1058,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:434:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:434:21: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L434"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:435:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:435:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L435"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:438:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L438"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:439:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:439:50: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L439"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:441:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:441:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L441"
 
 [[diagnostics]]
@@ -1023,22 +1083,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:505:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:505:17: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L505"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:508:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:508:19: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L508"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:509:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:509:20: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L509"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:510:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:510:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L510"
 
 [[diagnostics]]
@@ -1048,12 +1108,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:570:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:570:17: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L570"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:573:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:573:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L573"
 
 [[diagnostics]]
@@ -1063,17 +1123,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:637:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:637:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L637"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:640:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:640:47: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L640"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:642:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:642:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L642"
 
 [[diagnostics]]
@@ -1083,32 +1143,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:70:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:70:13: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L70"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:72:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:72:23: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L72"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:74:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:74:24: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L74"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:75:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L75"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:76:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
-message = "ww-deeptools.wdl:80:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deeptools.wdl:80:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L80"
 
 [[diagnostics]]
@@ -1153,27 +1203,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
-message = "ww-deepvariant.wdl:64:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deepvariant.wdl:64:20: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
-message = "ww-deepvariant.wdl:65:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deepvariant.wdl:65:13: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L65"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
-message = "ww-deepvariant.wdl:66:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deepvariant.wdl:66:15: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L66"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
-message = "ww-deepvariant.wdl:68:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deepvariant.wdl:68:54: warning[ShellSplitting]: unquoted `String` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L68"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
-message = "ww-deepvariant.wdl:70:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deepvariant.wdl:70:47: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L70"
 
 [[diagnostics]]
@@ -1203,12 +1253,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:64:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:64:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:65:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:65:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L65"
 
 [[diagnostics]]
@@ -1228,17 +1278,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:68:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-delly.wdl:68:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/ww-delly.wdl/#L68"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:69:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-delly.wdl:69:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/ww-delly.wdl/#L69"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:76:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-delly.wdl:76:55: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/ww-delly.wdl/#L76"
 
 [[diagnostics]]
@@ -1283,17 +1333,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:60:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deseq2.wdl:60:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L60"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:61:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deseq2.wdl:61:25: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L61"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:62:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deseq2.wdl:62:30: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L62"
 
 [[diagnostics]]
@@ -1343,7 +1393,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:165:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:165:48: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L165"
 
 [[diagnostics]]
@@ -1363,6 +1413,36 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
+message = "testrun.wdl:207:48: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L207"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
+message = "testrun.wdl:227:12: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L227"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
+message = "testrun.wdl:257:18: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L257"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
+message = "testrun.wdl:257:50: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L257"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
+message = "testrun.wdl:266:18: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L266"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
+message = "testrun.wdl:266:50: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L266"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
 message = "testrun.wdl:268:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L268"
 
@@ -1378,7 +1458,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:103:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:103:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L103"
 
 [[diagnostics]]
@@ -1403,27 +1483,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:181:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:181:16: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L181"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:182:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:182:18: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L182"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:183:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:183:64: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L183"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:184:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:184:18: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L184"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:187:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:187:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L187"
 
 [[diagnostics]]
@@ -1438,7 +1518,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:257:64: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:257:64: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L257"
 
 [[diagnostics]]
@@ -1468,12 +1548,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:276:82: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:276:82: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L276"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:304:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:304:39: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L304"
 
 [[diagnostics]]
@@ -1483,12 +1563,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:70:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:70:16: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L70"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:87:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:87:19: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L87"
 
 [[diagnostics]]
@@ -1498,27 +1578,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:94:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:94:22: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:95:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:95:18: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L95"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:96:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:96:20: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L96"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:97:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:97:66: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L97"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:98:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ena.wdl:98:20: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L98"
 
 [[diagnostics]]
@@ -1533,7 +1613,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:56:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun_hpc.wdl:56:14: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L56"
 
 [[diagnostics]]
@@ -1548,18 +1628,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/ww-esmfold.wdl"
-message = "ww-esmfold.wdl:69:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-esmfold.wdl:69:10: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/ww-esmfold.wdl/#L69"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/ww-esmfold.wdl"
-message = "ww-esmfold.wdl:72:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/ww-esmfold.wdl/#L72"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/ww-esmfold.wdl"
-message = "ww-esmfold.wdl:75:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/ww-esmfold.wdl/#L75"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/testrun.wdl"
@@ -1618,8 +1688,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:382:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L382"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:385:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L385"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:392:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L392"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1628,8 +1708,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:402:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L402"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:405:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L405"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:412:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L412"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1638,13 +1728,28 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:422:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L422"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:425:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L425"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:432:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L432"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:435:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L435"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:442:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L442"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1658,6 +1763,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:452:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L452"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:454:34: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L454"
 
@@ -1665,6 +1775,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:455:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L455"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:462:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L462"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1678,6 +1793,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:472:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L472"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:474:34: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L474"
 
@@ -1688,8 +1808,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:482:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L482"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:485:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L485"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:492:30: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L492"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1698,18 +1828,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:503:49: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:503:49: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L503"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:510:56: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:510:56: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L510"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:510:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L510"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:518:33: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L518"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1723,17 +1858,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:530:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:530:46: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L530"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:539:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:539:51: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L539"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:548:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:548:46: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L548"
 
 [[diagnostics]]
@@ -1748,7 +1883,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1059:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-gatk.wdl:1059:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1059"
 
 [[diagnostics]]
@@ -1768,6 +1903,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1187:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1187"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1192:13: note[ShellCheck]: Declare and assign separately to avoid masking return values."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1192"
 
@@ -1783,12 +1923,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1335:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1335:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1335"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1336:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1336:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1336"
 
 [[diagnostics]]
@@ -1803,12 +1943,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1404:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1404:68: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1404"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1405:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1405:14: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1405"
 
 [[diagnostics]]
@@ -1818,8 +1958,33 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1489:13: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1489"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1564:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1564"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1572:48: warning[ShellSplitting]: unquoted `File?` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1572"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1573:44: warning[ShellSplitting]: unquoted `File?` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1573"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1583:37: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1583"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1592:69: warning[ShellSplitting]: unquoted `String` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1592"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -1828,8 +1993,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:191:27: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L191"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:211:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L211"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:212:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L212"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:222:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L222"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -1838,7 +2018,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:303:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:303:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L303"
 
 [[diagnostics]]
@@ -1848,8 +2028,28 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:399:27: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L399"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:419:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L419"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:420:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L420"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:430:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L430"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:448:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L448"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -1873,8 +2073,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:642:36: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L642"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:727:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L727"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:746:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L746"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -1883,12 +2093,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:837:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L837"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:912:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L912"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:916:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:916:23: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L916"
 
 [[diagnostics]]
@@ -1898,7 +2113,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:975:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:975:33: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L975"
 
 [[diagnostics]]
@@ -1908,8 +2123,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:208:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gdc/ww-gdc.wdl/#L208"
+message = "ww-gdc.wdl:207:13: warning[ShellSplitting]: unquoted `File?` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gdc/ww-gdc.wdl/#L207"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
@@ -1923,12 +2138,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:66:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gdc.wdl:66:11: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gdc/ww-gdc.wdl/#L66"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:78:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gdc.wdl:78:13: warning[ShellSplitting]: unquoted `File?` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gdc/ww-gdc.wdl/#L78"
 
 [[diagnostics]]
@@ -2010,6 +2225,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:20:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:22:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L22"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:25:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L25"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
@@ -2118,12 +2343,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = 'ww-glimpse2.wdl:299:21: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = "ww-glimpse2.wdl:299:21: warning[ShellSplitting]: unquoted `Directory` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L299"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = 'ww-glimpse2.wdl:299:46: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = "ww-glimpse2.wdl:299:46: warning[ShellSplitting]: unquoted `Directory` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L299"
 
 [[diagnostics]]
@@ -2138,12 +2363,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:421:19: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-glimpse2.wdl:421:29: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L421"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:422:20: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-glimpse2.wdl:422:30: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L422"
 
 [[diagnostics]]
@@ -2158,12 +2383,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:516:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-glimpse2.wdl:516:71: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L516"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:517:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-glimpse2.wdl:517:47: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L517"
 
 [[diagnostics]]
@@ -2213,7 +2438,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:56:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ichorcna.wdl:56:30: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L56"
 
 [[diagnostics]]
@@ -2228,12 +2453,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:100:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-jcast.wdl:100:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L100"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:101:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-jcast.wdl:101:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L101"
 
 [[diagnostics]]
@@ -2253,27 +2478,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:73:32: note[ShellCheck]: The arguments to this comparison can never be equal. Make sure your syntax is correct."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L73"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:73:74: note[ShellCheck]: The arguments to this comparison can never be equal. Make sure your syntax is correct."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L73"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:75:34: note[ShellCheck]: The arguments to this comparison can never be equal. Make sure your syntax is correct."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L75"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:77:34: note[ShellCheck]: The arguments to this comparison can never be equal. Make sure your syntax is correct."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L77"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-jcast/ww-jcast.wdl"
-message = "ww-jcast.wdl:99:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-jcast.wdl:99:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-jcast/ww-jcast.wdl/#L99"
 
 [[diagnostics]]
@@ -2288,6 +2493,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
+message = "testrun.wdl:67:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
+message = "testrun.wdl:68:32: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L68"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `manta_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L6"
 
@@ -2298,7 +2513,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
-message = "ww-manta.wdl:66:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-manta.wdl:66:62: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/ww-manta.wdl/#L66"
 
 [[diagnostics]]
@@ -2333,7 +2548,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-megahit/ww-megahit.wdl"
-message = "ww-megahit.wdl:46:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-megahit.wdl:46:18: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-megahit/ww-megahit.wdl/#L46"
 
 [[diagnostics]]
@@ -2358,22 +2573,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-mosdepth/ww-mosdepth.wdl"
-message = "ww-mosdepth.wdl:57:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-mosdepth.wdl:57:49: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-mosdepth/ww-mosdepth.wdl"
-message = "ww-mosdepth.wdl:58:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-mosdepth.wdl:58:48: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L58"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-mosdepth/ww-mosdepth.wdl"
-message = "ww-mosdepth.wdl:60:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-mosdepth.wdl:60:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L60"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-mosdepth/ww-mosdepth.wdl"
-message = "ww-mosdepth.wdl:61:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-mosdepth.wdl:61:7: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L61"
 
 [[diagnostics]]
@@ -2398,7 +2613,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/ww-multiqc.wdl"
-message = "ww-multiqc.wdl:67:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-multiqc.wdl:56:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/ww-multiqc.wdl/#L56"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/ww-multiqc.wdl"
+message = "ww-multiqc.wdl:67:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/ww-multiqc.wdl/#L67"
 
 [[diagnostics]]
@@ -2413,42 +2633,42 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:109:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:109:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L109"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:110:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:110:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L110"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:117:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:117:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L117"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:118:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:118:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L118"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:119:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:119:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L119"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:120:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:120:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L120"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:121:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:121:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L121"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:122:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:122:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L122"
 
 [[diagnostics]]
@@ -2463,27 +2683,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:225:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:225:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L225"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:226:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:226:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L226"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:231:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:231:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L231"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:232:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:232:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L232"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:233:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:233:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L233"
 
 [[diagnostics]]
@@ -2493,22 +2713,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:335:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:322:32: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L322"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
+message = "ww-rmats-turbo.wdl:335:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L335"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:340:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:340:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L340"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:341:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:341:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L341"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:342:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:342:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L342"
 
 [[diagnostics]]
@@ -2523,12 +2748,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:441:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:441:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L441"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/ww-rmats-turbo.wdl"
-message = "ww-rmats-turbo.wdl:446:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-rmats-turbo.wdl:446:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rmats-turbo/ww-rmats-turbo.wdl/#L446"
 
 [[diagnostics]]
@@ -2550,6 +2775,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/ww-rseqc.wdl"
 message = "ww-rseqc.wdl:56:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rseqc/ww-rseqc.wdl/#L56"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
+message = "testrun.wdl:100:32: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L100"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
@@ -2583,7 +2813,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:122:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:122:14: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L122"
 
 [[diagnostics]]
@@ -2593,17 +2823,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:137:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:137:12: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L137"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:144:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:144:14: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L144"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:144:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:144:42: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L144"
 
 [[diagnostics]]
@@ -2618,6 +2848,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
+message = "ww-salmon.wdl:202:32: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L202"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:203:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L203"
 
@@ -2628,12 +2863,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
+message = "ww-salmon.wdl:213:29: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L213"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:43:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L43"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:48:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:48:12: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/ww-salmon.wdl/#L48"
 
 [[diagnostics]]
@@ -2658,7 +2898,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:121:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-samtools.wdl:121:49: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L121"
 
 [[diagnostics]]
@@ -2703,7 +2943,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:53:17: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-samtools.wdl:53:27: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L53"
 
 [[diagnostics]]
@@ -2763,17 +3003,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:63:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-shapemapper.wdl:63:11: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L63"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:82:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-shapemapper.wdl:82:14: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L82"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:82:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-shapemapper.wdl:82:43: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L82"
 
 [[diagnostics]]
@@ -2808,6 +3048,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
+message = "testrun.wdl:107:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L107"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:109:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L109"
 
@@ -2833,6 +3078,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
+message = "testrun.wdl:80:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L80"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:82:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L82"
 
@@ -2843,13 +3093,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:71:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-smoove.wdl:71:53: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L71"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:72:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-smoove.wdl:72:62: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L72"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
+message = "testrun.wdl:101:31: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L101"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
+message = "testrun.wdl:114:34: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L114"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
@@ -2873,13 +3133,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:123:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sourmash.wdl:123:46: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L123"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:181:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L181"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
+message = "ww-sourmash.wdl:185:31: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L185"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
@@ -2893,12 +3158,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:59:59: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sourmash.wdl:59:59: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L59"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:62:59: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sourmash.wdl:62:59: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L62"
 
 [[diagnostics]]
@@ -2933,8 +3198,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
+message = "testrun.wdl:59:23: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L59"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `sra_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L5"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
+message = "testrun.wdl:60:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L60"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
+message = "testrun.wdl:61:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L61"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
@@ -2953,22 +3233,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:50:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sra.wdl:50:46: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L50"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:58:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sra.wdl:58:46: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L58"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:67:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sra.wdl:67:48: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L67"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:74:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sra.wdl:74:48: warning[ShellSplitting]: unquoted `File?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L74"
 
 [[diagnostics]]
@@ -2980,6 +3260,21 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
 message = "testrun.wdl:132:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L132"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:138:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L138"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:139:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L139"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:140:32: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L140"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
@@ -3023,7 +3318,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-starling/ww-starling.wdl"
-message = "ww-starling.wdl:139:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-starling.wdl:139:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-starling/ww-starling.wdl/#L139"
 
 [[diagnostics]]
@@ -3043,7 +3338,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-starling/ww-starling.wdl"
-message = "ww-starling.wdl:65:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-starling.wdl:65:10: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-starling/ww-starling.wdl/#L65"
 
 [[diagnostics]]
@@ -3053,8 +3348,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:133:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L133"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:136:43: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L136"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:146:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L146"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -3063,13 +3368,33 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:213:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L213"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:216:43: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L216"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:226:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L226"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:229:43: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L229"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:239:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L239"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:250:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L250"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -3093,42 +3418,42 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:179:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:179:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L179"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:180:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:180:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L180"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:195:17: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = "ww-strelka.wdl:195:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L195"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:195:41: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = "ww-strelka.wdl:195:41: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L195"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:202:17: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = "ww-strelka.wdl:202:17: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L202"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:202:41: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = "ww-strelka.wdl:202:41: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L202"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:210:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:210:22: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L210"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:210:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:210:46: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L210"
 
 [[diagnostics]]
@@ -3143,27 +3468,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:211:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:211:24: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L211"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:211:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:211:48: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L211"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:68:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:68:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L68"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:69:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:69:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L69"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:93:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:93:26: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L93"
 
 [[diagnostics]]
@@ -3193,8 +3518,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
+message = "ww-template.wdl:58:34: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/ww-template.wdl/#L58"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:67:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/ww-template.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
+message = "testrun.wdl:450:33: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/testrun.wdl/#L450"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
@@ -3273,7 +3608,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1614:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:1614:46: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1614"
 
 [[diagnostics]]
@@ -3288,7 +3623,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1746:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:1746:48: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1746"
 
 [[diagnostics]]
@@ -3353,57 +3688,57 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:313:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:313:23: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L313"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:313:61: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:313:61: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L313"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:377:58: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:377:58: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L377"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:390:57: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:390:57: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L390"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:395:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:395:50: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L395"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:398:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:398:44: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L398"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:401:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:401:51: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L401"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:401:78: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:401:78: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L401"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:402:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:402:36: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L402"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:405:108: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:405:108: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L405"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:405:82: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:405:82: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L405"
 
 [[diagnostics]]
@@ -3428,7 +3763,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:741:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:741:53: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L741"
 
 [[diagnostics]]
@@ -3438,7 +3773,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:793:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:793:53: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L793"
 
 [[diagnostics]]
@@ -3448,7 +3783,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:843:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:843:53: warning[ShellSplitting]: unquoted `String?` value is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L843"
 
 [[diagnostics]]
@@ -3488,8 +3823,68 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:132:14: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L132"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:139:27: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L139"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:140:22: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L140"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:61:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L61"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:64:14: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:71:21: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L71"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:72:15: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L72"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:73:14: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L73"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:74:20: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L74"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:75:26: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L75"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:76:21: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L76"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:78:20: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L78"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:80:19: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L80"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/testrun.wdl"
@@ -3518,7 +3913,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/ww-umi-tools.wdl"
-message = "ww-umi-tools.wdl:64:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-umi-tools.wdl:64:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/ww-umi-tools.wdl/#L64"
 
 [[diagnostics]]
@@ -3553,12 +3948,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
-message = "ww-viennarna.wdl:123:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-viennarna.wdl:123:16: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L123"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
-message = "ww-viennarna.wdl:127:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-viennarna.wdl:127:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L127"
 
 [[diagnostics]]
@@ -3568,7 +3963,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
-message = "ww-viennarna.wdl:192:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-viennarna.wdl:192:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L192"
 
 [[diagnostics]]
@@ -3583,12 +3978,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
-message = "ww-viennarna.wdl:261:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-viennarna.wdl:261:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L261"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
-message = "ww-viennarna.wdl:262:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-viennarna.wdl:262:9: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L262"
 
 [[diagnostics]]
@@ -3603,12 +3998,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
-message = "ww-viennarna.wdl:57:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-viennarna.wdl:57:16: warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
-message = "ww-viennarna.wdl:61:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-viennarna.wdl:61:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L61"
 
 [[diagnostics]]
@@ -3630,6 +4025,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:20:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:22:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L22"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:25:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L25"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
@@ -3878,72 +4283,72 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:384:12: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:384:22: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L384"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:387:19: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:387:29: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L387"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:388:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:388:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L388"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:389:14: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:389:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L389"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:390:14: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:390:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L390"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:391:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:391:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L391"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:392:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:392:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L392"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:393:20: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:393:30: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L393"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:394:19: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:394:29: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L394"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:395:15: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:395:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L395"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:396:15: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:396:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L396"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:397:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:397:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L397"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:398:15: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:398:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L398"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:399:12: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-rnaseq.wdl:399:22: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L399"
 
 [[diagnostics]]
@@ -4013,12 +4418,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:268:10: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:268:20: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L268"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:269:12: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:269:22: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L269"
 
 [[diagnostics]]
@@ -4033,42 +4438,42 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:350:17: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:350:27: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L350"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:351:11: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:351:21: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L351"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:352:10: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:352:20: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L352"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:353:14: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:353:24: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L353"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:354:15: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:354:25: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L354"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:355:10: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:355:20: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L355"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:356:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:356:26: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L356"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:357:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-sra-cellranger.wdl:357:28: warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L357"
 
 [[diagnostics]]
@@ -4220,6 +4625,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:150:5: warning[BashSetSyntax]: missing `set` command"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L150"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:153:13: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L153"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:154:13: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L154"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -4398,6 +4813,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:216:13: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L216"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:248:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L248"
 
@@ -4490,6 +4910,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:160:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/qualimap.wdl/#L160"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:74:13: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/qualimap.wdl/#L74"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/qualimap.wdl"
+message = "qualimap.wdl:75:13: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/qualimap.wdl/#L75"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
@@ -4625,6 +5055,21 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:621:42: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L621"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:735:45: warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L735"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:798:32: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L798"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:815:27: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L815"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
