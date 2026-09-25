@@ -22,9 +22,20 @@ use crate::TagSet;
 /// The identifier for the description length rule.
 const ID: &str = "DescriptionLength";
 
+/// The description length beyond which Sprocket documentation clips a
+/// description.
+const DOCUMENTATION_CLIP_LENGTH: usize = 140;
+
 /// Creates a description too long diagnostic.
 fn description_too_long(span: Span, max_length: usize) -> Diagnostic {
-    Diagnostic::note("this description will be clipped in Sprocket documentation")
+    // The clipping claim only holds when the limit matches the documentation's.
+    let message = if max_length == DOCUMENTATION_CLIP_LENGTH {
+        String::from("this description will be clipped in Sprocket documentation")
+    } else {
+        format!("this description exceeds the configured maximum of {max_length} characters")
+    };
+
+    Diagnostic::note(message)
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(format!(

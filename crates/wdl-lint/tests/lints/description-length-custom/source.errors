@@ -1,0 +1,8 @@
+note[DescriptionLength]: this description exceeds the configured maximum of 20 characters
+  ┌─ tests/lints/description-length-custom/source.wdl:7:9
+  │
+7 │         description: "longer than twenty characters"
+  │         ^^^^^^^^^^^
+  │
+  = fix: shorten this string so it is less than or equal to 20 characters
+
