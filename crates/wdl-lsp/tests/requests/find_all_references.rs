@@ -59,11 +59,20 @@ async fn should_have_references_to_struct() {
         .expect("request should succeed")
         .unwrap();
 
+    // `Person` in `foo.wdl`, `source.wdl`, and `alias Person as Human` in
+    // `aliases.wdl`
     assert!(!response.is_empty());
     assert!(
-        response.len() == 2,
+        response.len() == 3,
         "references should not contain declaration"
     );
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(2, 27), Position::new(2, 33)),
+        }
+    ));
 
     // Position of `Person` in `struct Person`
     let response = find_all_references(&mut ctx, "structs.wdl", Position::new(2, 7), true)
@@ -71,7 +80,7 @@ async fn should_have_references_to_struct() {
         .expect("request should succeed")
         .unwrap();
 
-    assert!(response.len() == 3, "references should contain declaration");
+    assert!(response.len() == 4, "references should contain declaration");
 }
 
 #[tokio::test]

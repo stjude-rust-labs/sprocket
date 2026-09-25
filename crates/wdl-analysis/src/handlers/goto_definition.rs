@@ -152,6 +152,9 @@ fn resolve_by_context(
         SyntaxKind::ImportStatementNode => {
             resolve_import_namespace(parent_node, token, &analysis_doc.uri(), lines)
         }
+        SyntaxKind::ImportAliasNode => {
+            resolve_import_alias_target(parent_node, token, &analysis_doc.uri(), lines)
+        }
 
         SyntaxKind::AccessExprNode => {
             resolve_access_expression(parent_node, token, analysis_doc, lines, graph)
@@ -445,6 +448,25 @@ fn resolve_import_namespace(
         && stmt
             .explicit_namespace()
             .is_some_and(|ns_ident| ns_ident.text() == token.text())
+    {
+        return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
+    }
+
+    Ok(None)
+}
+
+/// Resolves the target name of an import alias (e.g. `Human` in
+/// `alias Person as Human`) to itself.
+///
+/// The source name of the alias is resolved through global resolution.
+fn resolve_import_alias_target(
+    parent_node: &SyntaxNode,
+    token: &SyntaxToken,
+    document_uri: &Url,
+    lines: &Arc<LineIndex>,
+) -> Result<Option<Location>> {
+    if let Some(alias) = wdl_ast::v1::ImportAlias::cast(parent_node.clone())
+        && alias.names().1.span() == token.span()
     {
         return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
     }
