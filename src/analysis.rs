@@ -585,9 +585,7 @@ fn warn_unknown_rules(exceptions: &HashSet<String>, report_mode: Mode, colorize:
         ));
 
         let warning = Diagnostic::warning()
-            .with_message(format!(
-                "ignoring unknown rule provided via --except: {unknown_rule}",
-            ))
+            .with_message(format!("ignoring unknown rule exception: {unknown_rule}"))
             .with_notes(notes);
 
         codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
