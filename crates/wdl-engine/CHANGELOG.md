@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
+#### Fixed
+
+* Non-optional enum choices now coerce at runtime to the matching optional enum
+  type, allowing optional task inputs with defaults to be overridden at call
+  sites ([#1241](https://github.com/stjude-rust-labs/sprocket/issues/1241)).
+
 ## 0.18.0 - 2026-09-16
 
 #### Changed
