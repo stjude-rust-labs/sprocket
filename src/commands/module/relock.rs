@@ -6,12 +6,16 @@ use wdl_modules::Lockfile;
 use wdl_modules::Manifest;
 use wdl_modules::Resolver as _;
 use wdl_modules::module::Module;
+use wdl_modules::project::ManifestDocument;
 use wdl_modules::resolver::lock::RelockOutcome;
 use wdl_modules::resolver::lock::SignerIdentityMap;
 use wdl_modules::resolver::lock::partial_relock;
 use wdl_modules::resolver::lock::signer_identity_map;
 
+use super::project::LockfileWrite;
 use super::project::Project;
+use super::project::WriteIntent;
+use super::project::write_lockfile;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::SignerChangeMode;
 use super::signer_policy::enforce_lockfile_signer_policy;
@@ -94,6 +98,42 @@ impl<'a> RelockPlanner<'a> {
             output,
         )?;
         Ok(plan.outcome)
+    }
+
+    /// Applies an edited manifest and, unless locking was disabled, first
+    /// prepares and approves its relock and then writes the resulting lockfile.
+    ///
+    /// Planning happens before either file is written so a failed or refused
+    /// relock leaves the project files untouched.
+    pub(super) async fn apply_manifest_edit(
+        &self,
+        document: &ManifestDocument,
+        no_lock: bool,
+        mode: SignerChangeMode,
+        output: CommandOutput,
+    ) -> anyhow::Result<Option<(RelockOutcome, LockfileWrite)>> {
+        let outcome = if no_lock {
+            None
+        } else {
+            Some(
+                self.plan_and_enforce(Arc::new(document.manifest().clone()), mode, output)
+                    .await?,
+            )
+        };
+
+        self.project
+            .write_manifest(document)
+            .map_err(anyhow::Error::from)?;
+        let Some(outcome) = outcome else {
+            return Ok(None);
+        };
+        let written = write_lockfile(
+            self.project,
+            &outcome.lockfile,
+            document.manifest(),
+            WriteIntent::Satisfy,
+        )?;
+        Ok(Some((outcome, written)))
     }
 }
 
