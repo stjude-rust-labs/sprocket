@@ -2338,6 +2338,7 @@ mod tests {
     use crate::CancellationContextState;
     use crate::Engine;
     use crate::Events;
+    #[cfg(unix)]
     use crate::Outputs;
     use crate::TaskInputs;
     use crate::config::CallCachingMode;
@@ -3245,6 +3246,7 @@ task t {
     }
 
     /// Gets the paths of an `Array[File]` output.
+    #[cfg(unix)]
     fn file_paths(outputs: &Outputs, name: &str) -> Vec<String> {
         outputs
             .get(name)
