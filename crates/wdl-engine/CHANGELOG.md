@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `File` value when it is evaluated, because `list` returns broken links as
   files ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
 
+## 0.18.0 - 2026-09-16
+
 #### Changed
 
 * Various internal caches are now have configurable LRU capacities and are
@@ -25,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The Docker backend now hands a task's work directory back to the user
   performing evaluation after a canceled or failed task, not only a completed
-  one ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
+  one ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
 * Fixed "permission denied" errors when evaluating tasks under rootless
   Docker ([#1179](https://github.com/stjude-rust-labs/sprocket/pull/1179)).
 

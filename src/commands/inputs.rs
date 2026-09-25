@@ -19,7 +19,6 @@ use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
 use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
-use wdl::diagnostics::Mode;
 
 use crate::Config;
 use crate::analysis::Analysis;
@@ -58,10 +57,6 @@ pub struct Args {
     /// Output the template as a YAML file.
     #[arg(long)]
     pub yaml: bool,
-
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
 }
 
 /// An input key.
@@ -340,14 +335,20 @@ impl InputProcessor {
                         .join()
                         .expect("key to join");
 
-                    if self.type_signatures {
-                        self.results.insert(key, Value::from(format!("{}", ty)));
-                    } else if !ty.is_optional() {
+                    if !ty.is_optional() {
                         // required input
-                        self.results
-                            .insert(key, Value::String(format!("{ty} <REQUIRED>")));
+                        if self.type_signatures {
+                            self.results.insert(key, Value::from(format!("{}", ty)));
+                        } else {
+                            self.results
+                                .insert(key, Value::String(format!("{ty} <REQUIRED>")));
+                        }
                     } else if !self.hide_defaults {
-                        self.results.insert(key, Value::Null);
+                        if self.type_signatures {
+                            self.results.insert(key, Value::from(format!("{}", ty)));
+                        } else {
+                            self.results.insert(key, Value::Null);
+                        }
                     }
                 }
                 _ => {
@@ -474,7 +475,7 @@ impl InputProcessor {
 
 /// Displays the input schema for a WDL document.
 pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),

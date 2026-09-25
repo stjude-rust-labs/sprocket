@@ -13,7 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and subdirectories, with recursion, symlink inclusion, and file filtering.
   This implements [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800)
   and requires `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
-* Added `--type-signatures` flag to `inputs` ([#1205](https://github.com/stjude-rust-labs/sprocket/pull/1205)).
+
+### Changed
+
+* Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).
+* `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
+
+### Fixed
+
+* Fixed a stack overflow occurring when parsing CLI options that occurred on
+  debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
+
+### Removed
+
+* Removed `--with-doc-comments` from the `doc` command, as they are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* Removed many CL args from the `doc` command: `--homepage-url`, `--github-url`, `--slack-url`, `--light-mode`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* Removed many CL args from the `format` command: `--with-tabs`, `--indentation-size`, `--max-line-length`, `--newline-style`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+
+## 0.31.0 - 2026-09-16
+
+### Added
+
+* Added `--type-signatures` flag to `inputs` ([#1205](https://github.com/stjude-rust-labs/sprocket/pull/1205),
+  [#1212](https://github.com/stjude-rust-labs/sprocket/pull/1212)).
 * `format check` notifies when the only diff is in newline style
   ([#1204](https://github.com/stjude-rust-labs/sprocket/pull/1204)).
 * Added configuration setting `run.digest_cache_capacity` and
@@ -36,16 +58,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * API v1 read endpoints now query the database connection pool directly instead
   of waiting on the run manager command queue
-  ([#578](https://github.com/stjude-rust-labs/sprocket/issues/578)).
+  ([#1195](https://github.com/stjude-rust-labs/sprocket/pull/1195)).
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
-  ([#1020](https://github.com/stjude-rust-labs/sprocket/issues/1020)).
+  ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
 
 ### Fixed
 
 * Input validation now identifies JSON and YAML input files that need an `@`
   prefix instead of reporting a misleading array type mismatch
-  ([#906](https://github.com/stjude-rust-labs/sprocket/issues/906)).
+  ([#1162](https://github.com/stjude-rust-labs/sprocket/pull/1162)).
 * Print an informative error when `dev test` `parallelism` argument or config
   value is `0` instead of panicking ([#1196](https://github.com/stjude-rust-labs/sprocket/pull/1196)).
 
@@ -64,7 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `server.orphan_timeout_minutes` (default `5`), rather than remaining
   `running` indefinitely
   ([#1109](https://github.com/stjude-rust-labs/sprocket/pull/1109)).
-
 * Added the experimental `sprocket dev module` command group for creating and
   managing WDL modules ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)):
   * `init` bootstraps module manifests and scaffolding.
@@ -105,7 +126,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Analysis now warns when a discovered `module-lock.json` is out of date with
   its `module.json`, pointing to `sprocket dev module lock`
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-
 * `dev server` now reports finer-grained progress. A run is `analyzing` while
   its document is resolved and type checked, and a task reports `initializing`,
   `localizing` while its inputs are transferred, or `cached` when the call
@@ -187,11 +207,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that restores ownership of a work directory, is no longer reported among a
   run's tasks
   ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
-
 * Canceling a `dev server` run mid-transfer now records the run as `canceled`
   rather than `failed`, and no longer overwrites an outcome the run reached
   first ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
-
 * `--index-on` no longer panics when a run's output files live outside of the
   output directory; such outputs (e.g. a `File` input that a task passes
   straight through to an output) are reported and left out of the index, and
@@ -719,7 +737,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
   * `--entrypoint` is now required if no inputs are provided.
   * `--entrypoint` will be prefixed to the key of any key-value pairs
-      supplied on the command line.
+    supplied on the command line.
 
 ### Removed
 
@@ -823,9 +841,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
   * Fixed certain misplaced highlights from the `ShellCheck` lint.
   * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
-      many comments.
+    many comments.
   * The `ImportSort` lint rule now supplies the correct order of imports in
-      the `fix` message.
+    the `fix` message.
 * By default, when checking a local file, suppress diagnostics from remote
   files. Added a `--show-remote-diagnostics` flag to recreate the older
   behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).

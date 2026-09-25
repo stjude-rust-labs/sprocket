@@ -131,7 +131,6 @@ dyn_clone::clone_trait_object!(Rule);
 /// Gets all of the lint rules.
 pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
     let rules: Vec<Box<dyn Rule + Send + Sync>> = vec![
-        Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
         Box::new(rules::SnakeCaseRule::new(config)),
         Box::<rules::RuntimeSectionRule>::default(),
@@ -140,7 +139,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::PascalCaseRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
-        Box::<rules::SectionOrderingRule>::default(),
         Box::<rules::MetaDescriptionRule>::default(),
         Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
         Box::<rules::EmptyDocCommentRule>::default(),

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added WDL 1.4 `list` directory-listing function support from
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800), gated by
   `feature_flags.wdl_1_4` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+
+## 0.26.0 - 2026-09-16
+
+#### Added
+
 * Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
   the benefits coming on any _subsequent_ requests. Before, any change in the document triggered a **full** re-analysis.
   Now, the actual differences in the document are tracked, with any untouched items being recycled from the cache ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).

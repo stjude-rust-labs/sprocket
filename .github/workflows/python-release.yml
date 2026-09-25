@@ -7,6 +7,7 @@ on:
   push:
     tags:
       - v*
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -232,9 +233,9 @@ jobs:
           - runner: ubuntu-24.04
             artifact: wheels-linux-x86_64
           - runner: macos-26-intel
-            artifact: wheels-macos-x86_64-py3.13
+            artifact: wheels-macos-x86_64-py3.14
           - runner: windows-2025
-            artifact: wheels-windows-x64-py3.13
+            artifact: wheels-windows-x64-py3.14
     steps:
       - name: Setup Python
         uses: actions/setup-python@v6
