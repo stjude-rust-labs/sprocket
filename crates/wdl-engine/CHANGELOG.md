@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Non-optional enum choices now coerce at runtime to the matching optional enum
+  type, allowing optional task inputs with defaults to be overridden at call
+  sites ([#1241](https://github.com/stjude-rust-labs/sprocket/issues/1241)).
 * Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft` events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
 
 #### Changed
