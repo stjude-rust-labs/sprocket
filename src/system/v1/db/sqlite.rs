@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -16,6 +17,7 @@ use uuid::Uuid;
 use super::Database;
 use super::DatabaseError;
 use super::Result;
+use super::RunObserver;
 use super::models::IndexLogEntry;
 use super::models::LogSource;
 use super::models::Run;
@@ -66,6 +68,8 @@ const SQLITE_CACHE_SIZE: &str = "2000";
 pub struct SqliteDatabase {
     /// The underlying SQLite connection pool.
     pool: SqlitePool,
+    /// The observer for persisted run transitions.
+    observer: Option<Arc<dyn RunObserver>>,
 }
 
 impl SqliteDatabase {
@@ -128,17 +132,30 @@ impl SqliteDatabase {
             }
         }
 
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            observer: None,
+        })
     }
 
     /// Get the underlying connection pool.
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }
+
+    /// Attaches an observer for persisted run transitions.
+    pub fn with_run_observer(mut self, observer: Arc<dyn RunObserver>) -> Self {
+        self.observer = Some(observer);
+        self
+    }
 }
 
 #[async_trait]
 impl Database for SqliteDatabase {
+    fn run_observer(&self) -> Option<&dyn RunObserver> {
+        self.observer.as_deref()
+    }
+
     async fn create_session(
         &self,
         id: Uuid,
@@ -845,7 +862,34 @@ impl Database for SqliteDatabase {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
+
+    #[derive(Debug, Default)]
+    struct RecordingObserver {
+        runs: Mutex<Vec<Run>>,
+    }
+
+    impl RunObserver for RecordingObserver {
+        fn run_transitioned(&self, run: &Run) {
+            self.runs
+                .lock()
+                .expect("recording observer poisoned")
+                .push(run.clone());
+        }
+    }
+
+    async fn create_test_run(db: &SqliteDatabase, run_id: Uuid) -> Uuid {
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+        session_id
+    }
 
     #[sqlx::test]
     async fn connect_with_correct_version(pool: SqlitePool) {
@@ -1030,6 +1074,79 @@ mod tests {
         assert_eq!(run.source, "test.wdl");
         assert_eq!(run.target, Some(String::from("test_task")));
         assert_eq!(run.status, RunStatus::Queued);
+    }
+
+    #[sqlx::test]
+    async fn run_transition_observer_sees_persisted_states(pool: SqlitePool) {
+        let observer = Arc::new(RecordingObserver::default());
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database")
+            .with_run_observer(observer.clone());
+
+        let start_run_id = Uuid::new_v4();
+        create_test_run(&db, start_run_id).await;
+        let started_at = DateTime::parse_from_rfc3339("2026-09-25T01:02:03Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
+        db.start_run(start_run_id, started_at)
+            .await
+            .expect("failed to start run");
+
+        let completed_run_id = Uuid::new_v4();
+        create_test_run(&db, completed_run_id).await;
+        let completed_at = DateTime::parse_from_rfc3339("2026-09-25T02:03:04Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
+        db.complete_run(completed_run_id, completed_at)
+            .await
+            .expect("failed to complete run");
+
+        let failed_run_id = Uuid::new_v4();
+        create_test_run(&db, failed_run_id).await;
+        let failed_at = DateTime::parse_from_rfc3339("2026-09-25T03:04:05Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
+        db.fail_run(failed_run_id, "boom", failed_at)
+            .await
+            .expect("failed to fail run");
+
+        let canceled_run_id = Uuid::new_v4();
+        create_test_run(&db, canceled_run_id).await;
+        let canceled_at = DateTime::parse_from_rfc3339("2026-09-25T04:05:06Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
+        db.cancel_run(canceled_run_id, canceled_at)
+            .await
+            .expect("failed to cancel run");
+
+        let runs = observer
+            .runs
+            .lock()
+            .expect("recording observer poisoned")
+            .clone();
+        assert_eq!(runs.len(), 4);
+
+        let started = runs.iter().find(|run| run.uuid == start_run_id).unwrap();
+        assert_eq!(started.status, RunStatus::Running);
+        assert_eq!(started.started_at, Some(started_at));
+        assert_eq!(started.completed_at, None);
+
+        let completed = runs
+            .iter()
+            .find(|run| run.uuid == completed_run_id)
+            .unwrap();
+        assert_eq!(completed.status, RunStatus::Completed);
+        assert_eq!(completed.completed_at, Some(completed_at));
+
+        let failed = runs.iter().find(|run| run.uuid == failed_run_id).unwrap();
+        assert_eq!(failed.status, RunStatus::Failed);
+        assert_eq!(failed.completed_at, Some(failed_at));
+        assert_eq!(failed.error.as_deref(), Some("boom"));
+
+        let canceled = runs.iter().find(|run| run.uuid == canceled_run_id).unwrap();
+        assert_eq!(canceled.status, RunStatus::Canceled);
+        assert_eq!(canceled.completed_at, Some(canceled_at));
     }
 
     #[sqlx::test]

@@ -130,6 +130,9 @@ excluded_cache_inputs = []
 
 [server.engine.storage.google]
 
+[notifications]
+webhooks = []
+
 [test]
 parallelism = 50
 throttle = 100

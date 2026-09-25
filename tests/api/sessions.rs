@@ -17,6 +17,7 @@ use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
+use sprocket::system::v1::notifications::NotificationSvc;
 use tempfile::TempDir;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
@@ -56,6 +57,7 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
+        NotificationSvc::disabled(),
     )
     .await
     .expect("failed to create run manager service");

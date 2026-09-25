@@ -24,6 +24,10 @@
       "description": "Configuration for the `server` command.",
       "$ref": "#/$defs/ServerConfig"
     },
+    "notifications": {
+      "description": "Configuration for run and task event notifications.",
+      "$ref": "#/$defs/NotificationsConfig"
+    },
     "test": {
       "description": "Configuration for the `test` command.",
       "$ref": "#/$defs/TestConfig"
@@ -1400,6 +1404,115 @@
         }
       },
       "additionalProperties": false
+    },
+    "NotificationsConfig": {
+      "description": "Configuration for run and task event notifications.",
+      "type": "object",
+      "properties": {
+        "webhooks": {
+          "description": "Webhook endpoints that receive subscribed notification events.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WebhookConfig"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "WebhookConfig": {
+      "description": "Configuration for a notification webhook endpoint.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Optional label used in logs and validation errors.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "description": "Webhook provider kind.",
+          "$ref": "#/$defs/WebhookKind"
+        },
+        "url": {
+          "description": "Webhook endpoint URL, expanded during load and redacted by `sprocket\nconfig`.",
+          "$ref": "#/$defs/SecretString"
+        },
+        "events": {
+          "description": "Notification events sent to this webhook.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NotificationEvent"
+          }
+        },
+        "max_task_messages_per_run": {
+          "description": "Maximum task-event messages sent per run; `0` disables task messages.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "default": 25
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "url"
+      ]
+    },
+    "WebhookKind": {
+      "description": "Supported notification webhook providers.",
+      "oneOf": [
+        {
+          "description": "Slack incoming webhook.",
+          "type": "string",
+          "const": "slack"
+        },
+        {
+          "description": "Microsoft Teams Workflows webhook.",
+          "type": "string",
+          "const": "teams"
+        }
+      ]
+    },
+    "NotificationEvent": {
+      "description": "Notification event names supported by webhook subscriptions.",
+      "oneOf": [
+        {
+          "description": "A run started.",
+          "type": "string",
+          "const": "run.started"
+        },
+        {
+          "description": "A run completed successfully.",
+          "type": "string",
+          "const": "run.completed"
+        },
+        {
+          "description": "A run failed.",
+          "type": "string",
+          "const": "run.failed"
+        },
+        {
+          "description": "A run was canceled.",
+          "type": "string",
+          "const": "run.canceled"
+        },
+        {
+          "description": "A task failed.",
+          "type": "string",
+          "const": "task.failed"
+        },
+        {
+          "description": "A task failed and will be retried.",
+          "type": "string",
+          "const": "task.retried"
+        },
+        {
+          "description": "A task was preempted.",
+          "type": "string",
+          "const": "task.preempted"
+        }
+      ]
     },
     "TestConfig": {
       "description": "`test` command configuration.",

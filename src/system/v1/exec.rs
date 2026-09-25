@@ -44,6 +44,7 @@ use crate::analysis::Source;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::Run;
+use crate::system::v1::db::RunObserver;
 use crate::system::v1::db::RunStatus;
 use crate::system::v1::db::Session;
 use crate::system::v1::db::SprocketCommand;
@@ -52,6 +53,8 @@ use crate::system::v1::exec::svc::TaskMonitorSvc;
 use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
+use crate::system::v1::notifications::NotificationSvc;
+use crate::system::v1::notifications::RunEventGuard;
 
 pub mod config;
 pub mod names;
@@ -117,7 +120,10 @@ const MAX_DB_OPEN_RETRIES: usize = 4;
 /// When multiple processes attempt to open and migrate the same database
 /// concurrently, transient lock contention can cause failures. This function
 /// retries with exponential backoff to handle that gracefully.
-pub async fn open_database(path: impl AsRef<Path>) -> Result<Arc<dyn Database>> {
+pub async fn open_database(
+    path: impl AsRef<Path>,
+    observer: Option<Arc<dyn RunObserver>>,
+) -> Result<Arc<dyn Database>> {
     let path = path.as_ref();
 
     let strategy = ExponentialBackoff::from_millis(250)
@@ -126,10 +132,17 @@ pub async fn open_database(path: impl AsRef<Path>) -> Result<Arc<dyn Database>> 
 
     let db = Retry::spawn_notify(
         strategy,
-        || async {
-            SqliteDatabase::new(path)
-                .await
-                .map_err(RetryError::transient)
+        || {
+            let observer = observer.clone();
+            async move {
+                SqliteDatabase::new(path)
+                    .await
+                    .map(|db| match observer {
+                        Some(observer) => db.with_run_observer(observer),
+                        None => db,
+                    })
+                    .map_err(RetryError::transient)
+            }
         },
         |e: &DatabaseError, _| {
             tracing::warn!("failed to open database, retrying: {e}");
@@ -364,6 +377,8 @@ pub struct RunnableExecutor {
     output_dir: OutputDirectory,
     /// The events for this run.
     events: Events,
+    /// Notification service for run and task events.
+    notifications: NotificationSvc,
     /// Cancellation context for this run.
     cancellation: CancellationContext,
     /// Shared mapping of active runs for cleanup on completion.
@@ -567,6 +582,12 @@ impl RunnableExecutor {
             monitor_shutdown.clone(),
         );
         let task_monitor = tokio::spawn(task_monitor_svc.run());
+        let notification_guard = self.notifications.listen(
+            self.run_id,
+            self.run_name.clone(),
+            self.events.subscribe_engine().unwrap(),
+            self.events.subscribe_crankshaft().unwrap(),
+        );
 
         // Resolve relative paths in inputs from the current working directory.
         let cwd = std::env::current_dir().expect("failed to get current working directory");
@@ -588,7 +609,14 @@ impl RunnableExecutor {
                     .db
                     .fail_run(self.run_id, &format!("{e:#}"), Utc::now())
                     .await;
-                self.runs.lock().await.remove(&self.run_id);
+                teardown_run_execution(
+                    monitor_shutdown,
+                    task_monitor,
+                    notification_guard,
+                    &self.runs,
+                    self.run_id,
+                )
+                .await;
                 return;
             }
         };
@@ -616,16 +644,14 @@ impl RunnableExecutor {
             );
         }
 
-        // Evaluation is over, so no further events can be emitted. Let the
-        // monitor consume what is left and reconcile any task that
-        // never reached a terminal status before the run is considered
-        // finished.
-        monitor_shutdown.cancel();
-        if let Err(e) = task_monitor.await {
-            tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
-        }
-
-        self.runs.lock().await.remove(&self.run_id);
+        teardown_run_execution(
+            monitor_shutdown,
+            task_monitor,
+            notification_guard,
+            &self.runs,
+            self.run_id,
+        )
+        .await;
     }
 
     /// Parses the inputs into engine inputs.
@@ -653,6 +679,26 @@ impl RunnableExecutor {
 
         Ok(inputs)
     }
+}
+
+/// Stops a run's event consumers and removes the run from the active runs.
+async fn teardown_run_execution(
+    monitor_shutdown: CancellationToken,
+    task_monitor: JoinHandle<()>,
+    notification_guard: RunEventGuard,
+    runs: &Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
+    run_id: Uuid,
+) {
+    // Evaluation is over, so no further events can be emitted. Let the monitor
+    // consume what is left and reconcile any task that never reached a terminal
+    // status before the run is considered finished.
+    monitor_shutdown.cancel();
+    if let Err(e) = task_monitor.await {
+        tracing::error!("task monitor for run {run_id} failed: {e:#}");
+    }
+
+    notification_guard.finish().await;
+    runs.lock().await.remove(&run_id);
 }
 
 /// Analyzes a WDL document from the given source.

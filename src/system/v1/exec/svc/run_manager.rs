@@ -41,6 +41,7 @@ use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::validate_source;
 use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
+use crate::system::v1::notifications::NotificationSvc;
 
 pub(crate) mod commands;
 
@@ -80,6 +81,8 @@ pub struct RunManagerSvc {
     output_dir: OutputDirectory,
     /// A handle to the database.
     db: Arc<dyn Database>,
+    /// Notification service for run and task events.
+    notifications: NotificationSvc,
     /// Session ID for this server instance.
     ///
     /// This field keeps track of which session entry in the database this
@@ -111,6 +114,7 @@ impl RunManagerSvc {
         report_mode: Mode,
         colorize: bool,
         db: Arc<dyn Database>,
+        notifications: NotificationSvc,
         rx: Rx,
     ) -> Result<Self> {
         let fallback_version = config.common.wdl.fallback_version;
@@ -134,6 +138,7 @@ impl RunManagerSvc {
             modules_config,
             output_dir,
             db,
+            notifications,
             // Created eagerly by `run`, with a fallback on first submission.
             session_id: Default::default(),
             rx,
@@ -388,9 +393,10 @@ impl RunManagerSvc {
         report_mode: Mode,
         colorize: bool,
         db: Arc<dyn Database>,
+        notifications: NotificationSvc,
     ) -> Result<(JoinHandle<()>, mpsc::Sender<RunManagerCmd>)> {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
-        let manager = Self::new(config, report_mode, colorize, db, rx).await?;
+        let manager = Self::new(config, report_mode, colorize, db, notifications, rx).await?;
         let handle = tokio::spawn(manager.run());
         Ok((handle, tx))
     }
@@ -426,6 +432,7 @@ impl RunManagerSvc {
             .output_dir(self.output_dir.clone())
             .engine(self.engine.clone())
             .events(events.clone())
+            .notifications(self.notifications.clone())
             .cancellation(cancellation.clone())
             .runs(self.runs.clone())
             .run_id(run_id)

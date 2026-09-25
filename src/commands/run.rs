@@ -66,6 +66,7 @@ use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
 use crate::system::v1::db::Database;
+use crate::system::v1::db::RunObserver;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::HeartbeatGuard;
 use crate::system::v1::exec::RunContext;
@@ -81,6 +82,11 @@ use crate::system::v1::fs::FileSystemLock;
 use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
+use crate::system::v1::notifications::NotificationSvc;
+
+/// The maximum time to wait for pending notifications to be delivered after a
+/// run.
+const NOTIFICATION_FLUSH_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The delay in showing the progress bar.
 ///
@@ -787,6 +793,7 @@ async fn progress(
                             state.depart(&Arc::new(name));
                             state.cached += 1;
                         }
+                        EngineEvent::TaskRetrying { .. } | EngineEvent::TaskFailed { .. } => {}
                         EngineEvent::TaskParked => {
                             state.parked += 1;
                         }
@@ -1007,7 +1014,7 @@ pub async fn run(
 
     // Held for the rest of this function: dropping it stops the heartbeat and
     // would make this run look abandoned while it is still executing.
-    let (ctx, run_dir, db, _heartbeat) =
+    let (ctx, run_dir, db, notifications, _heartbeat) =
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
@@ -1056,6 +1063,17 @@ pub async fn run(
         .await
         .context("failed to create WDL evaluation engine")?;
 
+    let notification_guard = notifications.listen(
+        ctx.run_id,
+        ctx.run_generated_name.clone(),
+        events
+            .subscribe_engine()
+            .expect("should have engine events"),
+        events
+            .subscribe_crankshaft()
+            .expect("should have Crankshaft events"),
+    );
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
@@ -1099,6 +1117,8 @@ pub async fn run(
             res = &mut execute => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
+                notification_guard.finish().await;
+                notifications.shutdown(NOTIFICATION_FLUSH_TIMEOUT).await;
 
                 return match res {
                     Ok(()) => {
@@ -1209,9 +1229,18 @@ async fn setup_run_context(
     source: &Source,
     target: &Target,
     inputs: &Inputs,
-) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
+) -> Result<(
+    RunContext,
+    RunDirectory,
+    Arc<dyn Database>,
+    NotificationSvc,
+    HeartbeatGuard,
+)> {
     // Set up output directory structure
     let output_dir = OutputDirectory::new(config.run.output_dir.clone());
+    let notification_output_root =
+        std::path::absolute(output_dir.root()).unwrap_or_else(|_| output_dir.root().to_path_buf());
+    let notifications = NotificationSvc::new(&config.notifications, notification_output_root);
 
     // Acquire an exclusive lock on the output directory to serialize setup
     // operations across concurrent processes (e.g., database creation,
@@ -1238,7 +1267,10 @@ async fn setup_run_context(
 
     // Open or create the database for provenance tracking
     let db_path = config.server.database.resolve_url(output_dir.root());
-    let db = open_database(&db_path).await?;
+    let observer = notifications
+        .is_enabled()
+        .then(|| Arc::new(notifications.clone()) as Arc<dyn RunObserver>);
+    let db = open_database(&db_path, observer).await?;
 
     // Create session and run records
     let session = create_session(db.as_ref(), SprocketCommand::Run)
@@ -1278,7 +1310,7 @@ async fn setup_run_context(
         started_at: Utc::now(),
     };
 
-    Ok((ctx, run_dir, db, heartbeat))
+    Ok((ctx, run_dir, db, notifications, heartbeat))
 }
 
 /// Initializes logging to `output.log` in the given run directory.

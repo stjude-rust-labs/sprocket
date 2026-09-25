@@ -1579,6 +1579,61 @@ impl Evaluator {
         eval_root_dir: &Path,
         id: &str,
     ) -> EvaluationResult<EvaluatedTask> {
+        let mut current_task_name = self.generate_task_name(id);
+        let result = self
+            .perform_task_evaluation_inner(
+                document,
+                task,
+                inputs,
+                eval_root_dir,
+                id,
+                &mut current_task_name,
+            )
+            .await;
+
+        // Once canceled, errors such as aborted localization are a consequence
+        // of the cancellation rather than task failures. Tasks that ran to a
+        // failed exit while waiting for cancellation did fail.
+        let state = self.cancellation().state();
+        let failure = match &result {
+            Ok(evaluated) if state != CancellationContextState::Canceling => {
+                evaluated.error().map(EvaluationError::to_string)
+            }
+            Err(error)
+                if state == CancellationContextState::NotCanceled
+                    && !matches!(error, EvaluationError::Canceled) =>
+            {
+                Some(error.to_string())
+            }
+            _ => None,
+        };
+
+        if let Some(error) = failure
+            && let Some(sender) = self.events().engine()
+        {
+            let _ = sender.send(EngineEvent::TaskFailed {
+                id: id.to_string(),
+                name: current_task_name.clone(),
+                error,
+            });
+        }
+
+        result
+    }
+
+    /// Implements [`Self::perform_task_evaluation`].
+    ///
+    /// `current_task_name` is updated with the name of each execution attempt
+    /// so that the caller can attribute a failure to the final attempt.
+    async fn perform_task_evaluation_inner(
+        &self,
+        document: &Document,
+        task: &Task,
+        inputs: TaskInputs,
+        eval_root_dir: &Path,
+        id: &str,
+        current_task_name: &mut String,
+    ) -> EvaluationResult<EvaluatedTask> {
         inputs.validate(document, task, None).with_context(|| {
             format!(
                 "failed to validate the inputs to task `{task}`",
@@ -1647,7 +1702,7 @@ impl Evaluator {
         // Mint the name for the first attempt before any of the task's work
         // begins, so that even localization performed while evaluating
         // inputs and declarations is attributable to the task.
-        let mut state = State::new(self, document, task, &temp_dir, self.generate_task_name(id))?;
+        let mut state = State::new(self, document, task, &temp_dir, current_task_name.clone())?;
         self.notify_task_initializing(id, &state.task_name);
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
@@ -1692,7 +1747,8 @@ impl Evaluator {
 
             // Each attempt is a distinct execution with its own name.
             if attempt > 0 {
-                state.task_name = self.generate_task_name(id);
+                *current_task_name = self.generate_task_name(id);
+                state.task_name.clone_from(current_task_name);
                 self.notify_task_initializing(id, &state.task_name);
             }
 
@@ -1930,6 +1986,19 @@ impl Evaluator {
                 if attempt >= max_retries {
                     let error = self.task_failure_error(&state, id, &result).await;
                     break EvaluatedTask::new(cached, result, Some(error));
+                }
+
+                // A canceled evaluation will not make another attempt.
+                if self.cancellation().state() == CancellationContextState::NotCanceled
+                    && let Some(sender) = self.events().engine()
+                {
+                    let _ = sender.send(EngineEvent::TaskRetrying {
+                        id: id.to_string(),
+                        name: state.task_name.clone(),
+                        attempt,
+                        max_retries,
+                        exit_code: result.exit_code,
+                    });
                 }
 
                 attempt += 1;
@@ -2251,6 +2320,286 @@ impl Evaluator {
             state.document.clone(),
             task_execution_failed(&error, state.task.name(), id, state.task.name_span()),
         )
+    }
+}
+
+#[cfg(test)]
+mod engine_event_tests {
+    use std::fs;
+    use std::path::Path;
+    use std::time::Duration;
+
+    use crankshaft::events::Event;
+    use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
+    use tokio::sync::broadcast::error::RecvError;
+    use wdl_analysis::Analyzer;
+    use wdl_analysis::Config as AnalysisConfig;
+    use wdl_analysis::DiagnosticsConfig;
+
+    use crate::CancellationContext;
+    use crate::CancellationContextState;
+    use crate::Engine;
+    use crate::EngineEvent;
+    use crate::Events;
+    use crate::TaskInputs;
+    use crate::config::Config;
+    use crate::config::FailureMode;
+    use crate::eval::EvaluatedTask;
+    use crate::eval::EvaluationError;
+    use crate::eval::EvaluationResult;
+
+    async fn analyze_source(root_dir: &Path, source: &str) -> Vec<wdl_analysis::AnalysisResult> {
+        fs::write(root_dir.join("source.wdl"), source).expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir)
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+        results
+    }
+
+    async fn collect_engine_events(
+        engine_rx: &mut tokio::sync::broadcast::Receiver<EngineEvent>,
+    ) -> Vec<EngineEvent> {
+        let mut events = Vec::new();
+        loop {
+            match engine_rx.recv().await {
+                Ok(event) => events.push(event),
+                Err(RecvError::Closed) => break,
+                Err(e) => panic!("failed to receive engine event: {e}"),
+            }
+        }
+
+        events
+    }
+
+    async fn evaluate_source(source: &str) -> (EvaluationResult<EvaluatedTask>, Vec<EngineEvent>) {
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let results = analyze_source(root_dir.path(), source).await;
+        let document = results.first().expect("should have result").document();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let events = Events::new(100);
+        let mut engine_rx = events.subscribe_engine().unwrap();
+        let evaluator = engine.create_v1_evaluator(events.clone(), CancellationContext::default());
+
+        let result = evaluator
+            .evaluate_task(
+                document,
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
+                TaskInputs::default(),
+                root_dir.path().join("run"),
+            )
+            .await;
+
+        drop(evaluator);
+        drop(events);
+        let engine_events = collect_engine_events(&mut engine_rx).await;
+
+        (result, engine_events)
+    }
+
+    fn initializing_names(events: &[EngineEvent]) -> Vec<String> {
+        events
+            .iter()
+            .filter_map(|event| match event {
+                EngineEvent::TaskInitializing { name, .. } => Some(name.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn retrying_events(events: &[EngineEvent]) -> Vec<(String, u64, u64, i32)> {
+        events
+            .iter()
+            .filter_map(|event| match event {
+                EngineEvent::TaskRetrying {
+                    name,
+                    attempt,
+                    max_retries,
+                    exit_code,
+                    ..
+                } => Some((name.clone(), *attempt, *max_retries, *exit_code)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn failed_events(events: &[EngineEvent]) -> Vec<(String, String)> {
+        events
+            .iter()
+            .filter_map(|event| match event {
+                EngineEvent::TaskFailed { name, error, .. } => Some((name.clone(), error.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn emits_task_retrying_then_task_failed_when_retries_are_exhausted() {
+        let (result, events) = evaluate_source(
+            r#"
+version 1.2
+
+task test {
+  command <<<
+    exit 1
+  >>>
+
+  requirements {
+    max_retries: 2
+  }
+}
+"#,
+        )
+        .await;
+
+        let evaluated = result.expect("task evaluation should return an evaluated task");
+        assert!(evaluated.failed());
+
+        let initializing = initializing_names(&events);
+        assert_eq!(initializing.len(), 3);
+
+        let retrying = retrying_events(&events);
+        assert_eq!(retrying.len(), 2);
+        assert_eq!(retrying[0], (initializing[0].clone(), 0, 2, 1));
+        assert_eq!(retrying[1], (initializing[1].clone(), 1, 2, 1));
+
+        let failed = failed_events(&events);
+        assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].0, initializing[2]);
+        assert!(failed[0].1.contains("process terminated with exit code 1"));
+    }
+
+    #[tokio::test]
+    async fn emits_task_failed_without_retry_when_task_fails_before_running() {
+        let (result, events) = evaluate_source(
+            r#"
+version 1.2
+
+task test {
+  input {
+    File missing = "missing.txt"
+  }
+
+  command <<<
+    cat "~{missing}"
+  >>>
+}
+"#,
+        )
+        .await;
+
+        assert!(matches!(result, Err(error) if !matches!(error, EvaluationError::Canceled)));
+        assert!(retrying_events(&events).is_empty());
+
+        let initializing = initializing_names(&events);
+        assert_eq!(initializing.len(), 1);
+
+        let failed = failed_events(&events);
+        assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].0, initializing[0]);
+    }
+
+    #[tokio::test]
+    async fn emits_task_retrying_without_task_failed_when_retry_succeeds() {
+        let (result, events) = evaluate_source(
+            r#"
+version 1.2
+
+task test {
+  command <<<
+    exit ~{if task.attempt == 0 then 1 else 0}
+  >>>
+
+  requirements {
+    max_retries: 1
+  }
+}
+"#,
+        )
+        .await;
+
+        let evaluated = result.expect("task should eventually succeed");
+        assert!(!evaluated.failed());
+
+        let initializing = initializing_names(&events);
+        assert_eq!(initializing.len(), 2);
+
+        let retrying = retrying_events(&events);
+        assert_eq!(retrying, vec![(initializing[0].clone(), 0, 1, 1)]);
+        assert!(failed_events(&events).is_empty());
+    }
+
+    #[tokio::test]
+    async fn does_not_emit_task_failed_when_task_is_canceled() {
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let results = analyze_source(
+            root_dir.path(),
+            r#"
+version 1.2
+
+task test {
+  command <<<
+    sleep 30
+  >>>
+}
+"#,
+        )
+        .await;
+        let document = results.first().expect("should have result").document();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let cancellation = CancellationContext::new(FailureMode::Fast);
+        let events = Events::new(100);
+        let mut engine_rx = events.subscribe_engine().unwrap();
+        let mut crankshaft_rx = events.subscribe_crankshaft().unwrap();
+        let result = {
+            let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone());
+            let evaluation = evaluator.evaluate_task(
+                document,
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
+                TaskInputs::default(),
+                root_dir.path().join("run"),
+            );
+            tokio::pin!(evaluation);
+
+            tokio::time::timeout(Duration::from_secs(10), async {
+                loop {
+                    tokio::select! {
+                        event = crankshaft_rx.recv() => {
+                            if let Ok(Event::TaskStarted { .. }) = event {
+                                assert_eq!(
+                                    cancellation.cancel(),
+                                    CancellationContextState::Canceling
+                                );
+                            }
+                        }
+                        result = &mut evaluation => break result,
+                    }
+                }
+            })
+            .await
+            .expect("canceled task should finish promptly")
+        };
+
+        assert!(matches!(result, Err(EvaluationError::Canceled)));
+
+        drop(events);
+        let events = collect_engine_events(&mut engine_rx).await;
+        assert!(failed_events(&events).is_empty());
     }
 }
 

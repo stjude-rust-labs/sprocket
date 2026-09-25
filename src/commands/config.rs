@@ -28,6 +28,12 @@ impl Args {
     }
 }
 
+/// Redacts secrets in a configuration before displaying it.
+pub(crate) fn redact_secrets(config: &mut Config) {
+    config.run.engine = config.run.engine.clone().redact();
+    config.notifications = std::mem::take(&mut config.notifications).redact();
+}
+
 /// Subcommands for the `config` command.
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigSubcommand {
@@ -67,7 +73,7 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
         ConfigSubcommand::Resolve(args) => {
             // Redact any secrets unless explicitly requested not to
             if !args.unredact {
-                config.run.engine = config.run.engine.redact();
+                redact_secrets(&mut config);
             }
 
             config

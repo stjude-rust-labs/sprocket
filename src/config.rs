@@ -13,6 +13,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use clap::ValueEnum;
 use schemars::JsonSchema;
+use secrecy::ExposeSecret;
 use toml_spanner::Arena;
 use toml_spanner::Failed;
 use toml_spanner::FromToml;
@@ -28,12 +29,14 @@ use toml_spanner::helper::flatten_any;
 use toml_spanner::helper::parse_string;
 use tracing::debug;
 use tracing::warn;
+use url::Host;
 use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
 use wdl::engine::config::BackendConfig;
 use wdl::engine::config::LsfApptainerBackendConfig;
+use wdl::engine::config::SecretString;
 use wdl::engine::config::SlurmApptainerBackendConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
@@ -204,6 +207,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub server: ServerConfig,
+    /// Configuration for run and task event notifications.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub notifications: NotificationsConfig,
     /// Configuration for the `test` command.
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -230,6 +237,204 @@ impl Config {
     /// Gets a builder for the `[Config]`.
     pub fn builder() -> wdl::engine::config::ConfigBuilder<Self> {
         Default::default()
+    }
+}
+
+/// The default maximum number of task messages sent for a run.
+fn default_max_task_messages_per_run() -> u32 {
+    25
+}
+
+/// The default notification events for a webhook.
+fn default_notification_events() -> Vec<NotificationEvent> {
+    NotificationEvent::ALL.to_vec()
+}
+
+/// Configuration for run and task event notifications.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct NotificationsConfig {
+    /// Webhook endpoints that receive subscribed notification events.
+    #[toml(default)]
+    #[schemars(default)]
+    pub webhooks: Vec<WebhookConfig>,
+}
+
+impl NotificationsConfig {
+    /// Redacts secrets before serializing this configuration for display.
+    pub fn redact(mut self) -> Self {
+        for webhook in &mut self.webhooks {
+            webhook.url = webhook.url.clone().redact();
+        }
+
+        self
+    }
+
+    /// Expands environment variables in webhook URLs and validates each
+    /// webhook.
+    fn expand_and_validate(&mut self) -> Result<()> {
+        for (index, webhook) in self.webhooks.iter_mut().enumerate() {
+            let label = webhook.label(index);
+
+            webhook.url = match shellexpand::full(webhook.url.inner().expose_secret()) {
+                Ok(expanded) => expanded.into_owned().into(),
+                Err(e) => {
+                    bail!(
+                        "failed to expand `{}` in URL for notification webhook `{label}`: {}",
+                        e.var_name,
+                        e.cause
+                    );
+                }
+            };
+
+            webhook.dedup_events();
+
+            if webhook.events.is_empty() {
+                bail!("notification webhook `{label}` must subscribe to at least one event");
+            }
+
+            let url = Url::parse(webhook.url.inner().expose_secret())
+                .with_context(|| format!("invalid URL for notification webhook `{label}`"))?;
+            if url.scheme() != "https" && !(url.scheme() == "http" && is_loopback_url(&url)) {
+                bail!(
+                    "notification webhook `{label}` URL must use `https`, except `http` is \
+                     allowed for loopback hosts"
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Returns true if a URL's host is localhost or a loopback IP address.
+fn is_loopback_url(url: &Url) -> bool {
+    match url.host() {
+        Some(Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        Some(Host::Ipv4(host)) => host.is_loopback(),
+        Some(Host::Ipv6(host)) => host.is_loopback(),
+        None => false,
+    }
+}
+
+/// Configuration for a notification webhook endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct WebhookConfig {
+    /// Optional label used in logs and validation errors.
+    pub name: Option<String>,
+    /// Webhook provider kind.
+    pub kind: WebhookKind,
+    /// Webhook endpoint URL, expanded during load and redacted by `sprocket
+    /// config`.
+    pub url: SecretString,
+    /// Notification events sent to this webhook.
+    #[toml(default = default_notification_events())]
+    #[schemars(default = "default_notification_events")]
+    pub events: Vec<NotificationEvent>,
+    /// Maximum task-event messages sent per run; `0` disables task messages.
+    #[toml(default = default_max_task_messages_per_run())]
+    #[schemars(default = "default_max_task_messages_per_run")]
+    pub max_task_messages_per_run: u32,
+}
+
+impl WebhookConfig {
+    /// Returns the configured name or a one-based fallback label.
+    ///
+    /// The `index` argument is zero-based; fallback labels display `index + 1`
+    /// as `webhook #<n>`.
+    pub fn label(&self, index: usize) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| format!("webhook #{}", index + 1))
+    }
+
+    /// Removes duplicate events while preserving the first occurrence.
+    fn dedup_events(&mut self) {
+        let mut seen = std::collections::HashSet::new();
+        self.events.retain(|event| seen.insert(*event));
+    }
+}
+
+/// Supported notification webhook providers.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub enum WebhookKind {
+    /// Slack incoming webhook.
+    Slack,
+    /// Microsoft Teams Workflows webhook.
+    Teams,
+}
+
+/// Notification event names supported by webhook subscriptions.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub enum NotificationEvent {
+    /// A run started.
+    #[toml(rename = "run.started")]
+    #[schemars(rename = "run.started")]
+    RunStarted,
+    /// A run completed successfully.
+    #[toml(rename = "run.completed")]
+    #[schemars(rename = "run.completed")]
+    RunCompleted,
+    /// A run failed.
+    #[toml(rename = "run.failed")]
+    #[schemars(rename = "run.failed")]
+    RunFailed,
+    /// A run was canceled.
+    #[toml(rename = "run.canceled")]
+    #[schemars(rename = "run.canceled")]
+    RunCanceled,
+    /// A task failed.
+    #[toml(rename = "task.failed")]
+    #[schemars(rename = "task.failed")]
+    TaskFailed,
+    /// A task failed and will be retried.
+    #[toml(rename = "task.retried")]
+    #[schemars(rename = "task.retried")]
+    TaskRetried,
+    /// A task was preempted.
+    #[toml(rename = "task.preempted")]
+    #[schemars(rename = "task.preempted")]
+    TaskPreempted,
+}
+
+impl NotificationEvent {
+    /// All supported notification events in their default delivery order.
+    pub const ALL: [Self; 7] = [
+        Self::RunStarted,
+        Self::RunCompleted,
+        Self::RunFailed,
+        Self::RunCanceled,
+        Self::TaskFailed,
+        Self::TaskRetried,
+        Self::TaskPreempted,
+    ];
+
+    /// Returns the dotted event name used in configuration and messages.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RunStarted => "run.started",
+            Self::RunCompleted => "run.completed",
+            Self::RunFailed => "run.failed",
+            Self::RunCanceled => "run.canceled",
+            Self::TaskFailed => "task.failed",
+            Self::TaskRetried => "task.retried",
+            Self::TaskPreempted => "task.preempted",
+        }
+    }
+
+    /// Returns true if the event is about a task rather than a run.
+    pub const fn is_task(self) -> bool {
+        matches!(
+            self,
+            Self::TaskFailed | Self::TaskRetried | Self::TaskPreempted
+        )
     }
 }
 
@@ -1327,6 +1532,9 @@ impl Config {
         expand_paths(&mut self.run.engine)?;
         expand_paths(&mut self.server.engine)?;
 
+        // Expand and validate notification webhooks
+        self.notifications.expand_and_validate()?;
+
         // Validate inner configs
         self.server.validate()?;
         self.doc.validate()?;
@@ -1358,6 +1566,13 @@ mod tests {
     use schemars::schema_for;
 
     use super::*;
+
+    /// Parses and validates a config snippet.
+    fn validated_config(source: &str) -> Result<Config> {
+        let mut config = toml_spanner::from_str::<Config>(source)?;
+        config.validate()?;
+        Ok(config)
+    }
 
     #[test]
     fn max_concurrent_runs_serialization() {
@@ -1557,6 +1772,242 @@ mod tests {
             error.to_string(),
             "failed to canonicalize path in `allowed_file_paths`: `does-not-exist`"
         );
+    }
+
+    #[test]
+    fn notifications_full_example_parses() -> Result<()> {
+        let config = validated_config(
+            r#"
+[[notifications.webhooks]]
+name = "primary alerts"
+kind = "slack"
+url = "https://hooks.slack.example/services/T000/B000/SECRET"
+events = ["run.started", "run.completed", "task.failed"]
+max_task_messages_per_run = 10
+
+[[notifications.webhooks]]
+kind = "teams"
+url = "https://teams.example/webhook/SECRET"
+events = ["run.failed", "run.canceled", "task.retried", "task.preempted"]
+max_task_messages_per_run = 0
+"#,
+        )?;
+
+        assert_eq!(config.notifications.webhooks.len(), 2);
+        assert_eq!(
+            config.notifications.webhooks[0].name.as_deref(),
+            Some("primary alerts")
+        );
+        assert_eq!(config.notifications.webhooks[0].kind, WebhookKind::Slack);
+        assert_eq!(
+            config.notifications.webhooks[0].events,
+            vec![
+                NotificationEvent::RunStarted,
+                NotificationEvent::RunCompleted,
+                NotificationEvent::TaskFailed,
+            ]
+        );
+        assert_eq!(config.notifications.webhooks[1].kind, WebhookKind::Teams);
+        assert_eq!(config.notifications.webhooks[1].label(1), "webhook #2");
+
+        Ok(())
+    }
+
+    #[test]
+    fn notifications_defaults_apply() -> Result<()> {
+        let config = validated_config(
+            r#"
+[[notifications.webhooks]]
+kind = "slack"
+url = "https://example.com/webhook"
+"#,
+        )?;
+
+        let webhook = &config.notifications.webhooks[0];
+        assert_eq!(webhook.events, NotificationEvent::ALL.to_vec());
+        assert_eq!(
+            webhook.max_task_messages_per_run,
+            default_max_task_messages_per_run()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn notifications_unknown_kind_and_event_are_rejected() {
+        let error = toml_spanner::from_str::<Config>(
+            r#"
+[[notifications.webhooks]]
+kind = "discord"
+url = "https://example.com/webhook"
+"#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains("expected one of: slack, teams"),
+            "unexpected unknown kind error: {error}"
+        );
+
+        let error = toml_spanner::from_str::<Config>(
+            r#"
+[[notifications.webhooks]]
+kind = "slack"
+url = "https://example.com/webhook"
+events = ["run.started", "task.started"]
+"#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains("run.started") && error.contains("task.preempted"),
+            "unexpected unknown event error: {error}"
+        );
+    }
+
+    #[test]
+    fn notifications_url_env_var_expands() -> Result<()> {
+        // Cargo and nextest set `CARGO_PKG_NAME` when running tests, so the
+        // process environment does not need to be mutated.
+        let config = validated_config(
+            r#"
+[[notifications.webhooks]]
+name = "expanded"
+kind = "slack"
+url = "https://example.com/${CARGO_PKG_NAME}"
+"#,
+        )?;
+
+        assert_eq!(
+            config.notifications.webhooks[0].url.inner().expose_secret(),
+            format!("https://example.com/{}", env!("CARGO_PKG_NAME"))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn notifications_unset_env_var_names_webhook_without_url() {
+        let mut config = toml_spanner::from_str::<Config>(
+            r#"
+[[notifications.webhooks]]
+name = "missing env"
+kind = "slack"
+url = "${SPROCKET_NOTIFICATION_TEST_UNSET_URL}"
+"#,
+        )
+        .unwrap();
+
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("missing env"), "unexpected error: {error}");
+        assert!(
+            error.contains("SPROCKET_NOTIFICATION_TEST_UNSET_URL"),
+            "error did not name the unset variable: {error}"
+        );
+        assert!(
+            !error.contains("${SPROCKET_NOTIFICATION_TEST_UNSET_URL}"),
+            "error leaked the configured URL value: {error}"
+        );
+    }
+
+    #[test]
+    fn notifications_reject_non_https_non_loopback_without_leaking_url() {
+        let mut config = toml_spanner::from_str::<Config>(
+            r#"
+[[notifications.webhooks]]
+name = "external"
+kind = "slack"
+url = "http://example.com/SECRET-URL-SENTINEL"
+"#,
+        )
+        .unwrap();
+
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("external"), "unexpected error: {error}");
+        assert!(
+            !error.contains("SECRET-URL-SENTINEL") && !error.contains("http://example.com"),
+            "error leaked the configured URL value: {error}"
+        );
+    }
+
+    #[test]
+    fn notifications_accept_http_loopback_url() -> Result<()> {
+        let config = validated_config(
+            r#"
+[[notifications.webhooks]]
+kind = "slack"
+url = "http://127.0.0.1:1234/x"
+"#,
+        )?;
+
+        assert_eq!(
+            config.notifications.webhooks[0].url.inner().expose_secret(),
+            "http://127.0.0.1:1234/x"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn notifications_empty_events_rejected() {
+        let mut config = toml_spanner::from_str::<Config>(
+            r#"
+[[notifications.webhooks]]
+name = "empty events"
+kind = "slack"
+url = "https://example.com/webhook"
+events = []
+"#,
+        )
+        .unwrap();
+
+        let error = config.validate().unwrap_err().to_string();
+        assert!(
+            error.contains("empty events"),
+            "unexpected empty events error: {error}"
+        );
+    }
+
+    #[test]
+    fn notifications_duplicate_events_are_deduped() -> Result<()> {
+        let config = validated_config(
+            r#"
+[[notifications.webhooks]]
+kind = "slack"
+url = "https://example.com/webhook"
+events = ["run.started", "run.started", "task.failed"]
+"#,
+        )?;
+
+        assert_eq!(
+            config.notifications.webhooks[0].events,
+            vec![NotificationEvent::RunStarted, NotificationEvent::TaskFailed]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn sprocket_config_redacts_notification_webhook_urls() -> Result<()> {
+        let mut config = validated_config(
+            r#"
+[[notifications.webhooks]]
+name = "redacted"
+kind = "slack"
+url = "https://example.com/SECRET-REDACT-ME"
+"#,
+        )?;
+
+        crate::commands::config::redact_secrets(&mut config);
+        let serialized = toml_spanner::to_string(&config)?;
+
+        assert!(serialized.contains("<REDACTED>"));
+        assert!(
+            !serialized.contains("SECRET-REDACT-ME"),
+            "redacted config leaked webhook URL: {serialized}"
+        );
+
+        Ok(())
     }
 
     fn json_schema_path() -> PathBuf {

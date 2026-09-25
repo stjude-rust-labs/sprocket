@@ -5298,6 +5298,7 @@ dependencies = [
  "regex",
  "reqwest",
  "schemars 1.2.2",
+ "secrecy",
  "serde",
  "serde_json",
  "serde_yaml_ng",

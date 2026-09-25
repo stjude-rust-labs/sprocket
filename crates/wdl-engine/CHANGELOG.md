@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `TaskRetrying` and `TaskFailed` engine events for task retry and final
+  failure notifications. This is source-breaking for downstream code that
+  matches exhaustively on `EngineEvent`.
+
 ## 0.18.0 - 2026-09-16
 
 #### Changed

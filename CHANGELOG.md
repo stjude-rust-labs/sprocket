@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added Slack and Microsoft Teams webhook notifications for run and task events
+  via `[[notifications.webhooks]]` in `sprocket.toml`
+  ([#TBD](https://github.com/stjude-rust-labs/sprocket/pull/TBD)).
+
 ### Changed
 
 * Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).

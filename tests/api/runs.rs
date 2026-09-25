@@ -1,31 +1,100 @@
 //! Run API end-to-end tests.
 
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
+use std::time::Duration;
 
 use axum::body::Body;
+use axum::extract::State as AxumState;
 use axum::http::Request;
 use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::post;
 use http_body_util::BodyExt;
 use serde_json::json;
 use sprocket::Config;
+use sprocket::NotificationEvent;
+use sprocket::NotificationsConfig;
 use sprocket::ServerConfig;
+use sprocket::WebhookConfig;
+use sprocket::WebhookKind;
 use sprocket::server::AppState;
 use sprocket::server::ServerFailureMode;
 use sprocket::server::create_router;
 use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::Run;
+use sprocket::system::v1::db::RunObserver;
 use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
+use sprocket::system::v1::notifications::NotificationSvc;
 use tempfile::TempDir;
+use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
+use wdl::engine::config::SecretString;
+
+/// A webhook endpoint that records the payloads it receives.
+#[derive(Clone, Debug)]
+struct MockWebhook {
+    addr: std::net::SocketAddr,
+    received: Arc<StdMutex<Vec<serde_json::Value>>>,
+}
+
+impl MockWebhook {
+    async fn start() -> Self {
+        async fn handler(
+            AxumState(received): AxumState<Arc<StdMutex<Vec<serde_json::Value>>>>,
+            axum::Json(body): axum::Json<serde_json::Value>,
+        ) -> impl IntoResponse {
+            received
+                .lock()
+                .expect("mock webhook state poisoned")
+                .push(body);
+            StatusCode::OK
+        }
+
+        let received = Arc::new(StdMutex::new(Vec::new()));
+        let app = axum::Router::new()
+            .route("/", post(handler))
+            .with_state(Arc::clone(&received));
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, app).await;
+        });
+
+        Self { addr, received }
+    }
+
+    fn url(&self) -> String {
+        format!("http://{}", self.addr)
+    }
+
+    fn received(&self) -> Vec<serde_json::Value> {
+        self.received
+            .lock()
+            .expect("mock webhook state poisoned")
+            .clone()
+    }
+
+    /// Waits up to `timeout` for `count` payloads, returning those received.
+    async fn wait_for_count(&self, count: usize, timeout: Duration) -> Vec<serde_json::Value> {
+        let _ = tokio::time::timeout(timeout, async {
+            while self.received().len() < count {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await;
+        self.received()
+    }
+}
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -64,6 +133,7 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
+        NotificationSvc::disabled(),
     )
     .await
     .expect("failed to create run manager service");
@@ -323,6 +393,134 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
         std::fs::canonicalize(&execution_dir).unwrap(),
         "`_latest` should point to the timestamped execution directory"
     );
+}
+
+#[sqlx::test]
+async fn webhook_notifications_are_sent_for_server_run(pool: sqlx::SqlitePool) {
+    let mock = MockWebhook::start().await;
+    let temp = TempDir::new().unwrap();
+    let wdl_dir = temp.path().join("wdl");
+    std::fs::create_dir(&wdl_dir).unwrap();
+
+    let wdl_file = wdl_dir.join("notify.wdl");
+    std::fs::write(
+        &wdl_file,
+        r#"
+version 1.3
+
+task notify {
+    command <<<
+        echo "ok" > message.txt
+    >>>
+
+    output {
+        String message = read_string("message.txt")
+    }
+}
+"#,
+    )
+    .unwrap();
+
+    let notifications = NotificationsConfig {
+        webhooks: vec![WebhookConfig {
+            name: Some("teams-test".to_string()),
+            kind: WebhookKind::Teams,
+            url: SecretString::from(mock.url()),
+            events: vec![
+                NotificationEvent::RunStarted,
+                NotificationEvent::RunCompleted,
+            ],
+            max_task_messages_per_run: 25,
+        }],
+    };
+    let svc = NotificationSvc::new(&notifications, temp.path().to_path_buf());
+
+    let mut server_config = ServerConfig {
+        output_dir: temp.path().to_path_buf(),
+        allowed_file_paths: vec![wdl_dir.clone()],
+        engine: wdl::engine::Config::local(),
+        ..Default::default()
+    };
+    server_config.validate().unwrap();
+    let output_dir = server_config.output_dir.display().to_string();
+
+    let db = SqliteDatabase::from_pool(pool)
+        .await
+        .unwrap()
+        .with_run_observer(Arc::new(svc.clone()) as Arc<dyn RunObserver>);
+    let db: Arc<dyn Database> = Arc::new(db);
+
+    let (_, run_manager_tx) = RunManagerSvc::spawn(
+        1000,
+        Config {
+            server: server_config,
+            notifications,
+            ..Default::default()
+        },
+        Mode::default(),
+        true,
+        db.clone(),
+        svc.clone(),
+    )
+    .await
+    .expect("failed to create run manager service");
+
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .database(db.clone())
+        .failure_mode(ServerFailureMode::Slow)
+        .output_dir(output_dir)
+        .build();
+    let app = create_router()
+        .state(state)
+        .cors_layer(CorsLayer::new())
+        .call();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+    });
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(paths::LIST_RUNS)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    let status = poll_for_completion(&db, run_id, 120)
+        .await
+        .expect("run should complete");
+    assert_eq!(status, RunStatus::Completed);
+
+    let received = mock.wait_for_count(2, Duration::from_secs(10)).await;
+    svc.shutdown(Duration::from_secs(2)).await;
+
+    let events: Vec<_> = received
+        .iter()
+        .map(|payload| {
+            assert_eq!(payload["type"], "message");
+            let card = &payload["attachments"][0];
+            assert_eq!(
+                card["contentType"],
+                "application/vnd.microsoft.card.adaptive"
+            );
+            let event = &card["content"]["body"][1]["facts"][0];
+            assert_eq!(event["title"], "Event");
+            event["value"].as_str().unwrap().to_string()
+        })
+        .collect();
+    assert_eq!(events, ["run.started", "run.completed"]);
 }
 
 #[sqlx::test]
@@ -2090,6 +2288,7 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
         Mode::default(),
         true,
         db.clone(),
+        NotificationSvc::disabled(),
     )
     .await
     .expect("failed to create run manager service");

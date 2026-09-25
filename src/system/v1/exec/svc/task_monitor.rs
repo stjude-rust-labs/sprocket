@@ -218,6 +218,7 @@ impl TaskMonitorSvc {
                 let _ = self.db.update_task_cached(&name, Utc::now()).await?;
                 self.unfinished.remove(&name);
             }
+            EngineEvent::TaskRetrying { .. } | EngineEvent::TaskFailed { .. } => {}
             EngineEvent::TaskParked | EngineEvent::TaskUnparked { .. } => {
                 // Parking is a property of the host's resource pool rather than
                 // of the task's own progress, and the task

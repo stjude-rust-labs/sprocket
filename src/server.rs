@@ -1,5 +1,7 @@
 //! The API server for executing runs (WDL tasks and workflows).
 
+use std::sync::Arc;
+
 use anyhow::Context;
 use axum::Router;
 use axum::http::HeaderValue;
@@ -16,8 +18,10 @@ use utoipa_swagger_ui::SwaggerUi;
 use wdl::diagnostics::Mode;
 
 use crate::config::Config;
+use crate::system::v1::db::RunObserver;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::svc::RunManagerSvc;
+use crate::system::v1::notifications::NotificationSvc;
 
 mod api;
 
@@ -78,24 +82,28 @@ async fn create_server_app(
         .server
         .database
         .resolve_url(&config.server.output_dir);
-
-    let db = open_database(&db_path).await?;
-    let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
     // Resolve the output directory to an absolute path so clients (e.g. `dev
-    // server inspect`) can join it with a run-relative path to produce a
-    // usable, copy-pasteable filesystem path, regardless of the server
-    // process's working directory or whether the configured path was
+    // server inspect`) and notifications can join it with a run-relative path
+    // to produce a usable, copy-pasteable filesystem path, regardless of the
+    // server process's working directory or whether the configured path was
     // relative (e.g. `./out`).
     let output_dir = std::path::absolute(&config.server.output_dir)
-        .unwrap_or_else(|_| config.server.output_dir.clone())
-        .display()
-        .to_string();
+        .unwrap_or_else(|_| config.server.output_dir.clone());
+
+    let notifications = NotificationSvc::new(&config.notifications, output_dir.clone());
+    let observer = notifications
+        .is_enabled()
+        .then(|| Arc::new(notifications.clone()) as Arc<dyn RunObserver>);
+    let db = open_database(&db_path, observer).await?;
+    let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
+    let output_dir = output_dir.display().to_string();
     let (_, run_manager_tx) = RunManagerSvc::spawn(
         DEFAULT_CHANNEL_BUFFER_SIZE,
         config.clone(),
         report_mode,
         colorize,
         db.clone(),
+        notifications,
     )
     .await?;
 

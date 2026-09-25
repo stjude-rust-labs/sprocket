@@ -527,6 +527,38 @@ pub enum EngineEvent {
         /// The unique name of the task for this attempt.
         name: String,
     },
+    /// A task execution attempt failed and the task will be retried.
+    ///
+    /// This event is emitted once for each failed attempt that is still within
+    /// the task's retry limit. It is emitted before the next attempt starts.
+    TaskRetrying {
+        /// The id of the task being retried.
+        id: String,
+        /// The unique name of the failed execution attempt.
+        name: String,
+        /// The zero-based index of the failed attempt.
+        ///
+        /// This matches WDL's `task.attempt` value for the failed attempt.
+        attempt: u64,
+        /// The effective `max_retries` value for the task.
+        max_retries: u64,
+        /// The exit code from the failed attempt.
+        exit_code: i32,
+    },
+    /// A task's evaluation ended in failure.
+    ///
+    /// This event is emitted exactly once for a task that fails, whether the
+    /// failure is an execution failure after retries are exhausted or an
+    /// evaluation error before or after execution. It is not emitted when task
+    /// evaluation is canceled or when the task succeeds after retrying.
+    TaskFailed {
+        /// The id of the failed task.
+        id: String,
+        /// The unique name of the final execution attempt.
+        name: String,
+        /// The evaluation error text for the failed task.
+        error: String,
+    },
     /// A locally running task has been parked by the engine due to insufficient
     /// resources.
     TaskParked,
@@ -977,6 +1009,11 @@ impl EvaluatedTask {
     /// unacceptable exit code.
     pub fn failed(&self) -> bool {
         self.error.is_some()
+    }
+
+    /// Gets the error that caused the evaluated task to fail, if any.
+    pub(crate) fn error(&self) -> Option<&EvaluationError> {
+        self.error.as_ref()
     }
 
     /// Determines whether or not the task execution result was used from the

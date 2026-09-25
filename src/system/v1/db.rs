@@ -79,9 +79,38 @@ fn page_total<T>(records: &[T], total: i64, offset: Option<i64>) -> i64 {
     total.max(page_end)
 }
 
+/// Observes persisted run status transitions.
+pub trait RunObserver: Send + Sync + std::fmt::Debug {
+    /// Called after a run transition has been persisted.
+    ///
+    /// This is called from the task that made the transition, so it must not
+    /// block.
+    fn run_transitioned(&self, run: &Run);
+}
+
+/// Notifies the database's run observer, if any, of a persisted transition of
+/// the given run.
+async fn notify_run_observer<D: Database + ?Sized>(db: &D, id: Uuid) {
+    let Some(observer) = db.run_observer() else {
+        return;
+    };
+
+    match db.read_run(id).await {
+        Ok(run) => observer.run_transitioned(&run),
+        Err(error) => {
+            tracing::warn!(%id, %error, "failed to read run to notify its transition");
+        }
+    }
+}
+
 /// A database trait containing needed provenance operations.
 #[async_trait]
 pub trait Database: Send + Sync {
+    /// Gets the observer for run status transitions, if one is configured.
+    fn run_observer(&self) -> Option<&dyn RunObserver> {
+        None
+    }
+
     /// Create a new session.
     async fn create_session(
         &self,
@@ -398,6 +427,7 @@ pub trait Database: Send + Sync {
     async fn start_run(&self, id: Uuid, started_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Running).await?;
         self.update_run_started_at(id, Some(started_at)).await?;
+        notify_run_observer(self, id).await;
         Ok(())
     }
 
@@ -405,6 +435,7 @@ pub trait Database: Send + Sync {
     async fn complete_run(&self, id: Uuid, completed_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Completed).await?;
         self.update_run_completed_at(id, Some(completed_at)).await?;
+        notify_run_observer(self, id).await;
         Ok(())
     }
 
@@ -414,6 +445,7 @@ pub trait Database: Send + Sync {
         self.update_run_status(id, RunStatus::Failed).await?;
         self.update_run_error(id, error).await?;
         self.update_run_completed_at(id, Some(completed_at)).await?;
+        notify_run_observer(self, id).await;
         Ok(())
     }
 
@@ -421,6 +453,7 @@ pub trait Database: Send + Sync {
     async fn cancel_run(&self, id: Uuid, completed_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Canceled).await?;
         self.update_run_completed_at(id, Some(completed_at)).await?;
+        notify_run_observer(self, id).await;
         Ok(())
     }
 
