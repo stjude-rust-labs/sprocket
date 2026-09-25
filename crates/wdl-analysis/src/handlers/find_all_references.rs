@@ -57,7 +57,7 @@ fn reference_search_scope(
 /// Local-only symbols, like call aliases and declarations inside task/workflow
 /// bodies, should remain within the defining document.
 fn needs_transitive_importers(document: &AnalysisDocument, token: &SyntaxToken) -> bool {
-    if is_local_import_definition(token) {
+    if is_local_by_syntax(token) {
         return false;
     }
 
@@ -71,33 +71,27 @@ fn needs_transitive_importers(document: &AnalysisDocument, token: &SyntaxToken) 
     true
 }
 
-/// Determines whether a definition token belongs to a local import alias.
-fn is_local_import_definition(token: &SyntaxToken) -> bool {
-    use SyntaxKind::*;
-
+/// Determines whether a definition token is local to its document based on
+/// its syntax alone.
+///
+/// This covers local names that a name scope lookup at the token's position
+/// does not find: explicit import namespaces, import alias targets, and
+/// scatter variables (the scatter scope begins after the variable).
+fn is_local_by_syntax(token: &SyntaxToken) -> bool {
     let Some(parent) = token.parent() else {
         return false;
     };
 
-    if parent.kind() == ImportStatementNode
-        && let Some(import) = v1::ImportStatement::cast(parent.clone())
-        && import
-            .explicit_namespace()
-            .is_some_and(|namespace| namespace.span() == token.span())
-    {
-        return true;
+    match parent.kind() {
+        SyntaxKind::ImportStatementNode => v1::ImportStatement::cast(parent)
+            .and_then(|import| import.explicit_namespace())
+            .is_some_and(|namespace| namespace.span() == token.span()),
+        SyntaxKind::ImportAliasNode => v1::ImportAlias::cast(parent)
+            .is_some_and(|alias| alias.names().1.span() == token.span()),
+        SyntaxKind::ScatterStatementNode => v1::ScatterStatement::cast(parent)
+            .is_some_and(|scatter| scatter.variable().span() == token.span()),
+        _ => false,
     }
-
-    if parent.kind() == ImportAliasNode
-        && let Some(alias) = v1::ImportAlias::cast(parent.clone())
-    {
-        let (_source, target) = alias.names();
-        if target.span() == token.span() {
-            return true;
-        }
-    }
-
-    false
 }
 
 /// Finds all references to the identifier at the given position.
@@ -248,14 +242,20 @@ mod tests {
 
     use super::needs_transitive_importers;
 
-    async fn analyzed_document(source: &str) -> crate::Document {
+    /// Analyzes `source.wdl` along with any additional documents it imports.
+    async fn analyzed_document(source: &str, imports: &[(&str, &str)]) -> crate::Document {
         let dir = TempDir::new().expect("failed to create temporary directory");
+        for (name, contents) in imports {
+            fs::write(dir.path().join(name), contents).expect("failed to write imported document");
+        }
+
         let path = dir.path().join("source.wdl");
         fs::write(&path, source).expect("failed to write source document");
+        let uri = crate::path_to_uri(&path).expect("should convert path to URI");
 
         let analyzer = crate::Analyzer::default();
         analyzer
-            .add_document(crate::path_to_uri(&path).expect("should convert path to URI"))
+            .add_document(uri.clone())
             .await
             .expect("should add document");
 
@@ -263,28 +263,17 @@ mod tests {
             .analyze(())
             .await
             .expect("analysis should complete");
-        assert_eq!(results.len(), 1);
-        results[0].document().clone()
+        results
+            .iter()
+            .find(|result| result.document().uri().as_ref() == &uri)
+            .expect("should have analyzed source document")
+            .document()
+            .clone()
     }
 
     fn ident_token(document: &crate::Document, ident: &str) -> wdl_ast::SyntaxToken {
         document
             .root()
-            .inner()
-            .descendants_with_tokens()
-            .filter_map(|element| element.into_token())
-            .find(|token| token.kind() == SyntaxKind::Ident && token.text() == ident)
-            .unwrap_or_else(|| panic!("missing identifier token `{ident}`"))
-    }
-
-    fn parsed_ident_token(source: &str, ident: &str) -> wdl_ast::SyntaxToken {
-        let (document, diagnostics) = wdl_ast::Document::parse(source, None);
-        assert!(
-            diagnostics.is_empty(),
-            "expected parse success for `{ident}`, got {diagnostics:?}"
-        );
-
-        document
             .inner()
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
@@ -329,12 +318,21 @@ workflow example {
     String x = "hi"
     call greet as worker { input: task_input = workflow_input }
 
+    scatter (item in [1, 2]) {
+        Int scattered = item
+    }
+
+    if (true) {
+        String conditional = x
+    }
+
     output {
         String out = x
         String task_result = worker.task_output
     }
 }
 "#,
+            &[],
         )
         .await;
 
@@ -351,6 +349,9 @@ workflow example {
             ("workflow_input", true),
             ("x", false),
             ("worker", false),
+            ("item", false),
+            ("scattered", false),
+            ("conditional", false),
             ("out", true),
             ("task_result", true),
         ];
@@ -366,40 +367,37 @@ workflow example {
     }
 
     #[tokio::test]
-    async fn import_alias_source_name_is_not_treated_as_local_definition() {
+    async fn classifies_import_names_as_local() {
         let document = analyzed_document(
             r#"version 1.3
 
-workflow main {}
+import "lib.wdl" as lib alias Source as Target
+
+workflow main {
+    input {
+        Target value
+    }
+}
 "#,
+            &[(
+                "lib.wdl",
+                r#"version 1.3
+
+struct Source {
+    String name
+}
+"#,
+            )],
         )
         .await;
 
-        let namespace = parsed_ident_token(
-            r#"version 1.3
-
-import "foo.wdl" as NamespaceAlias
-"#,
-            "NamespaceAlias",
-        );
-        assert!(!needs_transitive_importers(&document, &namespace));
-
-        let alias_target = parsed_ident_token(
-            r#"version 1.3
-
-import "foo.wdl" alias SourceType as AliasType
-"#,
-            "AliasType",
-        );
-        assert!(!needs_transitive_importers(&document, &alias_target));
-
-        let alias_source = parsed_ident_token(
-            r#"version 1.3
-
-import "foo.wdl" alias SourceType as AliasType
-"#,
-            "SourceType",
-        );
-        assert!(needs_transitive_importers(&document, &alias_source));
+        assert!(!needs_transitive_importers(
+            &document,
+            &ident_token(&document, "lib")
+        ));
+        assert!(!needs_transitive_importers(
+            &document,
+            &ident_token(&document, "Target")
+        ));
     }
 }
