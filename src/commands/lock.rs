@@ -12,7 +12,6 @@ use toml_spanner::Toml;
 use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
-use wdl::diagnostics::Mode;
 
 use crate::Config;
 use crate::analysis::Analysis;
@@ -37,10 +36,6 @@ pub struct Args {
     /// Output directory for the lock file.
     #[clap(short, long, value_name = "DIR")]
     pub output: Option<PathBuf>,
-
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
 }
 
 /// Represents the lock file structure.
@@ -57,7 +52,7 @@ struct Lock {
 /// Performs the `lock` command.
 pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let colorize = output.colorize();
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     let output_path = args
         .output
         .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))

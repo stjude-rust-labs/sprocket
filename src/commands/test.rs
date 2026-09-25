@@ -42,14 +42,11 @@ use tracing::info;
 use tracing::instrument::WithSubscriber;
 use tracing::span;
 use tracing::subscriber::NoSubscriber;
-use tracing_indicatif::IndicatifWriter;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
-use tracing_indicatif::writer::Stdout;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
@@ -62,9 +59,11 @@ use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::Config;
+use crate::Stdout;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -173,9 +172,6 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
     #[command(subcommand)]
     pub command: Option<Subcommand>,
 }
@@ -242,7 +238,7 @@ fn filter_test(
 
     if let Some(filter) = name_filter {
         if exact {
-            return &*test.name != filter;
+            return *test.name != filter;
         }
 
         return !test.name.contains(filter);
@@ -309,7 +305,7 @@ impl TestIteration {
         self,
         clean: bool,
         quiet: bool,
-        mut indicatif_writer: IndicatifWriter<Stdout>,
+        mut stdout: Stdout,
         output: CommandOutput,
     ) -> Result<IterationResult> {
         let id = format!(
@@ -452,19 +448,13 @@ impl TestIteration {
         if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
-                    output.write_completed(&mut indicatif_writer, PASS, &label)?;
+                    output.write_completed(&mut stdout, PASS, &label)?;
                 }
                 Ok(IterationResult::Fail(_)) => {
-                    output.write_failed(
-                        &mut indicatif_writer,
-                        format!("{label}: assertions failed"),
-                    )?;
+                    output.write_failed(&mut stdout, format!("{label}: assertions failed"))?;
                 }
                 Err(_) => {
-                    output.write_failed(
-                        &mut indicatif_writer,
-                        format!("{label}: execution errored"),
-                    )?;
+                    output.write_failed(&mut stdout, format!("{label}: execution errored"))?;
                 }
             }
         }
@@ -627,7 +617,7 @@ struct Runner {
     fixtures: Arc<EvaluationPath>,
     engine: Engine,
     status_bar: StatusBar,
-    indicatif_writer: IndicatifWriter<Stdout>,
+    stdout: Stdout,
     output: CommandOutput,
     permits: usize,
     throttle: u64,
@@ -733,14 +723,14 @@ impl Runner {
                 }
 
                 let callable = wdl_document
-                    .callable_by_name(&target)
+                    .local_callable_by_name(&target)
                     .expect("verified during parse");
                 let is_workflow = callable.is_workflow();
 
-                let run_root: Arc<Path> = self.root.join(&*target).join(&*test.name).into();
+                let test_name: Arc<str> = test.name.0.value.into();
+                let run_root: Arc<Path> = self.root.join(&*target).join(&*test_name).into();
 
-                target_results.insert(test.name.clone(), Vec::new());
-
+                target_results.insert(test_name.clone(), Vec::new());
                 let assertions = Arc::new(test.assertions);
                 for (test_num, run_inputs) in test.inputs.cartesian_product().enumerate() {
                     let test_num = test_num + 1; // start count at 1
@@ -754,9 +744,8 @@ impl Runner {
                         Ok(res) => res,
                         Err(e) => {
                             errors.push(Arc::new(e.context(format!(
-                                "converting YAML inputs to a JSON map for test `{}` for WDL \
-                                 document `{}`",
-                                test.name,
+                                "converting YAML inputs to a JSON map for test `{test_name}` for \
+                                 WDL document `{}`",
                                 wdl_document.path()
                             ))));
                             continue;
@@ -770,8 +759,8 @@ impl Runner {
                             // TODO(serial): Spanned diagnostics would be nice
                             // here too
                             errors.push(Arc::new(e.context(format!(
-                                "converting to WDL inputs for test `{}` for WDL document `{}`",
-                                test.name,
+                                "converting to WDL inputs for test `{test_name}` for WDL document \
+                                 `{}`",
                                 wdl_document.path()
                             ))));
                             continue;
@@ -793,7 +782,7 @@ impl Runner {
                         id: TestIdentifier {
                             doc_name: doc_name.clone(),
                             target: target.clone(),
-                            test_name: test.name.clone(),
+                            test_name: test_name.clone(),
                             iteration_num: test_num,
                         },
                         run_root: run_root.clone(),
@@ -832,7 +821,7 @@ impl Runner {
             .expect("should have test results");
 
         let evaluation = test_iteration
-            .evaluate(clean, quiet, self.indicatif_writer.clone(), self.output)
+            .evaluate(clean, quiet, self.stdout.clone(), self.output)
             .await;
         test_results.push(evaluation);
 
@@ -1010,7 +999,7 @@ pub async fn test(
     args: Args,
     mut config: Config,
     output: CommandOutput,
-    indicatif_writer: IndicatifWriter<Stdout>,
+    stdout: Stdout,
 ) -> CommandResult<()> {
     let colorize = output.colorize();
 
@@ -1022,7 +1011,7 @@ pub async fn test(
         return Ok(());
     }
 
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(
         config
@@ -1031,6 +1020,9 @@ pub async fn test(
             .try_into()
             .context("invalid test parallelism")?,
     );
+    if parallelism == 0 {
+        return Err(anyhow!("`parallelism` must be greater than `0`").into());
+    }
     let (source, workspace) = match (&source, args.workspace) {
         (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
@@ -1091,7 +1083,7 @@ pub async fn test(
                         false
                     }
                 }),
-                config.common.report_mode,
+                report_mode,
                 colorize,
             )
             .context("failed to emit diagnostics")?;
@@ -1144,7 +1136,7 @@ pub async fn test(
                         counts.errors += 1;
                     }
                 }),
-                config.common.report_mode,
+                report_mode,
                 colorize,
             )
             .context("failed to emit test document diagnostics")?;
@@ -1167,7 +1159,10 @@ pub async fn test(
     // Determined here as the engine configuration is moved into the engine
     // below.
     let uses_docker = uses_docker_backend(&config.run.engine);
-    let engine = Engine::new(config.run.engine)
+    let mut engine_config = config.run.engine;
+    engine_config.task.retries = RetryConfig::Disabled;
+
+    let engine = Engine::new(engine_config)
         .await
         .context("failed to create WDL evaluation engine")?;
     let cancellation = CancellationContext::new(FailureMode::Fast);
@@ -1180,7 +1175,7 @@ pub async fn test(
         } else {
             StatusBar::new(colorize)
         },
-        indicatif_writer,
+        stdout,
         output,
         permits: parallelism,
         throttle: config.test.throttle,
@@ -1286,7 +1281,6 @@ mod tests {
             no_status: false,
             filters: Filters::default(),
             exact: false,
-            report_mode: None,
             command: None,
         }
     }

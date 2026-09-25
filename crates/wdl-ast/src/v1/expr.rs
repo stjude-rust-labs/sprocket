@@ -3484,7 +3484,7 @@ impl<N: TreeNode> AstNode<N> for AccessExpr<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use approx::assert_relative_eq;
     use pretty_assertions::assert_eq;
 

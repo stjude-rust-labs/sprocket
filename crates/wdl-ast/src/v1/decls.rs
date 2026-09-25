@@ -304,6 +304,7 @@ impl fmt::Display for TypeRef {
 /// Represents a kind of primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
+#[repr(u8)]
 pub enum PrimitiveTypeKind {
     /// The primitive is a `Boolean`.
     Boolean,
@@ -807,12 +808,17 @@ impl Documented<SyntaxNode> for UnboundDecl<SyntaxNode> {
             parent.kind(),
             SyntaxKind::StructDefinitionNode | SyntaxKind::InputSectionNode
         ) {
+            // Unbound decl doc comments are only valid on struct fields and
+            // inputs
             return None;
         }
 
         Some(
-            crate::doc_comments::<SyntaxNode>(self.inner().first_token()?.preceding_trivia())
-                .collect(),
+            crate::doc_comments::<SyntaxNode>(
+                self.inner().first_token()?.preceding_trivia(),
+                false,
+            )
+            .collect(),
         )
     }
 }
@@ -872,12 +878,16 @@ impl Documented<SyntaxNode> for BoundDecl<SyntaxNode> {
             parent.kind(),
             SyntaxKind::InputSectionNode | SyntaxKind::OutputSectionNode
         ) {
+            // Bound decl doc comments are only valid on inputs/outputs
             return None;
         }
 
         Some(
-            crate::doc_comments::<SyntaxNode>(self.inner().first_token()?.preceding_trivia())
-                .collect(),
+            crate::doc_comments::<SyntaxNode>(
+                self.inner().first_token()?.preceding_trivia(),
+                false,
+            )
+            .collect(),
         )
     }
 }
@@ -890,6 +900,39 @@ pub enum Decl<N: TreeNode = SyntaxNode> {
     Bound(BoundDecl<N>),
     /// The declaration is unbound.
     Unbound(UnboundDecl<N>),
+}
+
+impl Documented<SyntaxNode> for Decl<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        match self {
+            Decl::Bound(bound) => bound.doc_comments(),
+            Decl::Unbound(unbound) => unbound.doc_comments(),
+        }
+    }
+}
+
+impl<N: TreeNode> AstNode<N> for Decl<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        matches!(
+            kind,
+            SyntaxKind::UnboundDeclNode | SyntaxKind::BoundDeclNode
+        )
+    }
+
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::BoundDeclNode => Some(Self::Bound(BoundDecl(inner))),
+            SyntaxKind::UnboundDeclNode => Some(Self::Unbound(UnboundDecl(inner))),
+            _ => None,
+        }
+    }
+
+    fn inner(&self) -> &N {
+        match self {
+            Decl::Bound(bound) => bound.inner(),
+            Decl::Unbound(unbound) => unbound.inner(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1055,7 +1098,7 @@ impl<N: TreeNode> Decl<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::Document;
 

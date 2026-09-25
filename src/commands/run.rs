@@ -37,7 +37,6 @@ use tracing_subscriber::fmt::layer;
 use wdl::analysis::Document;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::diagnostics::emit_diagnostics_with_backtrace;
 use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
@@ -53,6 +52,7 @@ use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
@@ -159,10 +159,6 @@ pub struct Args {
     #[clap(long, value_name = "INDEX_PATH")]
     pub index_on: Option<IndexPath>,
 
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
-
     /// The Azure Storage account name to use.
     #[clap(long, env, value_name = "NAME", requires = "azure_access_key")]
     pub azure_account_name: Option<String>,
@@ -213,6 +209,10 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// Disable retries for all task evaluations for this run.
+    #[clap(long)]
+    pub disable_retries: bool,
 
     /// Show task stderr during execution.
     ///
@@ -906,7 +906,7 @@ pub async fn run(
             .context("failed to modify tracing filter")?;
     }
 
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
     }
@@ -1028,7 +1028,7 @@ pub async fn run(
             .subscribe_transfer()
             .expect("should have transfer events"),
         colorize,
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
@@ -1041,7 +1041,7 @@ pub async fn run(
         events
             .subscribe_engine()
             .expect("should have engine events"),
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
@@ -1049,6 +1049,10 @@ pub async fn run(
     // CWD as a placeholder.
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
+
+    if args.disable_retries {
+        config.run.engine.task.retries = RetryConfig::Disabled;
+    }
 
     let engine = Engine::new(config.run.engine)
         .await
@@ -1173,7 +1177,7 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
 
     match (&*target, &inputs) {
         (Target::Task(task), Inputs::Task(inputs)) => {
-            let Some(task) = document.task_by_name(task) else {
+            let Some(task) = document.local_task_by_name(task) else {
                 bail!("task '{task}' not found in document");
             };
 

@@ -23,9 +23,9 @@ pub struct Args {
 }
 
 impl Args {
-    /// Returns `true` if the subcommand is 'Init'.
-    pub fn is_init(&self) -> bool {
-        matches!(self.command, ConfigSubcommand::Init)
+    /// Returns `true` if the subcommand is 'Default'.
+    pub fn is_default(&self) -> bool {
+        matches!(self.command, ConfigSubcommand::Default)
     }
 }
 
@@ -36,7 +36,7 @@ pub enum ConfigSubcommand {
     Schema,
 
     /// Generates a default configuration file.
-    Init,
+    Default,
 
     /// Displays the current configuration.
     Resolve(ResolveArgs),
@@ -61,7 +61,7 @@ pub fn config(args: Args, mut config: Config, output: CommandOutput) -> CommandR
             output.payload(schema_pretty);
             return Ok(());
         }
-        ConfigSubcommand::Init => {
+        ConfigSubcommand::Default => {
             include_schema_directive = true;
             Config::default()
         }

@@ -3146,6 +3146,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.18.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d317b4b9eb398e6acce275758ec6125535505e7a146fb1a9b8bda2451b0ff4c"
+dependencies = [
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3253,6 +3262,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "memoffset"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
+dependencies = [
+ "autocfg",
 ]
 
 [[package]]
@@ -4533,12 +4551,13 @@ dependencies = [
 
 [[package]]
 name = "rowan"
-version = "0.16.1"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "417a3a9f582e349834051b8a10c8d71ca88da4211e4093528e36b9845f6b5f21"
+checksum = "14b574c58582fa59fa43a2feb6608b8744184659f08a2e0117e4b8224d95ed61"
 dependencies = [
  "countme",
  "hashbrown 0.14.5",
+ "memoffset",
  "rustc-hash 1.1.0",
  "text-size",
 ]
@@ -4652,9 +4671,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.43"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0283386ce02abc0151e1761d08802dfe86c173b0b494af5cbc086574e453da06"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "aws-lc-rs",
  "once_cell",
@@ -5241,7 +5260,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.30.1"
+version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5316,7 +5335,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-py"
-version = "0.1.0"
+version = "0.31.0"
 dependencies = [
  "pyo3",
  "wdl-ast",
@@ -5326,7 +5345,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-py-macros"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "pretty_assertions",
  "proc-macro2",
@@ -5336,7 +5355,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-test-types"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "indexmap 2.14.0",
@@ -5809,7 +5828,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -6740,7 +6759,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.6"
+version = "0.23.7"
 dependencies = [
  "anyhow",
  "clap",
@@ -6758,7 +6777,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.25.0"
+version = "0.26.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6774,6 +6793,7 @@ dependencies = [
  "line-index",
  "lsp-types",
  "parking_lot",
+ "paste",
  "path-clean",
  "petgraph",
  "pretty_assertions",
@@ -6783,6 +6803,7 @@ dependencies = [
  "rowan",
  "schemars 1.2.2",
  "semver",
+ "sha2 0.11.0",
  "smallvec",
  "strsim",
  "tempfile",
@@ -6801,7 +6822,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.26.2"
+version = "0.27.0"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -6820,7 +6841,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "anyhow",
  "clap",
@@ -6833,7 +6854,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6862,7 +6883,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.17.3"
+version = "0.18.0"
 dependencies = [
  "anyhow",
  "approx",
@@ -6881,6 +6902,7 @@ dependencies = [
  "itertools 0.15.0",
  "libc",
  "libtest-mimic",
+ "lru",
  "nonempty",
  "num_enum",
  "ordered-float",
@@ -6917,7 +6939,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.20.2"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6927,12 +6949,13 @@ dependencies = [
  "schemars 1.2.2",
  "thiserror",
  "toml-spanner",
+ "tracing",
  "wdl-ast",
 ]
 
 [[package]]
 name = "wdl-grammar"
-version = "0.25.1"
+version = "0.26.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6947,7 +6970,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6982,18 +7005,20 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "async-lsp",
  "blake3",
  "fs_extra",
  "futures",
+ "indexmap 2.14.0",
  "line-index",
  "parking_lot",
  "pretty_assertions",
  "serde",
  "serde_json",
+ "sprocket-test-types",
  "struct-patch",
  "tempfile",
  "tokio",
@@ -7010,7 +7035,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-modules"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
