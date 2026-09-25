@@ -445,8 +445,8 @@ mod tests {
         let (markup, _) = workflow.render(Path::new("assets"), &links, Path::new(""));
         let html = markup.into_string();
 
-        // Without a `meta.name` override the title is the raw WDL identifier and
-        // must be rendered as a code literal.
+        // Without a `meta.name` override the title is the raw WDL identifier
+        // and must be rendered as a code literal.
         assert!(html.contains("<code class=\"heading-code-literal\">bind_runes</code>"));
     }
 

@@ -3,7 +3,6 @@
 use anyhow::Context;
 use clap::Args as ClapArgs;
 use clap::Parser;
-use wdl::diagnostics::Mode;
 
 use crate::analysis::Source;
 use crate::commands::CommandResult;
@@ -58,10 +57,6 @@ pub struct SubmitRunRequestArgs {
     #[clap(long, value_name = "INDEX_PATH")]
     index_on: Option<IndexPath>,
 
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    report_mode: Option<Mode>,
-
     /// Fail if `module-lock.json` is missing or out of date instead of
     /// regenerating it before submission.
     #[clap(long)]
@@ -83,7 +78,7 @@ pub struct Args {
 ///
 /// Submits a workflow to a Sprocket server based on the Args / Config.
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.run_request_args.report_mode.unwrap_or_default();
+    let report_mode = config.common.report_mode;
     let source = match args.run_request_args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
@@ -112,11 +107,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     )
     .await?;
 
-    ensure_no_analysis_errors(
-        &document,
-        args.run_request_args.report_mode.unwrap_or_default(),
-        colorize,
-    )?;
+    ensure_no_analysis_errors(&document, report_mode, colorize)?;
 
     let (target, inputs) = validate_inputs(
         &document,
@@ -241,6 +232,7 @@ command <<<>>>
     const INVALID_FILE: &str = r#"this is not valid wdl"#;
 
     #[tokio::test]
+    #[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
     pub async fn can_submit_and_complete() -> anyhow::Result<()> {
         let ServerTestFixture {
             server_task,
@@ -268,7 +260,6 @@ command <<<>>>
                     inputs: Vec::from(["name=Brendon".to_string()]),
                     index_on: None,
                     target: Some("my_task".to_string()),
-                    report_mode: None,
                     locked: false,
                 },
             },
@@ -339,7 +330,6 @@ command <<<>>>
                     inputs: Vec::new(),
                     index_on: None,
                     target: Some("my_task".to_string()),
-                    report_mode: None,
                     locked: false,
                 },
             },
@@ -379,7 +369,6 @@ command <<<>>>
                     inputs: Vec::new(),
                     index_on: None,
                     target: Some("my_task".to_string()),
-                    report_mode: None,
                     locked: false,
                 },
             },

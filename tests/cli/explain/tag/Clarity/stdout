@@ -1,10 +1,8 @@
 Rules with the tag `Clarity`:
-  - CommandSectionIndentation
   - ContainerUri
   - DeclarationName
   - DenyGlobStar
   - DocCommentTabs
-  - DoubleQuotes
   - EmptyDocComment
   - HereDocCommands
   - ImportPlacement

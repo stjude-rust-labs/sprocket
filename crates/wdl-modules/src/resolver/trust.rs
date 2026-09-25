@@ -443,7 +443,8 @@ mod tests {
             }),
         ));
         assert!(!store.trust_signer(key, None));
-        // SAFETY: `trust_signer` inserted the key and structured identity above.
+        // SAFETY: `trust_signer` inserted the key and structured identity
+        // above.
         let identity = store.identity(&key).unwrap();
         assert_eq!(identity.name.as_deref(), Some("Ada"));
         assert_eq!(identity.email.as_deref(), Some("ada@example.com"));

@@ -207,8 +207,9 @@ impl Hashable for Option<PrimitiveValue> {
         match self {
             Some(v) => v.hash(hasher),
             None => {
-                // A `None` for an optional primitive value (used in map keys) represents a WDL
-                // `None` value, so hash it as one
+                // A `None` for an optional primitive value (used in map keys)
+                // represents a WDL `None` value, so hash it as
+                // one
                 Value::None(NoneValue::untyped()).hash(hasher)
             }
         }
@@ -366,7 +367,7 @@ impl Hashable for OutputValue {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use blake3::Hash;
     use cloud_copy::ContentDigest;
     use indexmap::IndexMap;

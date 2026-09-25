@@ -46,8 +46,8 @@ pub(super) fn build(original: &mut ItemEnum, args: Args) -> Result<TokenStream> 
 
     // We only need to modify the variants if some of them aren't unit variants.
     if !only_unit_variants {
-        // Strip generics from all variants, add "Py" prefix to all contained types,
-        // convert unit variants to empty tuple variants.
+        // Strip generics from all variants, add "Py" prefix to all contained
+        // types, convert unit variants to empty tuple variants.
         make_py_variants(&mut py_enum)?;
     }
 
@@ -181,17 +181,20 @@ fn make_py_variant_attrs(
                 let attr = &original_variant.attrs[i];
 
                 if attr.path().is_ident("pyo3") {
-                    // Move the `#[pyo3(...)]` attribute from the original to the Python enum.
+                    // Move the `#[pyo3(...)]` attribute from the original to
+                    // the Python enum.
                     py_variant.attrs.push(original_variant.attrs.remove(i));
                 } else if let Meta::List(ref meta_list) = attr.meta
                 && meta_list.path.is_ident("cfg_attr")
                 // Extract `pyo3(...)` from `#[cfg_attr(feature = "unstable-python", pyo3(...))]`.
                 && let Ok(meta) = parse_cfg_attr_tokens.parse2(meta_list.tokens.clone())
                 {
-                    // Remove the `#[cfg_attr(...)]` attribute from the original enum.
+                    // Remove the `#[cfg_attr(...)]` attribute from the original
+                    // enum.
                     original_variant.attrs.remove(i);
 
-                    // Push the extracted `#[pyo3(...)]` attribute to the Python enum.
+                    // Push the extracted `#[pyo3(...)]` attribute to the Python
+                    // enum.
                     py_variant.attrs.push(Attribute {
                         pound_token: <Token![#]>::default(),
                         style: AttrStyle::Outer,
@@ -289,8 +292,9 @@ fn make_py_variants(py_enum: &mut ItemEnum) -> Result<()> {
         let fields = match variant.fields {
             Fields::Unnamed(ref mut fields) => fields,
             Fields::Unit => {
-                // PyO3 doesn't support mixing tuple and unit variants in the same struct, so we
-                // convert unit variants to tuple variants.
+                // PyO3 doesn't support mixing tuple and unit variants in the
+                // same struct, so we convert unit variants to
+                // tuple variants.
                 variant.fields = Fields::Unnamed(FieldsUnnamed {
                     paren_token: Paren::default(),
                     unnamed: Punctuated::new(),

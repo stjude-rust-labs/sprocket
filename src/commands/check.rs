@@ -15,7 +15,6 @@ use tracing::warn;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Baseline;
@@ -110,10 +109,6 @@ pub struct Common {
     #[arg(long, conflicts_with_all = ["deny_warnings"])]
     pub hide_warnings: bool,
 
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
-
     /// Generate a baseline file from current diagnostics and exit.
     #[arg(long, conflicts_with = "no_baseline")]
     pub generate_baseline: bool,
@@ -158,7 +153,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
     let hide_warnings = args.common.hide_warnings || config.check.hide_warnings;
     let hide_notes = args.common.hide_notes || config.check.hide_notes || hide_warnings;
-    let report_mode = args.common.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
 
     let lint = args.lint || !args.common.tag.is_empty();
 
@@ -309,7 +304,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
             for d in result.document().diagnostics() {
                 if matches!(d.severity(), Severity::Warning | Severity::Note)
                     && args.common.suppress_imports
-                    && !provided_source_uris.contains(uri)
+                    && !provided_source_uris.contains(&uri)
                 {
                     continue;
                 }

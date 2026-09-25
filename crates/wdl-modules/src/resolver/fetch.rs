@@ -109,8 +109,9 @@ impl GitFetcher {
         paths: &[&str],
         scope: DependencyScope,
         cache: crate::resolver::git::ops::CacheLocation<'_>,
-    ) -> Result<bool, ResolverError> {
-        let fetched = crate::resolver::git::ops::ensure_materialized(
+        mode: crate::resolver::git::ops::MaterializeMode,
+    ) -> Result<crate::resolver::git::ops::Materialized, ResolverError> {
+        let materialized = crate::resolver::git::ops::ensure_materialized(
             cache,
             url,
             commit,
@@ -120,8 +121,9 @@ impl GitFetcher {
                 max_files: self.policy.max_materialized_files,
                 max_bytes: self.policy.max_materialized_bytes,
             },
+            mode,
         )?;
-        Ok(fetched)
+        Ok(materialized)
     }
 }
 
@@ -136,6 +138,8 @@ mod tests {
 
     use super::*;
     use crate::resolver::config::ModulesConfig;
+    use crate::resolver::git::ops::MaterializeMode;
+    use crate::resolver::git::ops::Materialized;
 
     #[test]
     fn local_remote_operations_materialize_module() -> Result<(), Box<dyn std::error::Error>> {
@@ -202,21 +206,29 @@ mod tests {
             root: cache.path(),
             leaf: &leaf,
         };
-        assert!(fetcher.ensure_materialized(
-            &url,
-            &sha,
-            &["module"],
-            DependencyScope::TopLevel,
-            location,
-        )?);
+        assert_eq!(
+            fetcher.ensure_materialized(
+                &url,
+                &sha,
+                &["module"],
+                DependencyScope::TopLevel,
+                location,
+                MaterializeMode::Reuse,
+            )?,
+            Materialized::Cloned
+        );
         assert!(leaf.join("module").join(crate::MANIFEST_FILENAME).is_file());
-        assert!(!fetcher.ensure_materialized(
-            &url,
-            &sha,
-            &["module"],
-            DependencyScope::TopLevel,
-            location,
-        )?);
+        assert_eq!(
+            fetcher.ensure_materialized(
+                &url,
+                &sha,
+                &["module"],
+                DependencyScope::TopLevel,
+                location,
+                MaterializeMode::Reuse,
+            )?,
+            Materialized::Reused
+        );
         Ok(())
     }
 }

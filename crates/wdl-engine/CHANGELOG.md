@@ -13,6 +13,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type, allowing optional task inputs with defaults to be overridden at call
   sites ([#1241](https://github.com/stjude-rust-labs/sprocket/issues/1241)).
 * Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft` events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
+* `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+
+#### Changed
+
+* `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+
+## 0.18.0 - 2026-09-16
+
+#### Changed
+
+* Various internal caches are now have configurable LRU capacities and are
+  evaluation specific rather than scoped to the process or engine ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+
+#### Fixed
+
+* The Docker backend now hands a task's work directory back to the user
+  performing evaluation after a canceled or failed task, not only a completed
+  one ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
+* Fixed "permission denied" errors when evaluating tasks under rootless
+  Docker ([#1179](https://github.com/stjude-rust-labs/sprocket/pull/1179)).
+
+## 0.17.3 - 2026-08-27
+
+## 0.17.2 - 2026-08-26
+
+#### Added
+
+* Introduced the `Engine` type which stores a shared reference to the task
+  execution backend and file transferer. Configuration for backend and file
+  transfers are now shared between all evaluations in the same process,
+  specifically for the server and test commands ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added a shared user-specific image cache for the apptainer-based backends.
+  SIF files are now reused between runs. NOTE: a cache entry for a mutable tag
+  (e.g. `latest`) is not updated if already present in the cache; avoid using
+  mutated tag references in your WDL tasks. ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft`
+  events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
 
 #### Changed
 
@@ -24,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed the enum choice value cache to be keyed by document URI; this prevents
+  an enum with the same index and choice index from overwriting a cache entry
+  from another document ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
 * Call cache entries for commands that reference temporary files created by a
   call to a `write_*` stdlib function will no longer be ignored due to a
   mismatch between the evaluated command and the cached evaluated command.

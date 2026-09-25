@@ -218,8 +218,9 @@ impl Analysis {
         let validator = move || {
             let mut validator = Validator::default();
 
-            // So the validator is always *aware* of all `wdl-lint` rules, even when the
-            // linter isn't. Keeps `KnownRules` from firing unnecessarily.
+            // So the validator is always *aware* of all `wdl-lint` rules, even
+            // when the linter isn't. Keeps `KnownRules` from firing
+            // unnecessarily.
             validator.extend_rules(wdl::lint::RULE_MAP.clone());
             if self.enabled_lint_tags.count() > 0 {
                 let visitor =
@@ -415,7 +416,8 @@ pub(crate) fn resolution_context_from_paths(
     for start in starts {
         // Skip a start whose directory was already walked; many source paths
         // commonly share the same parent directory, and the upward walk from a
-        // directory is deterministic, so re-walking it cannot find anything new.
+        // directory is deterministic, so re-walking it cannot find anything
+        // new.
         if !walked.insert(start.clone()) {
             continue;
         }

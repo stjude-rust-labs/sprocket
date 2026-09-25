@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use anyhow::Result;
 use chrono::Utc;
 use thiserror::Error;
@@ -19,6 +20,7 @@ use tracing::warn;
 use uuid::Uuid;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::Engine;
 use wdl::engine::Events;
 
 use crate::analysis::Source;
@@ -64,6 +66,8 @@ type Rx = mpsc::Receiver<RunManagerCmd>;
 pub struct RunManagerSvc {
     /// The configuration for execution.
     config: ServerConfig,
+    /// The WDL evaluation engine for evaluating tasks and workflows.
+    engine: Engine,
     /// The fallback WDL version for documents with unrecognized versions.
     fallback_version: FallbackVersion,
     /// Feature flags used during analysis.
@@ -102,25 +106,28 @@ pub struct RunManagerSvc {
 
 impl RunManagerSvc {
     /// Create a new run manager.
-    pub fn new(
+    pub async fn new(
         config: Config,
         report_mode: Mode,
         colorize: bool,
         db: Arc<dyn Database>,
         rx: Rx,
-    ) -> Self {
+    ) -> Result<Self> {
         let fallback_version = config.common.wdl.fallback_version;
         let feature_flags = config.common.wdl.feature_flags;
         let no_ignore = config.common.no_ignore;
         let modules_config = config.modules.clone();
-        let config = config.server;
+        let mut config = config.server;
         let semaphore =
             Option::<usize>::from(config.max_concurrent_runs).map(|n| Arc::new(Semaphore::new(n)));
-
         let output_dir = OutputDirectory::new(&config.output_dir);
+        let engine = Engine::new(std::mem::take(&mut config.engine))
+            .await
+            .context("failed to create WDL evaluation engine")?;
 
-        Self {
+        Ok(Self {
             config,
+            engine,
             fallback_version,
             feature_flags,
             no_ignore,
@@ -134,7 +141,7 @@ impl RunManagerSvc {
             runs: Default::default(),
             report_mode,
             colorize,
-        }
+        })
     }
 
     /// Runs the event loop.
@@ -375,17 +382,17 @@ impl RunManagerSvc {
     ///
     /// - the join handle of the event loop, and
     /// - the sender channel
-    pub fn spawn(
+    pub async fn spawn(
         channel_buffer_size: usize,
         config: Config,
         report_mode: Mode,
         colorize: bool,
         db: Arc<dyn Database>,
-    ) -> (JoinHandle<()>, mpsc::Sender<RunManagerCmd>) {
+    ) -> Result<(JoinHandle<()>, mpsc::Sender<RunManagerCmd>)> {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
-        let manager = Self::new(config, report_mode, colorize, db, rx);
+        let manager = Self::new(config, report_mode, colorize, db, rx).await?;
         let handle = tokio::spawn(manager.run());
-        (handle, tx)
+        Ok((handle, tx))
     }
 
     /// Submits a new run for execution.
@@ -412,16 +419,14 @@ impl RunManagerSvc {
         )
         .await?;
 
-        let engine_config = self.config.engine.clone();
-        let cancellation = CancellationContext::new(engine_config.failure_mode);
         let events = Events::new(EVENTS_CHANNEL_CAPACITY);
-
+        let cancellation = CancellationContext::new(self.engine.config().failure_mode);
         let executor = RunnableExecutor::builder()
             .db(self.db.clone())
             .output_dir(self.output_dir.clone())
-            .engine_config(engine_config)
-            .cancellation(cancellation.clone())
+            .engine(self.engine.clone())
             .events(events.clone())
+            .cancellation(cancellation.clone())
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
@@ -440,8 +445,9 @@ impl RunManagerSvc {
         let semaphore = self.semaphore.clone();
         let handle = tokio::spawn(async move {
             let _permit = if let Some(ref sem) = semaphore {
-                // SAFETY: the semaphore is Arc-wrapped and held by the manager for its
-                // entire lifetime. It is never explicitly closed. If this fails, it
+                // SAFETY: the semaphore is Arc-wrapped and held by the manager
+                // for its entire lifetime. It is never
+                // explicitly closed. If this fails, it
                 // indicates a catastrophic programming error.
                 Some(sem.acquire().await.unwrap())
             } else {
@@ -498,11 +504,11 @@ pub enum GetRunError {
 
 /// Gets a run by ID.
 async fn get_run(db: &Arc<dyn Database>, id: Uuid) -> Result<RunResponse, GetRunError> {
-    let run = db.get_run(id).await?;
-    match run {
-        Some(run) => Ok(RunResponse { run }),
-        None => Err(GetRunError::NotFound(id)),
-    }
+    let run = db.read_run(id).await.map_err(|error| match error {
+        DatabaseError::NotFound(_) => GetRunError::NotFound(id),
+        error => GetRunError::Database(error),
+    })?;
+    Ok(RunResponse { run })
 }
 
 /// Lists all runs given the filter criteria.
@@ -512,9 +518,11 @@ async fn list_runs(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListRunsResponse, DatabaseError> {
-    let runs = db.list_runs(status, limit, offset).await?;
-    let total = db.count_runs(status).await?;
-    Ok(ListRunsResponse { runs, total })
+    let page = db.read_runs(status, limit, offset).await?;
+    Ok(ListRunsResponse {
+        runs: page.records,
+        total: page.total,
+    })
 }
 
 /// Error type for canceling a run.
@@ -590,8 +598,9 @@ async fn cancel_run(
             // `Canceled` in the database.
             CancellationContextState::Canceling => {
                 db.cancel_run(id, Utc::now()).await?;
-                // NOTE: when a run is actually canceled, remove it from the runs
-                // map, as it won't remove itself at the end of execution.
+                // NOTE: when a run is actually canceled, remove it from the
+                // runs map, as it won't remove itself at the
+                // end of execution.
                 runs_guard.remove(&id);
             }
         }
@@ -634,15 +643,10 @@ async fn get_run_outputs(
     db: &Arc<dyn Database>,
     id: Uuid,
 ) -> Result<RunOutputsResponse, GetRunOutputsError> {
-    let run = db
-        .get_run(id)
-        .await?
-        .ok_or(GetRunOutputsError::NotFound(id))?;
-
-    let outputs = run
-        .outputs
-        .as_ref()
-        .and_then(|s| serde_json::from_str(s).ok());
+    let outputs = db.read_run_outputs(id).await.map_err(|error| match error {
+        DatabaseError::NotFound(_) => GetRunOutputsError::NotFound(id),
+        error => GetRunOutputsError::Database(error),
+    })?;
 
     Ok(RunOutputsResponse { outputs })
 }
@@ -653,9 +657,11 @@ async fn list_sessions(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListSessionsResponse, DatabaseError> {
-    let sessions = db.list_sessions(limit, offset).await?;
-    let total = db.count_sessions().await?;
-    Ok(ListSessionsResponse { sessions, total })
+    let page = db.read_sessions(limit, offset).await?;
+    Ok(ListSessionsResponse {
+        sessions: page.records,
+        total: page.total,
+    })
 }
 
 /// Error type for getting an session.
@@ -674,10 +680,10 @@ async fn get_session_for_run(
     db: &Arc<dyn Database>,
     id: Uuid,
 ) -> Result<SessionResponse, GetSessionError> {
-    let session = db
-        .get_session(id)
-        .await?
-        .ok_or(GetSessionError::NotFound(id))?;
+    let session = db.read_session(id).await.map_err(|error| match error {
+        DatabaseError::NotFound(_) => GetSessionError::NotFound(id),
+        error => GetSessionError::Database(error),
+    })?;
 
     Ok(SessionResponse { session })
 }
@@ -690,9 +696,11 @@ async fn list_tasks(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListTasksResponse, DatabaseError> {
-    let tasks = db.list_tasks(run_id, status, limit, offset).await?;
-    let total = db.count_tasks(run_id, status).await?;
-    Ok(ListTasksResponse { tasks, total })
+    let page = db.read_tasks(run_id, status, limit, offset).await?;
+    Ok(ListTasksResponse {
+        tasks: page.records,
+        total: page.total,
+    })
 }
 
 /// Counts a run's tasks grouped by status.
@@ -700,13 +708,13 @@ async fn count_run_tasks_by_status(
     db: &Arc<dyn Database>,
     run_id: Uuid,
 ) -> Result<RunTaskCountsResponse, DatabaseError> {
-    let counts = db.count_tasks_by_status(run_id).await?;
+    let counts = db.read_run_task_counts(run_id).await?;
     Ok(RunTaskCountsResponse { counts })
 }
 
 /// Gets a task with a given name.
 async fn get_task(db: &Arc<dyn Database>, name: String) -> Result<GetTaskResponse, DatabaseError> {
-    let task = db.get_task(&name).await?;
+    let task = db.read_task(&name).await?;
     Ok(GetTaskResponse { task })
 }
 
@@ -718,10 +726,11 @@ async fn get_task_logs(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListTaskLogsResponse, DatabaseError> {
-    db.get_task(&name).await?;
-    let logs = db.get_task_logs(&name, stream, limit, offset).await?;
-    let total = db.count_task_logs(&name, stream).await?;
-    Ok(ListTaskLogsResponse { logs, total })
+    let page = db.read_task_logs(&name, stream, limit, offset).await?;
+    Ok(ListTaskLogsResponse {
+        logs: page.records,
+        total: page.total,
+    })
 }
 
 #[cfg(test)]
@@ -732,6 +741,29 @@ mod tests {
     use super::*;
     use crate::system::v1::db::SprocketCommand;
     use crate::system::v1::db::SqliteDatabase;
+
+    #[sqlx::test]
+    async fn read_compatibility_helpers_preserve_not_found_errors(pool: SqlitePool) {
+        let db: Arc<dyn Database> = Arc::new(
+            SqliteDatabase::from_pool(pool)
+                .await
+                .expect("failed to create database"),
+        );
+        let id = Uuid::new_v4();
+
+        assert!(matches!(
+            get_run(&db, id).await,
+            Err(GetRunError::NotFound(found)) if found == id
+        ));
+        assert!(matches!(
+            get_run_outputs(&db, id).await,
+            Err(GetRunOutputsError::NotFound(found)) if found == id
+        ));
+        assert!(matches!(
+            get_session_for_run(&db, id).await,
+            Err(GetSessionError::NotFound(found)) if found == id
+        ));
+    }
 
     #[sqlx::test]
     async fn cancel_run_errors_on_orphaned_run(pool: SqlitePool) {

@@ -18,7 +18,7 @@ macro_rules! define_lint_rule_config {
         }
     ) => {
         $(#[$meta])*
-        #[toml(Toml)]
+        #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
         pub struct $name {
             $(
                 $(#[doc = $doc])+
@@ -77,7 +77,7 @@ pub struct ConfigField {
 define_lint_rule_config! {
     /// The configuration for lint rules.
     #[derive(Clone, Debug, PartialEq, Eq, Toml, JsonSchema)]
-    #[schemars(rename = "WdlLintConfig")]
+    #[schemars(rename = "WdlLintConfig", deny_unknown_fields)]
     pub struct Config {
         /// List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.
         ///

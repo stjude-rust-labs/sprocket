@@ -379,9 +379,9 @@ impl TaskInputs {
                     return Ok(true);
                 }
 
-                // Auto-wrap a non-array value in a single-element array when the
-                // expected type is an array and the value is coercible to the
-                // element type.
+                // Auto-wrap a non-array value in a single-element array when
+                // the expected type is an array and the value
+                // is coercible to the element type.
                 let value = if let Some(arr_ty) = expected.as_array()
                     && !matches!(&value, Value::Compound(CompoundValue::Array(_)))
                     && value.ty().is_coercible_to(arr_ty.element_type())
@@ -592,7 +592,7 @@ impl WorkflowInputs {
             let inputs = match call.kind() {
                 CallKind::Task => {
                     let task = document
-                        .task_by_name(call_target_name)
+                        .local_task_by_name(call_target_name)
                         .expect("task should be present");
 
                     let task_inputs = inputs.as_task_inputs().with_context(|| {
@@ -700,7 +700,7 @@ impl WorkflowInputs {
                 let input = match call.kind() {
                     CallKind::Task => {
                         let task = document
-                            .task_by_name(call_target_name)
+                            .local_task_by_name(call_target_name)
                             .expect("task should be present");
                         inputs
                             .as_task_inputs_mut()
@@ -1042,8 +1042,8 @@ impl Inputs {
             return Ok(None);
         }
 
-        // Otherwise, build a set of candidate targets from the prefixes of each input
-        // key.
+        // Otherwise, build a set of candidate targets from the prefixes of each
+        // input key.
         let mut target_candidates = BTreeSet::new();
         for key in object.keys() {
             let Some((prefix, _)) = key.split_once('.') else {
@@ -1055,8 +1055,8 @@ impl Inputs {
             target_candidates.insert(prefix);
         }
 
-        // If every prefix is the same, there will be only one candidate. If not, report
-        // an error.
+        // If every prefix is the same, there will be only one candidate. If
+        // not, report an error.
         let target_name = match target_candidates
             .iter()
             .take(2)
@@ -1071,7 +1071,10 @@ impl Inputs {
             ),
         };
 
-        let inputs = match (document.task_by_name(&target_name), document.workflow()) {
+        let inputs = match (
+            document.local_task_by_name(&target_name),
+            document.workflow(),
+        ) {
             (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
             (None, Some(workflow)) if workflow.name() == target_name => {
                 Self::parse_workflow_inputs(document, workflow, object)?
@@ -1099,8 +1102,9 @@ impl Inputs {
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
-                    // This should be caught by the initial check of the prefixes in
-                    // `parse_json_object()`, but we retain a friendly error message in case this
+                    // This should be caught by the initial check of the
+                    // prefixes in `parse_json_object()`,
+                    // but we retain a friendly error message in case this
                     // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{task}`",
@@ -1132,8 +1136,9 @@ impl Inputs {
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
-                    // This should be caught by the initial check of the prefixes in
-                    // `parse_json_object()`, but we retain a friendly error message in case this
+                    // This should be caught by the initial check of the
+                    // prefixes in `parse_json_object()`,
+                    // but we retain a friendly error message in case this
                     // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{workflow}`",

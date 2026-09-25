@@ -37,13 +37,13 @@ use tracing_subscriber::fmt::layer;
 use wdl::analysis::Document;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::diagnostics::emit_diagnostics_with_backtrace;
 use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::Engine;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -52,6 +52,7 @@ use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
@@ -61,6 +62,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::uses_docker_backend;
+use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
@@ -155,10 +158,6 @@ pub struct Args {
     #[clap(long, value_name = "INDEX_PATH")]
     pub index_on: Option<IndexPath>,
 
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
-
     /// The Azure Storage account name to use.
     #[clap(long, env, value_name = "NAME", requires = "azure_access_key")]
     pub azure_account_name: Option<String>,
@@ -209,6 +208,10 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// Disable retries for all task evaluations for this run.
+    #[clap(long)]
+    pub disable_retries: bool,
 
     /// Show task stderr during execution.
     ///
@@ -901,7 +904,10 @@ pub async fn run(
             .context("failed to modify tracing filter")?;
     }
 
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
+    if let Some(output_dir) = &args.output_dir {
+        config.run.output_dir.clone_from(output_dir);
+    }
     args.apply_engine_config(&mut config.run.engine);
 
     // Bring a stale or missing module lockfile up to date before executing so
@@ -997,7 +1003,6 @@ pub async fn run(
     }
 
     let document = results.filter(&[&source]).next().unwrap().document();
-
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
     // Held for the rest of this function: dropping it stops the heartbeat and
@@ -1006,6 +1011,9 @@ pub async fn run(
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    // Determined here as the engine configuration is moved into evaluation
+    // below.
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let events = Events::new(
         config
             .run
@@ -1018,7 +1026,7 @@ pub async fn run(
             .subscribe_transfer()
             .expect("should have transfer events"),
         colorize,
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
@@ -1031,7 +1039,7 @@ pub async fn run(
         events
             .subscribe_engine()
             .expect("should have engine events"),
-        cancellation.first(),
+        cancellation.second().clone(),
     ));
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
@@ -1040,13 +1048,21 @@ pub async fn run(
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
 
+    if args.disable_retries {
+        config.run.engine.task.retries = RetryConfig::Disabled;
+    }
+
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
         document.clone(),
-        config.run.engine,
-        cancellation.clone(),
+        engine,
         events,
+        cancellation.clone(),
         &target,
         inputs,
         &run_dir,
@@ -1073,6 +1089,10 @@ pub async fn run(
                     },
                     CancellationContextState::Canceling => {
                         error!("waiting for executing tasks to cancel: use Ctrl-C to immediately terminate Sprocket");
+
+                        if uses_docker {
+                            warn_docker_termination();
+                        }
                     },
                 }
             },
@@ -1152,7 +1172,7 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
 
     match (&*target, &inputs) {
         (Target::Task(task), Inputs::Task(inputs)) => {
-            let Some(task) = document.task_by_name(task) else {
+            let Some(task) = document.local_task_by_name(task) else {
                 bail!("task '{task}' not found in document");
             };
 
@@ -1191,11 +1211,7 @@ async fn setup_run_context(
     inputs: &Inputs,
 ) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
-    let output_dir = OutputDirectory::new(
-        args.output_dir
-            .clone()
-            .unwrap_or_else(|| config.run.output_dir.clone()),
-    );
+    let output_dir = OutputDirectory::new(config.run.output_dir.clone());
 
     // Acquire an exclusive lock on the output directory to serialize setup
     // operations across concurrent processes (e.g., database creation,
@@ -1221,7 +1237,7 @@ async fn setup_run_context(
     );
 
     // Open or create the database for provenance tracking
-    let db_path = config.server.database_url();
+    let db_path = config.server.database.resolve_url(output_dir.root());
     let db = open_database(&db_path).await?;
 
     // Create session and run records

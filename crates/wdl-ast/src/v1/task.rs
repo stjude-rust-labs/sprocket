@@ -450,7 +450,10 @@ impl<N: TreeNode> AstNode<N> for TaskDefinition<N> {
 
 impl Documented<SyntaxNode> for TaskDefinition<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
-        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia(), false)
+                .collect(),
+        )
     }
 }
 
@@ -1151,8 +1154,9 @@ impl<N: TreeNode> CommandSection<N> {
             return None;
         }
 
-        // Exactly one of the two will be equal to usize::MAX because it never appeared.
-        // The other will be the number of leading spaces or tabs to strip.
+        // Exactly one of the two will be equal to usize::MAX because it never
+        // appeared. The other will be the number of leading spaces or
+        // tabs to strip.
         let final_leading_whitespace = if min_leading_spaces < min_leading_tabs {
             min_leading_spaces
         } else {
@@ -1218,8 +1222,8 @@ impl<N: TreeNode> CommandSection<N> {
         }
 
         // Finally, strip the leading whitespace on each line
-        // This is done in place using the `replace_range` method; the method will
-        // internally do moves without allocations
+        // This is done in place using the `replace_range` method; the method
+        // will internally do moves without allocations
         let mut strip_leading_whitespace = whole_first_line_trimmed;
         for part in &mut result {
             match part {
@@ -1391,8 +1395,8 @@ impl<N: TreeNode> RequirementsSection<N> {
     /// [`Container`](requirements::item::Container) (if it exists).
     #[cfg_attr(feature = "unstable-python", skip)]
     pub fn container(&self) -> Option<requirements::item::Container<N>> {
-        // NOTE: validation should ensure that, at most, one `container` item exists in
-        // the `requirements` section.
+        // NOTE: validation should ensure that, at most, one `container` item
+        // exists in the `requirements` section.
         self.child()
     }
 
@@ -1555,8 +1559,8 @@ impl<N: TreeNode> RuntimeSection<N> {
     /// (if it exists).
     #[cfg_attr(feature = "unstable-python", skip)]
     pub fn container(&self) -> Option<runtime::item::Container<N>> {
-        // NOTE: validation should ensure that, at most, one `container`/`docker` item
-        // exists in the `runtime` section.
+        // NOTE: validation should ensure that, at most, one
+        // `container`/`docker` item exists in the `runtime` section.
         self.child()
     }
 }
@@ -1967,7 +1971,7 @@ impl<N: TreeNode> AstNode<N> for ParameterMetadataSection<N> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -2256,7 +2260,8 @@ then name
             StrippedCommandPart::Placeholder(p) => p,
             _ => panic!("expected placeholder"),
         };
-        // not testing anything with the placeholder, just making sure it's there
+        // not testing anything with the placeholder, just making sure it's
+        // there
 
         let text = match &stripped[2] {
             StrippedCommandPart::Text(text) => text,
@@ -2306,7 +2311,8 @@ task test {
             StrippedCommandPart::Placeholder(p) => p,
             _ => panic!("expected placeholder"),
         };
-        // not testing anything with the placeholder, just making sure it's there
+        // not testing anything with the placeholder, just making sure it's
+        // there
 
         let text = match &stripped[2] {
             StrippedCommandPart::Text(text) => text,
@@ -2318,7 +2324,8 @@ task test {
             StrippedCommandPart::Placeholder(p) => p,
             _ => panic!("expected placeholder"),
         };
-        // not testing anything with the placeholder, just making sure it's there
+        // not testing anything with the placeholder, just making sure it's
+        // there
 
         let text = match &stripped[4] {
             StrippedCommandPart::Text(text) => text,
@@ -2330,7 +2337,8 @@ task test {
             StrippedCommandPart::Placeholder(p) => p,
             _ => panic!("expected placeholder"),
         };
-        // not testing anything with the placeholder, just making sure it's there
+        // not testing anything with the placeholder, just making sure it's
+        // there
 
         let text = match &stripped[6] {
             StrippedCommandPart::Text(text) => text,
@@ -2594,7 +2602,8 @@ task test {
             StrippedCommandPart::Placeholder(p) => p,
             _ => panic!("expected placeholder"),
         };
-        // not testing anything with the placeholder, just making sure it's there
+        // not testing anything with the placeholder, just making sure it's
+        // there
 
         let text = match &stripped[2] {
             StrippedCommandPart::Text(text) => text,

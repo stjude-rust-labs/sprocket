@@ -288,7 +288,8 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                         .trim()
                         .to_string();
 
-                    // Normalize the diagnostic message to handle platform-specific differences
+                    // Normalize the diagnostic message to handle
+                    // platform-specific differences
                     let message = normalize_diagnostic(&message);
 
                     if !actual.insert((message.clone(), line_no)) {
@@ -300,14 +301,15 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                 }
             }
 
-            // As the list of diagnostics has been sorted by document identifier, do
-            // a binary search and collect the matching messages
+            // As the list of diagnostics has been sorted by document
+            // identifier, do a binary search and collect the
+            // matching messages
             let diagnostics = config.inner().diagnostics();
             let expected: IndexSet<String> = diagnostics
                 .binary_search_by_key(&document_identifier, |d| d.document().clone())
                 .map(|mut start_index| {
-                    // As binary search may return any matching index, back up until we find the
-                    // start of the range
+                    // As binary search may return any matching index, back up
+                    // until we find the start of the range
                     for i in (0..start_index).rev() {
                         if diagnostics[i].document() != &document_identifier {
                             break;
@@ -320,7 +322,8 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                         .iter()
                         .map_while(|d| {
                             if d.document() == &document_identifier {
-                                // Normalize the diagnostic message from config to handle
+                                // Normalize the diagnostic message from config
+                                // to handle
                                 // platform-specific differences
                                 Some(normalize_diagnostic(d.message()))
                             } else {

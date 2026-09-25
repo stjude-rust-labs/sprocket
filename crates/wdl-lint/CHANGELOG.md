@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
+* `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
+
+## 0.28.0 - 2026-09-16
+
+#### Changed
+
+* `MetaSections` now supports checking both doc comments and `meta`/`parameter_meta` sections ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
+
+#### Removed
+
+* Removed `SectionOrder` lint rule. Use `format check` with `reorder_sections = true` to satisfy any ordering checks ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).
+* The `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules were promoted to `wdl-analysis` ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
+
+## 0.27.0 - 2026-08-26
+
 #### Added
 
 - Added `DeprecatedRuntimeSection` lint rule ([#1040](https://github.com/stjude-rust-labs/sprocket/pull/1040)).
@@ -17,7 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Removed
 
+* Removed the `DoubleQuotes` lint rule ([#1200](https://github.com/stjude-rust-labs/sprocket/pull/1200)).
 * The `ExceptDirectiveValid` rule was promoted to `wdl-analysis` ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
+* The `CommandSectionIndentation` rule was promoted to `wdl-analysis` ([#1144](https://github.com/stjude-rust-labs/sprocket/pull/1144)).
 
 ## 0.26.0 - 2026-08-05
 

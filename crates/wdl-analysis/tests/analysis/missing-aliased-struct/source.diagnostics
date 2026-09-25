@@ -1,5 +1,5 @@
-error: a struct named `Foo` does not exist in the imported document
+error: a struct or enum named `Foo` does not exist in the imported document
   ┌─ tests/analysis/missing-aliased-struct/source.wdl:7:24
   │
 7 │ import "foo.wdl" alias Foo as Bar alias Bar as Baz alias Qux as Qux2
-  │                        ^^^ this struct does not exist
+  │                        ^^^ this type name does not exist

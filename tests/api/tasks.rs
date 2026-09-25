@@ -51,7 +51,9 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Wait for the manager to be ready.
     let (tx, rx) = oneshot::channel();
@@ -63,6 +65,7 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db.clone())
         .failure_mode(ServerFailureMode::Slow)
         .output_dir(output_dir)
         .build();
@@ -118,6 +121,7 @@ async fn seed_completed_task(db: &Arc<dyn Database>) -> Uuid {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -181,6 +185,7 @@ async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn run_task_counts_unknown_run_is_all_zero(pool: sqlx::SqlitePool) {
     let (app, _db, _temp) = create_test_server(pool).await;
 
@@ -245,6 +250,7 @@ async fn list_run_tasks(
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_rejects_non_positive_limit(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -266,7 +272,7 @@ async fn list_run_tasks_rejects_non_positive_limit(pool: sqlx::SqlitePool) {
             body["message"]
                 .as_str()
                 .unwrap_or_default()
-                .contains("`limit` must be positive"),
+                .contains("`limit` must be between"),
             "unexpected message: {}",
             body["message"]
         );
@@ -274,6 +280,7 @@ async fn list_run_tasks_rejects_non_positive_limit(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_rejects_negative_next_token(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -297,6 +304,7 @@ async fn list_run_tasks_rejects_negative_next_token(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_rejects_unparsable_next_token(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -319,6 +327,7 @@ async fn list_run_tasks_rejects_unparsable_next_token(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_accepts_valid_pagination(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -338,6 +347,7 @@ async fn list_run_tasks_accepts_valid_pagination(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_filters_by_run(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -385,6 +395,7 @@ async fn list_run_tasks_filters_by_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -454,6 +465,7 @@ async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_paginates(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
@@ -526,6 +538,7 @@ async fn list_run_tasks_paginates(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_run_tasks_unknown_run_returns_empty(pool: sqlx::SqlitePool) {
     let (app, _db, _temp) = create_test_server(pool).await;
 
@@ -549,6 +562,7 @@ async fn list_run_tasks_unknown_run_returns_empty(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_tasks_returns_empty_initially(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server(pool).await;
 
@@ -575,6 +589,7 @@ async fn list_tasks_returns_empty_initially(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn task_endpoints_return_seeded_task_and_logs(pool: sqlx::SqlitePool) {
     let (app, db, ..) = create_test_server(pool).await;
     let run_id = seed_completed_task(&db).await;
@@ -692,6 +707,7 @@ async fn task_endpoints_return_seeded_task_and_logs(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn task_endpoints_return_expected_errors(pool: sqlx::SqlitePool) {
     let (app, db, ..) = create_test_server(pool).await;
     seed_completed_task(&db).await;

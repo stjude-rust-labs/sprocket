@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -28,8 +27,8 @@ use crate::yaml::spanned_fields;
 
 /// Convert a [`serde_saphyr::Span`] to our [`Span`] type.
 pub(crate) fn convert_yaml_span(span: serde_saphyr::Span) -> Span {
-    // SAFETY: `serde-saphyr` guarantees that byte-level information is available
-    //         when parsing from a string, which we always do.
+    // SAFETY: `serde-saphyr` guarantees that byte-level information is
+    // available         when parsing from a string, which we always do.
     Span::new(
         span.byte_offset().expect("byte info should be available") as usize,
         span.byte_len().expect("byte info should be available") as usize,
@@ -89,7 +88,8 @@ impl DocumentTests {
         let raw: RawDocumentTests = match serde_saphyr::from_str(source) {
             Ok(map) => map,
             Err(_e) => {
-                // TODO(serial): create nice diagnostics from serde-saphyr errors
+                // TODO(serial): create nice diagnostics from serde-saphyr
+                // errors
                 diagnostics.add(Diagnostic::error(
                     "expected test document to be a YAML mapping from target names to test \
                      definitions",
@@ -181,7 +181,7 @@ impl DocumentTests {
 #[derive(Clone, Debug, JsonSchema)]
 pub struct TestDefinition {
     /// Name for the test.
-    pub name: Arc<str>,
+    pub name: Spanned<String>,
     /// Any tags associated with the test.
     #[schemars(default)]
     pub tags: HashSet<String>,
@@ -221,7 +221,11 @@ impl TestDefinition {
                     );
                     return Err(diagnostics);
                 };
-                Some(name)
+                Some(Spanned(serde_saphyr::Spanned {
+                    value: name,
+                    defined: raw_name.value.0.defined,
+                    referenced: raw_name.value.0.referenced,
+                }))
             }
             None => None,
         };
@@ -273,7 +277,7 @@ impl TestDefinition {
 
         if diagnostics.is_empty() {
             Ok(Self {
-                name: name.into(),
+                name,
                 tags: parsed_tags,
                 inputs: parsed_inputs,
                 assertions: parsed_assertions,

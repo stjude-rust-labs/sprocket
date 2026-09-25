@@ -298,8 +298,8 @@ impl Visitor for UniqueKeysVisitor {
             return;
         }
 
-        // As metadata objects are nested inside of metadata sections and objects,
-        // use a different set to check the keys
+        // As metadata objects are nested inside of metadata sections and
+        // objects, use a different set to check the keys
         let mut keys = HashSet::new();
         check_duplicate_keys(
             &mut keys,
