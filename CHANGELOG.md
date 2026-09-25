@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added `sprocket dev flowchart mermaid` to render WDL workflows as Mermaid diagrams.
+* Added `sprocket dev flowchart mermaid` to render WDL workflows as Mermaid diagrams ([#1069](https://github.com/stjude-rust-labs/sprocket/pull/1069)).
 
 ### Changed
 

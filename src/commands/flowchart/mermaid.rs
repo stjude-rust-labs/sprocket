@@ -207,11 +207,17 @@ impl MermaidCtx {
             self.emitted.insert(key.clone(), rendered);
         }
 
+        // The evaluation graph lifts cross-scope references to the enclosing
+        // statements, so the only dependencies outside this block are the
+        // block's own ancestors; those are represented by the parent instead.
         for (target, _) in &statements {
             let Some(rendered) = self.emitted.get(target) else {
                 continue;
             };
             for dependency in self.dependencies.get(target).into_iter().flatten() {
+                if !keys.contains(dependency) {
+                    continue;
+                }
                 let Some(source) = self.emitted.get(dependency) else {
                     continue;
                 };
@@ -271,7 +277,8 @@ impl MermaidCtx {
                     .alias()
                     .map(|a| a.name().text().to_owned())
                     .unwrap_or_else(|| {
-                        // SAFETY: a call target always has at least one name component.
+                        // SAFETY: a call target always has at least one name
+                        // component.
                         names.last().unwrap().clone()
                     });
 
@@ -282,8 +289,9 @@ impl MermaidCtx {
                     .zip(names.get(1))
                     .and_then(|(ns, task)| resolve_workflow(doc, ns, task))
                 {
-                    // SAFETY: `resolve_workflow` succeeded above, which requires `names` to
-                    // have at least one element (the namespace component), and the namespace
+                    // SAFETY: `resolve_workflow` succeeded above, which
+                    // requires `names` to have at least one
+                    // element (the namespace component), and the namespace
                     // to exist in the document.
                     let callee = doc.namespace(names.first().unwrap()).unwrap().document();
                     return self.emit_workflow_call(
@@ -348,8 +356,9 @@ impl MermaidCtx {
                 let diamond_id = self.next_id();
 
                 if is_multi_clause {
-                    // if/else-if/else: diamond says "if", conditions go on edges.
-                    // SAFETY: `write!` on `String` never fails.
+                    // if/else-if/else: diamond says "if", conditions go on
+                    // edges. SAFETY: `write!` on `String`
+                    // never fails.
                     writeln!(out, "{indent}{diamond_id}{{\"if\"}}").unwrap();
 
                     let mut exits = Vec::new();
@@ -379,7 +388,8 @@ impl MermaidCtx {
                         }
                     }
 
-                    // Without an `else`, the diamond is also an exit via the skip path.
+                    // Without an `else`, the diamond is also an exit via the
+                    // skip path.
                     if !has_else {
                         exits.push(Exit::labeled(diamond_id.clone(), "no"));
                     }
@@ -466,13 +476,15 @@ impl MermaidCtx {
         let uri = callee_doc.uri().to_string();
         let cycle_key = format!("{uri}#{}", wf_def.name().text());
 
-        // Render as a plain node if this workflow has already been expanded.
-        if !self.expanded.insert(cycle_key) {
+        // Depth guard: render as a plain node if the depth limit has been
+        // reached. This is checked before the cycle guard so that a workflow
+        // skipped here can still be expanded by a shallower call.
+        if self.max_depth.is_some_and(|max| self.current_depth >= max) {
             return self.emit_call_node(label, target, out, indent);
         }
 
-        // Depth guard: render as a plain node if the depth limit has been reached.
-        if self.max_depth.is_some_and(|max| self.current_depth >= max) {
+        // Render as a plain node if this workflow has already been expanded.
+        if !self.expanded.insert(cycle_key) {
             return self.emit_call_node(label, target, out, indent);
         }
 
@@ -510,10 +522,13 @@ impl MermaidCtx {
 }
 
 /// Emits a single directed edge, with an optional label.
+///
+/// Labels are quoted so that characters such as `|` do not end the label
+/// early. Callers must pass labels that are already escaped.
 fn emit_edge(out: &mut String, indent: &str, from: &str, to: &str, label: Option<&str>) {
     // SAFETY: `write!` on `String` never fails.
     if let Some(lbl) = label {
-        writeln!(out, "{indent}{from} -->|{lbl}| {to}").unwrap();
+        writeln!(out, "{indent}{from} -->|\"{lbl}\"| {to}").unwrap();
     } else {
         writeln!(out, "{indent}{from} --> {to}").unwrap();
     }
@@ -606,12 +621,20 @@ fn statement_key(statement: &WorkflowStatement) -> Option<SyntaxNode> {
     (!matches!(statement, WorkflowStatement::Declaration(_))).then(|| statement.inner().clone())
 }
 
-/// Escapes characters that have special meaning in `Mermaid` label strings.
+/// Escapes text for use inside a quoted `Mermaid` label.
+///
+/// Whitespace runs (including newlines) collapse to a single space, and
+/// characters with special meaning become `Mermaid` entity codes. `#` is
+/// escaped first because `Mermaid` treats `#...;` as an entity code.
 fn escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
+    s.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace('#', "#35;")
+        .replace('&', "#amp;")
+        .replace('"', "#quot;")
+        .replace('<', "#lt;")
+        .replace('>', "#gt;")
 }
 
 #[cfg(test)]
@@ -619,7 +642,8 @@ mod tests {
     use super::*;
 
     async fn render(source: &str, depth: Option<usize>) -> String {
-        // SAFETY: the operating system can create a temporary directory for the test.
+        // SAFETY: the operating system can create a temporary directory for the
+        // test.
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("test.wdl");
         // SAFETY: the temporary directory exists and is writable for the test.
@@ -654,7 +678,15 @@ mod tests {
     }
 
     async fn render_with_child(root: &str, child: &str, depth: Option<usize>) -> String {
-        let directory = tempfile::tempdir().unwrap();
+        render_with_child_in(tempfile::tempdir().unwrap(), root, child, depth).await
+    }
+
+    async fn render_with_child_in(
+        directory: tempfile::TempDir,
+        root: &str,
+        child: &str,
+        depth: Option<usize>,
+    ) -> String {
         let path = directory.path().join("test.wdl");
         std::fs::write(&path, root).unwrap();
         std::fs::write(directory.path().join("child.wdl"), child).unwrap();
@@ -683,7 +715,11 @@ mod tests {
 
     #[test]
     fn escapes_mermaid_label_entities() {
-        assert_eq!(escape("~{bam} & < > \""), "~{bam} &amp; &lt; &gt; &quot;");
+        assert_eq!(
+            escape("~{bam} & < > \" #quot;"),
+            "~{bam} #amp; #lt; #gt; #quot; #35;quot;"
+        );
+        assert_eq!(escape("a &&\n        b"), "a #amp;#amp; b");
     }
 
     #[tokio::test]
@@ -766,8 +802,8 @@ workflow test {
         )
         .await;
 
-        assert!(diagram.contains("n0 -->|yes| n1"));
-        assert!(diagram.contains("n0 -->|no| n1"));
+        assert!(diagram.contains("n0 -->|\"yes\"| n1"));
+        assert!(diagram.contains("n0 -->|\"no\"| n1"));
     }
 
     #[tokio::test]
@@ -795,7 +831,58 @@ workflow test {
         )
         .await;
 
-        assert!(diagram.contains("n0 -->|no| n1"));
+        assert!(diagram.contains("n0 -->|\"no\"| n1"));
+    }
+
+    #[tokio::test]
+    async fn quotes_edge_labels_containing_pipes() {
+        let diagram = render(
+            r#"
+version 1.3
+
+task noop {
+    command <<< echo noop >>>
+}
+
+workflow test {
+    input {
+        Boolean a
+        Boolean b
+    }
+    if (a ||
+        b) {
+        call noop as first
+    } else {
+        call noop as second
+    }
+}
+"#,
+            Some(0),
+        )
+        .await;
+
+        assert!(diagram.contains("n0 -->|\"if a || b\"| n1"));
+        assert!(diagram.contains("n0 -->|\"else\"| n2"));
+    }
+
+    #[tokio::test]
+    async fn depth_limited_calls_do_not_block_later_expansion() {
+        let root = "version 1.0\nimport \"child.wdl\" as child\nimport \"middle.wdl\" as \
+                    middle\nworkflow root { call middle.middle call child.child }";
+        let middle =
+            "version 1.0\nimport \"child.wdl\" as child\nworkflow middle { call child.child }";
+        let child =
+            "version 1.0\ntask noop { command <<< echo noop >>> }\nworkflow child { call noop }";
+
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(directory.path().join("middle.wdl"), middle).unwrap();
+        let diagram = render_with_child_in(directory, root, child, Some(1)).await;
+
+        // `middle` expands but its nested `child` call is depth-limited, so the
+        // top-level `child` call must still expand.
+        assert!(diagram.contains("subgraph n0[\"middle (middle.middle)\"]"));
+        assert!(diagram.contains("n1[\"child<br/><i>child.child</i>\"]"));
+        assert!(diagram.contains("subgraph n2[\"child (child.child)\"]"));
     }
 
     #[tokio::test]
