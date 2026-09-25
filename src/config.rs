@@ -379,6 +379,9 @@ pub struct LegacyLint {
     /// The old global `allowed_runtime_keys` parameter.
     #[toml(default)]
     pub allowed_runtime_keys: Option<Vec<String>>,
+    /// The old global `bash_set_options` parameter.
+    #[toml(default)]
+    pub bash_set_options: Option<Vec<String>>,
 }
 
 /// All `wdl-lint` rule IDs.
@@ -1318,7 +1321,8 @@ impl Config {
                 "`[check.lint]` has been replaced by per-rule tables\n- move `allowed_names` \
                  under `[check.rules.NamingConvention]` and/or `[check.rules.DeclarationName]` \
                  (it previously applied to both)\n- move `allowed_runtime_keys` under \
-                 `[check.rules.ExpectedRuntimeKeys]`"
+                 `[check.rules.ExpectedRuntimeKeys]`\n- move `bash_set_options` under \
+                 `[check.rules.BashSetSyntax]`"
             )
         }
 
@@ -1522,6 +1526,14 @@ mod test {
         assert!(err.contains("[check.rules.NamingConvention]"), "{err}");
         assert!(err.contains("[check.rules.ExpectedRuntimeKeys]"), "{err}");
         assert!(!err.contains("SnakeCase"), "{err}");
+    }
+
+    #[test]
+    fn legacy_bash_set_options_reports_migration_error() {
+        let mut config: Config =
+            toml_spanner::from_str("[check.lint]\nbash_set_options = [\"errexit\"]\n").unwrap();
+        let err = config.validate().unwrap_err().to_string();
+        assert!(err.contains("[check.rules.BashSetSyntax]"), "{err}");
     }
 
     #[test]
