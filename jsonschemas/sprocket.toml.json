@@ -240,89 +240,100 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "default": []
         },
         "allowed_runtime_keys": {
           "description": "Runtime keys to allow in addition to the keys defined by the spec.\n\n```toml\nallowed_runtime_keys = [\"foo\"]\n```",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "default": []
         },
         "max_length": {
           "description": "The maximum allowed length, in characters, of a description.",
           "type": "integer",
           "format": "uint64",
-          "minimum": 0
+          "minimum": 0,
+          "default": 140
         },
         "min_length": {
           "description": "The minimum length, in characters, below which a name is flagged as too\nshort.",
           "type": "integer",
           "format": "uint64",
-          "minimum": 0
+          "minimum": 0,
+          "default": 3
         },
         "check_prefixes": {
           "description": "Whether to flag disallowed name prefixes (such as `in_` or `out_`).",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         },
         "keywords": {
           "description": "The comment keywords that trigger the rule.\n\n```toml\nkeywords = [\"TODO\", \"FIXME\"]\n```",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "default": [
+            "TODO"
+          ]
         },
         "reserved_keys": {
           "description": "The reserved meta keys that are required to have string values.",
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "default": [
+            "description",
+            "help",
+            "external_help",
+            "warning",
+            "category",
+            "group"
+          ]
         },
         "task": {
           "description": "The case style required for task names.",
-          "$ref": "#/$defs/CaseStyle"
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
         },
         "workflow": {
           "description": "The case style required for workflow names.",
-          "$ref": "#/$defs/CaseStyle"
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
         },
         "variable": {
           "description": "The case style required for variable names (inputs, outputs, and private\ndeclarations).",
-          "$ref": "#/$defs/CaseStyle"
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
         },
         "type": {
           "description": "The case style required for user-defined type names and enum choices.",
-          "$ref": "#/$defs/CaseStyle"
+          "$ref": "#/$defs/CaseStyle",
+          "default": "PascalCase"
         },
         "struct_member": {
           "description": "The case style required for struct members.",
-          "$ref": "#/$defs/CaseStyle"
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
         },
         "bash_set_options": {
           "description": "The bash `set` options to enforce in every `command` section.\n\n```toml\nbash_set_options = [\"errexit\", \"nounset\", \"pipefail\"]\n```",
           "type": "array",
           "items": {
             "$ref": "#/$defs/BashSetOption"
-          }
+          },
+          "default": [
+            "errexit",
+            "nounset",
+            "pipefail"
+          ]
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "allowed_names",
-        "allowed_runtime_keys",
-        "max_length",
-        "min_length",
-        "check_prefixes",
-        "keywords",
-        "reserved_keys",
-        "task",
-        "workflow",
-        "variable",
-        "type",
-        "struct_member",
-        "bash_set_options"
-      ]
+      "additionalProperties": false
     },
     "RuleSeverity": {
       "description": "An overridden severity for a rule.\n\nThis is distinct from the absence of an override, which leaves a rule\nemitting at its built-in default severity.",
@@ -416,6 +427,16 @@
         },
         "allowed_runtime_keys": {
           "description": "The old global `allowed_runtime_keys` parameter.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "bash_set_options": {
+          "description": "The old global `bash_set_options` parameter.",
           "type": [
             "array",
             "null"

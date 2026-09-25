@@ -255,7 +255,7 @@ macro_rules! define_rule_params {
         /// to disable it) along with any parameters applicable to that rule.
         #[derive(Clone, Debug, PartialEq, Eq, Toml, JsonSchema)]
         #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
-        #[schemars(rename_all = "snake_case", deny_unknown_fields)]
+        #[schemars(rename_all = "snake_case", deny_unknown_fields, default)]
         pub struct RuleConfig {
             /// The severity override for the rule.
             ///
