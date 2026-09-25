@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `WorkflowInputs::join_paths()` now requires the defining `Document` and `path` must now be `Send + Sync` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
+* `TaskInputs::join_paths()` now takes a `TaskRef` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
+
 ## 0.18.0 - 2026-09-16
 
 #### Changed
