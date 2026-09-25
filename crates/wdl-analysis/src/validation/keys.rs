@@ -1,13 +1,12 @@
 //! Validation of unique keys in an AST.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fmt;
 
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
-use wdl_ast::TokenText;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
@@ -104,7 +103,7 @@ fn conflicting_key(context: Context, name: &Ident, first: Span) -> Diagnostic {
 
 /// Checks the given set of keys for duplicates
 fn check_duplicate_keys(
-    keys: &mut HashSet<TokenText>,
+    keys: &mut HashMap<String, Span>,
     aliases: &[(&str, &str)],
     names: impl Iterator<Item = Ident>,
     context: Context,
@@ -113,7 +112,7 @@ fn check_duplicate_keys(
     keys.clear();
     for name in names {
         if let Some(first) = keys.get(name.text()) {
-            diagnostics.add(duplicate_key(context, &name, first.span()));
+            diagnostics.add(duplicate_key(context, &name, *first));
             continue;
         }
 
@@ -127,12 +126,12 @@ fn check_duplicate_keys(
             };
 
             if let Some(first) = keys.get(*alias) {
-                diagnostics.add(conflicting_key(context, &name, first.span()));
+                diagnostics.add(conflicting_key(context, &name, *first));
                 break;
             }
         }
 
-        keys.insert(name.hashable());
+        keys.insert(name.text().to_string(), name.span());
     }
 }
 
@@ -147,7 +146,7 @@ fn check_duplicate_keys(
 /// * object literals
 /// * struct literals
 #[derive(Default, Debug)]
-pub struct UniqueKeysVisitor(HashSet<TokenText>);
+pub struct UniqueKeysVisitor(HashMap<String, Span>);
 
 impl Visitor for UniqueKeysVisitor {
     fn reset(&mut self) {
@@ -300,7 +299,7 @@ impl Visitor for UniqueKeysVisitor {
 
         // As metadata objects are nested inside of metadata sections and
         // objects, use a different set to check the keys
-        let mut keys = HashSet::new();
+        let mut keys = HashMap::new();
         check_duplicate_keys(
             &mut keys,
             &[],
