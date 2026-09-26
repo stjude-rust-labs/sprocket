@@ -1,0 +1,21 @@
+---
+title: main
+---
+flowchart TD
+    n0["produce"]
+    n1{"if"}
+    n2["either<br/><i>consume</i>"]
+    n1 -->|"if a || b"| n2
+    n3["neither<br/><i>consume</i>"]
+    n1 -->|"else"| n3
+    n4@{ shape: procs, label: "scatter (item)" }
+    subgraph n5["scatter (item)"]
+        subgraph n6["child (child.child)"]
+            n7["echo"]
+        end
+    end
+    n4 --> n5
+    n8["last<br/><i>consume</i>"]
+    n0 --> n1
+    n7 --> n8
+    n0 --> n8
