@@ -75,6 +75,29 @@ our CI checks pass. Additional guidance for satisfying the CI checks can be
 Note that the maintainers reserve the right to close any submission without
 review for any reason.
 
+### Pull Request States
+
+Each open pull request has exactly one `S-*` label that describes its current
+state. The first matching state below applies:
+
+1. `s-blocked`: something outside the PR prevents it from moving forward (for
+   example, a pending specification change or an unmerged dependency).
+2. `S-draft`: the PR is marked as a draft. The author is still working on it,
+   so it isn't ready for review and failing CI or unaddressed feedback does not
+   change its state.
+3. `S-awaiting-pass-CI`: CI is failing for a reason the author can fix.
+   Failures the author can't fix (for example, a flaky job that succeeds on
+   retry or an outage in an external service) don't count.
+4. `S-awaiting-revisions`: the PR has review feedback that the author hasn't
+   addressed yet. Feedback counts as addressed when the author made the change
+   or replied to explain why they won't.
+5. `S-awaiting-review`: none of the above apply. A PR that is otherwise ready
+   but has merge conflicts is still awaiting review, because we usually resolve
+   conflicts right before merging.
+
+PRs with an `S-awaiting-*` state are closed automatically after 10 days with
+no new pushes. `S-draft` and `s-blocked` PRs aren't closed automatically.
+
 ## FAQs
 
 ### Can I use Artificial Intelligence (AI)?
