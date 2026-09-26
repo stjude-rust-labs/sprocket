@@ -15,6 +15,7 @@ use crate::commands::client::fetch_server_info;
 use crate::commands::client::fetch_task_counts;
 use crate::commands::client::get_json;
 use crate::commands::client::resolve_run_id;
+use crate::commands::output::CommandOutput;
 use crate::config::Config;
 use crate::server::RunResponse;
 use crate::server::RunStatus;
@@ -83,9 +84,12 @@ pub fn task_status_color(status: TaskStatus) -> Color {
 ///
 /// Returns `None` when the run has no tasks, so callers can omit the line
 /// entirely. Otherwise returns a string like `12 total: 3 running, 8 completed,
-/// 1 failed`, listing only the statuses with a non-zero count. When `colorize`
-/// is set, each status word is colored to match its meaning.
-pub fn task_counts_summary(counts: &RunTaskCountsResponse, colorize: bool) -> Option<String> {
+/// 1 failed`, listing only the statuses with a non-zero count. When `output`
+/// colorizes, each status word is colored to match its meaning.
+pub fn task_counts_summary(
+    counts: &RunTaskCountsResponse,
+    output: CommandOutput,
+) -> Option<String> {
     if counts.total == 0 {
         return None;
     }
@@ -113,11 +117,7 @@ pub fn task_counts_summary(counts: &RunTaskCountsResponse, colorize: bool) -> Op
         .iter()
         .filter(|(_, count, _)| *count > 0)
         .map(|(label, count, status)| {
-            let label = if colorize {
-                label.color(task_status_color(*status)).to_string()
-            } else {
-                (*label).to_string()
-            };
+            let label = output.style(label.color(task_status_color(*status)));
             format!("{count} {label}")
         })
         .collect::<Vec<_>>()
@@ -178,15 +178,11 @@ pub fn resolve_display_directory(output_dir: Option<&str>, directory: &str) -> s
 /// Builds a single aligned row describing a task for the detailed listing.
 ///
 /// The row contains the task name, status, duration, and a trailing detail
-/// (the error message, or `exit N` for non-zero exits). When `colorize` is set,
-/// the status word is colored to match its meaning.
-pub fn task_detail_line(task: &Task, colorize: bool) -> String {
+/// (the error message, or `exit N` for non-zero exits). When `output`
+/// colorizes, the status word is colored to match its meaning.
+pub fn task_detail_line(task: &Task, output: CommandOutput) -> String {
     let status_str = task.status.to_string();
-    let status_display = if colorize {
-        status_str.color(task_status_color(task.status)).to_string()
-    } else {
-        status_str.clone()
-    };
+    let status_display = output.style(status_str.color(task_status_color(task.status)));
 
     // Account for the ANSI color codes when padding the status column so the
     // visible width stays aligned.
@@ -202,8 +198,8 @@ pub fn task_detail_line(task: &Task, colorize: bool) -> String {
         },
     };
 
-    let detail_display = if colorize && !detail.is_empty() && task.error.is_some() {
-        detail.red().to_string()
+    let detail_display = if !detail.is_empty() && task.error.is_some() {
+        output.style(detail.red())
     } else {
         detail
     };
@@ -225,7 +221,7 @@ pub fn task_detail_line(task: &Task, colorize: bool) -> String {
 /// Handles the `inspect` subcommand.
 ///
 /// Fetches and displays detailed information about a single run.
-pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn inspect(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
@@ -271,9 +267,8 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
                 );
             }
         }
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?
+        output.payload(
+            serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?,
         );
         return Ok(());
     }
@@ -287,25 +282,23 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
 
     macro_rules! field {
         ($label:expr, $value:expr) => {
-            println!("{:>width$}  {}", $label, $value, width = LABEL_WIDTH);
+            output.payload(format!(
+                "{:>width$}  {}",
+                $label,
+                $value,
+                width = LABEL_WIDTH
+            ));
         };
     }
 
     let status_str = run.status.to_string();
-    let status_display = if colorize {
-        status_str
-            .color(status_color(&run.status))
-            .bold()
-            .to_string()
-    } else {
-        status_str
-    };
+    let status_display = output.style(status_str.color(status_color(&run.status)).bold());
 
     field!("Name:", format!("`{}`", run.name));
     field!("UUID:", format!("`{}`", run.uuid));
     field!("Status:", status_display);
 
-    if let Some(summary) = task_counts_summary(&counts, colorize) {
+    if let Some(summary) = task_counts_summary(&counts, output) {
         field!("Tasks:", summary);
     }
 
@@ -347,30 +340,18 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     }
 
     if let Some(error) = &run.error {
-        let error_display = if colorize {
-            error.red().to_string()
-        } else {
-            error.clone()
-        };
-        field!("Error:", error_display);
+        field!("Error:", output.style(error.red()));
     }
 
     // When requested, append a per-task breakdown below the run summary.
     if let Some(tasks) = &tasks {
-        println!();
+        output.payload("");
 
         if tasks.is_empty() {
             let note = "No tasks.";
-            println!(
-                "{}",
-                if colorize {
-                    note.dimmed().to_string()
-                } else {
-                    note.to_string()
-                }
-            );
+            output.payload(output.style(note.dimmed()));
         } else {
-            println!(
+            output.payload(format!(
                 "  {name:<name_w$}  {status:<status_w$}  {dur:<dur_w$}  DETAIL",
                 name = "NAME",
                 status = "STATUS",
@@ -378,10 +359,10 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
                 name_w = TASK_NAME_WIDTH,
                 status_w = TASK_STATUS_WIDTH,
                 dur_w = TASK_DURATION_WIDTH,
-            );
+            ));
 
             for task in tasks {
-                println!("{}", task_detail_line(task, colorize));
+                output.payload(task_detail_line(task, output));
             }
         }
     }
@@ -422,12 +403,15 @@ mod tests {
 
     #[test]
     fn summary_is_none_when_no_tasks() {
-        assert_eq!(task_counts_summary(&counts(0, 0, 0, 0, 0, 0), false), None);
+        assert_eq!(
+            task_counts_summary(&counts(0, 0, 0, 0, 0, 0), CommandOutput::new(false)),
+            None
+        );
     }
 
     #[test]
     fn summary_lists_only_non_zero_statuses_in_order() {
-        let summary = task_counts_summary(&counts(0, 3, 8, 1, 0, 0), false);
+        let summary = task_counts_summary(&counts(0, 3, 8, 1, 0, 0), CommandOutput::new(false));
         assert_eq!(
             summary.as_deref(),
             Some("12 total: 3 running, 8 completed, 1 failed")
@@ -436,7 +420,7 @@ mod tests {
 
     #[test]
     fn summary_includes_every_status_when_all_present() {
-        let summary = task_counts_summary(&counts(1, 2, 3, 4, 5, 6), false);
+        let summary = task_counts_summary(&counts(1, 2, 3, 4, 5, 6), CommandOutput::new(false));
         assert_eq!(
             summary.as_deref(),
             Some("21 total: 1 pending, 2 running, 3 completed, 4 failed, 5 canceled, 6 preempted")
@@ -476,7 +460,7 @@ mod tests {
                 Some(1000),
                 Some(1042),
             ),
-            false,
+            CommandOutput::new(false),
         );
         assert!(line.contains("align_reads"));
         assert!(line.contains("completed"));
@@ -498,7 +482,7 @@ mod tests {
                 Some(1000),
                 Some(1003),
             ),
-            false,
+            CommandOutput::new(false),
         );
         assert!(line.contains("failed"));
         assert!(line.contains("3s"));
@@ -517,7 +501,7 @@ mod tests {
                 Some(1000),
                 Some(1001),
             ),
-            false,
+            CommandOutput::new(false),
         );
         assert!(line.contains("failed"));
         assert!(line.contains("exit 127"));
@@ -528,7 +512,7 @@ mod tests {
         // Started well in the past, never completed.
         let line = task_detail_line(
             &task("merge", TaskStatus::Running, None, None, Some(1000), None),
-            false,
+            CommandOutput::new(false),
         );
         assert!(line.contains("running"));
         assert!(line.contains("elapsed"));
@@ -538,7 +522,7 @@ mod tests {
     fn detail_line_pending_has_no_duration_or_detail() {
         let line = task_detail_line(
             &task("prepare", TaskStatus::Pending, None, None, None, None),
-            false,
+            CommandOutput::new(false),
         );
         assert!(line.contains("prepare"));
         assert!(line.contains("pending"));

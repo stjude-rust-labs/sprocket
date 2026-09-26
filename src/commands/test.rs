@@ -6,7 +6,6 @@ use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
-use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -69,6 +68,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
@@ -85,6 +86,8 @@ const DEFINITIONS_TEST_DIR: &str = "test";
 const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
+/// Successful test action.
+const PASS: Action = Action::new("Passed", "pass");
 
 #[derive(Default, Debug, clap::Args)]
 #[group(required = false, multiple = true)]
@@ -303,9 +306,17 @@ impl TestIteration {
         clean: bool,
         quiet: bool,
         mut stdout: Stdout,
+        output: CommandOutput,
     ) -> Result<IterationResult> {
         let id = format!(
             "{doc}::{target}::{test} (iteration #{num})",
+            doc = self.id.doc_name,
+            target = self.id.target,
+            test = self.id.test_name,
+            num = self.id.iteration_num,
+        );
+        let label = format!(
+            "`{doc}::{target}::{test}` (iteration #{num})",
             doc = self.id.doc_name,
             target = self.id.target,
             test = self.id.test_name,
@@ -437,13 +448,13 @@ impl TestIteration {
         if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
-                    writeln!(&mut stdout, "{id}: ✅")?;
+                    output.write_completed(&mut stdout, PASS, &label)?;
                 }
                 Ok(IterationResult::Fail(_)) => {
-                    writeln!(&mut stdout, "{id}: ❌")?;
+                    output.write_failed(&mut stdout, format!("{label}: assertions failed"))?;
                 }
                 Err(_) => {
-                    writeln!(&mut stdout, "{id}: ☠️")?;
+                    output.write_failed(&mut stdout, format!("{label}: execution errored"))?;
                 }
             }
         }
@@ -607,6 +618,7 @@ struct Runner {
     engine: Engine,
     status_bar: StatusBar,
     stdout: Stdout,
+    output: CommandOutput,
     permits: usize,
     throttle: u64,
     cancellation: CancellationContext,
@@ -809,7 +821,7 @@ impl Runner {
             .expect("should have test results");
 
         let evaluation = test_iteration
-            .evaluate(clean, quiet, self.stdout.clone())
+            .evaluate(clean, quiet, self.stdout.clone(), self.output)
             .await;
         test_results.push(evaluation);
 
@@ -886,8 +898,10 @@ async fn summarize_results(
     root: &Path,
     clean: bool,
     errors: &mut Vec<Arc<anyhow::Error>>,
+    output: CommandOutput,
 ) {
-    println!("Sprocket test result summary:");
+    output.payload("Sprocket test result summary:");
+    output.payload("");
 
     let mut any_results = false;
     for (document_name, target_results) in results {
@@ -921,24 +935,27 @@ async fn summarize_results(
                 let id = format!("{document_name}::{target_name}::{test_name}");
                 if err_counter > 0 {
                     let total = err_counter + fail_counter + success_counter;
-                    println!(
-                        "☠️ `{id}` had errors: {err_counter} execution{err_plural} errored (out \
-                         of {total} test execution{total_plural})",
+                    output.failed(format!(
+                        "`{id}`: {err_counter} execution{err_plural} errored (out of {total} test \
+                         execution{total_plural})",
                         err_plural = if err_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
-                    );
+                    ));
                 } else if fail_counter > 0 {
                     let total = fail_counter + success_counter;
-                    println!(
-                        "❌ `{id}` failed: {fail_counter} execution{fail_plural} failed \
-                         assertions (out of {total} execution{total_plural})",
+                    output.failed(format!(
+                        "`{id}`: {fail_counter} execution{fail_plural} failed assertions (out of \
+                         {total} execution{total_plural})",
                         fail_plural = if fail_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
-                    )
+                    ))
                 } else {
-                    println!(
-                        "✅ `{id}` success! ({success_counter} successful test execution{plural})",
-                        plural = if success_counter > 1 { "s" } else { "" }
+                    output.completed(
+                        PASS,
+                        format!(
+                            "`{id}` ({success_counter} successful test execution{plural})",
+                            plural = if success_counter > 1 { "s" } else { "" }
+                        ),
                     );
                 }
             }
@@ -947,7 +964,7 @@ async fn summarize_results(
         }
     }
     if !any_results {
-        println!("☠️ no tests executed ☠️")
+        output.skipped("test execution because no runnable tests were found")
     }
 }
 
@@ -981,14 +998,16 @@ async fn clean_all_run_root(run_root: &Path) -> Result<()> {
 pub async fn test(
     args: Args,
     mut config: Config,
-    colorize: bool,
+    output: CommandOutput,
     stdout: Stdout,
 ) -> CommandResult<()> {
+    let colorize = output.colorize();
+
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
         let schema_pretty =
             serde_json::to_string_pretty(&schema).context("serializing test schema")?;
-        println!("{schema_pretty}");
+        output.payload(schema_pretty);
         return Ok(());
     }
 
@@ -1157,6 +1176,7 @@ pub async fn test(
             StatusBar::new(colorize)
         },
         stdout,
+        output,
         permits: parallelism,
         throttle: config.test.throttle,
         cancellation: cancellation.clone(),
@@ -1210,7 +1230,14 @@ pub async fn test(
                 match res {
                     Ok(results) => {
                         if !cancellation.user_canceled() {
-                            summarize_results(results, &runner.root, !args.no_clean, &mut errors).await;
+                            summarize_results(
+                                results,
+                                &runner.root,
+                                !args.no_clean,
+                                &mut errors,
+                                output,
+                            )
+                            .await;
                         }
                     },
                     Err(e) => {

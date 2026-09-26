@@ -25,6 +25,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::output::CommandOutput;
 
 /// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
@@ -474,7 +475,8 @@ impl InputProcessor {
 }
 
 /// Displays the input schema for a WDL document.
-pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
@@ -608,10 +610,10 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
 
     if args.yaml {
         let yaml = serde_yaml_ng::to_string(&inputs).context("failed to serialize inputs")?;
-        println!("{yaml}");
+        output.payload(yaml);
     } else {
         let json = serde_json::to_string_pretty(&inputs).context("failed to serialize inputs")?;
-        println!("{json}");
+        output.payload(json);
     }
 
     Ok(())

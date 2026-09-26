@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
   ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
+* Human-facing output from `sprocket check`, `lint`, `format`, `validate`,
+  `dev doc`, `dev lock`, `dev test`, and `dev server` commands now uses the
+  same action-style lines as `sprocket dev module` (for example, `Passed`,
+  `Failed`, `Generated`, and `Validated`)
+  ([#1164](https://github.com/stjude-rust-labs/sprocket/pull/1164)).
 
 ### Fixed
 

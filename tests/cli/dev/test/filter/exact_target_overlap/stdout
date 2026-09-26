@@ -1,2 +1,3 @@
 Sprocket test result summary:
-✅ `foo::say_hello::overlap` success! (1 successful test execution)
+
+Passed `foo::say_hello::overlap` (1 successful test execution)

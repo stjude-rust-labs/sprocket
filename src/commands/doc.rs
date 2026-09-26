@@ -1,5 +1,6 @@
 //! Implementation of the `doc` command.
 
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -24,6 +25,13 @@ use wdl::doc::install_theme;
 use crate::Config;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+
+/// Documentation check action.
+const CHECK: Action = Action::new("Checked", "check");
+/// Documentation generation action.
+const GENERATE: Action = Action::new("Generated", "generate");
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -94,7 +102,8 @@ pub struct Args {
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
@@ -242,9 +251,38 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         return Err(e.into());
     }
 
+    if args.check {
+        output.completed(
+            CHECK,
+            format!("documentation for `{}`", relative_display(&workspace)),
+        );
+    } else {
+        output.completed(
+            GENERATE,
+            format!("documentation at `{}`", relative_display(&docs_dir)),
+        );
+    }
+
     if args.open {
         opener::open(docs_dir.join("index.html")).context("failed to open documentation")?;
     }
 
     Ok(())
+}
+
+/// Displays a path relative to the current directory when it is inside it.
+fn relative_display(path: &Path) -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| path.strip_prefix(cwd).ok().map(Path::to_path_buf))
+        .map(|relative| {
+            if relative.as_os_str().is_empty() {
+                PathBuf::from(".")
+            } else {
+                relative
+            }
+        })
+        .unwrap_or_else(|| path.to_path_buf())
+        .display()
+        .to_string()
 }
