@@ -1,4 +1,4 @@
-#@ except: MetaSections
+#@ except: BashSetSyntax, ContainerUri, EmptyOutputs, MetaSections
 
 version 1.3
 
