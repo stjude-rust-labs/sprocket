@@ -1,6 +1,6 @@
 #@ except: MetaDescription, MetaSections
 
-version 1.2
+version 1.3
 
 workflow BadWorkflow {
     meta {}

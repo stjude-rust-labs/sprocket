@@ -1,6 +1,6 @@
 #@ except: MetaSections
 
-version 1.2
+version 1.3
 
 # TODO: this comment is only flagged when the `Style` tag is enabled.
 task foo {
