@@ -7,6 +7,7 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
@@ -14,42 +15,65 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::UnboundDecl;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the disallowed output name rule.
 const ID: &str = "OutputName";
 
 /// Declaration identifier too short
-fn decl_identifier_too_short(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier must be at least 3 characters")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("rename the identifier to be at least 3 characters long")
+fn decl_identifier_too_short(severity: Severity, span: Span) -> Diagnostic {
+    diagnostic(
+        severity,
+        "declaration identifier must be at least 3 characters",
+    )
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix("rename the identifier to be at least 3 characters long")
 }
 
 /// Diagnostic for input names that start with [oO]ut[A-Z_]
-fn decl_identifier_starts_with_out(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier starts with 'out'")
+fn decl_identifier_starts_with_out(severity: Severity, span: Span) -> Diagnostic {
+    diagnostic(severity, "declaration identifier starts with 'out'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'out'")
 }
 
 /// Diagnostic for input names that start with "output"
-fn decl_identifier_starts_with_output(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier starts with 'output'")
+fn decl_identifier_starts_with_output(severity: Severity, span: Span) -> Diagnostic {
+    diagnostic(severity, "declaration identifier starts with 'output'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'output'")
 }
 
 /// A lint rule for disallowed output names.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct OutputNameRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// Track if we're in the output section.
     output_section: bool,
+}
+
+impl OutputNameRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.output_name.diagnostic_severity(),
+            output_section: Default::default(),
+        }
+    }
+}
+
+impl Default for OutputNameRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
 }
 
 impl Rule for OutputNameRule {
@@ -132,7 +156,7 @@ task generate_greeting {
 
 impl Visitor for OutputNameRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.output_section = Default::default();
     }
 
     fn output_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &OutputSection) {
@@ -142,6 +166,7 @@ impl Visitor for OutputNameRule {
     fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter && self.output_section {
             check_decl_name(
+                self.severity,
                 diagnostics,
                 &Decl::Bound(decl.clone()),
                 &self.exceptable_nodes(),
@@ -157,6 +182,7 @@ impl Visitor for OutputNameRule {
     ) {
         if reason == VisitReason::Enter && self.output_section {
             check_decl_name(
+                self.severity,
                 diagnostics,
                 &Decl::Unbound(decl.clone()),
                 &self.exceptable_nodes(),
@@ -167,6 +193,7 @@ impl Visitor for OutputNameRule {
 
 /// Check declaration name
 fn check_decl_name(
+    severity: Severity,
     diagnostics: &mut Diagnostics,
     decl: &Decl,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
@@ -178,7 +205,7 @@ fn check_decl_name(
     if length < 3 {
         // name is too short
         diagnostics.exceptable_add(
-            decl_identifier_too_short(decl.name().span()),
+            decl_identifier_too_short(severity, decl.name().span()),
             decl.inner(),
             exceptable_nodes,
         );
@@ -196,7 +223,7 @@ fn check_decl_name(
                 if c.is_ascii_uppercase() || c == &'_' {
                     // name starts with "out"
                     diagnostics.exceptable_add(
-                        decl_identifier_starts_with_out(decl.name().span()),
+                        decl_identifier_starts_with_out(severity, decl.name().span()),
                         decl.inner(),
                         exceptable_nodes,
                     );
@@ -205,7 +232,7 @@ fn check_decl_name(
                     if s == "put" {
                         // name starts with "output"
                         diagnostics.exceptable_add(
-                            decl_identifier_starts_with_output(decl.name().span()),
+                            decl_identifier_starts_with_output(severity, decl.name().span()),
                             decl.inner(),
                             exceptable_nodes,
                         );

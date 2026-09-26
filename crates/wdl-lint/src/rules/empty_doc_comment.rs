@@ -9,33 +9,54 @@ use wdl_ast::Comment;
 use wdl_ast::CommentKind;
 use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::TreeToken;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the empty doc comment rule.
 const ID: &str = "EmptyDocComment";
 
 /// Creates a diagnostic when an empty documentation comment block is found.
-fn empty_doc_comment(span: Span) -> Diagnostic {
-    Diagnostic::note("empty doc comment block")
+fn empty_doc_comment(severity: Severity, span: Span) -> Diagnostic {
+    diagnostic(severity, "empty doc comment block")
         .with_rule(ID)
         .with_highlight(span)
         .with_help("consider adding meaningful documentation text or removing the comment block")
 }
 
 /// Detects empty documentation comment blocks.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct EmptyDocCommentRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The number of comment tokens to skip.
     ///
     /// This is used to avoid processing comments that have already been
     /// handled as part of a block.
     skip_count: usize,
+}
+
+impl EmptyDocCommentRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.empty_doc_comment.diagnostic_severity(),
+            skip_count: Default::default(),
+        }
+    }
+}
+
+impl Default for EmptyDocCommentRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
 }
 
 impl Rule for EmptyDocCommentRule {
@@ -86,7 +107,7 @@ struct Person {
 
 impl Visitor for EmptyDocCommentRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        self.skip_count = Default::default();
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
@@ -142,7 +163,7 @@ impl Visitor for EmptyDocCommentRule {
             let span = Span::new(first_span.start(), last_span.end() - first_span.start());
 
             diagnostics.exceptable_add(
-                empty_doc_comment(span),
+                empty_doc_comment(self.severity, span),
                 &TreeToken::parent(comment.inner()),
                 &self.exceptable_nodes(),
             );

@@ -19,6 +19,7 @@ use wdl::diagnostics::emit_diagnostics;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Baseline;
 use wdl::lint::BaselineEntry;
+use wdl::lint::RuleSeverity;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
@@ -62,6 +63,34 @@ pub struct Common {
         hide_possible_values = true,
     )]
     pub except: Vec<String>,
+
+    /// Sets a rule's severity to `warning`.
+    ///
+    /// Repeat the flag to set multiple rules. This takes precedence over the
+    /// severity in config files and over `--note`. It does not enable a lint
+    /// rule that is excluded by tags or `--except`.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub warn: Vec<String>,
+
+    /// Sets a rule's severity to `note`.
+    ///
+    /// Repeat the flag to set multiple rules. This takes precedence over the
+    /// severity in config files. It does not enable a lint rule that is
+    /// excluded by tags or `--except`.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub note: Vec<String>,
 
     /// Includes a lint tag for running.
     ///
@@ -110,11 +139,14 @@ pub struct Common {
     pub hide_warnings: bool,
 
     /// Generate a baseline file from current diagnostics and exit.
-    #[arg(long, conflicts_with = "no_baseline")]
+    // An explicit `display_order` is set on this and the following arguments
+    // (including `CheckArgs::lint`) so that they sort after the globally
+    // propagated arguments in `--help`; see `run::Args::show_task_stderr`.
+    #[arg(long, conflicts_with = "no_baseline", display_order = 100)]
     pub generate_baseline: bool,
 
     /// Ignore the baseline file for this run.
-    #[arg(long)]
+    #[arg(long, display_order = 101)]
     pub no_baseline: bool,
 }
 
@@ -127,7 +159,9 @@ pub struct CheckArgs {
     pub common: Common,
 
     /// Enable lint checks in addition to validation errors.
-    #[arg(short, long)]
+    // See `Common::generate_baseline` for why an explicit `display_order` is
+    // set.
+    #[arg(short, long, display_order = 102)]
     pub lint: bool,
 }
 
@@ -244,9 +278,18 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         TagSet::EMPTY
     };
 
+    let mut rules_config = config.check.rules;
+    for rule in &args.common.note {
+        rules_config.set_severity(rule, RuleSeverity::Note);
+    }
+    for rule in &args.common.warn {
+        rules_config.set_severity(rule, RuleSeverity::Warning);
+    }
+
     let results = Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(except)
+        .rules_config(rules_config)
         .enabled_lint_tags(enabled_tags)
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())

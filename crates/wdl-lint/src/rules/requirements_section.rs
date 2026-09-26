@@ -9,30 +9,57 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the missing requirements rule.
 const ID: &str = "RequirementsSection";
 
 /// Creates a "missing requirements section" diagnostic.
-fn missing_requirements_section(task: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!("task `{task}` is missing a `requirements` section"))
-        .with_rule(ID)
-        .with_label("this task is missing a `requirements` section", span)
-        .with_fix("add a `requirements` section")
+fn missing_requirements_section(severity: Severity, task: &str, span: Span) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!("task `{task}` is missing a `requirements` section"),
+    )
+    .with_rule(ID)
+    .with_label("this task is missing a `requirements` section", span)
+    .with_fix("add a `requirements` section")
 }
 
 /// Detects missing `requirements` section for tasks.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct RequirementsSectionRule(Option<SupportedVersion>);
+#[derive(Debug, Clone, Copy)]
+pub struct RequirementsSectionRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+    /// The WDL version of the document being linted.
+    version: Option<SupportedVersion>,
+}
+
+impl RequirementsSectionRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.requirements_section.diagnostic_severity(),
+            version: None,
+        }
+    }
+}
+
+impl Default for RequirementsSectionRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
+}
 
 impl Rule for RequirementsSectionRule {
     fn id(&self) -> &'static str {
@@ -112,7 +139,7 @@ task say_hello {
 
 impl Visitor for RequirementsSectionRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        self.version = None;
     }
 
     fn document(
@@ -126,7 +153,7 @@ impl Visitor for RequirementsSectionRule {
             return;
         }
 
-        self.0 = Some(version);
+        self.version = Some(version);
     }
 
     fn task_definition(
@@ -141,14 +168,15 @@ impl Visitor for RequirementsSectionRule {
 
         // This rule should only be present for WDL v1.2 or later. Prior to that
         // version, the `runtime` section was recommended.
-        if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here")
+        if let SupportedVersion::V1(minor_version) =
+            self.version.expect("version should exist here")
             && minor_version >= V1::Two
             && task.requirements().is_none()
             && task.runtime().is_none()
         {
             let name = task.name();
             diagnostics.exceptable_add(
-                missing_requirements_section(name.text(), name.span()),
+                missing_requirements_section(self.severity, name.text(), name.span()),
                 task.inner(),
                 &self.exceptable_nodes(),
             );

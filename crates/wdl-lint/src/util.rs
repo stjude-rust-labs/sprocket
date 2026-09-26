@@ -3,6 +3,14 @@
 use std::process::Command;
 use std::process::Stdio;
 
+use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
+
+/// Creates a diagnostic with the given severity and message.
+pub fn diagnostic(severity: Severity, message: impl Into<String>) -> Diagnostic {
+    Diagnostic::note(message).with_severity(severity)
+}
+
 /// Determines whether or not a string containing embedded quotes is balanced.
 pub fn is_quote_balanced(s: &str, quote_char: char) -> bool {
     let mut closed = true;

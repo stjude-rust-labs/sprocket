@@ -8,15 +8,18 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the doc meta string rule.
 const ID: &str = "DocMetaStrings";
@@ -32,11 +35,19 @@ const RESERVED_KEYS: &[&str] = &[
 ];
 
 /// Creates a diagnostic for non-string metadata values.
-fn non_string_value_diagnostic(key: &str, value_type: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "metadata key `{}` should have a `String` value, found {}",
-        key, value_type
-    ))
+fn non_string_value_diagnostic(
+    severity: Severity,
+    key: &str,
+    value_type: &str,
+    span: Span,
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!(
+            "metadata key `{}` should have a `String` value, found {}",
+            key, value_type
+        ),
+    )
     .with_rule(ID)
     .with_label(
         format!(
@@ -70,6 +81,7 @@ fn is_string_value(value: &MetadataValue) -> bool {
 /// values. This handles both top-level objects and nested objects (like in
 /// "outputs").
 fn check_object_items(
+    severity: Severity,
     obj: &wdl_ast::v1::MetadataObject,
     diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
@@ -83,7 +95,7 @@ fn check_object_items(
         if RESERVED_KEYS.contains(&key) && !is_string_value(&value) {
             let value_type = get_value_type_name(&value);
             diagnostics.exceptable_add(
-                non_string_value_diagnostic(key, value_type, item.span()),
+                non_string_value_diagnostic(severity, key, value_type, item.span()),
                 item.inner(),
                 exceptable_nodes,
             );
@@ -91,14 +103,32 @@ fn check_object_items(
 
         // Recursively check nested objects
         if let MetadataValue::Object(ref nested_obj) = value {
-            check_object_items(nested_obj, diagnostics, exceptable_nodes);
+            check_object_items(severity, nested_obj, diagnostics, exceptable_nodes);
         }
     }
 }
 
 /// Detects non-string values for reserved meta keys.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct DocMetaStringsRule;
+#[derive(Debug, Clone, Copy)]
+pub struct DocMetaStringsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl DocMetaStringsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.doc_meta_strings.diagnostic_severity(),
+        }
+    }
+}
+
+impl Default for DocMetaStringsRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
+}
 
 impl Rule for DocMetaStringsRule {
     fn id(&self) -> &'static str {
@@ -170,9 +200,7 @@ workflow example {
 }
 
 impl Visitor for DocMetaStringsRule {
-    fn reset(&mut self) {
-        *self = Default::default();
-    }
+    fn reset(&mut self) {}
 
     fn metadata_section(
         &mut self,
@@ -194,7 +222,7 @@ impl Visitor for DocMetaStringsRule {
             if RESERVED_KEYS.contains(&key) && !is_string_value(&value) {
                 let value_type = get_value_type_name(&value);
                 diagnostics.exceptable_add(
-                    non_string_value_diagnostic(key, value_type, item.span()),
+                    non_string_value_diagnostic(self.severity, key, value_type, item.span()),
                     item.inner(),
                     &self.exceptable_nodes(),
                 );
@@ -203,7 +231,7 @@ impl Visitor for DocMetaStringsRule {
             // Recursively check any nested objects (handles "outputs" and other
             // nested structures)
             if let MetadataValue::Object(ref obj) = value {
-                check_object_items(obj, diagnostics, &self.exceptable_nodes());
+                check_object_items(self.severity, obj, diagnostics, &self.exceptable_nodes());
             }
         }
     }
@@ -228,14 +256,19 @@ impl Visitor for DocMetaStringsRule {
 
                 // Object with potential reserved keys - recursively check all nested objects
                 MetadataValue::Object(obj) => {
-                    check_object_items(&obj, diagnostics, &self.exceptable_nodes());
+                    check_object_items(self.severity, &obj, diagnostics, &self.exceptable_nodes());
                 }
 
                 // Any other type - warn that parameter descriptions should be strings
                 _ => {
                     let value_type = get_value_type_name(&value);
                     diagnostics.exceptable_add(
-                        non_string_value_diagnostic("description", value_type, item.span()),
+                        non_string_value_diagnostic(
+                            self.severity,
+                            "description",
+                            value_type,
+                            item.span(),
+                        ),
                         item.inner(),
                         &self.exceptable_nodes(),
                     );

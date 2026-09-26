@@ -18,6 +18,7 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -43,6 +44,7 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 use crate::util::serialize_oxford_comma;
 
 /// The identifier for the runtime section rule.
@@ -129,11 +131,14 @@ fn keys_v1_1() -> &'static HashMap<&'static str, KeyKind> {
 }
 
 /// Creates a "deprecated runtime key" diagnostic.
-fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
-    Diagnostic::note(format!(
-        "the `{key}` runtime key has been deprecated in favor of `{replacement}`",
-        key = key.text()
-    ))
+fn deprecated_runtime_key(severity: Severity, key: &Ident, replacement: &str) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!(
+            "the `{key}` runtime key has been deprecated in favor of `{replacement}`",
+            key = key.text()
+        ),
+    )
     .with_rule(ID)
     .with_highlight(key.span())
     .with_fix(format!(
@@ -143,11 +148,19 @@ fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
 }
 
 /// Creates a "non-reserved runtime key" diagnostic for a specific `key`
-fn report_non_reserved_runtime_key(key: &str, span: Span, specification: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "the runtime key `{key}` is not reserved in {specification}; arbitrary runtime keys are \
-         deprecated"
-    ))
+fn report_non_reserved_runtime_key(
+    severity: Severity,
+    key: &str,
+    span: Span,
+    specification: &str,
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!(
+            "the runtime key `{key}` is not reserved in {specification}; arbitrary runtime keys \
+             are deprecated"
+        ),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix(format!("remove the `{key}` key"))
@@ -155,6 +168,7 @@ fn report_non_reserved_runtime_key(key: &str, span: Span, specification: &str) -
 
 /// Creates a "missing recommended runtime key" diagnostic.
 fn report_missing_recommended_keys(
+    severity: Severity,
     mut keys: Vec<&str>,
     runtime_span: Span,
     specification: &str,
@@ -189,7 +203,7 @@ fn report_missing_recommended_keys(
         )
     };
 
-    Diagnostic::note(message)
+    diagnostic(severity, message)
         .with_rule(ID)
         .with_highlight(runtime_span)
         .with_fix(fix)
@@ -198,6 +212,8 @@ fn report_missing_recommended_keys(
 /// Detects the use of deprecated, unknown, or missing runtime keys.
 #[derive(Debug, Clone)]
 pub struct ExpectedRuntimeKeysRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The detected version of the current document.
     version: Option<SupportedVersion>,
     /// Whether or not we've already processed a `runtime` section within the
@@ -213,11 +229,24 @@ impl ExpectedRuntimeKeysRule {
     /// Create a new instance of `ExpectedRuntimeKeysRule`
     pub fn new(config: &Config) -> Self {
         Self {
+            severity: config.expected_runtime_keys.diagnostic_severity(),
             version: None,
             runtime_processed_for_task: false,
             encountered_keys: Vec::new(),
-            allowed_runtime_keys: HashSet::from_iter(config.allowed_runtime_keys.iter().cloned()),
+            allowed_runtime_keys: HashSet::from_iter(
+                config
+                    .expected_runtime_keys
+                    .allowed_runtime_keys
+                    .iter()
+                    .cloned(),
+            ),
         }
+    }
+}
+
+impl Default for ExpectedRuntimeKeysRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
     }
 }
 
@@ -378,6 +407,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                     if !missing_keys.is_empty() {
                         diagnostics.exceptable_add(
                             report_missing_recommended_keys(
+                                self.severity,
                                 missing_keys,
                                 // Note that we don't use `section.span()` to avoid highlighting
                                 // the entire runtime_section
@@ -442,7 +472,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         // deprecated.
                         if let KeyKind::Deprecated(replacement) = kind {
                             diagnostics.exceptable_add(
-                                deprecated_runtime_key(&key_name, replacement),
+                                deprecated_runtime_key(self.severity, &key_name, replacement),
                                 item.inner(),
                                 &self.exceptable_nodes(),
                             );
@@ -469,6 +499,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                                 .into();
                             diagnostics.exceptable_add(
                                 report_non_reserved_runtime_key(
+                                    self.severity,
                                     key_text,
                                     text_for_key_span,
                                     &specification,

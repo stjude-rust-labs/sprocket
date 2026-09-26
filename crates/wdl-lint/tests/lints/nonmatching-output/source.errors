@@ -14,7 +14,7 @@ warning[MatchingOutputMeta]: output `t` is missing from `meta.outputs` section i
    │
    = fix: add a description of output `t` to documentation in `meta.outputs`
 
-note[MatchingOutputMeta]: `outputs` section of `meta` for the task `qux` is out of order
+warning[MatchingOutputMeta]: `outputs` section of `meta` for the task `qux` is out of order
    ┌─ tests/lints/nonmatching-output/source.wdl:51:9
    │  
 51 │ ╭         outputs: {

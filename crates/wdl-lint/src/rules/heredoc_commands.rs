@@ -9,30 +9,52 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CommandSection;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the no curly commands rule.
 const ID: &str = "HereDocCommands";
 
 /// Creates a "curly commands" diagnostic.
-fn curly_commands(task: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "task `{task}` uses curly braces in command section"
-    ))
+fn curly_commands(severity: Severity, task: &str, span: Span) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!("task `{task}` uses curly braces in command section"),
+    )
     .with_rule(ID)
     .with_label("this command section uses curly braces", span)
     .with_fix("instead of curly braces, use heredoc syntax (<<<>>>>) for command sections")
 }
 
 /// Detects curly command section for tasks.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct HereDocCommandsRule;
+#[derive(Debug, Clone, Copy)]
+pub struct HereDocCommandsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl HereDocCommandsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.heredoc_commands.diagnostic_severity(),
+        }
+    }
+}
+
+impl Default for HereDocCommandsRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
+}
 
 impl Rule for HereDocCommandsRule {
     fn id(&self) -> &'static str {
@@ -93,9 +115,7 @@ task say_hello {
 }
 
 impl Visitor for HereDocCommandsRule {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn command_section(
         &mut self,
@@ -113,7 +133,11 @@ impl Visitor for HereDocCommandsRule {
                 .expect("should have a command keyword token");
 
             diagnostics.exceptable_add(
-                curly_commands(name.text(), command_keyword.text_range().into()),
+                curly_commands(
+                    self.severity,
+                    name.text(),
+                    command_keyword.text_range().into(),
+                ),
                 section.inner(),
                 &self.exceptable_nodes(),
             );

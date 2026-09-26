@@ -11,29 +11,55 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::v1::StructDefinition;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the pascal case rule.
 const ID: &str = "PascalCase";
 
 /// Creates a "use pascal case" diagnostic.
-fn use_pascal_case(name: &str, properly_cased_name: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!("struct name `{name}` is not PascalCase"))
+fn use_pascal_case(
+    severity: Severity,
+    name: &str,
+    properly_cased_name: &str,
+    span: Span,
+) -> Diagnostic {
+    diagnostic(severity, format!("struct name `{name}` is not PascalCase"))
         .with_rule(ID)
         .with_label("this name must be PascalCase", span)
         .with_fix(format!("replace `{name}` with `{properly_cased_name}`"))
 }
 
 /// Detects structs defined without a pascal case name.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct PascalCaseRule;
+#[derive(Debug, Clone, Copy)]
+pub struct PascalCaseRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl PascalCaseRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.pascal_case.diagnostic_severity(),
+        }
+    }
+}
+
+impl Default for PascalCaseRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
+}
 
 impl Rule for PascalCaseRule {
     fn id(&self) -> &'static str {
@@ -91,6 +117,7 @@ struct RegisteredUser {
 /// Checks if the given name is pascal case, and if not adds a warning to the
 /// diagnostics.
 fn check_name(
+    severity: Severity,
     name: &str,
     span: Span,
     diagnostics: &mut Diagnostics,
@@ -103,7 +130,7 @@ fn check_name(
     let properly_cased_name = converter.convert(name);
     if name != properly_cased_name {
         diagnostics.exceptable_add(
-            use_pascal_case(name, &properly_cased_name, span),
+            use_pascal_case(severity, name, &properly_cased_name, span),
             node,
             exceptable_nodes,
         );
@@ -111,9 +138,7 @@ fn check_name(
 }
 
 impl Visitor for PascalCaseRule {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn struct_definition(
         &mut self,
@@ -127,6 +152,7 @@ impl Visitor for PascalCaseRule {
 
         let name = def.name();
         check_name(
+            self.severity,
             name.text(),
             name.span(),
             diagnostics,

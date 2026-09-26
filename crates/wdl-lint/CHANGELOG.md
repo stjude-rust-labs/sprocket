@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `RuleSeverity` and a `severity` for every rule in `Config` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+
 #### Changed
 
+* `Config` now has one table per rule, keyed by rule ID, for both analysis and lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Lint rules now report diagnostics at their configured severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `rules()` no longer returns rules whose severity is `off` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` now report all diagnostics as warnings ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `BashSetSyntax` now reports unknown `set` options as warnings instead of errors ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `ShellCheck` now reports a failure to run `shellcheck` as a note instead of an error ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
 

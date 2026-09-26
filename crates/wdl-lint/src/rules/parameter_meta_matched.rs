@@ -11,6 +11,7 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Documented;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -21,15 +22,18 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the matching parameter meta rule.
 const ID: &str = "ParameterMetaMatched";
 
 /// Creates a "missing param meta" diagnostic.
 fn missing_param_meta(
+    severity: Severity,
     parent: &SectionParent,
     missing: &str,
     span: Span,
@@ -47,10 +51,13 @@ fn missing_param_meta(
         "parameter metadata key"
     };
 
-    let mut diagnostic = Diagnostic::warning(format!(
-        "{context} `{parent}` is missing a {suggestion} for {decl_type} `{missing}`",
-        parent = parent.text(),
-    ))
+    let mut diagnostic = diagnostic(
+        severity,
+        format!(
+            "{context} `{parent}` is missing a {suggestion} for {decl_type} `{missing}`",
+            parent = parent.text(),
+        ),
+    )
     .with_rule(ID)
     .with_label(
         format!(
@@ -79,17 +86,25 @@ fn missing_param_meta(
 }
 
 /// Creates an "extra param meta" diagnostic.
-fn extra_param_meta(parent: &SectionParent, extra: &str, span: Span) -> Diagnostic {
+fn extra_param_meta(
+    severity: Severity,
+    parent: &SectionParent,
+    extra: &str,
+    span: Span,
+) -> Diagnostic {
     let (context, parent) = match parent {
         SectionParent::Task(t) => ("task", t.name()),
         SectionParent::Workflow(w) => ("workflow", w.name()),
         SectionParent::Struct(s) => ("struct", s.name()),
     };
 
-    Diagnostic::note(format!(
-        "{context} `{parent}` has an extraneous parameter metadata key named `{extra}`",
-        parent = parent.text(),
-    ))
+    diagnostic(
+        severity,
+        format!(
+            "{context} `{parent}` has an extraneous parameter metadata key named `{extra}`",
+            parent = parent.text(),
+        ),
+    )
     .with_rule(ID)
     .with_label(
         "this key does not correspond to any input declaration",
@@ -99,17 +114,25 @@ fn extra_param_meta(parent: &SectionParent, extra: &str, span: Span) -> Diagnost
 }
 
 /// Creates a "mismatched order" diagnostic.
-fn mismatched_param_order(parent: &SectionParent, span: Span, expected_order: &str) -> Diagnostic {
+fn mismatched_param_order(
+    severity: Severity,
+    parent: &SectionParent,
+    span: Span,
+    expected_order: &str,
+) -> Diagnostic {
     let (context, parent) = match parent {
         SectionParent::Task(t) => ("task", t.name()),
         SectionParent::Workflow(w) => ("workflow", w.name()),
         SectionParent::Struct(s) => ("struct", s.name()),
     };
 
-    Diagnostic::note(format!(
-        "parameter metadata in {context} `{parent}` is out of order",
-        parent = parent.text(),
-    ))
+    diagnostic(
+        severity,
+        format!(
+            "parameter metadata in {context} `{parent}` is out of order",
+            parent = parent.text(),
+        ),
+    )
     .with_rule(ID)
     .with_label(
         "parameter metadata must be in the same order as inputs",
@@ -121,10 +144,28 @@ fn mismatched_param_order(parent: &SectionParent, span: Span, expected_order: &s
 }
 
 /// Detects missing or extraneous entries in a `parameter_meta` section.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ParameterMetaMatchedRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
+}
+
+impl ParameterMetaMatchedRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.parameter_meta_matched.diagnostic_severity(),
+            version: Default::default(),
+        }
+    }
+}
+
+impl Default for ParameterMetaMatchedRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
 }
 
 impl Rule for ParameterMetaMatchedRule {
@@ -221,6 +262,7 @@ task say_hello {
 /// Checks for both missing and extra items in a `parameter_meta` section
 /// along with the order of the items.
 fn check_parameter_meta(
+    severity: Severity,
     parent: &SectionParent,
     decls: Vec<Decl>,
     param_meta: Option<ParameterMetadataSection>,
@@ -282,7 +324,7 @@ fn check_parameter_meta(
     for (name, (span, decl_node, has_doc_comments)) in &decls_map {
         if !has_doc_comments && !parameter_meta_map.contains_key(name) {
             diagnostics.exceptable_add(
-                missing_param_meta(parent, name, *span, suggest_doc_comments),
+                missing_param_meta(severity, parent, name, *span, suggest_doc_comments),
                 param_meta
                     .as_ref()
                     .map_or(*decl_node, |param_meta| param_meta.inner()),
@@ -322,7 +364,7 @@ fn check_parameter_meta(
     for (name, span) in &parameter_meta_map {
         if !decls_map.contains_key(name) {
             diagnostics.exceptable_add(
-                extra_param_meta(parent, name, *span),
+                extra_param_meta(severity, parent, name, *span),
                 param_meta.inner(),
                 exceptable_nodes,
             );
@@ -337,7 +379,7 @@ fn check_parameter_meta(
             .text_range()
             .into();
         diagnostics.exceptable_add(
-            mismatched_param_order(parent, span, &expected_order.join("\n")),
+            mismatched_param_order(severity, parent, span, &expected_order.join("\n")),
             param_meta.inner(),
             exceptable_nodes,
         );
@@ -346,7 +388,7 @@ fn check_parameter_meta(
 
 impl Visitor for ParameterMetaMatchedRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.version = Default::default();
     }
 
     fn document(
@@ -377,6 +419,7 @@ impl Visitor for ParameterMetaMatchedRule {
         // checked as any additional sections is considered a validation
         // error
         check_parameter_meta(
+            self.severity,
             &SectionParent::Task(task.clone()),
             task.input().iter().flat_map(|i| i.declarations()).collect(),
             task.parameter_metadata(),
@@ -399,6 +442,7 @@ impl Visitor for ParameterMetaMatchedRule {
         // checked as any additional sections is considered a validation
         // error
         check_parameter_meta(
+            self.severity,
             &SectionParent::Workflow(workflow.clone()),
             workflow
                 .input()
@@ -430,6 +474,7 @@ impl Visitor for ParameterMetaMatchedRule {
         // checked as any additional sections is considered a validation
         // error
         check_parameter_meta(
+            self.severity,
             &SectionParent::Struct(def.clone()),
             def.members().map(Decl::Unbound).collect(),
             def.parameter_metadata().next(),

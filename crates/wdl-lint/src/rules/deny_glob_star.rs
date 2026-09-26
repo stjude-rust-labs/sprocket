@@ -8,30 +8,51 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the disallowed glob star rule.
 const ID: &str = "DenyGlobStar";
 
 /// Creates a diagnostic for a `glob("*")` pattern in an output declaration.
-fn glob_star_diagnostic(span: Span) -> Diagnostic {
-    Diagnostic::warning("glob pattern \"*\" matches all files")
+fn glob_star_diagnostic(severity: Severity, span: Span) -> Diagnostic {
+    diagnostic(severity, "glob pattern \"*\" matches all files")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("use a more specific pattern to avoid capturing unintended files")
 }
 
 /// A lint rule for disallowing the use of glob patterns with only star.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct DenyGlobStar;
+#[derive(Clone, Copy, Debug)]
+pub struct DenyGlobStar {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl DenyGlobStar {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.deny_glob_star.diagnostic_severity(),
+        }
+    }
+}
+
+impl Default for DenyGlobStar {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
+}
 
 impl Rule for DenyGlobStar {
     fn id(&self) -> &'static str {
@@ -104,9 +125,7 @@ task generate_files {
 }
 
 impl Visitor for DenyGlobStar {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if decl
@@ -126,7 +145,7 @@ impl Visitor for DenyGlobStar {
                     && s.text().is_some_and(|t| t.text() == "*")
                 {
                     diagnostics.exceptable_add(
-                        glob_star_diagnostic(s.span()),
+                        glob_star_diagnostic(self.severity, s.span()),
                         decl.inner(),
                         &self.exceptable_nodes(),
                     );

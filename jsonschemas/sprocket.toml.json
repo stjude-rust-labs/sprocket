@@ -215,40 +215,696 @@
             "null"
           ]
         },
-        "lint": {
-          "description": "Lint rule configuration.",
-          "$ref": "#/$defs/WdlLintConfig"
+        "rules": {
+          "description": "Per-rule configuration, keyed by rule ID.\n\nEach analysis and lint rule has a table with a `severity` (`off`,\n`note`, or `warning`) and any parameters specific to the rule.",
+          "$ref": "#/$defs/WdlRulesConfig",
+          "default": {
+            "UnusedImport": {
+              "severity": "warning"
+            },
+            "UnusedInput": {
+              "severity": "warning"
+            },
+            "UnusedDeclaration": {
+              "severity": "warning"
+            },
+            "UnusedCall": {
+              "severity": "warning"
+            },
+            "UnnecessaryFunctionCall": {
+              "severity": "warning"
+            },
+            "UsingFallbackVersion": {
+              "severity": "warning"
+            },
+            "MisleadingDeclarationOrder": {
+              "severity": "warning"
+            },
+            "MeaninglessLintDirective": {
+              "severity": "note"
+            },
+            "KnownRules": {
+              "severity": "note"
+            },
+            "ExceptDirectiveValid": {
+              "severity": "note"
+            },
+            "CommandSectionIndentation": {
+              "severity": "warning"
+            },
+            "DeprecatedObject": {
+              "severity": "warning"
+            },
+            "DeprecatedPlaceholder": {
+              "severity": "warning"
+            },
+            "DeprecatedRuntimeSection": {
+              "severity": "warning"
+            },
+            "BashSetSyntax": {
+              "severity": "warning",
+              "bash_set_options": [
+                "errexit",
+                "nounset",
+                "pipefail"
+              ]
+            },
+            "CallInputKeyword": {
+              "severity": "note"
+            },
+            "ConciseInput": {
+              "severity": "note"
+            },
+            "ContainerUri": {
+              "severity": "warning"
+            },
+            "DeclarationName": {
+              "severity": "note",
+              "allowed_names": []
+            },
+            "DenyGlobStar": {
+              "severity": "warning"
+            },
+            "DescriptionLength": {
+              "severity": "note"
+            },
+            "DocCommentTabs": {
+              "severity": "warning"
+            },
+            "DocMetaStrings": {
+              "severity": "warning"
+            },
+            "EmptyDocComment": {
+              "severity": "note"
+            },
+            "EmptyOutputs": {
+              "severity": "note"
+            },
+            "ExpectedRuntimeKeys": {
+              "severity": "warning",
+              "allowed_runtime_keys": []
+            },
+            "HereDocCommands": {
+              "severity": "warning"
+            },
+            "HostPathLiterals": {
+              "severity": "note"
+            },
+            "ImportPlacement": {
+              "severity": "warning"
+            },
+            "InlineInstall": {
+              "severity": "warning"
+            },
+            "InputName": {
+              "severity": "note"
+            },
+            "MatchingOutputMeta": {
+              "severity": "warning"
+            },
+            "MetaDescription": {
+              "severity": "note"
+            },
+            "MetaSections": {
+              "severity": "note"
+            },
+            "OutputName": {
+              "severity": "note"
+            },
+            "ParameterDescription": {
+              "severity": "note"
+            },
+            "ParameterMetaMatched": {
+              "severity": "warning"
+            },
+            "PascalCase": {
+              "severity": "warning"
+            },
+            "RedundantNone": {
+              "severity": "note"
+            },
+            "RequirementsSection": {
+              "severity": "warning"
+            },
+            "RuntimeSection": {
+              "severity": "warning"
+            },
+            "ShellCheck": {
+              "severity": "note"
+            },
+            "SnakeCase": {
+              "severity": "warning",
+              "allowed_names": []
+            },
+            "TodoComment": {
+              "severity": "note"
+            },
+            "UnusedDocComments": {
+              "severity": "note"
+            }
+          }
         }
       },
       "additionalProperties": false
     },
-    "WdlLintConfig": {
-      "description": "The configuration for lint rules.",
+    "WdlRulesConfig": {
+      "description": "The configuration for analysis and lint rules.\n\nEach rule has its own table, keyed by the rule's ID, with a\n`severity` and any parameters specific to the rule. Rules that are\nnot configured use their defaults.",
       "type": "object",
       "properties": {
-        "allowed_runtime_keys": {
-          "description": "List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.\n\n##### Example\n\n```toml\nallowed_runtime_keys = [\"foo\"]\n```\n\n[`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
+        "UnusedImport": {
+          "description": "The `UnusedImport` rule.",
+          "$ref": "#/$defs/UnusedImportConfig",
+          "default": {
+            "severity": "warning"
+          }
         },
-        "allowed_names": {
-          "description": "List of names to ignore in the [`SnakeCase`] and [`DeclarationName`]\nlints.\n\n##### Example\n\n```toml\nallowed_names = [\"Foo\", \"counter_int\"]\n```\n\n[`SnakeCase`]: crate::rules::SnakeCaseRule\n[`DeclarationName`]: crate::rules::DeclarationNameRule",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
+        "UnusedInput": {
+          "description": "The `UnusedInput` rule.",
+          "$ref": "#/$defs/UnusedInputConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "UnusedDeclaration": {
+          "description": "The `UnusedDeclaration` rule.",
+          "$ref": "#/$defs/UnusedDeclarationConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "UnusedCall": {
+          "description": "The `UnusedCall` rule.",
+          "$ref": "#/$defs/UnusedCallConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "UnnecessaryFunctionCall": {
+          "description": "The `UnnecessaryFunctionCall` rule.",
+          "$ref": "#/$defs/UnnecessaryFunctionCallConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "UsingFallbackVersion": {
+          "description": "The `UsingFallbackVersion` rule.",
+          "$ref": "#/$defs/UsingFallbackVersionConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "MisleadingDeclarationOrder": {
+          "description": "The `MisleadingDeclarationOrder` rule.",
+          "$ref": "#/$defs/MisleadingDeclarationOrderConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "MeaninglessLintDirective": {
+          "description": "The `MeaninglessLintDirective` rule.",
+          "$ref": "#/$defs/MeaninglessLintDirectiveConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "KnownRules": {
+          "description": "The `KnownRules` rule.",
+          "$ref": "#/$defs/KnownRulesConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "ExceptDirectiveValid": {
+          "description": "The `ExceptDirectiveValid` rule.",
+          "$ref": "#/$defs/ExceptDirectiveValidConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "CommandSectionIndentation": {
+          "description": "The `CommandSectionIndentation` rule.",
+          "$ref": "#/$defs/CommandSectionIndentationConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "DeprecatedObject": {
+          "description": "The `DeprecatedObject` rule.",
+          "$ref": "#/$defs/DeprecatedObjectConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "DeprecatedPlaceholder": {
+          "description": "The `DeprecatedPlaceholder` rule.",
+          "$ref": "#/$defs/DeprecatedPlaceholderConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "DeprecatedRuntimeSection": {
+          "description": "The `DeprecatedRuntimeSection` rule.",
+          "$ref": "#/$defs/DeprecatedRuntimeSectionConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "BashSetSyntax": {
+          "description": "The `BashSetSyntax` rule.",
+          "$ref": "#/$defs/BashSetSyntaxConfig",
+          "default": {
+            "severity": "warning",
+            "bash_set_options": [
+              "errexit",
+              "nounset",
+              "pipefail"
+            ]
+          }
+        },
+        "CallInputKeyword": {
+          "description": "The `CallInputKeyword` rule.",
+          "$ref": "#/$defs/CallInputKeywordConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "ConciseInput": {
+          "description": "The `ConciseInput` rule.",
+          "$ref": "#/$defs/ConciseInputConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "ContainerUri": {
+          "description": "The `ContainerUri` rule.",
+          "$ref": "#/$defs/ContainerUriConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "DeclarationName": {
+          "description": "The `DeclarationName` rule.",
+          "$ref": "#/$defs/DeclarationNameConfig",
+          "default": {
+            "severity": "note",
+            "allowed_names": []
+          }
+        },
+        "DenyGlobStar": {
+          "description": "The `DenyGlobStar` rule.",
+          "$ref": "#/$defs/DenyGlobStarConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "DescriptionLength": {
+          "description": "The `DescriptionLength` rule.",
+          "$ref": "#/$defs/DescriptionLengthConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "DocCommentTabs": {
+          "description": "The `DocCommentTabs` rule.",
+          "$ref": "#/$defs/DocCommentTabsConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "DocMetaStrings": {
+          "description": "The `DocMetaStrings` rule.",
+          "$ref": "#/$defs/DocMetaStringsConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "EmptyDocComment": {
+          "description": "The `EmptyDocComment` rule.",
+          "$ref": "#/$defs/EmptyDocCommentConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "EmptyOutputs": {
+          "description": "The `EmptyOutputs` rule.",
+          "$ref": "#/$defs/EmptyOutputsConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "ExpectedRuntimeKeys": {
+          "description": "The `ExpectedRuntimeKeys` rule.",
+          "$ref": "#/$defs/ExpectedRuntimeKeysConfig",
+          "default": {
+            "severity": "warning",
+            "allowed_runtime_keys": []
+          }
+        },
+        "HereDocCommands": {
+          "description": "The `HereDocCommands` rule.",
+          "$ref": "#/$defs/HereDocCommandsConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "HostPathLiterals": {
+          "description": "The `HostPathLiterals` rule.",
+          "$ref": "#/$defs/HostPathLiteralsConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "ImportPlacement": {
+          "description": "The `ImportPlacement` rule.",
+          "$ref": "#/$defs/ImportPlacementConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "InlineInstall": {
+          "description": "The `InlineInstall` rule.",
+          "$ref": "#/$defs/InlineInstallConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "InputName": {
+          "description": "The `InputName` rule.",
+          "$ref": "#/$defs/InputNameConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "MatchingOutputMeta": {
+          "description": "The `MatchingOutputMeta` rule.",
+          "$ref": "#/$defs/MatchingOutputMetaConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "MetaDescription": {
+          "description": "The `MetaDescription` rule.",
+          "$ref": "#/$defs/MetaDescriptionConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "MetaSections": {
+          "description": "The `MetaSections` rule.",
+          "$ref": "#/$defs/MetaSectionsConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "OutputName": {
+          "description": "The `OutputName` rule.",
+          "$ref": "#/$defs/OutputNameConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "ParameterDescription": {
+          "description": "The `ParameterDescription` rule.",
+          "$ref": "#/$defs/ParameterDescriptionConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "ParameterMetaMatched": {
+          "description": "The `ParameterMetaMatched` rule.",
+          "$ref": "#/$defs/ParameterMetaMatchedConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "PascalCase": {
+          "description": "The `PascalCase` rule.",
+          "$ref": "#/$defs/PascalCaseConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "RedundantNone": {
+          "description": "The `RedundantNone` rule.",
+          "$ref": "#/$defs/RedundantNoneConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "RequirementsSection": {
+          "description": "The `RequirementsSection` rule.",
+          "$ref": "#/$defs/RequirementsSectionConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "RuntimeSection": {
+          "description": "The `RuntimeSection` rule.",
+          "$ref": "#/$defs/RuntimeSectionConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
+        "ShellCheck": {
+          "description": "The `ShellCheck` rule.",
+          "$ref": "#/$defs/ShellCheckConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "SnakeCase": {
+          "description": "The `SnakeCase` rule.",
+          "$ref": "#/$defs/SnakeCaseConfig",
+          "default": {
+            "severity": "warning",
+            "allowed_names": []
+          }
+        },
+        "TodoComment": {
+          "description": "The `TodoComment` rule.",
+          "$ref": "#/$defs/TodoCommentConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "UnusedDocComments": {
+          "description": "The `UnusedDocComments` rule.",
+          "$ref": "#/$defs/UnusedDocCommentsConfig",
+          "default": {
+            "severity": "note"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "UnusedImportConfig": {
+      "description": "Configuration for the `UnusedImport` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RuleSeverity": {
+      "description": "The severity of a rule's diagnostics.",
+      "oneOf": [
+        {
+          "description": "The rule is disabled.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "The rule's diagnostics are notes.",
+          "type": "string",
+          "const": "note"
+        },
+        {
+          "description": "The rule's diagnostics are warnings.",
+          "type": "string",
+          "const": "warning"
+        }
+      ]
+    },
+    "UnusedInputConfig": {
+      "description": "Configuration for the `UnusedInput` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "UnusedDeclarationConfig": {
+      "description": "Configuration for the `UnusedDeclaration` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "UnusedCallConfig": {
+      "description": "Configuration for the `UnusedCall` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "UnnecessaryFunctionCallConfig": {
+      "description": "Configuration for the `UnnecessaryFunctionCall` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "UsingFallbackVersionConfig": {
+      "description": "Configuration for the `UsingFallbackVersion` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MisleadingDeclarationOrderConfig": {
+      "description": "Configuration for the `MisleadingDeclarationOrder` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MeaninglessLintDirectiveConfig": {
+      "description": "Configuration for the `MeaninglessLintDirective` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "KnownRulesConfig": {
+      "description": "Configuration for the `KnownRules` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExceptDirectiveValidConfig": {
+      "description": "Configuration for the `ExceptDirectiveValid` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "CommandSectionIndentationConfig": {
+      "description": "Configuration for the `CommandSectionIndentation` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DeprecatedObjectConfig": {
+      "description": "Configuration for the `DeprecatedObject` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DeprecatedPlaceholderConfig": {
+      "description": "Configuration for the `DeprecatedPlaceholder` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DeprecatedRuntimeSectionConfig": {
+      "description": "Configuration for the `DeprecatedRuntimeSection` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "BashSetSyntaxConfig": {
+      "description": "Configuration for the `BashSetSyntax` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
         },
         "bash_set_options": {
-          "description": "List of options to enforce in the bash `set` builtin for every\n`command` section.\n\n##### Example\n\n```toml\nbash_set_options = [\"errexit\", \"nounset\", \"pipefail\"]\n```",
+          "description": "List of options to enforce in the bash `set` builtin for every\n`command` section.\n\n##### Example\n\n```toml\n[check.rules.BashSetSyntax]\nbash_set_options = [\"errexit\", \"nounset\", \"pipefail\"]\n```",
           "type": "array",
           "items": {
             "$ref": "#/$defs/BashSetOption"
           },
-          "default": []
+          "default": [
+            "errexit",
+            "nounset",
+            "pipefail"
+          ]
         }
       },
       "additionalProperties": false
@@ -278,6 +934,390 @@
         "verbose",
         "xtrace"
       ]
+    },
+    "CallInputKeywordConfig": {
+      "description": "Configuration for the `CallInputKeyword` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConciseInputConfig": {
+      "description": "Configuration for the `ConciseInput` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ContainerUriConfig": {
+      "description": "Configuration for the `ContainerUri` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DeclarationNameConfig": {
+      "description": "Configuration for the `DeclarationName` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        },
+        "allowed_names": {
+          "description": "List of declaration names to ignore.\n\n##### Example\n\n```toml\n[check.rules.DeclarationName]\nallowed_names = [\"counter_int\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "DenyGlobStarConfig": {
+      "description": "Configuration for the `DenyGlobStar` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DescriptionLengthConfig": {
+      "description": "Configuration for the `DescriptionLength` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DocCommentTabsConfig": {
+      "description": "Configuration for the `DocCommentTabs` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DocMetaStringsConfig": {
+      "description": "Configuration for the `DocMetaStrings` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "EmptyDocCommentConfig": {
+      "description": "Configuration for the `EmptyDocComment` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "EmptyOutputsConfig": {
+      "description": "Configuration for the `EmptyOutputs` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExpectedRuntimeKeysConfig": {
+      "description": "Configuration for the `ExpectedRuntimeKeys` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        },
+        "allowed_runtime_keys": {
+          "description": "List of `runtime` keys to ignore.\n\n##### Example\n\n```toml\n[check.rules.ExpectedRuntimeKeys]\nallowed_runtime_keys = [\"foo\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "HereDocCommandsConfig": {
+      "description": "Configuration for the `HereDocCommands` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "HostPathLiteralsConfig": {
+      "description": "Configuration for the `HostPathLiterals` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ImportPlacementConfig": {
+      "description": "Configuration for the `ImportPlacement` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "InlineInstallConfig": {
+      "description": "Configuration for the `InlineInstall` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "InputNameConfig": {
+      "description": "Configuration for the `InputName` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MatchingOutputMetaConfig": {
+      "description": "Configuration for the `MatchingOutputMeta` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MetaDescriptionConfig": {
+      "description": "Configuration for the `MetaDescription` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MetaSectionsConfig": {
+      "description": "Configuration for the `MetaSections` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "OutputNameConfig": {
+      "description": "Configuration for the `OutputName` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParameterDescriptionConfig": {
+      "description": "Configuration for the `ParameterDescription` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParameterMetaMatchedConfig": {
+      "description": "Configuration for the `ParameterMetaMatched` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PascalCaseConfig": {
+      "description": "Configuration for the `PascalCase` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RedundantNoneConfig": {
+      "description": "Configuration for the `RedundantNone` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RequirementsSectionConfig": {
+      "description": "Configuration for the `RequirementsSection` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeSectionConfig": {
+      "description": "Configuration for the `RuntimeSection` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ShellCheckConfig": {
+      "description": "Configuration for the `ShellCheck` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SnakeCaseConfig": {
+      "description": "Configuration for the `SnakeCase` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        },
+        "allowed_names": {
+          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.SnakeCase]\nallowed_names = [\"Foo\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "TodoCommentConfig": {
+      "description": "Configuration for the `TodoComment` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "UnusedDocCommentsConfig": {
+      "description": "Configuration for the `UnusedDocComments` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
     },
     "AnalyzerConfig": {
       "description": "Represents the configuration for the Sprocket `analyzer` command.",

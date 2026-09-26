@@ -15,6 +15,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -30,6 +31,7 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// Represents context of an warning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,41 +67,27 @@ impl fmt::Display for Context {
 const ID: &str = "SnakeCase";
 
 /// Creates a "snake case" diagnostic.
-fn snake_case(context: Context, name: &str, properly_cased_name: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!("{context} name `{name}` is not snake_case"))
-        .with_rule(ID)
-        .with_label("this name must be snake_case", span)
-        .with_fix(format!("replace `{name}` with `{properly_cased_name}`"))
-}
-
-/// Checks if the given name is snake case, and if not adds a warning to the
-/// diagnostics.
-fn check_name(
-    allowed_names: &HashSet<String>,
+fn snake_case(
+    severity: Severity,
     context: Context,
     name: &str,
+    properly_cased_name: &str,
     span: Span,
-    diagnostics: &mut Diagnostics,
-    node: &SyntaxNode,
-    exceptable_nodes: &Option<&'static [SyntaxKind]>,
-) {
-    if allowed_names.contains(name) {
-        return;
-    }
-
-    let converter = Converter::new()
-        .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
-        .to_case(Case::Snake);
-    let properly_cased_name = converter.convert(name);
-    if name != properly_cased_name {
-        let warning = snake_case(context, name, &properly_cased_name, span);
-        diagnostics.exceptable_add(warning, node, exceptable_nodes);
-    }
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!("{context} name `{name}` is not snake_case"),
+    )
+    .with_rule(ID)
+    .with_label("this name must be snake_case", span)
+    .with_fix(format!("replace `{name}` with `{properly_cased_name}`"))
 }
 
 /// Detects non-snake_cased identifiers.
 #[derive(Debug, Clone)]
 pub struct SnakeCaseRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// Whether the visitor is currently within a struct.
     within_struct: bool,
     /// Whether the visitor is currently within an input section.
@@ -114,11 +102,18 @@ impl SnakeCaseRule {
     /// Create a new instance of `SnakeCaseRule`.
     pub fn new(config: &Config) -> Self {
         Self {
+            severity: config.snake_case.diagnostic_severity(),
             within_struct: false,
             within_input: false,
             within_output: false,
-            allowed_names: HashSet::from_iter(config.allowed_names.iter().cloned()),
+            allowed_names: HashSet::from_iter(config.snake_case.allowed_names.iter().cloned()),
         }
+    }
+}
+
+impl Default for SnakeCaseRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
     }
 }
 
@@ -133,6 +128,29 @@ impl SnakeCaseRule {
             Context::Output
         } else {
             Context::PrivateDecl
+        }
+    }
+
+    /// Checks if the given name is snake case, and if not adds a diagnostic.
+    fn check_name(
+        &self,
+        context: Context,
+        name: &str,
+        span: Span,
+        diagnostics: &mut Diagnostics,
+        node: &SyntaxNode,
+    ) {
+        if self.allowed_names.contains(name) {
+            return;
+        }
+
+        let converter = Converter::new()
+            .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
+            .to_case(Case::Snake);
+        let properly_cased_name = converter.convert(name);
+        if name != properly_cased_name {
+            let warning = snake_case(self.severity, context, name, &properly_cased_name, span);
+            diagnostics.exceptable_add(warning, node, &self.exceptable_nodes());
         }
     }
 }
@@ -203,6 +221,7 @@ task say_hello {
 impl Visitor for SnakeCaseRule {
     fn reset(&mut self) {
         *self = Self {
+            severity: self.severity,
             allowed_names: std::mem::take(&mut self.allowed_names),
             within_struct: false,
             within_input: false,
@@ -269,14 +288,12 @@ impl Visitor for SnakeCaseRule {
         }
 
         let name = task.name();
-        check_name(
-            &self.allowed_names,
+        self.check_name(
             Context::Task,
             name.text(),
             name.span(),
             diagnostics,
             task.inner(),
-            &self.exceptable_nodes(),
         );
     }
 
@@ -291,14 +308,12 @@ impl Visitor for SnakeCaseRule {
         }
 
         let name = workflow.name();
-        check_name(
-            &self.allowed_names,
+        self.check_name(
             Context::Workflow,
             name.text(),
             name.span(),
             diagnostics,
             workflow.inner(),
-            &self.exceptable_nodes(),
         );
     }
 
@@ -309,15 +324,7 @@ impl Visitor for SnakeCaseRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        check_name(
-            &self.allowed_names,
-            context,
-            name.text(),
-            name.span(),
-            diagnostics,
-            decl.inner(),
-            &self.exceptable_nodes(),
-        );
+        self.check_name(context, name.text(), name.span(), diagnostics, decl.inner());
     }
 
     fn unbound_decl(
@@ -332,14 +339,6 @@ impl Visitor for SnakeCaseRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        check_name(
-            &self.allowed_names,
-            context,
-            name.text(),
-            name.span(),
-            diagnostics,
-            decl.inner(),
-            &self.exceptable_nodes(),
-        );
+        self.check_name(context, name.text(), name.span(), diagnostics, decl.inner());
     }
 }

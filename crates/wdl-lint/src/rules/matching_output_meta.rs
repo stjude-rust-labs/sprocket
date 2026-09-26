@@ -9,6 +9,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -18,18 +19,27 @@ use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for the non-matching output rule.
 const ID: &str = "MatchingOutputMeta";
 
 /// Creates a "non-matching output" diagnostic.
-fn nonmatching_output(span: Span, name: &str, item_name: &str, ty: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "output `{name}` is missing from `meta.outputs` section in {ty} `{item_name}`"
-    ))
+fn nonmatching_output(
+    severity: Severity,
+    span: Span,
+    name: &str,
+    item_name: &str,
+    ty: &str,
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!("output `{name}` is missing from `meta.outputs` section in {ty} `{item_name}`"),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix(format!(
@@ -38,21 +48,36 @@ fn nonmatching_output(span: Span, name: &str, item_name: &str, ty: &str) -> Diag
 }
 
 /// Creates a missing outputs in meta diagnostic.
-fn missing_outputs_in_meta(span: Span, item_name: &str, ty: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "`outputs` key missing in `meta` section for the {ty} `{item_name}`"
-    ))
+fn missing_outputs_in_meta(
+    severity: Severity,
+    span: Span,
+    item_name: &str,
+    ty: &str,
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!("`outputs` key missing in `meta` section for the {ty} `{item_name}`"),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix("add an `outputs` key to `meta` section describing the outputs")
 }
 
 /// Creates a diagnostic for extra `meta.outputs` entries.
-fn extra_output_in_meta(span: Span, name: &str, item_name: &str, ty: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "`{name}` appears in `outputs` section of the {ty} `{item_name}` but is not a declared \
-         `output`"
-    ))
+fn extra_output_in_meta(
+    severity: Severity,
+    span: Span,
+    name: &str,
+    item_name: &str,
+    ty: &str,
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!(
+            "`{name}` appears in `outputs` section of the {ty} `{item_name}` but is not a \
+             declared `output`"
+        ),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix(format!(
@@ -61,10 +86,17 @@ fn extra_output_in_meta(span: Span, name: &str, item_name: &str, ty: &str) -> Di
 }
 
 /// Creates a diagnostic for out-of-order entries.
-fn out_of_order(span: Span, output_span: Span, item_name: &str, ty: &str) -> Diagnostic {
-    Diagnostic::note(format!(
-        "`outputs` section of `meta` for the {ty} `{item_name}` is out of order"
-    ))
+fn out_of_order(
+    severity: Severity,
+    span: Span,
+    output_span: Span,
+    item_name: &str,
+    ty: &str,
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!("`outputs` section of `meta` for the {ty} `{item_name}` is out of order"),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_highlight(output_span)
@@ -74,19 +106,29 @@ fn out_of_order(span: Span, output_span: Span, item_name: &str, ty: &str) -> Dia
 }
 
 /// Creates a diagnostic for non-object `meta.outputs` entries.
-fn non_object_meta_outputs(span: Span, item_name: &str, ty: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "{ty} `{item_name}` has a `meta.outputs` key that is not an object containing output \
-         descriptions"
-    ))
+fn non_object_meta_outputs(
+    severity: Severity,
+    span: Span,
+    item_name: &str,
+    ty: &str,
+) -> Diagnostic {
+    diagnostic(
+        severity,
+        format!(
+            "{ty} `{item_name}` has a `meta.outputs` key that is not an object containing output \
+             descriptions"
+        ),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix("ensure `meta.outputs` is an object containing descriptions for each output")
 }
 
 /// Detects non-matching outputs.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct MatchingOutputMetaRule<'a> {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The span of the `meta` section.
     current_meta_span: Option<Span>,
     /// Are we currently within a `meta` section?
@@ -107,6 +149,31 @@ pub struct MatchingOutputMetaRule<'a> {
     name: Option<String>,
     /// Prior objects
     prior_objects: Vec<String>,
+}
+
+impl<'a> MatchingOutputMetaRule<'a> {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.matching_output_meta.diagnostic_severity(),
+            current_meta_span: Default::default(),
+            in_meta: Default::default(),
+            current_meta_outputs_span: Default::default(),
+            current_output_span: Default::default(),
+            in_output: Default::default(),
+            meta_outputs_keys: Default::default(),
+            output_keys: Default::default(),
+            ty: Default::default(),
+            name: Default::default(),
+            prior_objects: Default::default(),
+        }
+    }
+}
+
+impl Default for MatchingOutputMetaRule<'_> {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
 }
 
 impl Rule for MatchingOutputMetaRule<'_> {
@@ -215,6 +282,7 @@ fn check_matching(
             if rule.current_meta_span.is_some() {
                 diagnostics.exceptable_add(
                     nonmatching_output(
+                        rule.severity,
                         *span,
                         name,
                         rule.name.as_deref().expect("should have a name"),
@@ -235,6 +303,7 @@ fn check_matching(
             exact_match = false;
             diagnostics.exceptable_add(
                 extra_output_in_meta(
+                    rule.severity,
                     *span,
                     name,
                     rule.name.as_deref().expect("should have a name"),
@@ -250,6 +319,7 @@ fn check_matching(
     if exact_match && !rule.meta_outputs_keys.keys().eq(rule.output_keys.keys()) {
         diagnostics.exceptable_add(
             out_of_order(
+                rule.severity,
                 rule.current_meta_outputs_span
                     .expect("should have a `meta.outputs` span"),
                 rule.current_output_span
@@ -275,6 +345,7 @@ fn handle_meta_outputs_and_reset(
     {
         diagnostics.exceptable_add(
             missing_outputs_in_meta(
+                rule.severity,
                 current_meta_span,
                 rule.name.as_deref().expect("should have a name"),
                 rule.ty.expect("should have a type"),
@@ -427,6 +498,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
                             _ => {
                                 diagnostics.exceptable_add(
                                     non_object_meta_outputs(
+                                        self.severity,
                                         item.span(),
                                         self.name.as_deref().expect("should have a name"),
                                         self.ty.expect("should have a type"),

@@ -2,6 +2,14 @@
 
 This table documents all `sprocket` lint rules implemented on the `main` branch of the `stjude-rust-labs/sprocket` repository. Note that the information may be out of sync with released packages.
 
+Each rule is configured in its own `[check.rules.<RULE>]` table of `sprocket.toml`. Every rule has a `severity` of `off`, `note`, or `warning`; the Config column lists any additional parameters. For example:
+
+```toml
+[check.rules.SnakeCase]
+severity = "note"
+allowed_names = ["Foo"]
+```
+
 ## Lint Rules
 
 | Name                   | Tags                                                        | Description                                                                                                                                 | Config                                                   |
@@ -10,7 +18,7 @@ This table documents all `sprocket` lint rules implemented on the `main` branch 
 | `CallInputKeyword`     | Deprecated, Style                                           | Ensures that the `input:` keyword is not used in call statements when WDL version is 1.2 or later.                                          |                                                          |
 | `ConciseInput`         | Style                                                       | Ensures concise input assignments are used (implicit binding when available).                                                               |                                                          |
 | `ContainerUri`         | Clarity, Portability                                        | Ensures that values for the `container` key within `runtime`/`requirements` sections are well-formed.                                       |                                                          |
-| `DeclarationName`      | Naming, Style, Clarity                                      | Ensures declaration names do not redundantly include their type name.                                                                       |                                                          |
+| `DeclarationName`      | Naming, Style, Clarity                                      | Ensures declaration names do not redundantly include their type name.                                                                       | * `allowed_names` - A list of names to ignore.           |
 | `DenyGlobStar`         | Correctness, Clarity                                        | Ensures outputs do not contain `glob("*")`.                                                                                                 |                                                          |
 | `DescriptionLength`    | SprocketCompatibility                                       | Ensures that description meta entries are not too long for display in Sprocket documentation                                                |                                                          |
 | `DocCommentTabs`       | Style, Clarity                                              | Ensures that doc comments do not contain tab characters.                                                                                    |                                                          |
@@ -34,6 +42,6 @@ This table documents all `sprocket` lint rules implemented on the `main` branch 
 | `RequirementsSection`  | Completeness, Portability                                   | Ensures that tasks have a `requirements` section (for WDL v1.2 and beyond).                                                                 |                                                          |
 | `RuntimeSection`       | Completeness, Portability                                   | Ensures that tasks have a `runtime` section (for WDL v1.1 and prior).                                                                       |                                                          |
 | `ShellCheck`           | Correctness                                                 | Ensures that command blocks are free of ShellCheck violations.                                                                              |                                                          |
-| `SnakeCase`            | Naming, Style, Clarity                                      | Ensures that tasks, workflows, and variables are defined with snake_case names.                                                             |                                                          |
+| `SnakeCase`            | Naming, Style, Clarity                                      | Ensures that tasks, workflows, and variables are defined with snake_case names.                                                             | * `allowed_names` - A list of names to ignore.           |
 | `TodoComment`          | Style                                                       | Flags TODO statements in comments to ensure they are not forgotten.                                                                         |                                                          |
 | `UnusedDocComments`    | Documentation                                               | Ensures that all doc comments are attached to supported syntax items.                                                                       |                                                          |

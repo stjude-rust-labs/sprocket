@@ -7,32 +7,56 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The identifier for this rule.
 const ID: &str = "CallInputKeyword";
 
 /// Creates a diagnostic for unnecessary input keyword.
-fn call_input_unnecessary(span: Span) -> Diagnostic {
-    Diagnostic::note("the `input:` keyword is unnecessary for WDL version 1.2 and later")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("remove the `input:` keyword from the call statement")
+fn call_input_unnecessary(severity: Severity, span: Span) -> Diagnostic {
+    diagnostic(
+        severity,
+        "the `input:` keyword is unnecessary for WDL version 1.2 and later",
+    )
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix("remove the `input:` keyword from the call statement")
 }
 
 /// Detects unnecessary use of the `input:` keyword in call statements.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct CallInputKeywordRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The WDL version of the file is stored here
     version: Option<SupportedVersion>,
+}
+
+impl CallInputKeywordRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.call_input_keyword.diagnostic_severity(),
+            version: Default::default(),
+        }
+    }
+}
+
+impl Default for CallInputKeywordRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
 }
 
 impl Rule for CallInputKeywordRule {
@@ -101,7 +125,7 @@ workflow example {
 
 impl Visitor for CallInputKeywordRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        self.version = Default::default();
     }
 
     fn document(
@@ -138,7 +162,7 @@ impl Visitor for CallInputKeywordRule {
             .find(|c| c.kind() == SyntaxKind::InputKeyword)
         {
             diagnostics.exceptable_add(
-                call_input_unnecessary(input_keyword.text_range().into()),
+                call_input_unnecessary(self.severity, input_keyword.text_range().into()),
                 call.inner(),
                 &self.exceptable_nodes(),
             );

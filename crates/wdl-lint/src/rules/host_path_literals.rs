@@ -9,6 +9,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
@@ -17,9 +18,11 @@ use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::PrimitiveTypeKind;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
+use crate::util::diagnostic;
 
 /// The `HostPathLiterals` rule ID.
 const ID: &str = "HostPathLiterals";
@@ -41,8 +44,8 @@ fn is_absolute_host_path(s: &str) -> bool {
 
 /// Creates a diagnostic for a `File`/`Directory` declaration whose default is
 /// an absolute host path.
-fn absolute_host_path_default(span: Span, decl_name: &str) -> Diagnostic {
-    Diagnostic::note(format!("`{decl_name}` has an absolute host path"))
+fn absolute_host_path_default(severity: Severity, span: Span, decl_name: &str) -> Diagnostic {
+    diagnostic(severity, format!("`{decl_name}` has an absolute host path"))
         .with_rule(ID)
         .with_highlight(span)
         .with_help(
@@ -52,10 +55,28 @@ fn absolute_host_path_default(span: Span, decl_name: &str) -> Diagnostic {
 }
 
 /// Flags `File`/`Directory` declaration defaults that use absolute host paths.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug)]
 pub struct HostPathLiteralsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// Whether the current declaration is inside an `output` section.
     output_section: bool,
+}
+
+impl HostPathLiteralsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.host_path_literals.diagnostic_severity(),
+            output_section: Default::default(),
+        }
+    }
+}
+
+impl Default for HostPathLiteralsRule {
+    fn default() -> Self {
+        Self::new(&Config::default())
+    }
 }
 
 impl Rule for HostPathLiteralsRule {
@@ -114,7 +135,7 @@ task run_tool {
 
 impl Visitor for HostPathLiteralsRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.output_section = Default::default();
     }
 
     fn output_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &OutputSection) {
@@ -147,7 +168,7 @@ impl Visitor for HostPathLiteralsRule {
             && is_absolute_host_path(text.text())
         {
             diagnostics.exceptable_add(
-                absolute_host_path_default(s.span(), decl.name().text()),
+                absolute_host_path_default(self.severity, s.span(), decl.name().text()),
                 decl.inner(),
                 &self.exceptable_nodes(),
             );

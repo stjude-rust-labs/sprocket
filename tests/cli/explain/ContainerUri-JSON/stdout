@@ -19,5 +19,11 @@
   ],
   "url": null,
   "related": [],
-  "config": null
+  "config": [
+    {
+      "name": "severity",
+      "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+      "default": "\"warning\""
+    }
+  ]
 }
