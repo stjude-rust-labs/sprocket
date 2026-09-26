@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Write;
+use std::ops::Range;
 use std::process;
 use std::process::Stdio;
 use std::sync::OnceLock;
@@ -19,16 +20,11 @@ use tracing::debug;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::Example;
-use wdl_analysis::Exceptable;
 use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
-use wdl_analysis::diagnostics::unknown_type;
-use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
-use wdl_analysis::types::TypeNameRef;
-use wdl_analysis::types::v1::EvaluationContext;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_analysis::util::lines_with_offset;
 use wdl_ast::AstNode;
@@ -37,13 +33,11 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
-use wdl_ast::TreeNode;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::Placeholder;
-use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedCommandPart;
 
 use crate::Rule;
@@ -52,7 +46,8 @@ use crate::TagSet;
 use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
-use crate::util::is_quote_balanced;
+use crate::rules::shell_splitting::scanner::ShellState;
+use crate::util::CommandContext;
 use crate::util::program_exists;
 
 /// The shellcheck executable
@@ -75,6 +70,14 @@ const SHELLCHECK_IGNORE_FIX: &[&str] = &[
     "2086", /* Double quote to prevent globbing and word splitting (fix message includes our
             * substitution) */
 ];
+
+/// ShellCheck lints about word splitting that are reported by the
+/// `ShellSplitting` rule when they apply to a placeholder.
+///
+/// These are SC2086 (double quote to prevent globbing and word splitting),
+/// SC2206 (quote to prevent word splitting in an array), and SC2231 (quote
+/// expansions in a `for` loop glob).
+const SHELLCHECK_SPLITTING: &[usize] = &[2086, 2206, 2231];
 
 /// ShellCheck: var is referenced but not assigned.
 const SHELLCHECK_REFERENCED_UNASSIGNED: usize = 2154;
@@ -237,7 +240,11 @@ impl Rule for ShellCheckRule {
     fn explanation(&self) -> &'static str {
         "[ShellCheck](https://shellcheck.net) is a static analysis tool and linter for sh / bash. \
          The lints provided by ShellCheck help prevent common errors and pitfalls in your scripts. \
-         Following its recommendations will increase the robustness of your command sections."
+         Following its recommendations will increase the robustness of your command sections. \
+         Placeholders are replaced with shell variables or literals before ShellCheck runs. \
+         ShellCheck's word splitting diagnostics (SC2086, SC2206, and SC2231) are not reported for \
+         placeholders, because the `ShellSplitting` rule reports those using the types of the \
+         placeholder expressions."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -281,7 +288,7 @@ task say_hello {
     }
 
     fn related_rules(&self) -> &'static [&'static str] {
-        &[]
+        &["ShellSplitting"]
     }
 }
 
@@ -367,174 +374,11 @@ fn shellcheck_lint(
         .with_fix(fix_msg)
 }
 
-/// A context for evaluating expressions in a command section.
-struct CommandContext<'a> {
-    /// The document being linted.
-    document: Document,
-    /// The scope of the command section.
-    scope: ScopeRef<'a>,
-}
-
-impl EvaluationContext for CommandContext<'_> {
-    fn version(&self) -> SupportedVersion {
-        self.document.version().expect("document has a version")
-    }
-
-    fn resolve_name(&mut self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
-        // Check if there are any variables with this name and return if so.
-        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
-            return Some(var);
-        }
-
-        if let Some(ty) = self.document.get_custom_type(name) {
-            return Some(
-                TypeNameRef::new(
-                    name,
-                    ty.as_custom()
-                        .expect("type should be a custom type")
-                        .clone(),
-                )
-                .into(),
-            );
-        }
-
-        None
-    }
-
-    fn resolve_type_name(
-        &mut self,
-        name: &str,
-        span: Span,
-    ) -> std::result::Result<wdl_analysis::types::Type, Diagnostic> {
-        self.scope
-            .lookup(name)
-            .map(|n| n.ty().clone())
-            .ok_or_else(|| unknown_type(name, span))
-    }
-
-    fn task(&self) -> Option<&wdl_analysis::document::Task> {
-        None
-    }
-
-    fn diagnostics_config(&self) -> wdl_analysis::DiagnosticsConfig {
-        wdl_analysis::DiagnosticsConfig::except_all()
-    }
-
-    fn add_diagnostic(&mut self, _diagnostic: Diagnostic) {
-        // do nothing
-    }
-
-    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
-        &mut self,
-        _diagnostic: Diagnostic,
-        _element: &N,
-        _exceptable_nodes: &Option<&'static [SyntaxKind]>,
-    ) {
-        // do nothing
-    }
-}
-
-impl<'a> CommandContext<'a> {
-    /// Create a new `CommandContext`.
-    fn new(document: Document, scope: ScopeRef<'a>) -> Self {
-        Self { document, scope }
-    }
-}
-
-/// Detect embedded quotes surrounding an expression in a string.
-///
-/// This is a utility function called by `evaluates_to_bash_literal`. Only
-/// `expr` that are addition or strings with potentially embedded placeholders
-/// are valid input. For a given expression, it checks through all descendants
-/// to see if there are any name references (variables) that are surrounded by
-/// escaped quotes. In WDL, the parent expression is either an addition
-/// (concatenation, e.g. `~{"foo " + bar + " baz"}`) operation or a string with
-/// an embedded placeholder (e.g. `~{"foo ~{bar} baz"`). So the escaped quotes
-/// are not in a single string literal. The descendant expressions must be
-/// traversed to check for quoting.
-fn is_quoted(expr: &Expr) -> bool {
-    let mut opened = false;
-    let mut name = false;
-
-    let mut placeholders = Vec::new();
-    for c in expr.descendants::<Expr>() {
-        match c {
-            Expr::Literal(LiteralExpr::String(ref s)) => {
-                for p in s.parts() {
-                    match p {
-                        StringPart::Text(t) => {
-                            let mut buffer = String::new();
-                            t.unescape_to(&mut buffer);
-                            buffer.match_indices(&['\'', '"']).for_each(|(..)| {
-                                if opened && name {
-                                    name = false;
-                                }
-                                opened = !opened;
-                            });
-                        }
-                        StringPart::Placeholder(placeholder) => {
-                            placeholders.push(placeholder.expr());
-                            if !opened {
-                                return false;
-                            }
-                            name = true;
-                        }
-                    }
-                }
-            }
-            Expr::NameRef(_) if !placeholders.contains(&c) => {
-                if !opened {
-                    return false;
-                }
-                name = true;
-            }
-            _ => {}
-        }
-    }
-    !name
-}
-
-/// Evaluate an expression to determine if it can be simplified to a literal.
-///
-/// Many WDL expressions can be simplified to a bash literal. For example
-/// concatenation of strings (e.g. `"foo" + "bar"`) is a WDL expression, but can
-/// be represented as a string for shellcheck. This function checks for various
-/// WDL functions and their arguments to evaluate if the WDL expression
-/// ultimately evaluates to a literal in the bash script.
-fn evaluates_to_bash_literal(expr: &Expr) -> bool {
+/// Determines whether an expression is a string literal without placeholders.
+fn is_plain_string(expr: &Expr) -> bool {
     match expr {
-        Expr::Literal(LiteralExpr::String(s)) => {
-            if s.text().is_some() {
-                return true;
-            }
-            is_quoted(expr)
-        }
-        Expr::Literal(_) => true,
-        Expr::Call(c) => match c.target().text() {
-            // `sep` concatenates its arguments with a separator.
-            // `prefix` and `suffix` add a prefix or suffix to the argument.
-            // So we check the array argument to see if it evaluates to a
-            // bash literal.
-            "sep" | "prefix" | "suffix" => evaluates_to_bash_literal(
-                &c.arguments()
-                    .nth(1)
-                    .expect("`sep`/`prefix`/`suffix` call should have two arguments"),
-            ),
-            // `quote` and `squote` both return quoted strings, so they can be treated as bash
-            // literals.
-            "quote" | "squote" => true,
-            _ => false,
-        },
-        Expr::Parenthesized(p) => evaluates_to_bash_literal(&p.expr()),
-        Expr::If(i) => {
-            let (_, if_expr, else_expr) = i.exprs();
-            evaluates_to_bash_literal(&if_expr) && evaluates_to_bash_literal(&else_expr)
-        }
-        Expr::Addition(a) => {
-            let balanced = is_quoted(expr);
-            let (left, right) = a.operands();
-            (evaluates_to_bash_literal(&left) && evaluates_to_bash_literal(&right)) || balanced
-        }
+        Expr::Literal(LiteralExpr::String(s)) => s.text().is_some(),
+        Expr::Parenthesized(p) => is_plain_string(&p.expr()),
         _ => false,
     }
 }
@@ -543,10 +387,9 @@ fn evaluates_to_bash_literal(expr: &Expr) -> bool {
 ///
 /// The boolean returned indicates whether the placeholder was replaced with a
 /// literal (true) or a bash variable (false).
-/// If the placeholder is an integer, float, or boolean,
-/// it is replaced with a literal value.
-/// If it is a string, then the string is checked to see if it evaluates to a
-/// literal. Otherwise, it is replaced with a bash variable.
+/// If the placeholder is an integer, float, or boolean, or a string literal
+/// without placeholders, it is replaced with a literal value. Otherwise, it is
+/// replaced with a bash variable.
 fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
     let placeholder_len: usize = placeholder.inner().text_range().len().into();
 
@@ -561,7 +404,7 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
                     true,
                 );
             }
-            PrimitiveType::String if evaluates_to_bash_literal(&placeholder.expr()) => {
+            PrimitiveType::String if is_plain_string(&placeholder.expr()) => {
                 return ("a".repeat(placeholder_len), true);
             }
             _ => {}
@@ -576,6 +419,18 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
     (bash_var, false)
 }
 
+/// A command section that has been prepared for ShellCheck.
+struct SanitizedCommand {
+    /// The command text with placeholders replaced.
+    text: String,
+    /// The names of the bash variables that replaced placeholders.
+    decls: HashSet<String>,
+    /// The ranges of `text` occupied by those bash variables.
+    placeholders: Vec<Range<usize>>,
+    /// The amount of leading whitespace stripped from each line.
+    amount_stripped: usize,
+}
+
 /// Sanitize a [CommandSection].
 ///
 /// Removes all leading whitespace, replaces placeholders
@@ -585,11 +440,12 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
 fn sanitize_command(
     section: &CommandSection,
     context: &mut CommandContext<'_>,
-) -> Option<(String, HashSet<String>, usize)> {
+) -> Option<SanitizedCommand> {
     let amount_stripped = section.count_whitespace()?;
     let mut sanitized_command = String::new();
     let mut decls = HashSet::new();
-    let mut in_single_quotes = false;
+    let mut placeholders = Vec::new();
+    let mut shell = ShellState::default();
 
     let mut evaluator = ExprTypeEvaluator::new(context);
 
@@ -598,12 +454,14 @@ fn sanitize_command(
             cmd_parts.iter().for_each(|part| match part {
                 StrippedCommandPart::Text(text) => {
                     sanitized_command.push_str(text);
-                    in_single_quotes ^= !is_quote_balanced(text, '\'');
+                    shell.feed(text);
                 }
                 StrippedCommandPart::Placeholder(placeholder) => {
                     let ty = evaluator.evaluate_expr(&placeholder.expr());
                     let (substitution, literal_inserted) = to_bash_var(placeholder, ty);
 
+                    let in_single_quotes = shell.in_single_quotes();
+                    shell.insert();
                     if literal_inserted || in_single_quotes {
                         sanitized_command.push_str(&substitution);
                     } else {
@@ -612,14 +470,44 @@ fn sanitize_command(
                             .take(substitution.len().saturating_sub(3))
                             .collect::<String>();
                         decls.insert(substitution.clone());
+                        let start = sanitized_command.len();
                         sanitized_command.push_str(&format!("${{{substitution}}}"));
+                        placeholders.push(start..sanitized_command.len());
                     }
                 }
             });
-            Some((sanitized_command, decls, amount_stripped))
+            Some(SanitizedCommand {
+                text: sanitized_command,
+                decls,
+                placeholders,
+                amount_stripped,
+            })
         }
         _ => None,
     }
+}
+
+/// Converts a 1-based ShellCheck line and column into a byte offset in the
+/// checked script.
+///
+/// ShellCheck counts each character as one column and expands tabs to the
+/// next multiple of eight columns.
+fn byte_offset(lines: &[(&str, usize)], line: usize, column: usize) -> Option<usize> {
+    let (text, start) = lines.get(line.checked_sub(1)?)?;
+    let mut current = 1;
+    for (offset, c) in text.char_indices() {
+        if current >= column {
+            return Some(start + offset);
+        }
+
+        current = if c == '\t' {
+            (current - 1) / 8 * 8 + 9
+        } else {
+            current + 1
+        };
+    }
+
+    Some(start + text.len())
 }
 
 /// Maps each line as shellcheck sees it to its corresponding span in the
@@ -757,8 +645,12 @@ impl Visitor for ShellCheckRule {
             return;
         };
         let mut context = CommandContext::new(doc.clone(), scope);
-        let Some((sanitized_command, cmd_decls, amount_stripped)) =
-            sanitize_command(section, &mut context)
+        let Some(SanitizedCommand {
+            text: sanitized_command,
+            decls: cmd_decls,
+            placeholders,
+            amount_stripped,
+        }) = sanitize_command(section, &mut context)
         else {
             // This is the case where the command section contains
             // mixed indentation. We silently return and allow
@@ -773,6 +665,9 @@ impl Visitor for ShellCheckRule {
         let shift_values = lines_with_offset(&sanitized_command)
             .map(|(_, line_start, next_start)| next_start - line_start);
         let shift_tree = FenwickTree::from_iter(shift_values);
+        let lines: Vec<_> = lines_with_offset(&sanitized_command)
+            .map(|(line, start, _)| (line, start))
+            .collect();
 
         match run_shellcheck(&sanitized_command) {
             Ok(sc_diagnostics) => {
@@ -790,6 +685,21 @@ impl Visitor for ShellCheckRule {
                     {
                         continue;
                     }
+
+                    // Word splitting of placeholders is reported by the
+                    // `ShellSplitting` rule instead.
+                    if SHELLCHECK_SPLITTING.contains(&sc_diagnostic.code)
+                        && let (Some(start), Some(end)) = (
+                            byte_offset(&lines, sc_diagnostic.line, sc_diagnostic.column),
+                            byte_offset(&lines, sc_diagnostic.end_line, sc_diagnostic.end_column),
+                        )
+                        && placeholders
+                            .iter()
+                            .any(|r| r.start <= start && end <= r.end)
+                    {
+                        continue;
+                    }
+
                     diagnostics.exceptable_add(
                         shellcheck_lint(&sc_diagnostic, &sanitized_command, &line_map, &shift_tree),
                         section.inner(),
@@ -818,13 +728,24 @@ mod tests {
     use ftree::FenwickTree;
     use pretty_assertions::assert_eq;
     use wdl_analysis::util::lines_with_offset;
-    use wdl_ast::Document;
-    use wdl_ast::v1::Expr;
 
     use super::ShellCheckReplacement;
     use super::normalize_replacements;
     use crate::fix;
     use crate::fix::Fixer;
+
+    #[test]
+    fn test_byte_offset() {
+        let script = "echo\t$x\necho ☺ $y\n";
+        let lines: Vec<_> = lines_with_offset(script)
+            .map(|(line, start, _)| (line, start))
+            .collect();
+        assert_eq!(super::byte_offset(&lines, 1, 9), Some(5));
+        assert_eq!(super::byte_offset(&lines, 1, 11), Some(7));
+        assert_eq!(super::byte_offset(&lines, 2, 8), Some(17));
+        assert_eq!(super::byte_offset(&lines, 2, 10), Some(19));
+        assert_eq!(super::byte_offset(&lines, 3, 1), None);
+    }
 
     #[test]
     fn test_normalize_replacements() {
@@ -881,124 +802,5 @@ mod tests {
         let mut fixer = Fixer::new(ref_str);
         fixer.apply_replacement(rep);
         assert_eq!(fixer.value(), expected);
-    }
-
-    /// Parse a string containing a placeholder expression in the context of a
-    /// `command` with a handful of inputs in scope.
-    fn parse_placeholder_as_expr(command: &str) -> Expr {
-        let source = format!(
-            r#"
-version 1.2
-
-task test {{
-    input {{
-        String foo = "bar"
-        Int baz = 42
-        Array[File] arr = ["a", "b", "c"]
-    }}
-    command {{
-        {command}
-    }}
-}}
-"#
-        );
-        let (document, _diagnostics) = Document::parse(&source, None);
-        document
-            .ast()
-            .as_v1()
-            .expect("should be a v1 AST")
-            .tasks()
-            .next()
-            .expect("has a task")
-            .command()
-            .expect("has a command")
-            .parts()
-            // 0th element is the text preceding the start of the spliced command
-            .nth(1)
-            .expect("has a command part")
-            .unwrap_placeholder()
-            .expr()
-    }
-
-    #[test]
-    fn test_is_quoted1() {
-        // Both sides of the addition are literals
-        assert!(super::is_quoted(&parse_placeholder_as_expr(
-            r#"echo ~{"hello" + " world"}"#
-        )));
-    }
-    #[test]
-    fn test_is_quoted2() {
-        // This contains an unquoted variable.
-        assert!(!super::is_quoted(&parse_placeholder_as_expr(
-            r#"echo ~{"hello " + foo + " world"}"#
-        )));
-    }
-    #[test]
-    fn test_is_quoted3() {
-        // This contains a quoted variable.
-        assert!(super::is_quoted(&parse_placeholder_as_expr(
-            r#"echo ~{"hello '" + foo + "' world"}"#
-        )));
-    }
-    #[test]
-    fn test_is_quoted4() {
-        // This contains a hanging quote.
-        assert!(!super::is_quoted(&parse_placeholder_as_expr(
-            r#"echo ~{"hello '" + foo + " world"}"#
-        )));
-    }
-
-    #[test]
-    fn test_evaluates_to_bash_literal1() {
-        // Both sides of the addition are literals
-        assert!(super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{"hello" + " world"}"#)
-        ));
-    }
-    #[test]
-    fn test_evaluates_to_bash_literal2() {
-        // This is not a literal because of the unquoted
-        // placeholder substitution.
-        assert!(!super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{"hello " + foo + " world"}"#)
-        ));
-    }
-    #[test]
-    fn test_evaluates_to_bash_literal3() {
-        // This is a literal because of the quoted
-        // placeholder substitution.
-        assert!(super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{"hello '" + foo + "' world"}"#)
-        ));
-    }
-    #[test]
-    fn test_evaluates_to_bash_literal4() {
-        // This is a literal because all array elements are literals.
-        assert!(super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{sep(" ", ["a", "b", "c"])}"#)
-        ));
-    }
-    #[test]
-    fn test_evaluates_to_bash_literal5() {
-        // This is not a literal because the array is not
-        // guaranteed to be all literals.
-        assert!(!super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{sep(" ", arr)}"#)
-        ));
-    }
-    #[test]
-    fn test_evaluates_to_bash_literal6() {
-        // Surrounding with quotes makes it a literal.
-        assert!(super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{sep(" ", quote(arr))}"#)
-        ));
-    }
-    #[test]
-    fn test_evaluates_to_bash_literal7() {
-        // This contains a quoted placeholder.
-        assert!(!super::evaluates_to_bash_literal(
-            &parse_placeholder_as_expr(r#"echo ~{if 1=1 then "hello '~{foo}' world" else ""}"#)
-        ));
     }
 }

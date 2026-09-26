@@ -155,6 +155,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),
+        Box::<rules::ShellSplittingRule>::default(),
         Box::<rules::DescriptionLengthRule>::default(),
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
