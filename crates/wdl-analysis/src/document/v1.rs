@@ -3528,17 +3528,20 @@ mod tests {
         // if (...) {
         //   Int bad = 1
         // } else {
-        //   String bad = "baz"
+        //   Boolean bad = true
         // }
         //
         // `bad` will return an error, as there is no common type between a
-        // `String` and an `Int`.
+        // `Boolean` and an `Int`.
         let bad_scopes = vec![
             example_scope(vec![(
                 "bad",
                 Type::Primitive(PrimitiveType::Integer, false),
             )]),
-            example_scope(vec![("bad", Type::Primitive(PrimitiveType::String, false))]),
+            example_scope(vec![(
+                "bad",
+                Type::Primitive(PrimitiveType::Boolean, false),
+            )]),
         ];
 
         let mut scope_union = ScopeUnion::new();

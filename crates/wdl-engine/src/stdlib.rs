@@ -171,9 +171,9 @@ pub(crate) fn temp_path_to_value(
 #[derive(Clone)]
 pub struct CallArgument {
     /// The value of the argument.
-    value: Value,
+    pub(crate) value: Value,
     /// The span of the expression of the argument.
-    span: Span,
+    pub(crate) span: Span,
 }
 
 impl CallArgument {

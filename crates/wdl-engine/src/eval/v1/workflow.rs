@@ -1170,15 +1170,56 @@ impl State {
                 .await?;
 
             let mut scopes = self.scopes.write().await;
-            let (parent, child) = scopes.parent_mut(scope);
+
+            // Coerce the values from the clause to the types resolved across
+            // all clauses (e.g. a `String` in one clause and an
+            // `Int` in another)
+            let mut values = HashMap::new();
+            {
+                let context = WorkflowEvaluationContext::new(
+                    &self,
+                    scopes.reference(Scopes::ROOT_INDEX),
+                    self.http_cancellation_token(),
+                );
+                let child = scopes.reference(scope);
+                for (name, name_info) in &all_names {
+                    let Some(value) = child.local(name) else {
+                        continue;
+                    };
+
+                    let value = if matches!(value, Value::Call(_)) {
+                        value.clone()
+                    } else {
+                        value.coerce(Some(&context), name_info.ty()).map_err(|e| {
+                            let span = clause
+                                .statements()
+                                .find_map(|s| {
+                                    s.into_declaration()
+                                        .filter(|d| d.name().text() == name)
+                                        .map(|d| d.name().span())
+                                })
+                                .unwrap_or_else(|| name_info.span());
+                            EvaluationError::new(
+                                self.document.clone(),
+                                runtime_type_mismatch(
+                                    e,
+                                    name_info.ty(),
+                                    name_info.span(),
+                                    &value.ty(),
+                                    span,
+                                ),
+                            )
+                        })?
+                    };
+
+                    values.insert(name.clone(), value);
+                }
+            }
+
+            let (parent, _) = scopes.parent_mut(scope);
 
             for (name, name_info) in all_names {
-                let value = child
-                    .local()
-                    .find(|(n, _)| *n == name)
-                    .map(|(_, v)| v.clone());
-
-                if let Some(value) = value {
+                if let Some(value) = values.remove(&name) {
                     parent.insert(name, value);
                 } else if let Type::Call(call_ty) = &name_info.ty() {
                     parent.insert(

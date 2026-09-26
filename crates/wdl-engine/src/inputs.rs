@@ -24,6 +24,7 @@ use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
+use wdl_analysis::types::Type;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
@@ -32,6 +33,7 @@ use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
 use crate::EvaluationPath;
+use crate::PrimitiveValue;
 use crate::Value;
 
 /// A type alias to a JSON map (object).
@@ -91,6 +93,85 @@ fn check_input_type(name: &str, input: &Input, value: &Value) -> Result<()> {
             );
         }
         bail!("expected {expected_ty:#} for input `{name}`, but found {ty:#}");
+    }
+
+    check_string_conversions(value, &expected_ty)
+        .with_context(|| format!("invalid value for input `{name}`"))
+}
+
+/// Checks that any `String` values within the given value that will be
+/// coerced to `Int`, `Float`, or `Boolean` are valid for the target type.
+///
+/// Such conversions are type-correct but may fail based on the value itself,
+/// so they are checked eagerly to report invalid inputs during validation.
+fn check_string_conversions(value: &Value, target: &Type) -> Result<()> {
+    match value {
+        Value::Primitive(PrimitiveValue::String(_)) => {
+            if matches!(
+                target.as_primitive(),
+                Some(PrimitiveType::Integer | PrimitiveType::Float | PrimitiveType::Boolean)
+            ) {
+                value.coerce(None, target)?;
+            }
+        }
+        Value::Compound(CompoundValue::Array(array)) => {
+            if let Some(ty) = target.as_array() {
+                for (index, element) in array.as_slice().iter().enumerate() {
+                    check_string_conversions(element, ty.element_type())
+                        .with_context(|| format!("invalid array element at index {index}"))?;
+                }
+            }
+        }
+        Value::Compound(CompoundValue::Pair(pair)) => {
+            if let Some(ty) = target.as_pair() {
+                check_string_conversions(pair.left(), ty.left_type())
+                    .context("invalid left value of pair")?;
+                check_string_conversions(pair.right(), ty.right_type())
+                    .context("invalid right value of pair")?;
+            }
+        }
+        Value::Compound(CompoundValue::Map(map)) => {
+            if let Some(ty) = target.as_map() {
+                for (key, value) in map.iter() {
+                    check_string_conversions(&Value::Primitive(key.clone()), ty.key_type())
+                        .with_context(|| format!("invalid map key `{key}`"))?;
+                    check_string_conversions(value, ty.value_type())
+                        .with_context(|| format!("invalid value for map key `{key}`"))?;
+                }
+            }
+        }
+        Value::Compound(CompoundValue::Object(object)) => {
+            check_member_string_conversions(object.iter(), target)?;
+        }
+        Value::Compound(CompoundValue::Struct(s)) => {
+            check_member_string_conversions(s.iter(), target)?;
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// Checks the members of an object or struct value for invalid `String`
+/// conversions.
+fn check_member_string_conversions<'a>(
+    members: impl Iterator<Item = (&'a str, &'a Value)>,
+    target: &Type,
+) -> Result<()> {
+    if let Some(ty) = target.as_struct() {
+        for (name, value) in members {
+            if let Some(member_ty) = ty.members().get(name) {
+                check_string_conversions(value, member_ty)
+                    .with_context(|| format!("invalid value for member `{name}`"))?;
+            }
+        }
+    } else if let Some(ty) = target.as_map() {
+        for (name, value) in members {
+            check_string_conversions(&Value::from(name.to_string()), ty.key_type())
+                .with_context(|| format!("invalid map key `{name}`"))?;
+            check_string_conversions(value, ty.value_type())
+                .with_context(|| format!("invalid value for map key `{name}`"))?;
+        }
     }
 
     Ok(())
@@ -256,10 +337,16 @@ impl TaskInputs {
         }
 
         // Check the types of the specified requirements
+        //
+        // Requirement and hint overrides are used without being coerced, so a
+        // coercion from `String` to `Int`, `Float`, or `Boolean` isn't allowed
         for (name, value) in &self.requirements {
             let ty = value.ty();
             if let Some(expected) = task_requirement_types(version, name.as_str()) {
-                if !expected.iter().any(|target| ty.is_coercible_to(target)) {
+                if !expected
+                    .iter()
+                    .any(|target| ty.is_coercible_to_without_string_conversion(target))
+                {
                     bail!(
                         "expected {expected:#} for requirement `{name}`, but found {ty:#}",
                         expected = display_types(expected),
@@ -276,7 +363,9 @@ impl TaskInputs {
         for (name, value) in &self.hints {
             let ty = value.ty();
             if let Some(expected) = task_hint_types(version, name.as_str(), false)
-                && !expected.iter().any(|target| ty.is_coercible_to(target))
+                && !expected
+                    .iter()
+                    .any(|target| ty.is_coercible_to_without_string_conversion(target))
             {
                 bail!(
                     "expected {expected:#} for hint `{name}`, but found {ty:#}",
@@ -337,7 +426,7 @@ impl TaskInputs {
 
                 if let Some((requirement, expected)) = matched {
                     for ty in expected {
-                        if value.ty().is_coercible_to(ty) {
+                        if value.ty().is_coercible_to_without_string_conversion(ty) {
                             if requirement {
                                 self.requirements.insert(remainder.to_string(), value);
                             } else {

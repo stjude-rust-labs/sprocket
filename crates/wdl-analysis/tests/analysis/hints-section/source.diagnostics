@@ -38,22 +38,6 @@ error: type mismatch: expected type `Int` or type `String`, but found type `Bool
     │         │
     │         this expects type `Int` or type `String`
 
-error: type mismatch: expected type `Boolean`, but found type `String`
-    ┌─ tests/analysis/hints-section/source.wdl:120:21
-    │
-120 │         short_task: "false"
-    │         ----------  ^^^^^^^ this is type `String`
-    │         │
-    │         this expects type `Boolean`
-
-error: type mismatch: expected type `Boolean`, but found type `String`
-    ┌─ tests/analysis/hints-section/source.wdl:121:32
-    │
-121 │         localization_optional: "true"
-    │         ---------------------  ^^^^^^ this is type `String`
-    │         │
-    │         this expects type `Boolean`
-
 error: task `baz` does not have an input named `wrong`
     ┌─ tests/analysis/hints-section/source.wdl:123:13
     │

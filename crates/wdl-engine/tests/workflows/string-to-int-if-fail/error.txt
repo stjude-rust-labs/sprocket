@@ -1,0 +1,5 @@
+error: cannot coerce type `String` to type `Int`: `two` is not a valid integer
+  ┌─ tests/workflows/string-to-int-if-fail/source.wdl:7:43
+  │
+7 │     Int result = if condition then 1 else "two"
+  │                                           ^^^^^

@@ -1074,6 +1074,22 @@ impl FunctionSignature {
         arguments.len() < self.required() || arguments.len() > self.parameters.len()
     }
 
+    /// Realizes the parameter types of the signature for the given argument
+    /// types.
+    ///
+    /// Yields one item per argument; an item is `None` if the corresponding
+    /// parameter type cannot be realized.
+    pub fn realize_parameter_types<'a>(
+        &'a self,
+        arguments: &[Type],
+    ) -> impl Iterator<Item = Option<Type>> + 'a {
+        let type_parameters = self.infer_type_parameters(arguments, false);
+        self.parameters
+            .iter()
+            .take(arguments.len())
+            .map(move |p| p.ty.realize(&type_parameters))
+    }
+
     /// Binds the function signature to the given arguments.
     ///
     /// This function will infer the type parameters for the arguments and
@@ -5332,11 +5348,11 @@ mod tests {
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(1));
 
-        // Check for a string argument (should be a type mismatch)
+        // Check for a boolean argument (should be a type mismatch)
         let e = f
             .bind(
                 SupportedVersion::V1(V1::Two),
-                &[PrimitiveType::String.into()],
+                &[PrimitiveType::Boolean.into()],
             )
             .expect_err("bind should fail");
         assert_eq!(
@@ -5542,11 +5558,21 @@ mod tests {
         assert_eq!(binding.index(), 3);
         assert_eq!(binding.return_type().to_string(), "Float");
 
-        // Check for `(String, Int)`
+        // Check for `(String, Int)` (a `String` coerces to both `Int` and
+        // `Float`)
+        let e = f
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::String.into(), PrimitiveType::Integer.into()],
+            )
+            .expect_err("binding should fail");
+        assert!(matches!(e, FunctionBindError::Ambiguous { .. }));
+
+        // Check for `(Boolean, Int)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::One),
-                &[PrimitiveType::String.into(), PrimitiveType::Integer.into()],
+                &[PrimitiveType::Boolean.into(), PrimitiveType::Integer.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(
@@ -5557,11 +5583,11 @@ mod tests {
             }
         );
 
-        // Check for `(Int, String)`
+        // Check for `(Int, Boolean)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::Two),
-                &[PrimitiveType::Integer.into(), PrimitiveType::String.into()],
+                &[PrimitiveType::Integer.into(), PrimitiveType::Boolean.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(
@@ -5572,11 +5598,11 @@ mod tests {
             }
         );
 
-        // Check for `(String, Float)`
+        // Check for `(Boolean, Float)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::One),
-                &[PrimitiveType::String.into(), PrimitiveType::Float.into()],
+                &[PrimitiveType::Boolean.into(), PrimitiveType::Float.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(
@@ -5587,11 +5613,11 @@ mod tests {
             }
         );
 
-        // Check for `(Float, String)`
+        // Check for `(Float, Boolean)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::Two),
-                &[PrimitiveType::Float.into(), PrimitiveType::String.into()],
+                &[PrimitiveType::Float.into(), PrimitiveType::Boolean.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(

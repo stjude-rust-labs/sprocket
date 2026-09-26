@@ -15,7 +15,7 @@ task forward_reference {
     # OK as the forward reference is to a string
     String x = a
 
-    String z = "5"
+    Boolean z = true
 
     command <<<>>>
 

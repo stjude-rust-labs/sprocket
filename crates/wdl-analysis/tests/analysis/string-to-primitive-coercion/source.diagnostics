@@ -1,0 +1,29 @@
+error: type mismatch: expected negation operand to be type `Int` or `Float`, but found type `String`
+   ┌─ tests/analysis/string-to-primitive-coercion/source.wdl:45:22
+   │
+45 │     Float negated = -s
+   │                      ^ this is type `String`
+
+error: type mismatch: operator `==` cannot compare type `Int` to type `String`
+   ┌─ tests/analysis/string-to-primitive-coercion/source.wdl:46:24
+   │
+46 │     Boolean compared = 1 == s
+   │                        ^^^^^^
+   │                        │    │
+   │                        │    this is type `String`
+   │                        this is type `Int`
+
+error: type mismatch: operator `<` cannot compare type `String` to type `Int`
+   ┌─ tests/analysis/string-to-primitive-coercion/source.wdl:47:20
+   │
+47 │     Boolean less = s < 2
+   │                    ^^^^^
+   │                    │   │
+   │                    │   this is type `Int`
+   │                    this is type `String`
+
+error: type mismatch: expected index to be type `Int`, but found type `String`
+   ┌─ tests/analysis/string-to-primitive-coercion/source.wdl:48:22
+   │
+48 │     Int indexed = ai[s]
+   │                      ^ this is type `String`

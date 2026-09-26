@@ -1,4 +1,5 @@
 error: invalid input key `collect.count`
 
 Caused by:
-    expected type `Int` for input `count`, but found type `String`
+    0: invalid value for input `count`
+    1: cannot coerce type `String` to type `Int`: `invalid` is not a valid integer
