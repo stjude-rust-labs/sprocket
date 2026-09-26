@@ -1,0 +1,16 @@
+warning[NamingConvention]: task name `myTask` is not snake case
+  ┌─ tests/lints/naming-convention-style/source.wdl:5:6
+  │
+5 │ task myTask {
+  │      ^^^^^^ this name must be snake case
+  │
+  = fix: replace `myTask` with `my_task`
+
+warning[BashSetSyntax]: missing `set` command
+  ┌─ tests/lints/naming-convention-style/source.wdl:6:5
+  │
+6 │     command <<<>>>
+  │     ^^^^^^^^^^^^^^
+  │
+  = help: `set` commands should be on the first line of `command` sections
+

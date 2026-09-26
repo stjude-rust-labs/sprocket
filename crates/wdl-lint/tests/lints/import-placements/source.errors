@@ -1,15 +1,23 @@
 warning[ImportPlacement]: misplaced import
-   ┌─ tests/lints/import-placements/source.wdl:16:1
+   ┌─ tests/lints/import-placements/source.wdl:13:1
    │
-16 │ import "jam.wdl"  # BAD
+13 │ import "late.wdl" as Late  # BAD
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: move this import so that it comes after the version statement but before any document items
+
+warning[ImportPlacement]: misplaced import
+   ┌─ tests/lints/import-placements/source.wdl:22:1
+   │
+22 │ import "jam.wdl"   # BAD
    │ ^^^^^^^^^^^^^^^^
    │
    = fix: move this import so that it comes after the version statement but before any document items
 
 warning[ImportPlacement]: misplaced import
-   ┌─ tests/lints/import-placements/source.wdl:17:1
+   ┌─ tests/lints/import-placements/source.wdl:23:1
    │
-17 │ import "qux.wdl"  # BAD
+23 │ import "qux.wdl"   # BAD
    │ ^^^^^^^^^^^^^^^^
    │
    = fix: move this import so that it comes after the version statement but before any document items

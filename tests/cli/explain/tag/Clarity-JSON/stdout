@@ -1,1 +1,1 @@
-{"name":"Clarity","applicable_lints":["ContainerUri","DeclarationName","DenyGlobStar","DocCommentTabs","EmptyDocComment","HereDocCommands","ImportPlacement","MetaSections","PascalCase","SnakeCase"]}
+{"name":"Clarity","applicable_lints":["ContainerUri","DeclarationName","DenyGlobStar","DocCommentTabs","EmptyDocComment","HereDocCommands","ImportPlacement","MetaSections","NamingConvention"]}

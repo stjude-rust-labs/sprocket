@@ -12,6 +12,21 @@ Options:
 
           Repeat the flag multiple times to except multiple rules or tags. This is additive with exceptions found in config files.
 
+      --deny <RULE>
+          Sets a rule's severity to error.
+
+          Repeat the flag to escalate multiple rules. Takes precedence over severities set in config files.
+
+      --warn <RULE>
+          Sets a rule's severity to warning.
+
+          Repeat the flag to set multiple rules. Takes precedence over severities set in config files.
+
+      --note <RULE>
+          Sets a rule's severity to note.
+
+          Repeat the flag to set multiple rules. Takes precedence over severities set in config files.
+
       --tag <TAG>
           Includes a lint tag for running.
 
@@ -42,15 +57,6 @@ Options:
 
       --hide-warnings
           Hide diagnostics with `warning` or `note` severity
-
-      --generate-baseline
-          Generate a baseline file from current diagnostics and exit
-
-      --no-baseline
-          Ignore the baseline file for this run
-
-  -l, --lint
-          Enable lint checks in addition to validation errors
 
   -v, --verbose...
           Increase logging verbosity
@@ -85,6 +91,15 @@ Options:
           Skip searching for and loading configuration files.
 
           Only a configuration file specified as a command line argument will be used.
+
+      --generate-baseline
+          Generate a baseline file from current diagnostics and exit
+
+      --no-baseline
+          Ignore the baseline file for this run
+
+  -l, --lint
+          Enable lint checks in addition to validation errors
 
   -h, --help
           Print help (see a summary with '-h')

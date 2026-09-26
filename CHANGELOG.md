@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Per-rule lint and validation configuration under `[check.rules.<RuleId>]`,
+  letting each rule set its severity (`off`, `note`, `warning`, or `error`) and
+  any parameters that apply to it.
+* `--deny`, `--warn`, and `--note` flags on `check` to set a rule's severity
+  from the command line, taking precedence over config files.
+* `sprocket explain` now lists each rule's configurable severity and parameters,
+  and `sprocket config default` emits a commented template pointing at the
+  per-rule tables.
+
 ### Changed
 
+* Replaced the flat `[check.lint]` configuration table with per-rule
+  `[check.rules.<RuleId>]` tables. A configuration that still uses `[check.lint]`
+  now produces a migration error describing the move.
+* Replaced the `SnakeCase` and `PascalCase` lint rules with a configurable
+  `NamingConvention` rule. The old IDs are now rejected with a migration error
+  in `--except`, `--deny`, `--warn`, `--note`, `check.except`, and
+  `[check.rules]`; `#@ except` comments that name them still suppress
+  `NamingConvention` but report a deprecation note.
 * Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).
 * `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
 * Unknown keys in `sprocket.toml` will now produce warnings, rather than error ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
@@ -16,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Lint rule parameters configured in `sprocket.toml` are now honored by the
+  `check` and `lint` commands; previously they were applied only in the editor.
 * Fixed a stack overflow occurring when parsing CLI options that occurred on
   debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
 * Fixed intermittent `check` and `run` failures when a document imports several

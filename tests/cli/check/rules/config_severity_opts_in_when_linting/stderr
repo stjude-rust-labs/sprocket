@@ -1,0 +1,7 @@
+warning[TodoComment]: remaining `TODO` item found
+  ┌─ source.wdl:3:3
+  │
+3 │ # TODO: this is only reported when linting
+  │   ^^^^
+  │
+  = fix: remove the `TODO` item once it has been implemented

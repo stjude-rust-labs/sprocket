@@ -19,6 +19,7 @@ use crate::RuleMap;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::find_nearest_rule;
+use crate::replacement_rule_id;
 
 /// Creates a "misplaced directive" diagnostic.
 fn misplaced_except_directive(
@@ -57,6 +58,16 @@ fn unknown_rule(id: &str, nearest_rule: Option<String>, span: Span) -> Diagnosti
     }
 
     diagnostic
+}
+
+/// Creates a diagnostic for a deprecated rule alias.
+fn deprecated_rule_alias(alias: &str, replacement: &str, span: Span) -> Diagnostic {
+    Diagnostic::note(format!(
+        "deprecated rule `{alias}`; replace it with `{replacement}`"
+    ))
+    .with_rule(KnownRulesRule::ID)
+    .with_label("update this `except` directive", span)
+    .with_fix(format!("replace `{alias}` with `{replacement}`"))
 }
 
 /// Detects unknown rules within lint directives.
@@ -147,7 +158,28 @@ impl Visitor for Exceptions {
             });
 
         for rule in except {
-            if let Some(exceptable_nodes) = self.rules.get(&rule.name) {
+            // Deprecated aliases are not "unknown"; emit a migration note and
+            // validate placement against the replacement rule.
+            let replacement = replacement_rule_id(&rule.name);
+            if let Some(replacement) = replacement
+                && let Some(severity) = self.known_rules.0
+            {
+                let diagnostic = deprecated_rule_alias(&rule.name, replacement, rule.span)
+                    .with_severity(severity);
+
+                match excepted_element.as_ref() {
+                    None => diagnostics.add(diagnostic),
+                    Some(target) => diagnostics.exceptable_add(
+                        diagnostic,
+                        target,
+                        &KnownRulesRule::EXCEPTABLE_NODES,
+                    ),
+                }
+            }
+
+            if let Some(exceptable_nodes) =
+                self.rules.get(replacement.unwrap_or(rule.name.as_str()))
+            {
                 let Some(exceptable_nodes) = exceptable_nodes else {
                     continue; // `None` means exceptable on any node
                 };
@@ -170,7 +202,9 @@ impl Visitor for Exceptions {
                         &ExceptDirectiveValidRule::EXCEPTABLE_NODES,
                     );
                 }
-            } else if let Some(severity) = self.known_rules.0 {
+            } else if replacement.is_none()
+                && let Some(severity) = self.known_rules.0
+            {
                 let diagnostic = unknown_rule(
                     &rule.name,
                     find_nearest_rule(self.rules.keys().map(String::as_str), &rule.name),

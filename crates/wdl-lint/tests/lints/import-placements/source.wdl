@@ -1,10 +1,16 @@
 ## This is a test of import placements.
 
-version 1.1
+version 1.3
 
 import "bar.wdl"  # OK
 import "baz.wdl"  # OK
 import "foo.wdl"  # OK
+
+enum Color {
+    Red,
+}
+
+import "late.wdl" as Late  # BAD
 
 workflow test {
     #@ except: MetaDescription
@@ -13,5 +19,5 @@ workflow test {
     output {}
 }
 
-import "jam.wdl"  # BAD
-import "qux.wdl"  # BAD
+import "jam.wdl"   # BAD
+import "qux.wdl"   # BAD

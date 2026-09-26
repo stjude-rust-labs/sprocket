@@ -19,5 +19,11 @@
   ],
   "url": null,
   "related": [],
-  "config": null
+  "config": [
+    {
+      "name": "severity",
+      "description": "Overrides the rule's severity. Use `off`, `note`, `warning`, or `error`; omit the field to use the built-in severity.",
+      "default": null
+    }
+  ]
 }

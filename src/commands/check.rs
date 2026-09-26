@@ -23,6 +23,7 @@ use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 
+use super::explain::ACCEPTED_RULE_IDS;
 use super::explain::ALL_RULE_IDS;
 use crate::Config;
 use crate::analysis::Analysis;
@@ -55,13 +56,52 @@ pub struct Common {
     /// Repeat the flag multiple times to except multiple rules or tags. This is
     /// additive with exceptions found in config files.
     #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter().chain(ALL_TAG_NAMES.iter())),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter().chain(ALL_TAG_NAMES.iter())),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
         hide_possible_values = true,
     )]
     pub except: Vec<String>,
+
+    /// Sets a rule's severity to error.
+    ///
+    /// Repeat the flag to escalate multiple rules. Takes precedence over
+    /// severities set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub deny: Vec<String>,
+
+    /// Sets a rule's severity to warning.
+    ///
+    /// Repeat the flag to set multiple rules. Takes precedence over severities
+    /// set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub warn: Vec<String>,
+
+    /// Sets a rule's severity to note.
+    ///
+    /// Repeat the flag to set multiple rules. Takes precedence over severities
+    /// set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub note: Vec<String>,
 
     /// Includes a lint tag for running.
     ///
@@ -110,11 +150,14 @@ pub struct Common {
     pub hide_warnings: bool,
 
     /// Generate a baseline file from current diagnostics and exit.
-    #[arg(long, conflicts_with = "no_baseline")]
+    // An explicit `display_order` is set on this and the following arguments
+    // (including `CheckArgs::lint`) so that they sort after the globally
+    // propagated arguments in `--help`; see `run::Args::show_task_stderr`.
+    #[arg(long, conflicts_with = "no_baseline", display_order = 100)]
     pub generate_baseline: bool,
 
     /// Ignore the baseline file for this run.
-    #[arg(long)]
+    #[arg(long, display_order = 101)]
     pub no_baseline: bool,
 }
 
@@ -127,7 +170,9 @@ pub struct CheckArgs {
     pub common: Common,
 
     /// Enable lint checks in addition to validation errors.
-    #[arg(short, long)]
+    // See `Common::generate_baseline` for why an explicit `display_order` is
+    // set.
+    #[arg(short, long, display_order = 102)]
     pub lint: bool,
 }
 
@@ -140,10 +185,79 @@ pub struct LintArgs {
     pub common: Common,
 }
 
+fn reject_rule_alias(rule: &str, source: &str) -> anyhow::Result<()> {
+    if let Some(replacement) = wdl::analysis::replacement_rule_id(rule) {
+        return Err(anyhow!(
+            "deprecated rule `{rule}` used in {source}; replace it with `{replacement}`"
+        ));
+    }
+
+    Ok(())
+}
+
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
-    let mut except = args.common.except;
-    except.extend(config.check.except.iter().cloned());
+    // Command line severity flags take precedence over the configuration file.
+    // `note`, `warn`, then `deny` are applied in order so the strongest flag
+    // wins when a rule appears under more than one.
+    for rule in &args.common.except {
+        reject_rule_alias(rule, "`--except`")?;
+    }
+    for rule in &args.common.note {
+        reject_rule_alias(rule, "`--note`")?;
+    }
+    for rule in &args.common.warn {
+        reject_rule_alias(rule, "`--warn`")?;
+    }
+    for rule in &args.common.deny {
+        reject_rule_alias(rule, "`--deny`")?;
+    }
+    for rule in &config.check.except {
+        reject_rule_alias(rule, "`check.except`")?;
+    }
+
+    let normalize = |name: &str| {
+        ALL_RULE_IDS
+            .iter()
+            .find(|id| id.eq_ignore_ascii_case(name))
+            .cloned()
+            .unwrap_or_else(|| name.to_string())
+    };
+    let cli_severities = args
+        .common
+        .note
+        .iter()
+        .map(|r| (normalize(r), wdl::lint::RuleSeverity::Note))
+        .chain(
+            args.common
+                .warn
+                .iter()
+                .map(|r| (normalize(r), wdl::lint::RuleSeverity::Warning)),
+        )
+        .chain(
+            args.common
+                .deny
+                .iter()
+                .map(|r| (normalize(r), wdl::lint::RuleSeverity::Error)),
+        )
+        .collect::<Vec<_>>();
+    let cli_flagged: HashSet<String> = cli_severities.iter().map(|(r, _)| r.clone()).collect();
+
+    let mut except: Vec<String> = args
+        .common
+        .except
+        .iter()
+        .chain(config.check.except.iter())
+        .cloned()
+        .collect();
+    except.extend(
+        config
+            .check
+            .rules
+            .disabled_rules()
+            .into_iter()
+            .filter(|id| !cli_flagged.iter().any(|f| f.eq_ignore_ascii_case(id))),
+    );
 
     let disabled_tags = except
         .extract_if(.., |i| Tag::from_str(i).is_ok())
@@ -244,10 +358,31 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         TagSet::EMPTY
     };
 
+    // Overlay the CLI severity flags onto the configured per-rule severities.
+    // A configured severity opts a lint rule in regardless of tag selection,
+    // but only when linting is enabled; it never turns linting on by itself.
+    let mut lint_config = config.check.rules.lint_config().clone();
+    let mut analysis_overrides = config.check.rules.analysis_severity_overrides();
+    let mut force_enabled = if lint {
+        config.check.rules.enabled_rules()
+    } else {
+        Vec::new()
+    };
+    for (rule, severity) in &cli_severities {
+        lint_config.set_severity(rule, *severity);
+        analysis_overrides.insert(rule.clone(), severity.as_severity());
+        if lint {
+            force_enabled.push(rule.clone());
+        }
+    }
+
     let results = Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
+        .lint_config(lint_config)
+        .analysis_severity_overrides(analysis_overrides)
+        .force_enabled_rules(force_enabled)
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)

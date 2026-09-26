@@ -59,6 +59,15 @@ pub struct Analysis {
     /// The lint rule configuration.
     lint_config: wdl::lint::Config,
 
+    /// Per-rule severity overrides applied to analysis diagnostics.
+    analysis_severity_overrides: std::collections::BTreeMap<String, Option<wdl::ast::Severity>>,
+
+    /// Lint rules to run regardless of tag selection.
+    ///
+    /// A rule configured with an explicit severity is opted in even when its
+    /// tag is not in the active set.
+    force_enabled_rules: HashSet<String>,
+
     /// Basename for any ignorefiles which should be respected.
     ignore_filename: Option<String>,
 
@@ -127,6 +136,27 @@ impl Analysis {
     /// unrecognized version.
     pub fn fallback_version(mut self, version: Option<SupportedVersion>) -> Self {
         self.fallback_version = version;
+        self
+    }
+
+    /// Sets the lint rule configuration (per-rule parameters and severities).
+    pub fn lint_config(mut self, config: wdl::lint::Config) -> Self {
+        self.lint_config = config;
+        self
+    }
+
+    /// Sets the per-rule severity overrides applied to analysis diagnostics.
+    pub fn analysis_severity_overrides(
+        mut self,
+        overrides: std::collections::BTreeMap<String, Option<wdl::ast::Severity>>,
+    ) -> Self {
+        self.analysis_severity_overrides = overrides;
+        self
+    }
+
+    /// Sets the lint rules to run regardless of tag selection.
+    pub fn force_enabled_rules(mut self, rules: impl IntoIterator<Item = String>) -> Self {
+        self.force_enabled_rules = rules.into_iter().collect();
         self
     }
 
@@ -203,13 +233,29 @@ impl Analysis {
             info!("enabled lint rules: {:?}", enabled_rules);
             info!("disabled lint rules: {:?}", disabled_rules);
         }
+        // Exceptions take precedence over severity overrides, so an excepted
+        // rule is never re-enabled by a configured severity.
+        let analysis_overrides: std::collections::BTreeMap<String, Option<wdl::ast::Severity>> =
+            self.analysis_severity_overrides
+                .iter()
+                .filter(|(id, _)| {
+                    !self
+                        .exceptions
+                        .iter()
+                        .any(|exception| exception.eq_ignore_ascii_case(id))
+                })
+                .map(|(id, severity)| (id.clone(), *severity))
+                .collect();
+
         let resolution = self
             .resolution_context_from_sources()
             .map_err(|e| NonEmpty::new(Arc::new(e)))?;
 
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
-            .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
+            .with_diagnostics_config(
+                get_diagnostics_config(&self.exceptions).with_overrides(&analysis_overrides),
+            )
             .with_ignore_filename(self.ignore_filename)
             .with_feature_flags(self.feature_flags);
 
@@ -222,9 +268,13 @@ impl Analysis {
             // when the linter isn't. Keeps `KnownRules` from firing
             // unnecessarily.
             validator.extend_rules(wdl::lint::RULE_MAP.clone());
-            if self.enabled_lint_tags.count() > 0 {
-                let visitor =
-                    get_lint_visitor(&self.enabled_lint_tags, &self.exceptions, &self.lint_config);
+            if self.enabled_lint_tags.count() > 0 || !self.force_enabled_rules.is_empty() {
+                let visitor = get_lint_visitor(
+                    &self.enabled_lint_tags,
+                    &self.exceptions,
+                    &self.lint_config,
+                    &self.force_enabled_rules,
+                );
                 validator.add_visitor(visitor);
             }
 
@@ -260,6 +310,8 @@ impl Default for Analysis {
             exceptions: Default::default(),
             enabled_lint_tags: TagSet::EMPTY,
             lint_config: Default::default(),
+            analysis_severity_overrides: Default::default(),
+            force_enabled_rules: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             fallback_version: None,
@@ -490,9 +542,7 @@ fn warn_unknown_rules(exceptions: &HashSet<String>, report_mode: Mode, colorize:
         ));
 
         let warning = Diagnostic::warning()
-            .with_message(format!(
-                "ignoring unknown rule provided via --except: {unknown_rule}",
-            ))
+            .with_message(format!("ignoring unknown rule exception: {unknown_rule}"))
             .with_notes(notes);
 
         codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
@@ -529,32 +579,91 @@ fn is_rule_enabled(
 /// Gets a lint visitor with the rules depending on provided options.
 ///
 /// `enabled_lint_tags` controls which rules are considered for being added to
-/// the visitor. `disabled_lint_tags` and `exceptions` act as filters on the set
-/// considered by `enabled_lint_tags`.
+/// the visitor, and `exceptions` acts as a filter on that set. Rules in
+/// `force_enabled_rules` are added regardless of tags unless excepted.
 fn get_lint_visitor(
     enabled_lint_tags: &TagSet,
     exceptions: &HashSet<String>,
     lint_config: &wdl::lint::Config,
+    force_enabled_rules: &HashSet<String>,
 ) -> Linter {
-    Linter::new(
+    Linter::new_with_overrides(
         wdl::lint::rules(lint_config)
             .into_iter()
             .filter_map(|rule| {
-                is_rule_enabled(enabled_lint_tags, exceptions, rule.as_ref())
-                    .then_some(rule as Box<dyn Rule>)
+                let excepted = exceptions
+                    .iter()
+                    .any(|exception| exception.eq_ignore_ascii_case(rule.id()));
+                let enabled = is_rule_enabled(enabled_lint_tags, exceptions, rule.as_ref())
+                    || (!excepted && force_enabled_rules.contains(rule.id()));
+                enabled.then_some(rule as Box<dyn Rule>)
             }),
+        wdl::lint::severity_overrides(lint_config),
     )
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::path::PathBuf;
+
+    use url::Url;
+    use wdl::diagnostics::Mode;
+    use wdl::lint::Config as LintConfig;
+    use wdl::lint::RuleConfig;
 
     use super::Analysis;
     use super::Source;
     use super::default_cache_root;
     use super::default_trust_path;
     use super::resolution_context_from_paths;
+
+    /// Runs an analysis over a single source forcing the `NamingConvention`
+    /// rule on and returns the number of `NamingConvention` diagnostics
+    /// produced.
+    async fn naming_diagnostics(lint_config: LintConfig) -> usize {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("source.wdl");
+        std::fs::write(
+            &path,
+            "version 1.2\n\ntask BadName {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        // SAFETY: the path is a real temporary file.
+        let url = Url::from_file_path(&path).unwrap();
+        let results = Analysis::default()
+            .add_source(Source::File(url))
+            .force_enabled_rules(["NamingConvention".to_string()])
+            .lint_config(lint_config)
+            .run(Mode::default(), false)
+            .await
+            .unwrap();
+
+        results
+            .as_slice()
+            .iter()
+            .flat_map(|result| result.document().diagnostics())
+            .filter(|d| d.rule() == Some("NamingConvention"))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn lint_config_is_applied_through_the_analysis_path() {
+        // Without configuration, the non-snake-case task name is flagged.
+        assert_eq!(naming_diagnostics(LintConfig::default()).await, 1);
+
+        // Allowing the name through the per-rule config suppresses it, proving
+        // the lint configuration reaches the linter via the check path.
+        let config = LintConfig::from_map(BTreeMap::from([(
+            "NamingConvention".to_string(),
+            RuleConfig {
+                allowed_names: vec!["BadName".to_string()],
+                ..Default::default()
+            },
+        )]));
+        assert_eq!(naming_diagnostics(config).await, 0);
+    }
 
     /// Minimal valid `module.json` contents for discovery tests.
     const MANIFEST: &[u8] = br#"{"name":"example","version":"0.1.0","license":"MIT"}"#;

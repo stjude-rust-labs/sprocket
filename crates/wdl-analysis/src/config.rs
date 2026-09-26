@@ -1,5 +1,6 @@
 //! Configuration for this crate.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use schemars::JsonSchema;
@@ -449,32 +450,50 @@ impl DiagnosticsConfig {
         }
     }
 
+    /// Applies per-rule severity overrides keyed by rule ID.
+    ///
+    /// A value of `None` disables the corresponding diagnostic. IDs that do not
+    /// name a configurable analysis rule are ignored.
+    pub fn with_overrides(mut self, overrides: &BTreeMap<String, Option<Severity>>) -> Self {
+        for (id, severity) in overrides {
+            if let Some(slot) = self.severity_mut(id) {
+                *slot = *severity;
+            }
+        }
+        self
+    }
+
     /// Returns a modified set of diagnostics that accounts for any `#@ except`
     /// comments that precede the given syntax node.
     pub fn excepted_for_node(mut self, node: &SyntaxNode) -> Self {
-        let exceptions = node.rule_exceptions();
-
-        for exception in exceptions {
-            match &*exception.name {
-                UnusedImportRule::ID => self.unused_import = None,
-                UnusedInputRule::ID => self.unused_input = None,
-                UnusedDeclarationRule::ID => self.unused_declaration = None,
-                UnusedCallRule::ID => self.unused_call = None,
-                UnnecessaryFunctionCall::ID => self.unnecessary_function_call = None,
-                UsingFallbackVersion::ID => self.using_fallback_version = None,
-                MisleadingDeclarationOrderRule::ID => self.misleading_declaration_order = None,
-                MeaninglessLintDirective::ID => self.meaningless_lint_directive = None,
-                KnownRulesRule::ID => self.known_rules = None,
-                ExceptDirectiveValidRule::ID => self.except_directive_valid = None,
-                CommandSectionIndentationRule::ID => self.command_section_indentation = None,
-                DeprecatedObjectRule::ID => self.deprecated_object = None,
-                DeprecatedPlaceholderRule::ID => self.deprecated_placeholder = None,
-                DeprecatedRuntimeSectionRule::ID => self.deprecated_runtime_section = None,
-                _ => {}
+        for exception in node.rule_exceptions() {
+            if let Some(slot) = self.severity_mut(&exception.name) {
+                *slot = None;
             }
         }
 
         self
+    }
+
+    /// Returns the severity slot for the analysis rule with the given ID.
+    fn severity_mut(&mut self, id: &str) -> Option<&mut Option<Severity>> {
+        match id {
+            UnusedImportRule::ID => Some(&mut self.unused_import),
+            UnusedInputRule::ID => Some(&mut self.unused_input),
+            UnusedDeclarationRule::ID => Some(&mut self.unused_declaration),
+            UnusedCallRule::ID => Some(&mut self.unused_call),
+            UnnecessaryFunctionCall::ID => Some(&mut self.unnecessary_function_call),
+            UsingFallbackVersion::ID => Some(&mut self.using_fallback_version),
+            MisleadingDeclarationOrderRule::ID => Some(&mut self.misleading_declaration_order),
+            MeaninglessLintDirective::ID => Some(&mut self.meaningless_lint_directive),
+            KnownRulesRule::ID => Some(&mut self.known_rules),
+            ExceptDirectiveValidRule::ID => Some(&mut self.except_directive_valid),
+            CommandSectionIndentationRule::ID => Some(&mut self.command_section_indentation),
+            DeprecatedObjectRule::ID => Some(&mut self.deprecated_object),
+            DeprecatedPlaceholderRule::ID => Some(&mut self.deprecated_placeholder),
+            DeprecatedRuntimeSectionRule::ID => Some(&mut self.deprecated_runtime_section),
+            _ => None,
+        }
     }
 
     /// Excepts all of the diagnostics.
@@ -500,7 +519,37 @@ impl DiagnosticsConfig {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
+
+    #[test_log::test]
+    fn overrides_set_and_disable_diagnostics() {
+        let overrides = BTreeMap::from([
+            (UnusedImportRule::ID.to_string(), Some(Severity::Error)),
+            (UnusedCallRule::ID.to_string(), None),
+        ]);
+        let config = DiagnosticsConfig::default().with_overrides(&overrides);
+        assert_eq!(config.unused_import, Some(Severity::Error));
+        assert_eq!(config.unused_call, None);
+    }
+
+    #[test_log::test]
+    fn overrides_apply_to_every_analysis_rule() {
+        let overrides = rules()
+            .iter()
+            .map(|rule| (rule.id().to_string(), None))
+            .collect::<BTreeMap<_, _>>();
+        let config = DiagnosticsConfig::default().with_overrides(&overrides);
+        assert_eq!(config, DiagnosticsConfig::except_all());
+    }
+
+    #[test_log::test]
+    fn overrides_ignore_unknown_rule_ids() {
+        let overrides = BTreeMap::from([("NotARule".to_string(), Some(Severity::Error))]);
+        let config = DiagnosticsConfig::default().with_overrides(&overrides);
+        assert_eq!(config, DiagnosticsConfig::default());
+    }
 
     #[test_log::test]
     fn custom_format_config_round_trip() {

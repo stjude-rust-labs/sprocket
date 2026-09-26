@@ -9,8 +9,8 @@ note[OutputName]: declaration identifier must be at least 3 characters
 note[OutputName]: declaration identifier starts with 'out'
    ┌─ tests/lints/disallowed-output-name/source.wdl:27:16
    │
-27 │         String outString = "string"  # This is not OK
-   │                ^^^^^^^^^
+27 │         String out_string_name = "string"  # This is not OK
+   │                ^^^^^^^^^^^^^^^
    │
    = fix: rename the identifier to not start with 'out'
 

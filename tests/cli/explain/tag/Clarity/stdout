@@ -7,5 +7,4 @@ Rules with the tag `Clarity`:
   - HereDocCommands
   - ImportPlacement
   - MetaSections
-  - PascalCase
-  - SnakeCase
+  - NamingConvention

@@ -17,10 +17,7 @@ hide_notes = false
 hide_warnings = false
 tags = []
 
-[check.lint]
-allowed_runtime_keys = []
-allowed_names = []
-bash_set_options = ["errexit", "nounset", "pipefail"]
+[check.rules]
 
 [analyzer]
 lint = false

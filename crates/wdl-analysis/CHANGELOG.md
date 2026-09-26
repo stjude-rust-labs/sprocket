@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `Diagnostics::len` and `Diagnostics::as_mut_slice` for post-processing emitted
+  diagnostics.
+* `DiagnosticsConfig::with_overrides` to apply per-rule severity overrides.
+* `RULE_ALIASES` and `replacement_rule_id` for mapping deprecated rule IDs to
+  their replacements, and alias expansion in `#@ except` directives.
+
 #### Changed
 
 * `find_all_references` and `rename` now search only the defining document for
@@ -95,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 * `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* The analyzer's formatter now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
 * `Analyzer::remove_documents()` was renamed to `Analyzer::remove_roots()` ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
 #### Fixed
@@ -103,10 +112,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `maxRetries`, and `returnCodes`) is now version-aware: these keys are no
   longer type checked in WDL 1.0 documents, since they were not formally
   typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
-
-### Changed
-
-* The analyzer's formatter now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
 
 ## 0.22.0 - 2026-06-26
 

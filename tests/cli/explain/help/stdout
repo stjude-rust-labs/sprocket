@@ -99,15 +99,14 @@ Available rules:
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder
+  - NamingConvention
   - OutputName
   - ParameterDescription
   - ParameterMetaMatched
-  - PascalCase
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
-  - SnakeCase
   - TodoComment
   - UnnecessaryFunctionCall
   - UnusedCall

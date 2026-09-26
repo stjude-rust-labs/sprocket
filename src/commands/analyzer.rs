@@ -18,7 +18,7 @@ use crate::FilterReloadHandle;
 use crate::Subscriber;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::explain::ALL_RULE_IDS;
+use crate::commands::explain::ACCEPTED_RULE_IDS;
 
 /// Arguments for the `analyzer` subcommand.
 #[derive(Parser, Debug)]
@@ -36,7 +36,7 @@ pub struct Args {
     ///
     /// Repeat the flag multiple times to except multiple rules.
     #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
@@ -55,6 +55,16 @@ impl Args {
     }
 }
 
+fn reject_rule_alias(rule: &str, source: &str) -> anyhow::Result<()> {
+    if let Some(replacement) = wdl::analysis::replacement_rule_id(rule) {
+        return Err(anyhow::anyhow!(
+            "deprecated rule `{rule}` used in {source}; replace it with `{replacement}`"
+        ));
+    }
+
+    Ok(())
+}
+
 /// Runs the `analyzer` command.
 pub async fn analyzer(
     mut args: Args,
@@ -62,6 +72,10 @@ pub async fn analyzer(
     handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     args.apply(&config);
+
+    for rule in &args.except {
+        reject_rule_alias(rule, "`--except` or `check.except`")?;
+    }
 
     let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
     let resolution_context =
@@ -97,7 +111,10 @@ pub async fn analyzer(
             ),
             lint: LintOptions {
                 enabled: args.lint,
-                config: Arc::new(config.check.lint),
+                config: Arc::new(config.check.rules.lint_config().clone()),
+                analysis_severity_overrides: Arc::new(
+                    config.check.rules.analysis_severity_overrides(),
+                ),
             },
         },
         Some(handle),

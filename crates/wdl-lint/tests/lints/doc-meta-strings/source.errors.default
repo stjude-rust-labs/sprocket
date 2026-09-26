@@ -1,0 +1,64 @@
+warning[DocMetaStrings]: metadata key `external_help` should have a `String` value, found integer
+   ┌─ tests/lints/doc-meta-strings/source.wdl:11:9
+   │
+11 │         external_help: 12345  # Should warn: integer instead of string
+   │         ^^^^^^^^^^^^^^^^^^^^ `external_help` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `external_help` to a `String`
+
+warning[DocMetaStrings]: metadata key `warning` should have a `String` value, found boolean
+   ┌─ tests/lints/doc-meta-strings/source.wdl:12:9
+   │
+12 │         warning: true  # Should warn: boolean instead of string
+   │         ^^^^^^^^^^^^^ `warning` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `warning` to a `String`
+
+warning[DocMetaStrings]: metadata key `category` should have a `String` value, found array
+   ┌─ tests/lints/doc-meta-strings/source.wdl:13:9
+   │
+13 │         category: ["workflow", "test"]  # Should warn: array instead of string
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `category` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `category` to a `String`
+
+warning[DocMetaStrings]: metadata key `category` should have a `String` value, found integer
+   ┌─ tests/lints/doc-meta-strings/source.wdl:18:17
+   │
+18 │                 category: 123,  # Should warn: integer instead of string
+   │                 ^^^^^^^^^^^^^ `category` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `category` to a `String`
+
+warning[DocMetaStrings]: metadata key `description` should have a `String` value, found integer
+   ┌─ tests/lints/doc-meta-strings/source.wdl:20:13
+   │
+20 │             description: 456,  # Should warn: integer instead of string
+   │             ^^^^^^^^^^^^^^^^ `description` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `description` to a `String`
+
+warning[DocMetaStrings]: metadata key `description` should have a `String` value, found integer
+   ┌─ tests/lints/doc-meta-strings/source.wdl:31:9
+   │
+31 │         flag_input: 42  # Invalid: non-string value for parameter description - should warn
+   │         ^^^^^^^^^^^^^^ `description` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `description` to a `String`
+
+warning[DocMetaStrings]: metadata key `warning` should have a `String` value, found integer
+   ┌─ tests/lints/doc-meta-strings/source.wdl:48:9
+   │
+48 │         warning: 999  # Should warn: integer instead of string
+   │         ^^^^^^^^^^^^ `warning` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `warning` to a `String`
+
+warning[DocMetaStrings]: metadata key `help` should have a `String` value, found null
+   ┌─ tests/lints/doc-meta-strings/source.wdl:54:13
+   │
+54 │             help: null,  # Should warn: null instead of string
+   │             ^^^^^^^^^^ `help` must be a `String` for proper documentation rendering
+   │
+   = fix: change the value of `help` to a `String`
+
