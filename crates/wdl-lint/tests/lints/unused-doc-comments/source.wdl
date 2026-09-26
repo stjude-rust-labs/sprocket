@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs, BashSetSyntax, ParameterMetaMatched
+#@ except: EmptyOutputs, BashSetSyntax, ParameterMetaMatched, RequirementsSection, MetaSections
 
 ## This preamble is considered a valid doc comment,
 ## despite having whitespace between it and the version statement.
@@ -57,9 +57,8 @@ task test_task_2 {
     ## another doc comment block
     ## that gets a new diagnostic fired with a new span
 
-    ## but there's a blank line in the middle!
-    ## but we are going to consider these consecutive anyway
-    ## this line and the prior 5 lines should all be in the same highlighted span
+    ## now there's a blank line in the middle!
+    ## that creates another block
     # another regular comment for good measure
 
     command <<<>>>
@@ -117,5 +116,18 @@ workflow test_workflow {
         ## An element of an output should be doc commentable.
         Boolean my_output = banana
     }
+}
+
+## This comment is floating. It doesn't document `floating_comment`, and should be linted
+
+task floating_comment {
+    command <<<>>>
+}
+
+## I'm floating, so I don't document the task...
+
+## ...but I do!
+task floating_above_attached {
+    command <<<>>>
 }
 ## Trailing Doc Comment should be linted

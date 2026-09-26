@@ -348,6 +348,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/testrun.wdl"
+message = "testrun.wdl:7:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/testrun.wdl"
 message = "testrun.wdl:9:10: note[MetaSections]: workflow `cellbender_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/testrun.wdl/#L9"
 
@@ -360,6 +365,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:27:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/testrun_hpc.wdl/#L27"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/testrun_hpc.wdl"
+message = "testrun_hpc.wdl:9:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/testrun_hpc.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
@@ -403,6 +413,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
+message = "ww-cellbender.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
 message = "ww-cellbender.wdl:93:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L93"
 
@@ -440,6 +455,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:143:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L143"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
+message = "testrun_hpc.wdl:6:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
@@ -578,6 +598,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/testrun.wdl"
+message = "testrun.wdl:7:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-clair3/testrun.wdl"
 message = "testrun.wdl:9:10: note[MetaSections]: workflow `clair3_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/testrun.wdl/#L9"
 
@@ -650,6 +675,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
 message = "ww-clair3.wdl:84:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L84"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
+message = "ww-clair3.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
@@ -773,6 +803,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
+message = "testrun.wdl:6:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
 message = "testrun.wdl:74:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L74"
 
@@ -837,6 +872,11 @@ message = "ww-colabfold.wdl:79:9: note[DescriptionLength]: this description will
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L79"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
+message = "ww-colabfold.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L8"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
 message = "testrun.wdl:103:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L103"
@@ -875,6 +915,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/ww-consensus.wdl"
 message = "ww-consensus.wdl:51:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/ww-consensus.wdl/#L51"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/testrun.wdl"
+message = "testrun.wdl:12:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/testrun.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/testrun.wdl"
@@ -1112,6 +1157,11 @@ message = "ww-deeptools.wdl:80:7: note[ShellCheck]: Double quote to prevent glob
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L80"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
+message = "ww-deeptools.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L8"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/testrun.wdl"
 message = "testrun.wdl:12:10: note[MetaSections]: workflow `deepvariant_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/testrun.wdl/#L12"
@@ -1195,6 +1245,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
 message = "ww-deepvariant.wdl:77:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L77"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
+message = "ww-deepvariant.wdl:7:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L7"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
@@ -1538,6 +1593,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
+message = "testrun_hpc.wdl:6:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:96:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L96"
 
@@ -1560,6 +1620,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/ww-esmfold.wdl"
 message = "ww-esmfold.wdl:75:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/ww-esmfold.wdl/#L75"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/ww-esmfold.wdl"
+message = "ww-esmfold.wdl:9:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/ww-esmfold.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastp/testrun.wdl"
+message = "testrun.wdl:14:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/testrun.wdl/#L14"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/testrun.wdl"
@@ -1585,6 +1655,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
 message = "ww-fastp.wdl:64:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
+message = "ww-fastp.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/testrun.wdl"
@@ -2382,9 +2457,19 @@ message = "ww-mosdepth.wdl:71:13: note[ContainerUri]: container URI uses a mutab
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L71"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-mosdepth/ww-mosdepth.wdl"
+message = "ww-mosdepth.wdl:7:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L7"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/testrun.wdl"
 message = "testrun.wdl:10:10: note[MetaSections]: workflow `multiqc_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/testrun.wdl"
+message = "testrun.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/testrun.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/ww-multiqc.wdl"
@@ -2400,6 +2485,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/ww-multiqc.wdl"
 message = "ww-multiqc.wdl:67:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/ww-multiqc.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-multiqc/ww-multiqc.wdl"
+message = "ww-multiqc.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-multiqc/ww-multiqc.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rmats-turbo/testrun.wdl"
@@ -2550,6 +2640,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/ww-rseqc.wdl"
 message = "ww-rseqc.wdl:56:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rseqc/ww-rseqc.wdl/#L56"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
+message = "testrun.wdl:10:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L10"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
@@ -3013,6 +3108,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-starling/testrun.wdl"
+message = "testrun.wdl:7:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-starling/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-starling/testrun.wdl"
 message = "testrun.wdl:9:10: note[MetaSections]: workflow `starling_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-starling/testrun.wdl/#L9"
 
@@ -3045,6 +3145,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-starling/ww-starling.wdl"
 message = "ww-starling.wdl:65:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-starling/ww-starling.wdl/#L65"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-starling/ww-starling.wdl"
+message = "ww-starling.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-starling/ww-starling.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -3173,6 +3278,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
+message = "testrun.wdl:13:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/testrun.wdl/#L13"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
 message = "testrun.wdl:16:10: note[MetaSections]: workflow `template_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/testrun.wdl/#L16"
 
@@ -3195,6 +3305,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:67:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/ww-template.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
+message = "ww-template.wdl:9:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/ww-template.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
@@ -3463,6 +3578,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-trimgalore/testrun.wdl"
+message = "testrun.wdl:14:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-trimgalore/testrun.wdl/#L14"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-trimgalore/testrun.wdl"
 message = "testrun.wdl:17:10: note[MetaSections]: workflow `trimgalore_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-trimgalore/testrun.wdl/#L17"
 
@@ -3475,6 +3595,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-trimgalore/ww-trimgalore.wdl"
 message = "ww-trimgalore.wdl:64:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-trimgalore/ww-trimgalore.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-trimgalore/ww-trimgalore.wdl"
+message = "ww-trimgalore.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-trimgalore/ww-trimgalore.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
@@ -3490,6 +3615,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:61:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L61"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/testrun.wdl"
+message = "testrun.wdl:12:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/testrun.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/testrun.wdl"
@@ -3522,6 +3652,11 @@ message = "ww-umi-tools.wdl:64:7: note[ShellCheck]: Double quote to prevent glob
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/ww-umi-tools.wdl/#L64"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/ww-umi-tools.wdl"
+message = "ww-umi-tools.wdl:9:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/ww-umi-tools.wdl/#L9"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:105:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L105"
@@ -3535,6 +3670,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:7:10: note[MetaSections]: workflow `varscan_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/testrun.wdl"
+message = "testrun.wdl:6:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/testrun.wdl"
@@ -3612,6 +3752,11 @@ message = "ww-viennarna.wdl:61:7: note[ShellCheck]: Double quote to prevent glob
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L61"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-viennarna/ww-viennarna.wdl"
+message = "ww-viennarna.wdl:8:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-viennarna/ww-viennarna.wdl/#L8"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-bwa-gatk/testrun.wdl"
 message = "testrun.wdl:12:10: note[MetaSections]: workflow `bwa_gatk_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-bwa-gatk/testrun.wdl/#L12"
@@ -3627,6 +3772,16 @@ message = "testrun.wdl:20:10: note[MetaSections]: workflow `fastq_to_cram_exampl
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/testrun.wdl/#L20"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:24:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L24"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:9:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L9"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:20:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L20"
@@ -3640,6 +3795,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:35:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L35"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:41:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L41"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
@@ -4000,6 +4160,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:54:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L54"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
+message = "testrun_hpc.wdl:6:1: note[UnusedDocComments]: unused doc comment"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"

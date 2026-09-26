@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
+* `UnusedDocComments` now lints floating doc comments separately ([#1238](https://github.com/stjude-rust-labs/sprocket/pull/1238)).
 
 ## 0.28.0 - 2026-09-16
 
