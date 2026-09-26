@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.29.0 - 2026-09-26
+
 #### Changed
 
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).

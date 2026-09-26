@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.27.0 - 2026-09-26
+
 #### Changed
 
 * `find_all_references` and `rename` now search only the defining document for
