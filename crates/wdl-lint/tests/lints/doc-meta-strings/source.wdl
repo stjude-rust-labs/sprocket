@@ -1,4 +1,4 @@
-#@ except: BashSetSyntax, ExpectedRuntimeKeys, MatchingOutputMeta, ParameterMetaMatched
+#@ except: BashSetSyntax, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, MatchingOutputMeta, OutputMetaOrder, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder
 #@ except: RuntimeSection
 
 version 1.1

@@ -48,17 +48,6 @@ fn missing_tag(severity: Severity, span: Span) -> Diagnostic {
         )
 }
 
-/// Creates a mutable tag diagnostic.
-fn mutable_tag(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, String::from("container URI uses a mutable tag"))
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix(
-            "replace the mutable tag with its SHA256 equivalent (e.g., `ubuntu@sha256:foobar` \
-             instead of `ubuntu:latest`)",
-        )
-}
-
 /// Creates an "empty array" diagnostic.
 fn empty_array(severity: Severity, span: Span) -> Diagnostic {
     diagnostic(
@@ -68,18 +57,6 @@ fn empty_array(severity: Severity, span: Span) -> Diagnostic {
     .with_rule(ID)
     .with_highlight(span)
     .with_fix("add an entry or remove the entry altogether")
-}
-
-/// Creates a diagnostic indicating that a single value array should instead be
-/// a string literal.
-fn array_to_string_literal(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(
-        severity,
-        String::from("an array with a single value should be a string literal"),
-    )
-    .with_rule(ID)
-    .with_highlight(span)
-    .with_fix("change the array to a string literal representing the first value")
 }
 
 /// Creates a diagnostic indicating that an array contains one or more 'any'
@@ -132,15 +109,10 @@ impl Rule for ContainerUriRule {
 
 - Containers should have a tag, as container URIs with no tags have no expectation that the \
          behavior of the containers won't change between runs.
-- Further, immutable containers tagged with SHA256 sums are preferred. This is due to the \
-         requirement from the WDL specification that tasks produce functionally equivalent output \
-         across runs. When a mutable tag is used, there is a risk that changes to the container \
-         will cause different behavior between runs.
 - Use of the 'any' container URI (`*`) within an array of container URIs is ambiguous and should \
          be avoided.
 - Empty container URI arrays are not disallowed by the specification but are ambiguous and should \
-         be avoided.
-- An array of container URIs with a single element should be changed to a single string value."
+         be avoided."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -163,23 +135,6 @@ task say_hello {
         container: "ubuntu"
     }
 }
-
-task say_goodbye {
-    input {
-        String name
-    }
-
-    command <<<
-        echo "Goodbye, ~{name}!"
-    >>>
-
-    # Unnecessary array
-    requirements {
-        container: [
-            "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1",
-        ]
-    }
-}
 "#,
             },
             revised: Some(LabeledSnippet {
@@ -199,20 +154,6 @@ task say_hello {
         container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
     }
 }
-
-task say_goodbye {
-    input {
-        String name
-    }
-
-    command <<<
-        echo "Goodbye, ~{name}!"
-    >>>
-
-    requirements {
-        container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
-    }
-}
 "#,
             }),
         }]
@@ -224,10 +165,8 @@ task say_goodbye {
         // - Clarity because it resolves the ambiguous situations described in
         //   the explanation above.
         // - Portability because this resolves situations where different
-        //   execution engines might behave differently (e.g., one container
-        //   engine might always pull the latest image for a mutably tagged
-        //   container whereas another may use a older, cached version until the
-        //   user prompts it to upgrade).
+        //   execution engines might behave differently for untagged or
+        //   ambiguous container values.
         TagSet::new(&[Tag::Clarity, Tag::Portability])
     }
 
@@ -242,7 +181,7 @@ task say_goodbye {
     }
 
     fn related_rules(&self) -> &'static [&'static str] {
-        &[]
+        &["MutableContainerTag", "RedundantContainerArray"]
     }
 }
 
@@ -312,16 +251,7 @@ fn check_container_value(
                 node,
                 exceptable_nodes,
             );
-        } else if array.len() == 1 {
-            // SAFETY: we just checked to ensure that exactly one element exists
-            // in the vec, so this will always unwrap.
-            let uri = array.iter().next().unwrap();
-            diagnostics.exceptable_add(
-                array_to_string_literal(severity, uri.literal_string().span()),
-                node,
-                exceptable_nodes,
-            );
-        } else {
+        } else if array.len() > 1 {
             let mut anys = array.iter().filter(|uri| uri.kind().is_any()).peekable();
 
             if anys.peek().is_some() {
@@ -335,20 +265,14 @@ fn check_container_value(
     }
 
     for uri in value.uris() {
-        if let Some(entry) = uri.kind().as_entry() {
-            if entry.tag().is_none() {
-                diagnostics.exceptable_add(
-                    missing_tag(severity, uri.literal_string().span()),
-                    node,
-                    exceptable_nodes,
-                );
-            } else if !entry.immutable() {
-                diagnostics.exceptable_add(
-                    mutable_tag(severity, uri.literal_string().span()),
-                    node,
-                    exceptable_nodes,
-                );
-            }
+        if let Some(entry) = uri.kind().as_entry()
+            && entry.tag().is_none()
+        {
+            diagnostics.exceptable_add(
+                missing_tag(severity, uri.literal_string().span()),
+                node,
+                exceptable_nodes,
+            );
         }
     }
 }

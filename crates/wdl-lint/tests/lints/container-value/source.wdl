@@ -235,7 +235,7 @@ task m {
     output {}
     requirements {
         # This should NOT be flagged because the per-entry except suppresses it.
-        #@ except: ContainerUri
+        #@ except: ContainerUri, MutableContainerTag
         container: "ubuntu:latest"
     }
 }

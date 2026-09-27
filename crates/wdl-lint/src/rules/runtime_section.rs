@@ -127,7 +127,7 @@ task say_hello {
     fn related_rules(&self) -> &'static [&'static str] {
         &[
             "MetaDescription",
-            "ParameterMetaMatched",
+            "MissingParameterMeta",
             "MetaSections",
             "OutputSection",
             "MatchingOutputMeta",

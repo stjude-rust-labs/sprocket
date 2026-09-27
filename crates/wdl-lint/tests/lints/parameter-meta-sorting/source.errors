@@ -1,4 +1,4 @@
-warning[ParameterMetaMatched]: parameter metadata in task `parameter_meta_matched` is out of order
+note[ParameterMetaOrder]: parameter metadata in task `parameter_meta_matched` is out of order
   ┌─ tests/lints/parameter-meta-sorting/source.wdl:9:5
   │
 9 │     parameter_meta {

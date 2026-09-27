@@ -72,9 +72,15 @@ severity = "note"
 [check.rules.ContainerUri]
 severity = "warning"
 
+[check.rules.DeprecatedRuntimeKey]
+severity = "note"
+
 [check.rules.DeclarationName]
 severity = "note"
 allowed_names = []
+
+[check.rules.ExtraneousParameterMeta]
+severity = "note"
 
 [check.rules.DenyGlobStar]
 severity = "warning"
@@ -94,7 +100,7 @@ severity = "note"
 [check.rules.EmptyOutputs]
 severity = "note"
 
-[check.rules.ExpectedRuntimeKeys]
+[check.rules.UnknownRuntimeKeys]
 severity = "warning"
 allowed_runtime_keys = []
 
@@ -122,14 +128,23 @@ severity = "note"
 [check.rules.MetaSections]
 severity = "note"
 
+[check.rules.MutableContainerTag]
+severity = "note"
+
 [check.rules.OutputName]
+severity = "note"
+
+[check.rules.OutputMetaOrder]
 severity = "note"
 
 [check.rules.ParameterDescription]
 severity = "note"
 
-[check.rules.ParameterMetaMatched]
+[check.rules.MissingParameterMeta]
 severity = "warning"
+
+[check.rules.ParameterMetaOrder]
+severity = "note"
 
 [check.rules.PascalCase]
 severity = "warning"
@@ -137,8 +152,14 @@ severity = "warning"
 [check.rules.RedundantNone]
 severity = "note"
 
+[check.rules.RecommendedRuntimeKeys]
+severity = "note"
+
 [check.rules.RequirementsSection]
 severity = "warning"
+
+[check.rules.RedundantContainerArray]
+severity = "note"
 
 [check.rules.RuntimeSection]
 severity = "warning"

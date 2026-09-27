@@ -278,9 +278,15 @@
             "ContainerUri": {
               "severity": "warning"
             },
+            "DeprecatedRuntimeKey": {
+              "severity": "note"
+            },
             "DeclarationName": {
               "severity": "note",
               "allowed_names": []
+            },
+            "ExtraneousParameterMeta": {
+              "severity": "note"
             },
             "DenyGlobStar": {
               "severity": "warning"
@@ -300,7 +306,7 @@
             "EmptyOutputs": {
               "severity": "note"
             },
-            "ExpectedRuntimeKeys": {
+            "UnknownRuntimeKeys": {
               "severity": "warning",
               "allowed_runtime_keys": []
             },
@@ -328,14 +334,23 @@
             "MetaSections": {
               "severity": "note"
             },
+            "MutableContainerTag": {
+              "severity": "note"
+            },
             "OutputName": {
+              "severity": "note"
+            },
+            "OutputMetaOrder": {
               "severity": "note"
             },
             "ParameterDescription": {
               "severity": "note"
             },
-            "ParameterMetaMatched": {
+            "MissingParameterMeta": {
               "severity": "warning"
+            },
+            "ParameterMetaOrder": {
+              "severity": "note"
             },
             "PascalCase": {
               "severity": "warning"
@@ -343,8 +358,14 @@
             "RedundantNone": {
               "severity": "note"
             },
+            "RecommendedRuntimeKeys": {
+              "severity": "note"
+            },
             "RequirementsSection": {
               "severity": "warning"
+            },
+            "RedundantContainerArray": {
+              "severity": "note"
             },
             "RuntimeSection": {
               "severity": "warning"
@@ -502,12 +523,26 @@
             "severity": "warning"
           }
         },
+        "DeprecatedRuntimeKey": {
+          "description": "The `DeprecatedRuntimeKey` rule.",
+          "$ref": "#/$defs/DeprecatedRuntimeKeyConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
         "DeclarationName": {
           "description": "The `DeclarationName` rule.",
           "$ref": "#/$defs/DeclarationNameConfig",
           "default": {
             "severity": "note",
             "allowed_names": []
+          }
+        },
+        "ExtraneousParameterMeta": {
+          "description": "The `ExtraneousParameterMeta` rule.",
+          "$ref": "#/$defs/ExtraneousParameterMetaConfig",
+          "default": {
+            "severity": "note"
           }
         },
         "DenyGlobStar": {
@@ -552,9 +587,9 @@
             "severity": "note"
           }
         },
-        "ExpectedRuntimeKeys": {
-          "description": "The `ExpectedRuntimeKeys` rule.",
-          "$ref": "#/$defs/ExpectedRuntimeKeysConfig",
+        "UnknownRuntimeKeys": {
+          "description": "The `UnknownRuntimeKeys` rule.",
+          "$ref": "#/$defs/UnknownRuntimeKeysConfig",
           "default": {
             "severity": "warning",
             "allowed_runtime_keys": []
@@ -616,9 +651,23 @@
             "severity": "note"
           }
         },
+        "MutableContainerTag": {
+          "description": "The `MutableContainerTag` rule.",
+          "$ref": "#/$defs/MutableContainerTagConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
         "OutputName": {
           "description": "The `OutputName` rule.",
           "$ref": "#/$defs/OutputNameConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
+        "OutputMetaOrder": {
+          "description": "The `OutputMetaOrder` rule.",
+          "$ref": "#/$defs/OutputMetaOrderConfig",
           "default": {
             "severity": "note"
           }
@@ -630,11 +679,18 @@
             "severity": "note"
           }
         },
-        "ParameterMetaMatched": {
-          "description": "The `ParameterMetaMatched` rule.",
-          "$ref": "#/$defs/ParameterMetaMatchedConfig",
+        "MissingParameterMeta": {
+          "description": "The `MissingParameterMeta` rule.",
+          "$ref": "#/$defs/MissingParameterMetaConfig",
           "default": {
             "severity": "warning"
+          }
+        },
+        "ParameterMetaOrder": {
+          "description": "The `ParameterMetaOrder` rule.",
+          "$ref": "#/$defs/ParameterMetaOrderConfig",
+          "default": {
+            "severity": "note"
           }
         },
         "PascalCase": {
@@ -651,11 +707,25 @@
             "severity": "note"
           }
         },
+        "RecommendedRuntimeKeys": {
+          "description": "The `RecommendedRuntimeKeys` rule.",
+          "$ref": "#/$defs/RecommendedRuntimeKeysConfig",
+          "default": {
+            "severity": "note"
+          }
+        },
         "RequirementsSection": {
           "description": "The `RequirementsSection` rule.",
           "$ref": "#/$defs/RequirementsSectionConfig",
           "default": {
             "severity": "warning"
+          }
+        },
+        "RedundantContainerArray": {
+          "description": "The `RedundantContainerArray` rule.",
+          "$ref": "#/$defs/RedundantContainerArrayConfig",
+          "default": {
+            "severity": "note"
           }
         },
         "RuntimeSection": {
@@ -971,6 +1041,18 @@
       },
       "additionalProperties": false
     },
+    "DeprecatedRuntimeKeyConfig": {
+      "description": "Configuration for the `DeprecatedRuntimeKey` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
     "DeclarationNameConfig": {
       "description": "Configuration for the `DeclarationName` lint rule.",
       "type": "object",
@@ -987,6 +1069,18 @@
             "type": "string"
           },
           "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "ExtraneousParameterMetaConfig": {
+      "description": "Configuration for the `ExtraneousParameterMeta` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
         }
       },
       "additionalProperties": false
@@ -1063,8 +1157,8 @@
       },
       "additionalProperties": false
     },
-    "ExpectedRuntimeKeysConfig": {
-      "description": "Configuration for the `ExpectedRuntimeKeys` lint rule.",
+    "UnknownRuntimeKeysConfig": {
+      "description": "Configuration for the `UnknownRuntimeKeys` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
@@ -1073,7 +1167,7 @@
           "default": "warning"
         },
         "allowed_runtime_keys": {
-          "description": "List of `runtime` keys to ignore.\n\n##### Example\n\n```toml\n[check.rules.ExpectedRuntimeKeys]\nallowed_runtime_keys = [\"foo\"]\n```",
+          "description": "List of `runtime` keys to ignore.\n\n##### Example\n\n```toml\n[check.rules.UnknownRuntimeKeys]\nallowed_runtime_keys = [\"foo\"]\n```",
           "type": "array",
           "items": {
             "type": "string"
@@ -1179,8 +1273,32 @@
       },
       "additionalProperties": false
     },
+    "MutableContainerTagConfig": {
+      "description": "Configuration for the `MutableContainerTag` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
     "OutputNameConfig": {
       "description": "Configuration for the `OutputName` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "OutputMetaOrderConfig": {
+      "description": "Configuration for the `OutputMetaOrder` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
@@ -1203,14 +1321,26 @@
       },
       "additionalProperties": false
     },
-    "ParameterMetaMatchedConfig": {
-      "description": "Configuration for the `ParameterMetaMatched` lint rule.",
+    "MissingParameterMetaConfig": {
+      "description": "Configuration for the `MissingParameterMeta` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParameterMetaOrderConfig": {
+      "description": "Configuration for the `ParameterMetaOrder` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
         }
       },
       "additionalProperties": false
@@ -1239,6 +1369,18 @@
       },
       "additionalProperties": false
     },
+    "RecommendedRuntimeKeysConfig": {
+      "description": "Configuration for the `RecommendedRuntimeKeys` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
     "RequirementsSectionConfig": {
       "description": "Configuration for the `RequirementsSection` lint rule.",
       "type": "object",
@@ -1247,6 +1389,18 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RedundantContainerArrayConfig": {
+      "description": "Configuration for the `RedundantContainerArray` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "note"
         }
       },
       "additionalProperties": false

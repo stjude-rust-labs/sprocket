@@ -1,4 +1,4 @@
-#@ except: BashSetSyntax, ContainerUri, EmptyOutputs, MetaSections
+#@ except: BashSetSyntax, ContainerUri, MutableContainerTag, RedundantContainerArray, EmptyOutputs, MetaSections
 
 version 1.3
 

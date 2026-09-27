@@ -1,4 +1,4 @@
-warning[ParameterMetaMatched]: workflow `w` has an extraneous parameter metadata key named `extra`
+note[ExtraneousParameterMeta]: workflow `w` has an extraneous parameter metadata key named `extra`
    ┌─ tests/lints/matching-param-meta/source.wdl:22:9
    │
 22 │         extra: "this should not be here"
@@ -6,7 +6,7 @@ warning[ParameterMetaMatched]: workflow `w` has an extraneous parameter metadata
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
-warning[ParameterMetaMatched]: workflow `w` is missing a parameter metadata key for input `does_not_exist`
+warning[MissingParameterMeta]: workflow `w` is missing a parameter metadata key for input `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:27:16
    │
 27 │         String does_not_exist
@@ -14,7 +14,7 @@ warning[ParameterMetaMatched]: workflow `w` is missing a parameter metadata key 
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
-warning[ParameterMetaMatched]: task `foo` is missing a parameter metadata key for input `does_not_exist`
+warning[MissingParameterMeta]: task `foo` is missing a parameter metadata key for input `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:46:16
    │
 46 │         String does_not_exist
@@ -22,7 +22,7 @@ warning[ParameterMetaMatched]: task `foo` is missing a parameter metadata key fo
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
-warning[ParameterMetaMatched]: task `bar` has an extraneous parameter metadata key named `does_not_exist`
+note[ExtraneousParameterMeta]: task `bar` has an extraneous parameter metadata key named `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:63:9
    │
 63 │         does_not_exist: "this should not be here"
@@ -30,7 +30,7 @@ warning[ParameterMetaMatched]: task `bar` has an extraneous parameter metadata k
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
-warning[ParameterMetaMatched]: parameter metadata in task `baz` is out of order
+note[ParameterMetaOrder]: parameter metadata in task `baz` is out of order
    ┌─ tests/lints/matching-param-meta/source.wdl:75:5
    │
 75 │     parameter_meta {
@@ -40,7 +40,7 @@ warning[ParameterMetaMatched]: parameter metadata in task `baz` is out of order
      first
      second
 
-warning[ParameterMetaMatched]: parameter metadata in task `quux` is out of order
+note[ParameterMetaOrder]: parameter metadata in task `quux` is out of order
     ┌─ tests/lints/matching-param-meta/source.wdl:113:5
     │
 113 │     parameter_meta {
@@ -50,7 +50,7 @@ warning[ParameterMetaMatched]: parameter metadata in task `quux` is out of order
       first
       third
 
-warning[ParameterMetaMatched]: task `corge` is missing a doc comment for input `second`
+warning[MissingParameterMeta]: task `corge` is missing a doc comment for input `second`
     ┌─ tests/lints/matching-param-meta/source.wdl:125:16
     │
 125 │         String second
@@ -58,7 +58,7 @@ warning[ParameterMetaMatched]: task `corge` is missing a doc comment for input `
     │
     = fix: add a doc comment to `second` with a detailed description of the input.
 
-warning[ParameterMetaMatched]: task `missing_doc_comment` is missing a doc comment for input `second`
+warning[MissingParameterMeta]: task `missing_doc_comment` is missing a doc comment for input `second`
     ┌─ tests/lints/matching-param-meta/source.wdl:159:16
     │
 159 │         String second

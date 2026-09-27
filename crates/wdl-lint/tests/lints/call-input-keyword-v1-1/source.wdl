@@ -1,8 +1,8 @@
 ## Test that CallInputKeyword does NOT trigger for WDL 1.1.
 ## The `input:` keyword is required in version 1.1.
 
-#@ except: BashSetSyntax, ExpectedRuntimeKeys, MatchingOutputMeta, MetaDescription
-#@ except: ParameterMetaMatched, RuntimeSection
+#@ except: BashSetSyntax, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, MatchingOutputMeta, OutputMetaOrder, MetaDescription
+#@ except: MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder, RuntimeSection
 
 version 1.1
 

@@ -325,6 +325,9 @@ define_rules_config! {
         "ContainerUri" => container_uri: ContainerUriConfig {
             severity = RuleSeverity::Warning;
         }
+        "DeprecatedRuntimeKey" => deprecated_runtime_key: DeprecatedRuntimeKeyConfig {
+            severity = RuleSeverity::Note;
+        }
         "DeclarationName" => declaration_name: DeclarationNameConfig {
             severity = RuleSeverity::Note;
             /// List of declaration names to ignore.
@@ -336,6 +339,9 @@ define_rules_config! {
             /// allowed_names = ["counter_int"]
             /// ```
             allowed_names: Vec<String> = Vec::new();
+        }
+        "ExtraneousParameterMeta" => extraneous_parameter_meta: ExtraneousParameterMetaConfig {
+            severity = RuleSeverity::Note;
         }
         "DenyGlobStar" => deny_glob_star: DenyGlobStarConfig {
             severity = RuleSeverity::Warning;
@@ -355,14 +361,14 @@ define_rules_config! {
         "EmptyOutputs" => empty_outputs: EmptyOutputsConfig {
             severity = RuleSeverity::Note;
         }
-        "ExpectedRuntimeKeys" => expected_runtime_keys: ExpectedRuntimeKeysConfig {
+        "UnknownRuntimeKeys" => unknown_runtime_keys: UnknownRuntimeKeysConfig {
             severity = RuleSeverity::Warning;
             /// List of `runtime` keys to ignore.
             ///
             /// ##### Example
             ///
             /// ```toml
-            /// [check.rules.ExpectedRuntimeKeys]
+            /// [check.rules.UnknownRuntimeKeys]
             /// allowed_runtime_keys = ["foo"]
             /// ```
             allowed_runtime_keys: Vec<String> = Vec::new();
@@ -391,14 +397,23 @@ define_rules_config! {
         "MetaSections" => meta_sections: MetaSectionsConfig {
             severity = RuleSeverity::Note;
         }
+        "MutableContainerTag" => mutable_container_tag: MutableContainerTagConfig {
+            severity = RuleSeverity::Note;
+        }
         "OutputName" => output_name: OutputNameConfig {
+            severity = RuleSeverity::Note;
+        }
+        "OutputMetaOrder" => output_meta_order: OutputMetaOrderConfig {
             severity = RuleSeverity::Note;
         }
         "ParameterDescription" => parameter_description: ParameterDescriptionConfig {
             severity = RuleSeverity::Note;
         }
-        "ParameterMetaMatched" => parameter_meta_matched: ParameterMetaMatchedConfig {
+        "MissingParameterMeta" => missing_parameter_meta: MissingParameterMetaConfig {
             severity = RuleSeverity::Warning;
+        }
+        "ParameterMetaOrder" => parameter_meta_order: ParameterMetaOrderConfig {
+            severity = RuleSeverity::Note;
         }
         "PascalCase" => pascal_case: PascalCaseConfig {
             severity = RuleSeverity::Warning;
@@ -406,8 +421,14 @@ define_rules_config! {
         "RedundantNone" => redundant_none: RedundantNoneConfig {
             severity = RuleSeverity::Note;
         }
+        "RecommendedRuntimeKeys" => recommended_runtime_keys: RecommendedRuntimeKeysConfig {
+            severity = RuleSeverity::Note;
+        }
         "RequirementsSection" => requirements_section: RequirementsSectionConfig {
             severity = RuleSeverity::Warning;
+        }
+        "RedundantContainerArray" => redundant_container_array: RedundantContainerArrayConfig {
+            severity = RuleSeverity::Note;
         }
         "RuntimeSection" => runtime_section: RuntimeSectionConfig {
             severity = RuleSeverity::Warning;
