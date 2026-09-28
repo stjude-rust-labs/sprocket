@@ -288,7 +288,7 @@ impl Rule for NamingConventionRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.2
+                snippet: r#"version 1.3
 
 task SayHello {
     command <<<
@@ -299,7 +299,7 @@ task SayHello {
             },
             revised: Some(LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.2
+                snippet: r#"version 1.3
 
 task say_hello {
     command <<<
