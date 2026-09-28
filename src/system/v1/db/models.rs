@@ -321,6 +321,11 @@ pub struct Task {
     /// Set on the row of the attempt that failed; `None` when the attempt was
     /// not retried.
     pub retry_cause: Option<String>,
+    /// JSON snapshot of the resource utilization observed for this attempt.
+    ///
+    /// Recorded at the attempt's termination by backends whose scheduler
+    /// reports utilization; `None` for other backends.
+    pub utilization: Option<String>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.

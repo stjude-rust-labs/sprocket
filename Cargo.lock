@@ -1038,6 +1038,7 @@ checksum = "7fc70a67af3db68d640e9f13ce68f049f0320531f40f316ef592a1cf3c3577a2"
 dependencies = [
  "bytes",
  "nonempty",
+ "serde",
  "tokio-util",
 ]
 
@@ -5210,6 +5211,7 @@ dependencies = [
  "codespan-reporting",
  "colored",
  "crankshaft",
+ "crankshaft-events",
  "criterion",
  "dialoguer",
  "dirs 6.0.0",
