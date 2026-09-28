@@ -1,0 +1,163 @@
+warning[NamingConvention]: enum name `Bad_mixedEnum` is not pascal case
+  ┌─ tests/lints/naming-convention-mixed/source.wdl:5:6
+  │
+5 │ enum Bad_mixedEnum {
+  │      ^^^^^^^^^^^^^ this name must be pascal case
+  │
+  = fix: replace `Bad_mixedEnum` with `BadMixedEnum`
+
+warning[NamingConvention]: enum choice name `Bad_mixedChoice` is not pascal case
+  ┌─ tests/lints/naming-convention-mixed/source.wdl:6:5
+  │
+6 │     Bad_mixedChoice,
+  │     ^^^^^^^^^^^^^^^ this name must be pascal case
+  │
+  = fix: replace `Bad_mixedChoice` with `BadMixedChoice`
+
+warning[NamingConvention]: enum choice name `good_choice` is not pascal case
+  ┌─ tests/lints/naming-convention-mixed/source.wdl:7:5
+  │
+7 │     good_choice,
+  │     ^^^^^^^^^^^ this name must be pascal case
+  │
+  = fix: replace `good_choice` with `GoodChoice`
+
+warning[NamingConvention]: struct name `Bad_mixedStruct` is not pascal case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:10:8
+   │
+10 │ struct Bad_mixedStruct {
+   │        ^^^^^^^^^^^^^^^ this name must be pascal case
+   │
+   = fix: replace `Bad_mixedStruct` with `BadMixedStruct`
+
+warning[NamingConvention]: struct member name `Bad_mixedMember` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:11:12
+   │
+11 │     String Bad_mixedMember
+   │            ^^^^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `Bad_mixedMember` with `bad_mixed_member`
+
+warning[NamingConvention]: struct member name `goodMember` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:12:12
+   │
+12 │     String goodMember
+   │            ^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `goodMember` with `good_member`
+
+warning[NamingConvention]: task name `Bad_mixedTask` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:15:6
+   │
+15 │ task Bad_mixedTask {
+   │      ^^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `Bad_mixedTask` with `bad_mixed_task`
+
+warning[NamingConvention]: input name `Bad_mixedInput` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:17:16
+   │
+17 │         String Bad_mixedInput
+   │                ^^^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `Bad_mixedInput` with `bad_mixed_input`
+
+warning[NamingConvention]: input name `GOOD_INPUT` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:18:16
+   │
+18 │         String GOOD_INPUT
+   │                ^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `GOOD_INPUT` with `good_input`
+
+warning[NamingConvention]: private declaration name `Bad_mixedPrivate` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:21:12
+   │
+21 │     String Bad_mixedPrivate = "private"
+   │            ^^^^^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `Bad_mixedPrivate` with `bad_mixed_private`
+
+warning[NamingConvention]: private declaration name `GOOD_PRIVATE` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:22:12
+   │
+22 │     String GOOD_PRIVATE = "private"
+   │            ^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `GOOD_PRIVATE` with `good_private`
+
+warning[NamingConvention]: output name `Bad_mixedOutput` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:29:16
+   │
+29 │         String Bad_mixedOutput = "out"
+   │                ^^^^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `Bad_mixedOutput` with `bad_mixed_output`
+
+warning[NamingConvention]: output name `GOOD_OUTPUT` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:30:16
+   │
+30 │         String GOOD_OUTPUT = "out"
+   │                ^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `GOOD_OUTPUT` with `good_output`
+
+warning[NamingConvention]: task name `GoodTask` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:34:6
+   │
+34 │ task GoodTask {
+   │      ^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `GoodTask` with `good_task`
+
+warning[NamingConvention]: workflow name `Bad_mixedWorkflow` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:38:10
+   │
+38 │ workflow Bad_mixedWorkflow {
+   │          ^^^^^^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `Bad_mixedWorkflow` with `bad_mixed_workflow`
+
+error: cannot define workflow `goodWorkflow` as only one workflow is allowed per source file
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:41:10
+   │
+38 │ workflow Bad_mixedWorkflow {
+   │          ----------------- first workflow is defined here
+   ·
+41 │ workflow goodWorkflow {
+   │          ^^^^^^^^^^^^ consider moving this workflow to a new file
+
+warning[NamingConvention]: workflow name `goodWorkflow` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:41:10
+   │
+41 │ workflow goodWorkflow {
+   │          ^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `goodWorkflow` with `good_workflow`
+
+error: cannot define workflow `goodButAllowed_Workflow` as only one workflow is allowed per source file
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:44:10
+   │
+38 │ workflow Bad_mixedWorkflow {
+   │          ----------------- first workflow is defined here
+   ·
+44 │ workflow goodButAllowed_Workflow {
+   │          ^^^^^^^^^^^^^^^^^^^^^^^ consider moving this workflow to a new file
+
+warning[NamingConvention]: workflow name `goodButAllowed_Workflow` is not snake case
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:44:10
+   │
+44 │ workflow goodButAllowed_Workflow {
+   │          ^^^^^^^^^^^^^^^^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `goodButAllowed_Workflow` with `good_but_allowed_workflow`
+
+error: cannot define workflow `Excepted_workflow` as only one workflow is allowed per source file
+   ┌─ tests/lints/naming-convention-mixed/source.wdl:48:10
+   │
+38 │ workflow Bad_mixedWorkflow {
+   │          ----------------- first workflow is defined here
+   ·
+48 │ workflow Excepted_workflow {
+   │          ^^^^^^^^^^^^^^^^^ consider moving this workflow to a new file
+

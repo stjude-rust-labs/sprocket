@@ -1,0 +1,6 @@
+[NamingConvention]
+task = "screaming-snake-case"
+workflow = "screaming-snake-case"
+variable = "screaming-snake-case"
+type = "screaming-snake-case"
+struct_member = "screaming-snake-case"

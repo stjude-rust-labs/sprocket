@@ -1,7 +1,7 @@
 #@ except: BashSetSyntax, EmptyOutputs, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, MatchingOutputMeta, OutputMetaOrder
-#@ except: MetaDescription
+#@ except: MetaDescription, MetaSections, CallInputKeyword
 
-version 1.0
+version 1.3
 
 workflow BadWorkflow {
     meta {}
@@ -81,6 +81,46 @@ task good_task {
 struct GoodStruct {
     String good_field
     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
-    #@ except: SnakeCase
+    #@ except: NamingConvention
     String OK
+}
+
+struct this_is_a_bad_name {
+    Int x
+}
+
+struct thisIsAlsoABadName {
+    Int x
+}
+
+struct This_Is_Bad_Too {
+    Int x
+}
+
+struct ThisNameIsAGoodOne {
+    Int x
+}
+
+#@ except: NamingConvention
+struct excepted_name {
+    Int x
+}
+
+enum log_level {
+    Good,
+    bad_choice,
+    Also_Bad,
+}
+
+enum GoodEnum {
+    Red,
+    Green,
+}
+
+struct v1 {
+    Int x
+}
+
+struct BadButAllowedStruct {
+    Int Bad_but_allowed
 }

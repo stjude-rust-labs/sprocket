@@ -1,0 +1,6 @@
+[NamingConvention]
+task = "pascal-case"
+workflow = "pascal-case"
+variable = "pascal-case"
+type = "pascal-case"
+struct_member = "pascal-case"

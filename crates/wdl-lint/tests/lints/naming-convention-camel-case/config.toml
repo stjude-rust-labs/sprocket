@@ -1,0 +1,6 @@
+[NamingConvention]
+task = "camel-case"
+workflow = "camel-case"
+variable = "camel-case"
+type = "camel-case"
+struct_member = "camel-case"

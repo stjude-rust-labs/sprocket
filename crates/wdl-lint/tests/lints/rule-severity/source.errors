@@ -1,8 +1,16 @@
-note[SnakeCase]: workflow name `BadWorkflow` is not snake_case
+note[NamingConvention]: workflow name `BadWorkflow` is not snake case
   ┌─ tests/lints/rule-severity/source.wdl:5:10
   │
 5 │ workflow BadWorkflow {
-  │          ^^^^^^^^^^^ this name must be snake_case
+  │          ^^^^^^^^^^^ this name must be snake case
   │
   = fix: replace `BadWorkflow` with `bad_workflow`
+
+note[NamingConvention]: struct name `bad_struct_name` is not pascal case
+  ┌─ tests/lints/rule-severity/source.wdl:9:8
+  │
+9 │ struct bad_struct_name {
+  │        ^^^^^^^^^^^^^^^ this name must be pascal case
+  │
+  = fix: replace `bad_struct_name` with `BadStructName`
 

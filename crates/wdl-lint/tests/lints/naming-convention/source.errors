@@ -1,0 +1,112 @@
+warning[NamingConvention]: workflow name `BadWorkflow` is not snake case
+  ┌─ tests/lints/naming-convention/source.wdl:6:10
+  │
+6 │ workflow BadWorkflow {
+  │          ^^^^^^^^^^^ this name must be snake case
+  │
+  = fix: replace `BadWorkflow` with `bad_workflow`
+
+warning[NamingConvention]: private declaration name `badPrivateDecl` is not snake case
+  ┌─ tests/lints/naming-convention/source.wdl:9:11
+  │
+9 │     Float badPrivateDecl = 3.14
+  │           ^^^^^^^^^^^^^^ this name must be snake case
+  │
+  = fix: replace `badPrivateDecl` with `bad_private_decl`
+
+warning[NamingConvention]: task name `BadTask` is not snake case
+   ┌─ tests/lints/naming-convention/source.wdl:20:6
+   │
+20 │ task BadTask {
+   │      ^^^^^^^ this name must be snake case
+   │
+   = fix: replace `BadTask` with `bad_task`
+
+warning[NamingConvention]: input name `BadInput` is not snake case
+   ┌─ tests/lints/naming-convention/source.wdl:29:16
+   │
+29 │         String BadInput
+   │                ^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `BadInput` with `bad_input`
+
+warning[NamingConvention]: output name `badOut` is not snake case
+   ┌─ tests/lints/naming-convention/source.wdl:38:14
+   │
+38 │         File badOut = "out.txt"
+   │              ^^^^^^ this name must be snake case
+   │
+   = fix: replace `badOut` with `bad_out`
+
+warning[NamingConvention]: struct member name `bAdFiElD` is not snake case
+   ┌─ tests/lints/naming-convention/source.wdl:83:12
+   │
+83 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+   │            ^^^^^^^^ this name must be snake case
+   │
+   = fix: replace `bAdFiElD` with `b_ad_fi_el_d`
+
+warning[NamingConvention]: struct name `this_is_a_bad_name` is not pascal case
+   ┌─ tests/lints/naming-convention/source.wdl:88:8
+   │
+88 │ struct this_is_a_bad_name {
+   │        ^^^^^^^^^^^^^^^^^^ this name must be pascal case
+   │
+   = fix: replace `this_is_a_bad_name` with `ThisIsABadName`
+
+warning[NamingConvention]: struct name `thisIsAlsoABadName` is not pascal case
+   ┌─ tests/lints/naming-convention/source.wdl:92:8
+   │
+92 │ struct thisIsAlsoABadName {
+   │        ^^^^^^^^^^^^^^^^^^ this name must be pascal case
+   │
+   = fix: replace `thisIsAlsoABadName` with `ThisIsAlsoABadName`
+
+warning[NamingConvention]: struct name `This_Is_Bad_Too` is not pascal case
+   ┌─ tests/lints/naming-convention/source.wdl:96:8
+   │
+96 │ struct This_Is_Bad_Too {
+   │        ^^^^^^^^^^^^^^^ this name must be pascal case
+   │
+   = fix: replace `This_Is_Bad_Too` with `ThisIsBadToo`
+
+warning[NamingConvention]: enum name `log_level` is not pascal case
+    ┌─ tests/lints/naming-convention/source.wdl:109:6
+    │
+109 │ enum log_level {
+    │      ^^^^^^^^^ this name must be pascal case
+    │
+    = fix: replace `log_level` with `LogLevel`
+
+warning[NamingConvention]: enum choice name `bad_choice` is not pascal case
+    ┌─ tests/lints/naming-convention/source.wdl:111:5
+    │
+111 │     bad_choice,
+    │     ^^^^^^^^^^ this name must be pascal case
+    │
+    = fix: replace `bad_choice` with `BadChoice`
+
+warning[NamingConvention]: enum choice name `Also_Bad` is not pascal case
+    ┌─ tests/lints/naming-convention/source.wdl:112:5
+    │
+112 │     Also_Bad,
+    │     ^^^^^^^^ this name must be pascal case
+    │
+    = fix: replace `Also_Bad` with `AlsoBad`
+
+warning[NamingConvention]: struct name `v1` is not pascal case
+    ┌─ tests/lints/naming-convention/source.wdl:120:8
+    │
+120 │ struct v1 {
+    │        ^^ this name must be pascal case
+    │
+    = fix: replace `v1` with `V1`
+
+warning[NamingConvention]: struct member name `Bad_but_allowed` is not snake case
+    ┌─ tests/lints/naming-convention/source.wdl:125:9
+    │
+125 │     Int Bad_but_allowed
+    │         ^^^^^^^^^^^^^^^ this name must be snake case
+    │
+    = fix: replace `Bad_but_allowed` with `bad_but_allowed`
+
