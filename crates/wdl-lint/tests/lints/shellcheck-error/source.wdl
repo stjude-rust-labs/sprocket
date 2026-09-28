@@ -1,7 +1,7 @@
 ## This is a test of having shellcheck error lints
 
-#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands
-#@ except: MetaDescription, ParameterMetaMatched
+#@ except: BashSetSyntax, EmptyOutputs, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, HereDocCommands
+#@ except: MetaDescription, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder
 
 version 1.1
 

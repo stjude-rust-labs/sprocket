@@ -41,7 +41,7 @@ fn upgrade_deprecations_default() -> bool {
 
 /// Configuration for formatting.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, deny_unknown_fields)]
+#[toml(Toml, warn_unknown_fields)]
 pub struct Config {
     /// The indentation configuration.
     #[toml(default)]

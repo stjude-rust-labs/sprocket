@@ -97,7 +97,7 @@ pub async fn analyzer(
             ),
             lint: LintOptions {
                 enabled: args.lint,
-                config: Arc::new(config.check.lint),
+                config: Arc::new(config.check.rules),
             },
         },
         Some(handle),
