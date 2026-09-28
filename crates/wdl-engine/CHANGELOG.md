@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The LSF and Slurm backends report task resource utilization through
   Crankshaft's cumulative `TaskResourceUsage` event. LSF sources measurements
   from `bjobs`; Slurm uses `sacct`.
+* `TaskConstraintsSnapshot` now records the resolved retry policy and curated
+  hints alongside the constraints: `max_retries`, `preemptible`, `max_cpu`,
+  and `max_memory`.
+* `EngineEvent` gained a `TaskDiskUsage` event reporting the disk space used
+  by an execution attempt's work directory, measured by the engine at the
+  attempt's termination when the work directory is on a local file system.
+  This complements the scheduler-observed measurements a backend may report
+  through Crankshaft's `TaskResourceUsage` event.
+* `BackendConfig::name` returns the canonical name of the configured backend
+  kind.
 
 #### Changed
 
@@ -119,6 +129,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* `TaskConstraintsSnapshot` now records the resolved retry policy and curated
+  hints alongside the constraints: `max_retries`, `preemptible`, `max_cpu`,
+  and `max_memory`.
+* `EngineEvent` gained a `TaskDiskUsage` event reporting the disk space used
+  by an execution attempt's work directory, measured by the engine at the
+  attempt's termination when the work directory is on a local file system.
+  This complements the scheduler-observed measurements a backend may report
+  through Crankshaft's `TaskResourceUsage` event.
+* `BackendConfig::name` returns the canonical name of the configured backend
+  kind.
 * The LSF and Slurm backends now write files to the attempt directory recording
   the command used to queue the task and the resulting job identifiers ([#1057](https://github.com/stjude-rust-labs/sprocket/pull/1057)).
 

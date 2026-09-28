@@ -1452,6 +1452,19 @@ impl Default for BackendConfig {
 }
 
 impl BackendConfig {
+    /// Gets the canonical name of the configured backend kind.
+    ///
+    /// This matches the name the corresponding execution backend reports.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Local { .. } => "local",
+            Self::Docker { .. } => "docker",
+            Self::Tes { .. } => "tes",
+            Self::LsfApptainer { .. } => "lsf_apptainer",
+            Self::SlurmApptainer { .. } => "slurm_apptainer",
+        }
+    }
+
     /// Validates the backend configuration.
     pub async fn validate(&self) -> Result<()> {
         match self {

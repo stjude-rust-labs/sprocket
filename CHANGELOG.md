@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Execution metrics include backend-reported peak and average memory and
   cumulative CPU time when available. The Docker backend can sample these
   measurements with `backends.<name>.resource_usage_interval`.
+* Execution metrics include scheduler-pending and allocated CPU time, time
+  lost to preemption, resolved retry policy and curated hints, local work
+  directory disk usage, execution backend and Sprocket version, and
+  localization transfer volume as a data-movement proxy.
 
 ### Changed
 

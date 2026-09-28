@@ -116,6 +116,10 @@ pub struct Run {
     pub directory: Option<String>,
     /// Path to the indexed output directory (`null` if not indexed).
     pub index_directory: Option<String>,
+    /// The name of the execution backend the run executed on.
+    pub backend: Option<String>,
+    /// JSON-encoded transfer byte totals for the run.
+    pub transfer_totals: Option<String>,
     /// Timestamp when the run started.
     pub started_at: Option<DateTime<Utc>>,
     /// Timestamp when the run finished.
@@ -138,6 +142,8 @@ impl From<crate::system::v1::db::Run> for Run {
             error: run.error,
             directory: run.directory,
             index_directory: run.index_directory,
+            backend: run.backend,
+            transfer_totals: run.transfer_totals,
             started_at: run.started_at,
             completed_at: run.completed_at,
             created_at: run.created_at,
@@ -402,6 +408,8 @@ mod tests {
             error: None,
             directory: Some("/runs/run-name".to_string()),
             index_directory: Some("/index/run-name".to_string()),
+            backend: Some("docker".to_string()),
+            transfer_totals: None,
             started_at: Some(now),
             completed_at: Some(now),
             created_at: now,
