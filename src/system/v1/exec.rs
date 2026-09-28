@@ -564,14 +564,14 @@ impl RunnableExecutor {
             &ctx.run_generated_name, self.run_id
         );
 
-        // SAFETY: because we subscribe to all events above, both subscribers
-        // should always be available to us here.
+        // SAFETY: the run manager enables all three event channels.
         let monitor_shutdown = CancellationToken::new();
         let task_monitor_svc = TaskMonitorSvc::new(
             self.run_id,
             self.db.clone(),
             self.events.subscribe_crankshaft().unwrap(),
             self.events.subscribe_engine().unwrap(),
+            self.events.subscribe_transfer().unwrap(),
             monitor_shutdown.clone(),
         );
         let task_monitor = tokio::spawn(task_monitor_svc.run());
@@ -978,6 +978,14 @@ pub async fn execute_target(
     crate::system::v1::db::retry_on_lock(|| db.start_run(ctx.run_id, ctx.started_at))
         .await
         .map_err(anyhow::Error::from)?;
+    // Record the execution backend for the run's environment tracking. This
+    // is best-effort.
+    if let Ok(backend) = engine.config().backend()
+        && let Err(e) = db.update_run_backend(ctx.run_id, backend.name()).await
+    {
+        tracing::warn!("failed to record run backend: {e:#}");
+    }
+
     let result: Result<Option<Outputs>, EvaluationError> = async {
         match target {
             Target::Task(_) => {
