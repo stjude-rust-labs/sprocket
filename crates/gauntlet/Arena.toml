@@ -8,11 +8,6 @@ commit_hash = "f421780da5596243cf6d8ffc341b3d3ba2c23c13"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:100:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L100"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:54:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L54"
 
@@ -38,17 +33,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:98:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:98:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L98"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:99:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L99"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:27:3: note[ParameterMetaMatched]: parameter metadata in task `annotsv_annotate` is out of order"
+message = "ww-annotsv.wdl:27:3: note[ParameterMetaOrder]: parameter metadata in task `annotsv_annotate` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/ww-annotsv.wdl/#L27"
 
 [[diagnostics]]
@@ -83,18 +73,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:126:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:126:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L126"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:127:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L127"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:128:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L128"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
@@ -128,18 +108,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:118:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:118:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/testrun.wdl/#L118"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:119:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/testrun.wdl/#L119"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:120:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/testrun.wdl/#L120"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
@@ -173,18 +143,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:126:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:126:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/testrun.wdl/#L126"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:127:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/testrun.wdl/#L127"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:128:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/testrun.wdl/#L128"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
@@ -238,18 +198,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:161:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:161:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/testrun.wdl/#L161"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:162:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/testrun.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:163:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/testrun.wdl/#L163"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
@@ -363,18 +313,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:156:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:156:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L156"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:157:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L157"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:158:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L158"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
@@ -473,18 +413,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
-message = "testrun.wdl:144:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:144:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun.wdl/#L144"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
-message = "testrun.wdl:145:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
-message = "testrun.wdl:146:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun.wdl/#L146"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
@@ -508,18 +438,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:143:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun_hpc.wdl:143:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L143"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:144:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L144"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:145:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L145"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
@@ -573,7 +493,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:359:3: note[ExpectedRuntimeKeys]: the following runtime key is recommended by the WDL 1.0 specification: `docker`"
+message = "ww-cellranger.wdl:359:3: note[RecommendedRuntimeKeys]: the following runtime key is recommended by the WDL 1.0 specification: `docker`"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L359"
 
 [[diagnostics]]
@@ -610,16 +530,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:575:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L575"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:587:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L587"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:588:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L588"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -748,7 +658,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:121:5: note[MatchingOutputMeta]: `outputs` section of `meta` for the task `run_cnvkit` is out of order"
+message = "ww-cnvkit.wdl:121:5: note[OutputMetaOrder]: `outputs` section of `meta` for the task `run_cnvkit` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L121"
 
 [[diagnostics]]
@@ -798,7 +708,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:28:3: note[ParameterMetaMatched]: parameter metadata in task `create_reference` is out of order"
+message = "ww-cnvkit.wdl:28:3: note[ParameterMetaOrder]: parameter metadata in task `create_reference` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L28"
 
 [[diagnostics]]
@@ -848,23 +758,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
-message = "testrun.wdl:118:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:118:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L118"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
-message = "testrun.wdl:119:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L119"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
 message = "testrun.wdl:11:10: note[MetaSections]: workflow `colabfold_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L11"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
-message = "testrun.wdl:120:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L120"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
@@ -943,18 +843,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
-message = "testrun.wdl:119:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:119:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L119"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
-message = "testrun.wdl:120:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L120"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
-message = "testrun.wdl:121:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L121"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
@@ -1308,18 +1198,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:112:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:112:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L112"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:113:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L113"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:114:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L114"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
@@ -1363,18 +1243,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:150:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:150:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/testrun.wdl/#L150"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:151:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/testrun.wdl/#L151"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:152:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/testrun.wdl/#L152"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
@@ -1403,7 +1273,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:29:3: note[ParameterMetaMatched]: parameter metadata in task `combine_count_matrices` is out of order"
+message = "ww-deseq2.wdl:29:3: note[ParameterMetaOrder]: parameter metadata in task `combine_count_matrices` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L29"
 
 [[diagnostics]]
@@ -1428,7 +1298,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-diamond/testrun.wdl"
-message = "testrun.wdl:104:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:104:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-diamond/testrun.wdl/#L104"
 
 [[diagnostics]]
@@ -1498,18 +1368,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:278:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:278:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L278"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:279:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L279"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:280:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L280"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
@@ -1618,16 +1478,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:319:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L319"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:320:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L320"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
 message = "ww-ena.wdl:65:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L65"
 
@@ -1688,18 +1538,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:96:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun_hpc.wdl:96:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L96"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:97:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L97"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:98:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L98"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/ww-esmfold.wdl"
@@ -1898,18 +1738,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:562:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:562:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L562"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:563:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L563"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:564:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L564"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -2188,18 +2018,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:35:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:35:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:36:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:37:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L37"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
@@ -2362,16 +2182,6 @@ message = "ww-glimpse2.wdl:580:19: note[OutputName]: declaration identifier star
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L580"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:586:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L586"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:587:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L587"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:106:3: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L106"
@@ -2383,18 +2193,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:230:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:230:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L230"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:231:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L231"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:232:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L232"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -2403,7 +2203,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:27:3: note[ParameterMetaMatched]: parameter metadata in task `readcounter_wig` is out of order"
+message = "ww-ichorcna.wdl:27:3: note[ParameterMetaOrder]: parameter metadata in task `readcounter_wig` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L27"
 
 [[diagnostics]]
@@ -2478,18 +2278,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:103:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:103:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L103"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:104:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L104"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:105:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L105"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
@@ -2528,7 +2318,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-megahit/testrun.wdl"
-message = "testrun.wdl:85:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:85:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-megahit/testrun.wdl/#L85"
 
 [[diagnostics]]
@@ -2588,7 +2378,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-mosdepth/ww-mosdepth.wdl"
-message = "ww-mosdepth.wdl:71:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "ww-mosdepth.wdl:71:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L71"
 
 [[diagnostics]]
@@ -2778,18 +2568,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:161:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:161:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L161"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:162:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:163:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L163"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
@@ -2863,18 +2643,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:211:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:211:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/testrun.wdl/#L211"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:212:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/testrun.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:213:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/testrun.wdl/#L213"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
@@ -2923,7 +2693,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:28:3: note[ParameterMetaMatched]: parameter metadata in task `crams_to_fastq` is out of order"
+message = "ww-samtools.wdl:28:3: note[ParameterMetaOrder]: parameter metadata in task `crams_to_fastq` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L28"
 
 [[diagnostics]]
@@ -2943,18 +2713,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
-message = "testrun.wdl:103:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:103:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-seurat/testrun.wdl/#L103"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
-message = "testrun.wdl:104:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-seurat/testrun.wdl/#L104"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
-message = "testrun.wdl:105:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-seurat/testrun.wdl/#L105"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
@@ -3038,18 +2798,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sjl/testrun.wdl"
-message = "testrun.wdl:77:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:77:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sjl/testrun.wdl/#L77"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sjl/testrun.wdl"
-message = "testrun.wdl:78:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sjl/testrun.wdl/#L78"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sjl/testrun.wdl"
-message = "testrun.wdl:79:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sjl/testrun.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sjl/ww-sjl.wdl"
@@ -3073,18 +2823,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:133:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:133:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L133"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:134:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L134"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:135:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L135"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
@@ -3113,18 +2853,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:162:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:162:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:163:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L163"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:164:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L164"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
@@ -3153,7 +2883,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:26:3: note[ParameterMetaMatched]: parameter metadata in task `sketch` is out of order"
+message = "ww-sourmash.wdl:26:3: note[ParameterMetaOrder]: parameter metadata in task `sketch` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L26"
 
 [[diagnostics]]
@@ -3173,12 +2903,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:97:3: note[ParameterMetaMatched]: parameter metadata in task `gather` is out of order"
+message = "ww-sourmash.wdl:97:3: note[ParameterMetaOrder]: parameter metadata in task `gather` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L97"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-spades/testrun.wdl"
-message = "testrun.wdl:107:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:107:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-spades/testrun.wdl/#L107"
 
 [[diagnostics]]
@@ -3193,18 +2923,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:120:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:120:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L120"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:121:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L121"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:122:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L122"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
@@ -3268,18 +2988,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:289:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:289:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L289"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:290:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L290"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:291:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L291"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
@@ -3348,18 +3058,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:174:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:174:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L174"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:175:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L175"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:176:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L176"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -3373,18 +3073,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:278:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:278:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L278"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:279:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L279"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:280:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L280"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -3398,18 +3088,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:363:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:363:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L363"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:364:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L364"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:365:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L365"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
@@ -3518,7 +3198,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:523:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:523:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/testrun.wdl/#L523"
 
 [[diagnostics]]
@@ -3540,16 +3220,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:1131:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1131"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1151:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1151"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1152:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1152"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3668,7 +3338,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:235:3: note[ParameterMetaMatched]: parameter metadata in task `download_fastq_data` is out of order"
+message = "ww-testdata.wdl:235:3: note[ParameterMetaOrder]: parameter metadata in task `download_fastq_data` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L235"
 
 [[diagnostics]]
@@ -3818,11 +3488,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
-message = "ww-tritonnp.wdl:148:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L148"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:61:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L61"
 
@@ -3863,18 +3528,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:177:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:177:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L177"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:178:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L178"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:179:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L179"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
@@ -3983,18 +3638,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:35:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:35:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:36:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:37:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L37"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
@@ -4303,7 +3948,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:455:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "ww-rnaseq.wdl:455:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L455"
 
 [[diagnostics]]
@@ -4323,18 +3968,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
-message = "testrun.wdl:168:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun.wdl:168:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L168"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
-message = "testrun.wdl:169:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L169"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
-message = "testrun.wdl:170:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L170"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
@@ -4353,18 +3988,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:144:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "testrun_hpc.wdl:144:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L144"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:145:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:146:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L146"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
@@ -4398,18 +4023,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:302:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "ww-sra-cellranger.wdl:302:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L302"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:303:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L303"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:304:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L304"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
@@ -4463,7 +4078,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:379:13: note[ContainerUri]: container URI uses a mutable tag"
+message = "ww-sra-cellranger.wdl:379:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L379"
 
 [[diagnostics]]
@@ -4498,7 +4113,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
-message = "flag_filter.wdl:110:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "flag_filter.wdl:110:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/flag_filter.wdl/#L110"
 
 [[diagnostics]]
@@ -4513,7 +4128,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:141:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "read_group.wdl:141:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/read_group.wdl/#L141"
 
 [[diagnostics]]
@@ -4523,7 +4138,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:367:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "read_group.wdl:367:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/read_group.wdl/#L367"
 
 [[diagnostics]]
@@ -4533,7 +4148,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:425:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "read_group.wdl:425:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/read_group.wdl/#L425"
 
 [[diagnostics]]
@@ -4543,27 +4158,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:274:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L274"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:277:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "arriba.wdl:277:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L277"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:325:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L325"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:326:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L326"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:328:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "arriba.wdl:328:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L328"
 
 [[diagnostics]]
@@ -4573,87 +4173,47 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:374:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L374"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:376:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "arriba.wdl:376:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L376"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:423:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L423"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:425:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "arriba.wdl:425:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L425"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:185:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:187:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "bwa.wdl:187:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L187"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:285:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L285"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:287:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "bwa.wdl:287:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L287"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:336:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L336"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:338:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "bwa.wdl:338:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L338"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:86:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L86"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:88:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "bwa.wdl:88:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L88"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/deeptools.wdl"
-message = "deeptools.wdl:67:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/deeptools.wdl/#L67"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/deeptools.wdl"
-message = "deeptools.wdl:69:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "deeptools.wdl:69:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/deeptools.wdl/#L69"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastp.wdl"
-message = "fastp.wdl:256:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "fastp.wdl:256:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fastp.wdl/#L256"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
-message = "fastqc.wdl:66:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fastqc.wdl/#L66"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/fastqc.wdl"
-message = "fastqc.wdl:68:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "fastqc.wdl:68:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fastqc.wdl/#L68"
 
 [[diagnostics]]
@@ -4663,12 +4223,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:170:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L170"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:172:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "fq.wdl:172:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L172"
 
 [[diagnostics]]
@@ -4678,7 +4233,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:90:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "fq.wdl:90:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L90"
 
 [[diagnostics]]
@@ -4688,12 +4243,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:146:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "gatk4.wdl:146:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L146"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:213:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "gatk4.wdl:213:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L213"
 
 [[diagnostics]]
@@ -4703,7 +4258,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:299:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "gatk4.wdl:299:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L299"
 
 [[diagnostics]]
@@ -4713,27 +4268,22 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:376:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L376"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:378:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "gatk4.wdl:378:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L378"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:500:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "gatk4.wdl:500:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L500"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:67:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "gatk4.wdl:67:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L67"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:153:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "htseq.wdl:153:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/htseq.wdl/#L153"
 
 [[diagnostics]]
@@ -4743,72 +4293,37 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:205:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/htseq.wdl/#L205"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:206:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/htseq.wdl/#L206"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:207:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "htseq.wdl:207:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/htseq.wdl/#L207"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:133:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L133"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:135:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "kraken2.wdl:135:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L135"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:199:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L199"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:201:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "kraken2.wdl:201:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L201"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:322:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "kraken2.wdl:322:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L322"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:443:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "kraken2.wdl:443:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L443"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:47:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:48:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L48"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:49:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "kraken2.wdl:49:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L49"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
-message = "librarian.wdl:50:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/librarian.wdl/#L50"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/librarian.wdl"
-message = "librarian.wdl:52:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "librarian.wdl:52:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/librarian.wdl/#L52"
 
 [[diagnostics]]
@@ -4818,47 +4333,27 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/md5sum.wdl"
-message = "md5sum.wdl:37:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "md5sum.wdl:37:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/md5sum.wdl/#L37"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:72:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/mosdepth.wdl/#L72"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:74:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "mosdepth.wdl:74:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/mosdepth.wdl/#L74"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/multiqc.wdl"
-message = "multiqc.wdl:67:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/multiqc.wdl/#L67"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/multiqc.wdl"
-message = "multiqc.wdl:69:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "multiqc.wdl:69:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/multiqc.wdl/#L69"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:142:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L142"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:144:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "ngsderive.wdl:144:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L144"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:206:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L206"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:208:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "ngsderive.wdl:208:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L208"
 
 [[diagnostics]]
@@ -4868,22 +4363,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:253:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L253"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:255:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "ngsderive.wdl:255:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L255"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:341:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L341"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:343:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "ngsderive.wdl:343:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L343"
 
 [[diagnostics]]
@@ -4893,47 +4378,42 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:439:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "ngsderive.wdl:439:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L439"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:89:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L89"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:91:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "ngsderive.wdl:91:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L91"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:1055:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:1055:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L1055"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:132:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:132:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L132"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:248:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:248:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L248"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:331:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:331:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L331"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:429:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:429:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L429"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:497:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:497:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L497"
 
 [[diagnostics]]
@@ -4943,7 +4423,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:561:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:561:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L561"
 
 [[diagnostics]]
@@ -4953,7 +4433,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:624:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:624:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L624"
 
 [[diagnostics]]
@@ -4963,7 +4443,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:695:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:695:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L695"
 
 [[diagnostics]]
@@ -4973,7 +4453,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:758:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:758:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L758"
 
 [[diagnostics]]
@@ -4983,7 +4463,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:817:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:817:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L817"
 
 [[diagnostics]]
@@ -4993,67 +4473,37 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:861:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L861"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:863:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:863:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L863"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:933:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L933"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:934:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L934"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:935:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:935:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L935"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:989:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L989"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:992:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "picard.wdl:992:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L992"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:160:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "qualimap.wdl:160:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/qualimap.wdl/#L160"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:91:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "qualimap.wdl:91:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/qualimap.wdl/#L91"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:114:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L114"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:116:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "sambamba.wdl:116:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L116"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:172:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L172"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:174:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "sambamba.wdl:174:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L174"
 
 [[diagnostics]]
@@ -5063,97 +4513,52 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:231:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L231"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:233:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "sambamba.wdl:233:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L233"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:288:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L288"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:290:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "sambamba.wdl:290:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L290"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:54:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L54"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:56:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "sambamba.wdl:56:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L56"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1095:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1095"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1097:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:1097:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1097"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1221:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:1221:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1221"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1264:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1264"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1265:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1265"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1267:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:1267:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1267"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1436:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:1436:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1436"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:144:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L144"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:146:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:146:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L146"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:202:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L202"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:204:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:204:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L204"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:261:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L261"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:263:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:263:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L263"
 
 [[diagnostics]]
@@ -5163,27 +4568,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:32:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:32:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L32"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:409:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L409"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:411:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:411:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L411"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:496:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L496"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:498:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:498:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L498"
 
 [[diagnostics]]
@@ -5193,37 +4588,27 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:616:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L616"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:618:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:618:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L618"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:713:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L713"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:715:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:715:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L715"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:791:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:791:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L791"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:984:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "samtools.wdl:984:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L984"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:141:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "star.wdl:141:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L141"
 
 [[diagnostics]]
@@ -5243,12 +4628,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:900:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L900"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:902:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "star.wdl:902:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L902"
 
 [[diagnostics]]
@@ -5258,12 +4638,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:128:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L128"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:130:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:130:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L130"
 
 [[diagnostics]]
@@ -5273,22 +4648,22 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:160:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:160:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L160"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:209:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:209:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L209"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:250:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:250:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L250"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:308:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:308:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L308"
 
 [[diagnostics]]
@@ -5298,12 +4673,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:355:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L355"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:357:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:357:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L357"
 
 [[diagnostics]]
@@ -5313,27 +4683,22 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:407:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:407:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L407"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:43:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:43:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L43"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:465:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L465"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:467:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:467:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L467"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:82:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "util.wdl:82:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L82"
 
 [[diagnostics]]
@@ -5343,7 +4708,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:167:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "dnaseq-standard.wdl:167:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/dnaseq/dnaseq-standard.wdl/#L167"
 
 [[diagnostics]]
@@ -5353,13 +4718,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:196:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:196:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L196"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:198:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L198"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -5368,18 +4728,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:256:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:256:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L256"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:257:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L257"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:258:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L258"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -5388,18 +4738,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:295:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:295:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L295"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:296:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L296"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:297:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L297"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -5408,78 +4748,23 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:332:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L332"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:333:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L333"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:334:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L334"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:335:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "methylation-cohort.wdl:335:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L335"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:103:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "methylation-preprocess.wdl:103:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L103"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:104:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L104"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:105:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L105"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:106:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L106"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:70:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "methylation-preprocess.wdl:70:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L70"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:71:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L71"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:72:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L72"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:180:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "methylation-standard.wdl:180:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L180"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:181:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L181"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:182:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L182"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:183:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L183"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
@@ -5488,7 +4773,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:600:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "quality-check-standard.wdl:600:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/qc/quality-check-standard.wdl/#L600"
 
 [[diagnostics]]
@@ -5498,5 +4783,5 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:188:20: note[ContainerUri]: container URI uses a mutable tag"
+message = "rnaseq-standard.wdl:188:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/rnaseq/rnaseq-standard.wdl/#L188"

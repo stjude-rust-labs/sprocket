@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `LintOptions::config` now sets the severity of analysis rules as well as lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `unnecessary` and `deprecated` `DiagnosticTag`s to applicable diagnostics ([#1235](https://github.com/stjude-rust-labs/sprocket/pull/1235)).
+
 ## 0.23.0 - 2026-09-16
 
 ### Added

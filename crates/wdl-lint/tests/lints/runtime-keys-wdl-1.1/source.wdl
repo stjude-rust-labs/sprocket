@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ContainerUri, EmptyOutputs, BashSetSyntax, ParameterizedResources
+#@ except: MetaDescription, ContainerUri, MutableContainerTag, RedundantContainerArray, EmptyOutputs, BashSetSyntax, ParameterizedResources
 
 version 1.1
 
@@ -19,7 +19,7 @@ task a_task_with_no_keys_but_they_are_excepted {
 
     output {}
 
-    #@ except: ExpectedRuntimeKeys
+    #@ except: UnknownRuntimeKeys, RecommendedRuntimeKeys
     runtime {}  # No errors should show.
 }
 
@@ -115,7 +115,7 @@ task a_task_with_an_explicitly_excepted_key {
         disks: "1 GiB"
         maxRetries: 0
         returnCodes: 0
-        #@ except: ExpectedRuntimeKeys
+        #@ except: UnknownRuntimeKeys
         this_key_is_allowed: "bar"
         this_key_is_not_allowed: "baz"
     }
