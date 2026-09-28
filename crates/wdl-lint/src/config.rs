@@ -448,8 +448,21 @@ define_rules_config! {
             /// ```
             allowed_names: Vec<String> = Vec::new();
         }
-        "TodoComment" => todo_comment: TodoCommentConfig {
+        "FlaggedComment" => flagged_comment: FlaggedCommentConfig {
             severity = RuleSeverity::Note;
+            /// List of keywords to flag in comments.
+            ///
+            /// Keywords are matched as case-sensitive substrings of the comment
+            /// text, and cannot be empty. When keywords overlap (for example,
+            /// `FIX` and `FIXME`), the longest keyword is reported.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.FlaggedComment]
+            /// keywords = ["TODO", "FIXME", "XXX"]
+            /// ```
+            keywords: Vec<String> = vec![String::from("TODO")];
         }
         "UnusedDocComments" => unused_doc_comments: UnusedDocCommentsConfig {
             severity = RuleSeverity::Note;

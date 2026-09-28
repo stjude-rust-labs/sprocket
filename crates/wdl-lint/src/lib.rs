@@ -161,7 +161,7 @@ fn all_rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::new(rules::RecommendedRuntimeKeysRule::new(config)),
         Box::new(rules::EmptyDocCommentRule::new(config)),
         Box::new(rules::DocMetaStringsRule::new(config)),
-        Box::new(rules::TodoCommentRule::new(config)),
+        Box::new(rules::FlaggedCommentRule::new(config)),
         Box::new(rules::MatchingOutputMetaRule::new(config)),
         Box::new(rules::OutputMetaOrderRule::new(config)),
         Box::new(rules::InputNameRule::new(config)),
