@@ -1,0 +1,8 @@
+note[DeprecatedRuntimeKey]: the `docker` runtime key has been deprecated in favor of `container`
+  ┌─ tests/lints/deprecated-runtime-key/source.wdl:8:9
+  │
+8 │         docker: "ubuntu:latest"
+  │         ^^^^^^
+  │
+  = fix: replace the `docker` key with `container`
+

@@ -434,10 +434,13 @@ pub struct CheckConfig {
     pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
-    /// Lint rule configuration.
-    #[toml(default, style = Header)]
+    /// Per-rule configuration, keyed by rule ID.
+    ///
+    /// Each analysis and lint rule has a table with a `severity` (`off`,
+    /// `note`, or `warning`) and any parameters specific to the rule.
+    #[toml(default, style = Implicit)]
     #[schemars(default)]
-    pub lint: wdl::lint::Config,
+    pub rules: wdl::lint::Config,
 }
 
 /// Represents the configuration for the Sprocket `analyzer` command.
@@ -1757,6 +1760,72 @@ mod tests {
             panic!("zero events capacity should error");
         };
         assert_eq!(error.to_string(), "`events_capacity` must be at least 1");
+
+        Ok(())
+    }
+
+    #[test]
+    fn rule_tables_merge_across_files() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let first = tempdir.path().join("first.toml");
+        let second = tempdir.path().join("second.toml");
+        std::fs::write(
+            &first,
+            r#"
+[check.rules.SnakeCase]
+allowed_names = ["Foo"]
+
+[check.rules.UnusedInput]
+severity = "off"
+"#,
+        )?;
+        std::fs::write(&second, "[check.rules.SnakeCase]\nseverity = \"note\"\n")?;
+
+        let BuiltConfig { config, warnings } = Config::new([&*first, &*second], true)?;
+        assert!(warnings.is_empty());
+
+        let rules = &config.check.rules;
+        assert_eq!(rules.snake_case.severity, wdl::lint::RuleSeverity::Note);
+        assert_eq!(rules.snake_case.allowed_names, ["Foo"]);
+        assert_eq!(rules.unused_input.severity, wdl::lint::RuleSeverity::Off);
+        assert_eq!(rules.diagnostics_config().unused_input, None);
+
+        // Rules that aren't configured keep their defaults.
+        let defaults = wdl::lint::Config::default();
+        assert_eq!(rules.declaration_name, defaults.declaration_name);
+        assert_eq!(rules.unused_import, defaults.unused_import);
+
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_rules_and_parameters_warn() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        std::fs::write(
+            &path,
+            r#"
+[check.rules.NotARule]
+severity = "note"
+
+[check.rules.PascalCase]
+allowed_names = ["Foo"]
+"#,
+        )?;
+
+        let BuiltConfig { warnings, .. } = Config::new([&*path], true)?;
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
+
+        Ok(())
+    }
+
+    #[test]
+    fn error_severity_is_rejected() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        std::fs::write(&path, "[check.rules.SnakeCase]\nseverity = \"error\"\n")?;
+
+        assert!(Config::new([&*path], true).is_err());
 
         Ok(())
     }

@@ -11,10 +11,12 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CommandSection;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -48,8 +50,8 @@ static PIPED_INSTALL_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?im)\b(curl|wget)\b.*\|\s*(bash|sh|python[23]?)\b").unwrap());
 
 /// Creates a diagnostic for an inline installation in a command section.
-fn inline_install_diagnostic(span: Span) -> Diagnostic {
-    Diagnostic::warning("inline installation of packages is discouraged")
+fn inline_install_diagnostic(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "inline installation of packages is discouraged")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(
@@ -60,8 +62,20 @@ fn inline_install_diagnostic(span: Span) -> Diagnostic {
 
 /// A lint rule for disallowing the use of inline installations in command
 /// sections.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct InlineInstall;
+#[derive(Clone, Copy, Debug)]
+pub struct InlineInstall {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl InlineInstall {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.inline_install.diagnostic_severity(),
+        }
+    }
+}
 
 impl Rule for InlineInstall {
     fn id(&self) -> &'static str {
@@ -133,9 +147,7 @@ task say_hello {
 }
 
 impl Visitor for InlineInstall {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn command_section(
         &mut self,
@@ -154,10 +166,13 @@ impl Visitor for InlineInstall {
             .chain(PIPED_INSTALL_REGEX.find_iter(&text))
         {
             diagnostics.exceptable_add(
-                inline_install_diagnostic(Span::new(
-                    section.span().start() + mat.start(),
-                    mat.end() - mat.start(),
-                )),
+                inline_install_diagnostic(
+                    self.severity,
+                    Span::new(
+                        section.span().start() + mat.start(),
+                        mat.end() - mat.start(),
+                    ),
+                ),
                 section.inner(),
                 &self.exceptable_nodes(),
             );

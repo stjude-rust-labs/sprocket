@@ -8,12 +8,14 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -28,14 +30,22 @@ const DESCRIPTION_KEY: &str = "description";
 const OUTPUTS_KEY: &str = "outputs";
 
 /// Creates a diagnostic for missing descriptions.
-fn missing_description_diagnostic(name: &str, is_output: bool, span: Span) -> Diagnostic {
+fn missing_description_diagnostic(
+    severity: Severity,
+    name: &str,
+    is_output: bool,
+    span: Span,
+) -> Diagnostic {
     let item_type = if is_output { "output" } else { "parameter" };
     let location = if is_output { " in `meta.outputs`" } else { "" };
 
-    Diagnostic::note(format!(
-        "{} `{}` is missing a description{}",
-        item_type, name, location
-    ))
+    Diagnostic::new(
+        severity,
+        format!(
+            "{} `{}` is missing a description{}",
+            item_type, name, location
+        ),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix(format!("add a description for `{}`", name))
@@ -54,8 +64,20 @@ fn has_valid_description(value: &MetadataValue) -> bool {
 }
 
 /// Detects parameters without proper descriptions.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct ParameterDescriptionRule;
+#[derive(Debug, Clone, Copy)]
+pub struct ParameterDescriptionRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl ParameterDescriptionRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.parameter_description.diagnostic_severity(),
+        }
+    }
+}
 
 impl Rule for ParameterDescriptionRule {
     fn id(&self) -> &'static str {
@@ -154,9 +176,7 @@ task greet {
 }
 
 impl Visitor for ParameterDescriptionRule {
-    fn reset(&mut self) {
-        *self = Default::default();
-    }
+    fn reset(&mut self) {}
 
     fn metadata_section(
         &mut self,
@@ -178,6 +198,7 @@ impl Visitor for ParameterDescriptionRule {
                     if !has_valid_description(&output_item.value()) {
                         diagnostics.exceptable_add(
                             missing_description_diagnostic(
+                                self.severity,
                                 output_item.name().text(),
                                 true,
                                 output_item.name().span(),
@@ -204,7 +225,12 @@ impl Visitor for ParameterDescriptionRule {
         for item in section.items() {
             if !has_valid_description(&item.value()) {
                 diagnostics.exceptable_add(
-                    missing_description_diagnostic(item.name().text(), false, item.name().span()),
+                    missing_description_diagnostic(
+                        self.severity,
+                        item.name().text(),
+                        false,
+                        item.name().span(),
+                    ),
                     item.inner(),
                     &self.exceptable_nodes(),
                 );
