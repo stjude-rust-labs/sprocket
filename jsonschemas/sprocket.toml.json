@@ -377,8 +377,11 @@
               "severity": "warning",
               "allowed_names": []
             },
-            "TodoComment": {
-              "severity": "note"
+            "FlaggedComment": {
+              "severity": "note",
+              "keywords": [
+                "TODO"
+              ]
             },
             "UnusedDocComments": {
               "severity": "note"
@@ -750,11 +753,14 @@
             "allowed_names": []
           }
         },
-        "TodoComment": {
-          "description": "The `TodoComment` rule.",
-          "$ref": "#/$defs/TodoCommentConfig",
+        "FlaggedComment": {
+          "description": "The `FlaggedComment` rule.",
+          "$ref": "#/$defs/FlaggedCommentConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "keywords": [
+              "TODO"
+            ]
           }
         },
         "UnusedDocComments": {
@@ -1449,14 +1455,24 @@
       },
       "additionalProperties": false
     },
-    "TodoCommentConfig": {
-      "description": "Configuration for the `TodoComment` lint rule.",
+    "FlaggedCommentConfig": {
+      "description": "Configuration for the `FlaggedComment` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "keywords": {
+          "description": "List of keywords to flag in comments.\n\nKeywords are matched as case-sensitive substrings of the comment\ntext, and cannot be empty. When keywords overlap (for example,\n`FIX` and `FIXME`), the longest keyword is reported.\n\n##### Example\n\n```toml\n[check.rules.FlaggedComment]\nkeywords = [\"TODO\", \"FIXME\", \"XXX\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "TODO"
+          ]
         }
       },
       "additionalProperties": false

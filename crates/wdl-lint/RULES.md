@@ -28,6 +28,7 @@ allowed_names = ["Foo"]
 | `EmptyOutputs` | Completeness | Ensures that tasks have an `output` section. |  |
 | `UnknownRuntimeKeys` | Completeness, Deprecated | Ensures that WDL 1.1 `runtime` sections only use reserved keys. | * `allowed_runtime_keys` - A list of keys to ignore. |
 | `ExtraneousParameterMeta` | Completeness, Sorting, Documentation, SprocketCompatibility | Ensures that `parameter_meta` sections do not contain extraneous keys. |  |
+| `FlaggedComment` | Style | Flags comments that contain configured keywords (by default, `TODO`) to ensure they are not forgotten. | * `keywords` - A list of keywords to flag in comments. |
 | `HereDocCommands` | Clarity, Correctness | Ensures that tasks use heredoc syntax in command sections. |  |
 | `HostPathLiterals` | Portability | Flags `File`/`Directory` declaration defaults that use absolute host paths. |  |
 | `ImportPlacement` | Clarity | Ensures that imports are placed between the version statement and any document items. |  |
@@ -50,5 +51,4 @@ allowed_names = ["Foo"]
 | `RuntimeSection` | Completeness, Portability | Ensures that tasks have a `runtime` section (for WDL v1.1 and prior). |  |
 | `ShellCheck` | Correctness | Ensures that command blocks are free of ShellCheck violations. |  |
 | `SnakeCase` | Naming, Style, Clarity | Ensures that tasks, workflows, and variables are defined with snake_case names. | * `allowed_names` - A list of names to ignore. |
-| `TodoComment` | Style | Flags TODO statements in comments to ensure they are not forgotten. |  |
 | `UnusedDocComments` | Documentation | Ensures that all doc comments are attached to supported syntax items. |  |

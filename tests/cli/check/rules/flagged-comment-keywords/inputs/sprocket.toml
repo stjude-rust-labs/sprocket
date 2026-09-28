@@ -1,2 +1,2 @@
 [check.rules.FlaggedComment]
-severity = "warning"
+keywords = ["FIXME", "XYZ"]

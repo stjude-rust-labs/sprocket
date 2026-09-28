@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added a `keywords` option to the `FlaggedComment` lint rule ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
 * Added `RuleSeverity` and a `severity` for every rule in `Config` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `DeprecatedRuntimeKey`, `ExtraneousParameterMeta`, `MutableContainerTag`, `OutputMetaOrder`, `ParameterMetaOrder`, `RecommendedRuntimeKeys`, and `RedundantContainerArray` lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 
 #### Changed
 
+* Renamed the `TodoComment` lint rule to `FlaggedComment` ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
 * `Config` now has one table per rule, keyed by rule ID, for both analysis and lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules now report diagnostics at their configured severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules are now constructed with `new(&Config)` and no longer implement `Default` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
