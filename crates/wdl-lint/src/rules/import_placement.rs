@@ -7,6 +7,7 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::ImportStatement;
@@ -14,6 +15,7 @@ use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -22,8 +24,8 @@ use crate::TagSet;
 const ID: &str = "ImportPlacement";
 
 /// Creates a "misplaced import" diagnostic.
-fn misplaced_import(span: Span) -> Diagnostic {
-    Diagnostic::warning("misplaced import")
+fn misplaced_import(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "misplaced import")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(
@@ -33,10 +35,22 @@ fn misplaced_import(span: Span) -> Diagnostic {
 }
 
 /// Detects incorrect import placements.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ImportPlacementRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// Whether or not an import statement is considered invalid.
     invalid: bool,
+}
+
+impl ImportPlacementRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.import_placement.diagnostic_severity(),
+            invalid: Default::default(),
+        }
+    }
 }
 
 impl Rule for ImportPlacementRule {
@@ -96,7 +110,7 @@ workflow example {
 
 impl Visitor for ImportPlacementRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        self.invalid = Default::default();
     }
 
     fn import_statement(
@@ -111,7 +125,7 @@ impl Visitor for ImportPlacementRule {
 
         if self.invalid {
             diagnostics.exceptable_add(
-                misplaced_import(stmt.span()),
+                misplaced_import(self.severity, stmt.span()),
                 stmt.inner(),
                 &self.exceptable_nodes(),
             );

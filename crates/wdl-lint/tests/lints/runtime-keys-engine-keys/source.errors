@@ -6,7 +6,7 @@ warning[ContainerUri]: container URI is missing a tag
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
-warning[ExpectedRuntimeKeys]: the runtime key `cromwell` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+warning[UnknownRuntimeKeys]: the runtime key `cromwell` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
    ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:20:9
    │
 20 │         cromwell: {}
@@ -14,7 +14,7 @@ warning[ExpectedRuntimeKeys]: the runtime key `cromwell` is not reserved in the 
    │
    = fix: remove the `cromwell` key
 
-warning[ExpectedRuntimeKeys]: the runtime key `miniwdl` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+warning[UnknownRuntimeKeys]: the runtime key `miniwdl` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
    ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:21:9
    │
 21 │         miniwdl: {}

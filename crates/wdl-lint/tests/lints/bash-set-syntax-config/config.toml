@@ -1,1 +1,2 @@
+[BashSetSyntax]
 bash_set_options = ["errexit", "pipefail"] # Default also includes nounset

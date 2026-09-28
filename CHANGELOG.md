@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+
 ### Changed
 
+* Moved the lint rule parameters from `[check.lint]` to their rule's table (for example, `[check.rules.SnakeCase]`); `SnakeCase` and `DeclarationName` now have separate `allowed_names` lists ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Moved the note-severity checks in `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` into new lint rules: `MutableContainerTag`, `RedundantContainerArray`, `DeprecatedRuntimeKey`, `RecommendedRuntimeKeys`, `OutputMetaOrder`, `ExtraneousParameterMeta`, and `ParameterMetaOrder` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `BashSetSyntax` now reports unknown `set` options as warnings, and `ShellCheck` reports a failure to run `shellcheck` as a note ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Renamed lint rules `ExpectedRuntimeKeys` to `UnknownRuntimeKeys` and `ParameterMetaMatched` to `MissingParameterMeta` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).
 * `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
 * Unknown keys in `sprocket.toml` will now produce warnings, rather than error ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
@@ -16,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* `check`, `lint`, and `analyzer` now apply the lint rule parameters from `sprocket.toml` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Fixed a stack overflow occurring when parsing CLI options that occurred on
   debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
 * Fixed intermittent `check` and `run` failures when a document imports several

@@ -1,1 +1,2 @@
+[SnakeCase]
 allowed_names = ["BadButAllowedTask"]

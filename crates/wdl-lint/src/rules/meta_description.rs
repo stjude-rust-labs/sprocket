@@ -10,6 +10,7 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Documented;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -20,6 +21,7 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -28,31 +30,48 @@ use crate::TagSet;
 const ID: &str = "MetaDescription";
 
 /// Creates a description missing diagnostic.
-fn description_missing(span: Span, parent: SectionParent) -> Diagnostic {
+fn description_missing(severity: Severity, span: Span, parent: SectionParent) -> Diagnostic {
     let (ty, name) = match parent {
         SectionParent::Task(t) => ("task", t.name()),
         SectionParent::Workflow(w) => ("workflow", w.name()),
         SectionParent::Struct(s) => ("struct", s.name()),
     };
 
-    Diagnostic::note(format!(
-        "{ty} `{name}` is missing a description key",
-        name = name.text()
-    ))
+    Diagnostic::new(
+        severity,
+        format!(
+            "{ty} `{name}` is missing a description key",
+            name = name.text()
+        ),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix("add a `description` key to the meta section")
 }
 
 /// Ensures the `meta` section contains a `description` key.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct MetaDescriptionRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
     /// Whether or not we're currently in a struct definition.
     in_struct: bool,
     /// Whether or not the current item has a doc comment.
     documented: bool,
+}
+
+impl MetaDescriptionRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.meta_description.diagnostic_severity(),
+            version: Default::default(),
+            in_struct: Default::default(),
+            documented: Default::default(),
+        }
+    }
 }
 
 impl Rule for MetaDescriptionRule {
@@ -130,7 +149,7 @@ task say_hello {
 
     fn related_rules(&self) -> &'static [&'static str] {
         &[
-            "ParameterMetaMatched",
+            "MissingParameterMeta",
             "ParameterDescription",
             "OutputSection",
             "RequirementsSection",
@@ -155,7 +174,9 @@ impl MetaDescriptionRule {
 
 impl Visitor for MetaDescriptionRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.version = Default::default();
+        self.in_struct = Default::default();
+        self.documented = Default::default();
     }
 
     fn document(
@@ -219,6 +240,7 @@ impl Visitor for MetaDescriptionRule {
         if description.is_none() {
             diagnostics.exceptable_add(
                 description_missing(
+                    self.severity,
                     section
                         .inner()
                         .first_token()

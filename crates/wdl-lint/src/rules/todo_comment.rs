@@ -7,9 +7,11 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::TreeToken;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -21,17 +23,34 @@ const ID: &str = "TodoComment";
 const TODO: &str = "TODO";
 
 /// Detects remaining TODOs within comments.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct TodoCommentRule;
+#[derive(Debug, Clone, Copy)]
+pub struct TodoCommentRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
 
 /// Creates a "todo comment" diagnostic.
-fn todo_comment(comment: &str, comment_span: Span, offset: usize) -> Diagnostic {
+fn todo_comment(
+    severity: Severity,
+    comment: &str,
+    comment_span: Span,
+    offset: usize,
+) -> Diagnostic {
     let start = comment_span.start() + offset;
 
-    Diagnostic::note(format!("remaining `{TODO}` item found"))
+    Diagnostic::new(severity, format!("remaining `{TODO}` item found"))
         .with_rule(ID)
         .with_highlight(Span::new(start, comment.len()))
         .with_fix("remove the `TODO` item once it has been implemented")
+}
+
+impl TodoCommentRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.todo_comment.diagnostic_severity(),
+        }
+    }
 }
 
 impl Rule for TodoCommentRule {
@@ -84,14 +103,12 @@ workflow example {
 }
 
 impl Visitor for TodoCommentRule {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
         for (offset, pattern) in comment.text().match_indices(TODO) {
             diagnostics.exceptable_add(
-                todo_comment(pattern, comment.span(), offset),
+                todo_comment(self.severity, pattern, comment.span(), offset),
                 &TreeToken::parent(comment.inner()),
                 &self.exceptable_nodes(),
             );
