@@ -44,6 +44,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   from `bjobs`; Slurm uses `sacct` fields including `MaxRSS` and `AveRSS`. Usage can be reported for
   successful, failed, canceled, and preempted attempts
   ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Added the `backends.<name>.resource_usage_metadata` TES configuration option. When enabled, tasks
+  are polled with the `BASIC` view and supported top-level `TaskLog.metadata` resource usage values
+  are reported through Crankshaft's `TaskResourceUsage` event. The TES server defines each value's
+  semantics; Planetary reports sampled Kubernetes working-set memory and cumulative CPU time
+  ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ### Changed
 
