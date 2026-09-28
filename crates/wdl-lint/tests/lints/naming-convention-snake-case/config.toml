@@ -1,6 +1,0 @@
-[NamingConvention]
-task = "snake-case"
-workflow = "snake-case"
-variable = "snake-case"
-type = "snake-case"
-struct_member = "snake-case"
