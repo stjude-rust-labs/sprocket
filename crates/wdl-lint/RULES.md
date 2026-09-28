@@ -5,8 +5,9 @@ This table documents all `sprocket` lint rules implemented on the `main` branch 
 Each rule is configured in its own `[check.rules.<RULE>]` table of `sprocket.toml`. Every rule has a `severity` of `off`, `note`, or `warning`; the Config column lists any additional parameters. For example:
 
 ```toml
-[check.rules.SnakeCase]
+[check.rules.NamingConvention]
 severity = "note"
+task = "pascal-case"
 allowed_names = ["Foo"]
 ```
 
@@ -37,18 +38,17 @@ allowed_names = ["Foo"]
 | `MetaDescription` | Completeness, Documentation, SprocketCompatibility | Ensures that items with a `meta` section either contain a `description` key or a doc comment. |  |
 | `MetaSections` | Completeness, Clarity, Documentation | Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections, or supplementary doc comments. |  |
 | `MutableContainerTag` | Clarity, Portability | Ensures that container URIs use immutable tags. |  |
+| `NamingConvention` | Naming, Style, Clarity | Ensures that tasks, workflows, variables, and types follow the configured naming conventions. | * `task` - The case style for task names (default `snake-case`).<br>* `workflow` - The case style for workflow names (default `snake-case`).<br>* `variable` - The case style for input, output, and private declaration names (default `snake-case`).<br>* `type` - The case style for struct, enum, and enum choice names (default `pascal-case`).<br>* `struct_member` - The case style for struct member names (default `snake-case`).<br>* `allowed_names` - A list of names to ignore.<br><br>Case styles are `snake-case`, `screaming-snake-case`, `camel-case`, or `pascal-case`. |
 | `OutputMetaOrder` | Completeness, Documentation, SprocketCompatibility | Ensures that `meta.outputs` keys are in the same order as output declarations. |  |
 | `OutputName` | Naming, Style | Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too short). |  |
 | `ParameterDescription` | Completeness, Documentation | Ensures that parameters and outputs have proper descriptions for documentation generation. |  |
 | `MissingParameterMeta` | Completeness, Sorting, Documentation, SprocketCompatibility | Ensures that inputs and struct fields have `parameter_meta` entries or supplementary doc comments. |  |
 | `ParameterMetaOrder` | Completeness, Sorting, Documentation, SprocketCompatibility | Ensures that `parameter_meta` keys follow input declaration order. |  |
-| `PascalCase` | Naming, Style, Clarity | Ensures that structs are defined with PascalCase names. |  |
 | `RecommendedRuntimeKeys` | Completeness, Deprecated | Ensures that WDL 1.0 and 1.1 `runtime` sections include recommended keys. |  |
 | `RedundantContainerArray` | Clarity, Portability | Ensures that single-item container arrays are written as string literals. |  |
 | `RedundantNone` | Style | Flags redundant assignment of `None` to optional inputs. |  |
 | `RequirementsSection` | Completeness, Portability | Ensures that tasks have a `requirements` section (for WDL v1.2 and beyond). |  |
 | `RuntimeSection` | Completeness, Portability | Ensures that tasks have a `runtime` section (for WDL v1.1 and prior). |  |
 | `ShellCheck` | Correctness | Ensures that command blocks are free of ShellCheck violations. |  |
-| `SnakeCase` | Naming, Style, Clarity | Ensures that tasks, workflows, and variables are defined with snake_case names. | * `allowed_names` - A list of names to ignore. |
 | `TodoComment` | Style | Flags TODO statements in comments to ensure they are not forgotten. |  |
 | `UnusedDocComments` | Documentation | Ensures that all doc comments are attached to supported syntax items. |  |

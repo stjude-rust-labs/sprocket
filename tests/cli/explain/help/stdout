@@ -102,18 +102,17 @@ Available rules:
   - MisleadingDeclarationOrder
   - MissingParameterMeta
   - MutableContainerTag
+  - NamingConvention
   - OutputMetaOrder
   - OutputName
   - ParameterDescription
   - ParameterMetaOrder
-  - PascalCase
   - RecommendedRuntimeKeys
   - RedundantContainerArray
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
-  - SnakeCase
   - TodoComment
   - UnknownRuntimeKeys
   - UnnecessaryFunctionCall

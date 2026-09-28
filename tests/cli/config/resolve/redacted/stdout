@@ -131,6 +131,15 @@ severity = "note"
 [check.rules.MutableContainerTag]
 severity = "note"
 
+[check.rules.NamingConvention]
+severity = "warning"
+task = "snake-case"
+workflow = "snake-case"
+variable = "snake-case"
+type = "pascal-case"
+struct_member = "snake-case"
+allowed_names = []
+
 [check.rules.OutputName]
 severity = "note"
 
@@ -145,9 +154,6 @@ severity = "warning"
 
 [check.rules.ParameterMetaOrder]
 severity = "note"
-
-[check.rules.PascalCase]
-severity = "warning"
 
 [check.rules.RedundantNone]
 severity = "note"
@@ -166,10 +172,6 @@ severity = "warning"
 
 [check.rules.ShellCheck]
 severity = "note"
-
-[check.rules.SnakeCase]
-severity = "warning"
-allowed_names = []
 
 [check.rules.TodoComment]
 severity = "note"
