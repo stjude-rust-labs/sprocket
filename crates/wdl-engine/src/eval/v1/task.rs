@@ -264,6 +264,168 @@ fn directory_size(dir: &Path) -> std::io::Result<u64> {
     Ok(total)
 }
 
+/// The name of the file the measurement shim writes into the task's work
+/// directory.
+const USAGE_FILE_NAME: &str = ".sprocket_usage";
+/// The environment variable that overrides the measurement shim's output path.
+const USAGE_FILE_ENV: &str = "SPROCKET_USAGE_FILE";
+
+/// The clock tick rate used when `getconf CLK_TCK` is missing or invalid.
+///
+/// Linux uses 100 on mainstream architectures, independently of CONFIG_HZ.
+const DEFAULT_CLOCK_TICKS_PER_SECOND: u64 = 100;
+
+/// Shell helper for reading only the current cgroup's peak, using membership
+/// and mount information from the execution environment.
+const CGROUP_PEAK_SH: &str = r#"__sprocket_cgroup_peak() {
+    awk '
+    function unescape(path, result, escape) {
+        result = ""
+        while (match(path, /\\(040|011|012|134)/)) {
+            escape = substr(path, RSTART + 1, 3)
+            result = result substr(path, 1, RSTART - 1)
+            result = result (escape == "040" ? " " : escape == "011" ? "\t" : escape == "012" ? "\n" : "\\")
+            path = substr(path, RSTART + RLENGTH)
+        }
+        return result path
+    }
+    FILENAME == ARGV[1] {
+        # Keep colons in the membership path intact.
+        separator = index($0, ":")
+        rest = substr($0, separator + 1)
+        separator = index(rest, ":")
+        controllers = substr(rest, 1, separator - 1)
+        group = substr(rest, separator + 1)
+        if ($0 ~ /^0::/) v2 = group
+        else if (index("," controllers ",", ",memory,")) v1 = group
+        next
+    }
+    {
+        for (separator = 7; separator <= NF; separator++)
+            if ($separator == "-") break
+        if ($(separator + 1) == "cgroup2") {
+            group = v2
+            counter = "memory.peak"
+        } else if ($(separator + 1) == "cgroup" &&
+                   index("," $(separator + 3) ",", ",memory,")) {
+            group = v1
+            counter = "memory.max_usage_in_bytes"
+        } else next
+        if (group == "" || substr(group, 1, 1) != "/") next
+        root = unescape($4)
+        mount = unescape($5)
+        # Translate the membership through this mount root, never an ancestor.
+        if (group == root) suffix = ""
+        else if (root == "/") suffix = group
+        else if (index(group, root "/") == 1) suffix = substr(group, length(root) + 1)
+        else next
+        file = (mount == "/" ? "" : mount) suffix "/" counter
+        if ((getline peak < file) > 0 && peak ~ /^[0-9]+$/) {
+            print peak
+            close(file)
+            exit
+        }
+        close(file)
+    }
+    ' "$1" "$2" 2>/dev/null
+}
+"#;
+
+/// Wraps a task command to measure CPU time and cgroup peak memory.
+///
+/// The command runs in a subshell with the same stdout and stderr. After it
+/// finishes, the shim saves its exit code and reads:
+///
+/// * the shell's child CPU times in clock ticks, read from `/proc/$$/stat`
+///   (fields `cutime`/`cstime` accumulate the reaped subshell, i.e. the entire
+///   command); and
+/// * the peak memory from the shell's own cgroup (v2 `memory.peak`, or v1
+///   `memory.max_usage_in_bytes`), resolved through its membership and mounts
+///   inside the execution environment.
+///
+/// Measurements are written as `key=value` lines to
+/// [`USAGE_FILE_NAME`] in the work directory. Missing counters are omitted.
+/// The recording includes `getconf CLK_TCK` from the execution environment
+/// when available. The shim exits with the command's saved exit code.
+fn wrap_command_with_usage_shim(command: &str) -> String {
+    format!(
+        r#"{CGROUP_PEAK_SH}__sprocket_usage_file="${{{USAGE_FILE_ENV}:-$PWD/{USAGE_FILE_NAME}}}"
+(
+{command}
+)
+__sprocket_rc=$?
+{{
+    # `$$` is used rather than `self`: the command substitution below runs in
+    # a forked child, where `/proc/self` would resolve to the child itself
+    # (whose reaped-children CPU times are zero), while `$$` remains the PID
+    # of this shell, whose cutime/cstime include the reaped payload subshell
+    __sprocket_stat=$(cat /proc/$$/stat 2>/dev/null) || __sprocket_stat=
+    __sprocket_clk_tck=$(getconf CLK_TCK 2>/dev/null) || __sprocket_clk_tck=
+    printf 'clk_tck=%s\n' "$__sprocket_clk_tck" > "$__sprocket_usage_file"
+    if [ -n "$__sprocket_stat" ]; then
+        set -- ${{__sprocket_stat##*) }}
+        printf 'cutime_ticks=%s\ncstime_ticks=%s\n' "${{14}}" "${{15}}" >> "$__sprocket_usage_file"
+    fi
+    __sprocket_peak=$(__sprocket_cgroup_peak /proc/$$/cgroup /proc/$$/mountinfo) || __sprocket_peak=
+    if [ -n "$__sprocket_peak" ]; then
+        printf 'peak_memory=%s\n' "$__sprocket_peak" >> "$__sprocket_usage_file"
+    fi
+}} 2>/dev/null || true
+exit $__sprocket_rc
+"#
+    )
+}
+
+/// Parses the measurement shim's usage file contents into a resource usage
+/// snapshot.
+///
+/// `containerized` indicates whether the attempt executed in a container;
+/// the cgroup peak memory reading is only container-scoped there and is
+/// discarded for host execution, where it would reflect the whole session.
+///
+/// CPU times use the recorded clock rate, falling back to 100 ticks per
+/// second when the rate is missing, invalid, or zero.
+///
+/// Note that the cgroup peak is the peak of total cgroup memory usage, which
+/// includes reclaimable page cache; it can therefore exceed a task's memory
+/// constraint and read higher than the working-set values reported by
+/// sampling producers (e.g. the Docker stats sampler, which subtracts the
+/// inactive file cache).
+fn parse_usage_file(contents: &str, containerized: bool) -> crankshaft::events::TaskResourceUsage {
+    let clock_ticks_per_second = contents
+        .lines()
+        .find_map(|line| line.strip_prefix("clk_tck="))
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|rate| *rate > 0)
+        .unwrap_or(DEFAULT_CLOCK_TICKS_PER_SECOND);
+    let ticks_to_ms = |ticks: u64| ticks * 1_000 / clock_ticks_per_second;
+
+    let mut usage = crankshaft::events::TaskResourceUsage::default();
+    for line in contents.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        match key {
+            "cutime_ticks" => {
+                usage.user_cpu_time_ms = value.trim().parse().ok().map(ticks_to_ms);
+            }
+            "cstime_ticks" => {
+                usage.system_cpu_time_ms = value.trim().parse().ok().map(ticks_to_ms);
+            }
+            "peak_memory" if containerized => {
+                usage.max_memory = value.trim().parse().ok();
+            }
+            _ => {}
+        }
+    }
+
+    if let (Some(user), Some(system)) = (usage.user_cpu_time_ms, usage.system_cpu_time_ms) {
+        usage.cpu_time_ms = Some(user + system);
+    }
+
+    usage
+}
+
 /// Used to evaluate expressions in tasks.
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
@@ -1925,6 +2087,11 @@ impl Evaluator {
                 None
             };
 
+            // Native non-Linux tasks have no /proc measurements and need no
+            // shim.
+            let measure_resource_usage = self.engine().config().task.measure_resource_usage
+                && (cfg!(target_os = "linux") || self.engine().backend().name() != "local");
+
             // Lookup the results from the cache
             cached = false;
             let result = if let Some(cache_key) = &key {
@@ -1997,6 +2164,15 @@ impl Evaluator {
                     snapshot.max_memory = hints::max_memory(&inputs, &hints).ok().flatten();
                     self.notify_task_executing(&state.task_name, snapshot);
 
+                    // Wrap the command with the measurement shim when
+                    // configured. This happens after the cache key is
+                    // calculated, so measurement never affects call caching.
+                    let command = if measure_resource_usage {
+                        Cow::Owned(wrap_command_with_usage_shim(&command))
+                    } else {
+                        Cow::Borrowed(command.as_str())
+                    };
+
                     match self
                         .engine()
                         .backend()
@@ -2004,6 +2180,7 @@ impl Evaluator {
                             context: &BackendTaskEvaluationContext(self),
                             name: &state.task_name,
                             command: &command,
+                            measure_resource_usage,
                             inputs: &inputs,
                             backend_inputs: state.backend_inputs.as_slice(),
                             requirements: &requirements,
@@ -2028,27 +2205,88 @@ impl Evaluator {
                 }
             };
 
-            // Report the disk space used by the attempt's work directory when
-            // it is on a local file system. This is best-effort and skipped
-            // for cached results.
-            if !cached && let Some(work_dir) = result.work_dir.as_local() {
-                let work_dir = work_dir.to_path_buf();
-                match tokio::task::spawn_blocking(move || directory_size(&work_dir)).await {
-                    Ok(Ok(disk_used)) => {
-                        self.notify_task_disk_usage(&state.task_name, disk_used);
+            // Report the resource usage the engine can measure for the
+            // attempt. This is best-effort and skipped for cached results,
+            // whose work directory belongs to a prior attempt.
+            if !cached {
+                let mut usage = crankshaft::events::TaskResourceUsage::default();
+
+                // Collect the measurement shim's recordings, when enabled.
+                // The file is removed before the work directory is measured
+                // or digested so that it never counts as task output.
+                if measure_resource_usage {
+                    let containerized = !constraints.sources.is_empty();
+                    let default_usage_file;
+                    let usage_file = if let Some(path) = result.usage_file.as_ref() {
+                        Some(path)
+                    } else {
+                        default_usage_file = result.work_dir.join(USAGE_FILE_NAME).ok();
+                        default_usage_file.as_ref()
+                    };
+                    let contents = match usage_file.and_then(EvaluationPath::as_local) {
+                        Some(work_dir) => {
+                            let contents = std::fs::read_to_string(work_dir).ok();
+                            if contents.is_some() {
+                                let _ = std::fs::remove_file(work_dir);
+                            }
+                            contents
+                        }
+                        None => match usage_file.and_then(EvaluationPath::as_remote).cloned() {
+                            Some(url) => match self
+                                .http_client()
+                                .download(&url, self.cancellation().first())
+                                .await
+                            {
+                                Ok(location) => location
+                                    .to_str()
+                                    .and_then(|p| std::fs::read_to_string(p).ok()),
+                                Err(e) => {
+                                    debug!(
+                                        "failed to retrieve usage file for task `{name}`: {e:#}",
+                                        name = state.task.name()
+                                    );
+                                    None
+                                }
+                            },
+                            None => None,
+                        },
+                    };
+
+                    if let Some(contents) = contents {
+                        usage = parse_usage_file(&contents, containerized);
                     }
-                    Ok(Err(e)) => {
-                        debug!(
-                            "failed to measure work directory size for task `{name}`: {e:#}",
-                            name = state.task.name()
-                        );
+                }
+
+                // Measure the work directory's size on local file systems.
+                if let Some(work_dir) = result.work_dir.as_local() {
+                    let work_dir = work_dir.to_path_buf();
+                    match tokio::task::spawn_blocking(move || directory_size(&work_dir)).await {
+                        Ok(Ok(disk_used)) => {
+                            usage.disk_used = Some(disk_used);
+                        }
+                        Ok(Err(e)) => {
+                            debug!(
+                                "failed to measure work directory size for task `{name}`: {e:#}",
+                                name = state.task.name()
+                            );
+                        }
+                        Err(e) => {
+                            debug!(
+                                "failed to measure work directory size for task `{name}`: {e:#}",
+                                name = state.task.name()
+                            );
+                        }
                     }
-                    Err(e) => {
-                        debug!(
-                            "failed to measure work directory size for task `{name}`: {e:#}",
-                            name = state.task.name()
-                        );
-                    }
+                }
+
+                if !usage.is_empty() {
+                    self.notify_task_usage_measured(
+                        result
+                            .execution_name_override
+                            .as_deref()
+                            .unwrap_or(&state.task_name),
+                        usage,
+                    );
                 }
             }
 
@@ -2536,6 +2774,7 @@ mod tests {
                     image: None,
                     exit_code,
                     work_dir: EvaluationPath::from_local_path(work_dir),
+                    usage_file: None,
                     stdout: PrimitiveValue::new_file(
                         stdout
                             .into_os_string()
@@ -3985,6 +4224,420 @@ task test {
             logs_contain("task cache key is"),
             "expected the cache key to be calculated"
         );
+    }
+
+    #[test]
+    fn usage_shim_cgroup_peak_resolves_membership_and_mount_roots() {
+        let dir = tempfile::Builder::new()
+            .prefix("sprocket-cgroup-")
+            .tempdir_in(".")
+            .unwrap();
+        let mount = dir
+            .path()
+            .canonicalize()
+            .unwrap()
+            .join("mount with\\escape");
+        fs::create_dir_all(mount.join("nested")).unwrap();
+        fs::write(mount.join("memory.peak"), "111\n").unwrap();
+        fs::write(mount.join("nested/memory.peak"), "222\n").unwrap();
+        fs::write(mount.join("nested/memory.max_usage_in_bytes"), "333\n").unwrap();
+        let escaped_mount = mount
+            .to_str()
+            .unwrap()
+            .replace('\\', "\\134")
+            .replace(' ', "\\040");
+
+        for (membership, root, filesystem, options, expected) in [
+            ("0::/\n", "/", "cgroup2", "rw", "111\n"),
+            ("0::/nested\n", "/", "cgroup2", "rw", "222\n"),
+            (
+                "0::/docker/task/nested\n",
+                "/docker/task",
+                "cgroup2",
+                "rw",
+                "222\n",
+            ),
+            (
+                "0::/docker/task\n",
+                "/docker/task",
+                "cgroup2",
+                "rw",
+                "111\n",
+            ),
+            (
+                "4:cpu,cpuacct:/wrong\n7:memory,hugetlb:/docker/task/nested\n",
+                "/docker/task",
+                "cgroup",
+                "rw,memory,hugetlb",
+                "333\n",
+            ),
+            (
+                "0::/docker/task with space/nested\n",
+                "/docker/task\\040with\\040space",
+                "cgroup2",
+                "rw",
+                "222\n",
+            ),
+        ] {
+            let mountinfo = format!(
+                "29 23 0:26 {root} {escaped_mount} rw,nosuid shared:8 - {filesystem} cgroup \
+                 {options}\n"
+            );
+            assert_eq!(
+                run_cgroup_peak_fixture(dir.path(), membership, &mountinfo),
+                expected,
+                "membership={membership:?}, root={root:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn usage_shim_cgroup_peak_never_falls_back_to_unrelated_counters() {
+        let dir = tempfile::Builder::new()
+            .prefix("sprocket-cgroup-")
+            .tempdir_in(".")
+            .unwrap();
+        let mount = dir.path().canonicalize().unwrap().join("mount");
+        fs::create_dir_all(mount.join("nested")).unwrap();
+        fs::write(mount.join("memory.peak"), "999999\n").unwrap();
+        let mountinfo = format!(
+            "29 23 0:26 /docker/task {} rw - cgroup2 cgroup rw\n",
+            mount.display()
+        );
+        for membership in [
+            "0::/docker/task/nested\n",
+            "0::/docker/task-other\n",
+            "0::/unrelated\n",
+            "7:memory:/docker/task\n",
+            "",
+        ] {
+            assert_eq!(
+                run_cgroup_peak_fixture(dir.path(), membership, &mountinfo),
+                "",
+                "membership={membership:?}"
+            );
+        }
+
+        fs::write(mount.join("nested/memory.peak"), "unavailable\n").unwrap();
+        assert_eq!(
+            run_cgroup_peak_fixture(dir.path(), "0::/docker/task/nested\n", &mountinfo),
+            ""
+        );
+        let wrong_controller = format!(
+            "29 23 0:26 /docker/task {} rw - cgroup cgroup rw,cpu,cpuacct\n",
+            mount.display()
+        );
+        fs::write(mount.join("memory.max_usage_in_bytes"), "999999\n").unwrap();
+        assert_eq!(
+            run_cgroup_peak_fixture(dir.path(), "7:memory:/docker/task\n", &wrong_controller),
+            ""
+        );
+    }
+
+    fn run_cgroup_peak_fixture(dir: &Path, membership: &str, mountinfo: &str) -> String {
+        let membership_path = dir.join("cgroup");
+        let mountinfo_path = dir.join("mountinfo");
+        fs::write(&membership_path, membership).unwrap();
+        fs::write(&mountinfo_path, mountinfo).unwrap();
+        // Run the same shell function the generated shim uses, with fixture
+        // inputs.
+        let script =
+            super::wrap_command_with_usage_shim("__sprocket_cgroup_peak \"$1\" \"$2\"\nexit 0");
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(script)
+            .arg("cgroup-fixture")
+            .arg(membership_path)
+            .arg(mountinfo_path)
+            .env(super::USAGE_FILE_ENV, dir.join("usage"))
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert!(
+            output.stderr.is_empty(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    }
+
+    #[test]
+    fn usage_shims_wrap_commands_and_preserve_exit_codes() {
+        let wrapped = super::wrap_command_with_usage_shim("echo hello\nexit 3");
+
+        // The original command runs unmodified in a subshell.
+        assert!(wrapped.contains("echo hello\nexit 3"));
+        // The payload's exit code is captured and propagated.
+        assert!(wrapped.contains("__sprocket_rc=$?"));
+        assert!(wrapped.trim_end().ends_with("exit $__sprocket_rc"));
+        // Backends may redirect the usage file outside the work directory;
+        // otherwise it is written there by default.
+        assert!(wrapped.contains(super::USAGE_FILE_ENV));
+        assert!(wrapped.contains(super::USAGE_FILE_NAME));
+        // CPU times must be read via `$$` (this shell), not `self`, which
+        // would resolve to the forked command substitution child and always
+        // report zero reaped-children CPU time.
+        assert!(wrapped.contains("/proc/$$/stat"));
+        assert!(!wrapped.contains("/proc/self/stat"));
+    }
+
+    #[test]
+    fn usage_shims_record_the_execution_clock_rate_without_changing_task_results() {
+        for (probe, expected_rate) in [
+            (
+                "getconf() { [ \"$1\" = CLK_TCK ] || return 2; printf '250\\n'; }",
+                "250",
+            ),
+            (
+                "getconf() { printf 'probe failed\\n' >&2; printf '999\\n'; return 1; }",
+                "",
+            ),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let usage_file = dir.path().join("usage");
+            let wrapped = super::wrap_command_with_usage_shim(
+                "printf 'task stdout\\n'\nprintf 'task stderr\\n' >&2\nexit 7",
+            );
+            let output = std::process::Command::new("sh")
+                .args(["-c", &format!("{probe}\n{wrapped}")])
+                .env(super::USAGE_FILE_ENV, &usage_file)
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(7));
+            assert_eq!(output.stdout, b"task stdout\n");
+            assert_eq!(output.stderr, b"task stderr\n");
+            let contents = fs::read_to_string(usage_file).expect("missing usage recording");
+            assert!(
+                contents
+                    .lines()
+                    .any(|line| line == format!("clk_tck={expected_rate}")),
+                "unexpected recording: {contents:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn usage_files_use_the_recorded_clock_rate_or_fall_back_to_100() {
+        for (rate, expected_user, expected_system) in [
+            ("clk_tck=250\n", 1_000, 500),
+            ("clk_tck=1024\n", 244, 122),
+            ("", 2_500, 1_250),
+            ("clk_tck=\n", 2_500, 1_250),
+            ("clk_tck=0\n", 2_500, 1_250),
+            ("clk_tck=-1\n", 2_500, 1_250),
+            ("clk_tck=invalid\n", 2_500, 1_250),
+            ("clk_tck=18446744073709551616\n", 2_500, 1_250),
+        ] {
+            let ticks = "cutime_ticks=250\ncstime_ticks=125\n";
+            for contents in [format!("{rate}{ticks}"), format!("{ticks}{rate}")] {
+                let usage = super::parse_usage_file(&contents, true);
+                assert_eq!(
+                    usage.user_cpu_time_ms,
+                    Some(expected_user),
+                    "recording: {contents:?}"
+                );
+                assert_eq!(usage.system_cpu_time_ms, Some(expected_system));
+                assert_eq!(usage.cpu_time_ms, Some(expected_user + expected_system));
+            }
+        }
+    }
+
+    #[test]
+    fn usage_files_parse_into_snapshots() {
+        // 12345 ticks at the assumed 100Hz is 123450ms.
+        let usage = super::parse_usage_file(
+            "cutime_ticks=12345\ncstime_ticks=100\npeak_memory=241172480\n",
+            true,
+        );
+        assert_eq!(usage.user_cpu_time_ms, Some(123_450));
+        assert_eq!(usage.system_cpu_time_ms, Some(1_000));
+        assert_eq!(usage.cpu_time_ms, Some(124_450));
+        assert_eq!(usage.max_memory, Some(241_172_480));
+
+        // Outside a container, the cgroup peak reflects the whole session
+        // and is discarded.
+        let usage = super::parse_usage_file(
+            "cutime_ticks=100\ncstime_ticks=0\npeak_memory=241172480\n",
+            false,
+        );
+        assert_eq!(usage.max_memory, None);
+        assert_eq!(usage.cpu_time_ms, Some(1_000));
+
+        // Garbage yields an empty snapshot rather than an error.
+        assert!(super::parse_usage_file("not a usage file", true).is_empty());
+        assert!(super::parse_usage_file("", false).is_empty());
+    }
+
+    #[tokio::test]
+    async fn measured_usage_preserves_task_behavior() {
+        let root_dir = tempfile::tempdir().expect("failed to create temporary directory");
+        let command = if cfg!(target_os = "linux") {
+            "echo \"hello, measured!\""
+        } else {
+            "echo \"hello, measured!\"\nprintf 'task output' > .sprocket_usage"
+        };
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            format!(
+                r#"
+version 1.2
+
+task test {{
+    command <<<{command}>>>
+
+    output {{
+        String out = read_string(stdout())
+    }}
+}}
+"#,
+            ),
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results.first().expect("should have result").document();
+
+        let mut config = Config::default();
+        config.task.measure_resource_usage = true;
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let events = Events::default().with_engine(100);
+        let mut engine_rx = events.subscribe_engine().unwrap();
+        let measured = tokio::spawn(async move {
+            let mut measured = Vec::new();
+            loop {
+                match engine_rx.recv().await {
+                    Ok(crate::EngineEvent::TaskUsageMeasured { usage, .. }) => {
+                        measured.push(usage);
+                    }
+                    Ok(_) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    Err(e) => panic!("failed to receive event: {e}"),
+                }
+            }
+            measured
+        });
+
+        let engine = Engine::new(config).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
+                TaskInputs::default(),
+                root_dir.path().join("runs"),
+            )
+            .await
+            .expect("evaluation should succeed");
+
+        assert!(!evaluated.failed(), "task should succeed with the shim");
+        assert_eq!(evaluated.exit_code(), 0);
+
+        let work_dir = evaluated
+            .work_dir()
+            .as_local()
+            .expect("work dir should be local");
+        if cfg!(target_os = "linux") {
+            assert!(
+                !work_dir.join(super::USAGE_FILE_NAME).exists(),
+                "usage file should be removed after collection"
+            );
+        } else {
+            assert_eq!(
+                fs::read_to_string(work_dir.join(super::USAGE_FILE_NAME)).unwrap(),
+                "task output",
+                "native non-Linux tasks must not be wrapped or have their files collected"
+            );
+        }
+
+        drop(evaluator);
+        let measured = measured.await.expect("failed to await events task");
+
+        // The engine always measures the work directory's size on local file
+        // systems; the shim's CPU/memory recordings are platform-dependent
+        // (absent without `/proc`), so they are not asserted here.
+        assert_eq!(measured.len(), 1);
+        assert!(measured[0].disk_used.is_some());
+    }
+
+    #[tokio::test]
+    async fn measured_usage_preserves_failing_exit_codes() {
+        // The shim must propagate the payload's exit code: a failing task
+        // must still fail, with its original code.
+        let root_dir = tempfile::tempdir().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.2
+
+task test {
+    command <<<exit 7>>>
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results.first().expect("should have result").document();
+
+        let mut config = Config::default();
+        config.task.measure_resource_usage = true;
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let engine = Engine::new(config).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
+                TaskInputs::default(),
+                root_dir.path().join("runs"),
+            )
+            .await
+            .expect("evaluation should return an evaluated task");
+
+        assert!(evaluated.failed(), "the task should have failed");
+        assert_eq!(evaluated.exit_code(), 7, "the exit code should propagate");
     }
 
     #[test]

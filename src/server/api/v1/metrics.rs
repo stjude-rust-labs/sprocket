@@ -99,10 +99,14 @@ pub struct TaskAttemptMetrics {
     /// `null` when the attempt was not retried.
     #[schema(value_type = Option<Object>)]
     pub retry_cause: Option<serde_json::Value>,
-    /// Resource utilization as a JSON object: memory in bytes and CPU time
-    /// in milliseconds. Reported by LSF, Slurm, and local Docker containers
-    /// with a nonzero `backends.<name>.resource_usage_interval` (not Swarm).
-    /// `null` when no measurements have been reported.
+    /// Resource utilization as a JSON object: memory and disk usage in bytes
+    /// and CPU time in milliseconds.
+    ///
+    /// Values come from scheduler accounting, Docker sampling, or the engine.
+    /// Engine values take precedence for fields reported by both sources.
+    /// Docker sampling requires a nonzero
+    /// `backends.<name>.resource_usage_interval` and excludes Docker Swarm.
+    /// `null` when no source reports usage.
     #[schema(value_type = Option<Object>)]
     pub utilization: Option<serde_json::Value>,
     /// A reference to the attempt's logs.

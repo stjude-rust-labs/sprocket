@@ -1336,6 +1336,20 @@ pub struct TaskConfig {
     #[toml(default)]
     #[schemars(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
+    /// Measure CPU time and container peak memory inside each task.
+    ///
+    /// CPU measurements require Linux `/proc`; memory measurements also
+    /// require readable cgroup counters. Local execution on other platforms
+    /// is not wrapped. Engine values take precedence for fields reported by
+    /// both sources; backend-only values are kept.
+    ///
+    /// Local recordings (`.sprocket_usage`) are removed before output and
+    /// cache processing. TES exports the recording outside the work directory.
+    ///
+    /// Defaults to `false`.
+    #[toml(default)]
+    #[schemars(default)]
+    pub measure_resource_usage: bool,
     /// The call cache directory to use for caching task execution results.
     ///
     /// The specified directory is relative to the output directory.
@@ -1395,6 +1409,7 @@ impl Default for TaskConfig {
             shell: default_task_shell().into(),
             cpu_limit_behavior: Default::default(),
             memory_limit_behavior: Default::default(),
+            measure_resource_usage: false,
             cache_dir: default_sentinel().into(),
             cache: Default::default(),
             digests: Default::default(),
@@ -1709,16 +1724,18 @@ pub struct DockerBackendConfig {
     #[toml(default = default_docker_cleanup())]
     #[schemars(default = "default_docker_cleanup")]
     pub cleanup: bool,
-
     /// The interval, in seconds, at which to sample a running container's
     /// resource usage.
     ///
-    /// Each task's peak and average memory and cumulative CPU time
-    /// are sampled from the Docker daemon at this interval and reported in
-    /// the run's metrics.
+    /// Sprocket asks Crankshaft to sample local containers at this interval.
+    /// Memory is sampled container memory with inactive file cache removed;
+    /// the maximum is the largest observed sample, and the average is the
+    /// arithmetic mean of successful samples. CPU time excludes work after
+    /// the last successful sample.
     ///
     /// Defaults to one second. Set to zero to disable sampling. Sampling
     /// applies only to local container execution, not Docker Swarm services.
+    /// Tasks that finish before the first sample may report no usage.
     #[toml(default = default_docker_resource_usage_interval())]
     #[schemars(default = "default_docker_resource_usage_interval")]
     pub resource_usage_interval: Option<u64>,
@@ -3632,6 +3649,40 @@ mod tests {
         assert!(toml.contains("secret"), "`{toml}` contains a secret");
     }
 
+    #[test]
+    fn resource_usage_configuration_round_trips() {
+        let source = r#"
+backend = "docker"
+
+[backends.docker]
+type = "docker"
+resource_usage_interval = 5
+
+[backends.disabled]
+type = "docker"
+resource_usage_interval = 0
+"#;
+
+        let config = toml_spanner::from_str::<Config>(source).unwrap();
+        assert_eq!(
+            config.backends["docker"]
+                .as_docker()
+                .unwrap()
+                .resource_usage_interval,
+            Some(5)
+        );
+        assert_eq!(
+            config.backends["disabled"]
+                .as_docker()
+                .unwrap()
+                .resource_usage_interval,
+            Some(0)
+        );
+        let rendered = toml_spanner::to_string(&config).unwrap();
+        let reparsed = toml_spanner::from_str::<Config>(&rendered).unwrap();
+        assert_eq!(reparsed, config);
+    }
+
     #[tokio::test]
     async fn test_config_validate() {
         // Test invalid task config
@@ -4341,6 +4392,7 @@ type = 'lsf_apptainer'
                     context: &eval_context,
                     name: "test",
                     command: "",
+                    measure_resource_usage: false,
                     inputs: &context.inputs,
                     backend_inputs: &[],
                     requirements: &Object::empty(),
