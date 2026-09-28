@@ -28,6 +28,7 @@ use wdl_ast::Diagnostic;
 
 use super::CancellationContext;
 use super::Events;
+use crate::Coercible;
 use crate::Engine;
 use crate::EngineEvent;
 use crate::EvaluationHttpClient;
@@ -224,14 +225,25 @@ impl Evaluator {
                     .find(|choice| choice.name().text() == choice_name)
                     .ok_or(unknown_enum_choice(ty.name(), choice_name))?;
 
-                if let Some(value_expr) = choice.value() {
-                    // SAFETY: see the panic notice for this function.
-                    Ok(expr::parse_constant_value(ty.inner_value_type(), &value_expr).unwrap())
-                } else {
+                let value = match choice.value() {
+                    Some(value_expr) => {
+                        expr::parse_constant_value(ty.inner_value_type(), &value_expr)
+                    }
                     // NOTE: when no expression is provided, the default is the
                     // choice name as a string.
-                    Ok(Value::Primitive(PrimitiveValue::new_string(choice_name)))
-                }
+                    None => Value::Primitive(PrimitiveValue::new_string(choice_name))
+                        .coerce(None, ty.inner_value_type())
+                        .ok(),
+                };
+
+                value.ok_or_else(|| {
+                    Diagnostic::error(format!(
+                        "the value of choice `{choice_name}` in enum `{name}` cannot be coerced \
+                         to {inner:#}",
+                        name = ty.name(),
+                        inner = ty.inner_value_type()
+                    ))
+                })
             })
             .clone()
     }

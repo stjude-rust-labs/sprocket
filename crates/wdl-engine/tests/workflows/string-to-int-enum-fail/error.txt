@@ -1,0 +1,5 @@
+error: the value of choice `Two` in enum `Mixed` cannot be coerced to type `Int`
+   ┌─ tests/workflows/string-to-int-enum-fail/source.wdl:10:30
+   │
+10 │     Int result = value(Mixed.Two)
+   │                              ^^^

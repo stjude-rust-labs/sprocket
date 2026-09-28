@@ -1,5 +1,5 @@
-error: type mismatch: expected `logical or` operand to be type `Boolean`, but found type `String`
+error: type mismatch: expected `logical or` operand to be type `Boolean`, but found type `Int`
    ┌─ tests/analysis/logical-or-mismatch/source.wdl:10:22
    │
 10 │     Boolean d = a || c || b
-   │                      ^ this is type `String`
+   │                      ^ this is type `Int`

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `String` to `Int`, `Float`, and `Boolean` coercions, per [openwdl/wdl#797](https://github.com/openwdl/wdl/pull/797).
+  Invalid values are no longer reported by static analysis and instead fail
+  during evaluation. Numeric operators, comparisons, negation, and indexing
+  still require non-`String` operands.
+* Added `Type::is_coercible_to_without_string_conversion` and
+  `FunctionSignature::realize_parameter_types`.
+
 #### Changed
 
 * `find_all_references` and `rename` now search only the defining document for

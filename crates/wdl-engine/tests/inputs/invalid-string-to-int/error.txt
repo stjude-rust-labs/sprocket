@@ -1,0 +1,1 @@
+failed to parse input file `tests/inputs/invalid-string-to-int/inputs.json`: invalid input key `test.values`: invalid value for input `values`: invalid array element at index 1: cannot coerce type `String` to type `Float`: `two` is not a valid float

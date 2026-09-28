@@ -12,9 +12,9 @@ task my_task {
 }
 
 workflow test {
-    String x = "1"
+    Boolean x = true
 
-    call my_task { input: x = "1" }
+    call my_task { input: x = true }
     call my_task as my_task2 { x = x }
     call my_task as my_task3 { x }
     call my_task as my_task4 { input: x }

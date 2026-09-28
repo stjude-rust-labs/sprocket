@@ -22,14 +22,6 @@ error: type mismatch: expected type `Int` or type `String`, but found type `Bool
    │         │
    │         this expects type `Int` or type `String`
 
-error: type mismatch: expected type `Boolean`, but found type `String`
-   ┌─ tests/analysis/runtime-section/source.wdl:65:14
-   │
-65 │         gpu: "false"
-   │         ---  ^^^^^^^ this is type `String`
-   │         │
-   │         this expects type `Boolean`
-
 error: type mismatch: expected type `Int`, type `String`, or type `Array[String]`, but found type `Boolean`
    ┌─ tests/analysis/runtime-section/source.wdl:67:16
    │

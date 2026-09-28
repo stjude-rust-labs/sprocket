@@ -6,7 +6,7 @@ version 1.1
 task not {
     Boolean a = true
     Boolean b = a || a
-    String c = "true"
+    Int c = 1
     Boolean d = a || c || b
 
     command <<<>>>

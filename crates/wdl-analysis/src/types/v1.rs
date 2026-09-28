@@ -1317,7 +1317,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             return Some(PrimitiveType::Integer.into());
         }
 
-        if !ty.is_coercible_to(&PrimitiveType::Float.into()) {
+        if !ty.is_coercible_to_without_string_conversion(&PrimitiveType::Float.into()) {
             self.context
                 .add_diagnostic(negation_mismatch(&ty, operand.span()));
             // Type is indeterminate as the expression may evaluate to more than
@@ -1415,12 +1415,16 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 continue;
             }
 
-            if lhs_ty.is_coercible_to(&expected) && rhs_ty.is_coercible_to(&expected) {
+            if lhs_ty.is_coercible_to_without_string_conversion(&expected)
+                && rhs_ty.is_coercible_to_without_string_conversion(&expected)
+            {
                 return Some(PrimitiveType::Boolean.into());
             }
 
             let expected = expected.optional();
-            if lhs_ty.is_coercible_to(&expected) && rhs_ty.is_coercible_to(&expected) {
+            if lhs_ty.is_coercible_to_without_string_conversion(&expected)
+                && rhs_ty.is_coercible_to_without_string_conversion(&expected)
+            {
                 return Some(PrimitiveType::Boolean.into());
             }
         }
@@ -1496,9 +1500,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
         // If both sides are coercible to `Float`, the result is `Float`
         if !lhs_ty.is_union()
-            && lhs_ty.is_coercible_to(&PrimitiveType::Float.into())
+            && lhs_ty.is_coercible_to_without_string_conversion(&PrimitiveType::Float.into())
             && !rhs_ty.is_union()
-            && rhs_ty.is_coercible_to(&PrimitiveType::Float.into())
+            && rhs_ty.is_coercible_to_without_string_conversion(&PrimitiveType::Float.into())
         {
             return Some(PrimitiveType::Float.into());
         }
@@ -1707,7 +1711,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         // Check that the index type is the expected one
         if let Some(expected_index_ty) = expected_index_ty {
             let index_ty = self.evaluate_expr(&index).unwrap_or(Type::Union);
-            if !index_ty.is_coercible_to(&expected_index_ty) {
+            if !index_ty.is_coercible_to_without_string_conversion(&expected_index_ty) {
                 self.context.add_diagnostic(index_type_mismatch(
                     &expected_index_ty,
                     &index_ty,

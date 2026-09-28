@@ -11,16 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 * `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* Added runtime `String` to `Int`, `Float`, and `Boolean` coercions, per
+  [openwdl/wdl#797](https://github.com/openwdl/wdl/pull/797). Leading and trailing whitespace is ignored and invalid values
+  produce evaluation errors. Input validation reports invalid values eagerly.
 
 #### Changed
 
 * `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* `read_int`, `read_float`, and `read_boolean` now read the entire file and
+  coerce its trimmed contents, per [openwdl/wdl#797](https://github.com/openwdl/wdl/pull/797).
 
 #### Fixed
 
 * Non-optional enum choices now coerce at runtime to the matching optional enum
   type, allowing optional task inputs with defaults to be overridden at call
   sites ([#1241](https://github.com/stjude-rust-labs/sprocket/issues/1241)).
+* Failed coercions of enum choice values, `if` expression branches, array and
+  map literal elements, and object or struct members to `Map` keys now produce
+  errors instead of panics.
+* Values of declarations promoted out of conditional statements are now coerced
+  to the common type of the declarations across all clauses.
 
 ## 0.18.0 - 2026-09-16
 

@@ -158,6 +158,21 @@ where
         .find_map(|key| lookup(key).map(|value| (*key, value)))
 }
 
+/// Coerces a requirement or hint value to the first of the given types it
+/// successfully coerces to.
+///
+/// Types that don't require a coercion from `String` to `Int`, `Float`, or
+/// `Boolean` are preferred so that, for example, `memory: "1024"` remains a
+/// `String`.
+fn coerce_to_any(value: &Value, types: &[Type], context: &dyn EvaluationContext) -> Option<Value> {
+    let ty = value.ty();
+    types
+        .iter()
+        .filter(|target| ty.is_coercible_to_without_string_conversion(target))
+        .chain(types)
+        .find_map(|target| value.coerce(Some(context), target).ok())
+}
+
 /// Parses an integer or byte-unit string into a byte count using the supplied
 /// `error_message` formatter when conversion fails.
 ///
@@ -932,16 +947,14 @@ impl<'a> State<'a> {
             let expr = item.expr();
             let mut value = evaluator.evaluate_expr(&expr).await?;
             if let Some(types) = types {
-                value = types
-                    .iter()
-                    .find_map(|ty| {
-                        value
-                            .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
-                            .ok()
-                    })
-                    .ok_or_else(|| {
-                        multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
-                    })?;
+                value = coerce_to_any(
+                    &value,
+                    types,
+                    &TaskEvaluationContext::new(self, scope_index),
+                )
+                .ok_or_else(|| {
+                    multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
+                })?;
             }
 
             if requirement {
@@ -997,16 +1010,12 @@ impl<'a> State<'a> {
             // Evaluate and coerce to the expected type
             let expr = item.expr();
             let value = evaluator.evaluate_expr(&expr).await?;
-            let value = types
-                .iter()
-                .find_map(|ty| {
-                    value
-                        .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
-                        .ok()
-                })
-                .ok_or_else(|| {
-                    multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
-                })?;
+            let value = coerce_to_any(
+                &value,
+                types,
+                &TaskEvaluationContext::new(self, scope_index),
+            )
+            .ok_or_else(|| multiple_type_mismatch(types, name.span(), &value.ty(), expr.span()))?;
 
             requirements.insert(name.text().to_string(), value);
         }

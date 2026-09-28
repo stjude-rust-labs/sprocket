@@ -115,6 +115,7 @@ use crate::diagnostics::division_by_zero;
 use crate::diagnostics::exponent_not_in_range;
 use crate::diagnostics::exponentiation_requirement;
 use crate::diagnostics::float_not_in_range;
+use crate::diagnostics::function_call_failed;
 use crate::diagnostics::integer_negation_not_in_range;
 use crate::diagnostics::integer_not_in_range;
 use crate::diagnostics::map_key_not_found;
@@ -516,7 +517,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let value = self.evaluate_expr(&expr).await?;
                 let mut expected: Type = value.ty();
                 let mut expected_span = expr.span();
-                values.push(value);
+                values.push((value, expr.span()));
 
                 // Ensure the remaining element types share a common type
                 for expr in elements {
@@ -541,8 +542,21 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                     }
 
-                    values.push(value);
+                    values.push((value, expr.span()));
                 }
+
+                // Coerce all elements to the common type, as earlier elements
+                // may not have been coerced to it (e.g. `["a",
+                // 1]`)
+                let values = values
+                    .into_iter()
+                    .map(|(value, span)| {
+                        let actual = value.ty();
+                        value.coerce(Some(&self.context), &expected).map_err(|e| {
+                            runtime_type_mismatch(e, &expected, expected_span, &actual, span)
+                        })
+                    })
+                    .collect::<Result<Vec<_>, Diagnostic>>()?;
 
                 (expected, values)
             }
@@ -601,7 +615,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     }
                 };
 
-                elements.push((key, expected_value));
+                elements.push((
+                    key,
+                    expected_value,
+                    (expected_key_span, expected_value_span),
+                ));
 
                 // Ensure the remaining items types share common types
                 for item in items {
@@ -668,8 +686,46 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         _ => panic!("key {actual_key} is not primitive, but had a common type"),
                     };
 
-                    elements.push((actual_key, actual_value));
+                    elements.push((actual_key, actual_value, (key.span(), value.span())));
                 }
+
+                // Coerce all keys and values to the common types, as earlier
+                // items may not have been coerced to them (e.g.
+                // `{"a": "b", "c": 1}`)
+                let key_ty = expected_key_ty.clone();
+                let value_ty = expected_value_ty.clone();
+                let elements = elements
+                    .into_iter()
+                    .map(|(key, value, (key_span, value_span))| {
+                        let actual_key_ty = key.ty();
+                        let key = Value::from(key)
+                            .coerce(Some(&self.context), &key_ty)
+                            .map_err(|e| {
+                                runtime_type_mismatch(
+                                    e,
+                                    &key_ty,
+                                    expected_key_span,
+                                    &actual_key_ty,
+                                    key_span,
+                                )
+                            })?;
+                        let actual_value_ty = value.ty();
+                        let value = value.coerce(Some(&self.context), &value_ty).map_err(|e| {
+                            runtime_type_mismatch(
+                                e,
+                                &value_ty,
+                                expected_value_span,
+                                &actual_value_ty,
+                                value_span,
+                            )
+                        })?;
+
+                        match key {
+                            Value::Primitive(key) => Ok((key, value)),
+                            _ => panic!("key {key} is not primitive, but had a common type"),
+                        }
+                    })
+                    .collect::<Result<Vec<_>, Diagnostic>>()?;
 
                 (expected_key_ty, expected_value_ty, elements)
             }
@@ -991,11 +1047,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // false expression, depending on the result of the conditional
         // expression
         let cond = self.evaluate_expr(&cond_expr).await?;
-        let (value, true_ty, false_ty) = if cond
+        let cond = cond
             .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| if_conditional_mismatch(&cond.ty(), cond_expr.span()))?
-            .unwrap_boolean()
-        {
+            .unwrap_boolean();
+        let (value, true_ty, false_ty) = if cond {
             // Evaluate the `true` expression and calculate the type of the
             // `false` expression
             let value = self.evaluate_expr(&true_expr).await?;
@@ -1041,9 +1097,15 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             type_mismatch(&true_ty, true_expr.span(), &false_ty, false_expr.span())
         })?;
 
-        Ok(value
+        let span = if cond {
+            true_expr.span()
+        } else {
+            false_expr.span()
+        };
+
+        value
             .coerce(Some(&self.context), &ty)
-            .expect("coercion should not fail"))
+            .map_err(|e| Diagnostic::error(format!("{e:#}")).with_highlight(span))
     }
 
     /// Evaluates a `logical not` expression.
@@ -1348,10 +1410,41 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 // First bind the function based on the argument types, then
                 // dispatch the call
                 let types = &types[..count.min(MAX_PARAMETERS)];
-                let arguments = &arguments[..count.min(MAX_PARAMETERS)];
+                let arguments = &mut arguments[..count.min(MAX_PARAMETERS)];
                 if count <= MAX_PARAMETERS {
                     match f.bind(self.context.version(), types) {
                         Ok(binding) => {
+                            // Coerce `String` arguments to `Int`, `Float`, or
+                            // `Boolean` parameters
+                            // up front so that an invalid value reports an
+                            // error
+                            // and implementations receive the coerced value
+                            for (argument, ty) in arguments
+                                .iter_mut()
+                                .zip(binding.signature().realize_parameter_types(types))
+                            {
+                                let Some(ty) = ty else { continue };
+                                if argument.value.as_string().is_none()
+                                    || argument
+                                        .value
+                                        .ty()
+                                        .is_coercible_to_without_string_conversion(&ty)
+                                {
+                                    continue;
+                                }
+
+                                argument.value = argument
+                                    .value
+                                    .coerce(Some(&self.context), &ty)
+                                    .map_err(|e| {
+                                        function_call_failed(
+                                            target.text(),
+                                            format!("{e:#}"),
+                                            argument.span,
+                                        )
+                                    })?;
+                            }
+
                             let context = CallContext::new(
                                 &mut self.context,
                                 target.span(),
@@ -1526,7 +1619,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     let value = self
                         .context()
                         .enum_choice_value(v.name(), name.text())
-                        .map_err(|_| not_an_enum_choice(v.name(), &name))?;
+                        .map_err(|e| {
+                            if enum_ty.choices().iter().any(|c| c == name.text()) {
+                                e.with_highlight(name.span())
+                            } else {
+                                not_an_enum_choice(v.name(), &name)
+                            }
+                        })?;
 
                     let choice = EnumChoice::new(enum_ty.clone(), name.text(), value);
                     Ok(Value::Compound(CompoundValue::EnumChoice(choice)))
@@ -1558,42 +1657,28 @@ macro_rules! match_literal_value {
 
 /// Parses a constant value from an AST expression and target type.
 ///
-/// Returns `None` if the value cannot be parsed as a constant value.
+/// Returns `None` if the value cannot be parsed as a constant value or if it
+/// cannot be coerced to the target type (e.g. a `String` that does not contain
+/// a valid `Int`).
 ///
 /// # Panics
 ///
-/// Panics if any of the expressions do not match their expected literal type
-/// _or_ if the provided value does not coerce to the inner enum type. Both of
-/// these issues should be caught at analysis time.
+/// Panics if any of the expressions do not match their expected literal type.
+/// This should be caught at analysis time.
 pub(super) fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     let value = match target_ty {
-        Type::Primitive(PrimitiveType::Boolean, _) => {
-            match_literal_value!(expr, Boolean(b), PrimitiveType::Boolean);
-            Some(Value::Primitive(PrimitiveValue::Boolean(b.value())))
-        }
-        Type::Primitive(PrimitiveType::Integer, _) => {
-            match_literal_value!(expr, Integer(i), PrimitiveType::Integer);
-            Some(Value::Primitive(PrimitiveValue::Integer(i.value()?)))
-        }
-        Type::Primitive(PrimitiveType::Float, _) => {
-            match_literal_value!(expr, Float(f), PrimitiveType::Float);
-            Some(Value::Primitive(PrimitiveValue::Float(f.value()?.into())))
-        }
-        Type::Primitive(PrimitiveType::String, _) => {
-            match_literal_value!(expr, String(s), PrimitiveType::String);
-            Some(Value::Primitive(PrimitiveValue::new_string(
-                s.text()?.text(),
-            )))
-        }
-        Type::Primitive(PrimitiveType::File, _) => {
-            match_literal_value!(expr, String(s), PrimitiveType::File);
-            Some(Value::Primitive(PrimitiveValue::new_file(s.text()?.text())))
-        }
-        Type::Primitive(PrimitiveType::Directory, _) => {
-            match_literal_value!(expr, String(s), PrimitiveType::Directory);
-            Some(Value::Primitive(PrimitiveValue::new_directory(
-                s.text()?.text(),
-            )))
+        Type::Primitive(..) => {
+            let Expr::Literal(literal) = expr else {
+                panic!("expected a literal expression for {target_ty:#}");
+            };
+
+            Some(Value::Primitive(match literal {
+                LiteralExpr::Boolean(b) => PrimitiveValue::Boolean(b.value()),
+                LiteralExpr::Integer(i) => PrimitiveValue::Integer(i.value()?),
+                LiteralExpr::Float(f) => PrimitiveValue::Float(f.value()?.into()),
+                LiteralExpr::String(s) => PrimitiveValue::new_string(s.text()?.text()),
+                _ => panic!("expected a primitive literal expression for {target_ty:#}"),
+            }))
         }
         Type::Compound(CompoundType::Array(array_ty), _) => {
             match_literal_value!(expr, Array(arr), CompoundType::Array);
@@ -1676,8 +1761,7 @@ pub(super) fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Valu
         _ => None,
     }?;
 
-    // SAFETY: see the panic notice for this function.
-    Some(value.coerce(None, target_ty).unwrap())
+    value.coerce(None, target_ty).ok()
 }
 
 #[cfg(test)]
@@ -3649,13 +3733,13 @@ pub(crate) mod tests {
             "function `min` requires no more than 2 arguments but 10 were supplied"
         );
 
-        let diagnostic = eval_v1_expr(&env, V1::One, "min('1', 2)")
+        let diagnostic = eval_v1_expr(&env, V1::One, "min(true, 2)")
             .await
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
             "type mismatch: argument to function `min` expects type `Int` or type `Float`, but \
-             found type `String`"
+             found type `Boolean`"
         );
     }
 
