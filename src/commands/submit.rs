@@ -5,12 +5,12 @@ use clap::Args as ClapArgs;
 use clap::Parser;
 
 use crate::analysis::Source;
+use crate::analysis::analyze_singular_source;
+use crate::analysis::ensure_no_analysis_errors;
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
-use crate::commands::validate::analyze_source;
-use crate::commands::validate::ensure_no_analysis_errors;
 use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::SubmitRunRequest;
@@ -96,7 +96,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir, policy).await?;
     }
 
-    let document = analyze_source(
+    let document = analyze_singular_source(
         &source,
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),

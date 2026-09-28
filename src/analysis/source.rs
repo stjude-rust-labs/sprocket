@@ -2,14 +2,19 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use nonempty::NonEmpty;
 use path_clean::PathClean;
 use url::Url;
 use wdl::analysis::Analyzer;
+use wdl::analysis::Document;
+
+use crate::analysis::Analysis;
 
 /// Remote URL schemes that are parsed as `Source::Url`.
 const REMOTE_URL_SCHEMES: &[&str] = &["https://", "http://"];
@@ -104,6 +109,12 @@ impl Source {
             Source::Directory(path) => analyzer.add_directory(path).await,
         }
     }
+
+    /// Returns whether the source is a singular document (as opposed to a
+    /// directory of documents).
+    pub fn is_singular(&self) -> bool {
+        matches!(self, Source::File(_) | Source::Url(_))
+    }
 }
 
 impl std::fmt::Display for Source {
@@ -150,6 +161,40 @@ impl std::str::FromStr for Source {
         }
 
         bail!("failed to convert `{s}` to a URI")
+    }
+}
+
+/// Runs analysis on a singular source and returns the resulting document.
+pub async fn analyze_singular_source(
+    source: &Source,
+    fallback_version: Option<wdl::ast::SupportedVersion>,
+    modules_config: wdl_modules::resolver::ModulesConfig,
+    feature_flags: wdl::analysis::FeatureFlags,
+    ignore_filename: Option<String>,
+    report_mode: wdl::diagnostics::Mode,
+    colorize: bool,
+) -> Result<Document, NonEmpty<Arc<anyhow::Error>>> {
+    source.is_singular().ok_or(NonEmpty::new(Arc::new(anyhow!(
+        "source must be a single document"
+    ))))?;
+
+    let results = Analysis::default()
+        .add_source(source.clone())
+        .fallback_version(fallback_version)
+        .modules_config(modules_config)
+        .feature_flags(feature_flags)
+        .ignore_filename(ignore_filename)
+        .run(report_mode, colorize)
+        .await?;
+
+    // SAFETY: this must exist, as we added it as the only source to be
+    // analyzed above.
+    let result = results.filter(&[source]).next().unwrap();
+
+    if let Some(e) = result.error() {
+        Err(NonEmpty::new(e.clone()))
+    } else {
+        Ok(result.document().clone())
     }
 }
 

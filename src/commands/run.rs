@@ -893,6 +893,7 @@ pub async fn run(
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
+    assert!(source.is_singular());
 
     if args.show_task_stderr {
         filter_handle
@@ -971,7 +972,7 @@ pub async fn run(
         .await
         .map_err(CommandError::from)?;
 
-    // Emits diagnostics for all analyzed documents
+    // Emit all diagnostics for all analyzed documents, but only track `Error`s
     let mut errors = 0;
     for result in results.as_slice() {
         let mut diagnostics = result.document().diagnostics().peekable();
@@ -1002,6 +1003,10 @@ pub async fn run(
         .into());
     }
 
+    // NOTE: earlier we asserted `source.is_singular()` so the below filter will
+    // only return one Document.
+    //
+    // SAFETY: input source was added to the analysis so must be in the results.
     let document = results.filter(&[&source]).next().unwrap().document();
     let (target, inputs) = resolve_inputs(&args, document).await?;
 

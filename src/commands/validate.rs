@@ -4,17 +4,11 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use wdl::analysis::Document;
-use wdl::ast::AstNode;
-use wdl::ast::Severity;
-use wdl::ast::SupportedVersion;
-use wdl::diagnostics::Mode;
-use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::Inputs as EngineInputs;
 
 use crate::Config;
-use crate::analysis::Analysis;
 use crate::analysis::Source;
-use crate::commands::CommandError;
+use crate::analysis::analyze_singular_source;
 use crate::commands::CommandResult;
 use crate::inputs::Invocation;
 
@@ -48,57 +42,6 @@ pub struct Args {
     /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
     /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
-}
-
-/// Runs analysis on a single source and returns the resulting document.
-pub async fn analyze_source(
-    source: &Source,
-    fallback_version: Option<SupportedVersion>,
-    modules_config: wdl_modules::resolver::ModulesConfig,
-    feature_flags: wdl::analysis::FeatureFlags,
-    ignore_filename: Option<String>,
-    report_mode: Mode,
-    colorize: bool,
-) -> CommandResult<Document> {
-    let results = Analysis::default()
-        .add_source(source.clone())
-        .fallback_version(fallback_version)
-        .modules_config(modules_config)
-        .feature_flags(feature_flags)
-        .ignore_filename(ignore_filename)
-        .run(report_mode, colorize)
-        .await
-        .map_err(CommandError::from)?;
-
-    // SAFETY: this must exist, as we added it as the only source to be
-    // analyzed above.
-    Ok(results.filter(&[source]).next().unwrap().document().clone())
-}
-
-/// Emits any error diagnostics for the document and fails if any are present.
-///
-/// Only error-severity diagnostics are emitted; warnings and notes are left
-/// unreported. Returns `Ok(())` when the document analyzed without errors.
-pub fn ensure_no_analysis_errors(
-    document: &Document,
-    report_mode: Mode,
-    colorize: bool,
-) -> CommandResult<()> {
-    let mut diagnostics = document
-        .diagnostics()
-        .filter(|d| d.severity() == Severity::Error)
-        .peekable();
-
-    if diagnostics.peek().is_none() {
-        return Ok(());
-    }
-
-    let path = document.path().to_string();
-    let source = document.root().text().to_string();
-    emit_diagnostics(&path, &source, diagnostics, report_mode, colorize)
-        .context("failed to emit diagnostics")?;
-
-    Err(anyhow!("source contains analysis errors").into())
 }
 
 /// Resolves the target and inputs against an already-analyzed document,
@@ -191,7 +134,7 @@ pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResu
         );
     }
 
-    let document = analyze_source(
+    let document = analyze_singular_source(
         &args.source,
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
