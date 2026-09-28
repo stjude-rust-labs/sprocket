@@ -9,6 +9,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -17,6 +18,7 @@ use wdl_ast::v1::RequirementsItem;
 use wdl_ast::v1::RuntimeItem;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -28,24 +30,36 @@ const ID: &str = "ParameterizedResources";
 const KEYS_TO_LINT: &[&str] = &["cpu", "memory", "disks"];
 
 /// Creates a fixed resource allocation diagnostic.
-fn fixed_resources(span: Span, version: SupportedVersion) -> Diagnostic {
+fn fixed_resources(severity: Severity, span: Span, version: SupportedVersion) -> Diagnostic {
     let help = if version < SupportedVersion::V1(V1::Two) {
         "consider moving requirements to user-controlled inputs"
     } else {
         "consider using input parameters or `task.attempt` for retry-aware scaling"
     };
 
-    Diagnostic::note("fixed resource allocation")
+    Diagnostic::new(severity, "fixed resource allocation")
         .with_rule(ID)
         .with_highlight(span)
         .with_help(help)
 }
 
 /// Checks that task resources are not statically allocated.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ParameterizedResourcesRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
+}
+
+impl ParameterizedResourcesRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.parameterized_resources.diagnostic_severity(),
+            version: None,
+        }
+    }
 }
 
 impl Rule for ParameterizedResourcesRule {
@@ -172,7 +186,12 @@ task say_hello {
 
 impl Visitor for ParameterizedResourcesRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        let Self {
+            version,
+            severity: _,
+        } = self;
+
+        *version = None;
     }
 
     fn document(
@@ -201,7 +220,7 @@ impl Visitor for ParameterizedResourcesRule {
 
         if is_fixed_allocation(&item.expr()) {
             diagnostics.exceptable_add(
-                fixed_resources(item.span(), self.version.unwrap()),
+                fixed_resources(self.severity, item.span(), self.version.unwrap()),
                 item.inner(),
                 &self.exceptable_nodes(),
             );
@@ -220,7 +239,7 @@ impl Visitor for ParameterizedResourcesRule {
 
         if is_fixed_allocation(&item.expr()) {
             diagnostics.exceptable_add(
-                fixed_resources(item.span(), self.version.unwrap()),
+                fixed_resources(self.severity, item.span(), self.version.unwrap()),
                 item.inner(),
                 &self.exceptable_nodes(),
             );
