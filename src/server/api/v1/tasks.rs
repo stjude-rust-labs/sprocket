@@ -104,6 +104,14 @@ pub struct Task {
     /// retried.
     #[schema(value_type = Option<Object>)]
     pub retry_cause: Option<serde_json::Value>,
+    /// The resource utilization observed for this attempt (resident memory,
+    /// CPU time).
+    ///
+    /// Recorded at the attempt's termination by backends whose scheduler
+    /// reports utilization (currently LSF and Slurm); `null` for other
+    /// backends.
+    #[schema(value_type = Option<Object>)]
+    pub utilization: Option<serde_json::Value>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.
@@ -124,6 +132,7 @@ impl From<crate::system::v1::db::Task> for Task {
             attempt: task.attempt,
             constraints: parse_json_column(task.constraints),
             retry_cause: parse_json_column(task.retry_cause),
+            utilization: parse_json_column(task.utilization),
             created_at: task.created_at,
             started_at: task.started_at,
             completed_at: task.completed_at,
@@ -492,6 +501,7 @@ mod tests {
             attempt: 0,
             constraints: None,
             retry_cause: None,
+            utilization: None,
             created_at: now,
             started_at: Some(now),
             completed_at: Some(now),
