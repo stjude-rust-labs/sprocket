@@ -337,6 +337,15 @@
             "MutableContainerTag": {
               "severity": "note"
             },
+            "NamingConvention": {
+              "severity": "warning",
+              "task": "snake-case",
+              "workflow": "snake-case",
+              "variable": "snake-case",
+              "type": "pascal-case",
+              "struct_member": "snake-case",
+              "allowed_names": []
+            },
             "OutputName": {
               "severity": "note"
             },
@@ -351,9 +360,6 @@
             },
             "ParameterMetaOrder": {
               "severity": "note"
-            },
-            "PascalCase": {
-              "severity": "warning"
             },
             "RedundantNone": {
               "severity": "note"
@@ -372,10 +378,6 @@
             },
             "ShellCheck": {
               "severity": "note"
-            },
-            "SnakeCase": {
-              "severity": "warning",
-              "allowed_names": []
             },
             "TodoComment": {
               "severity": "note"
@@ -658,6 +660,19 @@
             "severity": "note"
           }
         },
+        "NamingConvention": {
+          "description": "The `NamingConvention` rule.",
+          "$ref": "#/$defs/NamingConventionConfig",
+          "default": {
+            "severity": "warning",
+            "task": "snake-case",
+            "workflow": "snake-case",
+            "variable": "snake-case",
+            "type": "pascal-case",
+            "struct_member": "snake-case",
+            "allowed_names": []
+          }
+        },
         "OutputName": {
           "description": "The `OutputName` rule.",
           "$ref": "#/$defs/OutputNameConfig",
@@ -691,13 +706,6 @@
           "$ref": "#/$defs/ParameterMetaOrderConfig",
           "default": {
             "severity": "note"
-          }
-        },
-        "PascalCase": {
-          "description": "The `PascalCase` rule.",
-          "$ref": "#/$defs/PascalCaseConfig",
-          "default": {
-            "severity": "warning"
           }
         },
         "RedundantNone": {
@@ -740,14 +748,6 @@
           "$ref": "#/$defs/ShellCheckConfig",
           "default": {
             "severity": "note"
-          }
-        },
-        "SnakeCase": {
-          "description": "The `SnakeCase` rule.",
-          "$ref": "#/$defs/SnakeCaseConfig",
-          "default": {
-            "severity": "warning",
-            "allowed_names": []
           }
         },
         "TodoComment": {
@@ -1285,6 +1285,76 @@
       },
       "additionalProperties": false
     },
+    "NamingConventionConfig": {
+      "description": "Configuration for the `NamingConvention` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        },
+        "task": {
+          "description": "The case style for task names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntask = \"pascal-case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake-case"
+        },
+        "workflow": {
+          "description": "The case style for workflow names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nworkflow = \"pascal-case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake-case"
+        },
+        "variable": {
+          "description": "The case style for input, output, and private declaration\nnames.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nvariable = \"camel-case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake-case"
+        },
+        "type": {
+          "description": "The case style for the names of user-defined types: structs,\nenums, and enum choices.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `pascal-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntype = \"camel-case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "pascal-case"
+        },
+        "struct_member": {
+          "description": "The case style for struct member names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nstruct_member = \"camel-case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake-case"
+        },
+        "allowed_names": {
+          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nallowed_names = [\"Foo\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "CaseStyle": {
+      "description": "A case style for identifiers.",
+      "oneOf": [
+        {
+          "description": "`snake_case`.",
+          "type": "string",
+          "const": "snake-case"
+        },
+        {
+          "description": "`SCREAMING_SNAKE_CASE`.",
+          "type": "string",
+          "const": "screaming-snake-case"
+        },
+        {
+          "description": "`camelCase`.",
+          "type": "string",
+          "const": "camel-case"
+        },
+        {
+          "description": "`PascalCase`.",
+          "type": "string",
+          "const": "pascal-case"
+        }
+      ]
+    },
     "OutputNameConfig": {
       "description": "Configuration for the `OutputName` lint rule.",
       "type": "object",
@@ -1341,18 +1411,6 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
-        }
-      },
-      "additionalProperties": false
-    },
-    "PascalCaseConfig": {
-      "description": "Configuration for the `PascalCase` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
         }
       },
       "additionalProperties": false
@@ -1425,26 +1483,6 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
-        }
-      },
-      "additionalProperties": false
-    },
-    "SnakeCaseConfig": {
-      "description": "Configuration for the `SnakeCase` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
-        },
-        "allowed_names": {
-          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.SnakeCase]\nallowed_names = [\"Foo\"]\n```",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         }
       },
       "additionalProperties": false

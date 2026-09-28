@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added the `NamingConvention` lint rule and the `CaseStyle` type; `NamingConventionConfig` configures the case style of `task`, `workflow`, `variable`, `type`, and `struct_member` names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * Added `RuleSeverity` and a `severity` for every rule in `Config` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `DeprecatedRuntimeKey`, `ExtraneousParameterMeta`, `MutableContainerTag`, `OutputMetaOrder`, `ParameterMetaOrder`, `RecommendedRuntimeKeys`, and `RedundantContainerArray` lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 
@@ -25,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `ShellCheck` now reports a failure to run `shellcheck` as a note instead of an error ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
+
+#### Removed
+
+* Removed the `SnakeCase` and `PascalCase` lint rules and their configuration, which are replaced by `NamingConvention` ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
+
+#### Fixed
+
+* `Linter` now visits enum definitions, so lint rules can check enums ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 
 ## 0.28.0 - 2026-09-16
 
