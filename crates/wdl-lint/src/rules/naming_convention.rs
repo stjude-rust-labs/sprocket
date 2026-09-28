@@ -278,8 +278,8 @@ impl Rule for NamingConventionRule {
 
     fn explanation(&self) -> &'static str {
         "Names should follow a consistent case convention. By default, tasks, workflows, \
-         variables, and struct members use snake_case, and user-defined type names (structs, \
-         enums, and enum choices) use PascalCase. The case style for each category can be \
+         variables, and struct members use snake case, and user-defined type names (structs, \
+         enums, and enum choices) use pascal case. The case style for each category can be \
          configured. Maintaining a consistent naming convention makes the code easier to read and \
          understand."
     }
