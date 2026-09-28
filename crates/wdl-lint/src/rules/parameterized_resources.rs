@@ -13,10 +13,8 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::Expr;
-use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::RequirementsItem;
 use wdl_ast::v1::RuntimeItem;
-use wdl_ast::v1::StringPart;
 use wdl_ast::version::V1;
 
 use crate::Rule;
@@ -232,68 +230,10 @@ impl Visitor for ParameterizedResourcesRule {
 
 /// Checks if the resource is statically allocated.
 fn is_fixed_allocation(expr: &Expr) -> bool {
-    match expr {
-        Expr::Literal(lit) => match lit {
-            LiteralExpr::Integer(_) | LiteralExpr::Float(_) | LiteralExpr::Boolean(_) => true,
-            LiteralExpr::String(s) => s.parts().all(|part| match part {
-                StringPart::Text(_) => true,
-                StringPart::Placeholder(p) => is_fixed_allocation(&p.expr()),
-            }),
-            LiteralExpr::Array(arr) => arr.elements().all(|e| is_fixed_allocation(&e)),
-            _ => false,
-        },
-        Expr::Parenthesized(p) => is_fixed_allocation(&p.expr()),
-        Expr::If(i) => {
-            let (cond, true_expr, false_expr) = i.exprs();
-            is_fixed_allocation(&cond)
-                && is_fixed_allocation(&true_expr)
-                && is_fixed_allocation(&false_expr)
-        }
-
-        Expr::Addition(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::Subtraction(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::Multiplication(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::Division(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::Modulo(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::Exponentiation(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::LogicalOr(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::LogicalAnd(e) => {
-            let (lhs, rhs) = e.operands();
-            is_fixed_allocation(&lhs) && is_fixed_allocation(&rhs)
-        }
-        Expr::Negation(e) => is_fixed_allocation(&e.operand()),
-
-        Expr::LogicalNot(_)
-        | Expr::Equality(_)
-        | Expr::Inequality(_)
-        | Expr::Less(_)
-        | Expr::LessEqual(_)
-        | Expr::Greater(_)
-        | Expr::GreaterEqual(_)
-        | Expr::NameRef(_)
-        | Expr::Call(_)
-        | Expr::Index(_)
-        | Expr::Access(_) => false,
-    }
+    expr.descendants::<Expr>().all(|e| {
+        !matches!(
+            e,
+            Expr::NameRef(_) | Expr::Call(_) | Expr::Index(_) | Expr::Access(_)
+        )
+    })
 }
