@@ -251,6 +251,8 @@ pub enum TaskWrite {
     Pending {
         /// The task's name.
         name: String,
+        /// When the task was submitted to a backend.
+        submitted_at: DateTime<Utc>,
     },
     /// Advance a task to cached (see [`Database::update_task_cached`]).
     Cached {
@@ -407,6 +409,18 @@ pub trait Database: Send + Sync {
     #[must_use = "the return value indicates whether a run was updated"]
     async fn update_run_index_directory(&self, id: Uuid, index_directory: &str) -> Result<bool>;
 
+    /// Record the name of the execution backend the run executed on.
+    ///
+    /// Returns `true` if a run was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a run was updated"]
+    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool>;
+
+    /// Record the run's transfer byte totals.
+    ///
+    /// Returns `true` if a run was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a run was updated"]
+    async fn update_run_transfer_totals(&self, id: Uuid, transfer_totals: &str) -> Result<bool>;
+
     /// Get a run by ID.
     async fn get_run(&self, id: Uuid) -> Result<Option<Run>>;
 
@@ -529,10 +543,13 @@ pub trait Database: Send + Sync {
     /// Advance a task to pending, meaning it has been submitted to a backend
     /// and is awaiting scheduling.
     ///
+    /// Records the submission time (keeping the first observed time if
+    /// repeated).
+    ///
     /// Returns `true` if a task was updated, `false` if it was not found or
     /// has already advanced past localizing.
     #[must_use = "the return value indicates whether a task was updated"]
-    async fn update_task_pending(&self, name: &str) -> Result<bool>;
+    async fn update_task_pending(&self, name: &str, submitted_at: DateTime<Utc>) -> Result<bool>;
 
     /// Update a task as served from the call cache.
     ///
@@ -712,8 +729,8 @@ pub trait Database: Send + Sync {
                 TaskWrite::Utilization { name, patch } => {
                     self.update_task_utilization(&name, &patch).await?;
                 }
-                TaskWrite::Pending { name } => {
-                    self.update_task_pending(&name).await?;
+                TaskWrite::Pending { name, submitted_at } => {
+                    self.update_task_pending(&name, submitted_at).await?;
                 }
                 TaskWrite::Cached { name, completed_at } => {
                     self.update_task_cached(&name, completed_at).await?;

@@ -82,6 +82,7 @@ pub use crate::system::v1::db::TaskStatus;
         SubmitRunRequest,
         Task,
         TaskAttemptMetrics,
+        TransferTotals,
         TaskLog,
         TaskStatus,
     )),
