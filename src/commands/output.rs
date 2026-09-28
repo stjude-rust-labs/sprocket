@@ -6,6 +6,7 @@ use std::io::IsTerminal as _;
 use std::io::Write as _;
 
 use anyhow::Context as _;
+use colored::ColoredString;
 use colored::Colorize as _;
 use dialoguer::Confirm;
 
@@ -61,13 +62,32 @@ pub struct CommandOutput {
 
 impl CommandOutput {
     /// Creates command output using the resolved color mode.
-    pub(crate) fn new(colorize: bool) -> Self {
+    pub fn new(colorize: bool) -> Self {
         Self { colorize }
+    }
+
+    /// Returns whether user-facing output should be colorized.
+    pub(crate) fn colorize(self) -> bool {
+        self.colorize
+    }
+
+    /// Returns the styled text when colorizing, or its plain text otherwise.
+    pub(crate) fn style(self, value: ColoredString) -> String {
+        if self.colorize {
+            value.to_string()
+        } else {
+            value.input
+        }
     }
 
     /// Prints a completed operation.
     pub(crate) fn completed(self, action: Action, subject: impl fmt::Display) {
         self.action(action.completed, subject, ActionColor::Green);
+    }
+
+    /// Prints a completed operation to stderr.
+    pub(crate) fn completed_diagnostic(self, action: Action, subject: impl fmt::Display) {
+        self.diagnostic_action(action.completed, subject, ActionColor::Green);
     }
 
     /// Prints an operation that would occur without mutation.
@@ -94,6 +114,37 @@ impl CommandOutput {
         self.action("Failed", subject, ActionColor::Red);
     }
 
+    /// Writes a completed operation to a writer.
+    ///
+    /// Used when output must pass through a progress-aware writer.
+    pub(crate) fn write_completed(
+        self,
+        writer: &mut impl io::Write,
+        action: Action,
+        subject: impl fmt::Display,
+    ) -> io::Result<()> {
+        writeln!(
+            writer,
+            "{}",
+            self.format_action(action.completed, subject, ActionColor::Green)
+        )
+    }
+
+    /// Writes a failed operation to a writer.
+    ///
+    /// Used when output must pass through a progress-aware writer.
+    pub(crate) fn write_failed(
+        self,
+        writer: &mut impl io::Write,
+        subject: impl fmt::Display,
+    ) -> io::Result<()> {
+        writeln!(
+            writer,
+            "{}",
+            self.format_action("Failed", subject, ActionColor::Red)
+        )
+    }
+
     /// Prints an indented label and value beneath an outcome.
     pub(crate) fn detail(self, label: &str, value: impl fmt::Display) {
         if self.colorize {
@@ -103,17 +154,27 @@ impl CommandOutput {
         }
     }
 
-    /// Prints command payload to stdout without decoration.
+    /// Prints an undecorated payload to stdout.
     pub(crate) fn payload(self, value: impl fmt::Display) {
         println!("{value}");
     }
 
-    /// Prints interactive context to stderr without decoration.
+    /// Prints an undecorated payload to stdout without appending a newline.
+    pub(crate) fn payload_raw(self, value: impl fmt::Display) {
+        print!("{value}");
+    }
+
+    /// Prints an undecorated diagnostic to stderr.
     pub(crate) fn diagnostic(self, value: impl fmt::Display) {
         eprintln!("{value}");
     }
 
-    /// Prints a blank interactive-context line to stderr.
+    /// Prints an undecorated diagnostic to stderr without appending a newline.
+    pub(crate) fn diagnostic_raw(self, value: impl fmt::Display) {
+        eprint!("{value}");
+    }
+
+    /// Prints a blank diagnostic line to stderr.
     pub(crate) fn diagnostic_blank(self) {
         eprintln!();
     }
@@ -145,12 +206,22 @@ impl CommandOutput {
         ))
     }
 
+    /// Formats an action line with only the verb colored.
+    fn format_action(self, verb: &str, rest: impl fmt::Display, color: ActionColor) -> String {
+        if self.colorize {
+            format!("{} {rest}", color.apply(verb))
+        } else {
+            format!("{verb} {rest}")
+        }
+    }
+
     /// Prints an action line with only the verb colored.
     fn action(self, verb: &str, rest: impl fmt::Display, color: ActionColor) {
-        if self.colorize {
-            println!("{} {rest}", color.apply(verb));
-        } else {
-            println!("{verb} {rest}");
-        }
+        println!("{}", self.format_action(verb, rest, color));
+    }
+
+    /// Prints an action line to stderr with only the verb colored.
+    fn diagnostic_action(self, verb: &str, rest: impl fmt::Display, color: ActionColor) {
+        eprintln!("{}", self.format_action(verb, rest, color));
     }
 }

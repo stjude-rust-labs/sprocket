@@ -16,7 +16,12 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
 use crate::inputs::Invocation;
+
+/// Successful validation action.
+const VALIDATE: Action = Action::new("Validated", "validate");
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
@@ -183,7 +188,8 @@ async fn resolve_target_and_inputs(
 }
 
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn validate(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     if let Source::Directory(_) = args.source {
         return Err(
@@ -202,7 +208,8 @@ pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResu
     )
     .await?;
 
-    validate_inputs(&document, &args.inputs, args.target).await?;
+    let (target, _) = validate_inputs(&document, &args.inputs, args.target).await?;
+    output.completed(VALIDATE, format!("inputs for `{target}`"));
 
     Ok(())
 }

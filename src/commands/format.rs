@@ -22,6 +22,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::output::CommandOutput;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
@@ -88,7 +89,8 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn format(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     let fallback_version = config.common.wdl.fallback_version.into();
     let feature_flags = config.common.wdl.feature_flags;
@@ -146,19 +148,21 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                         formatted_lines.zip(source_lines).all(|(f, s)| f == s)
                     };
                     if newline_only {
-                        eprintln!("incorrect newline style");
+                        output.diagnostic("incorrect newline style");
                     } else if colorize {
-                        eprint!(
-                            "{}",
-                            pretty_assertions::StrComparison::new(&source, &formatted)
-                        );
+                        output.diagnostic_raw(pretty_assertions::StrComparison::new(
+                            &source, &formatted,
+                        ));
                     } else {
                         let diff = similar::TextDiff::from_lines(&source, &formatted);
-                        eprint!("{}", diff.unified_diff().header("input", "formatted"));
+                        output.diagnostic_raw(diff.unified_diff().header("input", "formatted"));
                     }
                     errors += 1;
                 } else {
-                    println!("`{}` is formatted correctly", result.document().path())
+                    output.current(format!(
+                        "`{}` is formatted correctly",
+                        result.document().path()
+                    ));
                 }
             }
         }
@@ -202,7 +206,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                             path = result.document().path()
                         )
                     })?;
-            print!("{}", formatted);
+            output.payload_raw(formatted);
         }
         FormatSubcommand::Overwrite(s) => {
             let mut sources = s.sources;

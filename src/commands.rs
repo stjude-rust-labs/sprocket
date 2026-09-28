@@ -23,7 +23,8 @@ pub mod inputs;
 pub mod inspect;
 pub mod lock;
 pub mod module;
-pub(crate) mod output;
+#[doc(hidden)]
+pub mod output;
 pub mod retry;
 pub mod run;
 pub mod server;
