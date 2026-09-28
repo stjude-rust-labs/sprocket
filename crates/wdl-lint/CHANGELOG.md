@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added the `ShellSplitting` lint rule, which reports `String`, `File`, and `Directory` placeholders in command sections that are subject to shell word splitting ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
+
 #### Changed
 
+* `ShellCheck` no longer reports SC2086, SC2206, or SC2231 for placeholders; `ShellSplitting` reports them instead as warnings. To suppress these diagnostics on placeholders, use `#@ except: ShellSplitting`; `# shellcheck disable` directives in the command no longer apply to them ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
+
+#### Fixed
+
+* Fixed false-positive word splitting diagnostics for placeholders that are quoted inside nested `if` expressions or `sep` calls ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
+* Fixed `ShellCheck` treating an apostrophe in a double-quoted string or comment as the start of a single-quoted string, which caused incorrect diagnostics for later placeholders ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
 
 ## 0.28.0 - 2026-09-16
 

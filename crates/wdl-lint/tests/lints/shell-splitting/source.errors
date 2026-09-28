@@ -1,0 +1,168 @@
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:23:24
+   │
+23 │         samtools index ~{bam}
+   │                        ^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:24:32
+   │
+24 │         samtools view --output=~{prefix}.bam
+   │                                ^^^^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `Directory` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:25:12
+   │
+25 │         ls ~{reference}/*
+   │            ^^^^^^^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:26:24
+   │
+26 │         cat ~{sep(" ", files)}
+   │                        ^^^^^
+   │
+   = fix: quote each element with `squote(files)` or `quote(files)`
+
+warning[ShellSplitting]: unquoted `String?` value is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:27:62
+   │
+27 │         cat "~{bam}" ~{if defined(region) then "--region " + region else ""}
+   │                                                              ^^^^^^
+   │
+   = fix: surround the value with quotes inside the placeholder expression (e.g., `"'~{region}'"`)
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:28:25
+   │
+28 │         echo $(basename ~{bam})
+   │                         ^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:29:26
+   │
+29 │         echo "$(basename ~{bam})"
+   │                          ^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:30:24
+   │
+30 │         echo `basename ~{bam}`
+   │                        ^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:31:14
+   │
+31 │         [ -f ~{bam} ]
+   │              ^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:32:19
+   │
+32 │         wc -l <<< ~{prefix}
+   │                   ^^^^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:33:15
+   │
+33 │         cat > ~{prefix}.txt
+   │               ^^^^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:34:14
+   │
+34 │         arr=(~{prefix} "~{bam}")
+   │              ^^^^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:35:29
+   │
+35 │         for f in ~{sep(" ", files)}; do echo "$f"; done
+   │                             ^^^^^
+   │
+   = fix: quote each element with `squote(files)` or `quote(files)`
+
+warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:36:22
+   │
+36 │         echo "~{bam}"~{prefix}"~{bam}"
+   │                      ^^^^^^^^^
+   │
+   = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:117:22
+    │
+117 │             --output ~{bam}.bai /
+    │                      ^^^^^^
+    │
+    = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:118:13
+    │
+118 │             ~{bam}
+    │             ^^^^^^
+    │
+    = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `String` value is subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:148:29
+    │
+148 │                     then "~{prefix}.R1.fastq.gz"
+    │                             ^^^^^^
+    │
+    = fix: surround the value with quotes inside the placeholder expression (e.g., `"'~{prefix}'"`)
+
+warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:176:45
+    │
+176 │                 then "--ctg_name=~{sep(",", contigs)}"
+    │                                             ^^^^^^^
+    │
+    = fix: quote each element with `squote(contigs)` or `quote(contigs)`
+
+warning[ShellSplitting]: unquoted `String?` placeholder is subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:198:14
+    │
+198 │         echo ~{default="none" name}
+    │              ^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `String?` placeholder is subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:199:14
+    │
+199 │         echo ~{default="two words" name}
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = fix: surround the placeholder with double quotes
+
+warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:202:24
+    │
+202 │         echo ~{sep=" " names}
+    │                        ^^^^^
+    │
+    = fix: quote each element with `squote(names)` or `quote(names)`
+

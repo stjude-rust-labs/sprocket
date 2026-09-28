@@ -97,6 +97,22 @@ note[ShellCheck]: trailing_pholder is referenced but not assigned.
     │
     = fix: address the diagnostic as recommended in the message
 
+warning[ShellSplitting]: unquoted `String` value is subject to word splitting
+    ┌─ tests/lints/shellcheck-warn/source.wdl:103:11
+    │
+103 │         ~{by + myself}
+    │           ^^
+    │
+    = fix: surround the value with quotes inside the placeholder expression (e.g., `"'~{by}'"`)
+
+warning[ShellSplitting]: unquoted `String` value is subject to word splitting
+    ┌─ tests/lints/shellcheck-warn/source.wdl:103:16
+    │
+103 │         ~{by + myself}
+    │                ^^^^^^
+    │
+    = fix: surround the value with quotes inside the placeholder expression (e.g., `"'~{myself}'"`)
+
 note[ShellCheck]: leading_pholder is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:104:40
     │
@@ -251,33 +267,11 @@ note[ShellCheck]: fasta_name is referenced but not assigned.
     │
     = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Double quote to prevent globbing and word splitting.
-    ┌─ tests/lints/shellcheck-warn/source.wdl:164:13
-    │
-164 │             ~{fusions} /
-    │             ^^^^^^^^^^
-    │             │
-    │             SC2086[info]: Double quote to prevent globbing and word splitting.
-    │             more info: https://www.shellcheck.net/wiki/SC2086
-    │
-    = fix: address the diagnostic as recommended in the message
-
 error: unknown name `fusions`
     ┌─ tests/lints/shellcheck-warn/source.wdl:164:15
     │
 164 │             ~{fusions} /
     │               ^^^^^^^
-
-note[ShellCheck]: Double quote to prevent globbing and word splitting.
-    ┌─ tests/lints/shellcheck-warn/source.wdl:165:13
-    │
-165 │             ~{prefix}.vcf
-    │             ^^^^^^^^^
-    │             │
-    │             SC2086[info]: Double quote to prevent globbing and word splitting.
-    │             more info: https://www.shellcheck.net/wiki/SC2086
-    │
-    = fix: address the diagnostic as recommended in the message
 
 error: unknown name `prefix`
     ┌─ tests/lints/shellcheck-warn/source.wdl:165:15
@@ -338,17 +332,6 @@ note[ShellCheck]: outfile_name is referenced but not assigned.
     │                                              │
     │                                              SC2154[warning]: outfile_name is referenced but not assigned.
     │                                              more info: https://www.shellcheck.net/wiki/SC2154
-    │
-    = fix: address the diagnostic as recommended in the message
-
-note[ShellCheck]: Double quote to prevent globbing and word splitting.
-    ┌─ tests/lints/shellcheck-warn/source.wdl:179:41
-    │
-179 │             >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
-    │                                         ^^^^^^^^^^^^^^^
-    │                                         │
-    │                                         SC2086[info]: Double quote to prevent globbing and word splitting.
-    │                                         more info: https://www.shellcheck.net/wiki/SC2086
     │
     = fix: address the diagnostic as recommended in the message
 
