@@ -18,10 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preemption, and transferred bytes. Metrics are available from the task and
   run APIs, `sprocket dev server metrics`, and the `metrics.json` written
   beside local-run outputs.
-* Backend-native utilization includes LSF and Slurm scheduler accounting. A
-  positive Docker `backends.<name>.resource_usage_interval` samples
-  cache-adjusted container memory and cumulative CPU time; short-lived tasks
-  may report no sample, and CPU time may be undercounted by up to one interval.
+* Backend-native utilization includes LSF and Slurm scheduler accounting plus
+  two opt-in Crankshaft sources. A positive Docker
+  `backends.<name>.resource_usage_interval` samples cache-adjusted container
+  memory and cumulative CPU time; short-lived tasks may report no sample, and
+  CPU time may be undercounted by up to one interval. TES
+  `backends.<name>.resource_usage_metadata = true` reads supported top-level
+  `TaskLog.metadata` keys. Planetary supplies sampled Kubernetes working-set
+  memory and cumulative CPU time through those keys.
 * The opt-in `run.task.measure_resource_usage` shim records CPU time from
   inside a task on any backend and peak cgroup memory for containerized tasks.
   Sprocket also measures local work-directory disk usage. These engine

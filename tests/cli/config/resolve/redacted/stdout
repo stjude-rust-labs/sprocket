@@ -220,6 +220,7 @@ excluded_cache_inputs = []
 [run.backends.first]
 type = "tes"
 insecure = false
+resource_usage_metadata = false
 
 [run.backends.first.auth]
 type = "basic"
@@ -229,6 +230,7 @@ password = "<REDACTED>"
 [run.backends.second]
 type = "tes"
 insecure = false
+resource_usage_metadata = false
 
 [run.backends.second.auth]
 type = "bearer"
