@@ -1285,6 +1285,25 @@ pub struct TaskConfig {
     #[toml(default)]
     #[schemars(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
+    /// Whether to measure a task's resource usage from within its execution
+    /// environment.
+    ///
+    /// When enabled, the engine wraps each task command with a portable
+    /// measurement shim that records CPU time and, in containerized
+    /// environments, peak cgroup memory, reporting them as resource usage
+    /// metrics. This works on any backend — including remote ones like TES —
+    /// without requiring measurement tools in the container. Non-null shim
+    /// measurements override overlapping backend measurements; fields
+    /// reported only by the backend remain intact.
+    ///
+    /// The shim writes a small hidden file (`.sprocket_usage`) into the
+    /// task's work directory, which is removed after collection on local
+    /// file systems but remains in remote work directories.
+    ///
+    /// Defaults to `false`.
+    #[toml(default)]
+    #[schemars(default)]
+    pub measure_resource_usage: bool,
     /// The call cache directory to use for caching task execution results.
     ///
     /// Defaults to an operating system specific cache directory for the user.
@@ -1342,6 +1361,7 @@ impl Default for TaskConfig {
             shell: default_task_shell().into(),
             cpu_limit_behavior: Default::default(),
             memory_limit_behavior: Default::default(),
+            measure_resource_usage: false,
             cache_dir: cache_dir_sentinel().into(),
             cache: Default::default(),
             digests: Default::default(),
@@ -1657,13 +1677,15 @@ pub struct DockerBackendConfig {
     /// The interval, in seconds, at which to sample a running container's
     /// resource usage.
     ///
-    /// When set, each task's peak and average memory and cumulative CPU time
-    /// are sampled from the Docker daemon at this interval and reported in
-    /// the run's metrics.
+    /// When set to a positive value, Sprocket asks Crankshaft to sample local
+    /// containers at this interval. Memory is sampled container memory with
+    /// inactive file cache removed; the maximum is the largest observed
+    /// sample, and the average is the arithmetic mean of successful samples.
+    /// CPU time may be undercounted by up to one interval.
     ///
-    /// When unset or zero, resource usage is not sampled. Sampling applies
-    /// only to local container execution; it is not supported for Docker
-    /// Swarm services.
+    /// An unset or zero value disables sampling. Sampling is unavailable for
+    /// Docker Swarm services, and tasks that finish before the first interval
+    /// may report no usage.
     #[toml(default)]
     #[schemars(default)]
     pub resource_usage_interval: Option<u64>,
@@ -3380,6 +3402,40 @@ mod tests {
         assert!(toml.contains("secret"), "`{toml}` contains a secret");
     }
 
+    #[test]
+    fn resource_usage_configuration_round_trips() {
+        let source = r#"
+backend = "docker"
+
+[backends.docker]
+type = "docker"
+resource_usage_interval = 5
+
+[backends.disabled]
+type = "docker"
+resource_usage_interval = 0
+"#;
+
+        let config = toml_spanner::from_str::<Config>(source).unwrap();
+        assert_eq!(
+            config.backends["docker"]
+                .as_docker()
+                .unwrap()
+                .resource_usage_interval,
+            Some(5)
+        );
+        assert_eq!(
+            config.backends["disabled"]
+                .as_docker()
+                .unwrap()
+                .resource_usage_interval,
+            Some(0)
+        );
+        let rendered = toml_spanner::to_string(&config).unwrap();
+        let reparsed = toml_spanner::from_str::<Config>(&rendered).unwrap();
+        assert_eq!(reparsed, config);
+    }
+
     #[tokio::test]
     async fn test_config_validate() {
         // Test invalid task config
@@ -4071,6 +4127,7 @@ type = 'lsf_apptainer'
                     context: &eval_context,
                     name: "test",
                     command: "",
+                    measure_resource_usage: false,
                     inputs: &context.inputs,
                     backend_inputs: &[],
                     requirements: &Object::empty(),

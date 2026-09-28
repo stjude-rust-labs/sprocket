@@ -255,6 +255,8 @@ pub struct ExecuteTaskRequest<'a> {
     pub name: &'a str,
     /// The command of the task.
     pub command: &'a str,
+    /// Whether the command records resource usage through the engine shim.
+    pub measure_resource_usage: bool,
     /// The original input values to the task.
     pub inputs: &'a TaskInputs,
     /// The backend inputs for task.
@@ -320,6 +322,8 @@ pub struct TaskExecutionResult {
     pub exit_code: i32,
     /// The task's working directory.
     pub work_dir: EvaluationPath,
+    /// A backend-provided usage file outside the working directory.
+    pub usage_file: Option<EvaluationPath>,
     /// The value of the task's stdout file.
     pub stdout: Value,
     /// The value of the task's stderr file.

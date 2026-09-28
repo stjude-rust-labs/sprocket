@@ -12,18 +12,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 * `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 * Added the `backends.<name>.resource_usage_interval` Docker configuration
-  option for sampling task memory and CPU usage.
-* The LSF and Slurm backends report task resource utilization through
-  Crankshaft's cumulative `TaskResourceUsage` event. LSF sources measurements
-  from `bjobs`; Slurm uses `sacct`.
+  option. A positive value enables Crankshaft sampling for local containers;
+  zero or an omitted value disables it. Sampling reports cache-adjusted
+  container memory and cumulative CPU time, is unavailable for Docker Swarm,
+  and may miss tasks that finish before the first interval.
+* Added an opt-in resource usage measurement shim
+  (`task.measure_resource_usage`, off by default): the engine wraps each task
+  command with a portable POSIX shell shim that records the shell's child CPU
+  time (from `/proc/$$/stat`) and, in containerized environments, the
+  container's peak cgroup memory, without requiring any
+  measurement tools in the container and without touching the task's stdout,
+  stderr, exit code, or call cache key. Measurements are reported through the
+  engine's usage event and work on any backend, including remote ones like
+  TES, where the recording is exported separately so it does not become task
+  output or affect cached work-directory content. On local file systems, the
+  recording is removed after collection. CPU times assume the
+  standard 100Hz Linux clock tick; on systems without `/proc` the shim
+  records nothing and task behavior is unchanged.
+* The engine's disk usage event is now `TaskUsageMeasured`, carrying a full
+  resource usage snapshot of whatever the engine measured (work directory
+  disk usage and the shim's recordings when enabled). Consumers merge the
+  engine's non-null fields over backend measurements regardless of event
+  order, preserving fields reported only by the backend.
+* The LSF and Slurm backends report each attempt's maximum and average RSS
+  plus total, user, and system CPU time through Crankshaft's cumulative
+  `TaskResourceUsage` event. LSF sources the values from `bjobs`; Slurm uses
+  `sacct` fields including `MaxRSS` and `AveRSS`. Usage can be reported for
+  successful, failed, canceled, and preempted attempts.
 * `TaskConstraintsSnapshot` now records the resolved retry policy and curated
   hints alongside the constraints: `max_retries`, `preemptible`, `max_cpu`,
   and `max_memory`.
-* `EngineEvent` gained a `TaskDiskUsage` event reporting the disk space used
-  by an execution attempt's work directory, measured by the engine at the
-  attempt's termination when the work directory is on a local file system.
-  This complements the scheduler-observed measurements a backend may report
-  through Crankshaft's `TaskResourceUsage` event.
 * `BackendConfig::name` returns the canonical name of the configured backend
   kind.
 

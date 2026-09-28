@@ -156,7 +156,7 @@ fn format_retry_cause(cause: &serde_json::Value) -> String {
 
 /// Formats an attempt's observed resource utilization for display.
 ///
-/// Reports peak resident memory and total CPU time; the full detail is
+/// Reports maximum observed memory and total CPU time; the full detail is
 /// available in `--json` mode.
 fn format_utilization(utilization: Option<&serde_json::Value>) -> Option<String> {
     let utilization = utilization?;
