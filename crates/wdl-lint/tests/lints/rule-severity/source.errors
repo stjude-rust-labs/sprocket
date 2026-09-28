@@ -1,0 +1,8 @@
+note[SnakeCase]: workflow name `BadWorkflow` is not snake_case
+  ┌─ tests/lints/rule-severity/source.wdl:5:10
+  │
+5 │ workflow BadWorkflow {
+  │          ^^^^^^^^^^^ this name must be snake_case
+  │
+  = fix: replace `BadWorkflow` with `bad_workflow`
+

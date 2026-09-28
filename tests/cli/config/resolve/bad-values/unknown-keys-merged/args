@@ -1,0 +1,1 @@
+-c bad.toml -c bad2.toml config resolve

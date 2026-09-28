@@ -2,8 +2,9 @@
 # regular comment
 
 ## part of preamble
-#@ except: CommentWhitespace, DeprecatedObject, MatchingOutputMeta, MetaDescription
-#@ except: ParameterMetaMatched
+#@ except: CommentWhitespace, DeprecatedObject, ExtraneousParameterMeta
+#@ except: MatchingOutputMeta, MetaDescription, MissingParameterMeta, OutputMetaOrder
+#@ except: ParameterMetaOrder
 version 1.3
 
 #@ except: MetaSections

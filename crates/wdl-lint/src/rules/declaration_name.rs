@@ -9,6 +9,7 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
@@ -27,10 +28,16 @@ const ID: &str = "DeclarationName";
 
 /// Create a diagnostic for a declaration identifier that contains its type
 /// name.
-fn decl_identifier_with_type(span: Span, decl_name: &str, type_name: &str) -> Diagnostic {
-    Diagnostic::note(format!(
-        "declaration identifier '{decl_name}' contains type name '{type_name}'",
-    ))
+fn decl_identifier_with_type(
+    severity: Severity,
+    span: Span,
+    decl_name: &str,
+    type_name: &str,
+) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!("declaration identifier '{decl_name}' contains type name '{type_name}'",),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix("rename the identifier to not include the type name")
@@ -39,6 +46,8 @@ fn decl_identifier_with_type(span: Span, decl_name: &str, type_name: &str) -> Di
 /// A rule that identifies declaration names that include their type names.
 #[derive(Debug, Clone)]
 pub struct DeclarationNameRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// Allowed names from the config.
     allowed_names: HashSet<String>,
 }
@@ -47,7 +56,10 @@ impl DeclarationNameRule {
     /// Create a new instance of `DeclarationNameRule`.
     pub fn new(config: &Config) -> DeclarationNameRule {
         Self {
-            allowed_names: HashSet::from_iter(config.allowed_names.iter().cloned()),
+            severity: config.declaration_name.diagnostic_severity(),
+            allowed_names: HashSet::from_iter(
+                config.declaration_name.allowed_names.iter().cloned(),
+            ),
         }
     }
 }
@@ -122,6 +134,7 @@ impl Visitor for DeclarationNameRule {
     fn bound_decl(&mut self, state: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter {
             check_decl_name(
+                self.severity,
                 &self.allowed_names,
                 state,
                 &Decl::Bound(decl.clone()),
@@ -133,6 +146,7 @@ impl Visitor for DeclarationNameRule {
     fn unbound_decl(&mut self, state: &mut Diagnostics, reason: VisitReason, decl: &UnboundDecl) {
         if reason == VisitReason::Enter {
             check_decl_name(
+                self.severity,
                 &self.allowed_names,
                 state,
                 &Decl::Unbound(decl.clone()),
@@ -144,6 +158,7 @@ impl Visitor for DeclarationNameRule {
 
 /// Check declaration name for type suffixes.
 fn check_decl_name(
+    severity: Severity,
     allowed_names: &HashSet<String>,
     state: &mut Diagnostics,
     decl: &Decl,
@@ -183,12 +198,12 @@ fn check_decl_name(
         if type_lower.len() <= 3 {
             let words = convert_case::split(&name, &convert_case::Boundary::defaults());
             if words.into_iter().any(|w| w == type_lower) {
-                let diagnostic = decl_identifier_with_type(ident.span(), name, type_name);
+                let diagnostic = decl_identifier_with_type(severity, ident.span(), name, type_name);
                 state.exceptable_add(diagnostic, decl.inner(), exceptable_nodes);
                 return;
             }
         } else if name_lower.contains(&type_lower) {
-            let diagnostic = decl_identifier_with_type(ident.span(), name, type_name);
+            let diagnostic = decl_identifier_with_type(severity, ident.span(), name, type_name);
             state.exceptable_add(diagnostic, decl.inner(), exceptable_nodes);
             return;
         }

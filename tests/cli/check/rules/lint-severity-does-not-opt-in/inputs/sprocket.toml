@@ -1,0 +1,2 @@
+[check.rules.TodoComment]
+severity = "warning"

@@ -1,0 +1,5 @@
+[SnakeCase]
+severity = "note"
+
+[PascalCase]
+severity = "off"

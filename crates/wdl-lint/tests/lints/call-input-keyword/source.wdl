@@ -1,7 +1,7 @@
 ## This is a test of the CallInputKeyword rule for WDL 1.2+.
 ## The `input:` keyword is optional in version 1.3 and should be omitted.
 
-#@ except: BashSetSyntax, MatchingOutputMeta, MetaDescription, ParameterMetaMatched
+#@ except: BashSetSyntax, MatchingOutputMeta, OutputMetaOrder, MetaDescription, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder
 #@ except: DeprecatedRuntimeSection, RequirementsSection
 
 version 1.3

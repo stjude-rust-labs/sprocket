@@ -4,6 +4,9 @@ This table documents all implemented `wdl` analysis rules implemented on the
 `main` branch of the `stjude-rust-labs/sprocket` repository. Note that the 
 information may be out of sync with released packages.
 
+Each rule can be configured in its own `[check.rules.<RULE>]` table of
+`sprocket.toml` with a `severity` of `off`, `note`, or `warning`.
+
 ## Analysis Rules
 
 | Name                       | Description                                                                                               |

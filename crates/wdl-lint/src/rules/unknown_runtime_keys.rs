@@ -17,7 +17,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::Ident;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -43,16 +43,15 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::serialize_oxford_comma;
 
 /// The identifier for the runtime section rule.
-const ID: &str = "ExpectedRuntimeKeys";
+const ID: &str = "UnknownRuntimeKeys";
 
 /// A kind of runtime key.
 ///
 /// These are intended to be assigned at a per-version level of granularity.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum KeyKind {
+pub(crate) enum KeyKind {
     /// A key that is deprecated in favor of another key.
     Deprecated(
         /// The equivalent key that should be used instead.
@@ -72,7 +71,7 @@ enum KeyKind {
 
 impl KeyKind {
     /// Returns whether a key is recommended to be included.
-    pub fn is_recommended(&self) -> bool {
+    pub(crate) fn is_recommended(&self) -> bool {
         *self == KeyKind::Recommended
     }
 }
@@ -80,7 +79,7 @@ impl KeyKind {
 /// The mapping between `runtime` keys and their kind for WDL v1.0.
 ///
 /// Link: https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#runtime-section
-fn keys_v1_0() -> &'static HashMap<&'static str, KeyKind> {
+pub(crate) fn keys_v1_0() -> &'static HashMap<&'static str, KeyKind> {
     /// Keys and their kind for WDL v1.0.
     static KEYS_V1_0: OnceLock<HashMap<&'static str, KeyKind>> = OnceLock::new();
 
@@ -95,7 +94,7 @@ fn keys_v1_0() -> &'static HashMap<&'static str, KeyKind> {
 /// The mapping between `runtime` keys and their kind for WDL v1.1.
 ///
 /// Link: https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#runtime-section
-fn keys_v1_1() -> &'static HashMap<&'static str, KeyKind> {
+pub(crate) fn keys_v1_1() -> &'static HashMap<&'static str, KeyKind> {
     /// Keys and their kind for WDL v1.1.
     static KEYS_V1_1: OnceLock<HashMap<&'static str, KeyKind>> = OnceLock::new();
 
@@ -128,148 +127,83 @@ fn keys_v1_1() -> &'static HashMap<&'static str, KeyKind> {
     })
 }
 
-/// Creates a "deprecated runtime key" diagnostic.
-fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
-    Diagnostic::note(format!(
-        "the `{key}` runtime key has been deprecated in favor of `{replacement}`",
-        key = key.text()
-    ))
-    .with_rule(ID)
-    .with_highlight(key.span())
-    .with_fix(format!(
-        "replace the `{key}` key with `{replacement}`",
-        key = key.text()
-    ))
-}
-
 /// Creates a "non-reserved runtime key" diagnostic for a specific `key`
-fn report_non_reserved_runtime_key(key: &str, span: Span, specification: &str) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "the runtime key `{key}` is not reserved in {specification}; arbitrary runtime keys are \
-         deprecated"
-    ))
+fn report_non_reserved_runtime_key(
+    severity: Severity,
+    key: &str,
+    span: Span,
+    specification: &str,
+) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!(
+            "the runtime key `{key}` is not reserved in {specification}; arbitrary runtime keys \
+             are deprecated"
+        ),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix(format!("remove the `{key}` key"))
 }
 
-/// Creates a "missing recommended runtime key" diagnostic.
-fn report_missing_recommended_keys(
-    mut keys: Vec<&str>,
-    runtime_span: Span,
-    specification: &str,
-) -> Diagnostic {
-    assert!(!keys.is_empty());
-    keys.sort();
-
-    let (message, fix) = if keys.len() == 1 {
-        // SAFETY: we just checked to make sure there is exactly one element in
-        // `keys`, so this will always unwrap.
-        let key = keys.first().unwrap();
-
-        (
-            format!("the following runtime key is recommended by {specification}: `{key}`"),
-            format!("include an entry for the `{key}` key in the `runtime` section"),
-        )
-    } else {
-        // SAFETY: we know that this has more than one element because we
-        // asserted the input `Vec` not be empty above. As such, this will
-        // always produce a result.
-        let keys = serialize_oxford_comma(
-            &keys
-                .iter()
-                .map(|key| format!("`{key}`"))
-                .collect::<Vec<_>>(),
-        )
-        .unwrap();
-
-        (
-            format!("the following runtime keys are recommended by {specification}: {keys}"),
-            format!("include entries for the {keys} keys in the `runtime` section"),
-        )
-    };
-
-    Diagnostic::note(message)
-        .with_rule(ID)
-        .with_highlight(runtime_span)
-        .with_fix(fix)
-}
-
-/// Detects the use of deprecated, unknown, or missing runtime keys.
+/// Detects the use of unknown runtime keys.
 #[derive(Debug, Clone)]
-pub struct ExpectedRuntimeKeysRule {
+pub struct UnknownRuntimeKeysRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The detected version of the current document.
     version: Option<SupportedVersion>,
     /// Whether or not we've already processed a `runtime` section within the
     /// current task.
     runtime_processed_for_task: bool,
-    /// All keys encountered in the current runtime section.
-    encountered_keys: Vec<String>,
     /// Allowed keys from the config.
     allowed_runtime_keys: HashSet<String>,
 }
 
-impl ExpectedRuntimeKeysRule {
-    /// Create a new instance of `ExpectedRuntimeKeysRule`
+impl UnknownRuntimeKeysRule {
+    /// Create a new instance of `UnknownRuntimeKeysRule`
     pub fn new(config: &Config) -> Self {
         Self {
+            severity: config.unknown_runtime_keys.diagnostic_severity(),
             version: None,
             runtime_processed_for_task: false,
-            encountered_keys: Vec::new(),
-            allowed_runtime_keys: HashSet::from_iter(config.allowed_runtime_keys.iter().cloned()),
+            allowed_runtime_keys: HashSet::from_iter(
+                config
+                    .unknown_runtime_keys
+                    .allowed_runtime_keys
+                    .iter()
+                    .cloned(),
+            ),
         }
     }
 }
 
-impl Rule for ExpectedRuntimeKeysRule {
+impl Rule for UnknownRuntimeKeysRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that `runtime` sections have the appropriate keys."
+        "Ensures that WDL 1.1 `runtime` sections use reserved keys."
     }
 
     fn explanation(&self) -> &'static str {
         "The behavior of this rule is different depending on the WDL version:
 
-For WDL v1.0 documents, the `docker` and `memory` keys are recommended, but the inclusion of any \
-         number of other keys is permitted.
+For WDL v1.0 documents, this rule does not emit diagnostics.
 
-For WDL v1.1 documents:
-
-- A list of mandatory, reserved keywords will be recommended for inclusion if they are not \
-         present. Here, 'mandatory' refers to the requirement that all execution engines support \
-         this key—not that the key must be present in the `runtime` section.
-- Optional, reserved \"hint\" keys are also permitted but not flagged when they are missing (as \
-         their support in execution engines is not guaranteed).
-- The WDL v1.1 specification deprecates the inclusion of non-reserved keys in a  `runtime` \
-         section. As such, any non-reserved keys will be flagged for removal.
+For WDL v1.1 documents, the specification deprecates the inclusion of non-reserved keys in a \
+         `runtime` section. As such, any non-reserved keys will be flagged for removal.
 
 For WDL v1.2 documents and later, this rule does not evaluate because `runtime` sections were \
          deprecated in this version."
     }
 
     fn examples(&self) -> &'static [Example] {
-        &[
-            Example {
-                negative: LabeledSnippet {
-                    label: Some("The following is missing a mandatory key"),
-                    snippet: r#"version 1.1
-
-task missing_required_keys {
-    runtime {
-    # Missing `container` key
-    }
-}
-"#,
-                },
-                revised: None,
-            },
-            Example {
-                negative: LabeledSnippet {
-                    label: Some("The following has an unexpected key"),
-                    snippet: r#"version 1.1
+        &[Example {
+            negative: LabeledSnippet {
+                label: Some("The following has an unexpected key"),
+                snippet: r#"version 1.1
 
 task unexpected_runtime_key {
     runtime {
@@ -278,10 +212,9 @@ task unexpected_runtime_key {
     }
 }
 "#,
-                },
-                revised: None,
             },
-        ]
+            revised: None,
+        }]
     }
 
     fn tags(&self) -> crate::TagSet {
@@ -297,13 +230,18 @@ task unexpected_runtime_key {
     }
 
     fn related_rules(&self) -> &'static [&'static str] {
-        &["DeprecatedObject", "DeprecatedPlaceholder"]
+        &[
+            "DeprecatedObject",
+            "DeprecatedPlaceholder",
+            "DeprecatedRuntimeKey",
+            "RecommendedRuntimeKeys",
+        ]
     }
 }
 
 /// A utility method to parse the recommended keys from a static set of runtime
 /// keys from either WDL v1.0 or WDL v1.1.
-fn recommended_keys<'a, 'k>(
+pub(crate) fn recommended_keys<'a, 'k>(
     keys: &'a HashMap<&'k str, KeyKind>,
 ) -> impl Iterator<Item = (&'k str, &'a KeyKind)> {
     keys.iter()
@@ -311,10 +249,10 @@ fn recommended_keys<'a, 'k>(
         .map(|(key, kind)| (*key, kind))
 }
 
-impl Visitor for ExpectedRuntimeKeysRule {
+impl Visitor for UnknownRuntimeKeysRule {
     fn reset(&mut self) {
         self.version = None;
-        self.encountered_keys.clear();
+        self.runtime_processed_for_task = false;
     }
 
     fn document(
@@ -344,65 +282,12 @@ impl Visitor for ExpectedRuntimeKeysRule {
 
     fn runtime_section(
         &mut self,
-        diagnostics: &mut Diagnostics,
+        _diagnostics: &mut Diagnostics,
         reason: VisitReason,
-        section: &RuntimeSection,
+        _section: &RuntimeSection,
     ) {
-        // NOTE: if we've already processed a `runtime` section for this task
-        // and we hit this again, that means there are multiple `runtime`
-        // sections in the task. In that case, validation should report that
-        // this cannot occur, and the runtime section should be ignored.
-        if self.runtime_processed_for_task {
-            return;
-        }
-
-        match reason {
-            VisitReason::Enter => {}
-            VisitReason::Exit => {
-                // SAFETY: the version must always be set before we get to this
-                // point, as document is the root node of the tree.
-                if let SupportedVersion::V1(minor_version) = self.version.unwrap() {
-                    let specification = format!("the WDL {minor_version} specification");
-
-                    let recommended_keys = match minor_version {
-                        V1::Zero => recommended_keys(keys_v1_0()),
-                        V1::One => recommended_keys(keys_v1_1()),
-                        _ => return,
-                    };
-
-                    let missing_keys = recommended_keys
-                        .filter(|(key, _)| !self.encountered_keys.iter().any(|s| s == *key))
-                        .map(|(key, _)| key)
-                        .collect::<Vec<_>>();
-
-                    if !missing_keys.is_empty() {
-                        diagnostics.exceptable_add(
-                            report_missing_recommended_keys(
-                                missing_keys,
-                                // Note that we don't use `section.span()` to avoid highlighting
-                                // the entire runtime_section
-                                // (instead, we highlight just the key "runtime")
-                                section
-                                    .inner()
-                                    .first_token()
-                                    .expect("runtime section should have tokens")
-                                    .text_range()
-                                    .into(),
-                                &specification,
-                            ),
-                            section.inner(),
-                            &self.exceptable_nodes(),
-                        );
-                    }
-
-                    // Now that we've emitted the necessary diagnostics for this
-                    // runtime section, clear our tracking
-                    // container of encountered keys to prepare for the next
-                    // runtime section.
-                    self.encountered_keys.clear();
-                    self.runtime_processed_for_task = true;
-                }
-            }
+        if reason == VisitReason::Exit {
+            self.runtime_processed_for_task = true;
         }
     }
 
@@ -436,18 +321,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
             //   report the section as deprecated (in another rule).
             if minor_version == V1::One {
                 match keys_v1_1().get(key_name.text()) {
-                    Some(kind) => {
-                        // If the key was found in the map, the only potential
-                        // problem that can be encountered is if the key is
-                        // deprecated.
-                        if let KeyKind::Deprecated(replacement) = kind {
-                            diagnostics.exceptable_add(
-                                deprecated_runtime_key(&key_name, replacement),
-                                item.inner(),
-                                &self.exceptable_nodes(),
-                            );
-                        }
-                    }
+                    Some(_) => {}
                     None => {
                         let specification = format!("the WDL {minor_version} specification");
                         let key_text = key_name.text();
@@ -469,6 +343,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                                 .into();
                             diagnostics.exceptable_add(
                                 report_non_reserved_runtime_key(
+                                    self.severity,
                                     key_text,
                                     text_for_key_span,
                                     &specification,
@@ -481,7 +356,5 @@ impl Visitor for ExpectedRuntimeKeysRule {
                 }
             }
         }
-
-        self.encountered_keys.push(key_name.text().to_string());
     }
 }

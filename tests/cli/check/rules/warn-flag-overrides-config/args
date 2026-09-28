@@ -1,0 +1,1 @@
+--config sprocket.toml check --warn UnusedInput unused-input.wdl

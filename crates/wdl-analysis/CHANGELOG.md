@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `find_all_references` and `rename` now search only the defining document for
+  symbols that cannot be referenced by importers, such as private declarations,
+  call aliases, scatter variables, and import aliases ([#796](https://github.com/stjude-rust-labs/sprocket/pull/796)).
+
+#### Fixed
+
+* `goto_definition` on the target name of an import alias (e.g. `Human` in
+  `alias Person as Human`) now resolves to the alias ([#796](https://github.com/stjude-rust-labs/sprocket/pull/796)).
+
 ## 0.26.0 - 2026-09-16
 
 #### Added

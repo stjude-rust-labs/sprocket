@@ -1,0 +1,3 @@
+[check.rules.SnakeCase]
+severity = "note"
+allowed_names = ["AllowedName"]

@@ -119,7 +119,7 @@ warning[BashSetSyntax]: bad `set` command
     = help: the config expects the following options to be present: errexit, nounset, pipefail
     = fix: update the `set` command to: `set -euo pipefail`
 
-error[BashSetSyntax]: unknown `set` option
+warning[BashSetSyntax]: unknown `set` option
     ┌─ tests/lints/bash-set-syntax/source.wdl:182:27
     │
 182 │         set -euo pipefail -o hello_world -q
@@ -128,7 +128,7 @@ error[BashSetSyntax]: unknown `set` option
     = help: option `-o` is non-standard
     = fix: remove the option
 
-error[BashSetSyntax]: unknown `set` option
+warning[BashSetSyntax]: unknown `set` option
     ┌─ tests/lints/bash-set-syntax/source.wdl:182:43
     │
 182 │         set -euo pipefail -o hello_world -q

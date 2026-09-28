@@ -19,6 +19,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CommandPart;
@@ -50,16 +51,16 @@ const INTERACTIVE_ONLY_LONG: &[&str] = &[
 const INTERACTIVE_ONLY_SHORT: &[char] = &['H', 'm', 'b'];
 
 /// Creates a missing `set` command diagnostic.
-fn missing_set(span: Span) -> Diagnostic {
-    Diagnostic::warning("missing `set` command")
+fn missing_set(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "missing `set` command")
         .with_rule(ID)
         .with_highlight(span)
         .with_help("`set` commands should be on the first line of `command` sections")
 }
 
 /// Creates an interactive `set` option diagnostic.
-fn interactive_only(span: Span, option: &str) -> Diagnostic {
-    Diagnostic::warning("unnecessary `set` option")
+fn interactive_only(severity: Severity, span: Span, option: &str) -> Diagnostic {
+    Diagnostic::new(severity, "unnecessary `set` option")
         .with_rule(ID)
         .with_highlight(span)
         .with_help(format!(
@@ -69,8 +70,8 @@ fn interactive_only(span: Span, option: &str) -> Diagnostic {
 }
 
 /// Creates an unknown `set` option diagnostic.
-fn unknown_option(span: Span, option: &str) -> Diagnostic {
-    Diagnostic::error("unknown `set` option")
+fn unknown_option(severity: Severity, span: Span, option: &str) -> Diagnostic {
+    Diagnostic::new(severity, "unknown `set` option")
         .with_rule(ID)
         .with_highlight(span)
         .with_help(format!("option `{option}` is non-standard"))
@@ -78,12 +79,17 @@ fn unknown_option(span: Span, option: &str) -> Diagnostic {
 }
 
 /// Creates a bad `set` syntax diagnostic.
-fn bad_set_syntax(span: Span, expected_options: &[BashSetOption], fix: &str) -> Diagnostic {
+fn bad_set_syntax(
+    severity: Severity,
+    span: Span,
+    expected_options: &[BashSetOption],
+    fix: &str,
+) -> Diagnostic {
     let expected_options = expected_options
         .iter()
         .map(|op| op.to_string())
         .collect::<Vec<_>>();
-    Diagnostic::warning(format!("bad `{SET_COMMAND_NAME}` command"))
+    Diagnostic::new(severity, format!("bad `{SET_COMMAND_NAME}` command"))
         .with_rule(ID)
         .with_highlight(span)
         .with_help(format!(
@@ -96,8 +102,10 @@ fn bad_set_syntax(span: Span, expected_options: &[BashSetOption], fix: &str) -> 
 }
 
 /// Detects missing/invalid bash `set` commands.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct BashSetSyntax {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The minimum options expected to be enabled.
     expected_options: Vec<BashSetOption>,
 }
@@ -105,10 +113,14 @@ pub struct BashSetSyntax {
 impl BashSetSyntax {
     /// Create a new `BashSetSyntax` rule.
     pub fn new(config: &Config) -> Self {
-        let mut expected_options: Vec<BashSetOption> = config.bash_set_options.clone();
+        let mut expected_options: Vec<BashSetOption> =
+            config.bash_set_syntax.bash_set_options.clone();
         expected_options.sort();
 
-        Self { expected_options }
+        Self {
+            severity: config.bash_set_syntax.diagnostic_severity(),
+            expected_options,
+        }
     }
 
     /// Generates a bare-minimum `set` command based on the required options.
@@ -261,13 +273,13 @@ impl BashSetSyntax {
                 let Some(matched_opt) = matched_opt else {
                     if is_interactive_only {
                         diagnostics.exceptable_add(
-                            interactive_only(opt_name_span, &format!("{mode}{opt}")),
+                            interactive_only(self.severity, opt_name_span, &format!("{mode}{opt}")),
                             section.inner(),
                             &self.exceptable_nodes(),
                         );
                     } else {
                         diagnostics.exceptable_add(
-                            unknown_option(opt_name_span, &format!("{mode}{opt}")),
+                            unknown_option(self.severity, opt_name_span, &format!("{mode}{opt}")),
                             section.inner(),
                             &self.exceptable_nodes(),
                         );
@@ -509,6 +521,7 @@ impl Ord for BashSetOption {
 impl Visitor for BashSetSyntax {
     fn reset(&mut self) {
         *self = Self {
+            severity: self.severity,
             expected_options: std::mem::take(&mut self.expected_options),
         };
     }
@@ -525,7 +538,7 @@ impl Visitor for BashSetSyntax {
 
         let Some(CommandPart::Text(first_chunk)) = section.parts().next() else {
             diagnostics.exceptable_add(
-                missing_set(section.span()),
+                missing_set(self.severity, section.span()),
                 section.inner(),
                 &self.exceptable_nodes(),
             );
@@ -554,7 +567,12 @@ impl Visitor for BashSetSyntax {
                 if !is_valid {
                     let set_span = Span::new(line_start, parsed_length);
                     diagnostics.exceptable_add(
-                        bad_set_syntax(set_span, &self.expected_options, &self.ideal_command()),
+                        bad_set_syntax(
+                            self.severity,
+                            set_span,
+                            &self.expected_options,
+                            &self.ideal_command(),
+                        ),
                         section.inner(),
                         &self.exceptable_nodes(),
                     );
@@ -567,7 +585,7 @@ impl Visitor for BashSetSyntax {
         }
 
         diagnostics.exceptable_add(
-            missing_set(section.span()),
+            missing_set(self.severity, section.span()),
             section.inner(),
             &self.exceptable_nodes(),
         );

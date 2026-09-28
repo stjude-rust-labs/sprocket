@@ -11,10 +11,12 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::CallStatement;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -23,16 +25,31 @@ use crate::TagSet;
 const ID: &str = "ConciseInput";
 
 /// Create a "Redundant Input Assignment" diagnostic.
-fn redundant_input_assignment(span: Span, name: &str) -> Diagnostic {
-    Diagnostic::note("redundant input assignment")
+fn redundant_input_assignment(severity: Severity, span: Span, name: &str) -> Diagnostic {
+    Diagnostic::new(severity, "redundant input assignment")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(format!("can be shortened to `{name}`"))
 }
 
 /// Detects a redundant input assignment.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct ConciseInputRule(Option<SupportedVersion>);
+#[derive(Debug, Clone, Copy)]
+pub struct ConciseInputRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+    /// The WDL version of the document being linted.
+    version: Option<SupportedVersion>,
+}
+
+impl ConciseInputRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.concise_input.diagnostic_severity(),
+            version: None,
+        }
+    }
+}
 
 impl Rule for ConciseInputRule {
     fn id(&self) -> &'static str {
@@ -125,7 +142,7 @@ task say_hello {
 
 impl Visitor for ConciseInputRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.version = None;
     }
 
     fn document(
@@ -139,7 +156,7 @@ impl Visitor for ConciseInputRule {
             return;
         }
 
-        self.0 = Some(version);
+        self.version = Some(version);
     }
 
     fn call_statement(
@@ -152,7 +169,9 @@ impl Visitor for ConciseInputRule {
             return;
         }
 
-        if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here") {
+        if let SupportedVersion::V1(minor_version) =
+            self.version.expect("version should exist here")
+        {
             if minor_version < wdl_ast::version::V1::One {
                 return;
             }
@@ -162,7 +181,11 @@ impl Visitor for ConciseInputRule {
                     && expr_name.name().text() == input.name().text()
                 {
                     diagnostics.exceptable_add(
-                        redundant_input_assignment(input.span(), input.name().text()),
+                        redundant_input_assignment(
+                            self.severity,
+                            input.span(),
+                            input.name().text(),
+                        ),
                         input.inner(),
                         &self.exceptable_nodes(),
                     );

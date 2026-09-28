@@ -12,6 +12,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Documented;
 use wdl_ast::Ident;
+use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -22,6 +23,7 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -68,11 +70,19 @@ impl fmt::Display for Context {
 const ID: &str = "MetaSections";
 
 /// Creates a "missing section" diagnostic.
-fn missing_section(name: Ident, section: Section, context: Context) -> Diagnostic {
-    Diagnostic::note(format!(
-        "{context} `{name}` is missing a `{section}` section",
-        name = name.text(),
-    ))
+fn missing_section(
+    severity: Severity,
+    name: Ident,
+    section: Section,
+    context: Context,
+) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!(
+            "{context} `{name}` is missing a `{section}` section",
+            name = name.text(),
+        ),
+    )
     .with_rule(ID)
     .with_label(
         format!("this {context} is missing a `{section}` section"),
@@ -82,11 +92,14 @@ fn missing_section(name: Ident, section: Section, context: Context) -> Diagnosti
 }
 
 /// Creates a "missing sections" diagnostic.
-fn missing_sections(name: Ident, context: Context) -> Diagnostic {
-    Diagnostic::note(format!(
-        "{context} `{name}` is missing both `meta` and `parameter_meta` sections",
-        name = name.text(),
-    ))
+fn missing_sections(severity: Severity, name: Ident, context: Context) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!(
+            "{context} `{name}` is missing both `meta` and `parameter_meta` sections",
+            name = name.text(),
+        ),
+    )
     .with_rule(ID)
     .with_label(
         format!("this {context} is missing both `meta` and `parameter_meta` sections"),
@@ -96,10 +109,22 @@ fn missing_sections(name: Ident, context: Context) -> Diagnostic {
 }
 
 /// A lint rule for missing meta and parameter_meta sections.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct MetaSectionsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
+}
+
+impl MetaSectionsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.meta_sections.diagnostic_severity(),
+            version: Default::default(),
+        }
+    }
 }
 
 impl Rule for MetaSectionsRule {
@@ -177,7 +202,7 @@ task say_hello {
     fn related_rules(&self) -> &'static [&'static str] {
         &[
             "MetaDescription",
-            "ParameterMetaMatched",
+            "MissingParameterMeta",
             "OutputSection",
             "RequirementsSection",
             "RuntimeSection",
@@ -215,19 +240,19 @@ impl MetaSectionsRule {
 
         if needs_meta && needs_parameter_meta {
             diagnostics.exceptable_add(
-                missing_sections(name, context),
+                missing_sections(self.severity, name, context),
                 node.inner(),
                 &self.exceptable_nodes(),
             );
         } else if needs_meta {
             diagnostics.exceptable_add(
-                missing_section(name, Section::Meta, context),
+                missing_section(self.severity, name, Section::Meta, context),
                 node.inner(),
                 &self.exceptable_nodes(),
             );
         } else if needs_parameter_meta {
             diagnostics.exceptable_add(
-                missing_section(name, Section::ParameterMeta, context),
+                missing_section(self.severity, name, Section::ParameterMeta, context),
                 node.inner(),
                 &self.exceptable_nodes(),
             );
@@ -237,7 +262,7 @@ impl MetaSectionsRule {
 
 impl Visitor for MetaSectionsRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.version = Default::default();
     }
 
     fn document(

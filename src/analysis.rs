@@ -13,7 +13,6 @@ use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tracing::info;
 use wdl::analysis::Analyzer;
-use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::ProgressKind;
 use wdl::analysis::Validator;
 use wdl::analysis::config::FeatureFlags;
@@ -29,6 +28,7 @@ pub use source::*;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::Rule;
+use wdl::lint::RuleSeverity;
 use wdl::lint::TagSet;
 
 use crate::IGNORE_FILENAME;
@@ -56,8 +56,8 @@ pub struct Analysis {
     /// Which lint rules to enable, as specified via a [`TagSet`].
     enabled_lint_tags: TagSet,
 
-    /// The lint rule configuration.
-    lint_config: wdl::lint::Config,
+    /// The rule configuration.
+    rules_config: wdl::lint::Config,
 
     /// Basename for any ignorefiles which should be respected.
     ignore_filename: Option<String>,
@@ -114,6 +114,12 @@ impl Analysis {
         F: Fn(ProgressKind, usize, usize) -> BoxFuture<'static, ()> + Send + Sync + 'static,
     {
         self.progress = Box::new(progress);
+        self
+    }
+
+    /// Sets the rule configuration.
+    pub fn rules_config(mut self, config: wdl::lint::Config) -> Self {
+        self.rules_config = config;
         self
     }
 
@@ -190,11 +196,18 @@ impl Analysis {
         colorize: bool,
     ) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions, report_mode, colorize);
+
+        // Excepted rules are turned off.
+        let mut rules_config = self.rules_config.clone();
+        for exception in &self.exceptions {
+            rules_config.set_severity(exception, RuleSeverity::Off);
+        }
+
         if self.enabled_lint_tags.count() > 0 && tracing::enabled!(tracing::Level::INFO) {
             let mut enabled_rules = vec![];
             let mut disabled_rules = vec![];
             for rule in wdl::lint::rules(&wdl::lint::Config::default()) {
-                if is_rule_enabled(&self.enabled_lint_tags, &self.exceptions, rule.as_ref()) {
+                if is_rule_enabled(&self.enabled_lint_tags, &rules_config, rule.as_ref()) {
                     enabled_rules.push(rule.id());
                 } else {
                     disabled_rules.push(rule.id());
@@ -209,7 +222,7 @@ impl Analysis {
 
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
-            .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
+            .with_diagnostics_config(rules_config.diagnostics_config())
             .with_ignore_filename(self.ignore_filename)
             .with_feature_flags(self.feature_flags);
 
@@ -223,8 +236,7 @@ impl Analysis {
             // unnecessarily.
             validator.extend_rules(wdl::lint::RULE_MAP.clone());
             if self.enabled_lint_tags.count() > 0 {
-                let visitor =
-                    get_lint_visitor(&self.enabled_lint_tags, &self.exceptions, &self.lint_config);
+                let visitor = get_lint_visitor(&self.enabled_lint_tags, &rules_config);
                 validator.add_visitor(visitor);
             }
 
@@ -259,7 +271,7 @@ impl Default for Analysis {
             sources: Default::default(),
             exceptions: Default::default(),
             enabled_lint_tags: TagSet::EMPTY,
-            lint_config: Default::default(),
+            rules_config: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             fallback_version: None,
@@ -500,26 +512,16 @@ fn warn_unknown_rules(exceptions: &HashSet<String>, report_mode: Mode, colorize:
     }
 }
 
-/// Gets the rules as a diagnostics configuration with the excepted rules
-/// removed.
-fn get_diagnostics_config(exceptions: &HashSet<String>) -> DiagnosticsConfig {
-    DiagnosticsConfig::new(wdl::analysis::rules().into_iter().filter(|rule| {
-        !exceptions
-            .iter()
-            .any(|exception| exception.eq_ignore_ascii_case(rule.id()))
-    }))
-}
-
-/// Determines if a rule should be enabled.
+/// Determines if a lint rule should be enabled.
+///
+/// A rule is enabled if its severity isn't `off` and all of its tags are
+/// enabled.
 fn is_rule_enabled(
     enabled_lint_tags: &TagSet,
-    exceptions: &HashSet<String>,
+    rules_config: &wdl::lint::Config,
     rule: &dyn Rule,
 ) -> bool {
-    if exceptions
-        .iter()
-        .any(|exception| exception.eq_ignore_ascii_case(rule.id()))
-    {
+    if rules_config.severity(rule.id()) == Some(RuleSeverity::Off) {
         return false;
     }
 
@@ -529,18 +531,13 @@ fn is_rule_enabled(
 /// Gets a lint visitor with the rules depending on provided options.
 ///
 /// `enabled_lint_tags` controls which rules are considered for being added to
-/// the visitor. `disabled_lint_tags` and `exceptions` act as filters on the set
-/// considered by `enabled_lint_tags`.
-fn get_lint_visitor(
-    enabled_lint_tags: &TagSet,
-    exceptions: &HashSet<String>,
-    lint_config: &wdl::lint::Config,
-) -> Linter {
+/// the visitor. Rules that are `off` in `rules_config` are not added.
+fn get_lint_visitor(enabled_lint_tags: &TagSet, rules_config: &wdl::lint::Config) -> Linter {
     Linter::new(
-        wdl::lint::rules(lint_config)
+        wdl::lint::rules(rules_config)
             .into_iter()
             .filter_map(|rule| {
-                is_rule_enabled(enabled_lint_tags, exceptions, rule.as_ref())
+                is_rule_enabled(enabled_lint_tags, rules_config, rule.as_ref())
                     .then_some(rule as Box<dyn Rule>)
             }),
     )

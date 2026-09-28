@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Materializing a Git dependency from an existing cache leaf no longer deletes
+  and re-checks-out the folders already materialized there, which raced with
+  concurrent readers of those folders. Only missing folders are added. Cached
+  content that fails lockfile verification is restored from Git where it
+  differs, then verified again. Fresh resolution and `GitResolver::ensure_locked`
+  restore reused content that differs from Git, and fresh resolution does so
+  before hashing it
+  ([#1236](https://github.com/stjude-rust-labs/sprocket/issues/1236)).
+* Git dependencies without a `path` (the repository root is the module) now
+  materialize their content; the sparse checkout previously matched no files
+  for the root path
+  ([#1236](https://github.com/stjude-rust-labs/sprocket/issues/1236)).
+
 ## 0.3.3 - 2026-09-16
 
 ## 0.3.2 - 2026-08-26
