@@ -22,7 +22,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The `HostPathLiterals` rule ID.
 const ID: &str = "HostPathLiterals";
@@ -45,7 +44,7 @@ fn is_absolute_host_path(s: &str) -> bool {
 /// Creates a diagnostic for a `File`/`Directory` declaration whose default is
 /// an absolute host path.
 fn absolute_host_path_default(severity: Severity, span: Span, decl_name: &str) -> Diagnostic {
-    diagnostic(severity, format!("`{decl_name}` has an absolute host path"))
+    Diagnostic::new(severity, format!("`{decl_name}` has an absolute host path"))
         .with_rule(ID)
         .with_highlight(span)
         .with_help(
@@ -70,12 +69,6 @@ impl HostPathLiteralsRule {
             severity: config.host_path_literals.diagnostic_severity(),
             output_section: Default::default(),
         }
-    }
-}
-
-impl Default for HostPathLiteralsRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

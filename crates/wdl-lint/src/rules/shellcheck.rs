@@ -54,7 +54,6 @@ use crate::TagSet;
 use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
-use crate::util::diagnostic;
 use crate::util::is_quote_balanced;
 use crate::util::program_exists;
 
@@ -240,12 +239,6 @@ impl ShellCheckRule {
     }
 }
 
-impl Default for ShellCheckRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
-    }
-}
-
 impl Rule for ShellCheckRule {
     fn id(&self) -> &'static str {
         ID
@@ -382,7 +375,7 @@ fn shellcheck_lint(
         }
         Some(_) | None => String::from("address the diagnostic as recommended in the message"),
     };
-    diagnostic(severity, &shellcheck_diagnostic.message)
+    Diagnostic::new(severity, &shellcheck_diagnostic.message)
         .with_rule(ID)
         .with_label(label, span)
         .with_label(
@@ -756,7 +749,7 @@ impl Visitor for ShellCheckRule {
                 command keyword token",
                     );
                 diagnostics.exceptable_add(
-                    diagnostic(self.severity, "running `shellcheck` on command section")
+                    Diagnostic::new(self.severity, "running `shellcheck` on command section")
                         .with_label(
                             "could not find `shellcheck` executable.",
                             command_keyword.text_range(),
@@ -835,7 +828,7 @@ impl Visitor for ShellCheckRule {
                 let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                     .expect("should have a command keyword token");
                 diagnostics.exceptable_add(
-                    diagnostic(self.severity, "running `shellcheck` on command section")
+                    Diagnostic::new(self.severity, "running `shellcheck` on command section")
                         .with_label(e.to_string(), command_keyword.text_range())
                         .with_rule(ID)
                         .with_fix("address reported error."),

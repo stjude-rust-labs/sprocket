@@ -19,7 +19,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the description length rule.
 const ID: &str = "DescriptionLength";
@@ -29,7 +28,7 @@ const DESCRIPTION_MAX_LENGTH: usize = 140;
 
 /// Creates a description too long diagnostic.
 fn description_too_long(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         "this description will be clipped in Sprocket documentation",
     )
@@ -53,12 +52,6 @@ impl DescriptionLengthRule {
         Self {
             severity: config.description_length.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for DescriptionLengthRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

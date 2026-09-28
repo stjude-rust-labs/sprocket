@@ -25,7 +25,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the container value rule.
 const ID: &str = "ContainerUri";
@@ -40,7 +39,7 @@ pub struct ContainerUriRule {
 
 /// Creates a missing tag diagnostic.
 fn missing_tag(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, String::from("container URI is missing a tag"))
+    Diagnostic::new(severity, String::from("container URI is missing a tag"))
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(
@@ -50,7 +49,7 @@ fn missing_tag(severity: Severity, span: Span) -> Diagnostic {
 
 /// Creates an "empty array" diagnostic.
 fn empty_array(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         String::from("empty arrays are ambiguous and should contain at least one entry"),
     )
@@ -62,7 +61,7 @@ fn empty_array(severity: Severity, span: Span) -> Diagnostic {
 /// Creates a diagnostic indicating that an array contains one or more 'any'
 /// URIs.
 fn array_containing_anys(severity: Severity, spans: impl Iterator<Item = Span>) -> Diagnostic {
-    let mut diagnostic = diagnostic(
+    let mut diagnostic = Diagnostic::new(
         severity,
         format!("container arrays containing `{ANY_CONTAINER_VALUE}` are ambiguous"),
     )
@@ -85,12 +84,6 @@ impl ContainerUriRule {
         Self {
             severity: config.container_uri.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for ContainerUriRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

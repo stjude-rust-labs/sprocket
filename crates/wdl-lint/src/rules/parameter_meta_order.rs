@@ -24,7 +24,6 @@ use crate::TagSet;
 use crate::rules::ParameterMetaContext;
 use crate::rules::ParameterMetaTarget;
 use crate::rules::collect_parameter_meta;
-use crate::util::diagnostic;
 
 /// The identifier for the parameter meta order rule.
 const ID: &str = "ParameterMetaOrder";
@@ -42,7 +41,7 @@ fn mismatched_param_order(
         SectionParent::Struct(s) => ("struct", s.name()),
     };
 
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "parameter metadata in {context} `{parent}` is out of order",
@@ -75,12 +74,6 @@ impl ParameterMetaOrderRule {
             severity: config.parameter_meta_order.diagnostic_severity(),
             version: None,
         }
-    }
-}
-
-impl Default for ParameterMetaOrderRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

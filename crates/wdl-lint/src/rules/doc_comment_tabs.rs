@@ -16,14 +16,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the doc comment tabs rule.
 const ID: &str = "DocCommentTabs";
 
 /// Creates a diagnostic for a group of tab characters.
 fn tab_in_doc_comment(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "tabs in doc comments are not recommended")
+    Diagnostic::new(severity, "tabs in doc comments are not recommended")
         .with_rule(ID)
         .with_highlight(span)
         .with_help("consider replacing tabs with spaces")
@@ -42,12 +41,6 @@ impl DocCommentTabsRule {
         Self {
             severity: config.doc_comment_tabs.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for DocCommentTabsRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

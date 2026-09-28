@@ -21,7 +21,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the pascal case rule.
 const ID: &str = "PascalCase";
@@ -33,7 +32,7 @@ fn use_pascal_case(
     properly_cased_name: &str,
     span: Span,
 ) -> Diagnostic {
-    diagnostic(severity, format!("struct name `{name}` is not PascalCase"))
+    Diagnostic::new(severity, format!("struct name `{name}` is not PascalCase"))
         .with_rule(ID)
         .with_label("this name must be PascalCase", span)
         .with_fix(format!("replace `{name}` with `{properly_cased_name}`"))
@@ -52,12 +51,6 @@ impl PascalCaseRule {
         Self {
             severity: config.pascal_case.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for PascalCaseRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

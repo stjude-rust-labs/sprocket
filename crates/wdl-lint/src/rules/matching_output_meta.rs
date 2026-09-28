@@ -23,7 +23,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the non-matching output rule.
 const ID: &str = "MatchingOutputMeta";
@@ -36,7 +35,7 @@ fn nonmatching_output(
     item_name: &str,
     ty: &str,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("output `{name}` is missing from `meta.outputs` section in {ty} `{item_name}`"),
     )
@@ -54,7 +53,7 @@ fn missing_outputs_in_meta(
     item_name: &str,
     ty: &str,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("`outputs` key missing in `meta` section for the {ty} `{item_name}`"),
     )
@@ -71,7 +70,7 @@ fn extra_output_in_meta(
     item_name: &str,
     ty: &str,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "`{name}` appears in `outputs` section of the {ty} `{item_name}` but is not a \
@@ -92,7 +91,7 @@ fn non_object_meta_outputs(
     item_name: &str,
     ty: &str,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "{ty} `{item_name}` has a `meta.outputs` key that is not an object containing output \
@@ -314,12 +313,6 @@ impl<'a> MatchingOutputMetaRule<'a> {
             severity: config.matching_output_meta.diagnostic_severity(),
             collector: Default::default(),
         }
-    }
-}
-
-impl Default for MatchingOutputMetaRule<'_> {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

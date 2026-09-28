@@ -19,14 +19,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the disallowed input name rule.
 const ID: &str = "InputName";
 
 /// Declaration identifier too short
 fn decl_identifier_too_short(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         "declaration identifier must be at least 3 characters",
     )
@@ -37,7 +36,7 @@ fn decl_identifier_too_short(severity: Severity, span: Span) -> Diagnostic {
 
 /// Diagnostic for input names that start with [iI]n[A-Z_]
 fn decl_identifier_starts_with_in(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "declaration identifier starts with 'in'")
+    Diagnostic::new(severity, "declaration identifier starts with 'in'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'in'")
@@ -45,7 +44,7 @@ fn decl_identifier_starts_with_in(severity: Severity, span: Span) -> Diagnostic 
 
 /// Diagnostic for input names that start with "input"
 fn decl_identifier_starts_with_input(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "declaration identifier starts with 'input'")
+    Diagnostic::new(severity, "declaration identifier starts with 'input'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'input'")
@@ -67,12 +66,6 @@ impl InputNameRule {
             severity: config.input_name.diagnostic_severity(),
             input_section: Default::default(),
         }
-    }
-}
-
-impl Default for InputNameRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

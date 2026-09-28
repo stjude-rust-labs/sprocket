@@ -18,7 +18,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The ID for the UnusedDocComments lint.
 const ID: &str = "UnusedDocComments";
@@ -29,7 +28,7 @@ fn unused_doc_comment_diagnostic(
     comment_span: Span,
     target_span: Option<Span>,
 ) -> Diagnostic {
-    let diagnostic = diagnostic(severity, "unused doc comment")
+    let diagnostic = Diagnostic::new(severity, "unused doc comment")
         .with_rule(ID)
         .with_highlight(comment_span)
         .with_fix(
@@ -192,12 +191,6 @@ impl UnusedDocCommentsRule {
             severity: config.unused_doc_comments.diagnostic_severity(),
             skip_count: Default::default(),
         }
-    }
-}
-
-impl Default for UnusedDocCommentsRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

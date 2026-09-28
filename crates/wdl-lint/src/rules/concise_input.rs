@@ -20,14 +20,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the Redundant Input Assignment rule.
 const ID: &str = "ConciseInput";
 
 /// Create a "Redundant Input Assignment" diagnostic.
 fn redundant_input_assignment(severity: Severity, span: Span, name: &str) -> Diagnostic {
-    diagnostic(severity, "redundant input assignment")
+    Diagnostic::new(severity, "redundant input assignment")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(format!("can be shortened to `{name}`"))
@@ -49,12 +48,6 @@ impl ConciseInputRule {
             severity: config.concise_input.diagnostic_severity(),
             version: None,
         }
-    }
-}
-
-impl Default for ConciseInputRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

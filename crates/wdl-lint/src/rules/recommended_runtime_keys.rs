@@ -24,7 +24,6 @@ use crate::TagSet;
 use crate::rules::keys_v1_0;
 use crate::rules::keys_v1_1;
 use crate::rules::recommended_keys;
-use crate::util::diagnostic;
 use crate::util::serialize_oxford_comma;
 
 /// The identifier for the recommended runtime keys rule.
@@ -62,7 +61,7 @@ fn report_missing_recommended_keys(
         )
     };
 
-    diagnostic(severity, message)
+    Diagnostic::new(severity, message)
         .with_rule(ID)
         .with_highlight(runtime_span)
         .with_fix(fix)
@@ -91,12 +90,6 @@ impl RecommendedRuntimeKeysRule {
             runtime_processed_for_task: false,
             encountered_keys: Vec::new(),
         }
-    }
-}
-
-impl Default for RecommendedRuntimeKeysRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

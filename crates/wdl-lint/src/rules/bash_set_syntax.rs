@@ -29,7 +29,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the bash set syntax rule.
 const ID: &str = "BashSetSyntax";
@@ -53,7 +52,7 @@ const INTERACTIVE_ONLY_SHORT: &[char] = &['H', 'm', 'b'];
 
 /// Creates a missing `set` command diagnostic.
 fn missing_set(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "missing `set` command")
+    Diagnostic::new(severity, "missing `set` command")
         .with_rule(ID)
         .with_highlight(span)
         .with_help("`set` commands should be on the first line of `command` sections")
@@ -61,7 +60,7 @@ fn missing_set(severity: Severity, span: Span) -> Diagnostic {
 
 /// Creates an interactive `set` option diagnostic.
 fn interactive_only(severity: Severity, span: Span, option: &str) -> Diagnostic {
-    diagnostic(severity, "unnecessary `set` option")
+    Diagnostic::new(severity, "unnecessary `set` option")
         .with_rule(ID)
         .with_highlight(span)
         .with_help(format!(
@@ -72,7 +71,7 @@ fn interactive_only(severity: Severity, span: Span, option: &str) -> Diagnostic 
 
 /// Creates an unknown `set` option diagnostic.
 fn unknown_option(severity: Severity, span: Span, option: &str) -> Diagnostic {
-    diagnostic(severity, "unknown `set` option")
+    Diagnostic::new(severity, "unknown `set` option")
         .with_rule(ID)
         .with_highlight(span)
         .with_help(format!("option `{option}` is non-standard"))
@@ -90,7 +89,7 @@ fn bad_set_syntax(
         .iter()
         .map(|op| op.to_string())
         .collect::<Vec<_>>();
-    diagnostic(severity, format!("bad `{SET_COMMAND_NAME}` command"))
+    Diagnostic::new(severity, format!("bad `{SET_COMMAND_NAME}` command"))
         .with_rule(ID)
         .with_highlight(span)
         .with_help(format!(
@@ -307,12 +306,6 @@ impl BashSetSyntax {
         }
 
         (remaining_expected.is_empty(), last_chunk_end)
-    }
-}
-
-impl Default for BashSetSyntax {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

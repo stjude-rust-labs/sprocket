@@ -28,7 +28,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the matching parameter meta rule.
 const ID: &str = "MissingParameterMeta";
@@ -53,7 +52,7 @@ fn missing_param_meta(
         "parameter metadata key"
     };
 
-    let mut diagnostic = diagnostic(
+    let mut diagnostic = Diagnostic::new(
         severity,
         format!(
             "{context} `{parent}` is missing a {suggestion} for {decl_type} `{missing}`",
@@ -210,12 +209,6 @@ impl MissingParameterMetaRule {
             severity: config.missing_parameter_meta.diagnostic_severity(),
             version: Default::default(),
         }
-    }
-}
-
-impl Default for MissingParameterMetaRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

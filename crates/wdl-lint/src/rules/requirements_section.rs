@@ -20,14 +20,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the missing requirements rule.
 const ID: &str = "RequirementsSection";
 
 /// Creates a "missing requirements section" diagnostic.
 fn missing_requirements_section(severity: Severity, task: &str, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("task `{task}` is missing a `requirements` section"),
     )
@@ -52,12 +51,6 @@ impl RequirementsSectionRule {
             severity: config.requirements_section.diagnostic_severity(),
             version: None,
         }
-    }
-}
-
-impl Default for RequirementsSectionRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

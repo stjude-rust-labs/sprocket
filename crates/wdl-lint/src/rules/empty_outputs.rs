@@ -17,14 +17,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the empty outputs rule.
 const ID: &str = "EmptyOutputs";
 
 /// Creates a diagnostic for missing `output` sections.
 fn missing_outputs(severity: Severity, task: Ident) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("task '{}' defines no outputs", task.text()),
     )
@@ -45,12 +44,6 @@ impl EmptyOutputs {
         Self {
             severity: config.empty_outputs.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for EmptyOutputs {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

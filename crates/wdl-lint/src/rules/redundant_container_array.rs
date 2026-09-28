@@ -20,7 +20,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the redundant container array rule.
 const ID: &str = "RedundantContainerArray";
@@ -28,7 +27,7 @@ const ID: &str = "RedundantContainerArray";
 /// Creates a diagnostic indicating that a single value array should instead be
 /// a string literal.
 fn array_to_string_literal(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         String::from("an array with a single value should be a string literal"),
     )
@@ -50,12 +49,6 @@ impl RedundantContainerArrayRule {
         Self {
             severity: config.redundant_container_array.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for RedundantContainerArrayRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

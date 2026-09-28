@@ -22,7 +22,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the declaration name rule.
 const ID: &str = "DeclarationName";
@@ -35,7 +34,7 @@ fn decl_identifier_with_type(
     decl_name: &str,
     type_name: &str,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("declaration identifier '{decl_name}' contains type name '{type_name}'",),
     )
@@ -62,12 +61,6 @@ impl DeclarationNameRule {
                 config.declaration_name.allowed_names.iter().cloned(),
             ),
         }
-    }
-}
-
-impl Default for DeclarationNameRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

@@ -21,7 +21,6 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 use crate::rules::OutputMetaCollector;
-use crate::util::diagnostic;
 
 /// The identifier for the output meta order rule.
 const ID: &str = "OutputMetaOrder";
@@ -34,7 +33,7 @@ fn out_of_order(
     item_name: &str,
     ty: &str,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("`outputs` section of `meta` for the {ty} `{item_name}` is out of order"),
     )
@@ -62,12 +61,6 @@ impl<'a> OutputMetaOrderRule<'a> {
             severity: config.output_meta_order.diagnostic_severity(),
             collector: Default::default(),
         }
-    }
-}
-
-impl Default for OutputMetaOrderRule<'_> {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

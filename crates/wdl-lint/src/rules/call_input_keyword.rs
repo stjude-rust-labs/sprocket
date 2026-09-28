@@ -18,14 +18,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for this rule.
 const ID: &str = "CallInputKeyword";
 
 /// Creates a diagnostic for unnecessary input keyword.
 fn call_input_unnecessary(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         "the `input:` keyword is unnecessary for WDL version 1.2 and later",
     )
@@ -50,12 +49,6 @@ impl CallInputKeywordRule {
             severity: config.call_input_keyword.diagnostic_severity(),
             version: Default::default(),
         }
-    }
-}
-
-impl Default for CallInputKeywordRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

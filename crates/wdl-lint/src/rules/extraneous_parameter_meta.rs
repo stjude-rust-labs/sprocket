@@ -24,7 +24,6 @@ use crate::TagSet;
 use crate::rules::ParameterMetaContext;
 use crate::rules::ParameterMetaTarget;
 use crate::rules::collect_parameter_meta;
-use crate::util::diagnostic;
 
 /// The identifier for the extraneous parameter meta rule.
 const ID: &str = "ExtraneousParameterMeta";
@@ -42,7 +41,7 @@ fn extra_param_meta(
         SectionParent::Struct(s) => ("struct", s.name()),
     };
 
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "{context} `{parent}` has an extraneous parameter metadata key named `{extra}`",
@@ -73,12 +72,6 @@ impl ExtraneousParameterMetaRule {
             severity: config.extraneous_parameter_meta.diagnostic_severity(),
             version: None,
         }
-    }
-}
-
-impl Default for ExtraneousParameterMetaRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

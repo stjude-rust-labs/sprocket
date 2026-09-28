@@ -18,14 +18,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the empty doc comment rule.
 const ID: &str = "EmptyDocComment";
 
 /// Creates a diagnostic when an empty documentation comment block is found.
 fn empty_doc_comment(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "empty doc comment block")
+    Diagnostic::new(severity, "empty doc comment block")
         .with_rule(ID)
         .with_highlight(span)
         .with_help("consider adding meaningful documentation text or removing the comment block")
@@ -50,12 +49,6 @@ impl EmptyDocCommentRule {
             severity: config.empty_doc_comment.diagnostic_severity(),
             skip_count: Default::default(),
         }
-    }
-}
-
-impl Default for EmptyDocCommentRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

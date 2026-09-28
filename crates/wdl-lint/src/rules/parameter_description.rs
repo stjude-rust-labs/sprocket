@@ -19,7 +19,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the parameter description rule.
 const ID: &str = "ParameterDescription";
@@ -40,7 +39,7 @@ fn missing_description_diagnostic(
     let item_type = if is_output { "output" } else { "parameter" };
     let location = if is_output { " in `meta.outputs`" } else { "" };
 
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "{} `{}` is missing a description{}",
@@ -77,12 +76,6 @@ impl ParameterDescriptionRule {
         Self {
             severity: config.parameter_description.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for ParameterDescriptionRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

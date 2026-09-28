@@ -19,14 +19,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the import placement rule.
 const ID: &str = "ImportPlacement";
 
 /// Creates a "misplaced import" diagnostic.
 fn misplaced_import(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "misplaced import")
+    Diagnostic::new(severity, "misplaced import")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(
@@ -51,12 +50,6 @@ impl ImportPlacementRule {
             severity: config.import_placement.diagnostic_severity(),
             invalid: Default::default(),
         }
-    }
-}
-
-impl Default for ImportPlacementRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

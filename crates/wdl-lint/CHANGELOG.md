@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `Config` now has one table per rule, keyed by rule ID, for both analysis and lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules now report diagnostics at their configured severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Lint rules are now constructed with `new(&Config)` and no longer implement `Default` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `rules()` no longer returns rules whose severity is `off` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Moved the note-severity checks in `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` into the new rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Renamed `ExpectedRuntimeKeys` to `UnknownRuntimeKeys`; `allowed_runtime_keys` is now configured under `[check.rules.UnknownRuntimeKeys]` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).

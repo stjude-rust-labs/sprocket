@@ -25,7 +25,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the description missing rule.
 const ID: &str = "MetaDescription";
@@ -38,7 +37,7 @@ fn description_missing(severity: Severity, span: Span, parent: SectionParent) ->
         SectionParent::Struct(s) => ("struct", s.name()),
     };
 
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "{ty} `{name}` is missing a description key",
@@ -72,12 +71,6 @@ impl MetaDescriptionRule {
             in_struct: Default::default(),
             documented: Default::default(),
         }
-    }
-}
-
-impl Default for MetaDescriptionRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

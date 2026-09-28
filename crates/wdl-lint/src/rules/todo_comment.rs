@@ -15,7 +15,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the todos rule.
 const ID: &str = "TodoComment";
@@ -39,7 +38,7 @@ fn todo_comment(
 ) -> Diagnostic {
     let start = comment_span.start() + offset;
 
-    diagnostic(severity, format!("remaining `{TODO}` item found"))
+    Diagnostic::new(severity, format!("remaining `{TODO}` item found"))
         .with_rule(ID)
         .with_highlight(Span::new(start, comment.len()))
         .with_fix("remove the `TODO` item once it has been implemented")
@@ -51,12 +50,6 @@ impl TodoCommentRule {
         Self {
             severity: config.todo_comment.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for TodoCommentRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

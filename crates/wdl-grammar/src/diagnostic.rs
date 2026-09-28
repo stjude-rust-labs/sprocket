@@ -273,40 +273,31 @@ impl PartialOrd for Diagnostic {
 }
 
 impl Diagnostic {
-    /// Creates a new diagnostic error with the given message.
-    pub fn error(message: impl Into<String>) -> Self {
+    /// Creates a new diagnostic with the given severity and message.
+    pub fn new(severity: Severity, message: impl Into<String>) -> Self {
         Self {
             rule: None,
-            severity: Severity::Error,
+            severity,
             message: message.into(),
             help: None,
             fix: None,
             labels: Default::default(),
         }
+    }
+
+    /// Creates a new diagnostic error with the given message.
+    pub fn error(message: impl Into<String>) -> Self {
+        Self::new(Severity::Error, message)
     }
 
     /// Creates a new diagnostic warning with the given message.
     pub fn warning(message: impl Into<String>) -> Self {
-        Self {
-            rule: None,
-            severity: Severity::Warning,
-            message: message.into(),
-            help: None,
-            fix: None,
-            labels: Default::default(),
-        }
+        Self::new(Severity::Warning, message)
     }
 
     /// Creates a new diagnostic node with the given message.
     pub fn note(message: impl Into<String>) -> Self {
-        Self {
-            rule: None,
-            severity: Severity::Note,
-            message: message.into(),
-            help: None,
-            fix: None,
-            labels: Default::default(),
-        }
+        Self::new(Severity::Note, message)
     }
 
     /// Sets the rule for the diagnostic.

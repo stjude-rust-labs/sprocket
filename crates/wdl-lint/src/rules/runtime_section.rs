@@ -20,14 +20,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the missing runtime rule.
 const ID: &str = "RuntimeSection";
 
 /// Creates a "missing runtime section" diagnostic.
 fn missing_runtime_section(severity: Severity, task: &str, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("task `{task}` is missing a `runtime` section"),
     )
@@ -52,12 +51,6 @@ impl RuntimeSectionRule {
             severity: config.runtime_section.diagnostic_severity(),
             version: None,
         }
-    }
-}
-
-impl Default for RuntimeSectionRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

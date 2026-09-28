@@ -20,7 +20,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the InlineInstall rule.
 const ID: &str = "InlineInstall";
@@ -52,7 +51,7 @@ static PIPED_INSTALL_REGEX: LazyLock<Regex> =
 
 /// Creates a diagnostic for an inline installation in a command section.
 fn inline_install_diagnostic(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "inline installation of packages is discouraged")
+    Diagnostic::new(severity, "inline installation of packages is discouraged")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(
@@ -75,12 +74,6 @@ impl InlineInstall {
         Self {
             severity: config.inline_install.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for InlineInstall {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

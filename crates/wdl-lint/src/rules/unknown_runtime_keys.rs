@@ -43,7 +43,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the runtime section rule.
 const ID: &str = "UnknownRuntimeKeys";
@@ -135,7 +134,7 @@ fn report_non_reserved_runtime_key(
     span: Span,
     specification: &str,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "the runtime key `{key}` is not reserved in {specification}; arbitrary runtime keys \
@@ -176,12 +175,6 @@ impl UnknownRuntimeKeysRule {
                     .cloned(),
             ),
         }
-    }
-}
-
-impl Default for UnknownRuntimeKeysRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

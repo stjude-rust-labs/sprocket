@@ -18,14 +18,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the no curly commands rule.
 const ID: &str = "HereDocCommands";
 
 /// Creates a "curly commands" diagnostic.
 fn curly_commands(severity: Severity, task: &str, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("task `{task}` uses curly braces in command section"),
     )
@@ -47,12 +46,6 @@ impl HereDocCommandsRule {
         Self {
             severity: config.heredoc_commands.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for HereDocCommandsRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

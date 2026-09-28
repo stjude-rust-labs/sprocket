@@ -19,14 +19,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the disallowed glob star rule.
 const ID: &str = "DenyGlobStar";
 
 /// Creates a diagnostic for a `glob("*")` pattern in an output declaration.
 fn glob_star_diagnostic(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "glob pattern \"*\" matches all files")
+    Diagnostic::new(severity, "glob pattern \"*\" matches all files")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("use a more specific pattern to avoid capturing unintended files")
@@ -45,12 +44,6 @@ impl DenyGlobStar {
         Self {
             severity: config.deny_glob_star.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for DenyGlobStar {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

@@ -19,14 +19,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the mutable container tag rule.
 const ID: &str = "MutableContainerTag";
 
 /// Creates a mutable tag diagnostic.
 fn mutable_tag(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, String::from("container URI uses a mutable tag"))
+    Diagnostic::new(severity, String::from("container URI uses a mutable tag"))
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(
@@ -48,12 +47,6 @@ impl MutableContainerTagRule {
         Self {
             severity: config.mutable_container_tag.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for MutableContainerTagRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

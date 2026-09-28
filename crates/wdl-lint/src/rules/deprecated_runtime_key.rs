@@ -23,14 +23,13 @@ use crate::Tag;
 use crate::TagSet;
 use crate::rules::KeyKind;
 use crate::rules::keys_v1_1;
-use crate::util::diagnostic;
 
 /// The identifier for the deprecated runtime key rule.
 const ID: &str = "DeprecatedRuntimeKey";
 
 /// Creates a "deprecated runtime key" diagnostic.
 fn deprecated_runtime_key(severity: Severity, key: &Ident, replacement: &str) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "the `{key}` runtime key has been deprecated in favor of `{replacement}`",
@@ -65,12 +64,6 @@ impl DeprecatedRuntimeKeyRule {
             version: None,
             runtime_processed_for_task: false,
         }
-    }
-}
-
-impl Default for DeprecatedRuntimeKeyRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

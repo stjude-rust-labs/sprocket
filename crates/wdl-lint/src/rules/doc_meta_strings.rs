@@ -19,7 +19,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the doc meta string rule.
 const ID: &str = "DocMetaStrings";
@@ -41,7 +40,7 @@ fn non_string_value_diagnostic(
     value_type: &str,
     span: Span,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "metadata key `{}` should have a `String` value, found {}",
@@ -121,12 +120,6 @@ impl DocMetaStringsRule {
         Self {
             severity: config.doc_meta_strings.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for DocMetaStringsRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

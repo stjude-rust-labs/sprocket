@@ -31,7 +31,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// Represents context of an warning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,7 +73,7 @@ fn snake_case(
     properly_cased_name: &str,
     span: Span,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("{context} name `{name}` is not snake_case"),
     )
@@ -108,12 +107,6 @@ impl SnakeCaseRule {
             within_output: false,
             allowed_names: HashSet::from_iter(config.snake_case.allowed_names.iter().cloned()),
         }
-    }
-}
-
-impl Default for SnakeCaseRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

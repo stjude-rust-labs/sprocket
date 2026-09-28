@@ -19,14 +19,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the redundant none rule.
 const ID: &str = "RedundantNone";
 
 /// Create a "redundant `= None` assignment" diagnostic
 fn redundant_none(severity: Severity, span: Span, name: &str) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!("redundant assignment of `None` to optional input `{name}`"),
     )
@@ -49,12 +48,6 @@ impl RedundantNone {
         Self {
             severity: config.redundant_none.diagnostic_severity(),
         }
-    }
-}
-
-impl Default for RedundantNone {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

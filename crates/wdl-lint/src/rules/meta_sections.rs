@@ -27,7 +27,6 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// Which section is missing.
 enum Section {
@@ -77,7 +76,7 @@ fn missing_section(
     section: Section,
     context: Context,
 ) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "{context} `{name}` is missing a `{section}` section",
@@ -94,7 +93,7 @@ fn missing_section(
 
 /// Creates a "missing sections" diagnostic.
 fn missing_sections(severity: Severity, name: Ident, context: Context) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         format!(
             "{context} `{name}` is missing both `meta` and `parameter_meta` sections",
@@ -125,12 +124,6 @@ impl MetaSectionsRule {
             severity: config.meta_sections.diagnostic_severity(),
             version: Default::default(),
         }
-    }
-}
-
-impl Default for MetaSectionsRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 

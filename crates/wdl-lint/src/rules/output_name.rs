@@ -19,14 +19,13 @@ use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::util::diagnostic;
 
 /// The identifier for the disallowed output name rule.
 const ID: &str = "OutputName";
 
 /// Declaration identifier too short
 fn decl_identifier_too_short(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(
+    Diagnostic::new(
         severity,
         "declaration identifier must be at least 3 characters",
     )
@@ -37,7 +36,7 @@ fn decl_identifier_too_short(severity: Severity, span: Span) -> Diagnostic {
 
 /// Diagnostic for input names that start with [oO]ut[A-Z_]
 fn decl_identifier_starts_with_out(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "declaration identifier starts with 'out'")
+    Diagnostic::new(severity, "declaration identifier starts with 'out'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'out'")
@@ -45,7 +44,7 @@ fn decl_identifier_starts_with_out(severity: Severity, span: Span) -> Diagnostic
 
 /// Diagnostic for input names that start with "output"
 fn decl_identifier_starts_with_output(severity: Severity, span: Span) -> Diagnostic {
-    diagnostic(severity, "declaration identifier starts with 'output'")
+    Diagnostic::new(severity, "declaration identifier starts with 'output'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'output'")
@@ -67,12 +66,6 @@ impl OutputNameRule {
             severity: config.output_name.diagnostic_severity(),
             output_section: Default::default(),
         }
-    }
-}
-
-impl Default for OutputNameRule {
-    fn default() -> Self {
-        Self::new(&Config::default())
     }
 }
 
