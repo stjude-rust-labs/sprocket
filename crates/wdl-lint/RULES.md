@@ -32,13 +32,13 @@ allowed_names = ["Foo"]
 | `HostPathLiterals` | Portability | Flags `File`/`Directory` declaration defaults that use absolute host paths. |  |
 | `ImportPlacement` | Clarity | Ensures that imports are placed between the version statement and any document items. |  |
 | `InlineInstall` | Clarity, Portability, Performance | Ensures that `command` sections do not have inline installations. |  |
-| `InputName` | Naming, Style | Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short). |  |
+| `InputName` | Naming, Style | Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short). The minimum length and the prefix check are configurable. | * `min_length` - The minimum length of input names (default `3`).<br>* `check_prefixes` - Whether to flag disallowed input name prefixes (default `true`). |
 | `MatchingOutputMeta` | Completeness, Documentation, SprocketCompatibility | Ensures that each output field is documented in the meta section under `meta.outputs`. |  |
 | `MetaDescription` | Completeness, Documentation, SprocketCompatibility | Ensures that items with a `meta` section either contain a `description` key or a doc comment. |  |
 | `MetaSections` | Completeness, Clarity, Documentation | Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections, or supplementary doc comments. |  |
 | `MutableContainerTag` | Clarity, Portability | Ensures that container URIs use immutable tags. |  |
 | `OutputMetaOrder` | Completeness, Documentation, SprocketCompatibility | Ensures that `meta.outputs` keys are in the same order as output declarations. |  |
-| `OutputName` | Naming, Style | Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too short). |  |
+| `OutputName` | Naming, Style | Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too short). The minimum length and the prefix check are configurable. | * `min_length` - The minimum length of output names (default `3`).<br>* `check_prefixes` - Whether to flag disallowed output name prefixes (default `true`). |
 | `ParameterDescription` | Completeness, Documentation | Ensures that parameters and outputs have proper descriptions for documentation generation. |  |
 | `MissingParameterMeta` | Completeness, Sorting, Documentation, SprocketCompatibility | Ensures that inputs and struct fields have `parameter_meta` entries or supplementary doc comments. |  |
 | `ParameterMetaOrder` | Completeness, Sorting, Documentation, SprocketCompatibility | Ensures that `parameter_meta` keys follow input declaration order. |  |

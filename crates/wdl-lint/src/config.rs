@@ -387,6 +387,25 @@ define_rules_config! {
         }
         "InputName" => input_name: InputNameConfig {
             severity = RuleSeverity::Note;
+            /// The minimum length of input names; shorter names are flagged.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.InputName]
+            /// min_length = 5
+            /// ```
+            min_length: u32 = 3;
+            /// Whether to flag input names that start with a disallowed
+            /// prefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.InputName]
+            /// check_prefixes = false
+            /// ```
+            check_prefixes: bool = true;
         }
         "MatchingOutputMeta" => matching_output_meta: MatchingOutputMetaConfig {
             severity = RuleSeverity::Warning;
@@ -402,6 +421,25 @@ define_rules_config! {
         }
         "OutputName" => output_name: OutputNameConfig {
             severity = RuleSeverity::Note;
+            /// The minimum length of output names; shorter names are flagged.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.OutputName]
+            /// min_length = 5
+            /// ```
+            min_length: u32 = 3;
+            /// Whether to flag output names that start with a disallowed
+            /// prefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.OutputName]
+            /// check_prefixes = false
+            /// ```
+            check_prefixes: bool = true;
         }
         "OutputMetaOrder" => output_meta_order: OutputMetaOrderConfig {
             severity = RuleSeverity::Note;
