@@ -102,11 +102,3 @@ warning[NamingConvention]: struct name `v1` is not pascal case
     │
     = fix: replace `v1` with `V1`
 
-warning[NamingConvention]: struct member name `Bad_but_allowed` is not snake case
-    ┌─ tests/lints/naming-convention/source.wdl:125:9
-    │
-125 │     Int Bad_but_allowed
-    │         ^^^^^^^^^^^^^^^ this name must be snake case
-    │
-    = fix: replace `Bad_but_allowed` with `bad_but_allowed`
-

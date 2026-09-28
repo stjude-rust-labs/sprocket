@@ -1,2 +1,2 @@
 [NamingConvention]
-allowed_names = ["BadButAllowedTask", "BadButAllowedStruct"]
+allowed_names = ["BadButAllowedTask", "BadButAllowedStruct", "Bad_but_allowed"]
