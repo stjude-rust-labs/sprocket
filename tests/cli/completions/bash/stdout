@@ -79,6 +79,9 @@ _sprocket() {
             sprocket__subcmd__dev,doc)
                 cmd="sprocket__subcmd__dev__subcmd__doc"
                 ;;
+            sprocket__subcmd__dev,flowchart)
+                cmd="sprocket__subcmd__dev__subcmd__flowchart"
+                ;;
             sprocket__subcmd__dev,help)
                 cmd="sprocket__subcmd__dev__subcmd__help"
                 ;;
@@ -94,8 +97,23 @@ _sprocket() {
             sprocket__subcmd__dev,test)
                 cmd="sprocket__subcmd__dev__subcmd__test"
                 ;;
+            sprocket__subcmd__dev__subcmd__flowchart,help)
+                cmd="sprocket__subcmd__dev__subcmd__flowchart__subcmd__help"
+                ;;
+            sprocket__subcmd__dev__subcmd__flowchart,mermaid)
+                cmd="sprocket__subcmd__dev__subcmd__flowchart__subcmd__mermaid"
+                ;;
+            sprocket__subcmd__dev__subcmd__flowchart__subcmd__help,help)
+                cmd="sprocket__subcmd__dev__subcmd__flowchart__subcmd__help__subcmd__help"
+                ;;
+            sprocket__subcmd__dev__subcmd__flowchart__subcmd__help,mermaid)
+                cmd="sprocket__subcmd__dev__subcmd__flowchart__subcmd__help__subcmd__mermaid"
+                ;;
             sprocket__subcmd__dev__subcmd__help,doc)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__doc"
+                ;;
+            sprocket__subcmd__dev__subcmd__help,flowchart)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__flowchart"
                 ;;
             sprocket__subcmd__dev__subcmd__help,help)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__help"
@@ -111,6 +129,9 @@ _sprocket() {
                 ;;
             sprocket__subcmd__dev__subcmd__help,test)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__test"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__flowchart,mermaid)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__flowchart__subcmd__mermaid"
                 ;;
             sprocket__subcmd__dev__subcmd__help__subcmd__module,add)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__module__subcmd__add"
@@ -466,6 +487,9 @@ _sprocket() {
             sprocket__subcmd__help__subcmd__dev,doc)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__doc"
                 ;;
+            sprocket__subcmd__help__subcmd__dev,flowchart)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__flowchart"
+                ;;
             sprocket__subcmd__help__subcmd__dev,lock)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__lock"
                 ;;
@@ -477,6 +501,9 @@ _sprocket() {
                 ;;
             sprocket__subcmd__help__subcmd__dev,test)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__test"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__flowchart,mermaid)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__flowchart__subcmd__mermaid"
                 ;;
             sprocket__subcmd__help__subcmd__dev__subcmd__module,add)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__module__subcmd__add"
@@ -934,7 +961,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev)
-            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version doc lock module server test help"
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version doc flowchart lock module server test help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1033,8 +1060,122 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        sprocket__subcmd__dev__subcmd__flowchart)
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version mermaid help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__flowchart__subcmd__help)
+            opts="mermaid help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__flowchart__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__flowchart__subcmd__help__subcmd__mermaid)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__flowchart__subcmd__mermaid)
+            opts="-m -v -q -c -s -h -V --depth --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --depth)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         sprocket__subcmd__dev__subcmd__help)
-            opts="doc lock module server test help"
+            opts="doc flowchart lock module server test help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1050,6 +1191,34 @@ _sprocket() {
         sprocket__subcmd__dev__subcmd__help__subcmd__doc)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__flowchart)
+            opts="mermaid"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__flowchart__subcmd__mermaid)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -3792,7 +3961,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help__subcmd__dev)
-            opts="doc lock module server test"
+            opts="doc flowchart lock module server test"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -3808,6 +3977,34 @@ _sprocket() {
         sprocket__subcmd__help__subcmd__dev__subcmd__doc)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__flowchart)
+            opts="mermaid"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__flowchart__subcmd__mermaid)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
