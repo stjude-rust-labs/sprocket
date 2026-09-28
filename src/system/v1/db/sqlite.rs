@@ -539,7 +539,7 @@ impl Database for SqliteDatabase {
              coalesce(tasks.call_id, excluded.call_id), attempt = max(tasks.attempt, \
              excluded.attempt) returning name, (select uuid from runs where id = run_id) as \
              run_uuid, status, exit_status, error, call_id, attempt, \"constraints\", \
-             retry_cause, created_at, started_at, completed_at",
+             retry_cause, utilization, created_at, started_at, completed_at",
         )
         .bind(task.name)
         .bind(task.status)
@@ -575,6 +575,23 @@ impl Database for SqliteDatabase {
              where name = ?",
         )
         .bind(cause)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_task_utilization(&self, name: &str, utilization: &str) -> Result<bool> {
+        // No status guard: utilization is recorded at the attempt's
+        // termination, which races the completion event on the other channel,
+        // so the row is usually already in a terminal status.
+        let result = sqlx::query(
+            "update tasks
+             set utilization = ?
+             where name = ?",
+        )
+        .bind(utilization)
         .bind(name)
         .execute(&self.pool)
         .await?;
@@ -720,7 +737,7 @@ impl Database for SqliteDatabase {
     async fn get_task(&self, name: &str) -> Result<Task> {
         let task: Option<Task> = sqlx::query_as(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
-                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause,
+                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id
              where t.name = ?",
@@ -744,7 +761,7 @@ impl Database for SqliteDatabase {
 
         let mut query = String::from(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
-                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause,
+                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id where 1=1",
         );
@@ -1509,6 +1526,61 @@ mod tests {
             !db.update_task_retry_cause("missing", cause)
                 .await
                 .expect("failed to update retry cause")
+        );
+    }
+
+    #[sqlx::test]
+    async fn utilization_is_recorded_on_terminal_rows(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
+
+        // Utilization arrives at termination, racing the completion event on
+        // the other channel; it must be recordable on a terminal row.
+        assert!(
+            db.update_task_completed("t", Some(0), Utc::now())
+                .await
+                .expect("failed to complete task")
+        );
+
+        let utilization = r#"{"max_memory":241172480,"cpu_time_ms":324000}"#;
+        assert!(
+            db.update_task_utilization("t", utilization)
+                .await
+                .expect("failed to update utilization")
+        );
+        assert_eq!(
+            db.get_task("t")
+                .await
+                .expect("failed to get task")
+                .utilization
+                .as_deref(),
+            Some(utilization)
+        );
+
+        // An unknown task is reported as not updated.
+        assert!(
+            !db.update_task_utilization("missing", utilization)
+                .await
+                .expect("failed to update utilization")
         );
     }
 

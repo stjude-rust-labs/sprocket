@@ -708,6 +708,11 @@ async fn progress(
                             state.canceled += 1;
                             Some(id)
                         }
+                        CrankshaftEvent::TaskResourceUsage { .. } => {
+                            // Utilization is recorded by the metrics
+                            // collector, not displayed in the progress bar.
+                            continue;
+                        }
                         CrankshaftEvent::TaskStderr { id, message } if show_stderr => {
                             let Some(task) = state.tasks.get_mut(&id) else {
                                 continue;

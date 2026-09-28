@@ -7,7 +7,7 @@ use std::sync::Arc;
 use anyhow::Context as _;
 use anyhow::Result;
 use chrono::Utc;
-use crankshaft::events::Event as CrankshaftEvent;
+use crankshaft_events::Event as CrankshaftEvent;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
@@ -373,6 +373,21 @@ impl TaskMonitorSvc {
                     self.unfinished.remove(&name);
                 }
             }
+            CrankshaftEvent::TaskResourceUsage { id, usage } => {
+                // Utilization is a cumulative snapshot: the last received is
+                // authoritative, and the write is guard-free, so repeated
+                // samples simply overwrite.
+                if let Some(name) = self.task_names.get(&id).cloned() {
+                    let usage = serde_json::to_string(&usage)
+                        .context("failed to serialize task resource usage")?;
+                    let _ = self.db.update_task_utilization(&name, &usage).await?;
+                }
+            }
+            CrankshaftEvent::ImagePullStarted { .. }
+            | CrankshaftEvent::ImagePullFailed { .. }
+            | CrankshaftEvent::ImagePullFinished { .. } => {
+                // Image pulls are progress information and are not persisted.
+            }
             CrankshaftEvent::TaskStdout { id, message } => {
                 if let Some(name) = self.task_names.get(&id) {
                     self.db
@@ -387,14 +402,7 @@ impl TaskMonitorSvc {
                         .await?;
                 }
             }
-            CrankshaftEvent::ImagePullStarted { id: _, name: _ }
-            | CrankshaftEvent::ImagePullFailed {
-                id: _,
-                name: _,
-                message: _,
-            }
-            | CrankshaftEvent::ImagePullFinished { id: _, name: _ }
-            | CrankshaftEvent::TaskContainerCreated {
+            CrankshaftEvent::TaskContainerCreated {
                 id: _,
                 container: _,
             }
