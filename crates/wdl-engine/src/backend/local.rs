@@ -52,6 +52,28 @@ struct LocalTask<'a> {
     name: String,
 }
 
+/// Terminates a task's process group if execution is canceled or dropped.
+#[cfg(unix)]
+struct TaskProcessGroup(Option<libc::pid_t>);
+
+#[cfg(unix)]
+impl Drop for TaskProcessGroup {
+    fn drop(&mut self) {
+        let Some(id) = self.0 else {
+            return;
+        };
+
+        // The child starts its own group, so this cannot signal Sprocket's
+        // group.
+        if unsafe { libc::kill(-id, libc::SIGKILL) } != 0 {
+            let error = std::io::Error::last_os_error();
+            if error.raw_os_error() != Some(libc::ESRCH) {
+                warn!("failed to terminate task process group {id}: {error}");
+            }
+        }
+    }
+}
+
 impl ManagedTask for LocalTask<'_> {
     type Output = TaskExecutionResult;
 
@@ -114,6 +136,9 @@ impl ManagedTask for LocalTask<'_> {
                 )
                 .kill_on_drop(true);
 
+            #[cfg(unix)]
+            command.process_group(0);
+
             // Set the PATH variable for the child on Windows to get consistent
             // PATH searching. See: https://github.com/rust-lang/rust/issues/122660
             #[cfg(windows)]
@@ -122,6 +147,10 @@ impl ManagedTask for LocalTask<'_> {
             }
 
             let mut child = command.spawn().context("failed to spawn shell")?;
+            let pid = child.id().expect("should have id");
+            #[cfg(unix)]
+            let mut process_group =
+                TaskProcessGroup(Some(pid.try_into().context("task PID is out of range")?));
 
             // Notify that the process has spawned
             send_event!(
@@ -129,24 +158,27 @@ impl ManagedTask for LocalTask<'_> {
                 CrankshaftEvent::TaskStarted { id }
             );
 
-            let id = child.id().expect("should have id");
             info!(
-                "spawned local shell process {id} for execution of task `{name}`",
+                "spawned local shell process {pid} for execution of task `{name}`",
                 name = self.name
             );
 
             let status = child.wait().await.with_context(|| {
-                format!("failed to wait for termination of task child process {id}")
+                format!("failed to wait for termination of task child process {pid}")
             })?;
+            #[cfg(unix)]
+            {
+                process_group.0 = None;
+            }
 
             #[cfg(unix)]
             {
                 use std::os::unix::process::ExitStatusExt;
                 if let Some(signal) = status.signal() {
-                    tracing::warn!("task process {id} has terminated with signal {signal}");
+                    tracing::warn!("task process {pid} has terminated with signal {signal}");
 
                     bail!(
-                        "task child process {id} has terminated with signal {signal}; see stderr \
+                        "task child process {pid} has terminated with signal {signal}; see stderr \
                          file `{path}` for more details",
                         path = stderr_path.display()
                     );
@@ -193,6 +225,7 @@ impl ManagedTask for LocalTask<'_> {
                             image: None,
                             exit_code,
                             work_dir: EvaluationPath::from_local_path(work_dir),
+                            usage_file: None,
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                             stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                         }))
@@ -362,5 +395,131 @@ impl TaskExecutionBackend for LocalBackend {
             self.manager.run(cpu, memory, task).await
         }
         .boxed()
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::CancellationContext;
+    use crate::Events;
+    use crate::backend::tests::EvalContext;
+    use crate::config::FailureMode;
+
+    struct PayloadCleanup(libc::pid_t);
+
+    impl Drop for PayloadCleanup {
+        fn drop(&mut self) {
+            if self.0 > 0 {
+                // This PID was reported by the payload started by this test.
+                unsafe { libc::kill(self.0, libc::SIGKILL) };
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_and_dropped_executions_stop_payloads() {
+        for command in [
+            "exec sh -c 'echo $$ > payload.pid; exec sleep 60'",
+            "(exec sh -c 'echo $$ > payload.pid; exec sleep 60')\nexit $?",
+            "sh -c 'echo $$ > payload.pid; exec sleep 60'\nexit $?",
+        ] {
+            for drop_execution in [false, true] {
+                let root = tempfile::tempdir().unwrap();
+                let cancellation = CancellationContext::new(FailureMode::Fast);
+                let context = EvalContext::new(Events::default(), cancellation.clone()).await;
+                let request = ExecuteTaskRequest {
+                    context: &context,
+                    name: "cancel-test",
+                    command,
+                    measure_resource_usage: false,
+                    inputs: &TaskInputs::default(),
+                    backend_inputs: &[],
+                    requirements: &Object::empty(),
+                    hints: &Object::empty(),
+                    env: &Default::default(),
+                    constraints: &TaskExecutionConstraints {
+                        sources: Vec::new(),
+                        cpu: 1.0,
+                        memory: 1024 * 1024 * 1024,
+                        gpu: Vec::new(),
+                        fpga: Vec::new(),
+                        disks: Default::default(),
+                    },
+                    base_dir: &EvaluationPath::from(root.path()),
+                    attempt_dir: root.path(),
+                    temp_dir: root.path(),
+                };
+                let mut execution = LocalTask {
+                    config: Arc::new(Config::local()),
+                    request: &request,
+                    name: request.name.to_string(),
+                }
+                .run()
+                .boxed();
+
+                let pid_file = request.work_dir().join("payload.pid");
+                let pid = tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        select! {
+                            result = &mut execution => panic!("task ended before readiness: {result:?}"),
+                            _ = tokio::time::sleep(Duration::from_millis(10)) => {
+                                if let Ok(contents) = fs::read_to_string(&pid_file)
+                                    && let Ok(pid) = contents.trim().parse::<libc::pid_t>()
+                                    && pid > 0
+                                {
+                                    break pid;
+                                }
+                            }
+                        }
+                    }
+                })
+                .await
+                .expect("payload did not report readiness");
+                let mut cleanup = PayloadCleanup(pid);
+
+                if drop_execution {
+                    drop(execution);
+                } else {
+                    let _ = cancellation.cancel();
+                    assert!(
+                        tokio::time::timeout(Duration::from_secs(10), execution)
+                            .await
+                            .expect("cancellation timed out")
+                            .expect("cancellation failed")
+                            .is_none()
+                    );
+                }
+
+                let stopped = tokio::time::timeout(Duration::from_secs(3), async {
+                    loop {
+                        let output = Command::new("ps")
+                            .args(["-p", &pid.to_string(), "-o", "stat="])
+                            .output()
+                            .await
+                            .expect("failed to inspect payload");
+                        if output.status.code() == Some(1)
+                            || String::from_utf8_lossy(&output.stdout)
+                                .trim_start()
+                                .starts_with('Z')
+                        {
+                            break;
+                        }
+                        assert!(output.status.success(), "ps failed: {output:?}");
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                })
+                .await;
+                if stopped.is_ok() {
+                    cleanup.0 = 0;
+                }
+                assert!(
+                    stopped.is_ok(),
+                    "payload {pid} survived (drop={drop_execution}): {command}"
+                );
+            }
+        }
     }
 }

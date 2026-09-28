@@ -16,9 +16,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Execution metrics include scheduler-pending and allocated CPU time, time lost to preemption,
   resolved retry policy and curated hints, local work directory disk usage, execution backend and
   Sprocket version, and localization transfer volume as a data-movement proxy
-  ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
+  ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
 * Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals in WDL 1.1 and later
-  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791)
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
+* Added optional CPU-time and container peak-memory measurements inside tasks. Enable
+  `run.task.measure_resource_usage` to use them. Available measurements depend on Linux `/proc` and
+  readable cgroup counters ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Engine measurements take precedence when both the engine and backend report a field. Backend-only
+  values are kept ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 
 ### Changed
 
@@ -37,16 +43,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Task resource utilization updates merge reported fields into the stored JSON snapshot instead of
   replacing it ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
 * Legacy octal integer literals with a leading zero (e.g. `0755`) are now an error in WDL 1.1 and
-  later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+  later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791)
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * In WDL 1.1 and later, `read_int` and `read_float` accept the numeric forms defined by
   [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791), including an optional sign and
-  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values.
+  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 
 ### Fixed
 
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
   config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
-* `read_json` now rejects files with trailing content after the JSON value.
+* `read_json` now rejects files with trailing content after the JSON value
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 
 ## 0.33.0 - 2026-10-29
 
