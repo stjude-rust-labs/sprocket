@@ -143,6 +143,9 @@ severity = "note"
 [check.rules.MissingParameterMeta]
 severity = "warning"
 
+[check.rules.ParameterizedResources]
+severity = "note"
+
 [check.rules.ParameterMetaOrder]
 severity = "note"
 

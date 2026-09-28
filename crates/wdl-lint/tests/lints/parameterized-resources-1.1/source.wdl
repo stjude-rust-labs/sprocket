@@ -1,4 +1,4 @@
-#@ except: MetaSections, RequirementsSection, ContainerUri, EmptyOutputs, ExpectedRuntimeKeys, BashSetSyntax
+#@ except: MetaSections, RequirementsSection, ContainerUri, EmptyOutputs, ExpectedRuntimeKeys, BashSetSyntax, RecommendedRuntimeKeys
 
 version 1.1
 

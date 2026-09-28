@@ -1,4 +1,4 @@
-#@ except: MetaSections, RequirementsSection, ContainerUri, EmptyOutputs, BashSetSyntax
+#@ except: MetaSections, RequirementsSection, ContainerUri, EmptyOutputs, BashSetSyntax, MutableContainerTag
 
 version 1.3
 
