@@ -1634,6 +1634,20 @@ pub struct DockerBackendConfig {
     #[toml(default = default_docker_cleanup())]
     #[schemars(default = "default_docker_cleanup")]
     pub cleanup: bool,
+
+    /// The interval, in seconds, at which to sample a running container's
+    /// resource usage.
+    ///
+    /// When set, each task's peak and average memory and cumulative CPU time
+    /// are sampled from the Docker daemon at this interval and reported in
+    /// the run's metrics.
+    ///
+    /// When unset or zero, resource usage is not sampled. Sampling applies
+    /// only to local container execution; it is not supported for Docker
+    /// Swarm services.
+    #[toml(default)]
+    #[schemars(default)]
+    pub resource_usage_interval: Option<u64>,
 }
 
 impl DockerBackendConfig {
@@ -1647,6 +1661,7 @@ impl Default for DockerBackendConfig {
     fn default() -> Self {
         Self {
             cleanup: default_docker_cleanup(),
+            resource_usage_interval: None,
         }
     }
 }
