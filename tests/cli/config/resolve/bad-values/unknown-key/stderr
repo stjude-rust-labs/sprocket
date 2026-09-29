@@ -1,0 +1,5 @@
+warning: unknown configuration field `check.unknown_key`
+  ┌─ bad.toml:2:1
+  │
+2 │ unknown_key = "foo_bar"
+  │ ^^^^^^^^^^^ unexpected key

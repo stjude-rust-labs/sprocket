@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs, BashSetSyntax, ParameterMetaMatched, RequirementsSection, MetaSections
+#@ except: EmptyOutputs, BashSetSyntax, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder, RequirementsSection, MetaSections
 
 ## This preamble is considered a valid doc comment,
 ## despite having whitespace between it and the version statement.
@@ -67,7 +67,7 @@ task test_task_2 {
 ## While it's not what we want people to do, I should be able to
 ## sandwich lint directives with doc comments or whitespace
 ## for the purposes of the unused doc comment lint.
-#@ except: MatchingOutputMeta, MetaSections
+#@ except: MatchingOutputMeta, OutputMetaOrder, MetaSections
 ## This doc comment should be allowed.
 workflow test_workflow {
     ## This doc comment does nothing and the user should be warned!

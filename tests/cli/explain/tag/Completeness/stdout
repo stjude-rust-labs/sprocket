@@ -1,10 +1,15 @@
 Rules with the tag `Completeness`:
+  - DeprecatedRuntimeKey
   - EmptyOutputs
-  - ExpectedRuntimeKeys
+  - ExtraneousParameterMeta
   - MatchingOutputMeta
   - MetaDescription
   - MetaSections
+  - MissingParameterMeta
+  - OutputMetaOrder
   - ParameterDescription
-  - ParameterMetaMatched
+  - ParameterMetaOrder
+  - RecommendedRuntimeKeys
   - RequirementsSection
   - RuntimeSection
+  - UnknownRuntimeKeys

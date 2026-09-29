@@ -8,11 +8,13 @@ use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::CommentKind;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::TreeToken;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -22,12 +24,13 @@ const ID: &str = "UnusedDocComments";
 
 /// Creates a diagnostic for a misplaced doc comment.
 fn unused_doc_comment_diagnostic(
+    severity: Severity,
     comment_span: Span,
     target_span: Option<Span>,
     valid_target: bool,
     floating: bool,
 ) -> Diagnostic {
-    let mut diagnostic = Diagnostic::note("unused doc comment")
+    let mut diagnostic = Diagnostic::new(severity, "unused doc comment")
         .with_rule(ID)
         .with_highlight(comment_span);
 
@@ -54,8 +57,10 @@ fn unused_doc_comment_diagnostic(
 
 /// Detects whether a doc comment has been placed atop a Node that we do not
 /// generate documentation for.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct UnusedDocCommentsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The number of comment tokens to skip.
     ///
     /// This is used when consolidating multiple comments into a single
@@ -246,11 +251,22 @@ impl UnusedDocCommentsRule {
         }
 
         diagnostics.add(unused_doc_comment_diagnostic(
+            self.severity,
             block_span,
             target_span,
             valid_target,
             floating,
         ));
+    }
+}
+
+impl UnusedDocCommentsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.unused_doc_comments.diagnostic_severity(),
+            skip_count: Default::default(),
+        }
     }
 }
 
@@ -354,6 +370,7 @@ impl Visitor for UnusedDocCommentsRule {
             && let Some(target) = find_inline_doc_comment_target(comment)
         {
             diagnostics.add(unused_doc_comment_diagnostic(
+                self.severity,
                 comment.span(),
                 Some(get_span_of_first_token_for_syntax_element(&target)),
                 false,

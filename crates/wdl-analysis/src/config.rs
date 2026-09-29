@@ -238,6 +238,8 @@ fn default_wdl_1_3() -> bool {
 
 /// A set of feature flags that can be enabled.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct FeatureFlags {
     /// Formerly enabled experimental WDL 1.3 features.
     ///

@@ -5,11 +5,11 @@ version 1.2
 task test1 {}
 
 # Test 2: Directive slightly over length - should split into 2 lines
-#@ except: CommentWhitespace, DeprecatedObject, MetaDescription, ContainerUri, ParameterMetaMatched
+#@ except: CommentWhitespace, DeprecatedObject, MetaDescription, ContainerUri, MutableContainerTag, RedundantContainerArray, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder
 task test2 {}
 
 # Test 3: Very long directive - should split into 3+ lines
-#@ except: CommentWhitespace, DeprecatedObject, MetaDescription, ParameterMetaMatched, MatchingOutputMeta, RuntimeSectionKeys, RequirementsSectionKeys, HintsSectionKeys, OutputSectionKeys
+#@ except: CommentWhitespace, DeprecatedObject, MetaDescription, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder, MatchingOutputMeta, OutputMetaOrder, RuntimeSectionKeys, RequirementsSectionKeys, HintsSectionKeys, OutputSectionKeys
 task test3 {}
 
 # Test 4: multiline - should be consolidated into one line

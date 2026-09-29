@@ -1,0 +1,2 @@
+[check.rules.UnusedInput]
+severity = "off"
