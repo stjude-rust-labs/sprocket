@@ -53,7 +53,7 @@ pub struct Common {
     ///
     /// Repeat the flag to set multiple rules. This takes precedence over the
     /// severity in config files and over `--note`. It does not enable a
-    /// rule that is disabled via config or `--off`.
+    /// rule that is disabled via `--off`.
     #[clap(long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
@@ -67,7 +67,7 @@ pub struct Common {
     ///
     /// Repeat the flag to set multiple rules. This takes precedence over the
     /// severity in config files. It does not enable a rule that is
-    /// disabled via config or `--off`.
+    /// disabled via `--off`.
     #[clap(long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
