@@ -149,7 +149,7 @@ pub struct LintArgs {
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
     let mut disabled = args.common.off;
-    disabled.extend(config.check.disabled.iter().cloned());
+    disabled.extend(config.check.disable.iter().cloned());
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;

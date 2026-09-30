@@ -51,7 +51,7 @@ impl Args {
         self.lint |= config.analyzer.lint;
         // The `except` list lives under `[check]` and is shared with the
         // `check` command; see `CheckConfig::except`.
-        self.off.extend(config.check.disabled.iter().cloned());
+        self.off.extend(config.check.disable.iter().cloned());
     }
 }
 
@@ -71,7 +71,7 @@ pub async fn analyzer(
         ServerOptions {
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
-            disabled: args.off,
+            disable: args.off,
             ignore_filename: config.common.ignore_filename(),
             feature_flags: config.common.wdl.feature_flags,
             resolution_context,
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn apply_uses_check_except_list() {
         let mut config = Config::default();
-        config.check.disabled = vec!["ContainerUri".to_string()];
+        config.check.disable = vec!["ContainerUri".to_string()];
 
         let mut args = Args {
             stdio: true,
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn apply_merges_cli_and_config_except_lists() {
         let mut config = Config::default();
-        config.check.disabled = vec!["ContainerUri".to_string()];
+        config.check.disable = vec!["ContainerUri".to_string()];
 
         let mut args = Args {
             stdio: true,

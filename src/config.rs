@@ -410,7 +410,7 @@ pub struct CheckConfig {
     /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
     #[schemars(default)]
-    pub disabled: Vec<String>,
+    pub disable: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
     #[toml(default)]
     #[schemars(default)]
