@@ -1,2 +1,3 @@
 [check]
+disabled = ["InputName"]
 baseline = "my-baselines/custom.toml"

@@ -12,12 +12,11 @@ newline_style = "auto"
 quote_style = "preserve"
 
 [check]
-except = []
+disabled = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
 hide_warnings = false
-tags = []
 
 [check.rules.UnusedImport]
 severity = "warning"
@@ -88,13 +87,13 @@ severity = "note"
 severity = "warning"
 
 [check.rules.DescriptionLength]
-severity = "note"
+severity = "off"
 
 [check.rules.DocCommentTabs]
-severity = "warning"
+severity = "note"
 
 [check.rules.DocMetaStrings]
-severity = "warning"
+severity = "off"
 
 [check.rules.EmptyDocComment]
 severity = "note"
@@ -110,7 +109,7 @@ allowed_runtime_keys = []
 severity = "warning"
 
 [check.rules.HostPathLiterals]
-severity = "note"
+severity = "warning"
 
 [check.rules.ImportPlacement]
 severity = "warning"

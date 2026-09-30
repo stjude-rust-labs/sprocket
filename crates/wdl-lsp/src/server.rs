@@ -274,8 +274,8 @@ pub struct ServerOptions {
     /// Context for resolving symbolic module imports.
     pub resolution_context: wdl_analysis::ResolutionContext,
 
-    /// Analysis or lint rule IDs to except (ignore).
-    pub exceptions: Vec<String>,
+    /// Analysis or lint rule IDs to disable.
+    pub disabled: Vec<String>,
 
     /// Basename for any ignorefiles which should be respected.
     pub ignore_filename: Option<String>,
@@ -302,7 +302,7 @@ impl Default for ServerOptions {
         Self {
             name: String::from(env!("CARGO_CRATE_NAME")),
             version: String::from(env!("CARGO_PKG_VERSION")),
-            exceptions: Vec::new(),
+            disabled: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
             resolution_context: Default::default(),
@@ -459,8 +459,8 @@ struct ServerConfig {
 /// Gets the rule configuration with the server's excepted rules turned off.
 fn rules_config(options: &ServerOptions, lint_options: &LintOptions) -> wdl_lint::Config {
     let mut config = (*lint_options.config).clone();
-    for exception in &options.exceptions {
-        config.set_severity(exception, RuleSeverity::Off);
+    for disable in &options.disabled {
+        config.set_severity(disable, RuleSeverity::Off);
     }
     config
 }
