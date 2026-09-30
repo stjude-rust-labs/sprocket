@@ -1,4 +1,4 @@
-note[DocCommentTabs]: tabs in doc comments are not recommended
+warning[DocCommentTabs]: tabs in doc comments are not recommended
   ┌─ tests/lints/doc-comment-tabs/source.wdl:6:3
   │
 6 │ ##  This should be flagged (single tab)
@@ -6,7 +6,7 @@ note[DocCommentTabs]: tabs in doc comments are not recommended
   │
   = help: consider replacing tabs with spaces
 
-note[DocCommentTabs]: tabs in doc comments are not recommended
+warning[DocCommentTabs]: tabs in doc comments are not recommended
   ┌─ tests/lints/doc-comment-tabs/source.wdl:8:3
   │
 8 │ ##      This should produce ONE diagnostic (grouped tabs)
@@ -14,7 +14,7 @@ note[DocCommentTabs]: tabs in doc comments are not recommended
   │
   = help: consider replacing tabs with spaces
 
-note[DocCommentTabs]: tabs in doc comments are not recommended
+warning[DocCommentTabs]: tabs in doc comments are not recommended
    ┌─ tests/lints/doc-comment-tabs/source.wdl:10:8
    │
 10 │ ## Text with    tab inside
@@ -22,7 +22,7 @@ note[DocCommentTabs]: tabs in doc comments are not recommended
    │
    = help: consider replacing tabs with spaces
 
-note[DocCommentTabs]: tabs in doc comments are not recommended
+warning[DocCommentTabs]: tabs in doc comments are not recommended
    ┌─ tests/lints/doc-comment-tabs/source.wdl:10:13
    │
 10 │ ## Text with    tab inside
@@ -30,7 +30,7 @@ note[DocCommentTabs]: tabs in doc comments are not recommended
    │
    = help: consider replacing tabs with spaces
 
-note[DocCommentTabs]: tabs in doc comments are not recommended
+warning[DocCommentTabs]: tabs in doc comments are not recommended
    ┌─ tests/lints/doc-comment-tabs/source.wdl:17:7
    │
 17 │     ##  Workflow-level doc comment with tab (should be flagged)

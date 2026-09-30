@@ -287,7 +287,7 @@
               "severity": "off"
             },
             "DocCommentTabs": {
-              "severity": "note"
+              "severity": "warning"
             },
             "DocMetaStrings": {
               "severity": "off"
@@ -555,7 +555,7 @@
           "description": "The `DocCommentTabs` rule.",
           "$ref": "#/$defs/DocCommentTabsConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
         "DocMetaStrings": {
@@ -1108,7 +1108,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false

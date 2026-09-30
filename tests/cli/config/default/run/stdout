@@ -12,7 +12,7 @@ newline_style = "auto"
 quote_style = "preserve"
 
 [check]
-disabled = []
+disable = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
@@ -90,7 +90,7 @@ severity = "warning"
 severity = "off"
 
 [check.rules.DocCommentTabs]
-severity = "note"
+severity = "warning"
 
 [check.rules.DocMetaStrings]
 severity = "off"

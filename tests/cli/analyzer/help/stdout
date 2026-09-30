@@ -9,11 +9,6 @@ Options:
       --lint
           Whether or not to enable lint rules
 
-  -o, --off <RULE>
-          Turns off an analysis or lint rule.
-
-          Repeat the flag multiple times to disable multiple rules.
-
   -v, --verbose...
           Increase logging verbosity
 
