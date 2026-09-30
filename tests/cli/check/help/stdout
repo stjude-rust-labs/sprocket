@@ -7,7 +7,7 @@ Arguments:
           A set of source documents as files, directories, or URLs
 
 Options:
-  -o, --off <RULE>
+      --off <RULE>
           Disables an analysis or lint rule if it would have been included otherwise.
 
           Repeat the flag multiple times to except multiple rules or tags. This is additive with rules turned off in config files.

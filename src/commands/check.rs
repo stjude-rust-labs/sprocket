@@ -40,7 +40,7 @@ pub struct Common {
     ///
     /// Repeat the flag multiple times to except multiple rules or tags. This is
     /// additive with rules turned off in config files.
-    #[clap(short, long, value_name = "RULE",
+    #[clap(long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
