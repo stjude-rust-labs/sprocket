@@ -350,7 +350,7 @@ define_rules_config! {
             severity = RuleSeverity::Off;
         }
         "DocCommentTabs" => doc_comment_tabs: DocCommentTabsConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Warning;
         }
         "DocMetaStrings" => doc_meta_strings: DocMetaStringsConfig {
             severity = RuleSeverity::Off;
