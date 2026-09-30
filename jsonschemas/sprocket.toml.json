@@ -172,8 +172,8 @@
       "description": "Represents the configuration for the Sprocket `check` and `lint` commands.",
       "type": "object",
       "properties": {
-        "except": {
-          "description": "Rule IDs or tags to except from running.\n\nThis list is also honored by the `analyzer` subcommand.",
+        "disable": {
+          "description": "Rule IDs to prevent from running.\n\nThis list is also honored by the `analyzer` subcommand.",
           "type": "array",
           "items": {
             "type": "string"
@@ -199,14 +199,6 @@
           "description": "Hide diagnostics with `warning` and `note` severity.",
           "type": "boolean",
           "default": false
-        },
-        "tags": {
-          "description": "Set of lint tags to opt into. Leave this empty to use the default set of\ntags.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         },
         "baseline": {
           "description": "Path to the diagnostic baseline file.",
@@ -292,13 +284,13 @@
               "severity": "warning"
             },
             "DescriptionLength": {
-              "severity": "note"
+              "severity": "off"
             },
             "DocCommentTabs": {
               "severity": "warning"
             },
             "DocMetaStrings": {
-              "severity": "warning"
+              "severity": "off"
             },
             "EmptyDocComment": {
               "severity": "note"
@@ -314,7 +306,7 @@
               "severity": "warning"
             },
             "HostPathLiterals": {
-              "severity": "note"
+              "severity": "warning"
             },
             "ImportPlacement": {
               "severity": "warning"
@@ -556,7 +548,7 @@
           "description": "The `DescriptionLength` rule.",
           "$ref": "#/$defs/DescriptionLengthConfig",
           "default": {
-            "severity": "note"
+            "severity": "off"
           }
         },
         "DocCommentTabs": {
@@ -570,7 +562,7 @@
           "description": "The `DocMetaStrings` rule.",
           "$ref": "#/$defs/DocMetaStringsConfig",
           "default": {
-            "severity": "warning"
+            "severity": "off"
           }
         },
         "EmptyDocComment": {
@@ -606,7 +598,7 @@
           "description": "The `HostPathLiterals` rule.",
           "$ref": "#/$defs/HostPathLiteralsConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
         "ImportPlacement": {
@@ -1104,7 +1096,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1128,7 +1120,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1196,7 +1188,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false

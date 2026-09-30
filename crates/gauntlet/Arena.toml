@@ -253,16 +253,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
-message = "ww-bowtie2.wdl:101:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L101"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
-message = "ww-bowtie2.wdl:102:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L102"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
 message = "ww-bowtie2.wdl:128:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L128"
 
@@ -363,11 +353,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
-message = "ww-cellbender.wdl:14:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L14"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
 message = "ww-cellbender.wdl:56:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L56"
 
@@ -458,11 +443,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:10:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L10"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:124:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L124"
 
@@ -470,16 +450,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:125:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L125"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:191:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L191"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:214:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L214"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -498,16 +468,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:369:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L369"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:392:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L392"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:413:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L413"
 
@@ -515,16 +475,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:418:7: note[ShellCheck]: Not following: /app/lmod/lmod/init/bash was not specified as input (see shellcheck -x)."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L418"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:42:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:552:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L552"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -830,11 +780,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
 message = "ww-colabfold.wdl:52:12: note[ShellCheck]: Declare and assign separately to avoid masking return values."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L52"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
-message = "ww-colabfold.wdl:79:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
@@ -1258,11 +1203,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:122:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L122"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
 message = "ww-deseq2.wdl:144:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L144"
 
@@ -1372,11 +1312,6 @@ message = "testrun.wdl:278:13: note[MutableContainerTag]: container URI uses a m
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L278"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:7:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L7"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
 message = "ww-ena.wdl:103:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L103"
@@ -1385,16 +1320,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
 message = "ww-ena.wdl:107:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L107"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:129:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L129"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:12:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
@@ -1568,18 +1493,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
-message = "ww-fastp.wdl:135:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L135"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
 message = "ww-fastp.wdl:156:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L156"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
-message = "ww-fastp.wdl:41:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L41"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
@@ -1943,11 +1858,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gffread/ww-gffread.wdl"
-message = "ww-gffread.wdl:19:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gffread/ww-gffread.wdl/#L19"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gffread/ww-gffread.wdl"
 message = "ww-gffread.wdl:35:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gffread/ww-gffread.wdl/#L35"
 
@@ -2093,16 +2003,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:248:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L248"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:266:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L266"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:281:15: note[DeclarationName]: declaration identifier 'input_cram_dir' contains type name 'Dir'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L281"
 
@@ -2215,11 +2115,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:56:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:79:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-jcast/testrun.wdl"
@@ -2663,11 +2558,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:140:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L140"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
 message = "ww-samtools.wdl:159:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L159"
 
@@ -2940,11 +2830,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
 message = "ww-sra.wdl:106:14: note[ShellCheck]: Don't use variables in the printf format string. Use printf '..%s..' \"$foo\"."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L106"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:12:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
@@ -3228,11 +3113,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:124:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L124"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:1270:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1270"
 
@@ -3250,11 +3130,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:1456:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1456"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1490:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1490"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3293,18 +3168,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:177:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L177"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:1787:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1787"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1843:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1843"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3325,11 +3190,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:199:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L199"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:2003:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L2003"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3405,11 +3265,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:405:82: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L405"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:496:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L496"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3495,11 +3350,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/testrun.wdl"
 message = "testrun.wdl:17:10: note[MetaSections]: workflow `umi_tools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/testrun.wdl/#L17"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/ww-umi-tools.wdl"
-message = "ww-umi-tools.wdl:15:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/ww-umi-tools.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/ww-umi-tools.wdl"
@@ -3783,16 +3633,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:36:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:46:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L46"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
 message = "ww-imputation.wdl:77:15: note[DeclarationName]: declaration identifier 'input_cram_dir' contains type name 'Dir'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L77"
 
@@ -3807,11 +3647,6 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `jetlag_example` is mi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-jetlag/testrun.wdl/#L6"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-jetlag/ww-jetlag.wdl"
-message = "ww-jetlag.wdl:25:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-jetlag/ww-jetlag.wdl/#L25"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `leukemia_test` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/testrun.wdl/#L6"
@@ -3822,54 +3657,14 @@ message = "testrun_hpc.wdl:12:10: note[MetaSections]: workflow `leukemia_test` i
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/testrun_hpc.wdl/#L12"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:102:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L102"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:129:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L129"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:131:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L131"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:133:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L133"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:76:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L76"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `proseq_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/testrun.wdl/#L20"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/ww-proseq.wdl"
-message = "ww-proseq.wdl:27:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/ww-proseq.wdl/#L27"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/ww-proseq.wdl"
-message = "ww-proseq.wdl:53:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/ww-proseq.wdl/#L53"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/testrun.wdl"
 message = "testrun.wdl:13:10: note[MetaSections]: workflow `rnaseq_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/testrun.wdl/#L13"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:34:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L34"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
@@ -3957,11 +3752,6 @@ message = "testrun.wdl:20:10: note[MetaSections]: workflow `splicing_proteomics_
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/testrun.wdl/#L20"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl"
-message = "ww-splicing-proteomics.wdl:30:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl/#L30"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
 message = "testrun.wdl:137:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L137"
@@ -3970,11 +3760,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
 message = "testrun.wdl:168:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L168"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
-message = "testrun.wdl:57:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
@@ -3995,11 +3780,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:14:10: note[MetaSections]: workflow `sra_cellranger_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L14"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:54:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L54"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
@@ -4073,23 +3853,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:36:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:379:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L379"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:37:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L37"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:46:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-salmon/testrun.wdl"

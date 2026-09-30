@@ -7,27 +7,20 @@ Arguments:
           A set of source documents as files, directories, or URLs
 
 Options:
-  -e, --except <RULE>
-          Excepts (ignores) a lint rule or tag from running if it would have been included otherwise.
+      --off <RULE>
+          Disables an analysis or lint rule if it would have been included otherwise.
 
-          Repeat the flag multiple times to except multiple rules or tags. This is additive with exceptions found in config files.
+          Repeat the flag multiple times to except multiple rules or tags. This is additive with rules turned off in config files.
 
       --warn <RULE>
           Sets a rule's severity to `warning`.
 
-          Repeat the flag to set multiple rules. This takes precedence over the severity in config files and over `--note`. It does not enable a lint rule that is excluded by tags or `--except`.
+          Repeat the flag to set multiple rules. This takes precedence over the severity in config files and over `--note`. It does not enable a rule that is disabled via `--off`.
 
       --note <RULE>
           Sets a rule's severity to `note`.
 
-          Repeat the flag to set multiple rules. This takes precedence over the severity in config files. It does not enable a lint rule that is excluded by tags or `--except`.
-
-      --tag <TAG>
-          Includes a lint tag for running.
-
-          Repeat the flag multiple times to include multiple tags. `--except <RULE|TAG>` can be used in conjunction with this argument. This is additive with tags selected via config files.
-
-          [possible values: All, Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Performance, Portability, Sorting, Spacing, SprocketCompatibility, Style]
+          Repeat the flag to set multiple rules. This takes precedence over the severity in config files. It does not enable a rule that is disabled via `--off`.
 
       --deny-warnings
           Causes the command to fail if warnings were reported
