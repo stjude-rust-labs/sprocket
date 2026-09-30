@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-* Removed `--with-doc-comments` from the `doc` command, as they are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* Removed `--with-doc-comments` from the `doc` command and `with_doc_comments` from the `doc` config table, as doc comments are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226), [#1266](https://github.com/stjude-rust-labs/sprocket/pull/1266)).
 * Removed many CL args from the `doc` command: `--homepage-url`, `--github-url`, `--slack-url`, `--light-mode`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
 * Removed many CL args from the `format` command: `--with-tabs`, `--indentation-size`, `--max-line-length`, `--newline-style`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
 * `Config::{read,write}_config` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234))
