@@ -2664,11 +2664,6 @@
           "type": "boolean",
           "default": false
         },
-        "with_doc_comments": {
-          "description": "Enables support for documentation comments\n\nThis option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.",
-          "type": "boolean",
-          "default": false
-        },
         "extra_html": {
           "description": "Configuration for custom HTML to embed in generated pages.",
           "$ref": "#/$defs/DocExtraHtmlConfig"

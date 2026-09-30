@@ -304,7 +304,6 @@ homepage_url = "none"
 github_url = "none"
 slack_url = "none"
 light_mode = false
-with_doc_comments = false
 
 [doc.extra_html]
 head = "none"

@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+* Removed `--with-doc-comments` from the `doc` command and `with_doc_comments` from the `doc` config table, as doc comments are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226), [#1266](https://github.com/stjude-rust-labs/sprocket/pull/1266)).
 * Removed the `-e, --except` argument from the `analyzer` subcommand. Use the `check.disable` list instead ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * Removed the `tags` list from the `[check]` configuration table ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * Removed `--tag` argument from `check`/`lint` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).

@@ -871,12 +871,6 @@ pub struct DocConfig {
     #[toml(default)]
     #[schemars(default)]
     pub light_mode: bool,
-    /// Enables support for documentation comments
-    ///
-    /// This option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
-    #[toml(default)]
-    #[schemars(default)]
-    pub with_doc_comments: bool,
     /// Configuration for custom HTML to embed in generated pages.
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -897,7 +891,6 @@ impl Default for DocConfig {
             github_url: sentinel_doc_config_value().into(),
             slack_url: sentinel_doc_config_value().into(),
             light_mode: false,
-            with_doc_comments: false,
             extra_html: DocExtraHtmlConfig::default(),
             seo: DocSeoConfig::default(),
         }
