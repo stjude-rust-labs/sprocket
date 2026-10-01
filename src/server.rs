@@ -27,6 +27,14 @@ pub(crate) use api::v1::TaskStatus;
 pub(crate) use api::v1::error::ErrorResponse;
 pub use api::v1::info::ServerFailureMode;
 pub(crate) use api::v1::info::ServerInfoResponse;
+pub(crate) use api::v1::metrics::CallMetrics;
+pub(crate) use api::v1::metrics::RunMetricsResponse;
+pub(crate) use api::v1::metrics::RunMetricsRun;
+// Only referenced by test code today; kept alongside its sibling re-exports.
+#[allow(unused_imports)]
+pub(crate) use api::v1::metrics::RunMetricsTotals;
+pub(crate) use api::v1::metrics::TaskAttemptMetrics;
+pub(crate) use api::v1::metrics::build_run_metrics;
 pub use api::v1::paths;
 pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
