@@ -56,6 +56,8 @@ struct TaskMeta {
     call_id: Option<String>,
     /// The 0-based execution attempt number within the call.
     attempt: i64,
+    /// The most recently resolved execution constraints.
+    constraints: Option<String>,
 }
 
 /// An event received by the monitor, or the loss of the channel carrying it.
@@ -130,6 +132,11 @@ pub struct TaskMonitorSvc {
     pending: Vec<TaskWrite>,
     /// In-memory call id/attempt tracking per task name; see [`TaskMeta`].
     task_meta: HashMap<String, TaskMeta>,
+    /// Latest utilization measured by the engine for each task attempt.
+    ///
+    /// These patches are replayed after backend updates so engine
+    /// measurements retain precedence regardless of event-channel order.
+    measured_utilization: HashMap<String, String>,
     /// Fires on [`FLUSH_INTERVAL`] to trigger a periodic flush of `pending`.
     flush_tick: Interval,
     /// The transfer events receiver.
@@ -164,6 +171,7 @@ impl TaskMonitorSvc {
             unfinished: HashSet::new(),
             pending: Vec::new(),
             task_meta: HashMap::new(),
+            measured_utilization: HashMap::new(),
             flush_tick,
             transfer,
             transfers: TransferAccumulator::default(),
@@ -349,6 +357,7 @@ impl TaskMonitorSvc {
                     TaskMeta {
                         call_id: Some(id.clone()),
                         attempt,
+                        constraints: None,
                     },
                 );
                 self.pending.push(TaskWrite::Create {
@@ -366,6 +375,9 @@ impl TaskMonitorSvc {
             EngineEvent::TaskExecuting { name, constraints } => {
                 let constraints = serde_json::to_string(&constraints)
                     .context("failed to serialize task constraints")?;
+                if let Some(meta) = self.task_meta.get_mut(&name) {
+                    meta.constraints = Some(constraints.clone());
+                }
                 self.pending
                     .push(TaskWrite::Constraints { name, constraints });
             }
@@ -391,13 +403,17 @@ impl TaskMonitorSvc {
                 // metadata is looked up in memory rather than read back from
                 // the database, since its own creation may still be sitting
                 // unflushed in this same buffer.
-                let TaskMeta { call_id, attempt } =
-                    self.task_meta.get(&prior_name).cloned().unwrap_or_default();
+                let TaskMeta {
+                    call_id,
+                    attempt,
+                    constraints,
+                } = self.task_meta.get(&prior_name).cloned().unwrap_or_default();
                 self.task_meta.insert(
                     next_name.clone(),
                     TaskMeta {
                         call_id: call_id.clone(),
                         attempt,
+                        constraints: constraints.clone(),
                     },
                 );
                 self.pending.push(TaskWrite::Create {
@@ -407,6 +423,12 @@ impl TaskMonitorSvc {
                     call_id,
                     attempt,
                 });
+                if let Some(constraints) = constraints {
+                    self.pending.push(TaskWrite::Constraints {
+                        name: next_name.clone(),
+                        constraints,
+                    });
+                }
                 self.unfinished.insert(next_name);
             }
             EngineEvent::ReusedCachedExecutionResult { id, name } => {
@@ -418,6 +440,7 @@ impl TaskMonitorSvc {
                     TaskMeta {
                         call_id: Some(id.clone()),
                         attempt: 0,
+                        constraints: None,
                     },
                 );
                 self.pending.push(TaskWrite::Create {
@@ -433,14 +456,22 @@ impl TaskMonitorSvc {
                 });
                 self.unfinished.remove(&name);
             }
-            EngineEvent::TaskDiskUsage { name, disk_used } => {
-                // Merge the engine-measured disk usage into whatever the
-                // backend may have reported.
-                let patch = serde_json::to_string(&serde_json::json!({
-                    "disk_used": disk_used,
-                }))
-                .context("failed to serialize task disk usage")?;
-                self.pending.push(TaskWrite::Utilization { name, patch });
+            EngineEvent::TaskUsageMeasured { name, usage } => {
+                // Merge the engine-measured fields into whatever the backend
+                // may have already reported (or will later report), rather
+                // than overwriting the column outright. `null` fields are
+                // omitted from the patch entirely: a JSON Merge Patch
+                // interprets an explicit `null` as "delete this key," but a
+                // `null` here just means the engine has no information for
+                // that field, so the existing value (if any) should be left
+                // alone.
+                let patch =
+                    utilization_patch(&usage).context("failed to serialize task resource usage")?;
+                if patch != "{}" {
+                    self.measured_utilization
+                        .insert(name.clone(), patch.clone());
+                    self.pending.push(TaskWrite::Utilization { name, patch });
+                }
             }
             EngineEvent::TaskParked | EngineEvent::TaskUnparked { .. } => {
                 // Parking is a property of the host's resource pool rather than
@@ -552,7 +583,12 @@ impl TaskMonitorSvc {
                 if let Some(name) = self.task_names.get(&id).cloned() {
                     let patch = utilization_patch(&usage)
                         .context("failed to serialize task resource usage")?;
-                    self.pending.push(TaskWrite::Utilization { name, patch });
+                    push_backend_utilization(
+                        &mut self.pending,
+                        &self.measured_utilization,
+                        name,
+                        patch,
+                    );
                 }
             }
             CrankshaftEvent::ImagePullStarted { .. }
@@ -605,6 +641,29 @@ where
     apply(pending.clone()).await?;
     pending.clear();
     Ok(())
+}
+
+/// Queues backend utilization and reapplies any engine-measured fields.
+fn push_backend_utilization(
+    pending: &mut Vec<TaskWrite>,
+    measured: &HashMap<String, String>,
+    name: String,
+    patch: String,
+) {
+    if patch == "{}" {
+        return;
+    }
+
+    pending.push(TaskWrite::Utilization {
+        name: name.clone(),
+        patch,
+    });
+    if let Some(patch) = measured.get(&name) {
+        pending.push(TaskWrite::Utilization {
+            name,
+            patch: patch.clone(),
+        });
+    }
 }
 
 /// Serializes a resource usage sample into a JSON Merge Patch fragment
@@ -718,5 +777,60 @@ mod tests {
             .expect("failed to get successor");
         assert_eq!(successor.call_id.as_deref(), Some("wf.task"));
         assert_eq!(successor.attempt, 2);
+    }
+
+    #[test]
+    fn utilization_patch_omits_unmeasured_fields() {
+        let mut usage = crankshaft_events::TaskResourceUsage::default();
+        usage.max_memory = Some(200);
+
+        assert_eq!(utilization_patch(&usage).unwrap(), r#"{"max_memory":200}"#);
+        assert_eq!(
+            utilization_patch(&crankshaft_events::TaskResourceUsage::default()).unwrap(),
+            "{}"
+        );
+    }
+
+    #[test]
+    fn backend_utilization_is_followed_by_saved_engine_measurements() {
+        let mut pending = Vec::new();
+        let measured = HashMap::from([(
+            "wf-t-x1".to_string(),
+            r#"{"max_memory":250,"disk_used":400}"#.to_string(),
+        )]);
+
+        push_backend_utilization(
+            &mut pending,
+            &measured,
+            "wf-t-x1".to_string(),
+            r#"{"max_memory":200,"avg_memory":100}"#.to_string(),
+        );
+
+        assert_eq!(pending.len(), 2);
+        let TaskWrite::Utilization { name, patch } = &pending[0] else {
+            panic!("expected backend utilization write");
+        };
+        assert_eq!(name, "wf-t-x1");
+        assert_eq!(patch, r#"{"max_memory":200,"avg_memory":100}"#);
+        let TaskWrite::Utilization { name, patch } = &pending[1] else {
+            panic!("expected engine utilization write");
+        };
+        assert_eq!(name, "wf-t-x1");
+        assert_eq!(patch, r#"{"max_memory":250,"disk_used":400}"#);
+    }
+
+    #[test]
+    fn empty_backend_utilization_is_ignored() {
+        let mut pending = Vec::new();
+        let measured =
+            HashMap::from([("wf-t-x1".to_string(), r#"{"max_memory":250}"#.to_string())]);
+
+        push_backend_utilization(
+            &mut pending,
+            &measured,
+            "wf-t-x1".to_string(),
+            "{}".to_string(),
+        );
+        assert!(pending.is_empty());
     }
 }

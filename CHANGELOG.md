@@ -11,22 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
-* `dev server` records execution metrics for every task attempt, including its
-  call id, attempt number, resolved constraints, retry cause, timings, exit
-  status, and logs. `GET /api/v1/runs/{id}/metrics` reports attempts grouped
-  by fully qualified call path with a short display name, and task API
-  responses expose the corresponding metrics fields.
-* `sprocket dev server metrics <RUN>` renders execution metrics, with `--json`
-  for the raw response and `--call` for filtering. Local `sprocket run`
-  executions write the same structure to `metrics.json` beside
-  `outputs.json`.
-* Execution metrics include backend-reported peak and average memory and
-  cumulative CPU time when available. The Docker backend can sample these
-  measurements with `backends.<name>.resource_usage_interval`.
-* Execution metrics include scheduler-pending and allocated CPU time, time
-  lost to preemption, resolved retry policy and curated hints, local work
-  directory disk usage, execution backend and Sprocket version, and
-  localization transfer volume as a data-movement proxy.
+* Execution metrics report every attempt's wall, queue, and scheduler-pending
+  time; allocated CPU time; resolved constraints; exit status; retry cause;
+  log reference; and observed resource utilization. Run-level totals include
+  retries, cached and preempted attempts, allocated CPU time, time lost to
+  preemption, and transferred bytes. Metrics are available from the task and
+  run APIs, `sprocket dev server metrics`, and the `metrics.json` written
+  beside local-run outputs.
+* Backend-native utilization includes LSF and Slurm scheduler accounting. A
+  positive Docker `backends.<name>.resource_usage_interval` samples
+  cache-adjusted container memory and cumulative CPU time; short-lived tasks
+  may report no sample, and CPU time may be undercounted by up to one interval.
+* The opt-in `run.task.measure_resource_usage` shim records CPU time from
+  inside a task on any backend and peak cgroup memory for containerized tasks.
+  Sprocket also measures local work-directory disk usage. These engine
+  measurements override overlapping backend fields regardless of event order
+  while preserving backend-only fields such as average memory.
+* Calls in run metrics are grouped by fully qualified call path and include a
+  short display name. The run summary records the execution backend, Sprocket
+  version, and localization transfer volume as a data-movement proxy rather
+  than a billing-egress figure.
 
 ### Changed
 
