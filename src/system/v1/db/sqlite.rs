@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use super::Database;
 use super::DatabaseError;
+use super::NewTask;
 use super::Result;
 use super::models::IndexLogEntry;
 use super::models::LogSource;
@@ -525,23 +526,60 @@ impl Database for SqliteDatabase {
         Ok(entries)
     }
 
-    async fn create_task(&self, name: &str, run_id: Uuid, status: TaskStatus) -> Result<Task> {
+    async fn create_task(&self, task: NewTask<'_>) -> Result<Task> {
         // The upsert makes this idempotent: a task row is created by whichever
         // event observes the task first, and any later creation leaves the row
-        // and its status untouched.
+        // and its status untouched. Only the engine's announcement carries the
+        // call id and attempt number, so a conflicting insert fills in a
+        // missing call id and raises the attempt number to the larger of the
+        // two rather than discarding them.
         let task: Task = sqlx::query_as(
-            "insert into tasks (name, run_id, status) select ?, r.id, ? from runs r where r.uuid \
-             = ? on conflict(\"name\") do update set run_id = tasks.run_id returning name, \
-             (select uuid from runs where id = run_id) as run_uuid, status, exit_status, error, \
-             created_at, started_at, completed_at",
+            "insert into tasks (name, run_id, status, call_id, attempt) select ?, r.id, ?, ?, ? \
+             from runs r where r.uuid = ? on conflict(\"name\") do update set call_id = \
+             coalesce(tasks.call_id, excluded.call_id), attempt = max(tasks.attempt, \
+             excluded.attempt) returning name, (select uuid from runs where id = run_id) as \
+             run_uuid, status, exit_status, error, call_id, attempt, \"constraints\", \
+             retry_cause, created_at, started_at, completed_at",
         )
-        .bind(name)
-        .bind(status)
-        .bind(run_id.to_string())
+        .bind(task.name)
+        .bind(task.status)
+        .bind(task.call_id)
+        .bind(task.attempt)
+        .bind(task.run_id.to_string())
         .fetch_one(&self.pool)
         .await?;
 
         Ok(task)
+    }
+
+    async fn update_task_constraints(&self, name: &str, constraints: &str) -> Result<bool> {
+        let result = sqlx::query(
+            "update tasks
+             set \"constraints\" = ?
+             where name = ?",
+        )
+        .bind(constraints)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_task_retry_cause(&self, name: &str, cause: &str) -> Result<bool> {
+        // No status guard: the failed attempt has usually already reached a
+        // terminal status by the time its retry is announced.
+        let result = sqlx::query(
+            "update tasks
+             set retry_cause = ?
+             where name = ?",
+        )
+        .bind(cause)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 
     async fn update_task_localizing(&self, name: &str) -> Result<bool> {
@@ -682,6 +720,7 @@ impl Database for SqliteDatabase {
     async fn get_task(&self, name: &str) -> Result<Task> {
         let task: Option<Task> = sqlx::query_as(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
+                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id
              where t.name = ?",
@@ -705,6 +744,7 @@ impl Database for SqliteDatabase {
 
         let mut query = String::from(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
+                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id where 1=1",
         );
@@ -1255,7 +1295,11 @@ mod tests {
         .expect("failed to create run");
 
         let task = db
-            .create_task("my_task", run_id, TaskStatus::Pending)
+            .create_task(NewTask::from_backend_event(
+                "my_task",
+                run_id,
+                TaskStatus::Pending,
+            ))
             .await
             .expect("failed to create task");
 
@@ -1280,9 +1324,13 @@ mod tests {
             .await
             .expect("failed to create run");
 
-        db.create_task("t", run_id, TaskStatus::Initializing)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
         assert!(
             db.update_task_started("t", Utc::now())
                 .await
@@ -1292,11 +1340,176 @@ mod tests {
         // Whichever event observes the task second must not resurrect it: the
         // engine and Crankshaft channels have no ordering between them.
         let task = db
-            .create_task("t", run_id, TaskStatus::Pending)
+            .create_task(NewTask::from_backend_event(
+                "t",
+                run_id,
+                TaskStatus::Pending,
+            ))
             .await
             .expect("failed to create task");
 
         assert_eq!(task.status, TaskStatus::Running);
+    }
+
+    #[sqlx::test]
+    async fn create_task_fills_call_id_and_raises_attempt_on_conflict(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        // A backend event observes the task first, carrying neither a call id
+        // nor an attempt number.
+        let task = db
+            .create_task(NewTask::from_backend_event(
+                "wf-t-abc",
+                run_id,
+                TaskStatus::Pending,
+            ))
+            .await
+            .expect("failed to create task");
+        assert_eq!(task.call_id, None);
+        assert_eq!(task.attempt, 0);
+
+        // The engine's announcement arrives second and fills them in.
+        let task = db
+            .create_task(NewTask {
+                name: "wf-t-abc",
+                run_id,
+                status: TaskStatus::Initializing,
+                call_id: Some("wf-t"),
+                attempt: 2,
+            })
+            .await
+            .expect("failed to create task");
+        assert_eq!(task.call_id.as_deref(), Some("wf-t"));
+        assert_eq!(task.attempt, 2);
+        // The existing status is untouched.
+        assert_eq!(task.status, TaskStatus::Pending);
+
+        // A later backend-driven creation must not erase them.
+        let task = db
+            .create_task(NewTask::from_backend_event(
+                "wf-t-abc",
+                run_id,
+                TaskStatus::Pending,
+            ))
+            .await
+            .expect("failed to create task");
+        assert_eq!(task.call_id.as_deref(), Some("wf-t"));
+        assert_eq!(task.attempt, 2);
+    }
+
+    #[sqlx::test]
+    async fn task_constraints_are_recorded_after_terminal_status(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
+
+        assert!(
+            db.update_task_completed("t", Some(0), Utc::now())
+                .await
+                .expect("failed to complete task")
+        );
+
+        // Engine and backend events arrive on independent channels, so the
+        // resolved constraints may be observed after task completion.
+        let constraints = r#"{"cpu":4.0,"memory":8589934592}"#;
+        assert!(
+            db.update_task_constraints("t", constraints)
+                .await
+                .expect("failed to update constraints")
+        );
+        assert_eq!(
+            db.get_task("t")
+                .await
+                .expect("failed to get task")
+                .constraints
+                .as_deref(),
+            Some(constraints)
+        );
+    }
+
+    #[sqlx::test]
+    async fn retry_causes_are_recorded_on_terminal_rows(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
+
+        // The failed attempt has typically already reached a terminal status
+        // when its retry is announced; the cause must still be recorded.
+        assert!(
+            db.update_task_completed("t", Some(137), Utc::now())
+                .await
+                .expect("failed to complete task")
+        );
+
+        let cause = r#"{"kind":"unacceptable_exit_code","code":137}"#;
+        assert!(
+            db.update_task_retry_cause("t", cause)
+                .await
+                .expect("failed to update retry cause")
+        );
+        assert_eq!(
+            db.get_task("t")
+                .await
+                .expect("failed to get task")
+                .retry_cause
+                .as_deref(),
+            Some(cause)
+        );
+
+        // An unknown task is reported as not updated.
+        assert!(
+            !db.update_task_retry_cause("missing", cause)
+                .await
+                .expect("failed to update retry cause")
+        );
     }
 
     #[sqlx::test]
@@ -1315,9 +1528,13 @@ mod tests {
             .await
             .expect("failed to create run");
 
-        db.create_task("t", run_id, TaskStatus::Initializing)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
 
         assert!(
             db.update_task_localizing("t")
@@ -1386,9 +1603,13 @@ mod tests {
             .await
             .expect("failed to create run");
 
-        db.create_task("t", run_id, TaskStatus::Initializing)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
 
         let completed_at = Utc::now();
         assert!(
@@ -1436,7 +1657,11 @@ mod tests {
         .expect("failed to create run");
 
         let created_task = db
-            .create_task("my_task", run_id, TaskStatus::Pending)
+            .create_task(NewTask::from_backend_event(
+                "my_task",
+                run_id,
+                TaskStatus::Pending,
+            ))
             .await
             .expect("failed to create task");
 
@@ -1481,17 +1706,29 @@ mod tests {
         .await
         .expect("failed to create run");
 
-        db.create_task("task1", run1_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "task1",
+            run1_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
 
-        db.create_task("task2", run1_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "task2",
+            run1_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
 
-        db.create_task("task3", run2_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "task3",
+            run2_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
 
         // Update one task to running status
         db.update_task_started("task2", Utc::now())
@@ -1583,9 +1820,13 @@ mod tests {
 
         // run_id: two pending, one running, one completed.
         for name in ["t1", "t2", "t3", "t4"] {
-            db.create_task(name, run_id, TaskStatus::Pending)
-                .await
-                .expect("failed to create task");
+            db.create_task(NewTask::from_backend_event(
+                name,
+                run_id,
+                TaskStatus::Pending,
+            ))
+            .await
+            .expect("failed to create task");
         }
         db.update_task_started("t3", Utc::now())
             .await
@@ -1595,9 +1836,13 @@ mod tests {
             .expect("failed to update task");
 
         // A task on a different run must not be counted.
-        db.create_task("other", other_run_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "other",
+            other_run_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
 
         let counts = db
             .count_tasks_by_status(run_id)
@@ -1644,9 +1889,13 @@ mod tests {
         .await
         .expect("failed to create run");
 
-        db.create_task("my_task", run_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "my_task",
+            run_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
 
         db.insert_task_log("my_task", LogSource::Stdout, b"hello")
             .await
@@ -1686,9 +1935,13 @@ mod tests {
         .await
         .expect("failed to create run");
 
-        db.create_task("my_task", run_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            "my_task",
+            run_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
 
         db.insert_task_log("my_task", LogSource::Stdout, b"line1")
             .await
@@ -1786,9 +2039,13 @@ mod tests {
 
             // A task still `running`, as if its executor died mid-task.
             let task_name = format!("orphaned-task-{i}");
-            db.create_task(&task_name, run_id, TaskStatus::Pending)
-                .await
-                .expect("failed to create task");
+            db.create_task(NewTask::from_backend_event(
+                &task_name,
+                run_id,
+                TaskStatus::Pending,
+            ))
+            .await
+            .expect("failed to create task");
             db.update_task_started(&task_name, now)
                 .await
                 .expect("failed to update task");
@@ -1866,9 +2123,13 @@ mod tests {
             .await
             .expect("failed to update run status");
         let live_task_name = "live-server-task";
-        db.create_task(live_task_name, live_run_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            live_task_name,
+            live_run_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
         db.update_task_started(live_task_name, now)
             .await
             .expect("failed to update task");
@@ -1922,9 +2183,13 @@ mod tests {
             .await
             .expect("failed to update run status");
         let fresh_task_name = "fresh-task";
-        db.create_task(fresh_task_name, fresh_run_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            fresh_task_name,
+            fresh_run_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
         db.update_task_started(fresh_task_name, now)
             .await
             .expect("failed to update task");
@@ -1953,9 +2218,13 @@ mod tests {
             .await
             .expect("failed to update run status");
         let cli_task_name = "cli-task-in-progress";
-        db.create_task(cli_task_name, cli_run_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            cli_task_name,
+            cli_run_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
         db.update_task_started(cli_task_name, now)
             .await
             .expect("failed to update task");
@@ -1984,9 +2253,13 @@ mod tests {
             .await
             .expect("failed to update run status");
         let dead_cli_task_name = "cli-task-killed";
-        db.create_task(dead_cli_task_name, dead_cli_run_id, TaskStatus::Pending)
-            .await
-            .expect("failed to create task");
+        db.create_task(NewTask::from_backend_event(
+            dead_cli_task_name,
+            dead_cli_run_id,
+            TaskStatus::Pending,
+        ))
+        .await
+        .expect("failed to create task");
         db.update_task_started(dead_cli_task_name, now)
             .await
             .expect("failed to update task");

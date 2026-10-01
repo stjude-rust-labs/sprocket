@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use anyhow::Result;
 use chrono::Utc;
 use crankshaft::events::Event as CrankshaftEvent;
@@ -19,7 +20,17 @@ use wdl::engine::EngineEvent;
 
 use crate::system::v1::db::Database;
 use crate::system::v1::db::LogSource;
+use crate::system::v1::db::NewTask;
 use crate::system::v1::db::TaskStatus;
+
+/// In-memory record of a task's call id and attempt number.
+#[derive(Debug, Clone, Default)]
+struct TaskMeta {
+    /// The stable WDL call path shared by every attempt of the same call.
+    call_id: Option<String>,
+    /// The 0-based execution attempt number within the call.
+    attempt: i64,
+}
 
 /// An event received by the monitor, or the loss of the channel carrying it.
 enum Incoming {
@@ -72,6 +83,8 @@ pub struct TaskMonitorSvc {
     /// The names of tasks that have a database row but have not been observed
     /// reaching a terminal status.
     unfinished: HashSet<String>,
+    /// In-memory call id and attempt tracking per task name.
+    task_meta: HashMap<String, TaskMeta>,
 }
 
 impl TaskMonitorSvc {
@@ -91,6 +104,7 @@ impl TaskMonitorSvc {
             shutdown,
             task_names: HashMap::new(),
             unfinished: HashSet::new(),
+            task_meta: HashMap::new(),
         }
     }
 
@@ -129,6 +143,7 @@ impl TaskMonitorSvc {
                         error!("{e:#}");
                     }
                 }
+
                 Incoming::Engine(event) => {
                     if let Err(e) = self.handle_engine_event(event).await {
                         error!("{e:#}");
@@ -199,30 +214,81 @@ impl TaskMonitorSvc {
     /// Handles a received engine event.
     async fn handle_engine_event(&mut self, event: EngineEvent) -> Result<()> {
         match event {
-            EngineEvent::TaskInitializing {
-                id: _,
-                name,
-                attempt: _,
-            } => {
+            EngineEvent::TaskInitializing { id, name, attempt } => {
+                let attempt = attempt.try_into().unwrap_or(i64::MAX);
+                self.task_meta.insert(
+                    name.clone(),
+                    TaskMeta {
+                        call_id: Some(id.clone()),
+                        attempt,
+                    },
+                );
                 self.db
-                    .create_task(&name, self.run_id, TaskStatus::Initializing)
+                    .create_task(NewTask {
+                        name: &name,
+                        run_id: self.run_id,
+                        status: TaskStatus::Initializing,
+                        call_id: Some(&id),
+                        attempt,
+                    })
                     .await?;
                 self.unfinished.insert(name);
             }
             EngineEvent::TaskLocalizing { name } => {
                 let _ = self.db.update_task_localizing(&name).await?;
             }
-            EngineEvent::TaskExecuting { .. } | EngineEvent::TaskRetrying { .. } => {
-                // Execution constraints and retry causes are not yet recorded
-                // in the database; these events will be consumed when task
-                // metrics are persisted.
+            EngineEvent::TaskExecuting { name, constraints } => {
+                let constraints = serde_json::to_string(&constraints)
+                    .context("failed to serialize task constraints")?;
+                let _ = self.db.update_task_constraints(&name, &constraints).await?;
             }
-            EngineEvent::ReusedCachedExecutionResult { id: _, name } => {
-                // The task may never have been announced as initializing if
-                // that event is still in flight on the other
-                // channel.
+            EngineEvent::TaskRetrying {
+                prior_name,
+                next_name,
+                cause,
+            } => {
+                // Record the cause on the attempt that failed; that row has
+                // usually already reached a terminal status.
+                let cause =
+                    serde_json::to_string(&cause).context("failed to serialize retry cause")?;
+                let _ = self.db.update_task_retry_cause(&prior_name, &cause).await?;
+
+                // Create the successor's row, inheriting the call id and
+                // attempt number from the failed attempt. An evaluator retry
+                // is followed by a `TaskInitializing` event that raises the
+                // attempt number; a backend-local resubmission is not, and
+                // remains part of the same attempt.
+                let TaskMeta { call_id, attempt } =
+                    self.task_meta.get(&prior_name).cloned().unwrap_or_default();
+                self.task_meta.insert(
+                    next_name.clone(),
+                    TaskMeta {
+                        call_id: call_id.clone(),
+                        attempt,
+                    },
+                );
                 self.db
-                    .create_task(&name, self.run_id, TaskStatus::Initializing)
+                    .create_task(NewTask {
+                        name: &next_name,
+                        run_id: self.run_id,
+                        status: TaskStatus::Initializing,
+                        call_id: call_id.as_deref(),
+                        attempt,
+                    })
+                    .await?;
+                self.unfinished.insert(next_name);
+            }
+            EngineEvent::ReusedCachedExecutionResult { id, name } => {
+                // The task may never have been announced as initializing if
+                // that event is still in flight on the other channel.
+                self.db
+                    .create_task(NewTask {
+                        name: &name,
+                        run_id: self.run_id,
+                        status: TaskStatus::Initializing,
+                        call_id: Some(&id),
+                        attempt: 0,
+                    })
                     .await?;
                 let _ = self.db.update_task_cached(&name, Utc::now()).await?;
                 self.unfinished.remove(&name);
@@ -262,7 +328,11 @@ impl TaskMonitorSvc {
 
                 self.task_names.insert(id, name.clone());
                 self.db
-                    .create_task(&name, self.run_id, TaskStatus::Pending)
+                    .create_task(NewTask::from_backend_event(
+                        &name,
+                        self.run_id,
+                        TaskStatus::Pending,
+                    ))
                     .await?;
                 let _ = self.db.update_task_pending(&name).await?;
                 self.unfinished.insert(name);
@@ -338,5 +408,74 @@ impl TaskMonitorSvc {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wdl::engine::RetryCause;
+
+    use super::*;
+    use crate::system::v1::db::SprocketCommand;
+    use crate::system::v1::db::SqliteDatabase;
+
+    #[sqlx::test]
+    async fn retry_inherits_metadata_without_reading_the_prior_row(pool: sqlx::SqlitePool) {
+        let db = Arc::new(
+            SqliteDatabase::from_pool(pool.clone())
+                .await
+                .expect("failed to create database"),
+        );
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        let (_crankshaft_tx, crankshaft) = broadcast::channel(1);
+        let (_engine_tx, engine) = broadcast::channel(1);
+        let mut monitor = TaskMonitorSvc::new(
+            run_id,
+            db.clone(),
+            crankshaft,
+            engine,
+            CancellationToken::new(),
+        );
+
+        monitor
+            .handle_engine_event(EngineEvent::TaskInitializing {
+                id: "wf.task".to_string(),
+                name: "wf-task-attempt-0".to_string(),
+                attempt: 2,
+            })
+            .await
+            .expect("failed to initialize task");
+
+        sqlx::query("delete from tasks where name = ?")
+            .bind("wf-task-attempt-0")
+            .execute(&pool)
+            .await
+            .expect("failed to remove prior task row");
+
+        monitor
+            .handle_engine_event(EngineEvent::TaskRetrying {
+                prior_name: "wf-task-attempt-0".to_string(),
+                next_name: "wf-task-attempt-0-resubmit-1".to_string(),
+                cause: RetryCause::Preempted,
+            })
+            .await
+            .expect("failed to retry task");
+
+        let successor = db
+            .get_task("wf-task-attempt-0-resubmit-1")
+            .await
+            .expect("failed to get successor");
+        assert_eq!(successor.call_id.as_deref(), Some("wf.task"));
+        assert_eq!(successor.attempt, 2);
     }
 }
