@@ -950,8 +950,7 @@ dependencies = [
 [[package]]
 name = "crankshaft"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b963cab1421284749bdb4208fe8f9fd6911aa672c11490ebf893cc4b88eceb10"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?rev=fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25#fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -962,8 +961,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f489f88e512708b6c8ef2af5f5116a32718306e96c1c5f3f809b0ad87c8c62e7"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?rev=fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25#fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25"
 dependencies = [
  "base64 0.23.1",
  "bon",
@@ -978,8 +976,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32270692331b8df45d9d09e02f80f9bca14b3497c53eb5eeccd7b55ea14169c0"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?rev=fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25#fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25"
 dependencies = [
  "anyhow",
  "bollard",
@@ -999,13 +996,13 @@ dependencies = [
 [[package]]
 name = "crankshaft-engine"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bed9250b3a3d05e2b1f1efcbdf846378cd508ec893fbf4ffb76a9ae5067e5bbe"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?rev=fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25#fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25"
 dependencies = [
  "anyhow",
  "async-trait",
  "bollard",
  "bon",
+ "chrono",
  "crankshaft-config",
  "crankshaft-docker",
  "crankshaft-events",
@@ -1016,6 +1013,7 @@ dependencies = [
  "nonempty",
  "rand 0.10.3",
  "regex",
+ "serde_json",
  "shlex",
  "ssh2",
  "tempfile",
@@ -1032,11 +1030,11 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "428654063552284942d96e2b80df5b8a7a4d154f0351ae30c549432596133246"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?rev=fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25#fd9cecee31c2a546bce0c7ccc2cd0fd45c0cfc25"
 dependencies = [
  "bytes",
  "nonempty",
+ "serde",
  "tokio-util",
 ]
 
@@ -5181,6 +5179,7 @@ dependencies = [
  "codespan-reporting",
  "colored",
  "crankshaft",
+ "crankshaft-events",
  "criterion",
  "dialoguer",
  "dirs",
@@ -6020,6 +6019,7 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-sink",
+ "futures-util",
  "libc",
  "pin-project-lite",
  "tokio",

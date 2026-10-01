@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 * `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* Added the `backends.<name>.resource_usage_interval` Docker configuration
+  option for sampling task memory and CPU usage.
+* The LSF and Slurm backends report task resource utilization through
+  Crankshaft's cumulative `TaskResourceUsage` event. LSF sources measurements
+  from `bjobs`; Slurm uses `sacct`.
 
 #### Changed
 

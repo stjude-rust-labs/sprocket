@@ -515,6 +515,7 @@ impl DockerBackend {
         let backend = docker::Backend::initialize_default_with(
             backend::docker::Config::builder()
                 .cleanup(backend_config.cleanup)
+                .maybe_resource_usage_interval(backend_config.resource_usage_interval)
                 .build(),
             names.clone(),
         )
@@ -927,6 +928,7 @@ mod tests {
                 | CrankshaftEvent::TaskFailed { id, .. }
                 | CrankshaftEvent::TaskCanceled { id }
                 | CrankshaftEvent::TaskPreempted { id }
+                | CrankshaftEvent::TaskResourceUsage { id, .. }
                 | CrankshaftEvent::TaskStdout { id, .. }
                 | CrankshaftEvent::TaskStderr { id, .. }
                 | CrankshaftEvent::ImagePullStarted { id, .. }

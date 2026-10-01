@@ -74,6 +74,14 @@ pub struct TaskAttemptMetrics {
     /// `null` when the attempt was not retried.
     #[schema(value_type = Option<Object>)]
     pub retry_cause: Option<serde_json::Value>,
+    /// The resource utilization observed for the attempt (resident memory,
+    /// CPU time).
+    ///
+    /// Recorded at the attempt's termination by backends whose scheduler
+    /// reports utilization (currently LSF and Slurm); `null` for other
+    /// backends.
+    #[schema(value_type = Option<Object>)]
+    pub utilization: Option<serde_json::Value>,
     /// A reference to the attempt's logs.
     pub logs: String,
 }
@@ -183,6 +191,7 @@ pub fn build_run_metrics(
             queued_ms: duration_ms(Some(task.created_at), task.started_at),
             constraints: task.constraints,
             retry_cause: task.retry_cause,
+            utilization: task.utilization,
         };
 
         match calls.iter_mut().find(|c| c.call_id == call_id) {

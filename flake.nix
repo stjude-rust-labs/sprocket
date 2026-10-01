@@ -70,10 +70,12 @@
           # Registry crate hashes come from Cargo.lock itself, so routine
           # dependency bumps need no Nix changes—there is no whole-vendor hash
           # to go stale. The pinned nixpkgs downloads crates directly from the
-          # crates.io CDN, avoiding the API endpoint's rate limit.
-          # (`outputHashes` would only be needed for git-sourced crates, of
-          # which the workspace currently has none.)
-          cargoLock.lockFile = ./Cargo.lock;
+          # crates.io CDN, avoiding the API endpoint's rate limit. Git
+          # dependencies require an explicit source hash.
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+            outputHashes."crankshaft-0.11.0" = "sha256-6LafztiI6W5PH/wuhu8AGbqe5lxi09r2grvyrau6OII=";
+          };
 
           inherit nativeBuildInputs buildInputs;
 

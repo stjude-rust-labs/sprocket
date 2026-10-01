@@ -1812,6 +1812,16 @@
               "type": "boolean",
               "default": true
             },
+            "resource_usage_interval": {
+              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nWhen set, each task's peak and average memory and cumulative CPU time\nare sampled from the Docker daemon at this interval and reported in\nthe run's metrics.\n\nWhen unset or zero, resource usage is not sampled. Sampling applies\nonly to local container execution; it is not supported for Docker\nSwarm services.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0,
+              "default": null
+            },
             "type": {
               "type": "string",
               "const": "docker"
