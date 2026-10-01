@@ -37,6 +37,8 @@ use crate::Value;
 use crate::diagnostics::unknown_enum;
 use crate::diagnostics::unknown_enum_choice;
 use crate::digest::DigestCalculator;
+use crate::eval::RetryCause;
+use crate::eval::TaskConstraintsSnapshot;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.
@@ -173,11 +175,12 @@ impl Evaluator {
     }
 
     /// Notifies that a task has started evaluating an execution attempt.
-    fn notify_task_initializing(&self, id: &str, name: &str) {
+    fn notify_task_initializing(&self, id: &str, name: &str, attempt: u64) {
         if let Some(sender) = &self.0.events.engine {
             let _ = sender.send(EngineEvent::TaskInitializing {
                 id: id.to_string(),
                 name: name.to_string(),
+                attempt,
             });
         }
     }
@@ -187,6 +190,28 @@ impl Evaluator {
         if let Some(sender) = &self.0.events.engine {
             let _ = sender.send(EngineEvent::TaskLocalizing {
                 name: name.to_string(),
+            });
+        }
+    }
+
+    /// Notifies that a task execution attempt is being submitted to the
+    /// backend.
+    fn notify_task_executing(&self, name: &str, constraints: TaskConstraintsSnapshot) {
+        if let Some(sender) = &self.0.events.engine {
+            let _ = sender.send(EngineEvent::TaskExecuting {
+                name: name.to_string(),
+                constraints,
+            });
+        }
+    }
+
+    /// Notifies that a task execution attempt failed and is being retried.
+    fn notify_task_retrying(&self, prior_name: &str, next_name: &str, cause: RetryCause) {
+        if let Some(sender) = &self.0.events.engine {
+            let _ = sender.send(EngineEvent::TaskRetrying {
+                prior_name: prior_name.to_string(),
+                next_name: next_name.to_string(),
+                cause,
             });
         }
     }

@@ -783,6 +783,16 @@ async fn progress(
                         EngineEvent::TaskLocalizing { name } => {
                             state.enter_preparation(name, Preparation::Localizing);
                         }
+                        EngineEvent::TaskExecuting { .. } => {
+                            // Submission to the backend is reported by the
+                            // Crankshaft `TaskCreated` event; the constraints
+                            // this event carries are not displayed here.
+                        }
+                        EngineEvent::TaskRetrying { prior_name, .. } => {
+                            // The failed attempt is finished; the retry is
+                            // announced separately and re-enters preparation.
+                            state.depart(&Arc::new(prior_name));
+                        }
                         EngineEvent::ReusedCachedExecutionResult { name, .. } => {
                             state.depart(&Arc::new(name));
                             state.cached += 1;
@@ -797,6 +807,7 @@ async fn progress(
                                 state.canceled += 1;
                             }
                         }
+                        _ => {}
                     };
 
                     progress_bar.pb_set_message(&message(&mut state));
