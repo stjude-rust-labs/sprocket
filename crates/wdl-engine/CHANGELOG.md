@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zero or an omitted value disables it. Sampling reports cache-adjusted
   container memory and cumulative CPU time, is unavailable for Docker Swarm,
   and may miss tasks that finish before the first interval.
+* Added the `backends.<name>.resource_usage_metadata` TES configuration
+  option. When enabled, tasks are polled with the `BASIC` view and supported
+  top-level `TaskLog.metadata` resource usage values are reported through
+  Crankshaft's `TaskResourceUsage` event. The TES server defines each value's
+  semantics; Planetary reports sampled Kubernetes working-set memory and
+  cumulative CPU time.
 * Added an opt-in resource usage measurement shim
   (`task.measure_resource_usage`, off by default): the engine wraps each task
   command with a portable POSIX shell shim that records the shell's child CPU

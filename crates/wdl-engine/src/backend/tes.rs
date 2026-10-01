@@ -134,6 +134,7 @@ impl TesBackend {
                 .url(backend_config.url.clone().expect("should have URL"))
                 .http(http)
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
+                .resource_usage_metadata(backend_config.resource_usage_metadata)
                 .build(),
             names.clone(),
         )
