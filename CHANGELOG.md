@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Moved the note-severity checks in `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` into new lint rules: `MutableContainerTag`, `RedundantContainerArray`, `DeprecatedRuntimeKey`, `RecommendedRuntimeKeys`, `OutputMetaOrder`, `ExtraneousParameterMeta`, and `ParameterMetaOrder` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `BashSetSyntax` now reports unknown `set` options as warnings, and `ShellCheck` reports a failure to run `shellcheck` as a note ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Renamed lint rules `ExpectedRuntimeKeys` to `UnknownRuntimeKeys` and `ParameterMetaMatched` to `MissingParameterMeta` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Execution database writes use fewer commits and less network-filesystem I/O.
+  Run status transitions use a single statement, successful completion stores
+  outputs and status together, and task writes are buffered into transactions.
+  SQLite now uses `PERSIST` journaling with memory-mapped I/O disabled and a
+  smaller connection pool. Task state visible to readers may lag by one
+  250-millisecond flush interval.
+* Task resource utilization updates use SQLite JSON merge patches instead of a
+  database read followed by a Rust-side merge and update.
 * Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).
 * `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
 * Unknown keys in `sprocket.toml` will now produce warnings, rather than error ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).

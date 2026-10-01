@@ -588,6 +588,25 @@ impl RunnableExecutor {
                     .db
                     .fail_run(self.run_id, &format!("{e:#}"), Utc::now())
                     .await;
+
+                // Match the shutdown sequencing used on every other exit
+                // path: cancel and await the task monitor rather than just
+                // dropping its handle. No transfer could have started this
+                // early (parse_inputs runs before execute_target's
+                // localization phase), so this doesn't lose data either way,
+                // but it keeps the graceful cancel-then-drain sequence
+                // consistent.
+                monitor_shutdown.cancel();
+                match task_monitor.await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => {
+                        tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+                    }
+                    Err(e) => {
+                        tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+                    }
+                }
+
                 self.runs.lock().await.remove(&self.run_id);
                 return;
             }
@@ -621,8 +640,14 @@ impl RunnableExecutor {
         // never reached a terminal status before the run is considered
         // finished.
         monitor_shutdown.cancel();
-        if let Err(e) = task_monitor.await {
-            tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+        match task_monitor.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+            }
+            Err(e) => {
+                tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+            }
         }
 
         self.runs.lock().await.remove(&self.run_id);
@@ -735,9 +760,12 @@ async fn set_run_success(
     fs::write(&outputs_file, serde_json::to_string_pretty(&outputs_json)?)
         .context("failed to write outputs file")?;
 
-    // Update outputs in database
+    // The outputs are recorded in the database together with the run's
+    // final `Completed` status below (`complete_run_with_outputs`), rather
+    // than as a separate write here; index creation only needs the
+    // in-memory `outputs_with_name`, so there's no need to persist outputs
+    // to the database before it runs.
     let outputs_str = serde_json::to_string(&outputs_json)?;
-    db.update_run_outputs(ctx.run_id, &outputs_str).await?;
 
     // Create the index entries if index_on was provided
     if let Some(index_on) = index_on {
@@ -761,7 +789,14 @@ async fn set_run_success(
         }
     }
 
-    db.complete_run(ctx.run_id, Utc::now()).await?;
+    // This is on the always-executed run-success hot path, so a transient
+    // lock-contention error here must not be allowed to incorrectly record an
+    // actually-successful run as failed (see `retry_on_lock`'s doc comment).
+    let completed_at = Utc::now();
+    crate::system::v1::db::retry_on_lock(|| {
+        db.complete_run_with_outputs(ctx.run_id, completed_at, &outputs_str)
+    })
+    .await?;
 
     info!(
         "run `{}` ({}) completed successfully",
@@ -806,7 +841,7 @@ async fn execute_workflow_target(
     // Ensure the inputs are for a workflow
     if inputs.as_workflow_inputs().is_none() {
         let error = "inputs are for a task, not a workflow";
-        db.fail_run(ctx.run_id, error, Utc::now())
+        crate::system::v1::db::retry_on_lock(|| db.fail_run(ctx.run_id, error, Utc::now()))
             .await
             .context("failed to update database")?;
         return Err(anyhow!(error).into());
@@ -869,7 +904,7 @@ async fn execute_task_target(
     // Ensure the inputs are for a task
     if inputs.as_task_inputs().is_none() {
         let error = "inputs are for a workflow, not a task";
-        db.fail_run(ctx.run_id, error, Utc::now())
+        crate::system::v1::db::retry_on_lock(|| db.fail_run(ctx.run_id, error, Utc::now()))
             .await
             .context("failed to update database")?;
         return Err(anyhow!(error).into());
@@ -934,10 +969,15 @@ pub async fn execute_target(
     base_dir: &EvaluationPath,
     index_on: Option<&IndexPath>,
 ) -> Result<(), EvaluationError> {
-    db.start_run(ctx.run_id, ctx.started_at)
+    let cancellation_status = cancellation.clone();
+    // This is on the run-execution hot path before any work has started, so
+    // a transient lock-contention error here must not be allowed to abort
+    // the entire run (see `retry_on_lock`'s doc comment; this is exactly
+    // the failure mode observed in production: a `SQLITE_BUSY` error that
+    // outlasted `busy_timeout` aborted a run at this call).
+    crate::system::v1::db::retry_on_lock(|| db.start_run(ctx.run_id, ctx.started_at))
         .await
         .map_err(anyhow::Error::from)?;
-    let cancellation_status = cancellation.clone();
     let result: Result<Option<Outputs>, EvaluationError> = async {
         match target {
             Target::Task(_) => {
