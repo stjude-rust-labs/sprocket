@@ -342,7 +342,7 @@
               "severity": "warning"
             },
             "ParameterizedResources": {
-              "severity": "note"
+              "severity": "off"
             },
             "ParameterMetaOrder": {
               "severity": "note"
@@ -685,7 +685,7 @@
           "description": "The `ParameterizedResources` rule.",
           "$ref": "#/$defs/ParameterizedResourcesConfig",
           "default": {
-            "severity": "note"
+            "severity": "off"
           }
         },
         "ParameterMetaOrder": {
@@ -1342,7 +1342,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "off"
         }
       },
       "additionalProperties": false
