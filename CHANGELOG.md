@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Implemented `sprocket dev lock` to pin `task` container images ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 * Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 
@@ -24,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
 * Unknown keys in `sprocket.toml` will now produce warnings, rather than error ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 * `Config::new()` now returns a `BuiltConfig` containing parse warnings ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* The `--locked` flag in `run` has been renamed to `--lock-modules` ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* `run --locked` now enforces that all `task` container images have an entry in `sprocket.lock` ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 
 ### Fixed
 

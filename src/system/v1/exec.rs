@@ -38,6 +38,7 @@ use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
+use wdl::engine::images::ContainerImageOverrides;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -393,6 +394,8 @@ pub struct RunnableExecutor {
     report_mode: Mode,
     /// Whether to colorize diagnostics.
     colorize: bool,
+    /// See [`Evaluator`].image_overrides.
+    image_overrides: Option<ContainerImageOverrides>,
 }
 
 impl RunnableExecutor {
@@ -600,6 +603,7 @@ impl RunnableExecutor {
             self.engine,
             self.events,
             self.cancellation,
+            self.image_overrides,
             &resolved_target,
             inputs,
             &run_dir,
@@ -786,6 +790,7 @@ async fn execute_workflow_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
+    image_overrides: Option<ContainerImageOverrides>,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
@@ -823,7 +828,7 @@ async fn execute_workflow_target(
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = engine.create_v1_evaluator(events, cancellation);
+    let evaluator = engine.create_v1_evaluator(events, cancellation, image_overrides);
 
     match evaluator
         .evaluate_workflow(document, inputs, run_dir.root())
@@ -852,6 +857,7 @@ async fn execute_task_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
+    image_overrides: Option<ContainerImageOverrides>,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
@@ -883,7 +889,7 @@ async fn execute_task_target(
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = engine.create_v1_evaluator(events, cancellation);
+    let evaluator = engine.create_v1_evaluator(events, cancellation, image_overrides);
     let evaluated_task = match evaluator
         .evaluate_task(document, task, inputs, run_dir.root())
         .await
@@ -904,22 +910,23 @@ async fn execute_task_target(
 ///
 /// # Arguments
 ///
-/// - `db` is a reference to the database and is used to update various aspects
+/// * `db` - A reference to the database and is used to update various aspects
 ///   of the database as execution proceeds.
-/// - `ctx` is the context of the run created for this execution (run UUID, run
+/// * `ctx` - The context of the run created for this execution (run UUID, run
 ///   name, start time, etc).
-/// - `document` is the analysis document containing the task or workflow to
+/// * `document` - The analysis document containing the task or workflow to
 ///   execute.
-/// - `config` is the WDL engine configuration to use during evaluation.
-/// - `cancellation` is the cancellation context for this run.
-/// - `events` is the events system for progress reporting.
-/// - `target` is the target we are attempting to execute.
-/// - `inputs` is the unparsed version of the inputs as JSON.
-/// - `run_dir` is the run directory to output the results to.
-/// - `base_dir` is the directory from which relative paths in inputs should be
+/// * `config` - The WDL engine configuration to use during evaluation.
+/// * `cancellation` - The cancellation context for this run.
+/// * `events` - The events system for progress reporting.
+/// * `image_overrides` - Container image overrides, see [`ImageOverrideMap`].
+/// * `target` - The target we are attempting to execute.
+/// * `inputs` - The unparsed version of the inputs as JSON.
+/// * `run_dir` - The run directory to output the results to.
+/// * `base_dir` - The directory from which relative paths in inputs should be
 ///   resolved. For the server, this is typically the server's working
 ///   directory. For the CLI, paths should already be absolute.
-/// - `index_on` is the index path to index the run outputs under, if provided.
+/// * `index_on` - The index path to index the run outputs under, if provided.
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_target(
     db: Arc<dyn Database>,
@@ -928,6 +935,7 @@ pub async fn execute_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
+    image_overrides: Option<ContainerImageOverrides>,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
@@ -948,6 +956,7 @@ pub async fn execute_target(
                     engine,
                     events,
                     cancellation.clone(),
+                    image_overrides,
                     target,
                     inputs,
                     run_dir,
@@ -963,6 +972,7 @@ pub async fn execute_target(
                     engine,
                     events,
                     cancellation,
+                    image_overrides,
                     inputs,
                     run_dir,
                     base_dir,

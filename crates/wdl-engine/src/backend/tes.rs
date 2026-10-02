@@ -50,6 +50,7 @@ use crate::config::Config;
 use crate::config::ContentDigestMode;
 use crate::config::TesBackendAuthConfig;
 use crate::digest::UrlDigestExt;
+use crate::images::ContainerImageOverrides;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::hints;
@@ -139,9 +140,15 @@ impl TaskExecutionBackend for TesBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
         for source in &sources {
             match source {
                 ImageSource::Docker(_) | ImageSource::Library(_) | ImageSource::Oras(_) => {}

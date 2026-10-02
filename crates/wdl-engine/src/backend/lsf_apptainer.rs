@@ -64,6 +64,7 @@ use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
+use crate::images::ContainerImageOverrides;
 use crate::v1::requirements;
 
 /// The name of the file where the Apptainer command invocation will be written.
@@ -773,6 +774,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut required_cpu = requirements::cpu(inputs, requirements);
@@ -842,7 +844,12 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         Ok(TaskExecutionConstraints {
             sources,

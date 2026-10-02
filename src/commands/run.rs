@@ -54,6 +54,7 @@ use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::RetryConfig;
 use wdl::engine::config::SecretString;
+use wdl::engine::images::ImageOverrideResolutionFailureMode;
 
 use crate::Config;
 use crate::FileReloadHandle;
@@ -65,6 +66,7 @@ use crate::commands::CommandResult;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
+use crate::lock::file::LockFile;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::HeartbeatGuard;
@@ -143,7 +145,15 @@ pub struct Args {
     /// Fail if `module-lock.json` is missing or out of date instead of
     /// regenerating it before evaluation.
     #[clap(long)]
+    pub lock_modules: bool,
+
+    /// Fail if a container image is missing from the `sprocket.lock`.
+    #[clap(long)]
     pub locked: bool,
+
+    /// Run without locking container images to digests.
+    #[clap(long, conflicts_with = "locked")]
+    pub unlocked: bool,
 
     /// The index path to index the run outputs under.
     ///
@@ -904,6 +914,19 @@ pub async fn run(
             .context("failed to modify tracing filter")?;
     }
 
+    let lock_file = if args.unlocked {
+        LockFile::default()
+    } else {
+        let file = LockFile::locate(&source)?;
+        if args.locked && file.is_none() {
+            return Err(
+                anyhow!("--locked cannot be used without a `sprocket.lock` present").into(),
+            );
+        }
+
+        file.unwrap_or_default()
+    };
+
     let report_mode = config.common.report_mode;
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
@@ -914,7 +937,7 @@ pub async fn run(
     // the run proceeds against a consistent, reproducible tree, unless
     // `--locked` asked for the run to fail instead.
     if let Some(dir) = source.local_start_dir() {
-        let policy = if args.locked {
+        let policy = if args.lock_modules {
             crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
         } else {
             crate::commands::module::auto_lock::LockfilePolicy::Regenerate
@@ -1056,6 +1079,13 @@ pub async fn run(
         .await
         .context("failed to create WDL evaluation engine")?;
 
+    let mut image_overrides = lock_file.as_container_overrides();
+    if args.locked
+        && let Some(overrides) = image_overrides.as_mut()
+    {
+        overrides.set_failure_mode(ImageOverrideResolutionFailureMode::Error);
+    }
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
@@ -1063,6 +1093,7 @@ pub async fn run(
         engine,
         events,
         cancellation.clone(),
+        image_overrides,
         &target,
         inputs,
         &run_dir,

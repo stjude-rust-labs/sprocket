@@ -71,6 +71,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --unlocked
+          Run tests without locking container images to digests
+
       --no-ignore
           Ignore `.sprocketignore` files while discovering WDL documents
 

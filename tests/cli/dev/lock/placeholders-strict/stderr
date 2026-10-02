@@ -1,0 +1,7 @@
+error: container with placeholder
+   ┌─ source.wdl:11:20
+   │
+11 │         container: "python:~{python_tag}"
+   │                    ^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: lock entries cannot be generated for placeholder values
