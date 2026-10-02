@@ -106,6 +106,7 @@ Available rules:
   - OutputName
   - ParameterDescription
   - ParameterMetaOrder
+  - ParameterizedResources
   - PascalCase
   - RecommendedRuntimeKeys
   - RedundantContainerArray

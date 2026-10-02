@@ -412,6 +412,9 @@ define_rules_config! {
         "MissingParameterMeta" => missing_parameter_meta: MissingParameterMetaConfig {
             severity = RuleSeverity::Warning;
         }
+        "ParameterizedResources" => parameterized_resources: ParameterizedResourcesConfig {
+            severity = RuleSeverity::Off;
+        }
         "ParameterMetaOrder" => parameter_meta_order: ParameterMetaOrderConfig {
             severity = RuleSeverity::Note;
         }

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added `RuleSeverity` and a `severity` for every rule in `Config` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `DeprecatedRuntimeKey`, `ExtraneousParameterMeta`, `MutableContainerTag`, `OutputMetaOrder`, `ParameterMetaOrder`, `RecommendedRuntimeKeys`, and `RedundantContainerArray` lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `ParameterizedResources` lint rule to flag tasks with fixed resource allocations ([#1232](https://github.com/stjude-rust-labs/sprocket/pull/1232)).
 
 #### Changed
 

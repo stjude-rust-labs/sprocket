@@ -15,6 +15,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
+use wdl_ast::v1::RequirementsItem;
 
 use crate::Config;
 use crate::Rule;
@@ -233,6 +234,17 @@ impl Visitor for Linter {
     ) {
         self.each_enabled_rule(diagnostics, |diagnostics, rule| {
             rule.requirements_section(diagnostics, reason, section)
+        });
+    }
+
+    fn requirements_item(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        item: &RequirementsItem,
+    ) {
+        self.each_enabled_rule(diagnostics, |diagnostics, rule| {
+            rule.requirements_item(diagnostics, reason, item)
         });
     }
 
