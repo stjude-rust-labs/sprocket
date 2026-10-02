@@ -143,7 +143,7 @@ severity = "note"
 severity = "warning"
 
 [check.rules.ParameterizedResources]
-severity = "note"
+severity = "off"
 
 [check.rules.ParameterMetaOrder]
 severity = "note"
