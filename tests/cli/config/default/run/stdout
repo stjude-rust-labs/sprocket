@@ -119,6 +119,8 @@ severity = "warning"
 
 [check.rules.InputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.MatchingOutputMeta]
 severity = "warning"
@@ -134,6 +136,8 @@ severity = "note"
 
 [check.rules.OutputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.OutputMetaOrder]
 severity = "note"
