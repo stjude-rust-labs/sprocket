@@ -8,11 +8,6 @@ commit_hash = "f421780da5596243cf6d8ffc341b3d3ba2c23c13"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:100:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L100"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:54:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L54"
 
@@ -40,11 +35,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:98:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L98"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:99:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/testrun.wdl/#L99"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
@@ -88,16 +78,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:127:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L127"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:128:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L128"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:59:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annovar/testrun.wdl/#L59"
 
@@ -133,16 +113,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:119:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/testrun.wdl/#L119"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:120:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/testrun.wdl/#L120"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `aws_sso_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-aws-sso/testrun.wdl/#L5"
 
@@ -175,16 +145,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
 message = "testrun.wdl:126:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/testrun.wdl/#L126"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:127:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/testrun.wdl/#L127"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:128:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/testrun.wdl/#L128"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
@@ -243,16 +203,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:162:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/testrun.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:163:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/testrun.wdl/#L163"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `bedtools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/testrun.wdl/#L6"
 
@@ -300,16 +250,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/testrun.wdl"
 message = "testrun.wdl:12:10: note[MetaSections]: workflow `bowtie2_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/testrun.wdl/#L12"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
-message = "ww-bowtie2.wdl:101:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L101"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
-message = "ww-bowtie2.wdl:102:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/ww-bowtie2.wdl/#L102"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
@@ -368,16 +308,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:157:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L157"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:158:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L158"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
 message = "testrun.wdl:85:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L85"
 
@@ -420,11 +350,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:27:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/testrun_hpc.wdl/#L27"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
-message = "ww-cellbender.wdl:14:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellbender/ww-cellbender.wdl/#L14"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellbender/ww-cellbender.wdl"
@@ -478,16 +403,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
-message = "testrun.wdl:145:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
-message = "testrun.wdl:146:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun.wdl/#L146"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `cellranger_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun.wdl/#L6"
 
@@ -513,16 +428,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:144:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L144"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:145:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:87:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/testrun_hpc.wdl/#L87"
 
@@ -538,11 +443,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:10:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L10"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:124:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L124"
 
@@ -550,16 +450,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:125:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L125"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:191:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L191"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:214:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L214"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -578,16 +468,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:369:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L369"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:392:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L392"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:413:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L413"
 
@@ -598,28 +478,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:42:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:552:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L552"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
 message = "ww-cellranger.wdl:575:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L575"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:587:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L587"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
-message = "ww-cellranger.wdl:588:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cellranger/ww-cellranger.wdl/#L588"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/ww-cellranger.wdl"
@@ -853,18 +713,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
-message = "testrun.wdl:119:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L119"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
 message = "testrun.wdl:11:10: note[MetaSections]: workflow `colabfold_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L11"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
-message = "testrun.wdl:120:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/testrun.wdl/#L120"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/testrun.wdl"
@@ -932,11 +782,6 @@ message = "ww-colabfold.wdl:52:12: note[ShellCheck]: Declare and assign separate
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L52"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-colabfold/ww-colabfold.wdl"
-message = "ww-colabfold.wdl:79:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-colabfold/ww-colabfold.wdl/#L79"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
 message = "testrun.wdl:103:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L103"
@@ -945,16 +790,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
 message = "testrun.wdl:119:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L119"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
-message = "testrun.wdl:120:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L120"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
-message = "testrun.wdl:121:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-consensus/testrun.wdl/#L121"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-consensus/testrun.wdl"
@@ -1313,16 +1148,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:113:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L113"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:114:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L114"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
 message = "testrun.wdl:64:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/testrun.wdl/#L64"
 
@@ -1368,16 +1193,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:151:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/testrun.wdl/#L151"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:152:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/testrun.wdl/#L152"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `deseq2_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/testrun.wdl/#L6"
 
@@ -1385,11 +1200,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
 message = "testrun.wdl:74:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/testrun.wdl/#L74"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:122:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L122"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
@@ -1502,21 +1312,6 @@ message = "testrun.wdl:278:13: note[MutableContainerTag]: container URI uses a m
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L278"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:279:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L279"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:280:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L280"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/testrun.wdl"
-message = "testrun.wdl:7:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/testrun.wdl/#L7"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
 message = "ww-ena.wdl:103:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L103"
@@ -1525,16 +1320,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
 message = "ww-ena.wdl:107:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L107"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:129:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L129"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:12:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
@@ -1618,16 +1403,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:319:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L319"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
-message = "ww-ena.wdl:320:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L320"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ena/ww-ena.wdl"
 message = "ww-ena.wdl:65:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ena/ww-ena.wdl/#L65"
 
@@ -1692,16 +1467,6 @@ message = "testrun_hpc.wdl:96:13: note[MutableContainerTag]: container URI uses 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L96"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:97:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L97"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:98:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/testrun_hpc.wdl/#L98"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-esmfold/ww-esmfold.wdl"
 message = "ww-esmfold.wdl:58:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-esmfold/ww-esmfold.wdl/#L58"
@@ -1728,18 +1493,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
-message = "ww-fastp.wdl:135:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L135"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
 message = "ww-fastp.wdl:156:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L156"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
-message = "ww-fastp.wdl:41:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L41"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
@@ -1900,16 +1655,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:562:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L562"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:563:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L563"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:564:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L564"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -2113,11 +1858,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gffread/ww-gffread.wdl"
-message = "ww-gffread.wdl:19:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gffread/ww-gffread.wdl/#L19"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gffread/ww-gffread.wdl"
 message = "ww-gffread.wdl:35:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gffread/ww-gffread.wdl/#L35"
 
@@ -2193,16 +1933,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:36:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:37:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L37"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:41:10: note[MetaSections]: workflow `glimpse2_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L41"
 
@@ -2270,16 +2000,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
 message = "ww-glimpse2.wdl:212:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:248:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L248"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:266:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L266"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2362,16 +2082,6 @@ message = "ww-glimpse2.wdl:580:19: note[OutputName]: declaration identifier star
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L580"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:586:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L586"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:587:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L587"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:106:3: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L106"
@@ -2385,16 +2095,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:230:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L230"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:231:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L231"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:232:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L232"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -2415,11 +2115,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:56:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:79:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L79"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-jcast/testrun.wdl"
@@ -2480,16 +2175,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
 message = "testrun.wdl:103:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L103"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:104:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L104"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:105:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/testrun.wdl/#L105"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
@@ -2783,16 +2468,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:162:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:163:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L163"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:91:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-salmon/testrun.wdl/#L91"
 
@@ -2868,16 +2543,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:212:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/testrun.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:213:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/testrun.wdl/#L213"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `samtools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/testrun.wdl/#L6"
 
@@ -2890,11 +2555,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
 message = "ww-samtools.wdl:121:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L121"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:140:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L140"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
@@ -2945,16 +2605,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
 message = "testrun.wdl:103:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-seurat/testrun.wdl/#L103"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
-message = "testrun.wdl:104:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-seurat/testrun.wdl/#L104"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
-message = "testrun.wdl:105:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-seurat/testrun.wdl/#L105"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-seurat/testrun.wdl"
@@ -3042,16 +2692,6 @@ message = "testrun.wdl:77:13: note[MutableContainerTag]: container URI uses a mu
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sjl/testrun.wdl/#L77"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sjl/testrun.wdl"
-message = "testrun.wdl:78:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sjl/testrun.wdl/#L78"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sjl/testrun.wdl"
-message = "testrun.wdl:79:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sjl/testrun.wdl/#L79"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sjl/ww-sjl.wdl"
 message = "ww-sjl.wdl:56:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sjl/ww-sjl.wdl/#L56"
@@ -3075,16 +2715,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:133:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L133"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:134:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L134"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:135:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L135"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
@@ -3115,16 +2745,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
 message = "testrun.wdl:162:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:163:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L163"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:164:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/testrun.wdl/#L164"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
@@ -3198,16 +2818,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:121:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L121"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:122:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L122"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
 message = "testrun.wdl:53:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/testrun.wdl/#L53"
 
@@ -3220,11 +2830,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
 message = "ww-sra.wdl:106:14: note[ShellCheck]: Don't use variables in the printf format string. Use printf '..%s..' \"$foo\"."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L106"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:12:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sra/ww-sra.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
@@ -3270,16 +2875,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
 message = "testrun.wdl:289:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L289"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:290:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L290"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:291:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L291"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
@@ -3353,16 +2948,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:175:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L175"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:176:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L176"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:216:43: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L216"
 
@@ -3378,16 +2963,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:279:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L279"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:280:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L280"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:311:9: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L311"
 
@@ -3400,16 +2975,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:363:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L363"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:364:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L364"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:365:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L365"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
@@ -3543,23 +3108,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1151:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1151"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1152:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1152"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:1184:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1184"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:124:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L124"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3580,11 +3130,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:1456:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1456"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1490:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1490"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3623,18 +3168,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:177:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L177"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:1787:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1787"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:1843:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L1843"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3655,11 +3190,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:199:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L199"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:2003:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L2003"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3738,11 +3268,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:496:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L496"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:515:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L515"
 
@@ -3818,11 +3343,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
-message = "ww-tritonnp.wdl:148:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L148"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:61:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L61"
 
@@ -3830,11 +3350,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/testrun.wdl"
 message = "testrun.wdl:17:10: note[MetaSections]: workflow `umi_tools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/testrun.wdl/#L17"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/ww-umi-tools.wdl"
-message = "ww-umi-tools.wdl:15:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/ww-umi-tools.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/ww-umi-tools.wdl"
@@ -3865,16 +3380,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:177:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L177"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:178:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L178"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:179:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-varscan/testrun.wdl/#L179"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
@@ -3985,16 +3490,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:35:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:36:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:37:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L37"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
@@ -4138,16 +3633,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:36:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:46:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L46"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
 message = "ww-imputation.wdl:77:15: note[DeclarationName]: declaration identifier 'input_cram_dir' contains type name 'Dir'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L77"
 
@@ -4162,11 +3647,6 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `jetlag_example` is mi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-jetlag/testrun.wdl/#L6"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-jetlag/ww-jetlag.wdl"
-message = "ww-jetlag.wdl:25:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-jetlag/ww-jetlag.wdl/#L25"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `leukemia_test` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/testrun.wdl/#L6"
@@ -4177,54 +3657,14 @@ message = "testrun_hpc.wdl:12:10: note[MetaSections]: workflow `leukemia_test` i
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/testrun_hpc.wdl/#L12"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:102:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L102"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:129:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L129"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:131:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L131"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:133:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L133"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:76:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L76"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `proseq_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/testrun.wdl/#L20"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/ww-proseq.wdl"
-message = "ww-proseq.wdl:27:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/ww-proseq.wdl/#L27"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/ww-proseq.wdl"
-message = "ww-proseq.wdl:53:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/ww-proseq.wdl/#L53"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/testrun.wdl"
 message = "testrun.wdl:13:10: note[MetaSections]: workflow `rnaseq_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/testrun.wdl/#L13"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
-message = "ww-rnaseq.wdl:34:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L34"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
@@ -4312,11 +3752,6 @@ message = "testrun.wdl:20:10: note[MetaSections]: workflow `splicing_proteomics_
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/testrun.wdl/#L20"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl"
-message = "ww-splicing-proteomics.wdl:30:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl/#L30"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
 message = "testrun.wdl:137:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L137"
@@ -4325,21 +3760,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
 message = "testrun.wdl:168:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L168"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
-message = "testrun.wdl:169:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L169"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
-message = "testrun.wdl:170:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L170"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
-message = "testrun.wdl:57:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
@@ -4358,23 +3778,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:145:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L145"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:146:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L146"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
 message = "testrun_hpc.wdl:14:10: note[MetaSections]: workflow `sra_cellranger_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L14"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
-message = "testrun_hpc.wdl:54:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/testrun_hpc.wdl/#L54"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun_hpc.wdl"
@@ -4400,16 +3805,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:302:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L302"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:303:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L303"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:304:5: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L304"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
@@ -4458,23 +3853,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:36:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
 message = "ww-sra-cellranger.wdl:379:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L379"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:37:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L37"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl"
-message = "ww-sra-cellranger.wdl:46:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-cellranger/ww-sra-cellranger.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-salmon/testrun.wdl"
@@ -4543,23 +3923,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:274:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L274"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:277:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L277"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:325:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L325"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:326:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L326"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -4573,18 +3938,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:374:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L374"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:376:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L376"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:423:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L423"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -4593,18 +3948,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:185:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:187:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L187"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:285:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L285"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
@@ -4613,28 +3958,13 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:336:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L336"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:338:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L338"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
-message = "bwa.wdl:86:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L86"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:88:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/bwa.wdl/#L88"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/deeptools.wdl"
-message = "deeptools.wdl:67:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/deeptools.wdl/#L67"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/deeptools.wdl"
@@ -4648,11 +3978,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
-message = "fastqc.wdl:66:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fastqc.wdl/#L66"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/fastqc.wdl"
 message = "fastqc.wdl:68:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fastqc.wdl/#L68"
 
@@ -4660,11 +3985,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:150:5: warning[BashSetSyntax]: missing `set` command"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L150"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:170:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/fq.wdl/#L170"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -4713,11 +4033,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:376:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L376"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:378:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L378"
 
@@ -4743,33 +4058,13 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:205:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/htseq.wdl/#L205"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:206:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/htseq.wdl/#L206"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:207:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/htseq.wdl/#L207"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:133:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L133"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:135:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L135"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:199:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L199"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -4788,23 +4083,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:47:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:48:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L48"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:49:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/kraken2.wdl/#L49"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/librarian.wdl"
-message = "librarian.wdl:50:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/librarian.wdl/#L50"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
@@ -4823,18 +4103,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:72:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/mosdepth.wdl/#L72"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/mosdepth.wdl"
 message = "mosdepth.wdl:74:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/mosdepth.wdl/#L74"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/multiqc.wdl"
-message = "multiqc.wdl:67:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/multiqc.wdl/#L67"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/multiqc.wdl"
@@ -4843,18 +4113,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:142:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L142"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:144:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L144"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:206:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L206"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -4868,18 +4128,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:253:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L253"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:255:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L255"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:341:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L341"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -4895,11 +4145,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:439:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L439"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:89:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/ngsderive.wdl/#L89"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -4993,33 +4238,13 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:861:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L861"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:863:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L863"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:933:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L933"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:934:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L934"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:935:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L935"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:989:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L989"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -5038,18 +4263,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:114:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L114"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:116:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L116"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:172:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L172"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -5063,18 +4278,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:231:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L231"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:233:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L233"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:288:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L288"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -5083,18 +4288,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
-message = "sambamba.wdl:54:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L54"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:56:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/sambamba.wdl/#L56"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1095:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1095"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -5108,16 +4303,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1264:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1264"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1265:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1265"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1267:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L1267"
 
@@ -5128,28 +4313,13 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:144:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L144"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:146:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L146"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:202:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L202"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:204:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L204"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:261:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L261"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -5168,18 +4338,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:409:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L409"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:411:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L411"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:496:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L496"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -5193,18 +4353,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:616:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L616"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:618:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L618"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:713:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L713"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -5243,11 +4393,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:900:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L900"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:902:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L902"
 
@@ -5255,11 +4400,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:116:5: warning[BashSetSyntax]: missing `set` command"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L116"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:128:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L128"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -5298,11 +4438,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:355:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L355"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:357:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L357"
 
@@ -5320,11 +4455,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:43:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L43"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:465:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/util.wdl/#L465"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -5358,11 +4488,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:198:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L198"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:237:5: warning[BashSetSyntax]: missing `set` command"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L237"
 
@@ -5370,16 +4495,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:256:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L256"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:257:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L257"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:258:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L258"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -5393,33 +4508,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:296:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L296"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:297:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L297"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:321:5: warning[BashSetSyntax]: missing `set` command"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L321"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:332:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L332"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:333:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L333"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
-message = "methylation-cohort.wdl:334:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-cohort.wdl/#L334"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -5433,53 +4523,13 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:104:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L104"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:105:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L105"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:106:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L106"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
 message = "methylation-preprocess.wdl:70:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L70"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:71:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L71"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:72:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-preprocess.wdl/#L72"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
 message = "methylation-standard.wdl:180:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L180"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:181:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L181"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:182:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L182"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:183:9: note[ParameterizedResources]: fixed resource allocation"
-permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/methylation/methylation-standard.wdl/#L183"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"

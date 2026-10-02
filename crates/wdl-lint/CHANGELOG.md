@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* `HostPathLiterals` now emits warnings instead of notes by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* `DescriptionLength` and `DocMetaStrings` are now off by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * `Config` now has one table per rule, keyed by rule ID, for both analysis and lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules now report diagnostics at their configured severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules are now constructed with `new(&Config)` and no longer implement `Default` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
@@ -26,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `ShellCheck` now reports a failure to run `shellcheck` as a note instead of an error ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
+
+#### Removed
+
+* The `Spacing` tag ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 
 ## 0.28.0 - 2026-09-16
 
