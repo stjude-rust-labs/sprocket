@@ -413,7 +413,7 @@ define_rules_config! {
             severity = RuleSeverity::Warning;
         }
         "ParameterizedResources" => parameterized_resources: ParameterizedResourcesConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Off;
         }
         "ParameterMetaOrder" => parameter_meta_order: ParameterMetaOrderConfig {
             severity = RuleSeverity::Note;

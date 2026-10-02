@@ -249,10 +249,6 @@ impl Visitor for ParameterizedResourcesRule {
 
 /// Checks if the resource is statically allocated.
 fn is_fixed_allocation(expr: &Expr) -> bool {
-    expr.descendants::<Expr>().all(|e| {
-        !matches!(
-            e,
-            Expr::NameRef(_) | Expr::Call(_) | Expr::Index(_) | Expr::Access(_)
-        )
-    })
+    expr.descendants::<Expr>()
+        .all(|e| !matches!(e, Expr::NameRef(_) | Expr::Call(_)))
 }
