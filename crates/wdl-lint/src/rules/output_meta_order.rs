@@ -74,8 +74,9 @@ impl Rule for OutputMetaOrderRule<'_> {
     }
 
     fn explanation(&self) -> &'static str {
-        "When every output is documented in `meta.outputs`, the documentation keys should appear \
-         in the same order as the corresponding declarations in the `output` section."
+        "When every output without a doc comment is documented in `meta.outputs`, the \
+         documentation keys should appear in the same order as the corresponding declarations in \
+         the `output` section."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -218,18 +219,36 @@ fn check_output_order(
     rule: &mut OutputMetaOrderRule<'_>,
     node: &SyntaxNode,
 ) {
-    if !rule.collector.meta_outputs_keys().is_empty()
-        && rule.collector.meta_outputs_keys().len() == rule.collector.output_keys().len()
-        && rule
-            .collector
-            .meta_outputs_keys()
-            .keys()
-            .all(|key| rule.collector.output_keys().contains_key(key))
-        && !rule
-            .collector
-            .meta_outputs_keys()
-            .keys()
-            .eq(rule.collector.output_keys().keys())
+    let expected_order: Vec<_> = rule
+        .collector
+        .output_decls()
+        .iter()
+        .filter_map(|(name, info)| {
+            if !info.has_doc_comments {
+                Some(name.as_str())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let actual_order: Vec<_> = rule
+        .collector
+        .meta_outputs_keys()
+        .keys()
+        .filter(|name| {
+            rule.collector
+                .output_decls()
+                .get(*name)
+                .is_some_and(|info| !info.has_doc_comments)
+        })
+        .map(String::as_str)
+        .collect();
+
+    if !expected_order.is_empty()
+        && actual_order.len() == expected_order.len()
+        && actual_order.iter().all(|key| expected_order.contains(key))
+        && actual_order != expected_order
     {
         diagnostics.exceptable_add(
             out_of_order(

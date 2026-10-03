@@ -9,6 +9,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Documented;
 use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
@@ -103,6 +104,15 @@ fn non_object_meta_outputs(
     .with_fix("ensure `meta.outputs` is an object containing descriptions for each output")
 }
 
+/// Information about an output declaration.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct OutputDeclInfo {
+    /// The span of the output declaration name.
+    pub(crate) span: Span,
+    /// Whether the declaration has doc comments.
+    pub(crate) has_doc_comments: bool,
+}
+
 /// Collects output declarations and `meta.outputs` entries for a task or
 /// workflow.
 #[derive(Debug, Clone, Default)]
@@ -119,8 +129,8 @@ pub(crate) struct OutputMetaCollector<'a> {
     in_output: bool,
     /// The keys seen in `meta.outputs`.
     meta_outputs_keys: IndexMap<String, Span>,
-    /// The keys seen in `output`.
-    output_keys: IndexMap<String, Span>,
+    /// The declarations seen in `output`.
+    output_decls: IndexMap<String, OutputDeclInfo>,
     /// The context type.
     ty: Option<&'a str>,
     /// The item name.
@@ -138,7 +148,7 @@ impl<'a> OutputMetaCollector<'a> {
         self.current_output_span = None;
         self.in_output = false;
         self.meta_outputs_keys.clear();
-        self.output_keys.clear();
+        self.output_decls.clear();
         self.ty = None;
         self.name = None;
         self.prior_objects.clear();
@@ -149,7 +159,7 @@ impl<'a> OutputMetaCollector<'a> {
         self.current_meta_span = None;
         self.current_meta_outputs_span = None;
         self.current_output_span = None;
-        self.output_keys.clear();
+        self.output_decls.clear();
         self.meta_outputs_keys.clear();
         self.name = None;
         self.ty = None;
@@ -188,9 +198,9 @@ impl<'a> OutputMetaCollector<'a> {
         &self.meta_outputs_keys
     }
 
-    /// Gets the keys seen in `output`.
-    pub(crate) fn output_keys(&self) -> &IndexMap<String, Span> {
-        &self.output_keys
+    /// Gets the declarations seen in `output`.
+    pub(crate) fn output_decls(&self) -> &IndexMap<String, OutputDeclInfo> {
+        &self.output_decls
     }
 
     /// Gets the item name.
@@ -246,8 +256,13 @@ impl<'a> OutputMetaCollector<'a> {
     /// Visits an output declaration.
     pub(crate) fn bound_decl(&mut self, reason: VisitReason, decl: &wdl_ast::v1::BoundDecl) {
         if reason == VisitReason::Enter && self.in_output {
-            self.output_keys
-                .insert(decl.name().text().to_string(), decl.name().span());
+            self.output_decls.insert(
+                decl.name().text().to_string(),
+                OutputDeclInfo {
+                    span: decl.name().span(),
+                    has_doc_comments: decl.doc_comments().is_some_and(|docs| !docs.is_empty()),
+                },
+            );
         }
     }
 
@@ -322,14 +337,16 @@ impl Rule for MatchingOutputMetaRule<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that each output field is documented in the meta section under `meta.outputs`."
+        "Ensures that each output field is documented in the meta section under `meta.outputs`, or \
+         with supplementary doc comments."
     }
 
     fn explanation(&self) -> &'static str {
         "The meta section should have an `outputs` key that is an object and contains keys with \
-         descriptions for each output of the task/workflow. These must match exactly. i.e. for \
-         each named output of a task or workflow, there should be an entry under `meta.outputs` \
-         with that same name. No extraneous `meta.outputs` entries are allowed."
+         descriptions for each output of the task/workflow without a doc comment. These must match \
+         exactly. i.e. for each named output of a task or workflow without a doc comment, there \
+         should be an entry under `meta.outputs` with that same name. No extraneous `meta.outputs` \
+         entries are allowed."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -415,14 +432,15 @@ fn check_matching(
     node: &SyntaxNode,
 ) {
     // Check for expected entries missing from `meta.outputs`.
-    for (name, span) in rule.collector.output_keys() {
-        if !rule.collector.meta_outputs_keys().contains_key(name)
+    for (name, info) in rule.collector.output_decls() {
+        if !info.has_doc_comments
+            && !rule.collector.meta_outputs_keys().contains_key(name)
             && rule.collector.current_meta_span().is_some()
         {
             diagnostics.exceptable_add(
                 nonmatching_output(
                     rule.severity,
-                    *span,
+                    info.span,
                     name,
                     rule.collector.name().expect("should have a name"),
                     rule.collector.ty().expect("should have a type"),
@@ -437,7 +455,7 @@ fn check_matching(
     // This should flag any meta.outputs entry that doesn't have a corresponding
     // declared output, even if the output section is entirely missing.
     for (name, span) in rule.collector.meta_outputs_keys() {
-        if !rule.collector.output_keys().contains_key(name) {
+        if !rule.collector.output_decls().contains_key(name) {
             diagnostics.exceptable_add(
                 extra_output_in_meta(
                     rule.severity,
@@ -461,7 +479,11 @@ fn handle_meta_outputs_and_reset(
 ) {
     if let Some(current_meta_span) = rule.collector.current_meta_span()
         && rule.collector.current_meta_outputs_span().is_none()
-        && !rule.collector.output_keys().is_empty()
+        && rule
+            .collector
+            .output_decls()
+            .values()
+            .any(|info| !info.has_doc_comments)
     {
         diagnostics.exceptable_add(
             missing_outputs_in_meta(
