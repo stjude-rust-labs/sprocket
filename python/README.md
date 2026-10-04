@@ -17,7 +17,7 @@
   </p>
 
   <p align="center">
-    Python bindings to Sprocket, a bioinformatics toolkit for Workflow Description Language (WDL).
+    A Python library for parsing and analyzing <a href="https://openwdl.org/">Workflow Description Language</a> (WDL), powered by <a href="https://sprocket.bio/">Sprocket</a>.
     <br />
     <br />
     <a href="https://github.com/stjude-rust-labs/sprocket/issues/new?assignees=&title=Descriptive%20Title&labels=enhancement">Request Feature</a>
@@ -29,11 +29,67 @@
   </p>
 </p>
 
-## 🐍 Minimum Supported Python Version
+## Installation
+
+Sprocket's Python bindings are available on PyPI as
+[`sprocket-bio`](https://pypi.org/project/sprocket-bio/). It requires Python 3.10 or greater, and
+can be installed using [Pip](https://pip.pypa.io/):
+
+```bash
+pip install sprocket-bio
+```
+
+Sprocket publishes precompiled
+[wheels](https://packaging.python.org/en/latest/specifications/binary-distribution-format/) for
+many common platforms and Python versions. If you install `sprocket-bio` on a platform that does
+not have a precompiled wheel, you will need the latest stable release of the [Rust
+compiler](https://rust-lang.org/) in order to build from source.
+
+Release 0.31.0 ships wheels for CPython 3.10 through 3.15 (including the
+free-threaded builds) and PyPy 3.11, covering macOS on x86-64 and Apple silicon,
+`manylinux` and `musllinux` on x86-64 and aarch64, and Windows on x86-64 and
+ARM64.
+
+### 🐍 Minimum Supported Python Version
 
 The minimum supported Python version is currently 3.10.
 
 `sprocket_bio` supports the oldest Python version still receiving security updates. It will drop support for Python versions as they reach end-of-life. For more information, please see [Python's Version Status page](https://devguide.python.org/versions/).
+
+## Usage
+
+The package exposes three modules: `sprocket_bio.grammar` for parsing WDL,
+`sprocket_bio.ast` for working with the resulting syntax tree, and
+`sprocket_bio.diagnostics` for rendering diagnostics the way the command line
+tool does. The package is typed, so it ships type stubs for editors and
+`mypy`.
+
+For example, parsing a document and printing any diagnostics:
+
+```python
+from sprocket_bio.diagnostics import Mode, emit_diagnostics
+from sprocket_bio.grammar import SupportedVersion
+from sprocket_bio.grammar.grammar import document
+from sprocket_bio.grammar.version import V1
+
+with open("example.wdl", "rt", encoding="utf-8") as f:
+    source = f.read()
+
+events, diagnostics = document(source, fallback_version=SupportedVersion.V1(V1.ZERO))
+
+if diagnostics:
+    emit_diagnostics("example.wdl", source, diagnostics, report_mode=Mode.FULL, colorize=True)
+```
+
+Complete, runnable examples — emitting diagnostics, walking the parser event
+stream, and building a syntax highlighter — live in
+[`python/sprocket_bio/examples`](https://github.com/stjude-rust-labs/sprocket/tree/main/python/sprocket_bio/examples)
+in the Sprocket repository.
+
+## Documentation
+
+You can find the Python binding's API docs and several examples online at
+<https://sprocket-bio.readthedocs.io/>.
 
 ## 🖥️ Development
 
@@ -109,3 +165,15 @@ sphinx-build --fail-on-warning python/docs python/docs/_build
 ```
 
 The API docs are built using [Sphinx](https://www.sphinx-doc.org/) with the [Read the Docs theme](https://sphinx-rtd-theme.readthedocs.io/). The source is in `python/docs`, and the output is in `python/docs/_build`. The API docs are hosted online at <https://sprocket-bio.readthedocs.io/>.
+
+## 📝 License and Legal
+
+This project is licensed as either [Apache 2.0][license-apache] or
+[MIT][license-mit] at your discretion. Additionally, please see [the
+disclaimer](https://github.com/stjude-rust-labs#disclaimer) that applies to all
+crates and command line tools made available by St. Jude Rust Labs.
+
+Copyright © 2026-Present [St. Jude Children's Research Hospital](https://github.com/stjude).
+
+[license-apache]: https://github.com/stjude-rust-labs/sprocket/blob/main/LICENSE-APACHE
+[license-mit]: https://github.com/stjude-rust-labs/sprocket/blob/main/LICENSE-MIT
