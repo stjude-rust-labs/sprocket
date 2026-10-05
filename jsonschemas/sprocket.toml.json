@@ -1243,8 +1243,9 @@
         "min_length": {
           "description": "The minimum length of input names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.InputName]\nmin_length = 5\n```",
           "type": "integer",
-          "format": "uint32",
+          "format": "uint8",
           "minimum": 0,
+          "maximum": 255,
           "default": 3
         },
         "check_prefixes": {
@@ -1315,8 +1316,9 @@
         "min_length": {
           "description": "The minimum length of output names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.OutputName]\nmin_length = 5\n```",
           "type": "integer",
-          "format": "uint32",
+          "format": "uint8",
           "minimum": 0,
+          "maximum": 255,
           "default": 3
         },
         "check_prefixes": {
