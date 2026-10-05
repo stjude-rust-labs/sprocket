@@ -135,11 +135,11 @@ severity = "note"
 
 [check.rules.NamingConvention]
 severity = "warning"
-task = "snake-case"
-workflow = "snake-case"
-variable = "snake-case"
-type = "pascal-case"
-struct_member = "snake-case"
+task = "snake_case"
+workflow = "snake_case"
+variable = "snake_case"
+type = "pascal_case"
+struct_member = "snake_case"
 allowed_names = []
 
 [check.rules.OutputName]

@@ -1,7 +1,7 @@
 [NamingConvention]
-task = "pascal-case"
-workflow = "camel-case"
-variable = "screaming-snake-case"
-type = "snake-case"
-struct_member = "camel-case"
-allowed_names = ["goodButAllowed_Workflow"]
+task = "pascal_case"
+workflow = "camel_case"
+variable = "screaming_snake_case"
+type = "snake_case"
+struct_member = "camel_case"
+allowed_names = ["badButAllowed_Workflow"]

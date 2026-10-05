@@ -62,19 +62,19 @@ note[DeclarationName]: declaration identifier 'result_integer' contains type nam
    │
    = fix: rename the identifier to not include the type name
 
-warning[NamingConvention]: private declaration name `foo_bar_InT` is not snake case
+warning[NamingConvention]: private declaration name `foo_bar_InT` is not snake_case
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:35:9
    │
 35 │     Int foo_bar_InT = 42  # Split by convert-case to [foo, bar, In, T]
-   │         ^^^^^^^^^^^ this name must be snake case
+   │         ^^^^^^^^^^^ this name must be snake_case
    │
    = fix: replace `foo_bar_InT` with `foo_bar_in_t`
 
-warning[NamingConvention]: private declaration name `foo_bar_INT` is not snake case
+warning[NamingConvention]: private declaration name `foo_bar_INT` is not snake_case
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:38:9
    │
 38 │     Int foo_bar_INT = 42
-   │         ^^^^^^^^^^^ this name must be snake case
+   │         ^^^^^^^^^^^ this name must be snake_case
    │
    = fix: replace `foo_bar_INT` with `foo_bar_int`
 

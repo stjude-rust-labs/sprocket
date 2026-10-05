@@ -1836,10 +1836,10 @@ allowed_names = ["Foo"]
             &path,
             r#"
 [check.rules.NamingConvention]
-task = "pascal-case"
-workflow = "camel-case"
-variable = "screaming-snake-case"
-type = "snake-case"
+task = "pascal_case"
+workflow = "camel_case"
+variable = "screaming_snake_case"
+type = "snake_case"
 "#,
         )?;
 
@@ -1860,7 +1860,7 @@ type = "snake-case"
     fn naming_convention_rejects_unknown_styles() -> Result<()> {
         let tempdir = tempfile::TempDir::new()?;
         let path = tempdir.path().join("sprocket.toml");
-        for style in ["snake_case", "PascalCase", "kebab-case"] {
+        for style in ["PascalCase", "kebab-case"] {
             std::fs::write(
                 &path,
                 format!("[check.rules.NamingConvention]\ntask = \"{style}\"\n"),

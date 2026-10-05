@@ -41,7 +41,7 @@ workflow Bad_mixedWorkflow {
 workflow goodWorkflow {
 }
 
-workflow goodButAllowed_Workflow {
+workflow badButAllowed_Workflow {
 }
 
 #@ except: NamingConvention

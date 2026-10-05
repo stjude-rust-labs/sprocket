@@ -84,10 +84,10 @@ const ID: &str = "NamingConvention";
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, Display, EnumString, Serialize, Toml, JsonSchema,
 )]
-#[strum(serialize_all = "kebab-case")]
-#[serde(rename_all = "kebab-case")]
-#[toml(Toml, rename_all = "kebab-case")]
-#[schemars(rename_all = "kebab-case")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[toml(Toml, rename_all = "snake_case")]
+#[schemars(rename_all = "snake_case")]
 pub enum CaseStyle {
     /// `snake_case`.
     SnakeCase,
@@ -114,10 +114,10 @@ impl CaseStyle {
     /// Gets the name of the style as used in diagnostics.
     fn diagnostic_name(self) -> &'static str {
         match self {
-            Self::SnakeCase => "snake case",
-            Self::ScreamingSnakeCase => "screaming snake case",
-            Self::CamelCase => "camel case",
-            Self::PascalCase => "pascal case",
+            Self::SnakeCase => "snake_case",
+            Self::ScreamingSnakeCase => "SCREAMING_SNAKE_CASE",
+            Self::CamelCase => "camelCase",
+            Self::PascalCase => "PascalCase",
         }
     }
 
@@ -278,8 +278,8 @@ impl Rule for NamingConventionRule {
 
     fn explanation(&self) -> &'static str {
         "Names should follow a consistent case convention. By default, tasks, workflows, \
-         variables, and struct members use snake case, and user-defined type names (structs, \
-         enums, and enum choices) use pascal case. The case style for each category can be \
+         variables, and struct members use snake_case, and user-defined type names (structs, \
+         enums, and enum choices) use PascalCase. The case style for each category can be \
          configured. Maintaining a consistent naming convention makes the code easier to read and \
          understand."
     }
@@ -645,16 +645,16 @@ mod test {
     #[test]
     fn parse_and_display() {
         for (style, s) in [
-            (CaseStyle::SnakeCase, "snake-case"),
-            (CaseStyle::ScreamingSnakeCase, "screaming-snake-case"),
-            (CaseStyle::CamelCase, "camel-case"),
-            (CaseStyle::PascalCase, "pascal-case"),
+            (CaseStyle::SnakeCase, "snake_case"),
+            (CaseStyle::ScreamingSnakeCase, "screaming_snake_case"),
+            (CaseStyle::CamelCase, "camel_case"),
+            (CaseStyle::PascalCase, "pascal_case"),
         ] {
             assert_eq!(style.to_string(), s);
             assert_eq!(s.parse::<CaseStyle>().unwrap(), style);
         }
 
-        assert!("snake_case".parse::<CaseStyle>().is_err());
+        assert!("snake-case".parse::<CaseStyle>().is_err());
         assert!("PascalCase".parse::<CaseStyle>().is_err());
     }
 }

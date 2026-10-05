@@ -339,11 +339,11 @@
             },
             "NamingConvention": {
               "severity": "warning",
-              "task": "snake-case",
-              "workflow": "snake-case",
-              "variable": "snake-case",
-              "type": "pascal-case",
-              "struct_member": "snake-case",
+              "task": "snake_case",
+              "workflow": "snake_case",
+              "variable": "snake_case",
+              "type": "pascal_case",
+              "struct_member": "snake_case",
               "allowed_names": []
             },
             "OutputName": {
@@ -665,11 +665,11 @@
           "$ref": "#/$defs/NamingConventionConfig",
           "default": {
             "severity": "warning",
-            "task": "snake-case",
-            "workflow": "snake-case",
-            "variable": "snake-case",
-            "type": "pascal-case",
-            "struct_member": "snake-case",
+            "task": "snake_case",
+            "workflow": "snake_case",
+            "variable": "snake_case",
+            "type": "pascal_case",
+            "struct_member": "snake_case",
             "allowed_names": []
           }
         },
@@ -1297,27 +1297,27 @@
         "task": {
           "description": "The case style for task names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntask = \"pascal-case\"\n```",
           "$ref": "#/$defs/CaseStyle",
-          "default": "snake-case"
+          "default": "snake_case"
         },
         "workflow": {
           "description": "The case style for workflow names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nworkflow = \"pascal-case\"\n```",
           "$ref": "#/$defs/CaseStyle",
-          "default": "snake-case"
+          "default": "snake_case"
         },
         "variable": {
           "description": "The case style for input, output, and private declaration\nnames.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nvariable = \"camel-case\"\n```",
           "$ref": "#/$defs/CaseStyle",
-          "default": "snake-case"
+          "default": "snake_case"
         },
         "type": {
           "description": "The case style for the names of user-defined types: structs,\nenums, and enum choices.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `pascal-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntype = \"camel-case\"\n```",
           "$ref": "#/$defs/CaseStyle",
-          "default": "pascal-case"
+          "default": "pascal_case"
         },
         "struct_member": {
           "description": "The case style for struct member names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nstruct_member = \"camel-case\"\n```",
           "$ref": "#/$defs/CaseStyle",
-          "default": "snake-case"
+          "default": "snake_case"
         },
         "allowed_names": {
           "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nallowed_names = [\"Foo\"]\n```",
@@ -1336,22 +1336,22 @@
         {
           "description": "`snake_case`.",
           "type": "string",
-          "const": "snake-case"
+          "const": "snake_case"
         },
         {
           "description": "`SCREAMING_SNAKE_CASE`.",
           "type": "string",
-          "const": "screaming-snake-case"
+          "const": "screaming_snake_case"
         },
         {
           "description": "`camelCase`.",
           "type": "string",
-          "const": "camel-case"
+          "const": "camel_case"
         },
         {
           "description": "`PascalCase`.",
           "type": "string",
-          "const": "pascal-case"
+          "const": "pascal_case"
         }
       ]
     },

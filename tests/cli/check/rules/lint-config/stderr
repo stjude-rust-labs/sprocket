@@ -1,7 +1,7 @@
-note[NamingConvention]: struct member name `BadName` is not snake case
+note[NamingConvention]: struct member name `BadName` is not snake_case
   ┌─ source.wdl:6:9
   │
 6 │     Int BadName
-  │         ^^^^^^^ this name must be snake case
+  │         ^^^^^^^ this name must be snake_case
   │
   = fix: replace `BadName` with `bad_name`
