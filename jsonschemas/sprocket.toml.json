@@ -315,7 +315,9 @@
               "severity": "warning"
             },
             "InputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "MatchingOutputMeta": {
               "severity": "warning"
@@ -330,7 +332,9 @@
               "severity": "note"
             },
             "OutputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "OutputMetaOrder": {
               "severity": "note"
@@ -622,7 +626,9 @@
           "description": "The `InputName` rule.",
           "$ref": "#/$defs/InputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "MatchingOutputMeta": {
@@ -657,7 +663,9 @@
           "description": "The `OutputName` rule.",
           "$ref": "#/$defs/OutputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "OutputMetaOrder": {
@@ -1231,6 +1239,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of input names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.InputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag input names that start with a disallowed\nprefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).\n\n##### Example\n\n```toml\n[check.rules.InputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1291,6 +1312,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of output names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.OutputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag output names that start with a disallowed\nprefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).\n\n##### Example\n\n```toml\n[check.rules.OutputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
