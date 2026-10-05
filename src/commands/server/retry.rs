@@ -5,13 +5,13 @@ use clap::Parser;
 use serde_json::Value as JsonValue;
 use wdl::analysis::Document;
 
+use super::client::ServerConnectionArgs;
+use super::client::get_json;
+use super::client::resolve_run_id;
+use super::client::send_json;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::get_json;
-use crate::commands::client::resolve_run_id;
-use crate::commands::client::send_json;
 use crate::commands::output::CommandOutput;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;

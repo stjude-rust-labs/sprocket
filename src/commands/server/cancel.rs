@@ -3,11 +3,11 @@
 use clap::Parser;
 use tracing::debug;
 
+use super::client::ServerConnectionArgs;
+use super::client::fetch_server_info;
+use super::client::resolve_run_id;
+use super::client::send_json;
 use crate::commands::CommandResult;
-use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::fetch_server_info;
-use crate::commands::client::resolve_run_id;
-use crate::commands::client::send_json;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::config::Config;
@@ -56,12 +56,8 @@ pub async fn cancel(args: Args, config: Config, output: CommandOutput) -> Comman
         Ok(info) if info.failure_mode == ServerFailureMode::Slow => {
             output.detail(
                 "Note",
-                format!(
-                    "in slow-failure mode, currently executing tasks will be allowed to finish \
-                     before the run is marked as canceled. Use `sprocket dev server status \
-                     {uuid}` to track progress.",
-                    uuid = body.uuid,
-                ),
+                "in slow-failure mode, currently executing tasks will be allowed to finish before \
+                 the run is marked as canceled. Use the `status` subcommand to track progress.",
             );
         }
         Ok(_) => {}

@@ -11,25 +11,19 @@ use tracing::warn;
 use wdl::engine::Config as EngineConfig;
 
 pub mod analyzer;
-pub mod cancel;
 pub mod check;
-pub mod client;
 pub mod completions;
 pub mod config;
 pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
-pub mod inspect;
 pub mod lock;
 pub mod module;
 #[doc(hidden)]
 pub mod output;
-pub mod retry;
 pub mod run;
 pub mod server;
-pub mod status;
-pub mod submit;
 pub mod test;
 pub mod validate;
 

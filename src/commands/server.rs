@@ -4,6 +4,13 @@
 //! server: starting the server itself, plus the server-client actions
 //! (`submit`, `status`, `inspect`, `cancel`, `retry`).
 
+mod cancel;
+mod client;
+mod inspect;
+mod retry;
+mod status;
+mod submit;
+
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -12,12 +19,7 @@ use clap::Subcommand;
 
 use crate::Config;
 use crate::commands::CommandResult;
-use crate::commands::cancel;
-use crate::commands::inspect;
 use crate::commands::output::CommandOutput;
-use crate::commands::retry;
-use crate::commands::status;
-use crate::commands::submit;
 
 /// Arguments for the `server` subcommand.
 #[derive(Parser, Debug)]
