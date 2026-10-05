@@ -1115,7 +1115,7 @@ pub async fn run(
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
                             output.payload(outputs_json);
-                            output.diagnostic(format!(
+                            output.stderr(format!(
                                 "outputs were also written to `{path}`",
                                 path = outputs_file.display()
                             ));

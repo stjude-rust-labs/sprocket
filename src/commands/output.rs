@@ -9,6 +9,7 @@ use anyhow::Context as _;
 use colored::ColoredString;
 use colored::Colorize as _;
 use dialoguer::Confirm;
+use similar::DiffableStr;
 
 /// A command operation with completed and planned forms.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -86,8 +87,8 @@ impl CommandOutput {
     }
 
     /// Prints a completed operation to stderr.
-    pub(crate) fn completed_diagnostic(self, action: Action, subject: impl fmt::Display) {
-        self.diagnostic_action(action.completed, subject, ActionColor::Green);
+    pub(crate) fn completed_stderr(self, action: Action, subject: impl fmt::Display) {
+        self.stderr_action(action.completed, subject, ActionColor::Green);
     }
 
     /// Prints an operation that would occur without mutation.
@@ -156,26 +157,24 @@ impl CommandOutput {
 
     /// Prints an undecorated payload to stdout.
     pub(crate) fn payload(self, value: impl fmt::Display) {
-        println!("{value}");
+        if value.to_string().ends_with_newline() {
+            print!("{value}");
+        } else {
+            println!("{value}");
+        }
     }
 
-    /// Prints an undecorated payload to stdout without appending a newline.
-    pub(crate) fn payload_raw(self, value: impl fmt::Display) {
-        print!("{value}");
+    /// Prints an undecorated value to stderr.
+    pub(crate) fn stderr(self, value: impl fmt::Display) {
+        if value.to_string().ends_with_newline() {
+            eprint!("{value}");
+        } else {
+            eprintln!("{value}");
+        }
     }
 
-    /// Prints an undecorated diagnostic to stderr.
-    pub(crate) fn diagnostic(self, value: impl fmt::Display) {
-        eprintln!("{value}");
-    }
-
-    /// Prints an undecorated diagnostic to stderr without appending a newline.
-    pub(crate) fn diagnostic_raw(self, value: impl fmt::Display) {
-        eprint!("{value}");
-    }
-
-    /// Prints a blank diagnostic line to stderr.
-    pub(crate) fn diagnostic_blank(self) {
+    /// Prints a blank line to stderr.
+    pub(crate) fn stderr_blank(self) {
         eprintln!();
     }
 
@@ -221,7 +220,7 @@ impl CommandOutput {
     }
 
     /// Prints an action line to stderr with only the verb colored.
-    fn diagnostic_action(self, verb: &str, rest: impl fmt::Display, color: ActionColor) {
+    fn stderr_action(self, verb: &str, rest: impl fmt::Display, color: ActionColor) {
         eprintln!("{}", self.format_action(verb, rest, color));
     }
 }

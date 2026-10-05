@@ -308,7 +308,7 @@ pub async fn check(args: CheckArgs, config: Config, output: CommandOutput) -> Co
         new_baseline
             .write(&baseline_path)
             .context("failed to write baseline file")?;
-        output.completed_diagnostic(
+        output.completed_stderr(
             GENERATE,
             format!(
                 "baseline with {} diagnostic(s) at `{}`",

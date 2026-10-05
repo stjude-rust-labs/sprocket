@@ -148,14 +148,12 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                         formatted_lines.zip(source_lines).all(|(f, s)| f == s)
                     };
                     if newline_only {
-                        output.diagnostic("incorrect newline style");
+                        output.stderr("incorrect newline style");
                     } else if colorize {
-                        output.diagnostic_raw(pretty_assertions::StrComparison::new(
-                            &source, &formatted,
-                        ));
+                        output.stderr(pretty_assertions::StrComparison::new(&source, &formatted));
                     } else {
                         let diff = similar::TextDiff::from_lines(&source, &formatted);
-                        output.diagnostic_raw(diff.unified_diff().header("input", "formatted"));
+                        output.stderr(diff.unified_diff().header("input", "formatted"));
                     }
                     errors += 1;
                 } else {
@@ -206,7 +204,7 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                             path = result.document().path()
                         )
                     })?;
-            output.payload_raw(formatted);
+            output.payload(formatted);
         }
         FormatSubcommand::Overwrite(s) => {
             let mut sources = s.sources;

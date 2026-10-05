@@ -481,7 +481,7 @@ pub fn explain(args: Args, output: CommandOutput) -> CommandResult<()> {
             .find(|rule| rule.id.to_lowercase() == lowercase_name)
         {
             Some(rule) => {
-                output.payload_raw(rule.format(args.format));
+                output.payload(rule.format(args.format));
             }
             None => {
                 output.payload(format!("{rules}\n", rules = list_all_rules()));
