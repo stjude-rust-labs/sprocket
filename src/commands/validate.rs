@@ -189,7 +189,6 @@ async fn resolve_target_and_inputs(
 
 /// The main function for the `validate` subcommand.
 pub async fn validate(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     if let Source::Directory(_) = args.source {
         return Err(
@@ -204,7 +203,7 @@ pub async fn validate(args: Args, config: Config, output: CommandOutput) -> Comm
         config.common.wdl.feature_flags,
         config.common.ignore_filename(),
         report_mode,
-        colorize,
+        output.colorize(),
     )
     .await?;
 

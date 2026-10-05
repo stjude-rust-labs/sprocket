@@ -90,7 +90,6 @@ fn format_document(
 
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     let fallback_version = config.common.wdl.fallback_version.into();
     let feature_flags = config.common.wdl.feature_flags;
@@ -113,7 +112,7 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
                 .ignore_filename(ignore_filename.clone())
-                .run(report_mode, colorize)
+                .run(report_mode, output.colorize())
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
@@ -127,18 +126,22 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                     continue;
                 }
 
-                let (source, formatted) =
-                    match format_document(&formatter, result.document(), report_mode, colorize) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            errors += 1;
-                            warn!(
-                                "skipping format check for `{}`: {e}",
-                                result.document().path()
-                            );
-                            continue;
-                        }
-                    };
+                let (source, formatted) = match format_document(
+                    &formatter,
+                    result.document(),
+                    report_mode,
+                    output.colorize(),
+                ) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        errors += 1;
+                        warn!(
+                            "skipping format check for `{}`: {e}",
+                            result.document().path()
+                        );
+                        continue;
+                    }
+                };
                 if formatted != source {
                     warn!("difference in `{}`", result.document().path());
                     let newline_only = {
@@ -149,7 +152,7 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                     };
                     if newline_only {
                         output.stderr("incorrect newline style");
-                    } else if colorize {
+                    } else if output.colorize() {
                         output.stderr(pretty_assertions::StrComparison::new(&source, &formatted));
                     } else {
                         let diff = similar::TextDiff::from_lines(&source, &formatted);
@@ -183,7 +186,7 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
                 .ignore_filename(ignore_filename.clone())
-                .run(report_mode, colorize)
+                .run(report_mode, output.colorize())
                 .await
                 .map_err(CommandError::from)?;
             let result = results.filter(&[&source]).next().unwrap();
@@ -196,14 +199,18 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                 .into());
             }
 
-            let (_source, formatted) =
-                format_document(&formatter, result.document(), report_mode, colorize)
-                    .with_context(|| {
-                        format!(
-                            "could not view document `{path}`",
-                            path = result.document().path()
-                        )
-                    })?;
+            let (_source, formatted) = format_document(
+                &formatter,
+                result.document(),
+                report_mode,
+                output.colorize(),
+            )
+            .with_context(|| {
+                format!(
+                    "could not view document `{path}`",
+                    path = result.document().path()
+                )
+            })?;
             output.payload(formatted);
         }
         FormatSubcommand::Overwrite(s) => {
@@ -218,7 +225,7 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
                 .ignore_filename(ignore_filename.clone())
-                .run(report_mode, colorize)
+                .run(report_mode, output.colorize())
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
@@ -235,18 +242,22 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
                     continue;
                 }
 
-                let (_source, formatted) =
-                    match format_document(&formatter, result.document(), report_mode, colorize) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            errors += 1;
-                            warn!(
-                                "not overwriting document `{path}` due to error: {e:#}",
-                                path = result.document().path()
-                            );
-                            continue;
-                        }
-                    };
+                let (_source, formatted) = match format_document(
+                    &formatter,
+                    result.document(),
+                    report_mode,
+                    output.colorize(),
+                ) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        errors += 1;
+                        warn!(
+                            "not overwriting document `{path}` due to error: {e:#}",
+                            path = result.document().path()
+                        );
+                        continue;
+                    }
+                };
 
                 fs::write(result.document().uri().to_file_path().unwrap(), formatted)
                     .with_context(|| {

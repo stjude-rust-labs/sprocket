@@ -890,7 +890,6 @@ pub async fn run(
     handle: FileReloadHandle,
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
-    let colorize = output.colorize();
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
@@ -935,7 +934,7 @@ pub async fn run(
         .init({
             let progress_bar = progress_bar.clone();
 
-            let template = if colorize {
+            let template = if output.colorize() {
                 "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
             } else {
                 "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
@@ -969,7 +968,7 @@ pub async fn run(
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -990,7 +989,7 @@ pub async fn run(
                 &source,
                 result.document().diagnostics(),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -1027,13 +1026,13 @@ pub async fn run(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        colorize,
+        output.colorize(),
         cancellation.second().clone(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
         args.show_task_stderr,
-        colorize,
+        output.colorize(),
         target.clone(),
         events
             .subscribe_crankshaft()
@@ -1133,7 +1132,7 @@ pub async fn run(
                             &[e.diagnostic],
                             &e.backtrace,
                             report_mode,
-                            colorize
+                            output.colorize()
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
                     }

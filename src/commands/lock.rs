@@ -51,7 +51,6 @@ struct Lock {
 
 /// Performs the `lock` command.
 pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     let output_path = args
         .output
@@ -65,7 +64,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 

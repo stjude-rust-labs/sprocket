@@ -74,7 +74,6 @@ pub struct Args {
 /// Fetches the original run's details, optionally re-analyzes the source,
 /// merges any input overrides, then submits a new run.
 pub async fn retry(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
@@ -112,7 +111,7 @@ pub async fn retry(args: Args, config: Config, output: CommandOutput) -> Command
             config.common.wdl.feature_flags,
             config.common.ignore_filename(),
             report_mode,
-            colorize,
+            output.colorize(),
         )
         .await
         .map_err(|e| {
@@ -126,7 +125,7 @@ pub async fn retry(args: Args, config: Config, output: CommandOutput) -> Command
             }
         })?;
 
-        ensure_no_analysis_errors(&document, report_mode, colorize)?;
+        ensure_no_analysis_errors(&document, report_mode, output.colorize())?;
 
         Some(document)
     } else {

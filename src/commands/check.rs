@@ -153,7 +153,6 @@ pub struct LintArgs {
 
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let mut disabled = args.common.off;
     disabled.extend(config.check.disable.iter().cloned());
 
@@ -233,7 +232,7 @@ pub async fn check(args: CheckArgs, config: Config, output: CommandOutput) -> Co
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -380,7 +379,7 @@ pub async fn check(args: CheckArgs, config: Config, output: CommandOutput) -> Co
                     true
                 }),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }

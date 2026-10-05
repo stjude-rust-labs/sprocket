@@ -103,7 +103,6 @@ const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
 pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
@@ -231,7 +230,7 @@ pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandRe
                             false
                         }),
                         config.common.report_mode,
-                        colorize,
+                        output.colorize(),
                     )
                     .context("failed to emit diagnostics")?;
                 }

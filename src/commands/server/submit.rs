@@ -79,7 +79,6 @@ pub struct Args {
 ///
 /// Submits a workflow to a Sprocket server based on the Args / Config.
 pub async fn submit(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     let source = match args.run_request_args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
@@ -105,11 +104,11 @@ pub async fn submit(args: Args, config: Config, output: CommandOutput) -> Comman
         config.common.wdl.feature_flags,
         config.common.ignore_filename(),
         report_mode,
-        colorize,
+        output.colorize(),
     )
     .await?;
 
-    ensure_no_analysis_errors(&document, report_mode, colorize)?;
+    ensure_no_analysis_errors(&document, report_mode, output.colorize())?;
 
     let (target, inputs) = validate_inputs(
         &document,

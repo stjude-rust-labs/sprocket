@@ -476,7 +476,6 @@ impl InputProcessor {
 
 /// Displays the input schema for a WDL document.
 pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
-    let colorize = output.colorize();
     let report_mode = config.common.report_mode;
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
@@ -489,7 +488,7 @@ pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> Comman
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 

@@ -993,8 +993,6 @@ pub async fn test(
     output: CommandOutput,
     stdout: Stdout,
 ) -> CommandResult<()> {
-    let colorize = output.colorize();
-
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
         let schema_pretty =
@@ -1042,7 +1040,7 @@ pub async fn test(
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -1076,7 +1074,7 @@ pub async fn test(
                     }
                 }),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -1129,7 +1127,7 @@ pub async fn test(
                     }
                 }),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit test document diagnostics")?;
         }
@@ -1165,7 +1163,7 @@ pub async fn test(
         status_bar: if args.no_status {
             StatusBar::disabled()
         } else {
-            StatusBar::new(colorize)
+            StatusBar::new(output.colorize())
         },
         stdout,
         output,
