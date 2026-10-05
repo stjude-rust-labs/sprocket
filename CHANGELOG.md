@@ -9,12 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added a configurable `keywords` list to the `FlaggedComment` lint rule in `[check.rules.FlaggedComment]` ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
 * Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 
 ### Changed
 
+* The `check.except` configuration list in the is now named `check.disable` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* The `-e, --except` argument to `check`/`lint` is now `--off` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * Renamed the `TodoComment` lint rule to `FlaggedComment` ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
 * Moved the lint rule parameters from `[check.lint]` to their rule's table (for example, `[check.rules.SnakeCase]`); `SnakeCase` and `DeclarationName` now have separate `allowed_names` lists ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Moved the note-severity checks in `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` into new lint rules: `MutableContainerTag`, `RedundantContainerArray`, `DeprecatedRuntimeKey`, `RecommendedRuntimeKeys`, `OutputMetaOrder`, `ExtraneousParameterMeta`, and `ParameterMetaOrder` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
@@ -38,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+* Removed `--with-doc-comments` from the `doc` command and `with_doc_comments` from the `doc` config table, as doc comments are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226), [#1266](https://github.com/stjude-rust-labs/sprocket/pull/1266)).
+* Removed the `-e, --except` argument from the `analyzer` subcommand. Use the `check.disable` list instead ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Removed the `tags` list from the `[check]` configuration table ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Removed `--tag` argument from `check`/`lint` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * Removed `--with-doc-comments` from the `doc` command, as they are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
 * Removed many CL args from the `doc` command: `--homepage-url`, `--github-url`, `--slack-url`, `--light-mode`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
 * Removed many CL args from the `format` command: `--with-tabs`, `--indentation-size`, `--max-line-length`, `--newline-style`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
