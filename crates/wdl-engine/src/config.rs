@@ -54,6 +54,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
 use wdl_ast::lexer::Lexer;
 use wdl_ast::v1::Expr;
+use wdl_grammar::Severity;
 use wdl_grammar::SyntaxKind;
 use wdl_grammar::construct_tree;
 use wdl_grammar::grammar::v1;
@@ -404,7 +405,7 @@ mod index_map {
 ///
 /// </div>
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(
     rename = "WdlEngineConfig",
     rename_all = "snake_case",
@@ -685,7 +686,7 @@ impl ToToml for Parallelism {
 
 /// Represents HTTP configuration.
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct HttpConfig {
     /// The HTTP download cache location.
@@ -775,7 +776,7 @@ impl HttpConfig {
 
 /// Represents storage configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct StorageConfig {
     /// Azure Blob Storage configuration.
@@ -804,7 +805,7 @@ impl StorageConfig {
 
 /// Represents authentication information for Azure Blob Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageAuthConfig {
     /// The Azure Storage account name to use.
@@ -837,7 +838,7 @@ impl AzureStorageAuthConfig {
 
 /// Represents configuration for Azure Blob Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageConfig {
     /// The Azure Blob Storage authentication configuration.
@@ -858,7 +859,7 @@ impl AzureStorageConfig {
 
 /// Represents authentication information for AWS S3 storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageAuthConfig {
     /// The AWS Access Key ID to use.
@@ -891,7 +892,7 @@ impl S3StorageAuthConfig {
 
 /// Represents configuration for AWS S3 storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageConfig {
     /// The default region to use for S3-schemed URLs (e.g.
@@ -918,7 +919,7 @@ impl S3StorageConfig {
 
 /// Represents authentication information for Google Cloud Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageAuthConfig {
     /// The HMAC Access Key to use.
@@ -951,7 +952,7 @@ impl GoogleStorageAuthConfig {
 
 /// Represents configuration for Google Cloud Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageConfig {
     /// The Google Cloud Storage authentication configuration.
@@ -972,7 +973,7 @@ impl GoogleStorageConfig {
 
 /// Represents workflow evaluation configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WorkflowConfig {
     /// Scatter statement evaluation configuration.
@@ -991,7 +992,7 @@ impl WorkflowConfig {
 
 /// Represents scatter statement evaluation configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ScatterConfig {
     /// The number of scatter array elements to process concurrently.
@@ -1245,7 +1246,7 @@ impl From<Retries> for RetryConfig {
 
 /// Represents task evaluation configuration.
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
@@ -1565,7 +1566,7 @@ impl From<SlurmApptainerBackendConfig> for BackendConfig {
 /// directly without the use of a container; only use this backend on trusted
 /// WDL. </div>
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LocalBackendConfig {
     /// Set the number of CPUs available for task execution.
@@ -1630,7 +1631,7 @@ fn default_docker_cleanup() -> bool {
 
 /// Represents configuration for the Docker backend.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DockerBackendConfig {
     /// Whether or not to remove a task's container after the task completes.
@@ -1658,7 +1659,7 @@ impl Default for DockerBackendConfig {
 
 /// Represents HTTP basic authentication configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BasicAuthConfig {
     /// The HTTP basic authentication username.
@@ -1682,7 +1683,7 @@ impl BasicAuthConfig {
 
 /// Represents HTTP bearer token authentication configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BearerAuthConfig {
     /// The HTTP bearer authentication token.
@@ -1760,7 +1761,7 @@ impl From<BearerAuthConfig> for TesBackendAuthConfig {
 
 /// Represents configuration for the Task Execution Service (TES) backend.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TesBackendConfig {
     /// The URL of the Task Execution Service.
@@ -1881,7 +1882,7 @@ impl TesBackendConfig {
 
 /// Configuration for the Apptainer container runtime.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
     /// Path to the Apptainer (or Singularity) executable.
@@ -2281,7 +2282,7 @@ impl<'de> FromToml<'de> for Condition {
 /// Conditional arguments are passed to the program responsible for queuing a
 /// task when the associated conditional expression evaluates to `true`.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ConditionalArgs {
     /// The condition for including the arguments.
@@ -2310,7 +2311,7 @@ impl ConditionalArgs {
 ///
 /// These arguments are passed to the executable responsible for queuing a task.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AdditionalArgs {
     /// The additional arguments to pass to the backend program.
@@ -2369,7 +2370,7 @@ mod byte_size {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
@@ -2430,7 +2431,7 @@ impl LsfQueueConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
@@ -2586,7 +2587,7 @@ impl LsfApptainerBackendConfig {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmPartitionConfig {
     /// The name of the partition; this is the string passed to `sbatch
@@ -2659,7 +2660,7 @@ impl SlurmPartitionConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
@@ -2849,6 +2850,20 @@ impl fmt::Display for BuilderErrorDisplay<'_> {
     }
 }
 
+/// Helper for displaying unknown key errors.
+struct UnknownKeyErrorDisplay<'a>(&'a toml_spanner::Error);
+
+impl fmt::Display for UnknownKeyErrorDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown configuration field")?;
+        if let Some(path) = self.0.path() {
+            write!(f, " `{path}`")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Represents an error encountered while building a configuration.
 #[derive(Debug, thiserror::Error)]
 pub enum BuilderError {
@@ -2887,6 +2902,19 @@ pub enum BuilderError {
         #[source]
         error: toml_spanner::FromTomlError,
     },
+    /// Encountered an unknown field key.
+    #[error("{}", UnknownKeyErrorDisplay(.error))]
+    UnknownKey {
+        /// The path to the file.
+        ///
+        /// This is `None` when the source was a string.
+        path: Option<PathBuf>,
+        /// The TOML source that was parsed.
+        source: String,
+        /// The error that was encountered.
+        #[source]
+        error: toml_spanner::Error,
+    },
     /// Failed to merge configuration.
     #[error(transparent)]
     Merge(#[from] BuilderMergeError),
@@ -2913,9 +2941,13 @@ impl BuilderError {
                     }
                     | BuilderError::Deserialize {
                         path: Some(path), ..
+                    }
+                    | BuilderError::UnknownKey {
+                        path: Some(path), ..
                     } => path.display().fmt(f),
                     BuilderError::Parse { path: None, .. }
-                    | BuilderError::Deserialize { path: None, .. } => write!(f, "<string>"),
+                    | BuilderError::Deserialize { path: None, .. }
+                    | BuilderError::UnknownKey { path: None, .. } => write!(f, "<string>"),
                     BuilderError::Merge(_) => write!(f, "<merged>"),
                 }
             }
@@ -2930,9 +2962,9 @@ impl BuilderError {
     /// deserializing TOML.
     pub fn toml_error(&self) -> Option<&toml_spanner::Error> {
         match &self {
-            Self::Parse { error, .. } | Self::Merge(BuilderMergeError::Parse { error, .. }) => {
-                Some(error)
-            }
+            Self::Parse { error, .. }
+            | Self::UnknownKey { error, .. }
+            | Self::Merge(BuilderMergeError::Parse { error, .. }) => Some(error),
             Self::Deserialize { error, .. }
             | Self::Merge(BuilderMergeError::Deserialize { error, .. }) => error.errors.first(),
             _ => None,
@@ -2947,15 +2979,24 @@ impl BuilderError {
         match &self {
             Self::Parse { source, .. }
             | Self::Deserialize { source, .. }
+            | Self::UnknownKey { source, .. }
             | Self::Merge(BuilderMergeError::Parse { source, .. })
             | Self::Merge(BuilderMergeError::Deserialize { source, .. }) => Some(source),
             _ => None,
         }
     }
 
+    /// Get the [`Severity`] of the error.
+    pub fn severity(&self) -> Severity {
+        match &self {
+            Self::UnknownKey { .. } => Severity::Warning,
+            _ => Severity::Error,
+        }
+    }
+
     /// Converts the error into a [`Diagnostic`].
     pub fn to_diagnostic(&self) -> Diagnostic {
-        let mut diagnostic = Diagnostic::error(self.to_string());
+        let mut diagnostic = Diagnostic::error(self.to_string()).with_severity(self.severity());
 
         if let Some(e) = self.toml_error() {
             for (span, text) in [e.primary_label(), e.secondary_label()]
@@ -3005,6 +3046,17 @@ enum Source {
     String(String),
 }
 
+/// A parsed configuration.
+///
+/// See [`ConfigBuilder::try_build()`].
+#[derive(Debug)]
+pub struct BuiltConfig<T> {
+    /// The parsed config type.
+    pub config: T,
+    /// Warnings produced during the config parsing.
+    pub warnings: Vec<BuilderError>,
+}
+
 /// Implements a configuration builder.
 ///
 /// The builder supports merging multiple TOML configuration files together.
@@ -3043,7 +3095,9 @@ impl<T> ConfigBuilder<T> {
     ///
     /// Each configuration file is merged with the previous one in the order
     /// they were added to the builder.
-    pub fn try_build(self) -> Result<T, BuilderError>
+    ///
+    /// On success, this returns the parsed config and any warnings produced.
+    pub fn try_build(self) -> Result<BuiltConfig<T>, BuilderError>
     where
         T: ToToml + for<'de> FromToml<'de>,
     {
@@ -3078,18 +3132,42 @@ impl<T> ConfigBuilder<T> {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Merge the documents as TOML tables
+        let mut warnings = Vec::new();
         let mut merged_table: Table<'_> = Table::new();
         for (index, mut document) in documents.into_iter().enumerate() {
             // Start by deserializing the document to ensure it is a valid
             // standalone configuration
-            document.to::<T>().map_err(|e| {
-                let (path, source) = &sources[index];
-                BuilderError::Deserialize {
+
+            let (path, source) = &sources[index];
+            let (_, mut error) =
+                document
+                    .to_allowing_errors::<T>()
+                    .map_err(|error| BuilderError::Deserialize {
+                        path: path.clone(),
+                        source: source.clone(),
+                        error,
+                    })?;
+
+            warnings.extend(
+                error
+                    .errors
+                    .extract_if(.., |e| matches!(e.kind(), ErrorKind::UnexpectedKey { .. }))
+                    .map(|error| BuilderError::UnknownKey {
+                        path: path.clone(),
+                        source: source.clone(),
+                        error,
+                    }),
+            );
+
+            // Catch anything else just in case. Though realistically, there
+            // should only ever be `UnexpectedKey` errors.
+            if !error.errors.is_empty() {
+                return Err(BuilderError::Deserialize {
                     path: path.clone(),
                     source: source.clone(),
-                    error: e,
-                }
-            })?;
+                    error,
+                });
+            }
 
             // Merge the tables
             Self::merge_tables(document.into_table(), &mut merged_table, &arena);
@@ -3101,17 +3179,24 @@ impl<T> ConfigBuilder<T> {
         let source =
             toml_spanner::to_string(&merged_table).map_err(BuilderMergeError::Serialize)?;
 
+        let mut merged_doc =
+            toml_spanner::parse(&source, &arena).map_err(|e| BuilderMergeError::Parse {
+                source: source.clone(),
+                error: e,
+            })?;
+
         // Deserialize the merged contents back to the underlying config type
-        Ok(toml_spanner::parse(&source, &arena)
-            .map_err(|e| BuilderMergeError::Parse {
+        let (parsed, _) = merged_doc.to_allowing_errors::<T>().map_err(|error| {
+            BuilderMergeError::Deserialize {
                 source: source.clone(),
-                error: e,
-            })?
-            .to()
-            .map_err(|e| BuilderMergeError::Deserialize {
-                source: source.clone(),
-                error: e,
-            })?)
+                error,
+            }
+        })?;
+
+        Ok(BuiltConfig {
+            config: parsed,
+            warnings,
+        })
     }
 
     /// Merges the `src` table with the `dest` table.
@@ -3572,7 +3657,8 @@ mod tests {
 
     #[test]
     fn it_builds_with_no_sources() {
-        let config = Config::builder().try_build().expect("should build");
+        let BuiltConfig { config, warnings } = Config::builder().try_build().expect("should build");
+        assert!(warnings.is_empty());
         assert_eq!(config, Config::default(), "should be equal");
     }
 
@@ -3580,10 +3666,11 @@ mod tests {
     fn it_builds_with_one_source() {
         let path = create_temp_file("backend = 'foo'");
 
-        let config = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&path)
             .try_build()
             .expect("should build");
+        assert!(warnings.is_empty());
         assert_eq!(
             config,
             Config {
@@ -3696,7 +3783,7 @@ excluded_cache_inputs = ['9', '10']
 type = 'lsf_apptainer'
 "#;
 
-        let config = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&first)
             .with_file_source(&second)
             .with_file_source(&third)
@@ -3704,6 +3791,7 @@ type = 'lsf_apptainer'
             .try_build()
             .expect("should build");
 
+        assert!(warnings.is_empty());
         assert_eq!(
             config,
             Config {

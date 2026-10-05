@@ -9,9 +9,11 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
+use wdl_ast::Severity;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::TaskDefinition;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -20,15 +22,30 @@ use crate::TagSet;
 const ID: &str = "EmptyOutputs";
 
 /// Creates a diagnostic for missing `output` sections.
-fn missing_outputs(task: Ident) -> Diagnostic {
-    Diagnostic::note(format!("task '{}' defines no outputs", task.text()))
-        .with_rule(ID)
-        .with_highlight(task.span())
+fn missing_outputs(severity: Severity, task: Ident) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!("task '{}' defines no outputs", task.text()),
+    )
+    .with_rule(ID)
+    .with_highlight(task.span())
 }
 
 /// Detects missing/empty `output` sections.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct EmptyOutputs;
+#[derive(Clone, Copy, Debug)]
+pub struct EmptyOutputs {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl EmptyOutputs {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.empty_outputs.diagnostic_severity(),
+        }
+    }
+}
 
 impl Rule for EmptyOutputs {
     fn id(&self) -> &'static str {
@@ -94,9 +111,7 @@ task generate_files {
 }
 
 impl Visitor for EmptyOutputs {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn task_definition(
         &mut self,
@@ -115,7 +130,7 @@ impl Visitor for EmptyOutputs {
         }
 
         diagnostics.exceptable_add(
-            missing_outputs(task.name()),
+            missing_outputs(self.severity, task.name()),
             task.inner(),
             &self.exceptable_nodes(),
         );

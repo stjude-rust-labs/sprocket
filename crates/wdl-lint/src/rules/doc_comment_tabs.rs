@@ -8,9 +8,11 @@ use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::CommentKind;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::TreeToken;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -19,16 +21,28 @@ use crate::TagSet;
 const ID: &str = "DocCommentTabs";
 
 /// Creates a diagnostic for a group of tab characters.
-fn tab_in_doc_comment(span: Span) -> Diagnostic {
-    Diagnostic::warning("tabs in doc comments are not recommended")
+fn tab_in_doc_comment(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "tabs in doc comments are not recommended")
         .with_rule(ID)
         .with_highlight(span)
         .with_help("consider replacing tabs with spaces")
 }
 
 /// Detects tab characters inside doc comments.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct DocCommentTabsRule;
+#[derive(Debug, Clone, Copy)]
+pub struct DocCommentTabsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl DocCommentTabsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.doc_comment_tabs.diagnostic_severity(),
+        }
+    }
+}
 
 impl Rule for DocCommentTabsRule {
     fn id(&self) -> &'static str {
@@ -95,9 +109,7 @@ workflow example {
 }
 
 impl Visitor for DocCommentTabsRule {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
         if comment.kind() != CommentKind::Documentation {
@@ -121,7 +133,7 @@ impl Visitor for DocCommentTabsRule {
                 let absolute_start = comment.span().start() + start_offset;
 
                 diagnostics.exceptable_add(
-                    tab_in_doc_comment(Span::new(absolute_start, len)),
+                    tab_in_doc_comment(self.severity, Span::new(absolute_start, len)),
                     &TreeToken::parent(comment.inner()),
                     &self.exceptable_nodes(),
                 );

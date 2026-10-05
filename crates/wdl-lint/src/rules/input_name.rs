@@ -7,6 +7,7 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
@@ -14,6 +15,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::UnboundDecl;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -22,34 +24,49 @@ use crate::TagSet;
 const ID: &str = "InputName";
 
 /// Declaration identifier too short
-fn decl_identifier_too_short(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier must be at least 3 characters")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("rename the identifier to be at least 3 characters long")
+fn decl_identifier_too_short(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        "declaration identifier must be at least 3 characters",
+    )
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix("rename the identifier to be at least 3 characters long")
 }
 
 /// Diagnostic for input names that start with [iI]n[A-Z_]
-fn decl_identifier_starts_with_in(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier starts with 'in'")
+fn decl_identifier_starts_with_in(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "declaration identifier starts with 'in'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'in'")
 }
 
 /// Diagnostic for input names that start with "input"
-fn decl_identifier_starts_with_input(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier starts with 'input'")
+fn decl_identifier_starts_with_input(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "declaration identifier starts with 'input'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'input'")
 }
 
 /// A lint rule for disallowed input names.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct InputNameRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// Track if we're in the input section.
     input_section: bool,
+}
+
+impl InputNameRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.input_name.diagnostic_severity(),
+            input_section: Default::default(),
+        }
+    }
 }
 
 impl Rule for InputNameRule {
@@ -130,7 +147,7 @@ task say_hello {
 
 impl Visitor for InputNameRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        self.input_section = Default::default();
     }
 
     fn input_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &InputSection) {
@@ -140,6 +157,7 @@ impl Visitor for InputNameRule {
     fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter && self.input_section {
             check_decl_name(
+                self.severity,
                 diagnostics,
                 &Decl::Bound(decl.clone()),
                 &self.exceptable_nodes(),
@@ -155,6 +173,7 @@ impl Visitor for InputNameRule {
     ) {
         if reason == VisitReason::Enter && self.input_section {
             check_decl_name(
+                self.severity,
                 diagnostics,
                 &Decl::Unbound(decl.clone()),
                 &self.exceptable_nodes(),
@@ -165,6 +184,7 @@ impl Visitor for InputNameRule {
 
 /// Check declaration name
 fn check_decl_name(
+    severity: Severity,
     diagnostics: &mut Diagnostics,
     decl: &Decl,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
@@ -176,7 +196,7 @@ fn check_decl_name(
     if length < 3 {
         // name is too short
         diagnostics.exceptable_add(
-            decl_identifier_too_short(decl.name().span()),
+            decl_identifier_too_short(severity, decl.name().span()),
             decl.inner(),
             exceptable_nodes,
         );
@@ -192,7 +212,7 @@ fn check_decl_name(
             if c.is_ascii_uppercase() || c == &'_' {
                 // name starts with "in"
                 diagnostics.exceptable_add(
-                    decl_identifier_starts_with_in(decl.name().span()),
+                    decl_identifier_starts_with_in(severity, decl.name().span()),
                     decl.inner(),
                     exceptable_nodes,
                 );
@@ -201,7 +221,7 @@ fn check_decl_name(
                 if s == "put" {
                     // name starts with "input"
                     diagnostics.exceptable_add(
-                        decl_identifier_starts_with_input(decl.name().span()),
+                        decl_identifier_starts_with_input(severity, decl.name().span()),
                         decl.inner(),
                         exceptable_nodes,
                     );
