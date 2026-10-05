@@ -309,7 +309,7 @@ impl TestIteration {
         output: CommandOutput,
     ) -> Result<IterationResult> {
         let id = format!(
-            "{doc}::{target}::{test} (iteration #{num})",
+            "{doc}::{target}::{test} #{num}",
             doc = self.id.doc_name,
             target = self.id.target,
             test = self.id.test_name,

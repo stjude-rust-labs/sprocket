@@ -1,5 +1,5 @@
-Passed source::always_fails::should_fail_passes (iteration #1)
-Failed source::always_succeeds::always_succeeds (iteration #1)
+Passed source::always_fails::should_fail_passes #1
+Failed source::always_succeeds::always_succeeds #1
 
 Sprocket test result summary:
 
