@@ -1287,27 +1287,27 @@
           "default": "warning"
         },
         "task": {
-          "description": "The case style for task names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntask = \"pascal-case\"\n```",
+          "description": "The case style for task names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntask = \"pascal_case\"\n```",
           "$ref": "#/$defs/CaseStyle",
           "default": "snake_case"
         },
         "workflow": {
-          "description": "The case style for workflow names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nworkflow = \"pascal-case\"\n```",
+          "description": "The case style for workflow names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nworkflow = \"pascal_case\"\n```",
           "$ref": "#/$defs/CaseStyle",
           "default": "snake_case"
         },
         "variable": {
-          "description": "The case style for input, output, and private declaration\nnames.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nvariable = \"camel-case\"\n```",
+          "description": "The case style for input, output, and private declaration\nnames.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nvariable = \"camel_case\"\n```",
           "$ref": "#/$defs/CaseStyle",
           "default": "snake_case"
         },
         "type": {
-          "description": "The case style for the names of user-defined types: structs,\nenums, and enum choices.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `pascal-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntype = \"camel-case\"\n```",
+          "description": "The case style for the names of user-defined types: structs,\nenums, and enum choices.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntype = \"camel_case\"\n```",
           "$ref": "#/$defs/CaseStyle",
           "default": "pascal_case"
         },
         "struct_member": {
-          "description": "The case style for struct member names.\n\nOne of `snake-case`, `screaming-snake-case`, `camel-case`, or\n`pascal-case`. Defaults to `snake-case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nstruct_member = \"camel-case\"\n```",
+          "description": "The case style for struct member names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nstruct_member = \"camel_case\"\n```",
           "$ref": "#/$defs/CaseStyle",
           "default": "snake_case"
         },

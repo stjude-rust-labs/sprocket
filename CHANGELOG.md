@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added the `NamingConvention` lint rule, which enforces a configurable case style (`snake-case`, `screaming-snake-case`, `camel-case`, or `pascal-case`) for task, workflow, variable, type, and struct member names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
+* Added the `NamingConvention` lint rule, which enforces a configurable case style (`snake_case`, `screaming_snake_case`, `camel_case`, or `pascal_case`) for task, workflow, variable, type, and struct member names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 

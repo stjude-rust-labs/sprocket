@@ -1,2 +1,2 @@
 [check.rules.NamingConvention]
-task = "snake_case"
+task = "snake-case"

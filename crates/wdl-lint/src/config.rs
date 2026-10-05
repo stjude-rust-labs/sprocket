@@ -421,64 +421,64 @@ define_rules_config! {
             severity = RuleSeverity::Warning;
             /// The case style for task names.
             ///
-            /// One of `snake-case`, `screaming-snake-case`, `camel-case`, or
-            /// `pascal-case`. Defaults to `snake-case`.
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
             ///
             /// ##### Example
             ///
             /// ```toml
             /// [check.rules.NamingConvention]
-            /// task = "pascal-case"
+            /// task = "pascal_case"
             /// ```
             task: CaseStyle = CaseStyle::SnakeCase;
             /// The case style for workflow names.
             ///
-            /// One of `snake-case`, `screaming-snake-case`, `camel-case`, or
-            /// `pascal-case`. Defaults to `snake-case`.
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
             ///
             /// ##### Example
             ///
             /// ```toml
             /// [check.rules.NamingConvention]
-            /// workflow = "pascal-case"
+            /// workflow = "pascal_case"
             /// ```
             workflow: CaseStyle = CaseStyle::SnakeCase;
             /// The case style for input, output, and private declaration
             /// names.
             ///
-            /// One of `snake-case`, `screaming-snake-case`, `camel-case`, or
-            /// `pascal-case`. Defaults to `snake-case`.
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
             ///
             /// ##### Example
             ///
             /// ```toml
             /// [check.rules.NamingConvention]
-            /// variable = "camel-case"
+            /// variable = "camel_case"
             /// ```
             variable: CaseStyle = CaseStyle::SnakeCase;
             /// The case style for the names of user-defined types: structs,
             /// enums, and enum choices.
             ///
-            /// One of `snake-case`, `screaming-snake-case`, `camel-case`, or
-            /// `pascal-case`. Defaults to `pascal-case`.
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
             ///
             /// ##### Example
             ///
             /// ```toml
             /// [check.rules.NamingConvention]
-            /// type = "camel-case"
+            /// type = "camel_case"
             /// ```
             r#type @ "type": CaseStyle = CaseStyle::PascalCase;
             /// The case style for struct member names.
             ///
-            /// One of `snake-case`, `screaming-snake-case`, `camel-case`, or
-            /// `pascal-case`. Defaults to `snake-case`.
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
             ///
             /// ##### Example
             ///
             /// ```toml
             /// [check.rules.NamingConvention]
-            /// struct_member = "camel-case"
+            /// struct_member = "camel_case"
             /// ```
             struct_member: CaseStyle = CaseStyle::SnakeCase;
             /// List of names to ignore.

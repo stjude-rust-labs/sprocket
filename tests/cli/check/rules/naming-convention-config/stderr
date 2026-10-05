@@ -1,5 +1,7 @@
-error: failed to deserialize configuration file `sprocket.toml`
-  ┌─ sprocket.toml:2:8
-  │
-2 │ task = "pascal-case"
-  │        ^^^^^^^^^^^^^ expected one of: snake_case, screaming_snake_case, camel_case, pascal_case
+error: unexpected argument '--tag' found
+
+  tip: to pass '--tag' as a value, use '-- --tag'
+
+Usage: sprocket check --lint [SOURCE]...
+
+For more information, try '--help'.
