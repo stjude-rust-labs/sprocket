@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* `HostPathLiterals` now emits warnings instead of notes by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* `DescriptionLength` and `DocMetaStrings` are now off by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * `Config` now has one table per rule, keyed by rule ID, for both analysis and lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules now report diagnostics at their configured severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules are now constructed with `new(&Config)` and no longer implement `Default` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
@@ -30,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Removed
 
 * Removed the `SnakeCase` and `PascalCase` lint rules and their configuration, which are replaced by `NamingConvention` ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
+* The `Spacing` tag ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 
 #### Fixed
 

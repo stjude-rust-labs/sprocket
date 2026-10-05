@@ -364,13 +364,13 @@ define_rules_config! {
             severity = RuleSeverity::Warning;
         }
         "DescriptionLength" => description_length: DescriptionLengthConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Off;
         }
         "DocCommentTabs" => doc_comment_tabs: DocCommentTabsConfig {
             severity = RuleSeverity::Warning;
         }
         "DocMetaStrings" => doc_meta_strings: DocMetaStringsConfig {
-            severity = RuleSeverity::Warning;
+            severity = RuleSeverity::Off;
         }
         "EmptyDocComment" => empty_doc_comment: EmptyDocCommentConfig {
             severity = RuleSeverity::Note;
@@ -394,7 +394,7 @@ define_rules_config! {
             severity = RuleSeverity::Warning;
         }
         "HostPathLiterals" => host_path_literals: HostPathLiteralsConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Warning;
         }
         "ImportPlacement" => import_placement: ImportPlacementConfig {
             severity = RuleSeverity::Warning;
