@@ -347,13 +347,13 @@ define_rules_config! {
             severity = RuleSeverity::Warning;
         }
         "DescriptionLength" => description_length: DescriptionLengthConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Off;
         }
         "DocCommentTabs" => doc_comment_tabs: DocCommentTabsConfig {
             severity = RuleSeverity::Warning;
         }
         "DocMetaStrings" => doc_meta_strings: DocMetaStringsConfig {
-            severity = RuleSeverity::Warning;
+            severity = RuleSeverity::Off;
         }
         "EmptyDocComment" => empty_doc_comment: EmptyDocCommentConfig {
             severity = RuleSeverity::Note;
@@ -377,7 +377,7 @@ define_rules_config! {
             severity = RuleSeverity::Warning;
         }
         "HostPathLiterals" => host_path_literals: HostPathLiteralsConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Warning;
         }
         "ImportPlacement" => import_placement: ImportPlacementConfig {
             severity = RuleSeverity::Warning;
@@ -486,8 +486,21 @@ define_rules_config! {
             /// ```
             allowed_names: Vec<String> = Vec::new();
         }
-        "TodoComment" => todo_comment: TodoCommentConfig {
+        "FlaggedComment" => flagged_comment: FlaggedCommentConfig {
             severity = RuleSeverity::Note;
+            /// List of keywords to flag in comments.
+            ///
+            /// Keywords are matched as case-sensitive substrings of the comment
+            /// text, and cannot be empty. When keywords overlap (for example,
+            /// `FIX` and `FIXME`), the longest keyword is reported.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.FlaggedComment]
+            /// keywords = ["TODO", "FIXME", "XXX"]
+            /// ```
+            keywords: Vec<String> = vec![String::from("TODO")];
         }
         "UnusedDocComments" => unused_doc_comments: UnusedDocCommentsConfig {
             severity = RuleSeverity::Note;

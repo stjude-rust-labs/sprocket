@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use anyhow::Context;
 use anyhow::anyhow;
@@ -16,12 +15,9 @@ use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Baseline;
 use wdl::lint::BaselineEntry;
 use wdl::lint::RuleSeverity;
-use wdl::lint::Tag;
-use wdl::lint::TagSet;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 
 use super::explain::ALL_RULE_IDS;
@@ -31,17 +27,6 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 
-/// The [`Tag`]s which will run with the default `lint` configuration.
-const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
-    Tag::Completeness,
-    Tag::Naming,
-    Tag::Clarity,
-    Tag::Portability,
-    Tag::Correctness,
-    Tag::Deprecated,
-    Tag::Documentation,
-]);
-
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -50,25 +35,25 @@ pub struct Common {
     #[clap(value_name = "SOURCE")]
     pub sources: Vec<Source>,
 
-    /// Excepts (ignores) a lint rule or tag from running if it would have been
-    /// included otherwise.
+    /// Disables an analysis or lint rule if it would have been included
+    /// otherwise.
     ///
     /// Repeat the flag multiple times to except multiple rules or tags. This is
-    /// additive with exceptions found in config files.
-    #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter().chain(ALL_TAG_NAMES.iter())),
+    /// additive with rules turned off in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
         hide_possible_values = true,
     )]
-    pub except: Vec<String>,
+    pub off: Vec<String>,
 
     /// Sets a rule's severity to `warning`.
     ///
     /// Repeat the flag to set multiple rules. This takes precedence over the
-    /// severity in config files and over `--note`. It does not enable a lint
-    /// rule that is excluded by tags or `--except`.
+    /// severity in config files and over `--note`. It does not enable a
+    /// rule that is disabled via `--off`.
     #[clap(long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
@@ -81,8 +66,8 @@ pub struct Common {
     /// Sets a rule's severity to `note`.
     ///
     /// Repeat the flag to set multiple rules. This takes precedence over the
-    /// severity in config files. It does not enable a lint rule that is
-    /// excluded by tags or `--except`.
+    /// severity in config files. It does not enable a rule that is
+    /// disabled via `--off`.
     #[clap(long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
@@ -91,19 +76,6 @@ pub struct Common {
         hide_possible_values = true,
     )]
     pub note: Vec<String>,
-
-    /// Includes a lint tag for running.
-    ///
-    /// Repeat the flag multiple times to include multiple tags. `--except
-    /// <RULE|TAG>` can be used in conjunction with
-    /// this argument. This is additive with tags selected via config files.
-    #[clap(long, value_name = "TAG",
-        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
-        ignore_case = true,
-        action = clap::ArgAction::Append,
-        num_args = 1,
-    )]
-    pub tag: Vec<String>,
 
     /// Causes the command to fail if warnings were reported.
     #[clap(long)]
@@ -176,12 +148,8 @@ pub struct LintArgs {
 
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
-    let mut except = args.common.except;
-    except.extend(config.check.except.iter().cloned());
-
-    let disabled_tags = except
-        .extract_if(.., |i| Tag::from_str(i).is_ok())
-        .collect::<Vec<_>>();
+    let mut disabled = args.common.off;
+    disabled.extend(config.check.disable.iter().cloned());
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
@@ -189,10 +157,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     let hide_notes = args.common.hide_notes || config.check.hide_notes || hide_warnings;
     let report_mode = config.common.report_mode;
 
-    let lint = args.lint || !args.common.tag.is_empty();
-
-    let mut enabled_tags = config.check.tags;
-    enabled_tags.extend(args.common.tag);
+    let lint = args.lint;
 
     let mut sources = args.common.sources;
     if sources.is_empty() {
@@ -245,39 +210,6 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .cloned()
         .collect::<HashSet<_>>();
 
-    let disabled_tags = if lint && !disabled_tags.is_empty() {
-        TagSet::new(
-            disabled_tags
-                .iter()
-                .filter_map(|t| Tag::from_str(t).ok())
-                .collect::<Vec<_>>()
-                .as_slice(),
-        )
-    } else {
-        TagSet::EMPTY
-    };
-
-    let explicit_tags = if lint {
-        TagSet::new(
-            enabled_tags
-                .iter()
-                .filter_map(|t| Tag::from_str(t).ok())
-                .collect::<Vec<_>>()
-                .as_slice(),
-        )
-    } else {
-        TagSet::EMPTY
-    };
-
-    let enabled_tags = if lint {
-        DEFAULT_TAG_SET
-            .difference(disabled_tags)
-            // `--tag` takes precedence over `--except`
-            .union(explicit_tags)
-    } else {
-        TagSet::EMPTY
-    };
-
     let mut rules_config = config.check.rules;
     for rule in &args.common.note {
         rules_config.set_severity(rule, RuleSeverity::Note);
@@ -288,9 +220,9 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 
     let results = Analysis::default()
         .extend_sources(sources)
-        .extend_exceptions(except)
+        .extend_exceptions(disabled)
         .rules_config(rules_config)
-        .enabled_lint_tags(enabled_tags)
+        .linting(lint)
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)

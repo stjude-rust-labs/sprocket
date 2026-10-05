@@ -10,12 +10,11 @@ newline_style = "auto"
 quote_style = "preserve"
 
 [check]
-except = []
+disable = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
 hide_warnings = false
-tags = []
 
 [check.rules.UnusedImport]
 severity = "warning"
@@ -86,13 +85,13 @@ severity = "note"
 severity = "warning"
 
 [check.rules.DescriptionLength]
-severity = "note"
+severity = "off"
 
 [check.rules.DocCommentTabs]
 severity = "warning"
 
 [check.rules.DocMetaStrings]
-severity = "warning"
+severity = "off"
 
 [check.rules.EmptyDocComment]
 severity = "note"
@@ -108,7 +107,7 @@ allowed_runtime_keys = []
 severity = "warning"
 
 [check.rules.HostPathLiterals]
-severity = "note"
+severity = "warning"
 
 [check.rules.ImportPlacement]
 severity = "warning"
@@ -175,8 +174,9 @@ severity = "note"
 severity = "warning"
 allowed_names = []
 
-[check.rules.TodoComment]
+[check.rules.FlaggedComment]
 severity = "note"
+keywords = ["TODO"]
 
 [check.rules.UnusedDocComments]
 severity = "note"
@@ -309,7 +309,6 @@ homepage_url = "none"
 github_url = "none"
 slack_url = "none"
 light_mode = false
-with_doc_comments = false
 
 [doc.extra_html]
 head = "none"

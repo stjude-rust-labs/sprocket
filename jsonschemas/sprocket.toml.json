@@ -172,8 +172,8 @@
       "description": "Represents the configuration for the Sprocket `check` and `lint` commands.",
       "type": "object",
       "properties": {
-        "except": {
-          "description": "Rule IDs or tags to except from running.\n\nThis list is also honored by the `analyzer` subcommand.",
+        "disable": {
+          "description": "Rule IDs to prevent from running.\n\nThis list is also honored by the `analyzer` subcommand.",
           "type": "array",
           "items": {
             "type": "string"
@@ -199,14 +199,6 @@
           "description": "Hide diagnostics with `warning` and `note` severity.",
           "type": "boolean",
           "default": false
-        },
-        "tags": {
-          "description": "Set of lint tags to opt into. Leave this empty to use the default set of\ntags.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         },
         "baseline": {
           "description": "Path to the diagnostic baseline file.",
@@ -292,13 +284,13 @@
               "severity": "warning"
             },
             "DescriptionLength": {
-              "severity": "note"
+              "severity": "off"
             },
             "DocCommentTabs": {
               "severity": "warning"
             },
             "DocMetaStrings": {
-              "severity": "warning"
+              "severity": "off"
             },
             "EmptyDocComment": {
               "severity": "note"
@@ -314,7 +306,7 @@
               "severity": "warning"
             },
             "HostPathLiterals": {
-              "severity": "note"
+              "severity": "warning"
             },
             "ImportPlacement": {
               "severity": "warning"
@@ -381,8 +373,11 @@
               "severity": "warning",
               "allowed_names": []
             },
-            "TodoComment": {
-              "severity": "note"
+            "FlaggedComment": {
+              "severity": "note",
+              "keywords": [
+                "TODO"
+              ]
             },
             "UnusedDocComments": {
               "severity": "note"
@@ -560,7 +555,7 @@
           "description": "The `DescriptionLength` rule.",
           "$ref": "#/$defs/DescriptionLengthConfig",
           "default": {
-            "severity": "note"
+            "severity": "off"
           }
         },
         "DocCommentTabs": {
@@ -574,7 +569,7 @@
           "description": "The `DocMetaStrings` rule.",
           "$ref": "#/$defs/DocMetaStringsConfig",
           "default": {
-            "severity": "warning"
+            "severity": "off"
           }
         },
         "EmptyDocComment": {
@@ -610,7 +605,7 @@
           "description": "The `HostPathLiterals` rule.",
           "$ref": "#/$defs/HostPathLiteralsConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
         "ImportPlacement": {
@@ -758,11 +753,14 @@
             "allowed_names": []
           }
         },
-        "TodoComment": {
-          "description": "The `TodoComment` rule.",
-          "$ref": "#/$defs/TodoCommentConfig",
+        "FlaggedComment": {
+          "description": "The `FlaggedComment` rule.",
+          "$ref": "#/$defs/FlaggedCommentConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "keywords": [
+              "TODO"
+            ]
           }
         },
         "UnusedDocComments": {
@@ -1112,7 +1110,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1136,7 +1134,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1204,7 +1202,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false
@@ -1481,14 +1479,24 @@
       },
       "additionalProperties": false
     },
-    "TodoCommentConfig": {
-      "description": "Configuration for the `TodoComment` lint rule.",
+    "FlaggedCommentConfig": {
+      "description": "Configuration for the `FlaggedComment` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "keywords": {
+          "description": "List of keywords to flag in comments.\n\nKeywords are matched as case-sensitive substrings of the comment\ntext, and cannot be empty. When keywords overlap (for example,\n`FIX` and `FIXME`), the longest keyword is reported.\n\n##### Example\n\n```toml\n[check.rules.FlaggedComment]\nkeywords = [\"TODO\", \"FIXME\", \"XXX\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "TODO"
+          ]
         }
       },
       "additionalProperties": false
@@ -2701,11 +2709,6 @@
         },
         "light_mode": {
           "description": "Initialize pages in light mode instead of the default dark mode.",
-          "type": "boolean",
-          "default": false
-        },
-        "with_doc_comments": {
-          "description": "Enables support for documentation comments\n\nThis option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.",
           "type": "boolean",
           "default": false
         },

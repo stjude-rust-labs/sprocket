@@ -405,12 +405,12 @@ mod feature_flags {
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Rule IDs or tags to except from running.
+    /// Rule IDs to prevent from running.
     ///
     /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
     #[schemars(default)]
-    pub except: Vec<String>,
+    pub disable: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
     #[toml(default)]
     #[schemars(default)]
@@ -427,11 +427,6 @@ pub struct CheckConfig {
     #[toml(default)]
     #[schemars(default)]
     pub hide_warnings: bool,
-    /// Set of lint tags to opt into. Leave this empty to use the default set of
-    /// tags.
-    #[toml(default)]
-    #[schemars(default)]
-    pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
     /// Per-rule configuration, keyed by rule ID.
@@ -876,12 +871,6 @@ pub struct DocConfig {
     #[toml(default)]
     #[schemars(default)]
     pub light_mode: bool,
-    /// Enables support for documentation comments
-    ///
-    /// This option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
-    #[toml(default)]
-    #[schemars(default)]
-    pub with_doc_comments: bool,
     /// Configuration for custom HTML to embed in generated pages.
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -902,7 +891,6 @@ impl Default for DocConfig {
             github_url: sentinel_doc_config_value().into(),
             slack_url: sentinel_doc_config_value().into(),
             light_mode: false,
-            with_doc_comments: false,
             extra_html: DocExtraHtmlConfig::default(),
             seo: DocSeoConfig::default(),
         }
@@ -1267,6 +1255,17 @@ impl Config {
     pub fn validate(&mut self) -> Result<()> {
         self.module.init.validate()?;
 
+        if self
+            .check
+            .rules
+            .flagged_comment
+            .keywords
+            .iter()
+            .any(|keyword| keyword.trim().is_empty())
+        {
+            bail!("`check.rules.FlaggedComment.keywords` cannot contain empty keywords");
+        }
+
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
         }
@@ -1529,6 +1528,23 @@ mod tests {
         assert_eq!(config.allowed_urls, expected_urls);
 
         Ok(())
+    }
+
+    #[test]
+    fn flagged_comment_rejects_empty_keywords() {
+        for keyword in ["", "  "] {
+            let mut config = Config::default();
+            config.check.rules.flagged_comment.keywords = vec![String::from(keyword)];
+            let error = config.validate().unwrap_err().to_string();
+            assert_eq!(
+                error,
+                "`check.rules.FlaggedComment.keywords` cannot contain empty keywords"
+            );
+        }
+
+        let mut config = Config::default();
+        config.check.rules.flagged_comment.keywords = vec![String::from("FIXME")];
+        config.validate().unwrap();
     }
 
     #[test]

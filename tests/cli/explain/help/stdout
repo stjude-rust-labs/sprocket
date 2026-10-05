@@ -89,6 +89,7 @@ Available rules:
   - EmptyOutputs
   - ExceptDirectiveValid
   - ExtraneousParameterMeta
+  - FlaggedComment
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
@@ -114,7 +115,6 @@ Available rules:
   - RuntimeSection
   - ShellCheck
   - SnakeCase
-  - TodoComment
   - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall
@@ -135,6 +135,5 @@ Available tags:
   - Performance
   - Portability
   - Sorting
-  - Spacing
   - SprocketCompatibility
   - Style
