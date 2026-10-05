@@ -87,7 +87,7 @@ pub(crate) const fn default_task_shell() -> &'static str {
 }
 
 /// The default task container.
-pub(crate) const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
+pub const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
 
 /// The default task container.
 pub(crate) const fn default_task_container() -> &'static str {

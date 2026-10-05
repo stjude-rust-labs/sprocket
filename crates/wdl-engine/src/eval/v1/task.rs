@@ -105,6 +105,7 @@ use crate::eval::Scope;
 use crate::eval::ScopeIndex;
 use crate::eval::ScopeRef;
 use crate::eval::trie::InputTrie;
+use crate::images::ContainerImageOverrides;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
 use crate::stdlib::download_file;
@@ -116,7 +117,7 @@ use crate::v1::expr::ExprEvaluator;
 use crate::v1::write_json_file;
 
 pub(crate) mod hints;
-pub(crate) mod requirements;
+pub mod requirements;
 
 /// The maximum number of stderr lines to display in error messages.
 const MAX_STDERR_LINES: usize = 10;
@@ -1139,6 +1140,7 @@ impl<'a> State<'a> {
         id: &str,
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
+        image_overrides: &ContainerImageOverrides,
         attempt: u64,
         previous_task_data: Option<Arc<TaskPostEvaluationData>>,
     ) -> EvaluationResult<EvaluatedSections> {
@@ -1210,7 +1212,7 @@ impl<'a> State<'a> {
             .evaluator
             .engine()
             .backend()
-            .constraints(inputs, &requirements, &hints)
+            .constraints(inputs, &requirements, image_overrides, &hints)
             .with_context(|| {
                 format!(
                     "failed to get constraints for task `{task}`",
@@ -1706,6 +1708,7 @@ impl Evaluator {
                     id,
                     &definition,
                     &inputs,
+                    self.image_overrides(),
                     attempt,
                     previous_task_data.clone(),
                 )
@@ -2314,7 +2317,7 @@ mod tests {
         let document = results.first().expect("should have result").document();
         let engine = Engine::new(config).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
         let runs_dir = root_dir.join("runs");
         evaluator
             .evaluate_task(
@@ -3132,7 +3135,7 @@ task t {
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
         let events = Events::new(10);
-        let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone());
+        let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone(), None);
 
         let document = results
             .iter()

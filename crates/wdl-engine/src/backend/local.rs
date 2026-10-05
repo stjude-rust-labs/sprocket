@@ -36,6 +36,7 @@ use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
+use crate::images::ContainerImageOverrides;
 use crate::v1::requirements;
 
 /// Represents a local task request.
@@ -263,6 +264,7 @@ impl TaskExecutionBackend for LocalBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        _: &ContainerImageOverrides,
         _: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut cpu = requirements::cpu(inputs, requirements);

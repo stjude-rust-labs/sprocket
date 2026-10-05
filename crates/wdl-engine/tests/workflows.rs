@@ -120,7 +120,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         }
 
         let engine = Engine::new(config.engine).await?;
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
+        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default(), None);
         match evaluator
             .evaluate_workflow(result.document(), inputs.clone(), &dir)
             .await

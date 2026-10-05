@@ -15,7 +15,9 @@ use utoipa::OpenApi as _;
 use utoipa_swagger_ui::SwaggerUi;
 use wdl::diagnostics::Mode;
 
+use crate::analysis::Source;
 use crate::config::Config;
+use crate::lock::file::LockFile;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::svc::RunManagerSvc;
 
@@ -74,6 +76,8 @@ async fn create_server_app(
     report_mode: Mode,
     colorize: bool,
 ) -> anyhow::Result<Router> {
+    let lock_file = LockFile::locate(&Source::default())?.unwrap_or_default();
+
     let db_path = config
         .server
         .database
@@ -96,6 +100,7 @@ async fn create_server_app(
         report_mode,
         colorize,
         db.clone(),
+        lock_file.as_container_overrides(),
     )
     .await?;
 

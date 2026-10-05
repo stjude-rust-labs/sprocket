@@ -4,7 +4,7 @@ Usage: sprocket dev [OPTIONS] <COMMAND>
 
 Commands:
   doc     Document a workspace
-  lock    Locks Docker images to a sha256 digest
+  lock    Generates a container image lock file
   module  Create and manage WDL modules
   server  Run-management server commands (start, submit, status, inspect, cancel, retry)
   test    Runs unit tests for a WDL workspace

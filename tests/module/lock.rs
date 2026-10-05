@@ -534,7 +534,7 @@ fn run_locked_refuses_to_regenerate_a_missing_lockfile() {
         stderr = String::from_utf8_lossy(&output.stderr)
     );
 
-    let output = sprocket(&["run", "--locked", "index.wdl"])
+    let output = sprocket(&["run", "--lock-modules", "index.wdl"])
         .current_dir(fixture.consumer())
         .output()
         .expect("failed to run sprocket run");

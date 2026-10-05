@@ -20,7 +20,7 @@ pub(crate) use expr::*;
 use lru::LruCache;
 use regex::Regex;
 use serde::Serialize;
-pub(crate) use task::*;
+pub use task::*;
 use wdl_analysis::Document;
 use wdl_analysis::types::EnumChoiceCacheKey;
 use wdl_ast::AstToken;
@@ -37,6 +37,7 @@ use crate::Value;
 use crate::diagnostics::unknown_enum;
 use crate::diagnostics::unknown_enum_choice;
 use crate::digest::DigestCalculator;
+use crate::images::ContainerImageOverrides;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.
@@ -78,6 +79,10 @@ struct EvaluatorInner {
     regex_cache: Mutex<LruCache<String, Result<Regex, regex::Error>>>,
     /// The digest calculator to use for files and directories.
     digests: DigestCalculator,
+    /// Container image overrides.
+    ///
+    /// See [`ContainerImageOverrides`].
+    image_overrides: Arc<ContainerImageOverrides>,
 }
 
 /// Represents a WDL 1.x evaluator.
@@ -98,7 +103,12 @@ pub struct Evaluator(Arc<EvaluatorInner>);
 impl Evaluator {
     /// Constructs a new evaluator with the given engine, events, and
     /// cancellation context.
-    pub(crate) fn new(engine: &Engine, events: Events, cancellation: CancellationContext) -> Self {
+    pub(crate) fn new(
+        engine: &Engine,
+        events: Events,
+        cancellation: CancellationContext,
+        image_overrides: Option<ContainerImageOverrides>,
+    ) -> Self {
         let http_client = EvaluationHttpClient::new(engine, &events);
 
         let digests = DigestCalculator::new(
@@ -125,9 +135,15 @@ impl Evaluator {
                         .expect("expected a non-zero regex cache capacity"),
                 )),
                 digests,
+                image_overrides: Arc::new(image_overrides.unwrap_or_default()),
             }
             .into(),
         )
+    }
+
+    /// Gets the [`ContainerImageOverrides`] associated with the evaluator.
+    fn image_overrides(&self) -> &ContainerImageOverrides {
+        &self.0.image_overrides
     }
 
     /// Gets the [`Engine`] associated with the evaluator.
