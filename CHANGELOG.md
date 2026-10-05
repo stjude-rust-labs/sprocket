@@ -12,11 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `NamingConvention` lint rule, which enforces a configurable case style (`snake_case`, `screaming_snake_case`, `camel_case`, or `pascal_case`) for task, workflow, variable, type, and struct member names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `min_length` and `check_prefixes` parameters to the `InputName` and `OutputName` lint rules ([#1253](https://github.com/stjude-rust-labs/sprocket/pull/1253)).
 
 ### Changed
 
 * The `check.except` configuration list in the is now named `check.disable` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * The `-e, --except` argument to `check`/`lint` is now `--off` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Renamed the `TodoComment` lint rule to `FlaggedComment` ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
 * Moved the lint rule parameters from `[check.lint]` to their rule's table (for example, `[check.rules.SnakeCase]`); `SnakeCase` and `DeclarationName` now have separate `allowed_names` lists ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Moved the note-severity checks in `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` into new lint rules: `MutableContainerTag`, `RedundantContainerArray`, `DeprecatedRuntimeKey`, `RecommendedRuntimeKeys`, `OutputMetaOrder`, `ExtraneousParameterMeta`, and `ParameterMetaOrder` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `BashSetSyntax` now reports unknown `set` options as warnings, and `ShellCheck` reports a failure to run `shellcheck` as a note ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).

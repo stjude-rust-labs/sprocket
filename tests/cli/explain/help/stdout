@@ -89,6 +89,7 @@ Available rules:
   - EmptyOutputs
   - ExceptDirectiveValid
   - ExtraneousParameterMeta
+  - FlaggedComment
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
@@ -113,7 +114,6 @@ Available rules:
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
-  - TodoComment
   - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall

@@ -404,6 +404,25 @@ define_rules_config! {
         }
         "InputName" => input_name: InputNameConfig {
             severity = RuleSeverity::Note;
+            /// The minimum length of input names; shorter names are flagged.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.InputName]
+            /// min_length = 5
+            /// ```
+            min_length: u8 = 3;
+            /// Whether to flag input names that start with a disallowed
+            /// prefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.InputName]
+            /// check_prefixes = false
+            /// ```
+            check_prefixes: bool = true;
         }
         "MatchingOutputMeta" => matching_output_meta: MatchingOutputMetaConfig {
             severity = RuleSeverity::Warning;
@@ -493,6 +512,25 @@ define_rules_config! {
         }
         "OutputName" => output_name: OutputNameConfig {
             severity = RuleSeverity::Note;
+            /// The minimum length of output names; shorter names are flagged.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.OutputName]
+            /// min_length = 5
+            /// ```
+            min_length: u8 = 3;
+            /// Whether to flag output names that start with a disallowed
+            /// prefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.OutputName]
+            /// check_prefixes = false
+            /// ```
+            check_prefixes: bool = true;
         }
         "OutputMetaOrder" => output_meta_order: OutputMetaOrderConfig {
             severity = RuleSeverity::Note;
@@ -524,8 +562,21 @@ define_rules_config! {
         "ShellCheck" => shellcheck: ShellCheckConfig {
             severity = RuleSeverity::Note;
         }
-        "TodoComment" => todo_comment: TodoCommentConfig {
+        "FlaggedComment" => flagged_comment: FlaggedCommentConfig {
             severity = RuleSeverity::Note;
+            /// List of keywords to flag in comments.
+            ///
+            /// Keywords are matched as case-sensitive substrings of the comment
+            /// text, and cannot be empty. When keywords overlap (for example,
+            /// `FIX` and `FIXME`), the longest keyword is reported.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.FlaggedComment]
+            /// keywords = ["TODO", "FIXME", "XXX"]
+            /// ```
+            keywords: Vec<String> = vec![String::from("TODO")];
         }
         "UnusedDocComments" => unused_doc_comments: UnusedDocCommentsConfig {
             severity = RuleSeverity::Note;

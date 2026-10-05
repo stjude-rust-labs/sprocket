@@ -4438,7 +4438,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:518:11: note[TodoComment]: remaining `TODO` item found"
+message = "samtools.wdl:518:11: note[FlaggedComment]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/samtools.wdl/#L518"
 
 [[diagnostics]]
@@ -4468,17 +4468,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:616:61: note[TodoComment]: remaining `TODO` item found"
+message = "star.wdl:616:61: note[FlaggedComment]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L616"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:620:54: note[TodoComment]: remaining `TODO` item found"
+message = "star.wdl:620:54: note[FlaggedComment]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L620"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:621:42: note[TodoComment]: remaining `TODO` item found"
+message = "star.wdl:621:42: note[FlaggedComment]: remaining `TODO` item found"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L621"
 
 [[diagnostics]]

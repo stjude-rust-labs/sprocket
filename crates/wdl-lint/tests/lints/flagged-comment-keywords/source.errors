@@ -1,0 +1,72 @@
+note[FlaggedComment]: remaining `FIXME` item found
+  ┌─ tests/lints/flagged-comment-keywords/source.wdl:5:3
+  │
+5 │ # FIXME: at the start of the comment
+  │   ^^^^^
+  │
+  = fix: remove the `FIXME` item once it has been implemented
+
+note[FlaggedComment]: remaining `XYZ` item found
+  ┌─ tests/lints/flagged-comment-keywords/source.wdl:6:18
+  │
+6 │ # in the middle: XYZ (the keyword is not at either end)
+  │                  ^^^
+  │
+  = fix: remove the `XYZ` item once it has been implemented
+
+note[FlaggedComment]: remaining `XYZ` item found
+  ┌─ tests/lints/flagged-comment-keywords/source.wdl:7:29
+  │
+7 │ # at the end of the comment XYZ
+  │                             ^^^
+  │
+  = fix: remove the `XYZ` item once it has been implemented
+
+note[FlaggedComment]: remaining `XYZ` item found
+  ┌─ tests/lints/flagged-comment-keywords/source.wdl:8:28
+  │
+8 │ # multiple in one comment: XYZ FIXME XYZ
+  │                            ^^^
+  │
+  = fix: remove the `XYZ` item once it has been implemented
+
+note[FlaggedComment]: remaining `FIXME` item found
+  ┌─ tests/lints/flagged-comment-keywords/source.wdl:8:32
+  │
+8 │ # multiple in one comment: XYZ FIXME XYZ
+  │                                ^^^^^
+  │
+  = fix: remove the `FIXME` item once it has been implemented
+
+note[FlaggedComment]: remaining `XYZ` item found
+  ┌─ tests/lints/flagged-comment-keywords/source.wdl:8:38
+  │
+8 │ # multiple in one comment: XYZ FIXME XYZ
+  │                                      ^^^
+  │
+  = fix: remove the `XYZ` item once it has been implemented
+
+note[FlaggedComment]: remaining `FIXME` item found
+  ┌─ tests/lints/flagged-comment-keywords/source.wdl:9:43
+  │
+9 │ # overlapping keywords are reported once: FIXME
+  │                                           ^^^^^
+  │
+  = fix: remove the `FIXME` item once it has been implemented
+
+note[FlaggedComment]: remaining `FIX` item found
+   ┌─ tests/lints/flagged-comment-keywords/source.wdl:10:63
+   │
+10 │ # a shorter overlapping keyword is still reported on its own: FIX
+   │                                                               ^^^
+   │
+   = fix: remove the `FIX` item once it has been implemented
+
+note[FlaggedComment]: remaining `XYZ` item found
+   ┌─ tests/lints/flagged-comment-keywords/source.wdl:25:7
+   │
+25 │     # XYZ: trailing comment
+   │       ^^^
+   │
+   = fix: remove the `XYZ` item once it has been implemented
+

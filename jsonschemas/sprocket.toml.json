@@ -315,7 +315,9 @@
               "severity": "warning"
             },
             "InputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "MatchingOutputMeta": {
               "severity": "warning"
@@ -339,7 +341,9 @@
               "allowed_names": []
             },
             "OutputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "OutputMetaOrder": {
               "severity": "note"
@@ -371,8 +375,11 @@
             "ShellCheck": {
               "severity": "note"
             },
-            "TodoComment": {
-              "severity": "note"
+            "FlaggedComment": {
+              "severity": "note",
+              "keywords": [
+                "TODO"
+              ]
             },
             "UnusedDocComments": {
               "severity": "note"
@@ -621,7 +628,9 @@
           "description": "The `InputName` rule.",
           "$ref": "#/$defs/InputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "MatchingOutputMeta": {
@@ -669,7 +678,9 @@
           "description": "The `OutputName` rule.",
           "$ref": "#/$defs/OutputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "OutputMetaOrder": {
@@ -742,11 +753,14 @@
             "severity": "note"
           }
         },
-        "TodoComment": {
-          "description": "The `TodoComment` rule.",
-          "$ref": "#/$defs/TodoCommentConfig",
+        "FlaggedComment": {
+          "description": "The `FlaggedComment` rule.",
+          "$ref": "#/$defs/FlaggedCommentConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "keywords": [
+              "TODO"
+            ]
           }
         },
         "UnusedDocComments": {
@@ -1225,6 +1239,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of input names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.InputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag input names that start with a disallowed\nprefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).\n\n##### Example\n\n```toml\n[check.rules.InputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1355,6 +1382,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of output names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.OutputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag output names that start with a disallowed\nprefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).\n\n##### Example\n\n```toml\n[check.rules.OutputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1479,14 +1519,24 @@
       },
       "additionalProperties": false
     },
-    "TodoCommentConfig": {
-      "description": "Configuration for the `TodoComment` lint rule.",
+    "FlaggedCommentConfig": {
+      "description": "Configuration for the `FlaggedComment` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "keywords": {
+          "description": "List of keywords to flag in comments.\n\nKeywords are matched as case-sensitive substrings of the comment\ntext, and cannot be empty. When keywords overlap (for example,\n`FIX` and `FIXME`), the longest keyword is reported.\n\n##### Example\n\n```toml\n[check.rules.FlaggedComment]\nkeywords = [\"TODO\", \"FIXME\", \"XXX\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "TODO"
+          ]
         }
       },
       "additionalProperties": false
