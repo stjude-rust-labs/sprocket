@@ -18,8 +18,8 @@ use clap::Parser;
 use clap::Subcommand;
 
 use crate::Config;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::CommandOutput;
 
 /// Arguments for the `server` subcommand.
 #[derive(Parser, Debug)]

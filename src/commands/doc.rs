@@ -24,9 +24,9 @@ use wdl::doc::install_theme;
 
 use crate::Config;
 use crate::analysis::Source;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 
 /// Documentation check action.
 const CHECK: Action = Action::new("Checked", "check");

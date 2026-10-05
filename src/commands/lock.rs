@@ -16,10 +16,10 @@ use wdl::ast::v1::LiteralExpr;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 
 /// Name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";

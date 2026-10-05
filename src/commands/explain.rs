@@ -24,8 +24,8 @@ use wdl::lint::ALL_TAGS;
 use wdl::lint::Config;
 use wdl::lint::Tag as WdlLintTag;
 
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::CommandOutput;
 
 /// Usage string for the `explain` subcommand.
 const USAGE: &str = "sprocket explain [RULE]

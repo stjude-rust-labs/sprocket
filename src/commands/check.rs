@@ -24,10 +24,10 @@ use super::explain::ALL_RULE_IDS;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 
 /// Baseline generation action.
 const GENERATE: Action = Action::new("Generated", "generate");

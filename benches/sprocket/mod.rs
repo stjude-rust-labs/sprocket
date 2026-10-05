@@ -53,7 +53,7 @@ fn check_standalone_documents(c: &mut Criterion, workflows_repo: &Path) {
                         .block_on(sprocket::commands::check::check(
                             check_args,
                             Default::default(),
-                            sprocket::commands::output::CommandOutput::new(false),
+                            sprocket::commands::CommandOutput::new(false),
                         ))
                         .unwrap()
                 })

@@ -244,7 +244,7 @@ async fn real_main() -> CommandResult<()> {
     let (writer, file_handle, indicatif_writers) =
         initialize_logging(cli.verbosity, colorize, is_terminal)
             .context("failed to initialize logging")?;
-    let output = commands::output::CommandOutput::new(colorize);
+    let output = commands::CommandOutput::new(colorize);
 
     match cli.command {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args, config, writer).await,

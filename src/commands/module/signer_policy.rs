@@ -17,8 +17,8 @@ use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 
 use super::trust_store::TrustStoreFile;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::config::Config;
 
 const ACCEPT: Action = Action::new("Accepted", "accept");

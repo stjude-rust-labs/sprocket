@@ -5,8 +5,8 @@ use clap::Parser;
 use clap::Subcommand;
 
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
 /// The [Taplo schema directive] for `sprocket.toml`.

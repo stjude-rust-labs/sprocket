@@ -7,8 +7,8 @@ use clap::Parser;
 use super::client::ServerConnectionArgs;
 use super::client::send_json;
 use crate::analysis::Source;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::CommandOutput;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::ensure_no_analysis_errors;
@@ -171,7 +171,7 @@ mod tests {
     use crate::Config;
     use crate::analysis::Source;
     use crate::commands::CommandError;
-    use crate::commands::output::CommandOutput;
+    use crate::commands::CommandOutput;
     use crate::server::paths;
     use crate::server::run_with_listener;
 

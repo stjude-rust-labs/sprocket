@@ -21,8 +21,8 @@ use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::CommandOutput;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
