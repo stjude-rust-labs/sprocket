@@ -3655,7 +3655,7 @@ mod tests {
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
-            "TES backend configuration value `url` has invalid value `http://example.com/`: URL \
+            "TES backend configuration value `service` has invalid value `http://example.com/`: URL \
              must use a HTTPS scheme"
         );
 
