@@ -1,1 +1,0 @@
---config sprocket.toml check --lint --tag Naming --tag Style source.wdl

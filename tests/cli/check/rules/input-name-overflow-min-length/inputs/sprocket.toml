@@ -1,2 +1,2 @@
 [check.rules.InputName]
-min_length = 4294967296
+min_length = 256

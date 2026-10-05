@@ -1,7 +1,0 @@
-note[InputName]: declaration identifier must be at least 5 characters
-  ┌─ source.wdl:7:16
-  │
-7 │         String abcd
-  │                ^^^^
-  │
-  = fix: rename the identifier to be at least 5 characters long

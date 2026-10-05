@@ -395,7 +395,7 @@ define_rules_config! {
             /// [check.rules.InputName]
             /// min_length = 5
             /// ```
-            min_length: u32 = 3;
+            min_length: u8 = 3;
             /// Whether to flag input names that start with a disallowed
             /// prefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).
             ///
@@ -429,7 +429,7 @@ define_rules_config! {
             /// [check.rules.OutputName]
             /// min_length = 5
             /// ```
-            min_length: u32 = 3;
+            min_length: u8 = 3;
             /// Whether to flag output names that start with a disallowed
             /// prefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).
             ///

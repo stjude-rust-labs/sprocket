@@ -24,7 +24,7 @@ use crate::TagSet;
 const ID: &str = "InputName";
 
 /// Declaration identifier too short
-fn decl_identifier_too_short(severity: Severity, span: Span, min_length: u32) -> Diagnostic {
+fn decl_identifier_too_short(severity: Severity, span: Span, min_length: u8) -> Diagnostic {
     Diagnostic::new(
         severity,
         format!("declaration identifier must be at least {min_length} characters"),
@@ -60,7 +60,7 @@ pub struct InputNameRule {
     /// Track if we're in the input section.
     input_section: bool,
     /// The minimum length below which a name is flagged as too short.
-    min_length: u32,
+    min_length: u8,
     /// Whether to flag names that start with a disallowed prefix.
     check_prefixes: bool,
 }
@@ -83,8 +83,7 @@ impl Rule for InputNameRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short). \
-         The minimum length and the prefix check are configurable."
+        "Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short)."
     }
 
     fn explanation(&self) -> &'static str {
@@ -92,12 +91,9 @@ impl Rule for InputNameRule {
 [`/^input/i`](https://regex101.com/r/Ox8oYb/1) or [`/^..?$/`](https://regex101.com/r/IS1d49/1).\n\n\
 It is redundant and needlessly verbose to use an input's name to \
 specify that it is an input. Input names should be short yet descriptive. Prefixing a \
-name with in or input adds length to the name without adding clarity or context. \
-Additionally, names with only 2 characters can lead to confusion and obfuscates the \
-content of an input. Input names should be at least 3 characters long.\n\n\
-The minimum length can be changed with the `min_length` configuration parameter, and the \
-check for the disallowed prefixes can be turned off by setting the `check_prefixes` \
-configuration parameter to `false`."
+name with \"in\" or \"input\" adds length to the name without adding clarity or context. \
+Additionally, short names can lead to confusion and obfuscate the \
+content of an input. Input names should be at least `min_length` characters long."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -201,7 +197,7 @@ impl Visitor for InputNameRule {
 /// Check declaration name
 fn check_decl_name(
     severity: Severity,
-    min_length: u32,
+    min_length: u8,
     check_prefixes: bool,
     diagnostics: &mut Diagnostics,
     decl: &Decl,

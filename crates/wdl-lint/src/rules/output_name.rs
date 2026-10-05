@@ -24,7 +24,7 @@ use crate::TagSet;
 const ID: &str = "OutputName";
 
 /// Declaration identifier too short
-fn decl_identifier_too_short(severity: Severity, span: Span, min_length: u32) -> Diagnostic {
+fn decl_identifier_too_short(severity: Severity, span: Span, min_length: u8) -> Diagnostic {
     Diagnostic::new(
         severity,
         format!("declaration identifier must be at least {min_length} characters"),
@@ -60,7 +60,7 @@ pub struct OutputNameRule {
     /// Track if we're in the output section.
     output_section: bool,
     /// The minimum length below which a name is flagged as too short.
-    min_length: u32,
+    min_length: u8,
     /// Whether to flag names that start with a disallowed prefix.
     check_prefixes: bool,
 }
@@ -83,8 +83,7 @@ impl Rule for OutputNameRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too \
-         short). The minimum length and the prefix check are configurable."
+        "Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too short)."
     }
 
     fn explanation(&self) -> &'static str {
@@ -93,12 +92,9 @@ impl Rule for OutputNameRule {
 \
 It is redundant and needlessly verbose to use an output's name to \
 specify that it is an output. Output names should be short yet descriptive. Prefixing a \
-name with out or output adds length to the name without adding clarity or context. \
-Additionally, names with only 2 characters can lead to confusion and obfuscates the \
-content of an output. Output names should be at least 3 characters long.\n\n\
-The minimum length can be changed with the `min_length` configuration parameter, and the \
-check for the disallowed prefixes can be turned off by setting the `check_prefixes` \
-configuration parameter to `false`."
+name with \"out\" or \"output\" adds length to the name without adding clarity or context. \
+Additionally, short names can lead to confusion and obfuscate the \
+content of an output. Output names should be at least `min_length` characters long."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -203,7 +199,7 @@ impl Visitor for OutputNameRule {
 /// Check declaration name
 fn check_decl_name(
     severity: Severity,
-    min_length: u32,
+    min_length: u8,
     check_prefixes: bool,
     diagnostics: &mut Diagnostics,
     decl: &Decl,
