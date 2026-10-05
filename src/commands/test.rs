@@ -939,6 +939,8 @@ async fn summarize_results(
                         fail_plural = if fail_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
                     ))
+                } else if success_counter == 0 {
+                    output.failed(format!("{id}: no executions ran"))
                 } else {
                     output.completed(
                         PASSED,
