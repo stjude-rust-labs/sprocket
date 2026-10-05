@@ -1,7 +1,5 @@
 Passed source::always_fails::should_fail_passes #1
-Failed source::always_succeeds::always_succeeds #1
 
 Sprocket test result summary:
 
 Passed source::always_fails::should_fail_passes: 1 successful execution
-Failed source::always_succeeds::always_succeeds: 1 execution failed assertions (out of 1 execution)
