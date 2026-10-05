@@ -1,7 +1,0 @@
-note[FlaggedComment]: remaining `FIXME` item found
-  ┌─ source.wdl:6:3
-  │
-6 │ # FIXME: this is flagged.
-  │   ^^^^^
-  │
-  = fix: remove the `FIXME` item once it has been implemented
