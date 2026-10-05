@@ -5,13 +5,14 @@ use clap::Parser;
 use serde_json::Value as JsonValue;
 use wdl::analysis::Document;
 
+use super::client::ServerConnectionArgs;
+use super::client::get_json;
+use super::client::resolve_run_id;
+use super::client::send_json;
 use crate::analysis::Source;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::get_json;
-use crate::commands::client::resolve_run_id;
-use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::ensure_no_analysis_errors;
@@ -72,7 +73,7 @@ pub struct Args {
 ///
 /// Fetches the original run's details, optionally re-analyzes the source,
 /// merges any input overrides, then submits a new run.
-pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn retry(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let report_mode = config.common.report_mode;
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
@@ -110,7 +111,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             config.common.wdl.feature_flags,
             config.common.ignore_filename(),
             report_mode,
-            colorize,
+            output.colorize(),
         )
         .await
         .map_err(|e| {
@@ -124,7 +125,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             }
         })?;
 
-        ensure_no_analysis_errors(&document, report_mode, colorize)?;
+        ensure_no_analysis_errors(&document, report_mode, output.colorize())?;
 
         Some(document)
     } else {
@@ -166,10 +167,9 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
     )
     .await?;
 
-    println!(
-        "{}",
+    output.payload(
         serde_json::to_string_pretty(&submit_response)
-            .context("failed to pretty-print response")?
+            .context("failed to pretty-print response")?,
     );
 
     Ok(())

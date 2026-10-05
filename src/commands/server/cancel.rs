@@ -3,15 +3,20 @@
 use clap::Parser;
 use tracing::debug;
 
+use super::client::ServerConnectionArgs;
+use super::client::fetch_server_info;
+use super::client::resolve_run_id;
+use super::client::send_json;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::fetch_server_info;
-use crate::commands::client::resolve_run_id;
-use crate::commands::client::send_json;
 use crate::config::Config;
 use crate::server::CancelRunResponse;
 use crate::server::ServerFailureMode;
 use crate::server::paths;
+
+/// Cancellation signal action.
+const SIGNAL: Action = Action::new("Signaled", "signal");
 
 /// Arguments for the `cancel` subcommand.
 #[derive(Parser, Debug)]
@@ -31,16 +36,16 @@ pub struct Args {
 /// Handles the `cancel` subcommand.
 ///
 /// Sends a cancellation request to the server for the specified run.
-pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
+pub async fn cancel(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
     let url = format!("{base_url}{path}", path = paths::cancel_run(uuid));
     let body: CancelRunResponse = send_json(reqwest::Client::new().post(&url), "cancel").await?;
 
-    println!(
-        "Run `{uuid}` has been signaled for cancellation.",
-        uuid = body.uuid,
+    output.completed(
+        SIGNAL,
+        format!("cancellation for run `{uuid}`", uuid = body.uuid),
     );
 
     // Only print the slow-cancel advisory when the server is actually running
@@ -49,11 +54,10 @@ pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
     // failing the overall command, since the cancel itself already succeeded.
     match fetch_server_info(&base_url).await {
         Ok(info) if info.failure_mode == ServerFailureMode::Slow => {
-            println!(
-                "Note: in slow-failure mode, currently executing tasks will be allowed to finish \
-                 before the run is marked as canceled. Use `sprocket dev server status {uuid}` to \
-                 track progress.",
-                uuid = body.uuid,
+            output.detail(
+                "Note",
+                "in slow-failure mode, currently executing tasks will be allowed to finish before \
+                 the run is marked as canceled. Use the `status` subcommand to track progress.",
             );
         }
         Ok(_) => {}

@@ -4,10 +4,11 @@ use anyhow::Context;
 use clap::Args as ClapArgs;
 use clap::Parser;
 
+use super::client::ServerConnectionArgs;
+use super::client::send_json;
 use crate::analysis::Source;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::ensure_no_analysis_errors;
@@ -77,7 +78,7 @@ pub struct Args {
 /// Handles the `submit` subcommand.
 ///
 /// Submits a workflow to a Sprocket server based on the Args / Config.
-pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn submit(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let report_mode = config.common.report_mode;
     let source = match args.run_request_args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
@@ -103,11 +104,11 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         config.common.wdl.feature_flags,
         config.common.ignore_filename(),
         report_mode,
-        colorize,
+        output.colorize(),
     )
     .await?;
 
-    ensure_no_analysis_errors(&document, report_mode, colorize)?;
+    ensure_no_analysis_errors(&document, report_mode, output.colorize())?;
 
     let (target, inputs) = validate_inputs(
         &document,
@@ -147,10 +148,9 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     )
     .await?;
 
-    println!(
-        "{}",
+    output.payload(
         serde_json::to_string_pretty(&submit_response)
-            .context("failed to pretty-print response")?
+            .context("failed to pretty-print response")?,
     );
 
     Ok(())
@@ -163,13 +163,14 @@ mod tests {
     use tempfile::NamedTempFile;
     use tokio::net::TcpListener;
 
+    use super::super::client::ServerConnectionArgs;
+    use super::super::submit::Args;
+    use super::super::submit::SubmitRunRequestArgs;
+    use super::super::submit::submit;
     use crate::Config;
     use crate::analysis::Source;
     use crate::commands::CommandError;
-    use crate::commands::client::ServerConnectionArgs;
-    use crate::commands::submit::Args;
-    use crate::commands::submit::SubmitRunRequestArgs;
-    use crate::commands::submit::submit;
+    use crate::commands::CommandOutput;
     use crate::server::paths;
     use crate::server::run_with_listener;
 
@@ -264,7 +265,7 @@ command <<<>>>
                 },
             },
             config,
-            false,
+            CommandOutput::new(false),
         )
         .await
         .expect("should be able to submit file");
@@ -334,7 +335,7 @@ command <<<>>>
                 },
             },
             Config::default(),
-            false,
+            CommandOutput::new(false),
         )
         .await;
 
@@ -373,7 +374,7 @@ command <<<>>>
                 },
             },
             Config::default(),
-            false,
+            CommandOutput::new(false),
         )
         .await;
 

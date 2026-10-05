@@ -6,7 +6,6 @@ use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
-use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -67,7 +66,9 @@ use crate::Config;
 use crate::Stdout;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
@@ -85,6 +86,8 @@ const DEFINITIONS_TEST_DIR: &str = "test";
 const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
+/// Successful test action.
+const PASSED: Action = Action::new("Passed", "pass");
 
 #[derive(Default, Debug, clap::Args)]
 #[group(required = false, multiple = true)]
@@ -303,9 +306,10 @@ impl TestIteration {
         clean: bool,
         quiet: bool,
         mut stdout: Stdout,
+        output: CommandOutput,
     ) -> Result<IterationResult> {
         let id = format!(
-            "{doc}::{target}::{test} (iteration #{num})",
+            "{doc}::{target}::{test} #{num}",
             doc = self.id.doc_name,
             target = self.id.target,
             test = self.id.test_name,
@@ -314,22 +318,16 @@ impl TestIteration {
         let run_dir = self.run_dir;
         let result = self.result;
         let assertions = self.assertions;
-        let evaluation = async {
+        let mut evaluation = async {
             match result {
                 RunResult::Workflow(result) => match result {
                     Ok(outputs) => {
                         if assertions.should_fail() {
                             Ok(IterationResult::Fail(anyhow!(
-                                "{id} succeeded but was expected to fail: see `{dir}`",
-                                dir = run_dir.display(),
+                                "{id} succeeded but was expected to fail",
                             )))
                         } else if let Err(e) = evaluate_outputs(&assertions.outputs, &outputs)
-                            .with_context(|| {
-                                format!(
-                                    "{id} failed output assertions: see `{dir}`",
-                                    dir = run_dir.display()
-                                )
-                            })
+                            .with_context(|| format!("{id} failed output assertions",))
                         {
                             Ok(IterationResult::Fail(e))
                         } else {
@@ -340,11 +338,10 @@ impl TestIteration {
                         if assertions.should_fail() {
                             Ok(IterationResult::Success)
                         } else {
-                            Ok(IterationResult::Fail(anyhow!(
-                                "{id} failed but was expected to succeed: see `{dir}`: {err}",
-                                dir = run_dir.display(),
-                                err = eval_err.to_string(),
-                            )))
+                            Ok(IterationResult::Fail(
+                                anyhow!(eval_err.to_string())
+                                    .context(format!("{id} failed but was excepted to succeed")),
+                            ))
                         }
                     }
                 },
@@ -356,17 +353,15 @@ impl TestIteration {
                             if actual_exit_code == 0 {
                                 return Ok(IterationResult::Fail(anyhow!(
                                     "{id} exited with code `0` but `should_fail` expected a \
-                                     nonzero exit code: see `{dir}`",
-                                    dir = run_dir.display(),
+                                     nonzero exit code",
                                 )));
                             }
                         } else if actual_exit_code != assertions.exit_code() {
                             return Ok(IterationResult::Fail(anyhow!(
                                 "{id} exited with code `{actual}` but test expected exit code \
-                                 `{expected}`: see `{dir}`",
+                                 `{expected}`",
                                 actual = actual_exit_code,
                                 expected = assertions.exit_code(),
-                                dir = run_dir.display(),
                             )));
                         }
 
@@ -379,8 +374,7 @@ impl TestIteration {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
-                                        "{id} stdout did not contain `{re}`: see `{dir}`",
-                                        dir = run_dir.display(),
+                                        "{id} stdout did not contain `{re}`",
                                     )));
                                 }
                                 Err(e) => return Err(e),
@@ -396,8 +390,7 @@ impl TestIteration {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
-                                        "{id} stderr did not contain `{re}`: see `{dir}`",
-                                        dir = run_dir.display(),
+                                        "{id} stderr did not contain `{re}`",
                                     )));
                                 }
                                 Err(e) => return Err(e),
@@ -418,10 +411,9 @@ impl TestIteration {
                         };
 
                         if let Err(e) = evaluate_outputs(&assertions.outputs, &outputs) {
-                            Ok(IterationResult::Fail(e.context(format!(
-                                "{id} failed output assertions: see `{dir}`",
-                                dir = run_dir.display()
-                            ))))
+                            Ok(IterationResult::Fail(
+                                e.context(format!("{id} failed output assertions",)),
+                            ))
                         } else {
                             Ok(IterationResult::Success)
                         }
@@ -434,16 +426,21 @@ impl TestIteration {
             }
         }
         .await;
+        if let Ok(IterationResult::Fail(inner)) = evaluation {
+            evaluation = Ok(IterationResult::Fail(
+                inner.context(format!("see `{dir}`", dir = run_dir.display())),
+            ));
+        }
         if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
-                    writeln!(&mut stdout, "{id}: ✅")?;
+                    output.write_completed(&mut stdout, PASSED, &id)?;
                 }
                 Ok(IterationResult::Fail(_)) => {
-                    writeln!(&mut stdout, "{id}: ❌")?;
+                    output.write_failed(&mut stdout, &id)?;
                 }
                 Err(_) => {
-                    writeln!(&mut stdout, "{id}: ☠️")?;
+                    output.write_failed(&mut stdout, format!("{id}: unknown execution error"))?;
                 }
             }
         }
@@ -607,6 +604,7 @@ struct Runner {
     engine: Engine,
     status_bar: StatusBar,
     stdout: Stdout,
+    output: CommandOutput,
     permits: usize,
     throttle: u64,
     cancellation: CancellationContext,
@@ -676,6 +674,10 @@ impl Runner {
         while !futures.is_empty() {
             self.process_next_result(&mut futures, &mut all_results, clean, quiet)
                 .await?;
+        }
+
+        if !quiet {
+            self.output.blank();
         }
 
         Ok(all_results)
@@ -809,7 +811,7 @@ impl Runner {
             .expect("should have test results");
 
         let evaluation = test_iteration
-            .evaluate(clean, quiet, self.stdout.clone())
+            .evaluate(clean, quiet, self.stdout.clone(), self.output)
             .await;
         test_results.push(evaluation);
 
@@ -886,8 +888,10 @@ async fn summarize_results(
     root: &Path,
     clean: bool,
     errors: &mut Vec<Arc<anyhow::Error>>,
+    output: CommandOutput,
 ) {
-    println!("Sprocket test result summary:");
+    output.payload("Sprocket test result summary:");
+    output.blank();
 
     let mut any_results = false;
     for (document_name, target_results) in results {
@@ -921,24 +925,29 @@ async fn summarize_results(
                 let id = format!("{document_name}::{target_name}::{test_name}");
                 if err_counter > 0 {
                     let total = err_counter + fail_counter + success_counter;
-                    println!(
-                        "☠️ `{id}` had errors: {err_counter} execution{err_plural} errored (out \
-                         of {total} test execution{total_plural})",
+                    output.failed(format!(
+                        "{id}: {err_counter} execution{err_plural} errored (out of {total} test \
+                         execution{total_plural})",
                         err_plural = if err_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
-                    );
+                    ));
                 } else if fail_counter > 0 {
                     let total = fail_counter + success_counter;
-                    println!(
-                        "❌ `{id}` failed: {fail_counter} execution{fail_plural} failed \
-                         assertions (out of {total} execution{total_plural})",
+                    output.failed(format!(
+                        "{id}: {fail_counter} execution{fail_plural} failed assertions (out of \
+                         {total} execution{total_plural})",
                         fail_plural = if fail_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
-                    )
+                    ))
+                } else if success_counter == 0 {
+                    output.failed(format!("{id}: no executions ran"))
                 } else {
-                    println!(
-                        "✅ `{id}` success! ({success_counter} successful test execution{plural})",
-                        plural = if success_counter > 1 { "s" } else { "" }
+                    output.completed(
+                        PASSED,
+                        format!(
+                            "{id}: {success_counter} successful execution{plural}",
+                            plural = if success_counter > 1 { "s" } else { "" }
+                        ),
                     );
                 }
             }
@@ -947,7 +956,7 @@ async fn summarize_results(
         }
     }
     if !any_results {
-        println!("☠️ no tests executed ☠️")
+        output.skipped("test execution because no runnable tests were found")
     }
 }
 
@@ -981,14 +990,14 @@ async fn clean_all_run_root(run_root: &Path) -> Result<()> {
 pub async fn test(
     args: Args,
     mut config: Config,
-    colorize: bool,
+    output: CommandOutput,
     stdout: Stdout,
 ) -> CommandResult<()> {
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
         let schema_pretty =
             serde_json::to_string_pretty(&schema).context("serializing test schema")?;
-        println!("{schema_pretty}");
+        output.payload(schema_pretty);
         return Ok(());
     }
 
@@ -1031,7 +1040,7 @@ pub async fn test(
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -1065,7 +1074,7 @@ pub async fn test(
                     }
                 }),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -1118,7 +1127,7 @@ pub async fn test(
                     }
                 }),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit test document diagnostics")?;
         }
@@ -1154,9 +1163,10 @@ pub async fn test(
         status_bar: if args.no_status {
             StatusBar::disabled()
         } else {
-            StatusBar::new(colorize)
+            StatusBar::new(output.colorize())
         },
         stdout,
+        output,
         permits: parallelism,
         throttle: config.test.throttle,
         cancellation: cancellation.clone(),
@@ -1210,7 +1220,14 @@ pub async fn test(
                 match res {
                     Ok(results) => {
                         if !cancellation.user_canceled() {
-                            summarize_results(results, &runner.root, !args.no_clean, &mut errors).await;
+                            summarize_results(
+                                results,
+                                &runner.root,
+                                !args.no_clean,
+                                &mut errors,
+                                output,
+                            )
+                            .await;
                         }
                     },
                     Err(e) => {
