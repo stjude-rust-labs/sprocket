@@ -62,18 +62,10 @@ note[FlaggedComment]: remaining `FIX` item found
    │
    = fix: remove the `FIX` item once it has been implemented
 
-note[FlaggedComment]: remaining `FIXME` item found
-   ┌─ tests/lints/flagged-comment-keywords/source.wdl:14:4
-   │
-14 │ ## FIXME: doc comments are flagged too
-   │    ^^^^^
-   │
-   = fix: remove the `FIXME` item once it has been implemented
-
 note[FlaggedComment]: remaining `XYZ` item found
-   ┌─ tests/lints/flagged-comment-keywords/source.wdl:26:7
+   ┌─ tests/lints/flagged-comment-keywords/source.wdl:25:7
    │
-26 │     # XYZ: trailing comment
+25 │     # XYZ: trailing comment
    │       ^^^
    │
    = fix: remove the `XYZ` item once it has been implemented

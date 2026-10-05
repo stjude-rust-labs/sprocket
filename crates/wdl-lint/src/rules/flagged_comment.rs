@@ -6,6 +6,7 @@ use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
+use wdl_ast::CommentKind;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_ast::Span;
@@ -166,6 +167,12 @@ impl Visitor for FlaggedCommentRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+        if comment.kind() != CommentKind::Line {
+            // Ignore doc comments and directives. Flagged words in those
+            // contexts are likely intentional.
+            return;
+        }
+
         for flagged in find_flagged(comment.text(), &self.keywords) {
             diagnostics.exceptable_add(
                 flagged_comment(

@@ -11,7 +11,6 @@ version 1.3
 # matching is case-sensitive: Fixme fixme xxx
 # TODO: this is not a configured keyword, so it is only flagged by default
 
-## FIXME: doc comments are flagged too
 workflow test {
     #@ except: FlaggedComment
     meta {

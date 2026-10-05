@@ -5,6 +5,9 @@ version 1.1
 # TODO: this should be flagged
 # [TODO] this should be flagged
 
+
+## TODO: This doc comment should not be flagged
+#@ except: TODO Directives should not be flagged
 workflow test {
     # This should be flagged (TODO).
     #@ except: FlaggedComment

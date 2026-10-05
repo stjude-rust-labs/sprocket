@@ -15,10 +15,10 @@ note[FlaggedComment]: remaining `TODO` item found
   = fix: remove the `TODO` item once it has been implemented
 
 note[FlaggedComment]: remaining `TODO` item found
-  ┌─ tests/lints/flagged-comment/source.wdl:9:31
-  │
-9 │     # This should be flagged (TODO).
-  │                               ^^^^
-  │
-  = fix: remove the `TODO` item once it has been implemented
+   ┌─ tests/lints/flagged-comment/source.wdl:12:31
+   │
+12 │     # This should be flagged (TODO).
+   │                               ^^^^
+   │
+   = fix: remove the `TODO` item once it has been implemented
 
