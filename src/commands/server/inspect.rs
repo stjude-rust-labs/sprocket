@@ -345,7 +345,7 @@ pub async fn inspect(args: Args, config: Config, output: CommandOutput) -> Comma
 
     // When requested, append a per-task breakdown below the run summary.
     if let Some(tasks) = &tasks {
-        output.payload("");
+        output.blank();
 
         if tasks.is_empty() {
             let note = "No tasks.";

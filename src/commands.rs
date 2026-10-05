@@ -340,6 +340,11 @@ impl CommandOutput {
         }
     }
 
+    /// Prints a blank line to stdout.
+    pub(crate) fn blank(self) {
+        println!();
+    }
+
     /// Prints a blank line to stderr.
     pub(crate) fn stderr_blank(self) {
         eprintln!();

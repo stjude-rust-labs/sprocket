@@ -1,3 +1,6 @@
+Passed source::always_fails::should_fail_passes (iteration #1)
+Failed source::always_succeeds::always_succeeds (iteration #1)
+
 Sprocket test result summary:
 
 Passed source::always_fails::should_fail_passes: 1 successful execution
