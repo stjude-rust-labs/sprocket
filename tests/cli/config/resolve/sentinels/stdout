@@ -170,8 +170,9 @@ severity = "note"
 severity = "warning"
 allowed_names = []
 
-[check.rules.TodoComment]
+[check.rules.FlaggedComment]
 severity = "note"
+keywords = ["TODO"]
 
 [check.rules.UnusedDocComments]
 severity = "note"

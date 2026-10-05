@@ -1255,6 +1255,17 @@ impl Config {
     pub fn validate(&mut self) -> Result<()> {
         self.module.init.validate()?;
 
+        if self
+            .check
+            .rules
+            .flagged_comment
+            .keywords
+            .iter()
+            .any(|keyword| keyword.trim().is_empty())
+        {
+            bail!("`check.rules.FlaggedComment.keywords` cannot contain empty keywords");
+        }
+
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
         }
@@ -1517,6 +1528,23 @@ mod tests {
         assert_eq!(config.allowed_urls, expected_urls);
 
         Ok(())
+    }
+
+    #[test]
+    fn flagged_comment_rejects_empty_keywords() {
+        for keyword in ["", "  "] {
+            let mut config = Config::default();
+            config.check.rules.flagged_comment.keywords = vec![String::from(keyword)];
+            let error = config.validate().unwrap_err().to_string();
+            assert_eq!(
+                error,
+                "`check.rules.FlaggedComment.keywords` cannot contain empty keywords"
+            );
+        }
+
+        let mut config = Config::default();
+        config.check.rules.flagged_comment.keywords = vec![String::from("FIXME")];
+        config.validate().unwrap();
     }
 
     #[test]
