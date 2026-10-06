@@ -36,7 +36,7 @@ task test_task {
 
     ## The user should be warned about this doc comment as it targets
     ## command, despite the interruption below.
-    # comment interrupting doc block resulting in two diagnostics
+    # regular comments do not split a documentation block
     ## Commands don't support doc comments so the user should be warned here.
     ## about this multiline comment with whitespace...
     ##
@@ -54,11 +54,12 @@ task test_task_2 {
     ## these 3 lines should all be highlighted by one span
     #@ directive
     # regular comment
-    ## another doc comment block
-    ## that gets a new diagnostic fired with a new span
+    ## these comments remain in the same documentation block
+    ## because regular comments and directives do not split it
 
     ## now there's a blank line in the middle!
-    ## that creates another block
+    ## a blank line starts a separate floating documentation block
+    ## that receives its own diagnostic
     # another regular comment for good measure
 
     command <<<>>>
