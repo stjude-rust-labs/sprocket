@@ -276,7 +276,7 @@ impl Rule for UnusedDocCommentsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Reports doc comments that are attached to WDL items that don't support them."
+        "Reports doc comments that are either floating or attached to WDL items that don't support them."
     }
 
     fn explanation(&self) -> &'static str {
@@ -292,7 +292,10 @@ impl Rule for UnusedDocCommentsRule {
         - Fields in Input Sections
         - Fields in Output Sections
         - Enum Definitions
-        - Enum Choices"
+        - Enum Choices
+
+        Additionally, doc comments must be touching the item they intend to document with no blank
+        lines between, otherwise they are considered \"floating\"."
     }
 
     fn examples(&self) -> &'static [Example] {
