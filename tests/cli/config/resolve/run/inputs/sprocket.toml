@@ -22,6 +22,19 @@ outputs = "http://example.com/outputs/"
 type = "bearer"
 token = "secret!"
 
+[run.backends.third]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+
+[run.backends.third.auth]
+type = "oauth"
+client_id = "foo"
+client_secret = "secret!"
+authorization = "http://example.com/"
+token = "http://example.com/"
+
 [run.storage.azure.auth]
 account_name = "foo"
 access_key = "secret!"
@@ -31,5 +44,51 @@ access_key_id = "foo"
 secret_access_key = "secret!"
 
 [run.storage.google.auth]
+access_key = "foo"
+secret = "secret!"
+
+[server.engine.backends.first]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+
+[server.engine.backends.first.auth]
+type = "basic"
+username = "foo"
+password = "secret!"
+
+[server.engine.backends.second]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+
+[server.engine.backends.third]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+
+[server.engine.backends.third.auth]
+type = "oauth"
+client_id = "foo"
+client_secret = "secret!"
+authorization = "http://example.com/"
+token = "http://example.com/"
+
+[server.engine.backends.second.auth]
+type = "bearer"
+token = "secret!"
+
+[server.engine.storage.azure.auth]
+account_name = "foo"
+access_key = "secret!"
+
+[server.engine.storage.s3.auth]
+access_key_id = "foo"
+secret_access_key = "secret!"
+
+[server.engine.storage.google.auth]
 access_key = "foo"
 secret = "secret!"

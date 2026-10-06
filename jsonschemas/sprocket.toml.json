@@ -2266,7 +2266,7 @@
             },
             "type": {
               "type": "string",
-              "const": "o_auth"
+              "const": "oauth"
             }
           },
           "required": [

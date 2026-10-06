@@ -69,6 +69,7 @@ pub fn config(args: Args, mut config: Config, output: CommandOutput) -> CommandR
             // Redact any secrets unless explicitly requested not to
             if !args.unredact {
                 config.run.engine.redact();
+                config.server.engine.redact();
             }
 
             config
