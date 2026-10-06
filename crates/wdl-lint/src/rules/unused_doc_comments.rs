@@ -276,7 +276,8 @@ impl Rule for UnusedDocCommentsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Reports doc comments that are either floating or attached to WDL items that don't support them."
+        "Reports doc comments that are either floating or attached to WDL items that don't support \
+         them."
     }
 
     fn explanation(&self) -> &'static str {
