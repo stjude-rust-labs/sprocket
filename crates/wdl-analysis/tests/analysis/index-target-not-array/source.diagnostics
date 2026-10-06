@@ -3,4 +3,3 @@ error: indexing is only allowed on `Array` and `Map` types
   │
 9 │     String x = a[0]
   │                ^ this is type `String`
-

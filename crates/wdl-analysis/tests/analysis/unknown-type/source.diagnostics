@@ -3,4 +3,3 @@ error: unknown type name `Bar`
   │
 9 │     Bar bar
   │     ^^^
-

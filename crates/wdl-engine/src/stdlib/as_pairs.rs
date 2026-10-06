@@ -15,7 +15,7 @@ use crate::Value;
 /// Since Maps are ordered, the output array will always have elements in the
 /// same order they were added to the Map.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#as_pairs
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#as_pairs>
 fn as_pairs(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
 
@@ -51,12 +51,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn as_pairs() {

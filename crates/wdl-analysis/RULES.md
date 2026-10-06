@@ -1,13 +1,21 @@
 # Rules
 
-This table documents all implemented `wdl` analysis rules implemented on the 
-`main` branch of the `stjude-rust-labs/sprocket` repository. Note that the 
+This table documents all implemented `wdl` analysis rules implemented on the
+`main` branch of the `stjude-rust-labs/sprocket` repository. Note that the
 information may be out of sync with released packages.
+
+Each rule can be configured in its own `[check.rules.<RULE>]` table of
+`sprocket.toml` with a `severity` of `off`, `note`, or `warning`.
 
 ## Analysis Rules
 
 | Name                       | Description                                                                                               |
-|:---------------------------|:----------------------------------------------------------------------------------------------------------|
+| :------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| CommandSectionIndentation  | Ensures consistent indentation (no mixed spaces/tabs) within command sections.                            |
+| DeprecatedObject           | Ensures that the deprecated `Object` types are not used.                                                  |
+| DeprecatedPlaceholder      | Ensures that deprecated expression placeholder options are not used.                                      |
+| DeprecatedRuntimeSection   | Ensures that deprecated `runtime` sections are not used in WDL v1.2 and later.                            |
+| ExceptDirectiveValid       | Ensures `except` directives are placed correctly to have the intended effect.                             |
 | KnownRules                 | Ensures only known rules are used in `except` directives.                                                 |
 | MeaninglessLintDirective   | Warns if an `#@ except:` comment doesn't actually suppress any lints.                                     |
 | MisleadingDeclarationOrder | Warns if task variable declarations appear after a `command` section.                                     |

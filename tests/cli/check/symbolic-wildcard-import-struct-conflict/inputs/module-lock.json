@@ -3,8 +3,6 @@
   "dependencies": {
     "shapes": {
       "source": { "path": "shapes" },
-      "version": "0.1.0",
-      "checksum": "sha256:7f7b3a9c7b8cdcb37b1a7454cd0a97176c75357213882ec9df00825ed09ce08e",
       "dependencies": {}
     }
   }

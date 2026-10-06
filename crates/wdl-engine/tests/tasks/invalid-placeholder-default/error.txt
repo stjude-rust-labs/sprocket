@@ -3,4 +3,3 @@ error: type mismatch for placeholder option `default`: expected any primitive ty
    │
 11 │         String out = "~{default='nope' read_json("array.json")}"
    │                                        ^^^^^^^^^^^^^^^^^^^^^^^ this is type `Array[Int]`
-

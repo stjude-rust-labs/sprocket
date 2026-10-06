@@ -35,6 +35,11 @@ use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
 
+pub use element::*;
+#[cfg(feature = "unstable-python")]
+pub use python::PyAstNode;
+#[cfg(feature = "unstable-python")]
+pub use python::PyAstToken;
 pub use rowan::Direction;
 use rowan::NodeOrToken;
 use v1::CloseBrace;
@@ -56,31 +61,75 @@ pub use wdl_grammar::WorkflowDescriptionLanguage;
 pub use wdl_grammar::lexer;
 pub use wdl_grammar::version;
 
-pub mod v1;
-
 mod element;
-
-pub use element::*;
+#[cfg(feature = "unstable-python")]
+pub(crate) mod python;
+pub mod v1;
 
 /// An [`AstNode`] that may have documentation comments attached to it.
 pub trait Documented<N: TreeNode>: AstNode<N> {
     /// Get all comment nodes preceding this node that start with
     /// [`DOC_COMMENT_PREFIX`].
     ///
-    /// If doc comments don't apply to this node, `None` will be returned.
+    /// This will return `None` if doc comments aren't valid for the node in the
+    /// current context. For example, an [`UnboundDecl`] can only have doc
+    /// comments if it represents a struct field or input. In any other
+    /// context, its comments would be ignored.
     ///
     /// The comments returned are ordered top to bottom.
+    ///
+    /// [`UnboundDecl`]: v1::UnboundDecl
     fn doc_comments(&self) -> Option<Vec<Comment<N::Token>>>;
 }
 
 /// Shared doc comment extraction logic.
+///
+/// NOTE: This is not a public API
+///
+/// `allow_floating` can be used to allow floating comments to be associated
+/// with this node. It's currently only used for preambles. For example:
+///
+/// ```wdl
+/// ## This is a preamble
+///
+/// version 1.3
+/// ```
+///
+/// That preamble comment is still associated with the version statement,
+/// despite floating above it. While in the following:
+///
+/// ```wdl
+/// ## This is a comment for `foo`
+///
+/// task foo {}
+/// ```
+///
+/// Since we don't allow floating comments on task definitions, that doc comment
+/// is *not* associated with it.
+#[allow(clippy::needless_bool)] // For clarity
+#[doc(hidden)] // Exported for `wdl-doc`
 pub fn doc_comments<N: TreeNode>(
-    preceding_trivia: impl IntoIterator<Item = N::Token>,
+    preceding_trivia: impl DoubleEndedIterator<Item = N::Token>,
+    allow_floating: bool,
 ) -> impl Iterator<Item = Comment<N::Token>> {
-    preceding_trivia
-        .into_iter()
-        .take_while(|token| {
-            token.kind() == SyntaxKind::Whitespace || token.kind() == SyntaxKind::Comment
+    let comments = preceding_trivia
+        .rev()
+        .take_while(move |token| {
+            if token.kind() == SyntaxKind::Comment {
+                return true;
+            }
+
+            if token.kind() != SyntaxKind::Whitespace {
+                return false;
+            }
+
+            let lines = token.text().chars().filter(|c| *c == '\n').count();
+            if lines > 1 && !allow_floating {
+                // Floating comment, don't associate with this node
+                return false;
+            }
+
+            true
         })
         .filter_map(|token| {
             if token.kind() == SyntaxKind::Comment && token.text().starts_with(DOC_COMMENT_PREFIX) {
@@ -89,6 +138,8 @@ pub fn doc_comments<N: TreeNode>(
                 None
             }
         })
+        .collect::<Vec<_>>();
+    comments.into_iter().rev()
 }
 
 /// A trait that abstracts the underlying representation of a syntax tree node.
@@ -425,6 +476,10 @@ impl TreeToken for SyntaxToken {
 ///
 /// See [Document::ast].
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub enum Ast<N: TreeNode = SyntaxNode> {
     /// The WDL document specifies an unsupported version.
     Unsupported,
@@ -466,6 +521,10 @@ impl<N: TreeNode> Ast<N> {
 /// See [Document::ast] for getting a version-specific Abstract
 /// Syntax Tree.
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub struct Document<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> AstNode<N> for Document<N> {
@@ -490,7 +549,7 @@ impl Documented<SyntaxNode> for Document<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
         let version_statement = self.child::<VersionStatement>()?;
         let version_keyword = version_statement.keyword();
-        Some(doc_comments::<SyntaxNode>(version_keyword.inner().preceding_trivia()).collect())
+        Some(doc_comments::<SyntaxNode>(version_keyword.inner().preceding_trivia(), true).collect())
     }
 }
 
@@ -500,7 +559,7 @@ impl Document {
     /// This optionally takes a `fallback_version`, which will be used if a
     /// [`SupportedVersion`] cannot be determined from the document.
     ///
-    /// A document and its AST elements are trivially cloned.
+    /// A document and its AST elements are cheaply cloned.
     ///
     /// # Examples
     ///
@@ -602,8 +661,8 @@ impl<N: TreeNode> Document<N> {
         let Some(stmt) = self.version_statement() else {
             return Ast::Unsupported;
         };
-        // Parse the version statement, fall back to the fallback, and finally give up
-        // if neither of those works.
+        // Parse the version statement, fall back to the fallback, and finally
+        // give up if neither of those works.
         let Some(version) = stmt
             .version()
             .text()
@@ -634,6 +693,10 @@ impl fmt::Debug for Document {
 
 /// Represents a whitespace token in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub struct Whitespace<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Whitespace<T> {
@@ -660,6 +723,10 @@ pub const DIRECTIVE_DELIMITER: &str = ":";
 
 /// A single rule in an `#@ except:` comment.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(module = "sprocket_bio.ast", frozen, from_py_object, get_all, eq, hash)
+)]
 pub struct ExceptRule {
     /// The name of the rule to except.
     pub name: String,
@@ -698,6 +765,10 @@ impl ExceptRule {
 
 /// A comment directive for WDL tools to respect.
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(module = "sprocket_bio.ast", frozen, eq,)
+)]
 pub enum Directive {
     /// Ignore any rules contained in the set.
     Except(HashSet<ExceptRule>),
@@ -722,6 +793,10 @@ impl Directive {
 
 /// The type of a [`Comment`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub enum CommentKind {
     /// The comment is a normal line comment
     Line,
@@ -734,6 +809,10 @@ pub enum CommentKind {
 
 /// The type of a [`Directive`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub enum DirectiveKind {
     /// The comment is an `except` directive.
     Except,
@@ -755,6 +834,10 @@ pub const DOC_COMMENT_PREFIX: &str = "##";
 
 /// Represents a comment token in the AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub struct Comment<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Comment<T> {
@@ -786,6 +869,7 @@ fn split_directive(comment: &str) -> Option<(DirectiveKind, &str)> {
     ))
 }
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl Comment {
     /// Try to parse the comment as a directive.
     pub fn directive(&self) -> Option<Directive> {
@@ -829,8 +913,8 @@ impl Comment {
 
     /// Gets whether the comment is an inline comment or not.
     pub fn is_inline_comment(&self) -> bool {
-        // If there is a preceding token that isn't whitespace with a newline, then
-        // the comment is not alone on this line.
+        // If there is a preceding token that isn't whitespace with a newline,
+        // then the comment is not alone on this line.
         if let Some(prev) = self.inner().prev_sibling_or_token() {
             if prev.kind() == SyntaxKind::Whitespace {
                 !prev
@@ -849,8 +933,13 @@ impl Comment {
 
 /// Represents a version statement in a WDL AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub struct VersionStatement<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> VersionStatement<N> {
     /// Gets the version of the version statement.
     pub fn version(&self) -> Version<N::Token> {
@@ -884,6 +973,10 @@ impl<N: TreeNode> AstNode<N> for VersionStatement<N> {
 
 /// Represents a version in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub struct Version<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Version<T> {
@@ -905,8 +998,13 @@ impl<T: TreeToken> AstToken<T> for Version<T> {
 
 /// Represents an identifier token.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub struct Ident<T: TreeToken = SyntaxToken>(T);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<T: TreeToken> Ident<T> {
     /// Gets a hashable representation of the identifier.
     pub fn hashable(&self) -> TokenText<T> {
@@ -940,6 +1038,10 @@ impl<T: TreeToken> AstToken<T> for Ident<T> {
 /// With this hash implementation, two tokens compare and hash identically if
 /// their text is identical.
 #[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
+)]
 pub struct TokenText<T: TreeToken = SyntaxToken>(T);
 
 impl TokenText {

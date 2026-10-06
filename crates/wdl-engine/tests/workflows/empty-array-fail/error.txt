@@ -5,4 +5,3 @@ error: array index 0 is out of range
   │             ----- ^
   │             │      
   │             this array is empty
-

@@ -136,7 +136,8 @@ impl ScopedExprVisitor {
                 diagnostics.add(literal_cannot_nest(&literal, outer));
             }
         } else {
-            // Any use of these literals outside of a `hints` section is prohibited
+            // Any use of these literals outside of a `hints` section is
+            // prohibited
             diagnostics.add(hints_scope_required(&literal));
         }
 

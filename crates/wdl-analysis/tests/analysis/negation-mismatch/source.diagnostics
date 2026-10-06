@@ -3,4 +3,3 @@ error: type mismatch: expected negation operand to be type `Int` or `Float`, but
    │
 11 │     Int d = -c
    │              ^ this is type `String`
-

@@ -19,7 +19,7 @@ const FUNCTION_NAME: &str = "chunk";
 /// If the length of the array is not a multiple `n` then the final sub-array
 /// will have length(array) % `n` elements.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-chunk
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-chunk>
 fn chunk(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
 
@@ -71,12 +71,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn chunk() {

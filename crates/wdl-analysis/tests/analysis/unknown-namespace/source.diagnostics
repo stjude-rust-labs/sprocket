@@ -3,4 +3,3 @@ error: unknown namespace `foo`
   │
 7 │     call foo.bar
   │          ^^^
-

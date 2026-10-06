@@ -7,6 +7,7 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
@@ -14,6 +15,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::UnboundDecl;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -22,34 +24,57 @@ use crate::TagSet;
 const ID: &str = "OutputName";
 
 /// Declaration identifier too short
-fn decl_identifier_too_short(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier must be at least 3 characters")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("rename the identifier to be at least 3 characters long")
+fn decl_identifier_too_short(severity: Severity, span: Span, min_length: u8) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!("declaration identifier must be at least {min_length} characters"),
+    )
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix(format!(
+        "rename the identifier to be at least {min_length} characters long"
+    ))
 }
 
 /// Diagnostic for input names that start with [oO]ut[A-Z_]
-fn decl_identifier_starts_with_out(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier starts with 'out'")
+fn decl_identifier_starts_with_out(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "declaration identifier starts with 'out'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'out'")
 }
 
 /// Diagnostic for input names that start with "output"
-fn decl_identifier_starts_with_output(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier starts with 'output'")
+fn decl_identifier_starts_with_output(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(severity, "declaration identifier starts with 'output'")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("rename the identifier to not start with 'output'")
 }
 
 /// A lint rule for disallowed output names.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct OutputNameRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// Track if we're in the output section.
     output_section: bool,
+    /// The minimum length below which a name is flagged as too short.
+    min_length: u8,
+    /// Whether to flag names that start with a disallowed prefix.
+    check_prefixes: bool,
+}
+
+impl OutputNameRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.output_name.diagnostic_severity(),
+            output_section: false,
+            min_length: config.output_name.min_length,
+            check_prefixes: config.output_name.check_prefixes,
+        }
+    }
 }
 
 impl Rule for OutputNameRule {
@@ -62,14 +87,14 @@ impl Rule for OutputNameRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Any output name matching these regular expressions will be flagged: [`/^[oO]ut[A-Z_]/`](https://regex101.com/r/r6v2fL/1), \
+        "By default, any output name matching these regular expressions will be flagged: [`/^[oO]ut[A-Z_]/`](https://regex101.com/r/r6v2fL/1), \
 [`/^output/i`](https://regex101.com/r/vybrEi/1) or [`/^..?$/`](https://regex101.com/r/5yWAfk/1).\n\n\
 \
 It is redundant and needlessly verbose to use an output's name to \
 specify that it is an output. Output names should be short yet descriptive. Prefixing a \
-name with out or output adds length to the name without adding clarity or context. \
-Additionally, names with only 2 characters can lead to confusion and obfuscates the \
-content of an output. Output names should be at least 3 characters long."
+name with \"out\" or \"output\" adds length to the name without adding clarity or context. \
+Additionally, short names can lead to confusion and obfuscate the \
+content of an output. Output names should be at least `min_length` characters long."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -132,7 +157,7 @@ task generate_greeting {
 
 impl Visitor for OutputNameRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.output_section = false;
     }
 
     fn output_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &OutputSection) {
@@ -142,6 +167,9 @@ impl Visitor for OutputNameRule {
     fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter && self.output_section {
             check_decl_name(
+                self.severity,
+                self.min_length,
+                self.check_prefixes,
                 diagnostics,
                 &Decl::Bound(decl.clone()),
                 &self.exceptable_nodes(),
@@ -157,6 +185,9 @@ impl Visitor for OutputNameRule {
     ) {
         if reason == VisitReason::Enter && self.output_section {
             check_decl_name(
+                self.severity,
+                self.min_length,
+                self.check_prefixes,
                 diagnostics,
                 &Decl::Unbound(decl.clone()),
                 &self.exceptable_nodes(),
@@ -167,6 +198,9 @@ impl Visitor for OutputNameRule {
 
 /// Check declaration name
 fn check_decl_name(
+    severity: Severity,
+    min_length: u8,
+    check_prefixes: bool,
     diagnostics: &mut Diagnostics,
     decl: &Decl,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
@@ -175,13 +209,17 @@ fn check_decl_name(
     let name = name.text();
 
     let length = name.len();
-    if length < 3 {
+    if length < min_length as usize {
         // name is too short
         diagnostics.exceptable_add(
-            decl_identifier_too_short(decl.name().span()),
+            decl_identifier_too_short(severity, decl.name().span(), min_length),
             decl.inner(),
             exceptable_nodes,
         );
+    }
+
+    if !check_prefixes {
+        return;
     }
 
     let mut name = name.chars().peekable();
@@ -196,7 +234,7 @@ fn check_decl_name(
                 if c.is_ascii_uppercase() || c == &'_' {
                     // name starts with "out"
                     diagnostics.exceptable_add(
-                        decl_identifier_starts_with_out(decl.name().span()),
+                        decl_identifier_starts_with_out(severity, decl.name().span()),
                         decl.inner(),
                         exceptable_nodes,
                     );
@@ -205,7 +243,7 @@ fn check_decl_name(
                     if s == "put" {
                         // name starts with "output"
                         diagnostics.exceptable_add(
-                            decl_identifier_starts_with_output(decl.name().span()),
+                            decl_identifier_starts_with_output(severity, decl.name().span()),
                             decl.inner(),
                             exceptable_nodes,
                         );

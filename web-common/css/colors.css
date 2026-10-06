@@ -603,15 +603,15 @@
 
         /* Brand colors - Light Mode (inverted token names for theme switching) */
         --color-brand-emerald-200: #065f46;  /* Emerald 800 from Figma */
-        --color-brand-emerald-400: #059669;  /* Emerald 600 from Figma */
+        --color-brand-emerald-400: #047857;  /* Emerald 700 — darkened for WCAG AA on light */
         --color-brand-emerald-950: #ecfdf5;  /* Emerald 50 from Figma */
-        --color-brand-violet-400: #8b5cf6;   /* Violet 500 from Figma */
-        --color-brand-pink-400: #ec4899;     /* Pink 500 from Figma */
-        --color-brand-cyan-400: #06b6d4;     /* Cyan 500 from Figma */
-        --color-brand-lime-300: #84CC16;     /* Lime 300 from Figma */
+        --color-brand-violet-400: #7c3aed;   /* Violet 600 — darkened for WCAG AA on light */
+        --color-brand-pink-400: #be185d;     /* Pink 700 — darkened for WCAG AA on light */
+        --color-brand-cyan-400: #0e7490;     /* Cyan 700 — darkened for WCAG AA on light */
+        --color-brand-lime-300: #3f6212;     /* Lime 800 — darkened for WCAG AA on light */
         --color-brand-red-400: #dc2626;      /* Red 600 from Figma */
         --color-brand-yellow-50: #291404;    /* Yellow 950 from Figma */
-        --color-brand-yellow-400: #ca8a04;   /* Yellow 600 from Figma */
+        --color-brand-yellow-400: #854d0e;   /* Yellow 800 — darkened for WCAG AA on light */
         --color-brand-yellow-700: #fde047;   /* Yellow 300 from Figma */
         --color-brand-yellow-900: #fef9c3;   /* Yellow 100 from Figma */
         --color-brand-yellow-950: #fefce8;   /* Yellow 50 from Figma */

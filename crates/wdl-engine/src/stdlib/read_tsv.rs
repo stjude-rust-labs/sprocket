@@ -24,7 +24,6 @@ use crate::Object;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::stdlib::download_file;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_tsv";
@@ -64,7 +63,7 @@ impl TsvHeader {
 /// table as an Array[String]. There is no requirement that the rows of the
 /// table are all the same length.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv>
 fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);
@@ -74,7 +73,8 @@ fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diag
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let file_path = download_file(context.transferer(), context.base_dir(), &path)
+        let file_path = context
+            .download_file(&path)
             .await
             .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
@@ -126,7 +126,7 @@ fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diag
 /// specified field names override those in the file's header (i.e., the header
 /// line is ignored).
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv>
 fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert!(context.arguments.len() >= 2 && context.arguments.len() <= 3);
@@ -136,7 +136,8 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let file_path = download_file(context.transferer(), context.base_dir(), &path)
+        let file_path = context
+            .download_file(&path)
             .await
             .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
@@ -155,8 +156,8 @@ fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
         let mut lines = BufReader::new(file).lines();
 
-        // Read the file header if there is one; ignore it if the header was directly
-        // specified.
+        // Read the file header if there is one; ignore it if the header was
+        // directly specified.
         let file_has_header = context
             .coerce_argument(1, PrimitiveType::Boolean)
             .unwrap_boolean();
@@ -274,12 +275,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn read_tsv() {

@@ -3,4 +3,3 @@ error: cannot access type name `Person`
    │
 11 │   String x = Person.name
    │              ^^^^^^ this is type name `Person`
-

@@ -139,8 +139,9 @@ impl Visitor for LiteralTextVisitor {
         let string: v1::LiteralString<_> = text.parent().expect("should have a parent");
         match string.kind() {
             LiteralStringKind::SingleQuoted | LiteralStringKind::DoubleQuoted => {
-                // Check the text of a normal string to ensure escape sequences are correct and
-                // characters that are required to be escaped are actually escaped.
+                // Check the text of a normal string to ensure escape sequences
+                // are correct and characters that are required
+                // to be escaped are actually escaped.
                 check_text(diagnostics, text.span().start(), text.text());
             }
             LiteralStringKind::Multiline => {

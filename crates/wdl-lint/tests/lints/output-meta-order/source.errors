@@ -1,0 +1,28 @@
+note[OutputMetaOrder]: `outputs` section of `meta` for the task `output_meta_order` is out of order
+   ┌─ tests/lints/output-meta-order/source.wdl:8:9
+   │  
+ 8 │ ╭         outputs: {
+ 9 │ │             second: "The second output",
+10 │ │             first: "The first output",
+11 │ │         }
+   │ ╰─────────^
+   ·  
+22 │       output {
+   │       ------
+   │  
+   = fix: ensure the keys within `meta.outputs` have the same order as they appear in `output`
+
+note[OutputMetaOrder]: `outputs` section of `meta` for the workflow `output_meta_order_workflow` is out of order
+   ┌─ tests/lints/output-meta-order/source.wdl:30:9
+   │  
+30 │ ╭         outputs: {
+31 │ │             workflow_second: "The second workflow output",
+32 │ │             workflow_first: "The first workflow output",
+33 │ │         }
+   │ ╰─────────^
+   ·  
+40 │       output {
+   │       ------
+   │  
+   = fix: ensure the keys within `meta.outputs` have the same order as they appear in `output`
+

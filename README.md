@@ -6,8 +6,8 @@
     <a href="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml" target="_blank">
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
-    <a href="https://codecov.io/gh/stjude-rust-labs/sprocket" > 
-      <img alt="Coverage: Codecov" src="https://codecov.io/gh/stjude-rust-labs/sprocket/branch/main/graph/badge.svg?token=06DXFHBDNC"/> 
+    <a href="https://codecov.io/gh/stjude-rust-labs/sprocket" >
+      <img alt="Coverage: Codecov" src="https://codecov.io/gh/stjude-rust-labs/sprocket/branch/main/graph/badge.svg?token=06DXFHBDNC"/>
     </a>
     <a href="https://crates.io/crates/sprocket" target="_blank">
       <img alt="crates.io: Version" src="https://img.shields.io/crates/v/sprocket">
@@ -99,7 +99,7 @@ brew install sprocket
 Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sprocket/pkgs/container/sprocket).
 
 ```bash
-docker pull ghcr.io/stjude-rust-labs/sprocket:v0.27.0
+docker pull ghcr.io/stjude-rust-labs/sprocket:v0.31.0
 ```
 
 ### Nix Flake

@@ -33,7 +33,7 @@
         @apply flex flex-col;
     }
     .main__title {
-        @apply text-5xl text-slate-50 mt-4 mb-6;
+        @apply text-4xl text-slate-50 mt-4 mb-6;
     }
     .main__section {
         @apply flex flex-col mt-8;
@@ -68,6 +68,16 @@
     .main__badge-text {
         @apply text-xs text-slate-100;
     }
+    .main__badge-wdl-icon {
+        @apply size-4 shrink-0 overflow-hidden rounded-sm;
+    }
+    .main__badge-wdl-icon svg {
+        @apply block size-full;
+    }
+    .main__badge--wdl {
+        background-color: #0a0c12;
+        @apply light:bg-slate-900;
+    }
     .main__badge-inner {
         @apply flex items-center gap-1 bg-slate-700 px-1 rounded-md h-[18px];
     }
@@ -79,14 +89,25 @@
         @apply text-xs text-slate-100;
     }
     .main__badge--success {
-        @apply border-brand-emerald-400 bg-brand-emerald-950 text-brand-emerald-200;
+        @apply border-emerald-400 bg-emerald-400 text-emerald-950 light:border-emerald-700 light:bg-emerald-900 light:text-emerald-100;
     }
     .main__badge--success .main__badge-text {
-        @apply text-brand-emerald-200;
+        @apply text-emerald-950 light:text-emerald-100;
     }
-    .main__badge--success::before {
-        content: "✓";
-        @apply text-[8px] rounded-full w-[10px] h-[10px] bg-brand-emerald-400 text-brand-emerald-950 flex items-center justify-center;
+    .main__badge--success .main__badge-status-icon {
+        @apply text-sm font-bold flex items-center justify-center;
+    }
+    .main__badge--error {
+        @apply border-red-400 bg-red-400 text-red-950 light:border-red-700 light:bg-red-900 light:text-red-100;
+    }
+    .main__badge--error .main__badge-text {
+        @apply text-red-950 light:text-red-100;
+    }
+    .main__badge--error .main__badge-status-icon {
+        @apply text-sm font-bold flex items-center justify-center;
+    }
+    .main__badge-status-icon svg {
+        @apply block size-3.5;
     }
     .main__badge--disabled::before {
         content: "-";

@@ -10,6 +10,8 @@ use async_lsp::lsp_types::Position;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::HoverRequest;
+use wdl_analysis::FeatureFlags;
+use wdl_lsp::ServerOptions;
 
 use crate::common::TestContext;
 use crate::common::TestContextBuilder;
@@ -514,4 +516,22 @@ async fn should_not_render_line_comments_on_hover() {
         .await
         .expect("request should succeed");
     assert!(response.is_none());
+}
+
+#[tokio::test]
+async fn should_hover_select_imported_task() {
+    let mut ctx = TestContextBuilder::new("hover_selected")
+        .server_options(ServerOptions {
+            feature_flags: FeatureFlags::default().with_wdl_1_4(),
+            ..ServerOptions::default()
+        })
+        .build();
+    ctx.initialize().await;
+
+    // Position of `add` in `call add` in source.wdl
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(5, 9))
+        .await
+        .expect("request should succeed");
+
+    assert_hover_content(&response, "task add");
 }

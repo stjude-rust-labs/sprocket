@@ -532,7 +532,8 @@ pub fn items(parser: &mut Parser<'_>) {
 
     parser.pop_recovery_set();
 
-    // This call to `next` is important as `next` adds any remaining buffered events
+    // This call to `next` is important as `next` adds any remaining buffered
+    // events
     assert!(parser.next().is_none(), "parser is not finished");
 }
 
@@ -2206,8 +2207,9 @@ fn call_statement(
     }
 
     if let Some((Token::OpenBrace, _)) = parser.peek() {
-        // Given the optional `input:` that we need to parse after the open brace, we
-        // unfortunately can't use `Parser::matching_delimited` here
+        // Given the optional `input:` that we need to parse after the open
+        // brace, we unfortunately can't use
+        // `Parser::matching_delimited` here
         let open_span = parser.require(Token::OpenBrace);
 
         if parser.next_if(Token::InputKeyword) {
@@ -2285,7 +2287,7 @@ pub fn expr(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Pars
 
 /// Parses an expression with the given minimum precedence.
 ///
-/// See https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+/// See <https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html>
 fn expr_with_precedence(
     parser: &mut Parser<'_>,
     marker: Marker,
@@ -2342,7 +2344,8 @@ fn expr_with_precedence(
         // Check for either an infix or postfix operation
         match parser.peek() {
             Some((token, _)) if INFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
-                // The operation is an infix operation; check the precedence level
+                // The operation is an infix operation; check the precedence
+                // level
                 let (precedence, kind, associativity) = infix_precedence(token);
                 if precedence < min_precedence {
                     break;
@@ -2369,7 +2372,8 @@ fn expr_with_precedence(
                 lhs = infix.complete(&mut parser, kind);
             }
             Some((token, _)) if POSTFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
-                // The operation is a postfix operation; check the precedence level
+                // The operation is a postfix operation; check the precedence
+                // level
                 let precedence = postfix_precedence(token);
                 if precedence < min_precedence {
                     break;
@@ -2415,7 +2419,9 @@ fn atom_expr(
     peeked: Token,
 ) -> Result<CompletedMarker, (Marker, ParseDiagnostic)> {
     match peeked {
-        Token::NoneKeyword => none(parser, marker),
+        Token::NoneKeyword if parser.version() >= SupportedVersion::V1(V1::One) => {
+            none(parser, marker)
+        }
         Token::Float | Token::Integer => number(parser, marker, false),
         Token::TrueKeyword | Token::FalseKeyword => boolean(parser, marker),
         Token::SingleQuote => single_quote_string(parser, marker, true),
@@ -2722,7 +2728,7 @@ enum Associativity {
 
 /// Determines the precedence of a prefix operator.
 ///
-/// See: https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+/// See: <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
 fn prefix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
     use Associativity::*;
     use SyntaxKind::*;
@@ -2738,7 +2744,7 @@ fn prefix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 
 /// Determines the precedence of an infix operator.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+/// <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
 fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
     use Associativity::*;
     use SyntaxKind::*;
@@ -2763,7 +2769,7 @@ fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 
 /// Determines the precedence of a postfix operator.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+/// <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
 fn postfix_precedence(token: Token) -> u8 {
     // All postfix operators are left-associative
     match token {

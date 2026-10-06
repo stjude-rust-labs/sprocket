@@ -12,16 +12,19 @@ use toml_spanner::Toml;
 use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
-use wdl::diagnostics::Mode;
 
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
 /// Name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";
+/// Lock file write action.
+const WRITE: Action = Action::new("Wrote", "write");
 
 /// Arguments for the `lock` subcommand.
 #[derive(Parser, Debug)]
@@ -33,10 +36,6 @@ pub struct Args {
     /// Output directory for the lock file.
     #[clap(short, long, value_name = "DIR")]
     pub output: Option<PathBuf>,
-
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
 }
 
 /// Represents the lock file structure.
@@ -51,8 +50,8 @@ struct Lock {
 }
 
 /// Performs the `lock` command.
-pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let report_mode = config.common.report_mode;
     let output_path = args
         .output
         .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))
@@ -64,7 +63,8 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
-        .run(report_mode, colorize)
+        .ignore_filename(config.common.ignore_filename())
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -139,7 +139,16 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
         images: map,
     };
     let data = toml_spanner::to_string(&lock).context("failed to serialize lock contents")?;
-    std::fs::write(output_path, data).context("failed to write lock file")?;
+    std::fs::write(&output_path, data).context("failed to write lock file")?;
+    output.completed(
+        WRITE,
+        format!(
+            "lock file with {count} image{plural} at `{path}`",
+            count = lock.images.len(),
+            plural = if lock.images.len() == 1 { "" } else { "s" },
+            path = output_path.display()
+        ),
+    );
 
     Ok(())
 }

@@ -83,14 +83,15 @@ pub fn document(
 ) -> (Vec<Event>, Vec<Diagnostic>) {
     let root = parser.start();
     // Look for a starting `version` keyword token
-    // If this fails, an error is emitted and we'll skip parsing the remainder of
-    // the file.
+    // If this fails, an error is emitted and we'll skip parsing the remainder
+    // of the file.
     let (mut parser, diagnostic) = match parser.peek() {
         Some((PreambleToken::VersionKeyword, _)) => {
             match version_statement(parser, fallback_version) {
                 (parser, None) => {
-                    // A version statement was successfully parsed; continue on with parsing the
-                    // rest of the document.
+                    // A version statement was successfully parsed; continue on
+                    // with parsing the rest of the
+                    // document.
                     let mut parser = parser.morph();
                     v1::items(&mut parser);
                     root.complete(&mut parser, SyntaxKind::RootNode);
@@ -119,9 +120,9 @@ pub fn document(
         }
     };
 
-    // At this point, the parse cannot continue; but we still want the tree to cover
-    // every span of the source, so we will insert a special "unparsed" token for
-    // the remaining source.
+    // At this point, the parse cannot continue; but we still want the tree to
+    // cover every span of the source, so we will insert a special
+    // "unparsed" token for the remaining source.
     parser.diagnostic(diagnostic);
     parser.consume_remainder();
     root.complete(&mut parser, SyntaxKind::RootNode);

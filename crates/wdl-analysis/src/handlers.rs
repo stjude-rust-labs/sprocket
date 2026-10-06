@@ -8,6 +8,7 @@ use crate::Document;
 use crate::Exceptable;
 use crate::diagnostics;
 use crate::document::ScopeRef;
+use crate::types::TypeNameRef;
 use crate::types::v1::EvaluationContext;
 
 mod call_hierarchy;
@@ -49,6 +50,7 @@ pub use workspace_symbol::*;
 /// information.
 ///
 /// The context is specifically designed for LSP handlers where:
+///
 /// - We need to evaluate expression types at a specific cursor position
 /// - We want to avoid collecting diagnostics (since they're handled separately)
 /// - We only need read-only access to scope and document information
@@ -77,8 +79,13 @@ impl EvaluationContext for TypeEvalContext<'_> {
 
         if let Some(ty) = self.document.get_custom_type(name) {
             return Some(
-                ty.type_name_ref()
-                    .expect("type name ref to be created from custom type"),
+                TypeNameRef::new(
+                    name,
+                    ty.as_custom()
+                        .expect("type should be a custom type")
+                        .clone(),
+                )
+                .into(),
             );
         }
 

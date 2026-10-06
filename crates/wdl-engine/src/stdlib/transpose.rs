@@ -23,7 +23,7 @@ const FUNCTION_NAME: &str = "transpose";
 ///
 /// If either the inner or the outer array is empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#transpose
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#transpose>
 fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(
@@ -88,12 +88,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn transpose() {

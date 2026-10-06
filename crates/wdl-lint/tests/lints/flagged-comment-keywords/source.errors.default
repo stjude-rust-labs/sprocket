@@ -1,0 +1,8 @@
+note[FlaggedComment]: remaining `TODO` item found
+   ┌─ tests/lints/flagged-comment-keywords/source.wdl:12:3
+   │
+12 │ # TODO: this is not a configured keyword, so it is only flagged by default
+   │   ^^^^
+   │
+   = fix: remove the `TODO` item once it has been implemented
+

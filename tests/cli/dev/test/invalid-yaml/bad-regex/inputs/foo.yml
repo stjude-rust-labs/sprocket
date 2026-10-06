@@ -1,0 +1,5 @@
+say_hello:
+  - name: it_says_hello
+    assertions:
+      stdout:
+        - "Hello, (World"

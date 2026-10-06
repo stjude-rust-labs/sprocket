@@ -6,16 +6,16 @@ struct SpliceJunctionMotifs {
 }
 
 workflow foo {
-    input {
-        SpliceJunctionMotifs? foo
-    }
-
     SpliceJunctionMotifs declared = SpliceJunctionMotifs {
         noncanonical_motifs: 1,
         GT_AG_and_CT_AC_motif: 2,
     }
     SpliceJunctionMotifs? optional = None
     Object? deprecated = None
+
+    input {
+        SpliceJunctionMotifs? foo
+    }
 
     output {
         SpliceJunctionMotifs? bar = declared

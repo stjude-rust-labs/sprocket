@@ -7,6 +7,7 @@ use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_comma_separated_items;
 
 /// Formats an [`EnumDefinition`](wdl_ast::v1::EnumDefinition).
 ///
@@ -43,6 +44,7 @@ pub fn format_enum_definition(
                 (&child).write(stream, config);
                 stream.end_line();
                 stream.increment_indent();
+                stream.end_line();
             }
             SyntaxKind::EnumChoiceNode => {
                 choices.push(child.clone());
@@ -62,18 +64,10 @@ pub fn format_enum_definition(
         }
     }
 
-    let mut commas = commas.iter();
-    for choice in choices {
-        (&choice).write(stream, config);
-        if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
-        }
-        stream.end_line();
-    }
+    write_comma_separated_items(&choices, &commas, stream, config);
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("enum definition close brace")).write(stream, config);
     stream.end_line();
 }

@@ -36,4 +36,6 @@ fn main() {
     std::fs::write(&dest_path, code).expect("file to write");
 
     println!("cargo:rerun-if-changed=theme/assets");
+    println!("cargo:rerun-if-changed=theme/dist/style.css");
+    println!("cargo:rerun-if-changed=theme/dist/index.js");
 }

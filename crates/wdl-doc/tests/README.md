@@ -23,7 +23,7 @@ After defining a test, add it to the `all_tests()` map in the category's `mod.rs
 
 To add a test category, create a new directory under [./ui](./ui) with the following structure:
 
-```
+```text
 ui/
 ├─ <category>/
 │  ├─ assets/
@@ -60,4 +60,3 @@ For example:
 ```bash
 BLESS=1 cargo test
 ```
-

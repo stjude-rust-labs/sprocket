@@ -1,0 +1,5 @@
+{
+  "test.required_file": "File",
+  "test.required_directory": "Directory",
+  "test.required_string": "String"
+}

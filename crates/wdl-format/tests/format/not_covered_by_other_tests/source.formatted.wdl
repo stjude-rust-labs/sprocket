@@ -20,8 +20,8 @@ task test1 {
 
     command  # my command block
     <<<
-        echo 'hello ~{default="world" name}'
-        echo '~{true="good" false="bad" flag}bye'
+        echo 'hello ~{default='world' name}'
+        echo '~{true='good' false="bad" flag}bye'
     >>>
 
     output {
@@ -34,11 +34,7 @@ task test1 {
                 foo: "bar",
             },
         }
-        f: [
-            1,
-            2,
-            3,
-        ]
+        f: [1, 2, 3]
         g: {
             foo: "bar",
         }

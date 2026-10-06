@@ -1,4 +1,4 @@
-#@ except: MetaSections
+#@ except: MetaSections, UnusedDocComments
 
 version 1.3
 

@@ -22,7 +22,7 @@ use crate::Value;
 /// with the given key. If P is an optional type (e.g., String?), then the
 /// second argument may be None.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key>
 fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
@@ -46,7 +46,7 @@ fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// `Boolean contains_key(Object, String)`: Tests whether the Object has an
 /// entry with the given name.`
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key>
 fn contains_key_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
@@ -68,7 +68,7 @@ fn contains_key_object(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// `Boolean contains_key(Map[String, Y]|Struct|Object, Array[String])`: Tests
 /// recursively for the presence of a compound key within a nested collection.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains_key>
 fn contains_key_recursive(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
@@ -137,14 +137,14 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
     use wdl_analysis::types::Type;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn contains_key() {

@@ -5,6 +5,7 @@ use clap::Parser;
 use clap::Subcommand;
 
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::config::Config;
 
@@ -22,9 +23,9 @@ pub struct Args {
 }
 
 impl Args {
-    /// Returns `true` if the subcommand is 'Init'.
-    pub fn is_init(&self) -> bool {
-        matches!(self.command, ConfigSubcommand::Init)
+    /// Returns `true` if the subcommand is 'Default'.
+    pub fn is_default(&self) -> bool {
+        matches!(self.command, ConfigSubcommand::Default)
     }
 }
 
@@ -35,7 +36,7 @@ pub enum ConfigSubcommand {
     Schema,
 
     /// Generates a default configuration file.
-    Init,
+    Default,
 
     /// Displays the current configuration.
     Resolve(ResolveArgs),
@@ -50,17 +51,17 @@ pub struct ResolveArgs {
 }
 
 /// Runs the `config` command.
-pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
+pub fn config(args: Args, mut config: Config, output: CommandOutput) -> CommandResult<()> {
     let mut include_schema_directive = false;
     let config = match args.command {
         ConfigSubcommand::Schema => {
             let schema = schemars::schema_for!(Config);
             let schema_pretty =
                 serde_json::to_string_pretty(&schema).context("serializing config schema")?;
-            println!("{schema_pretty}");
+            output.payload(schema_pretty);
             return Ok(());
         }
-        ConfigSubcommand::Init => {
+        ConfigSubcommand::Default => {
             include_schema_directive = true;
             Config::default()
         }
@@ -74,7 +75,7 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
         }
     };
 
-    println!(
+    output.payload(format!(
         "{}{}",
         if include_schema_directive {
             format!("{SCHEMA_DIRECTIVE}\n\n")
@@ -84,6 +85,6 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
         toml_spanner::to_string(&config)
             .context("failed to serialize configuration")
             .map_err(CommandError::Single)?
-    );
+    ));
     Ok(())
 }

@@ -140,7 +140,7 @@ impl ToToml for Indent {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use super::*;

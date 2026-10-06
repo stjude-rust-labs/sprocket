@@ -1,6 +1,7 @@
 //! Create HTML documentation for WDL structs.
 
 use std::path::Path;
+use std::path::PathBuf;
 
 use maud::Markup;
 use maud::html;
@@ -13,6 +14,7 @@ use wdl_ast::v1::StructDefinition;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
+use crate::links::PageLinkIndex;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
@@ -21,6 +23,7 @@ use crate::meta::MetaMapValueSource;
 use crate::meta::doc_comments;
 use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
+use crate::page::DeclarationHero;
 
 /// A member in a struct.
 #[derive(Debug)]
@@ -57,6 +60,11 @@ pub struct Struct {
     version: VersionBadge,
     /// Whether the struct lives outside the workspace.
     external: bool,
+    /// The path from the root of the WDL workspace to the WDL document which
+    /// contains this struct.
+    ///
+    /// Used to render the source card.
+    wdl_path: Option<PathBuf>,
 }
 
 impl DefinitionMeta for Struct {
@@ -71,6 +79,7 @@ impl Struct {
         definition: StructDefinition,
         version: SupportedVersion,
         external: bool,
+        wdl_path: Option<PathBuf>,
         enable_doc_comments: bool,
     ) -> Self {
         let mut meta = definition
@@ -101,11 +110,20 @@ impl Struct {
             definition,
             version: VersionBadge::new(version),
             external,
+            wdl_path,
         }
     }
 
     /// Render the struct as HTML.
-    pub fn render(&self, assets: &Path) -> (Markup, PageSections) {
+    ///
+    /// Member types are rendered through `links` so that references to uniquely
+    /// generated struct and enum pages become anchors relative to `page_dir`.
+    pub fn render(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> (Markup, PageSections) {
         let name = self.definition.name();
         let name = name.text();
 
@@ -127,7 +145,7 @@ impl Struct {
                                 }
 
                                 div class="main__grid-cell" {
-                                    code { (member.decl.ty()) }
+                                    (links.render_type(&member.decl.ty().to_string(), page_dir))
                                 }
                                 div class="main__grid-cell" {
                                     (member.meta().render_description(true))
@@ -145,20 +163,24 @@ impl Struct {
 
         let meta_markup = self
             .meta
-            .render_remaining(&[DESCRIPTION_KEY], assets)
+            .render_remaining(&[DESCRIPTION_KEY])
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
+        let mut hero = DeclarationHero::new("Struct", name, self.meta.render_description(false))
+            .kind_class("text-brand-pink-400")
+            .pagefind_type("struct")
+            .badge(self.version.render());
+        if let Some(path) = self.wdl_path.as_deref() {
+            hero = hero.source_path(path);
+        }
+
         let markup = html! {
-            p class="text-brand-pink-400" data-pagefind-filter="type:struct" { "Struct" }
-            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
-            div class="markdown-body mb-4" {
-                (self.meta.render_description(false))
-            }
-            div class="main__badge-container" {
-                (self.version.render())
+            (hero.render(assets))
+            @if let Some(body) = self.meta.render_authored_body(assets) {
+                (body)
             }
             div class="main__section" {
-                sprocket-code language="wdl" {
+                sprocket-code language="wdl" copyable expandable line-numbers {
                     (self.definition)
                 }
             }
@@ -213,4 +235,43 @@ fn parse_member_meta(
             Member::new(Decl::Unbound(decl), meta_map)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use wdl_ast::Document;
+    use wdl_ast::SupportedVersion;
+    use wdl_ast::version::V1;
+
+    use super::Struct;
+    use crate::links::PageLinkIndex;
+
+    #[test]
+    fn links_member_struct_types() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.2
+            struct Employee {
+                Person person
+                Int id
+            }
+            "#,
+            None,
+        );
+        let item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let def = item.into_struct_definition().unwrap();
+        let r#struct = Struct::new(def, SupportedVersion::V1(V1::Two), false, None, true);
+
+        let links = PageLinkIndex::from_pages([("Person", PathBuf::from("Person-struct.html"))]);
+        let (markup, _) = r#struct.render(Path::new("assets"), &links, Path::new(""));
+        let html = markup.into_string();
+
+        assert!(html.contains("href=\"Person-struct.html\""));
+        assert!(html.contains(">Person</a>"));
+        // The primitive `Int` member type must not be linked.
+        assert!(!html.contains("href=\"Int"));
+    }
 }

@@ -1,3 +1,0 @@
-Sprocket test result summary:
-✅ `source::always_fails::should_fail_passes` success! (1 successful test execution)
-❌ `source::always_succeeds::always_succeeds` failed: 1 execution failed assertions (out of 1 execution)

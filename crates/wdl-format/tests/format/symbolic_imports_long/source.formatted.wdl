@@ -9,6 +9,7 @@ import {
     CsvJoin,
     CsvFormat,
     CsvKit,
+    CsvSortUnstable,
 } from openwdl/csvkit
 
 workflow test {

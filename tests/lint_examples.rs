@@ -118,6 +118,10 @@ impl TestContext {
                 asset_dir.join(IMPORT_DOC_NAME),
                 include_str!("../crates/wdl-grammar/tests/parsing/enums/source.wdl"),
             )?;
+            std::fs::write(
+                asset_dir.join("bar.wdl"),
+                include_str!("../crates/wdl-grammar/tests/parsing/enums/source.wdl"),
+            )?;
         }
 
         analyzer.add_directory(asset_dir).await?;
@@ -156,14 +160,12 @@ impl TestContext {
         let id = rule.id();
         let examples = rule.examples();
 
-        let validator = Validator::empty;
-
         let analyzer = Analyzer::new_with_validator(
             AnalysisConfig::default()
                 .with_diagnostics_config(DiagnosticsConfig::new(std::iter::once(rule)))
                 .with_fallback_version(Some(FALLBACK_VERSION)),
             |_, _, _, _| async {},
-            validator,
+            Validator::default,
         );
 
         self.add_rule(&analyzer, id, examples).await?;
@@ -193,7 +195,9 @@ async fn verify_examples(ctx: Arc<TestContext>, expected_rule: &str) -> Result<(
     }
 
     for result in results {
-        if result.document().path().ends_with(IMPORT_DOC_NAME) {
+        if result.document().path().ends_with(IMPORT_DOC_NAME)
+            || result.document().path().ends_with("bar.wdl")
+        {
             continue;
         }
 

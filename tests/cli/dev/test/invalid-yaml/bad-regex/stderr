@@ -1,0 +1,9 @@
+error: invalid regex: `Hello, (World`
+  ┌─ foo.yml:5:11
+  │
+5 │         - "Hello, (World"
+  │           ^^^^^^^^^^^^^^^
+  │
+  = help: regexes must follow the syntax defined here: <https://docs.rs/regex/latest/regex/#syntax>
+
+error: failing due to 1 error

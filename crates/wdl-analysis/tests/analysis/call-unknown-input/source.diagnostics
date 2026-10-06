@@ -33,4 +33,3 @@ error: unknown name `x`
    │
 14 │     call my_task as my_task4 { x }
    │                                ^
-

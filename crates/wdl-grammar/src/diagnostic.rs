@@ -273,40 +273,31 @@ impl PartialOrd for Diagnostic {
 }
 
 impl Diagnostic {
-    /// Creates a new diagnostic error with the given message.
-    pub fn error(message: impl Into<String>) -> Self {
+    /// Creates a new diagnostic with the given severity and message.
+    pub fn new(severity: Severity, message: impl Into<String>) -> Self {
         Self {
             rule: None,
-            severity: Severity::Error,
+            severity,
             message: message.into(),
             help: None,
             fix: None,
             labels: Default::default(),
         }
+    }
+
+    /// Creates a new diagnostic error with the given message.
+    pub fn error(message: impl Into<String>) -> Self {
+        Self::new(Severity::Error, message)
     }
 
     /// Creates a new diagnostic warning with the given message.
     pub fn warning(message: impl Into<String>) -> Self {
-        Self {
-            rule: None,
-            severity: Severity::Warning,
-            message: message.into(),
-            help: None,
-            fix: None,
-            labels: Default::default(),
-        }
+        Self::new(Severity::Warning, message)
     }
 
     /// Creates a new diagnostic node with the given message.
     pub fn note(message: impl Into<String>) -> Self {
-        Self {
-            rule: None,
-            severity: Severity::Note,
-            message: message.into(),
-            help: None,
-            fix: None,
-            labels: Default::default(),
-        }
+        Self::new(Severity::Note, message)
     }
 
     /// Sets the rule for the diagnostic.
@@ -352,6 +343,15 @@ impl Diagnostic {
         self
     }
 
+    /// Offsets the spans of all labels in the diagnostic by the given amount.
+    pub fn offset(&mut self, offset: isize) {
+        for label in &mut self.labels {
+            let start = (label.span.start() as isize + offset) as usize;
+            let len = label.span.len();
+            label.span = Span::new(start, len);
+        }
+    }
+
     /// Sets the severity of the diagnostic.
     pub fn with_severity(mut self, severity: Severity) -> Self {
         self.severity = severity;
@@ -385,13 +385,14 @@ impl Diagnostic {
         self.help.as_deref()
     }
 
-    /// Gets the labels of the diagnostic.
-    pub fn labels(&self) -> impl Iterator<Item = &Label> {
+    /// Gets an iterator over the labels of the diagnostic.
+    pub fn labels(&self) -> impl ExactSizeIterator<Item = &Label> {
         self.labels.iter()
     }
 
-    /// Gets the mutable labels of the diagnostic.
-    pub fn labels_mut(&mut self) -> impl Iterator<Item = &mut Label> {
+    /// Gets an iterator over mutable references to the labels of the
+    /// diagnostic.
+    pub fn labels_mut(&mut self) -> impl ExactSizeIterator<Item = &mut Label> {
         self.labels.iter_mut()
     }
 
@@ -428,8 +429,8 @@ impl Diagnostic {
 
         if self.labels.is_empty() {
             // Codespan will treat this as a label at the end of the file
-            // We add this so that every diagnostic has at least one label with the file
-            // printed.
+            // We add this so that every diagnostic has at least one label with
+            // the file printed.
             diagnostic.labels.push(codespan::Label::new(
                 codespan::LabelStyle::Primary,
                 file_id,

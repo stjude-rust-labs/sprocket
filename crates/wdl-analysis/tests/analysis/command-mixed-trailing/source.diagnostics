@@ -1,0 +1,7 @@
+warning[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option
+   ┌─ tests/analysis/command-mixed-trailing/source.wdl:26:36
+   │
+26 │         this line is prefixed with ${"spaces and has tailing mixed indentation"}
+   │                                    ^
+   │
+   = fix: replace the opening token `$` with `~`

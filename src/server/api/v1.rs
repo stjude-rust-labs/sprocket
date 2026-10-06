@@ -156,56 +156,121 @@ where
     }
 }
 
-/// The default page size used for paginated list endpoints when the caller does
-/// not specify a `limit`.
-pub const DEFAULT_PAGE_SIZE: i64 = 100;
+/// The default number of records returned by a paginated endpoint.
+const DEFAULT_PAGE_LIMIT: i64 = 100;
 
-/// Validates the `limit` and `next_token` query parameters for a paginated list
-/// endpoint and returns the `(limit, offset)` pair that should be forwarded to
-/// the run manager / database.
-///
-/// `limit` defaults to [`DEFAULT_PAGE_SIZE`] when unspecified and must be
-/// positive. `next_token` is parsed as a non-negative integer offset; a
-/// missing token is treated as offset `0`.
-///
-/// Returns a `400 BadRequest` error if either value is invalid. Centralizing
-/// this validation prevents pathological values (e.g. SQLite's interpretation
-/// of `LIMIT -1` as unbounded, or `limit = 0` producing a repeated pagination
-/// token) from reaching the database layer.
-pub fn validate_pagination(
-    limit: Option<i64>,
-    next_token: Option<&str>,
-) -> Result<(i64, i64), Error> {
-    let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
-    if limit <= 0 {
-        return Err(Error::BadRequest("`limit` must be positive".to_string()));
+/// The maximum number of records returned by a paginated endpoint.
+const MAX_PAGE_LIMIT: i64 = 1000;
+
+/// Validated pagination parameters.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Pagination {
+    /// Number of records to return.
+    pub(super) limit: i64,
+    /// Number of records to skip.
+    pub(super) offset: i64,
+    /// Offset for the next page.
+    next_offset: i64,
+}
+
+impl Pagination {
+    /// Validates pagination query parameters.
+    pub(super) fn new(limit: Option<i64>, next_token: Option<&str>) -> Result<Self, Error> {
+        let limit = limit.unwrap_or(DEFAULT_PAGE_LIMIT);
+        if !(1..=MAX_PAGE_LIMIT).contains(&limit) {
+            return Err(Error::BadRequest(format!(
+                "`limit` must be between `1` and `{MAX_PAGE_LIMIT}`"
+            )));
+        }
+
+        let offset = match next_token {
+            Some(token) => token
+                .parse::<i64>()
+                .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{token}`")))?,
+            None => 0,
+        };
+        if offset < 0 {
+            return Err(Error::BadRequest(
+                "`next_token` must be non-negative".to_string(),
+            ));
+        }
+
+        let next_offset = offset
+            .checked_add(limit)
+            .ok_or_else(|| Error::BadRequest("`next_token` is too large".to_string()))?;
+
+        Ok(Self {
+            limit,
+            offset,
+            next_offset,
+        })
     }
 
-    let offset = match next_token {
-        Some(t) => {
-            let parsed = t
-                .parse::<i64>()
-                .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?;
-            if parsed < 0 {
-                return Err(Error::BadRequest(
-                    "`next_token` must be non-negative".to_string(),
-                ));
-            }
-            parsed
-        }
-        None => 0,
-    };
-
-    Ok((limit, offset))
+    /// Returns a token when another page is available.
+    pub(super) fn next_token(self, total: i64) -> Option<String> {
+        (self.next_offset < total).then(|| self.next_offset.to_string())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::system::v1::exec::svc::run_manager::commands;
 
-    /// Asserts that a [`validate_pagination`] result is a `BadRequest` whose
+    #[tokio::test]
+    async fn send_command_returns_manager_response() {
+        let (manager_tx, mut manager_rx) = mpsc::channel(1);
+        let manager = tokio::spawn(async move {
+            // SAFETY: the test sends one command before awaiting this task.
+            let command = manager_rx.recv().await.unwrap();
+            let RunManagerCmd::ListSessions { limit, offset, rx } = command else {
+                panic!("expected list sessions command");
+            };
+
+            assert_eq!(limit, Some(10));
+            assert_eq!(offset, Some(20));
+            rx.send(Ok(commands::ListSessionsResponse {
+                sessions: Vec::new(),
+                total: 0,
+            }))
+            // SAFETY: `send_command` is awaiting the response channel.
+            .unwrap();
+        });
+
+        let response = send_command(&manager_tx, |rx| RunManagerCmd::ListSessions {
+            limit: Some(10),
+            offset: Some(20),
+            rx,
+        })
+        .await
+        // SAFETY: the spawned manager sends a successful response.
+        .unwrap();
+
+        assert_eq!(response.total, 0);
+        assert!(response.sessions.is_empty());
+        // SAFETY: the spawned manager task completes after replying.
+        manager.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn send_command_maps_closed_manager_to_internal_error() {
+        let (manager_tx, manager_rx) = mpsc::channel(1);
+        drop(manager_rx);
+
+        let error = send_command(&manager_tx, |rx| RunManagerCmd::ListSessions {
+            limit: None,
+            offset: None,
+            rx,
+        })
+        .await
+        .unwrap_err();
+
+        assert!(matches!(error, Error::Internal));
+    }
+
+    /// Asserts that a [`Pagination::new`] result is a `BadRequest` whose
     /// message contains the given substring.
-    fn assert_bad_request(result: Result<(i64, i64), Error>, contains: &str) {
+    fn assert_bad_request(result: Result<Pagination, Error>, contains: &str) {
         match result {
             Err(Error::BadRequest(msg)) => assert!(
                 msg.contains(contains),
@@ -217,52 +282,61 @@ mod tests {
 
     #[test]
     fn defaults_when_unspecified() {
-        let (limit, offset) = validate_pagination(None, None).unwrap();
-        assert_eq!(limit, DEFAULT_PAGE_SIZE);
-        assert_eq!(offset, 0);
+        let pagination = Pagination::new(None, None).unwrap();
+        assert_eq!(pagination.limit, DEFAULT_PAGE_LIMIT);
+        assert_eq!(pagination.offset, 0);
+        assert_eq!(pagination.next_token(101), Some("100".to_string()));
     }
 
     #[test]
     fn accepts_positive_limit_and_non_negative_token() {
-        let (limit, offset) = validate_pagination(Some(50), Some("0")).unwrap();
-        assert_eq!(limit, 50);
-        assert_eq!(offset, 0);
+        let pagination = Pagination::new(Some(50), Some("0")).unwrap();
+        assert_eq!(pagination.limit, 50);
+        assert_eq!(pagination.offset, 0);
 
-        let (limit, offset) = validate_pagination(Some(1), Some("250")).unwrap();
-        assert_eq!(limit, 1);
-        assert_eq!(offset, 250);
+        let pagination = Pagination::new(Some(1), Some("250")).unwrap();
+        assert_eq!(pagination.limit, 1);
+        assert_eq!(pagination.offset, 250);
+        assert_eq!(pagination.next_token(251), None);
     }
 
     #[test]
     fn rejects_zero_limit() {
-        assert_bad_request(
-            validate_pagination(Some(0), None),
-            "`limit` must be positive",
-        );
+        assert_bad_request(Pagination::new(Some(0), None), "`limit` must be between");
     }
 
     #[test]
     fn rejects_negative_limit() {
+        assert_bad_request(Pagination::new(Some(-1), None), "`limit` must be between");
+    }
+
+    #[test]
+    fn rejects_limit_above_maximum() {
         assert_bad_request(
-            validate_pagination(Some(-1), None),
-            "`limit` must be positive",
+            Pagination::new(Some(MAX_PAGE_LIMIT + 1), None),
+            "`limit` must be between",
         );
     }
 
     #[test]
     fn rejects_negative_next_token() {
         assert_bad_request(
-            validate_pagination(None, Some("-5")),
+            Pagination::new(None, Some("-5")),
             "`next_token` must be non-negative",
         );
     }
 
     #[test]
     fn rejects_unparsable_next_token() {
+        assert_bad_request(Pagination::new(None, Some("nope")), "invalid `next_token`");
+        assert_bad_request(Pagination::new(None, Some("")), "invalid `next_token`");
+    }
+
+    #[test]
+    fn rejects_next_offset_overflow() {
         assert_bad_request(
-            validate_pagination(None, Some("nope")),
-            "invalid `next_token`",
+            Pagination::new(Some(1), Some(&i64::MAX.to_string())),
+            "`next_token` is too large",
         );
-        assert_bad_request(validate_pagination(None, Some("")), "invalid `next_token`");
     }
 }

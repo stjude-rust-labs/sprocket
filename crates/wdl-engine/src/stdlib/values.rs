@@ -14,7 +14,7 @@ use crate::Value;
 ///
 /// If the map is empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-values
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-values>
 fn values(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(
@@ -45,15 +45,15 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
 
     use crate::Value;
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn values() {

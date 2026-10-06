@@ -1,6 +1,7 @@
 //! Integration tests for the LSP requests.
 
 mod call_hierarchy;
+mod code_lens;
 mod completions;
 mod diagnostics;
 mod find_all_references;

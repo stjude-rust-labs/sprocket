@@ -3,4 +3,3 @@ error: object does not have a member named `x`
   │
 8 │   Int i = my.x  # error: field 'x' does not exist in object
   │              ^
-

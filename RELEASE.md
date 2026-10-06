@@ -4,7 +4,10 @@
 
 Various CI features have been implemented to ease the release process, but some parts of it are still intended to be manual (e.g., each CHANGELOG for each individual crate should be written by hand _prior to release_). We subscribe to the philosophy outlined on the [keepachangelog site](https://keepachangelog.com/en/1.1.0/). The short version is that (almost) every PR should include a manually written entry to one or more CHANGELOGs in the repository under the `## Unreleased` header.
 
-## Time to Release!
+## Time to Release
+
+Before cutting a release, review every entry under `## Unreleased` in each
+`CHANGELOG.md` and verify that every item links to its originating pull request.
 
 The following steps are handled automatically by the [release-plz](./.github/workflows/release-plz.yml) workflow.
 In the event it fails, they can be performed manually.
@@ -12,21 +15,31 @@ In the event it fails, they can be performed manually.
 <details>
 <summary>Manual release steps</summary>
 
-1. Go through each publishable crate (i.e., each `wdl-*` crate, `wdl`, and `sprocket`) and increment the version in `Cargo.toml` (as well as match any internal dependency versions that need to be bumped).
+1. Increment `workspace.package.version` in the root `Cargo.toml` for
+   `sprocket` and `sprocket_bio`. Go through each remaining publishable crate
+   (i.e., each `wdl-*` crate and `wdl`) and increment its version in
+   `Cargo.toml`, as well as any internal dependency versions that need to be
+   bumped.
 2. Update each CHANGELOG.md file with a new release header.
-3. Create a new tag for each new crate version _excluding_ `sprocket`, with the format `{CRATE_NAME}-v{VERSION}` (where `VERSION` matches the latest version in the root `Cargo.toml`)
-    * For new `sprocket` releases, the tag name format is `v{VERSION}`
+3. Create a new tag for each new crate version _excluding_ `sprocket`, with
+   the format `{CRATE_NAME}-v{VERSION}`, where `VERSION` matches that crate's
+   version.
+    - For new `sprocket` and `sprocket_bio` releases, the tag name format is
+      `v{VERSION}`, where `VERSION` matches `workspace.package.version`.
 
     ```bash
     git tag {CRATE_NAME}-v{VERSION}
     git push --tags
     ```
+
 4. Publish each crate to [crates.io](https://crates.io)
 
     ```bash
     cargo publish --workspace
     ```
+
 5. If updating `sprocket`, create a new GitHub release with the title `v{VERSION}` and mark it as the latest release
+
 </details>
 
 The body of the `sprocket` GitHub releases must be updated manually, regardless of the success of the `release-plz` workflow.
@@ -37,11 +50,34 @@ Note that the individual `CHANGELOG.md` files hard-wrap lines at ~80 columns. Th
 
 Format each section so that it looks like:
 
-```
+```text
 ### `<crate name>`
 
 <copy and pasted CHANGELOG entries>
 ```
+
+## Python Package Releases
+
+The `sprocket_bio` Python package has the same version as the `sprocket` CLI.
+Both packages inherit `workspace.package.version` from the root `Cargo.toml`,
+and the standard `v{VERSION}` tag publishes both releases.
+
+To publish a Python release:
+
+1. Follow the standard release process above. Release-plz updates the shared
+   workspace version and creates the `v{VERSION}` tag.
+2. Confirm that the
+   [Python release workflow](./.github/workflows/python-release.yml) publishes
+   the matching Python distributions to PyPI.
+
+Create a GitHub environment named `pypi` before the first release. Require
+reviewers for deployments and restrict deployment tags to
+`v*`. Configure the PyPI trusted publisher with these values:
+
+- Owner: `stjude-rust-labs`
+- Repository: `sprocket`
+- Workflow: `python-release.yml`
+- Environment: `pypi`
 
 ## Post-Release
 

@@ -13,4 +13,3 @@ error: expected map key to be a non-optional primitive type
   │         ^^^^
   │         │
   │         this is built-in type `None`
-

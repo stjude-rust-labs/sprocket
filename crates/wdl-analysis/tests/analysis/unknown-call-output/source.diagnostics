@@ -3,4 +3,3 @@ error: task `my_task` does not have an output named `unknown`
    │
 12 │     String x = my_task.unknown
    │                        ^^^^^^^
-

@@ -57,8 +57,8 @@ pub fn document_symbol(graph: &DocumentGraph, uri: &Url) -> Result<Option<Docume
         return Ok(None);
     };
 
-    // NOTE: the reason for using `Ast` here is we don't want to wait for analysis
-    // to complete and call `structs`, `tasks` and `workflow` on
+    // NOTE: the reason for using `Ast` here is we don't want to wait for
+    // analysis to complete and call `structs`, `tasks` and `workflow` on
     // `analysis::Document`. Doing so will break the outline while the user is
     // typing.
     for item in ast.items() {

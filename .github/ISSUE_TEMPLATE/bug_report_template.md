@@ -26,10 +26,11 @@ Replace with terminal output
 If applicable, add screenshots to help explain your problem.
 
 **Environment (please complete the following information):**
- - OS: [e.g. iOS]
- - Version: [e.g. `wdl-v0.10.0`]
- - Shell: [e.g. bash]
- - Toolchain version: [e.g. output of `rustc --version`]
+
+- OS: [e.g. iOS]
+- Version: [e.g. `wdl-v0.10.0`]
+- Shell: [e.g. bash]
+- Toolchain version: [e.g. output of `rustc --version`]
 
 **Additional context**
 Add any other context about the problem here.

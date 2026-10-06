@@ -95,8 +95,8 @@ impl SupportedVersion {
     /// assert!(SupportedVersion::V1(V1::Zero).has_same_major_version(SupportedVersion::V1(V1::Two)));
     /// ```
     pub fn has_same_major_version(self, other: SupportedVersion) -> bool {
-        // Check only that the discriminants are equal, ignoring the value contained by
-        // each.
+        // Check only that the discriminants are equal, ignoring the value
+        // contained by each.
         mem::discriminant(&self) == mem::discriminant(&other)
     }
 

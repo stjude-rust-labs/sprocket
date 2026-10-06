@@ -7,18 +7,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Fixed
+### Added
+
+* `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+
+#### Changed
+
+* `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+
+#### Fixed
+
+* Non-optional enum choices now coerce at runtime to the matching optional enum
+  type, allowing optional task inputs with defaults to be overridden at call
+  sites ([#1241](https://github.com/stjude-rust-labs/sprocket/issues/1241)).
+
+## 0.18.0 - 2026-09-16
+
+### Changed
+
+* Various internal caches are now have configurable LRU capacities and are
+  evaluation specific rather than scoped to the process or engine ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+
+#### Fixed
+
+* The Docker backend now hands a task's work directory back to the user
+  performing evaluation after a canceled or failed task, not only a completed
+  one ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
+* Fixed "permission denied" errors when evaluating tasks under rootless
+  Docker ([#1179](https://github.com/stjude-rust-labs/sprocket/pull/1179)).
+
+## 0.17.3 - 2026-08-27
+
+## 0.17.2 - 2026-08-26
+
+### Added
+
+* Introduced the `Engine` type which stores a shared reference to the task
+  execution backend and file transferer. Configuration for backend and file
+  transfers are now shared between all evaluations in the same process,
+  specifically for the server and test commands ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added a shared user-specific image cache for the apptainer-based backends.
+  SIF files are now reused between runs. NOTE: a cache entry for a mutable tag
+  (e.g. `latest`) is not updated if already present in the cache; avoid using
+  mutated tag references in your WDL tasks. ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft`
+  events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
+
+#### Changed
+
+* `EngineEvent` now emits `TaskInitializing` before an execution attempt and
+  `TaskLocalizing` before it transfers inputs; both events identify the attempt
+  by its unique name. `ReusedCachedExecutionResult` now includes that name, and
+  `ExecuteTaskRequest::id` has been renamed to `name` so backends report the
+  same identifier ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+
+#### Fixed
+
+* Fixed the enum choice value cache to be keyed by document URI; this prevents
+  an enum with the same index and choice index from overwriting a cache entry
+  from another document ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Call cache entries for commands that reference temporary files created by a
+  call to a `write_*` stdlib function will no longer be ignored due to a
+  mismatch between the evaluated command and the cached evaluated command.
+  NOTE: this fix will invalidate all existing call cache entries ([#1103](https://github.com/stjude-rust-labs/sprocket/pull/1103)).
+* `WorkflowInputs` serialization no longer drops call-nested inputs.
+  Previously, the `Serialize` impl silently discarded per-call inputs
+  (including task input overrides, requirements, and hints for calls inside a
+  workflow) due to a variable-shadowing bug in the calls-iteration loop
+  ([#1070](https://github.com/stjude-rust-labs/sprocket/pull/1070)).
+* The Docker backend now explains bind mount failures that name a path which
+  is present on the host. Docker resolves bind mounts through the daemon's
+  view of the filesystem, so a work directory the engine had just created was
+  reported as not existing whenever it fell outside the shared folders, or its
+  directory tree had been deleted and recreated while the daemon held a cached
+  view of it
+  ([#1094](https://github.com/stjude-rust-labs/sprocket/pull/1094)).
+* `Directory` -> `String` coercions will no longer preserve trailing slashes ([#1107](https://github.com/stjude-rust-labs/sprocket/pull/1107)).
+* LSF workflows now survive `bjobs` query failures and retry at the next monitor
+  interval instead of failing every monitored task
+  ([#1120](https://github.com/stjude-rust-labs/sprocket/pull/1120)).
+
+## 0.17.1 - 2026-08-05
+
+### Added
+
+* The LSF and Slurm backends now write files to the attempt directory recording
+  the command used to queue the task and the resulting job identifiers ([#1057](https://github.com/stjude-rust-labs/sprocket/pull/1057)).
+
+#### Fixed
 
 * The execution backend is now considered for the call cache key derivation,
   which prevents unexpected behavior when switching executing backends. NOTE:
   this fix will cause existing call cache entries to be ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again enforced and
   passed to execution backends
-  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
 
 ## 0.17.0 - 2026-07-15
 
-#### Added
+### Added
 
 * Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
 
@@ -28,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.0 - 2026-06-26
 
-#### Added
+### Added
 
 * Added dynamic `bsub` arguments to the LSF backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
 * Added dynamic `sbatch` arguments to the Slurm backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
@@ -57,7 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.15.0 - 2026-06-03
 
-#### Added
+### Added
 
 * Added `CancellationContext::child()` to create dependent cancellation contexts ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
 
@@ -73,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.13.2 - 2026-04-22
 
-#### Changed
+### Changed
 
 * `TaskInputs::join_paths` and `WorkflowInputs::join_paths` now accept
   a per-key slice of origins (`&[EvaluationPath]`) instead of a single
@@ -96,7 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.13.1 - 2026-04-02
 
-#### Fixed
+### Fixed
 
 * Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
   results for in-flight tasks instead of discarding them as `Canceled`
@@ -111,7 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.13.0 - 2026-03-12
 
-#### Changed
+### Changed
 
 * Changed how defaults for many `Config` entries are serialized and
   deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
@@ -129,14 +217,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.12.1 - 2026-02-12
 
-#### Fixed
+### Fixed
 
 * Corrected the location for `output.log` to be in the related run directory
   instead of the top-level output directory ([#626](https://github.com/stjude-rust-labs/sprocket/pull/626)).
 
 ## 0.12.0 - 02-11-2026
 
-#### Added
+### Added
 
 * Added a configurable prefix for LSF job names and ensured the byte-length
   limit matches LSF's behavior ([#362](https://github.com/stjude-rust-labs/sprocket/issues/362)).
@@ -166,13 +254,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.11.1 - 01-12-2026
 
-#### Fixed
+### Fixed
 
 * Fixed an issue with Docker memory and cpu clamping being erroneously excluded ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
 
 ## 0.11.0 - 01-12-2026
 
-#### Added
+### Added
 
 * Added support for multiple container protocols: `docker://`, `library://`,
   `oras://`, and `file://` for local `.sif` files
@@ -229,7 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.10.0 - 11-21-2025
 
-#### Added
+### Added
 
 * Added call caching configuration to `TaskConfig` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
 * Implemented support for [call caching](https://github.com/stjude-rust-labs/rfcs/pull/2)
@@ -262,7 +350,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.9.0 - 10-14-2025
 
-#### Added
+### Added
 
 * Added support for calling `glob` with a remote working directory ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
 * Added `retries` configuration setting for the TES backend ([#408](https://github.com/stjude-rust-labs/sprocket/pull/408)).
@@ -280,7 +368,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.8.1 - 09-17-2025
 
-#### Fixed
+### Fixed
 
 * Fixed incorrect assertion for the TES backend ([#606](https://github.com/stjude-rust-labs/wdl/pull/606)).
 * Fixed permissions issue in the Docker backend when a container runs with a
@@ -288,7 +376,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.8.0 - 09-15-2025
 
-#### Added
+### Added
 
 * Added support for uploading inputs to the TES backend ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
 * Implemented coercion between `Map` <-> `Object`/`Struct` where the map key
@@ -312,7 +400,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.7.0 - 08-13-2025
 
-#### Added
+### Added
 
 * Added an experimental config flag to support golden testing that reduces
   environment-specific output ([#553](https://github.com/stjude-rust-labs/wdl/pull/553)).
@@ -323,7 +411,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.6.0 - 07-31-2025
 
-#### Added
+### Added
 
 * Added `cpu_limit_behavior` and `memory_limit_behavior` options to task
   execution configuration ([#543](https://github.com/stjude-rust-labs/wdl/pull/543))
@@ -342,7 +430,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.5.0 - 07-09-2025
 
-#### Added
+### Added
 
 * TES input and outputs now include authentication query parameters ([#466](https://github.com/stjude-rust-labs/wdl/pull/466)).
 
@@ -356,7 +444,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.4.0 - 05-27-2025
 
-#### Added
+### Added
 
 * Implemented a TES task execution backend ([#454](https://github.com/stjude-rust-labs/wdl/pull/454)).
 * Adds the `insecure` option to the TES backend configuration ([#459](https://github.com/stjude-rust-labs/wdl/pull/459)).
@@ -367,7 +455,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.2 - 05-05-2025
 
-#### Fixed
+### Fixed
 
 * JSON and YAML files are now correctly parsed ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
 * The `From<IndexMap<String, Value>>` method was moved to the private
@@ -384,7 +472,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.3.0 - 05-01-2025
 
-#### Added
+### Added
 
 * Added writing `inputs.json` and `outputs.json` for each task and workflow
   that was evaluated ([#437](https://github.com/stjude-rust-labs/wdl/pull/437)).
@@ -415,7 +503,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.2.0 - 04-01-2025
 
-#### Added
+### Added
 
 * Added support for cloud storage URIs ([#367](https://github.com/stjude-rust-labs/wdl/pull/367)).
 * Added support reading of remote files from the stdlib file functions ([#364](https://github.com/stjude-rust-labs/wdl/pull/364))
@@ -457,7 +545,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.1.0 - 01-17-2025
 
-#### Fixed
+### Fixed
 
 * Limited the local task executor to a maximum level of concurrency ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Fixed regression in workflow input validation when an input is missing ([#286](https://github.com/stjude-rust-labs/wdl/pull/286)).

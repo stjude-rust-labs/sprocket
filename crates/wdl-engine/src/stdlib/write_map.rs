@@ -31,7 +31,7 @@ const FUNCTION_NAME: &str = "write_map";
 ///
 /// If the Map is empty, an empty file is written.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_map
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_map>
 fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);
@@ -98,14 +98,14 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::fs;
 
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn write_map() {

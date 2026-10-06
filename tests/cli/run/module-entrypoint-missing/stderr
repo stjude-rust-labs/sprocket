@@ -1,1 +1,1 @@
-error: entrypoint `nonexistent.wdl` specified in `module.json` does not exist
+error: entrypoint `nonexistent.wdl` specified in `module.json` is not a file

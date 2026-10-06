@@ -3,45 +3,34 @@
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
-use strum::VariantArray;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Baseline;
 use wdl::lint::BaselineEntry;
-use wdl::lint::Tag;
-use wdl::lint::TagSet;
+use wdl::lint::RuleSeverity;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 
 use super::explain::ALL_RULE_IDS;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
-/// The [`Tag`]s which will run with the default `lint` configuration.
-const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
-    Tag::Completeness,
-    Tag::Naming,
-    Tag::Clarity,
-    Tag::Portability,
-    Tag::Correctness,
-    Tag::Deprecated,
-    Tag::Documentation,
-]);
+/// Baseline generation action.
+const GENERATE: Action = Action::new("Generated", "generate");
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -51,52 +40,47 @@ pub struct Common {
     #[clap(value_name = "SOURCE")]
     pub sources: Vec<Source>,
 
-    /// Excepts (ignores) an analysis or lint rule.
+    /// Disables an analysis or lint rule if it would have been included
+    /// otherwise.
     ///
-    /// Repeat the flag multiple times to except multiple rules. This is
-    /// additive with exceptions found in config files.
-    #[clap(short, long, value_name = "RULE",
+    /// Repeat the flag multiple times to except multiple rules or tags. This is
+    /// additive with rules turned off in config files.
+    #[clap(long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
         hide_possible_values = true,
     )]
-    pub except: Vec<String>,
+    pub off: Vec<String>,
 
-    /// Enable all lint rules. This includes additional rules outside the
-    /// default set.
+    /// Sets a rule's severity to `warning`.
     ///
-    /// `--except <RULE>` and `--filter-lint-tag <TAG>` can be used in
-    /// conjunction with this argument.
-    #[clap(short, long, conflicts_with_all = ["only_lint_tag"])]
-    pub all_lint_rules: bool,
-
-    /// Excludes a lint tag from running if it would have been included
-    /// otherwise.
-    ///
-    /// Repeat the flag multiple times to filter multiple tags. This is additive
-    /// with filtered tags found in config files.
-    #[clap(long, value_name = "TAG",
-        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
+    /// Repeat the flag to set multiple rules. This takes precedence over the
+    /// severity in config files and over `--note`. It does not enable a
+    /// rule that is disabled via `--off`.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
+        hide_possible_values = true,
     )]
-    pub filter_lint_tag: Vec<String>,
+    pub warn: Vec<String>,
 
-    /// Includes a lint tag for running.
+    /// Sets a rule's severity to `note`.
     ///
-    /// Repeat the flag multiple times to include multiple tags. `--except
-    /// <RULE>` and `--filter-lint-tag <TAG>` can be used in conjunction with
-    /// this argument. This is additive with tags selected via config files.
-    #[clap(long, value_name = "TAG",
-        value_parser = PossibleValuesParser::new(ALL_TAG_NAMES.iter()),
+    /// Repeat the flag to set multiple rules. This takes precedence over the
+    /// severity in config files. It does not enable a rule that is
+    /// disabled via `--off`.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
+        hide_possible_values = true,
     )]
-    pub only_lint_tag: Vec<String>,
+    pub note: Vec<String>,
 
     /// Causes the command to fail if warnings were reported.
     #[clap(long)]
@@ -131,16 +115,15 @@ pub struct Common {
     #[arg(long, conflicts_with_all = ["deny_warnings"])]
     pub hide_warnings: bool,
 
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
-
     /// Generate a baseline file from current diagnostics and exit.
-    #[arg(long, conflicts_with = "no_baseline")]
+    // An explicit `display_order` is set on this and the following arguments
+    // (including `CheckArgs::lint`) so that they sort after the globally
+    // propagated arguments in `--help`; see `run::Args::show_task_stderr`.
+    #[arg(long, conflicts_with = "no_baseline", display_order = 100)]
     pub generate_baseline: bool,
 
     /// Ignore the baseline file for this run.
-    #[arg(long)]
+    #[arg(long, display_order = 101)]
     pub no_baseline: bool,
 }
 
@@ -153,7 +136,9 @@ pub struct CheckArgs {
     pub common: Common,
 
     /// Enable lint checks in addition to validation errors.
-    #[arg(short, long)]
+    // See `Common::generate_baseline` for why an explicit `display_order` is
+    // set.
+    #[arg(short, long, display_order = 102)]
     pub lint: bool,
 }
 
@@ -167,30 +152,17 @@ pub struct LintArgs {
 }
 
 /// Performs the `check` subcommand.
-pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
-    let mut except = args.common.except;
-    except.extend(config.check.except.iter().cloned());
+pub async fn check(args: CheckArgs, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let mut disabled = args.common.off;
+    disabled.extend(config.check.disable.iter().cloned());
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
     let hide_warnings = args.common.hide_warnings || config.check.hide_warnings;
     let hide_notes = args.common.hide_notes || config.check.hide_notes || hide_warnings;
-    let report_mode = args.common.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
 
-    let lint = args.lint
-        || !args.common.filter_lint_tag.is_empty()
-        || !args.common.only_lint_tag.is_empty()
-        || args.common.all_lint_rules;
-
-    let all_lint_rules = args.common.all_lint_rules || config.check.all_lint_rules;
-
-    let mut filter_lint_tag = args.common.filter_lint_tag;
-    filter_lint_tag.extend(config.check.filter_lint_tags.iter().cloned());
-
-    let mut only_lint_tag = args.common.only_lint_tag;
-    if !all_lint_rules {
-        only_lint_tag.extend(config.check.only_lint_tags.iter().cloned());
-    }
+    let lint = args.lint;
 
     let mut sources = args.common.sources;
     if sources.is_empty() {
@@ -243,45 +215,24 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .cloned()
         .collect::<HashSet<_>>();
 
-    let enabled_tags = if lint {
-        if all_lint_rules {
-            TagSet::new(Tag::VARIANTS)
-        } else if !only_lint_tag.is_empty() {
-            TagSet::new(
-                only_lint_tag
-                    .iter()
-                    .filter_map(|t| Tag::from_str(t).ok())
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            )
-        } else {
-            DEFAULT_TAG_SET
-        }
-    } else {
-        TagSet::new(&[])
-    };
-
-    let disabled_tags = if lint && !filter_lint_tag.is_empty() {
-        TagSet::new(
-            filter_lint_tag
-                .iter()
-                .filter_map(|t| Tag::from_str(t).ok())
-                .collect::<Vec<_>>()
-                .as_slice(),
-        )
-    } else {
-        TagSet::new(&[])
-    };
+    let mut rules_config = config.check.rules;
+    for rule in &args.common.note {
+        rules_config.set_severity(rule, RuleSeverity::Note);
+    }
+    for rule in &args.common.warn {
+        rules_config.set_severity(rule, RuleSeverity::Warning);
+    }
 
     let results = Analysis::default()
         .extend_sources(sources)
-        .extend_exceptions(except)
-        .enabled_lint_tags(enabled_tags)
-        .disabled_lint_tags(disabled_tags)
+        .extend_exceptions(disabled)
+        .rules_config(rules_config)
+        .linting(lint)
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
-        .run(report_mode, colorize)
+        .ignore_filename(config.common.ignore_filename())
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -333,7 +284,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
             for d in result.document().diagnostics() {
                 if matches!(d.severity(), Severity::Warning | Severity::Note)
                     && args.common.suppress_imports
-                    && !provided_source_uris.contains(uri)
+                    && !provided_source_uris.contains(&uri)
                 {
                     continue;
                 }
@@ -356,10 +307,13 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         new_baseline
             .write(&baseline_path)
             .context("failed to write baseline file")?;
-        eprintln!(
-            "generated baseline with {} diagnostic(s) at `{}`",
-            new_baseline.entries().len(),
-            baseline_path.display()
+        output.completed_stderr(
+            GENERATE,
+            format!(
+                "baseline with {} diagnostic(s) at `{}`",
+                new_baseline.entries().len(),
+                baseline_path.display()
+            ),
         );
         return Ok(());
     }
@@ -425,7 +379,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
                     true
                 }),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -473,14 +427,14 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 }
 
 /// Performs the `lint` subcommand.
-pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn lint(args: LintArgs, config: Config, output: CommandOutput) -> CommandResult<()> {
     check(
         CheckArgs {
             common: args.common,
             lint: true,
         },
         config,
-        colorize,
+        output,
     )
     .await
 }

@@ -27,7 +27,7 @@ error: type mismatch: expected type `String` or type `Array[String]`, but found 
    │
 62 │         container: false
    │         ---------  ^^^^^ this is type `Boolean`
-   │         │           
+   │         │
    │         this expects type `String` or type `Array[String]`
 
 error: type mismatch: expected type `Int` or type `Float`, but found type `Boolean`
@@ -35,7 +35,7 @@ error: type mismatch: expected type `Int` or type `Float`, but found type `Boole
    │
 63 │         cpu: false
    │         ---  ^^^^^ this is type `Boolean`
-   │         │     
+   │         │
    │         this expects type `Int` or type `Float`
 
 error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
@@ -43,7 +43,7 @@ error: type mismatch: expected type `Int` or type `String`, but found type `Bool
    │
 64 │         memory: false
    │         ------  ^^^^^ this is type `Boolean`
-   │         │        
+   │         │
    │         this expects type `Int` or type `String`
 
 error: type mismatch: expected type `Boolean`, but found type `String`
@@ -51,7 +51,7 @@ error: type mismatch: expected type `Boolean`, but found type `String`
    │
 65 │         gpu: "false"
    │         ---  ^^^^^^^ this is type `String`
-   │         │     
+   │         │
    │         this expects type `Boolean`
 
 error: type mismatch: expected type `Boolean`, but found type `String`
@@ -59,7 +59,7 @@ error: type mismatch: expected type `Boolean`, but found type `String`
    │
 66 │         fpga: "false"
    │         ----  ^^^^^^^ this is type `String`
-   │         │      
+   │         │
    │         this expects type `Boolean`
 
 error: type mismatch: expected type `Int`, type `String`, or type `Array[String]`, but found type `Boolean`
@@ -67,7 +67,7 @@ error: type mismatch: expected type `Int`, type `String`, or type `Array[String]
    │
 67 │         disks: false
    │         -----  ^^^^^ this is type `Boolean`
-   │         │       
+   │         │
    │         this expects type `Int`, type `String`, or type `Array[String]`
 
 error: type mismatch: expected type `Int`, but found type `Boolean`
@@ -75,7 +75,7 @@ error: type mismatch: expected type `Int`, but found type `Boolean`
    │
 68 │         max_retries: false
    │         -----------  ^^^^^ this is type `Boolean`
-   │         │             
+   │         │
    │         this expects type `Int`
 
 error: type mismatch: expected type `Int`, type `String`, or type `Array[Int]`, but found type `Boolean`
@@ -83,6 +83,5 @@ error: type mismatch: expected type `Int`, type `String`, or type `Array[Int]`, 
    │
 69 │         return_codes: false
    │         ------------  ^^^^^ this is type `Boolean`
-   │         │              
+   │         │
    │         this expects type `Int`, type `String`, or type `Array[Int]`
-

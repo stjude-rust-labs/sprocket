@@ -3,4 +3,3 @@ error: type mismatch: expected `if` conditional expression to be type `Boolean`,
   │
 9 │     String b = if a then "foo" else "bar"
   │                   ^ this is type `Int`
-

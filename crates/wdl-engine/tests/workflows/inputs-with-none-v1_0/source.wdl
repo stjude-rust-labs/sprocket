@@ -25,6 +25,10 @@ task t {
 }
 
 workflow test {
+    input {
+        Int? absent
+    }
+
     call t as t1 {
         input:
         input1 = 42,
@@ -35,9 +39,9 @@ workflow test {
 
     call t as t2 {
         input:
-        input1 = None,
-        input2 = None,
-        input3 = None,
+        input1 = absent,
+        input2 = absent,
+        input3 = absent,
         input4 = 57005
     }
 
@@ -56,9 +60,9 @@ workflow test {
 
     call w.w as w2 {
         input:
-        input1 = None,
-        input2 = None,
-        input3 = None,
+        input1 = absent,
+        input2 = absent,
+        input3 = absent,
         input4 = 57005
     }
 

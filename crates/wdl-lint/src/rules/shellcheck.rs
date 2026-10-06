@@ -27,11 +27,14 @@ use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
+use wdl_analysis::types::TypeNameRef;
 use wdl_analysis::types::v1::EvaluationContext;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
+use wdl_analysis::util::lines_with_offset;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -44,6 +47,7 @@ use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedCommandPart;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -51,7 +55,6 @@ use crate::fix::Fixer;
 use crate::fix::InsertionPoint;
 use crate::fix::Replacement;
 use crate::util::is_quote_balanced;
-use crate::util::lines_with_offset;
 use crate::util::program_exists;
 
 /// The shellcheck executable
@@ -97,6 +100,7 @@ struct ShellCheckFix {
 /// A ShellCheck replacement.
 ///
 /// This differs from a [`Replacement`] in that
+///
 /// 1) columns are 1-indexed
 /// 2) it may span multiple lines and thus cannot be directly passed to a
 ///    [`Fixer`].
@@ -218,10 +222,22 @@ fn run_shellcheck(command: &str) -> Result<Vec<ShellCheckDiagnostic>> {
 }
 
 /// Runs ShellCheck on a command section and reports diagnostics.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct ShellCheckRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The document being linted.
     document: Option<Document>,
+}
+
+impl ShellCheckRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.shellcheck.diagnostic_severity(),
+            document: Default::default(),
+        }
+    }
 }
 
 impl Rule for ShellCheckRule {
@@ -327,40 +343,47 @@ fn create_fix_message(
 
 /// Creates a "ShellCheck lint" diagnostic from a [ShellCheckDiagnostic]
 fn shellcheck_lint(
-    diagnostic: &ShellCheckDiagnostic,
+    severity: Severity,
+    shellcheck_diagnostic: &ShellCheckDiagnostic,
     command_text: &str,
     line_map: &HashMap<usize, Span>,
     shift_tree: &FenwickTree<usize>,
 ) -> Diagnostic {
     let label = format!(
         "SC{}[{}]: {}",
-        diagnostic.code, diagnostic.level, diagnostic.message
+        shellcheck_diagnostic.code, shellcheck_diagnostic.level, shellcheck_diagnostic.message
     );
     // This span is relative to the entire document.
-    let span = calculate_span(diagnostic, line_map);
-    let fix_msg = match diagnostic.fix {
+    let span = calculate_span(shellcheck_diagnostic, line_map);
+    let fix_msg = match shellcheck_diagnostic.fix {
         Some(ref fix)
             if !SHELLCHECK_IGNORE_FIX
                 .iter()
-                .any(|code| code == &diagnostic.code.to_string()) =>
+                .any(|code| code == &shellcheck_diagnostic.code.to_string()) =>
         {
             let reps = normalize_replacements(&fix.replacements, shift_tree);
             // This span is relative to the command text.
             let diagnostic_span = {
-                let start = diagnostic.column + shift_tree.prefix_sum(diagnostic.line - 1, 0) - 1;
-                let end =
-                    diagnostic.end_column + shift_tree.prefix_sum(diagnostic.end_line - 1, 0) - 1;
+                let start = shellcheck_diagnostic.column
+                    + shift_tree.prefix_sum(shellcheck_diagnostic.line - 1, 0)
+                    - 1;
+                let end = shellcheck_diagnostic.end_column
+                    + shift_tree.prefix_sum(shellcheck_diagnostic.end_line - 1, 0)
+                    - 1;
                 Span::new(start, end - start)
             };
             create_fix_message(reps, command_text, diagnostic_span)
         }
         Some(_) | None => String::from("address the diagnostic as recommended in the message"),
     };
-    Diagnostic::note(&diagnostic.message)
+    Diagnostic::new(severity, &shellcheck_diagnostic.message)
         .with_rule(ID)
         .with_label(label, span)
         .with_label(
-            format!("more info: {SHELLCHECK_WIKI}/SC{}", diagnostic.code),
+            format!(
+                "more info: {SHELLCHECK_WIKI}/SC{}",
+                shellcheck_diagnostic.code
+            ),
             span,
         )
         .with_fix(fix_msg)
@@ -387,8 +410,13 @@ impl EvaluationContext for CommandContext<'_> {
 
         if let Some(ty) = self.document.get_custom_type(name) {
             return Some(
-                ty.type_name_ref()
-                    .expect("type name ref to be created from custom type"),
+                TypeNameRef::new(
+                    name,
+                    ty.as_custom()
+                        .expect("type should be a custom type")
+                        .clone(),
+                )
+                .into(),
             );
         }
 
@@ -636,7 +664,8 @@ fn map_shellcheck_lines(
                         continue;
                     }
 
-                    // The first line is removed entirely, UNLESS there is content on it.
+                    // The first line is removed entirely, UNLESS there is
+                    // content on it.
                     if !skipped_first_line && line.is_empty() {
                         skipped_first_line = true;
                         continue;
@@ -686,7 +715,7 @@ fn calculate_span(diagnostic: &ShellCheckDiagnostic, line_map: &HashMap<usize, S
 
 impl Visitor for ShellCheckRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.document = Default::default();
     }
 
     fn document(
@@ -721,7 +750,7 @@ impl Visitor for ShellCheckRule {
                 command keyword token",
                     );
                 diagnostics.exceptable_add(
-                    Diagnostic::note("running `shellcheck` on command section")
+                    Diagnostic::new(self.severity, "running `shellcheck` on command section")
                         .with_label(
                             "could not find `shellcheck` executable.",
                             command_keyword.text_range(),
@@ -745,7 +774,8 @@ impl Visitor for ShellCheckRule {
         let Some(scope) = doc.find_scope_by_position(section.inner().text_range().start().into())
         else {
             // This is the case where the command section has not been analyzed
-            // e.g. it is in a task that has not been analyzed because it is a duplicate.
+            // e.g. it is in a task that has not been analyzed because it is a
+            // duplicate.
             return;
         };
         let mut context = CommandContext::new(doc.clone(), scope);
@@ -783,7 +813,13 @@ impl Visitor for ShellCheckRule {
                         continue;
                     }
                     diagnostics.exceptable_add(
-                        shellcheck_lint(&sc_diagnostic, &sanitized_command, &line_map, &shift_tree),
+                        shellcheck_lint(
+                            self.severity,
+                            &sc_diagnostic,
+                            &sanitized_command,
+                            &line_map,
+                            &shift_tree,
+                        ),
                         section.inner(),
                         &self.exceptable_nodes(),
                     )
@@ -793,7 +829,7 @@ impl Visitor for ShellCheckRule {
                 let command_keyword = support::token(section.inner(), SyntaxKind::CommandKeyword)
                     .expect("should have a command keyword token");
                 diagnostics.exceptable_add(
-                    Diagnostic::error("running `shellcheck` on command section")
+                    Diagnostic::new(self.severity, "running `shellcheck` on command section")
                         .with_label(e.to_string(), command_keyword.text_range())
                         .with_rule(ID)
                         .with_fix("address reported error."),
@@ -809,6 +845,7 @@ impl Visitor for ShellCheckRule {
 mod tests {
     use ftree::FenwickTree;
     use pretty_assertions::assert_eq;
+    use wdl_analysis::util::lines_with_offset;
     use wdl_ast::Document;
     use wdl_ast::v1::Expr;
 
@@ -816,7 +853,6 @@ mod tests {
     use super::normalize_replacements;
     use crate::fix;
     use crate::fix::Fixer;
-    use crate::util::lines_with_offset;
 
     #[test]
     fn test_normalize_replacements() {

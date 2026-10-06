@@ -14,9 +14,14 @@ use wdl::engine::Inputs as EngineInputs;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::inputs::Invocation;
+
+/// Successful validation action.
+const VALIDATE: Action = Action::new("Validated", "validate");
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
@@ -48,10 +53,6 @@ pub struct Args {
     /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
     /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
-
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 }
 
 /// Runs analysis on a single source and returns the resulting document.
@@ -60,6 +61,7 @@ pub async fn analyze_source(
     fallback_version: Option<SupportedVersion>,
     modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: wdl::analysis::FeatureFlags,
+    ignore_filename: Option<String>,
     report_mode: Mode,
     colorize: bool,
 ) -> CommandResult<Document> {
@@ -68,6 +70,7 @@ pub async fn analyze_source(
         .fallback_version(fallback_version)
         .modules_config(modules_config)
         .feature_flags(feature_flags)
+        .ignore_filename(ignore_filename)
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
@@ -116,7 +119,7 @@ pub async fn validate_inputs(
         EngineInputs::Task(inputs) => {
             // SAFETY: we wouldn't have a task inputs if a task didn't exist
             // that matched the user's criteria.
-            let task = document.task_by_name(&target).unwrap();
+            let task = document.local_task_by_name(&target).unwrap();
             inputs.validate(document, task, None)?
         }
         EngineInputs::Workflow(inputs) => {
@@ -185,8 +188,8 @@ async fn resolve_target_and_inputs(
 }
 
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+pub async fn validate(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let report_mode = config.common.report_mode;
     if let Source::Directory(_) = args.source {
         return Err(
             anyhow!("directory sources are not supported for the `validate` command").into(),
@@ -198,12 +201,14 @@ pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResu
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
         report_mode,
-        colorize,
+        output.colorize(),
     )
     .await?;
 
-    validate_inputs(&document, &args.inputs, args.target).await?;
+    let (target, _) = validate_inputs(&document, &args.inputs, args.target).await?;
+    output.completed(VALIDATE, format!("inputs for `{target}`"));
 
     Ok(())
 }

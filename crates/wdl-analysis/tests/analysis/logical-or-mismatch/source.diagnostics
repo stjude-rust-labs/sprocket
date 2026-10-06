@@ -3,4 +3,3 @@ error: type mismatch: expected `logical or` operand to be type `Boolean`, but fo
    │
 10 │     Boolean d = a || c || b
    │                      ^ this is type `String`
-

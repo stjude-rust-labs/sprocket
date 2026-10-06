@@ -237,7 +237,8 @@ fn validate_preserves_url_case_sensitivity() {
 
     config.validate().unwrap();
 
-    // Both should be kept (URLs are case-sensitive in host part for deduplication)
+    // Both should be kept (URLs are case-sensitive in host part for
+    // deduplication)
     assert_eq!(config.allowed_urls.len(), 2);
 }
 

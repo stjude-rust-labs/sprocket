@@ -56,6 +56,14 @@ class SprocketTooltip extends HTMLElement {
     const position = this.getAttribute('position') || 'top';
     const tooltip = this.getAttribute('content') || '';
 
+    // With no content there is nothing to show, so render the slotted element
+    // alone and skip the hover listeners; otherwise hovering surfaces an empty
+    // tooltip bubble.
+    if (tooltip.trim() === '') {
+      this.shadowRoot.innerHTML = `<slot></slot>`;
+      return;
+    }
+
     this.shadowRoot.innerHTML = `
       <style>${this._getStyles()}</style>
       <div class="tooltip">${tooltip}</div>

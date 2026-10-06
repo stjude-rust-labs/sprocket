@@ -15,9 +15,13 @@ use chrono::DateTime;
 use chrono::Utc;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
+use tokio::time::MissedTickBehavior;
 use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
+use tokio_util::sync::CancellationToken;
+use tracing::error;
 use tracing::info;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
@@ -26,7 +30,7 @@ use wdl::analysis::FeatureFlags;
 use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
-use wdl::engine::Config as WdlConfig;
+use wdl::engine::Engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
@@ -34,17 +38,18 @@ use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
-use wdl::engine::v1::Evaluator;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::Run;
+use crate::system::v1::db::RunStatus;
 use crate::system::v1::db::Session;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::SqliteDatabase;
 use crate::system::v1::exec::svc::TaskMonitorSvc;
+use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
@@ -147,6 +152,48 @@ pub async fn create_session(
     let id = Uuid::new_v4();
     let username = whoami::username()?;
     db.create_session(id, command, &username).await
+}
+
+/// Keeps a session's liveness heartbeat running for as long as it is held.
+///
+/// Dropping it stops the heartbeat, which matters at teardown: the task would
+/// otherwise keep writing against a closing pool.
+#[must_use = "dropping the guard immediately stops the heartbeat"]
+#[derive(Debug)]
+pub struct HeartbeatGuard(JoinHandle<()>);
+
+impl Drop for HeartbeatGuard {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+/// Spawns the background task that keeps `session_id` marked live.
+///
+/// A session that stops being heartbeated has its runs swept into `Orphaned`
+/// by [`Database::mark_orphaned_runs`], so any process that owns runs has to
+/// keep reporting for as long as they are in flight.
+///
+/// The first tick fires immediately, though a new session is not stale either
+/// way: `mark_orphaned_runs` falls back to `created_at`.
+pub fn spawn_heartbeat(
+    db: Arc<dyn Database>,
+    session_id: Uuid,
+    interval: Duration,
+) -> HeartbeatGuard {
+    HeartbeatGuard(tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(interval);
+        // A late tick must not release a burst of catch-up writes.
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+        loop {
+            ticker.tick().await;
+
+            if let Err(e) = db.heartbeat_session(session_id, Utc::now()).await {
+                error!(error = %e, "failed to record session heartbeat");
+            }
+        }
+    }))
 }
 
 /// Creates a timestamped run directory for the given target.
@@ -311,14 +358,14 @@ pub struct RunContext {
 pub struct RunnableExecutor {
     /// Database handle for persisting run state.
     db: Arc<dyn Database>,
+    /// The WDL evaluation engine for the run.
+    engine: Engine,
     /// Output directory manager.
     output_dir: OutputDirectory,
-    /// WDL engine configuration.
-    engine_config: WdlConfig,
+    /// The events for this run.
+    events: Events,
     /// Cancellation context for this run.
     cancellation: CancellationContext,
-    /// Events broadcaster for progress reporting.
-    events: Events,
     /// Shared mapping of active runs for cleanup on completion.
     runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
     /// Unique identifier for this run.
@@ -330,6 +377,8 @@ pub struct RunnableExecutor {
     fallback_version: Option<SupportedVersion>,
     /// Feature flags used for analysis.
     feature_flags: FeatureFlags,
+    /// Whether to ignore `.sprocketignore` files during document discovery.
+    no_ignore: bool,
     /// Module resolver configuration used for analysis.
     modules_config: wdl_modules::resolver::ModulesConfig,
     /// Validated source location of the WDL document.
@@ -338,8 +387,8 @@ pub struct RunnableExecutor {
     target: Option<String>,
     /// The engine inputs.
     inputs: JsonObject,
-    /// Index key for result indexing, if requested.
-    index_on: Option<String>,
+    /// The index path to index the run outputs under, if requested.
+    index_on: Option<IndexPath>,
     /// The diagnostic reporting mode.
     report_mode: Mode,
     /// Whether to colorize diagnostics.
@@ -361,11 +410,26 @@ impl RunnableExecutor {
     /// returns early. On completion (success or failure), the run is removed
     /// from the active runs map.
     pub async fn execute(self) {
+        // The run has left the queue and is doing work; say so before analysis,
+        // which resolves and type checks every import and can take a while.
+        if let Err(e) = self
+            .db
+            .update_run_status(self.run_id, RunStatus::Analyzing)
+            .await
+        {
+            tracing::error!(
+                "run `{}` ({}) failed to update status: {e:#}",
+                &self.run_name,
+                self.run_id
+            );
+        }
+
         let result = match analyze_wdl_document(
             &self.source,
             self.fallback_version,
             self.modules_config.clone(),
             self.feature_flags,
+            self.no_ignore,
             self.report_mode,
             self.colorize,
         )
@@ -492,11 +556,17 @@ impl RunnableExecutor {
             &ctx.run_generated_name, self.run_id
         );
 
-        // SAFETY: because we subscribe to all events above, the Crankshaft
-        // subscriber should always be available to us here.
-        let crankshaft_rx = self.events.subscribe_crankshaft().unwrap();
-        let task_monitor_svc = TaskMonitorSvc::new(self.run_id, self.db.clone(), crankshaft_rx);
-        tokio::spawn(task_monitor_svc.run());
+        // SAFETY: because we subscribe to all events above, both subscribers
+        // should always be available to us here.
+        let monitor_shutdown = CancellationToken::new();
+        let task_monitor_svc = TaskMonitorSvc::new(
+            self.run_id,
+            self.db.clone(),
+            self.events.subscribe_crankshaft().unwrap(),
+            self.events.subscribe_engine().unwrap(),
+            monitor_shutdown.clone(),
+        );
+        let task_monitor = tokio::spawn(task_monitor_svc.run());
 
         // Resolve relative paths in inputs from the current working directory.
         let cwd = std::env::current_dir().expect("failed to get current working directory");
@@ -527,14 +597,14 @@ impl RunnableExecutor {
             self.db.clone(),
             &ctx,
             result.document().clone(),
-            self.engine_config,
-            self.cancellation,
+            self.engine,
             self.events,
+            self.cancellation,
             &resolved_target,
             inputs,
             &run_dir,
             &base_dir,
-            self.index_on.as_deref(),
+            self.index_on.as_ref(),
         )
         .await
         {
@@ -544,6 +614,15 @@ impl RunnableExecutor {
                 self.run_id,
                 e.to_string()
             );
+        }
+
+        // Evaluation is over, so no further events can be emitted. Let the
+        // monitor consume what is left and reconcile any task that
+        // never reached a terminal status before the run is considered
+        // finished.
+        monitor_shutdown.cancel();
+        if let Err(e) = task_monitor.await {
+            tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
         }
 
         self.runs.lock().await.remove(&self.run_id);
@@ -586,6 +665,7 @@ pub async fn analyze_wdl_document(
     fallback_version: Option<SupportedVersion>,
     modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: FeatureFlags,
+    no_ignore: bool,
     report_mode: Mode,
     colorize: bool,
 ) -> Result<AnalysisResult> {
@@ -594,6 +674,7 @@ pub async fn analyze_wdl_document(
         .fallback_version(fallback_version)
         .modules_config(modules_config)
         .feature_flags(feature_flags)
+        .ignore_filename((!no_ignore).then(|| crate::IGNORE_FILENAME.to_string()))
         .run(report_mode, colorize)
         .await
         .map_err(|errors| {
@@ -642,7 +723,7 @@ async fn set_run_success(
     target: &Target,
     outputs: Outputs,
     run_dir: &RunDirectory,
-    index_on: Option<&str>,
+    index_on: Option<&IndexPath>,
 ) -> Result<()> {
     // Serialize outputs
     let outputs_with_name = outputs.with_name(target.name());
@@ -658,11 +739,9 @@ async fn set_run_success(
     let outputs_str = serde_json::to_string(&outputs_json)?;
     db.update_run_outputs(ctx.run_id, &outputs_str).await?;
 
-    let output_dir = run_dir.output_directory();
-
     // Create the index entries if index_on was provided
     if let Some(index_on) = index_on {
-        crate::system::v1::fs::index::create_index_entries(
+        let index_dir = crate::system::v1::fs::index::create_index_entries(
             db,
             ctx.run_id,
             run_dir,
@@ -673,14 +752,8 @@ async fn set_run_success(
         .context("failed to create index entry")?;
 
         // Update the index directory in the database after successful indexing
-        let index_dir = output_dir
-            .ensure_index_dir(index_on)
-            .context("failed to ensure index directory")?;
-        let relative_index_dir = output_dir
-            .make_relative_to(&index_dir)
-            .expect("index directory should be within output directory");
         let updated = db
-            .update_run_index_directory(ctx.run_id, &relative_index_dir)
+            .update_run_index_directory(ctx.run_id, &index_dir)
             .await
             .context("failed to update run index directory")?;
         if !updated {
@@ -710,9 +783,9 @@ async fn execute_workflow_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
-    config: Arc<WdlConfig>,
-    cancellation: CancellationContext,
+    engine: Engine,
     events: Events,
+    cancellation: CancellationContext,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
@@ -750,9 +823,7 @@ async fn execute_workflow_target(
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
-        .await
-        .context("failed to create workflow evaluator")?;
+    let evaluator = engine.create_v1_evaluator(events, cancellation);
 
     match evaluator
         .evaluate_workflow(document, inputs, run_dir.root())
@@ -778,20 +849,22 @@ async fn execute_task_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
-    config: Arc<WdlConfig>,
-    cancellation: CancellationContext,
+    engine: Engine,
     events: Events,
+    cancellation: CancellationContext,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
 ) -> Result<Option<Outputs>, EvaluationError> {
-    let task = document.task_by_name(target.name()).with_context(|| {
-        format!(
-            "task `{name}` was not found in the document",
-            name = target.name()
-        )
-    })?;
+    let task = document
+        .local_task_by_name(target.name())
+        .with_context(|| {
+            format!(
+                "task `{name}` was not found in the document",
+                name = target.name()
+            )
+        })?;
 
     // Ensure the inputs are for a task
     if inputs.as_task_inputs().is_none() {
@@ -810,10 +883,7 @@ async fn execute_task_target(
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
-        .await
-        .context("failed to create task evaluator")?;
-
+    let evaluator = engine.create_v1_evaluator(events, cancellation);
     let evaluated_task = match evaluator
         .evaluate_task(document, task, inputs, run_dir.root())
         .await
@@ -849,26 +919,25 @@ async fn execute_task_target(
 /// - `base_dir` is the directory from which relative paths in inputs should be
 ///   resolved. For the server, this is typically the server's working
 ///   directory. For the CLI, paths should already be absolute.
-/// - `index_on` is the key to index results on, if provided.
+/// - `index_on` is the index path to index the run outputs under, if provided.
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_target(
     db: Arc<dyn Database>,
     ctx: &RunContext,
     document: AnalysisDocument,
-    config: WdlConfig,
-    cancellation: CancellationContext,
+    engine: Engine,
     events: Events,
+    cancellation: CancellationContext,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
-    index_on: Option<&str>,
+    index_on: Option<&IndexPath>,
 ) -> Result<(), EvaluationError> {
-    let config = Arc::new(config);
     db.start_run(ctx.run_id, ctx.started_at)
         .await
         .map_err(anyhow::Error::from)?;
-
+    let cancellation_status = cancellation.clone();
     let result: Result<Option<Outputs>, EvaluationError> = async {
         match target {
             Target::Task(_) => {
@@ -876,9 +945,9 @@ pub async fn execute_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config,
-                    cancellation,
+                    engine,
                     events,
+                    cancellation.clone(),
                     target,
                     inputs,
                     run_dir,
@@ -891,9 +960,9 @@ pub async fn execute_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config,
-                    cancellation,
+                    engine,
                     events,
+                    cancellation,
                     inputs,
                     run_dir,
                     base_dir,
@@ -916,6 +985,22 @@ pub async fn execute_target(
             Ok(())
         }
         Err(e) => {
+            // Cancelling a run aborts whatever it is doing, and work that is
+            // not a task execution reports that abort as an
+            // ordinary evaluation error. Localizing a large input
+            // is the common case: the transfer is torn down by the
+            // cancellation token and fails. The run was canceled, not
+            // failed, and only the user's own cancellation counts here — a
+            // cancellation triggered by an error must still be recorded as a
+            // failure.
+            if cancellation_status.user_canceled() {
+                if let Err(db_err) = db.cancel_run(ctx.run_id, Utc::now()).await {
+                    tracing::error!("failed to record run cancellation: {db_err:#}");
+                }
+
+                return Ok(());
+            }
+
             let error = e.to_string();
             if let Err(db_err) = db.fail_run(ctx.run_id, &error, Utc::now()).await {
                 tracing::error!("failed to record run failure: {db_err:#}");

@@ -2,6 +2,7 @@
 
 use std::rc::Rc;
 
+use tracing::warn;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::StrippedCommandPart;
 
@@ -11,6 +12,7 @@ use crate::TokenStream;
 use crate::Trivia;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_sections;
 
 /// Formats a [`TaskDefinition`](wdl_ast::v1::TaskDefinition).
 ///
@@ -41,117 +43,131 @@ pub fn format_task_definition(
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
+    stream.end_line();
 
-    let mut meta = None;
-    let mut parameter_meta = None;
-    let mut input = None;
-    let mut body = Vec::new();
-    let mut command = None;
-    let mut output = None;
-    let mut requirements = None;
-    let mut runtime = None;
-    let mut hints = None;
-    let mut close_brace = None;
+    if config.reorder_sections {
+        let mut meta_sections = Vec::new();
+        let mut parameter_meta_sections = Vec::new();
+        let mut input_sections = Vec::new();
+        let mut body = Vec::new();
+        let mut command_sections = Vec::new();
+        let mut output_sections = Vec::new();
+        let mut requirements_or_runtime_sections = Vec::new();
+        let mut hints_sections = Vec::new();
+        let mut close_brace = None;
 
-    for child in children {
-        match child.element().kind() {
-            SyntaxKind::InputSectionNode => {
-                input = Some(child.clone());
-            }
-            SyntaxKind::MetadataSectionNode => {
-                meta = Some(child.clone());
-            }
-            SyntaxKind::ParameterMetadataSectionNode => {
-                parameter_meta = Some(child.clone());
-            }
-            SyntaxKind::BoundDeclNode => {
-                body.push(child.clone());
-            }
-            SyntaxKind::CommandSectionNode => {
-                command = Some(child.clone());
-            }
-            SyntaxKind::OutputSectionNode => {
-                output = Some(child.clone());
-            }
-            SyntaxKind::RequirementsSectionNode => {
-                requirements = Some(child.clone());
-            }
-            SyntaxKind::RuntimeSectionNode => {
-                runtime = Some(child.clone());
-            }
-            SyntaxKind::TaskHintsSectionNode => {
-                hints = Some(child.clone());
-            }
-            SyntaxKind::CloseBrace => {
-                close_brace = Some(child.clone());
-            }
-            _ => {
-                unreachable!(
-                    "unexpected child in task definition: {:?}",
-                    child.element().kind()
-                );
+        for child in children {
+            match child.element().kind() {
+                SyntaxKind::InputSectionNode => {
+                    input_sections.push(child);
+                }
+                SyntaxKind::MetadataSectionNode => {
+                    meta_sections.push(child);
+                }
+                SyntaxKind::ParameterMetadataSectionNode => {
+                    parameter_meta_sections.push(child);
+                }
+                SyntaxKind::BoundDeclNode => {
+                    body.push(child);
+                }
+                SyntaxKind::CommandSectionNode => {
+                    command_sections.push(child);
+                }
+                SyntaxKind::OutputSectionNode => {
+                    output_sections.push(child);
+                }
+                // A task may only have one of these sections; when it has both
+                // (a validation error), they share a slot so that neither is
+                // discarded and their source order is preserved.
+                SyntaxKind::RequirementsSectionNode | SyntaxKind::RuntimeSectionNode => {
+                    requirements_or_runtime_sections.push(child);
+                }
+                SyntaxKind::TaskHintsSectionNode => {
+                    hints_sections.push(child);
+                }
+                SyntaxKind::CloseBrace => {
+                    close_brace = Some(child);
+                }
+                _ => {
+                    unreachable!(
+                        "unexpected child in task definition: {:?}",
+                        child.element().kind()
+                    );
+                }
             }
         }
-    }
 
-    if let Some(meta) = meta {
-        (&meta).write(stream, config);
-        stream.blank_line();
-    }
+        write_sections(&meta_sections, stream, config);
+        write_sections(&parameter_meta_sections, stream, config);
+        write_sections(&input_sections, stream, config);
 
-    if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(input) = input {
-        (&input).write(stream, config);
-        stream.blank_line();
-    }
-
-    stream.allow_blank_lines();
-    let body_empty = body.is_empty();
-    for child in body {
-        (&child).write(stream, config);
-    }
-    stream.ignore_trailing_blank_lines();
-    if !body_empty {
-        stream.blank_line();
-    }
-
-    if let Some(command) = command {
-        (&command).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(output) = output {
-        (&output).write(stream, config);
-        stream.blank_line();
-    }
-
-    match requirements {
-        Some(requirements) => {
-            (&requirements).write(stream, config);
+        stream.allow_blank_lines();
+        let body_empty = body.is_empty();
+        for child in body {
+            child.write(stream, config);
+        }
+        stream.ignore_trailing_blank_lines();
+        if !body_empty {
             stream.blank_line();
         }
-        _ => {
-            if let Some(runtime) = runtime {
-                (&runtime).write(stream, config);
-                stream.blank_line();
+
+        write_sections(&command_sections, stream, config);
+        write_sections(&output_sections, stream, config);
+        write_sections(&requirements_or_runtime_sections, stream, config);
+        write_sections(&hints_sections, stream, config);
+
+        stream
+            .trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
+
+        stream.decrement_indent();
+        stream.end_line();
+        close_brace.expect("task close brace").write(stream, config);
+        stream.end_line();
+    } else {
+        let mut first_written = false;
+        for child in children {
+            match child.element().kind() {
+                SyntaxKind::InputSectionNode
+                | SyntaxKind::MetadataSectionNode
+                | SyntaxKind::ParameterMetadataSectionNode
+                | SyntaxKind::CommandSectionNode
+                | SyntaxKind::OutputSectionNode
+                | SyntaxKind::RequirementsSectionNode
+                | SyntaxKind::RuntimeSectionNode
+                | SyntaxKind::TaskHintsSectionNode => {
+                    if first_written {
+                        stream.trim_while(|t| {
+                            matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine))
+                        });
+                        stream.blank_line();
+                    }
+                    (&child).write(stream, config);
+                    stream.blank_line();
+                }
+                SyntaxKind::BoundDeclNode => {
+                    stream.allow_blank_lines();
+                    (&child).write(stream, config);
+                    stream.ignore_trailing_blank_lines();
+                }
+                SyntaxKind::CloseBrace => {
+                    stream.trim_while(|t| {
+                        matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine))
+                    });
+                    stream.decrement_indent();
+                    stream.end_line();
+                    (&child).write(stream, config);
+                    stream.end_line();
+                }
+                _ => {
+                    unreachable!(
+                        "unexpected child in task definition: {:?}",
+                        child.element().kind()
+                    );
+                }
             }
+            first_written = true;
         }
     }
-
-    if let Some(hints) = hints {
-        (&hints).write(stream, config);
-        stream.blank_line();
-    }
-
-    stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
-
-    stream.decrement_indent();
-    (&close_brace.expect("task close brace")).write(stream, config);
-    stream.end_line();
 }
 
 /// Formats a [`CommandSection`](wdl_ast::v1::CommandSection).
@@ -173,7 +189,7 @@ pub fn format_command_section(
 
     let open_delimiter = children.next().expect("open delimiter");
     match open_delimiter.element().kind() {
-        SyntaxKind::OpenBrace => {
+        SyntaxKind::OpenBrace if config.upgrade_deprecations => {
             stream.push_literal_in_place_of_token(
                 open_delimiter
                     .element()
@@ -182,14 +198,8 @@ pub fn format_command_section(
                 "<<<".to_string(),
             );
         }
-        SyntaxKind::OpenHeredoc => {
-            (&open_delimiter).write(stream, config);
-        }
         _ => {
-            unreachable!(
-                "unexpected open delimiter in command section: {:?}",
-                open_delimiter.element().kind()
-            );
+            (&open_delimiter).write(stream, config);
         }
     }
 
@@ -202,9 +212,9 @@ pub fn format_command_section(
         .strip_whitespace();
     match parts {
         None => {
-            // The command section has mixed indentation, so we format it as is.
-            // TODO: We may want to format this differently in the future, but for now
-            // we can say "ugly input, ugly output".
+            warn!(
+                "command section with mixed indentation: making a best-effort formatting attempt"
+            );
             for child in children {
                 match child.element().kind() {
                     SyntaxKind::CloseBrace => {
@@ -235,6 +245,7 @@ pub fn format_command_section(
             // Now we parse the stripped command section and format it.
             // End the line after the open delimiter and increment indent.
             stream.increment_indent();
+            stream.end_line();
 
             let mut bash_indent: Option<Rc<String>> = None;
             for (part, child) in parts.iter().zip(children.by_ref()) {
@@ -247,7 +258,8 @@ pub fn format_command_section(
                                 bash_indent = None;
                                 stream.end_line();
                                 if lines.peek().is_none() {
-                                    // save the leading whitespace to use as temporary indent
+                                    // save the leading whitespace to use as
+                                    // temporary indent
                                     bash_indent = Some(
                                         line.chars()
                                             .take_while(|c| matches!(c, ' ' | '\t'))
@@ -279,10 +291,11 @@ pub fn format_command_section(
             }
 
             stream.decrement_indent();
+            stream.end_line();
 
             for child in children {
                 match child.element().kind() {
-                    SyntaxKind::CloseBrace => {
+                    SyntaxKind::CloseBrace if config.upgrade_deprecations => {
                         stream.push_literal_in_place_of_token(
                             child
                                 .element()
@@ -291,14 +304,8 @@ pub fn format_command_section(
                             ">>>".to_string(),
                         );
                     }
-                    SyntaxKind::CloseHeredoc => {
-                        (&child).write(stream, config);
-                    }
                     _ => {
-                        unreachable!(
-                            "unexpected child in command section: {:?}",
-                            child.element().kind()
-                        );
+                        (&child).write(stream, config);
                     }
                 }
             }
@@ -356,6 +363,7 @@ pub fn format_requirements_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -383,6 +391,7 @@ pub fn format_requirements_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("requirements close brace")).write(stream, config);
     stream.end_line();
 }
@@ -460,6 +469,7 @@ pub fn format_runtime_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -487,6 +497,7 @@ pub fn format_runtime_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("runtime close brace")).write(stream, config);
     stream.end_line();
 }
@@ -512,6 +523,7 @@ pub fn format_task_hints_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut close_brace = None;
@@ -539,6 +551,7 @@ pub fn format_task_hints_section(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("task hints close brace")).write(stream, config);
     stream.end_line();
 }

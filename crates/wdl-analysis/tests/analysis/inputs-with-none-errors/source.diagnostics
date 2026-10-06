@@ -3,7 +3,7 @@ error: type mismatch: expected type `Int`, but found built-in type `None`
    │
 33 │         input4 = None,
    │         ------   ^^^^ this is built-in type `None`
-   │         │         
+   │         │
    │         this expects type `Int`
 
 error: missing required call input `input4` for task `t`
@@ -17,7 +17,7 @@ error: type mismatch: expected type `Int`, but found built-in type `None`
    │
 42 │         input4 = None,
    │         ------   ^^^^ this is built-in type `None`
-   │         │         
+   │         │
    │         this expects type `Int`
 
 error: missing required call input `input4` for workflow `w`
@@ -25,4 +25,3 @@ error: missing required call input `input4` for workflow `w`
    │
 45 │     call w.w as w2
    │            ^
-
