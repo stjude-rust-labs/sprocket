@@ -1,7 +1,23 @@
-error: unexpected argument '--tag' found
+warning[NamingConvention]: struct name `fooBar` is not snake_case
+  ┌─ source.wdl:5:8
+  │
+5 │ struct fooBar {
+  │        ^^^^^^ this name must be snake_case
+  │
+  = fix: replace `fooBar` with `foo_bar`
 
-  tip: to pass '--tag' as a value, use '-- --tag'
+warning[NamingConvention]: task name `Say_hello` is not PascalCase
+  ┌─ source.wdl:9:6
+  │
+9 │ task Say_hello {
+  │      ^^^^^^^^^ this name must be PascalCase
+  │
+  = fix: replace `Say_hello` with `SayHello`
 
-Usage: sprocket check --lint [SOURCE]...
-
-For more information, try '--help'.
+warning[NamingConvention]: input name `greeting_message` is not camelCase
+   ┌─ source.wdl:11:16
+   │
+11 │         String greeting_message
+   │                ^^^^^^^^^^^^^^^^ this name must be camelCase
+   │
+   = fix: replace `greeting_message` with `greetingMessage`
