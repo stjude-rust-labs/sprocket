@@ -9,11 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Implemented OAuth authorization for the TES backend, using the `oauth` auth
+  type ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
 * `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 * `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
 #### Changed
 
+* The `url` configuration setting for the TES backend has been renamed to
+  `service`, which is now required ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
+* The `inputs` and `outputs` configuration settings for the TES backend are now
+  required ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
+* The default TES polling interval has changed from 1 second to 30 seconds ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
 * `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
 #### Fixed

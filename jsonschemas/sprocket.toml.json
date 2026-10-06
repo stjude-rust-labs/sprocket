@@ -1913,12 +1913,9 @@
           "description": "Use the TES task execution backend.",
           "type": "object",
           "properties": {
-            "url": {
+            "service": {
               "description": "The URL of the Task Execution Service.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "auth": {
@@ -1934,22 +1931,16 @@
             },
             "inputs": {
               "description": "The root cloud storage URL for storing inputs.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "outputs": {
               "description": "The root cloud storage URL for storing outputs.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "interval": {
-              "description": "The polling interval, in seconds, for checking task status.\n\nDefaults to 1 second.",
+              "description": "The polling interval, in seconds, for checking task status.\n\nDefaults to 30 seconds.",
               "type": [
                 "integer",
                 "null"
@@ -1986,7 +1977,10 @@
             }
           },
           "required": [
-            "type"
+            "type",
+            "service",
+            "inputs",
+            "outputs"
           ]
         },
         {
@@ -2184,7 +2178,14 @@
             },
             "password": {
               "description": "The HTTP basic authentication password.",
-              "$ref": "#/$defs/SecretString"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretString"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "type": {
               "type": "string",
@@ -2193,8 +2194,7 @@
           },
           "required": [
             "type",
-            "username",
-            "password"
+            "username"
           ]
         },
         {
@@ -2212,6 +2212,67 @@
           },
           "required": [
             "type",
+            "token"
+          ]
+        },
+        {
+          "description": "Use OAuth authentication for the TES backend.",
+          "type": "object",
+          "properties": {
+            "client_id": {
+              "description": "The OAuth application's client identifier.",
+              "type": "string"
+            },
+            "client_secret": {
+              "description": "The OAuth application's client secret.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretString"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "audience": {
+              "description": "The OAuth audience.\n\nWhen `None`, defaults to the base URI of the TES server.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "authorization": {
+              "description": "The URL for OAuth authorization requests.",
+              "type": "string",
+              "format": "uri"
+            },
+            "token": {
+              "description": "The URL for OAuth token requests.",
+              "type": "string",
+              "format": "uri"
+            },
+            "scopes": {
+              "description": "The desired scopes for OAuth.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "require_refresh": {
+              "description": "Whether or not to require a refresh token.\n\nIf `true` and the OAuth authorization does not return a refresh token,\nan error will be returned when the TES backend is created.\n\nIf `false` and the OAuth authorization does not return a refresh token,\na device reauthorization will occur.\n\nDefaults to `false`.",
+              "type": "boolean",
+              "default": false
+            },
+            "type": {
+              "type": "string",
+              "const": "oauth"
+            }
+          },
+          "required": [
+            "type",
+            "client_id",
+            "authorization",
             "token"
           ]
         }
