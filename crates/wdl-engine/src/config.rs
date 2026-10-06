@@ -1697,12 +1697,12 @@ impl BearerAuthConfig {
     }
 }
 
-/// The default value for the `allow_reauthorization` field in [`OAuthConfig`].
+/// The default value for the `require_refresh` field in [`OAuthConfig`].
 fn default_require_refresh() -> bool {
     false
 }
 
-/// Represents HTTP bearer token authentication configuration.
+/// Represents OAuth authentication configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
@@ -1740,7 +1740,7 @@ pub struct OAuthConfig {
 }
 
 impl OAuthConfig {
-    /// Validates the HTTP bearer auth configuration.
+    /// Validates the OAuth configuration.
     pub fn validate(&self, insecure: bool) -> Result<()> {
         if !insecure {
             if self.authorization.scheme() != "https" {
@@ -1792,6 +1792,7 @@ pub enum TesBackendAuthConfig {
     },
     /// Use OAuth authentication for the TES backend.
     #[toml(rename = "oauth")]
+    #[schemars(rename = "oauth")]
     OAuth {
         /// The inner OAuth configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
