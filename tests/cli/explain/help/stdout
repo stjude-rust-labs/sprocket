@@ -89,6 +89,7 @@ Available rules:
   - EmptyOutputs
   - ExceptDirectiveValid
   - ExtraneousParameterMeta
+  - FlaggedComment
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
@@ -102,19 +103,17 @@ Available rules:
   - MisleadingDeclarationOrder
   - MissingParameterMeta
   - MutableContainerTag
+  - NamingConvention
   - OutputMetaOrder
   - OutputName
   - ParameterDescription
   - ParameterMetaOrder
-  - PascalCase
   - RecommendedRuntimeKeys
   - RedundantContainerArray
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
-  - SnakeCase
-  - TodoComment
   - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall
@@ -135,6 +134,5 @@ Available tags:
   - Performance
   - Portability
   - Sorting
-  - Spacing
   - SprocketCompatibility
   - Style

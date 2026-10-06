@@ -405,12 +405,12 @@ mod feature_flags {
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Rule IDs or tags to except from running.
+    /// Rule IDs to prevent from running.
     ///
     /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
     #[schemars(default)]
-    pub except: Vec<String>,
+    pub disable: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
     #[toml(default)]
     #[schemars(default)]
@@ -427,11 +427,6 @@ pub struct CheckConfig {
     #[toml(default)]
     #[schemars(default)]
     pub hide_warnings: bool,
-    /// Set of lint tags to opt into. Leave this empty to use the default set of
-    /// tags.
-    #[toml(default)]
-    #[schemars(default)]
-    pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
     /// Per-rule configuration, keyed by rule ID.
@@ -876,12 +871,6 @@ pub struct DocConfig {
     #[toml(default)]
     #[schemars(default)]
     pub light_mode: bool,
-    /// Enables support for documentation comments
-    ///
-    /// This option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
-    #[toml(default)]
-    #[schemars(default)]
-    pub with_doc_comments: bool,
     /// Configuration for custom HTML to embed in generated pages.
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -902,7 +891,6 @@ impl Default for DocConfig {
             github_url: sentinel_doc_config_value().into(),
             slack_url: sentinel_doc_config_value().into(),
             light_mode: false,
-            with_doc_comments: false,
             extra_html: DocExtraHtmlConfig::default(),
             seo: DocSeoConfig::default(),
         }
@@ -1267,6 +1255,17 @@ impl Config {
     pub fn validate(&mut self) -> Result<()> {
         self.module.init.validate()?;
 
+        if self
+            .check
+            .rules
+            .flagged_comment
+            .keywords
+            .iter()
+            .any(|keyword| keyword.trim().is_empty())
+        {
+            bail!("`check.rules.FlaggedComment.keywords` cannot contain empty keywords");
+        }
+
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
         }
@@ -1532,6 +1531,23 @@ mod tests {
     }
 
     #[test]
+    fn flagged_comment_rejects_empty_keywords() {
+        for keyword in ["", "  "] {
+            let mut config = Config::default();
+            config.check.rules.flagged_comment.keywords = vec![String::from(keyword)];
+            let error = config.validate().unwrap_err().to_string();
+            assert_eq!(
+                error,
+                "`check.rules.FlaggedComment.keywords` cannot contain empty keywords"
+            );
+        }
+
+        let mut config = Config::default();
+        config.check.rules.flagged_comment.keywords = vec![String::from("FIXME")];
+        config.validate().unwrap();
+    }
+
+    #[test]
     fn server_validate_reports_bad_locations() {
         let mut config = ServerConfig {
             allowed_urls: vec!["not a url".to_string()],
@@ -1772,21 +1788,27 @@ mod tests {
         std::fs::write(
             &first,
             r#"
-[check.rules.SnakeCase]
+[check.rules.NamingConvention]
 allowed_names = ["Foo"]
 
 [check.rules.UnusedInput]
 severity = "off"
 "#,
         )?;
-        std::fs::write(&second, "[check.rules.SnakeCase]\nseverity = \"note\"\n")?;
+        std::fs::write(
+            &second,
+            "[check.rules.NamingConvention]\nseverity = \"note\"\n",
+        )?;
 
         let BuiltConfig { config, warnings } = Config::new([&*first, &*second], true)?;
         assert!(warnings.is_empty());
 
         let rules = &config.check.rules;
-        assert_eq!(rules.snake_case.severity, wdl::lint::RuleSeverity::Note);
-        assert_eq!(rules.snake_case.allowed_names, ["Foo"]);
+        assert_eq!(
+            rules.naming_convention.severity,
+            wdl::lint::RuleSeverity::Note
+        );
+        assert_eq!(rules.naming_convention.allowed_names, ["Foo"]);
         assert_eq!(rules.unused_input.severity, wdl::lint::RuleSeverity::Off);
         assert_eq!(rules.diagnostics_config().unused_input, None);
 
@@ -1808,7 +1830,8 @@ severity = "off"
 [check.rules.NotARule]
 severity = "note"
 
-[check.rules.PascalCase]
+[check.rules.NamingConvention]
+not_a_param = true
 allowed_names = ["Foo"]
 "#,
         )?;
@@ -1820,10 +1843,59 @@ allowed_names = ["Foo"]
     }
 
     #[test]
+    fn naming_convention_styles() -> Result<()> {
+        use wdl::lint::rules::CaseStyle;
+
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        std::fs::write(
+            &path,
+            r#"
+[check.rules.NamingConvention]
+task = "pascal_case"
+workflow = "camel_case"
+variable = "screaming_snake_case"
+type = "snake_case"
+"#,
+        )?;
+
+        let BuiltConfig { config, warnings } = Config::new([&*path], true)?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+
+        let naming = &config.check.rules.naming_convention;
+        assert_eq!(naming.task, CaseStyle::PascalCase);
+        assert_eq!(naming.workflow, CaseStyle::CamelCase);
+        assert_eq!(naming.variable, CaseStyle::ScreamingSnakeCase);
+        assert_eq!(naming.r#type, CaseStyle::SnakeCase);
+        assert_eq!(naming.struct_member, CaseStyle::SnakeCase);
+
+        Ok(())
+    }
+
+    #[test]
+    fn naming_convention_rejects_unknown_styles() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        for style in ["PascalCase", "kebab-case"] {
+            std::fs::write(
+                &path,
+                format!("[check.rules.NamingConvention]\ntask = \"{style}\"\n"),
+            )?;
+
+            assert!(Config::new([&*path], true).is_err(), "{style}");
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn error_severity_is_rejected() -> Result<()> {
         let tempdir = tempfile::TempDir::new()?;
         let path = tempdir.path().join("sprocket.toml");
-        std::fs::write(&path, "[check.rules.SnakeCase]\nseverity = \"error\"\n")?;
+        std::fs::write(
+            &path,
+            "[check.rules.NamingConvention]\nseverity = \"error\"\n",
+        )?;
 
         assert!(Config::new([&*path], true).is_err());
 

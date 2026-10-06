@@ -12,12 +12,11 @@ newline_style = "auto"
 quote_style = "preserve"
 
 [check]
-except = []
+disable = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
 hide_warnings = false
-tags = []
 
 [check.rules.UnusedImport]
 severity = "warning"
@@ -88,13 +87,13 @@ severity = "note"
 severity = "warning"
 
 [check.rules.DescriptionLength]
-severity = "note"
+severity = "off"
 
 [check.rules.DocCommentTabs]
 severity = "warning"
 
 [check.rules.DocMetaStrings]
-severity = "warning"
+severity = "off"
 
 [check.rules.EmptyDocComment]
 severity = "note"
@@ -110,7 +109,7 @@ allowed_runtime_keys = []
 severity = "warning"
 
 [check.rules.HostPathLiterals]
-severity = "note"
+severity = "warning"
 
 [check.rules.ImportPlacement]
 severity = "warning"
@@ -120,6 +119,8 @@ severity = "warning"
 
 [check.rules.InputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.MatchingOutputMeta]
 severity = "warning"
@@ -133,8 +134,19 @@ severity = "note"
 [check.rules.MutableContainerTag]
 severity = "note"
 
+[check.rules.NamingConvention]
+severity = "warning"
+task = "snake_case"
+workflow = "snake_case"
+variable = "snake_case"
+type = "pascal_case"
+struct_member = "snake_case"
+allowed_names = []
+
 [check.rules.OutputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.OutputMetaOrder]
 severity = "note"
@@ -147,9 +159,6 @@ severity = "warning"
 
 [check.rules.ParameterMetaOrder]
 severity = "note"
-
-[check.rules.PascalCase]
-severity = "warning"
 
 [check.rules.RedundantNone]
 severity = "note"
@@ -169,12 +178,9 @@ severity = "warning"
 [check.rules.ShellCheck]
 severity = "note"
 
-[check.rules.SnakeCase]
-severity = "warning"
-allowed_names = []
-
-[check.rules.TodoComment]
+[check.rules.FlaggedComment]
 severity = "note"
+keywords = ["TODO"]
 
 [check.rules.UnusedDocComments]
 severity = "note"
@@ -297,7 +303,6 @@ homepage_url = "none"
 github_url = "none"
 slack_url = "none"
 light_mode = false
-with_doc_comments = false
 
 [doc.extra_html]
 head = "none"

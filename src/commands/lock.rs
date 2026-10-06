@@ -16,11 +16,15 @@ use wdl::ast::v1::LiteralExpr;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
 /// Name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";
+/// Lock file write action.
+const WRITE: Action = Action::new("Wrote", "write");
 
 /// Arguments for the `lock` subcommand.
 #[derive(Parser, Debug)]
@@ -46,7 +50,7 @@ struct Lock {
 }
 
 /// Performs the `lock` command.
-pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let report_mode = config.common.report_mode;
     let output_path = args
         .output
@@ -60,7 +64,7 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -135,7 +139,16 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
         images: map,
     };
     let data = toml_spanner::to_string(&lock).context("failed to serialize lock contents")?;
-    std::fs::write(output_path, data).context("failed to write lock file")?;
+    std::fs::write(&output_path, data).context("failed to write lock file")?;
+    output.completed(
+        WRITE,
+        format!(
+            "lock file with {count} image{plural} at `{path}`",
+            count = lock.images.len(),
+            plural = if lock.images.len() == 1 { "" } else { "s" },
+            path = output_path.display()
+        ),
+    );
 
     Ok(())
 }

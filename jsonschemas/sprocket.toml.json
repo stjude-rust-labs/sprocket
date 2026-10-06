@@ -172,8 +172,8 @@
       "description": "Represents the configuration for the Sprocket `check` and `lint` commands.",
       "type": "object",
       "properties": {
-        "except": {
-          "description": "Rule IDs or tags to except from running.\n\nThis list is also honored by the `analyzer` subcommand.",
+        "disable": {
+          "description": "Rule IDs to prevent from running.\n\nThis list is also honored by the `analyzer` subcommand.",
           "type": "array",
           "items": {
             "type": "string"
@@ -199,14 +199,6 @@
           "description": "Hide diagnostics with `warning` and `note` severity.",
           "type": "boolean",
           "default": false
-        },
-        "tags": {
-          "description": "Set of lint tags to opt into. Leave this empty to use the default set of\ntags.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         },
         "baseline": {
           "description": "Path to the diagnostic baseline file.",
@@ -292,13 +284,13 @@
               "severity": "warning"
             },
             "DescriptionLength": {
-              "severity": "note"
+              "severity": "off"
             },
             "DocCommentTabs": {
               "severity": "warning"
             },
             "DocMetaStrings": {
-              "severity": "warning"
+              "severity": "off"
             },
             "EmptyDocComment": {
               "severity": "note"
@@ -314,7 +306,7 @@
               "severity": "warning"
             },
             "HostPathLiterals": {
-              "severity": "note"
+              "severity": "warning"
             },
             "ImportPlacement": {
               "severity": "warning"
@@ -323,7 +315,9 @@
               "severity": "warning"
             },
             "InputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "MatchingOutputMeta": {
               "severity": "warning"
@@ -337,8 +331,19 @@
             "MutableContainerTag": {
               "severity": "note"
             },
+            "NamingConvention": {
+              "severity": "warning",
+              "task": "snake_case",
+              "workflow": "snake_case",
+              "variable": "snake_case",
+              "type": "pascal_case",
+              "struct_member": "snake_case",
+              "allowed_names": []
+            },
             "OutputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "OutputMetaOrder": {
               "severity": "note"
@@ -351,9 +356,6 @@
             },
             "ParameterMetaOrder": {
               "severity": "note"
-            },
-            "PascalCase": {
-              "severity": "warning"
             },
             "RedundantNone": {
               "severity": "note"
@@ -373,12 +375,11 @@
             "ShellCheck": {
               "severity": "note"
             },
-            "SnakeCase": {
-              "severity": "warning",
-              "allowed_names": []
-            },
-            "TodoComment": {
-              "severity": "note"
+            "FlaggedComment": {
+              "severity": "note",
+              "keywords": [
+                "TODO"
+              ]
             },
             "UnusedDocComments": {
               "severity": "note"
@@ -556,7 +557,7 @@
           "description": "The `DescriptionLength` rule.",
           "$ref": "#/$defs/DescriptionLengthConfig",
           "default": {
-            "severity": "note"
+            "severity": "off"
           }
         },
         "DocCommentTabs": {
@@ -570,7 +571,7 @@
           "description": "The `DocMetaStrings` rule.",
           "$ref": "#/$defs/DocMetaStringsConfig",
           "default": {
-            "severity": "warning"
+            "severity": "off"
           }
         },
         "EmptyDocComment": {
@@ -606,7 +607,7 @@
           "description": "The `HostPathLiterals` rule.",
           "$ref": "#/$defs/HostPathLiteralsConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
         "ImportPlacement": {
@@ -627,7 +628,9 @@
           "description": "The `InputName` rule.",
           "$ref": "#/$defs/InputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "MatchingOutputMeta": {
@@ -658,11 +661,26 @@
             "severity": "note"
           }
         },
+        "NamingConvention": {
+          "description": "The `NamingConvention` rule.",
+          "$ref": "#/$defs/NamingConventionConfig",
+          "default": {
+            "severity": "warning",
+            "task": "snake_case",
+            "workflow": "snake_case",
+            "variable": "snake_case",
+            "type": "pascal_case",
+            "struct_member": "snake_case",
+            "allowed_names": []
+          }
+        },
         "OutputName": {
           "description": "The `OutputName` rule.",
           "$ref": "#/$defs/OutputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "OutputMetaOrder": {
@@ -691,13 +709,6 @@
           "$ref": "#/$defs/ParameterMetaOrderConfig",
           "default": {
             "severity": "note"
-          }
-        },
-        "PascalCase": {
-          "description": "The `PascalCase` rule.",
-          "$ref": "#/$defs/PascalCaseConfig",
-          "default": {
-            "severity": "warning"
           }
         },
         "RedundantNone": {
@@ -742,19 +753,14 @@
             "severity": "note"
           }
         },
-        "SnakeCase": {
-          "description": "The `SnakeCase` rule.",
-          "$ref": "#/$defs/SnakeCaseConfig",
+        "FlaggedComment": {
+          "description": "The `FlaggedComment` rule.",
+          "$ref": "#/$defs/FlaggedCommentConfig",
           "default": {
-            "severity": "warning",
-            "allowed_names": []
-          }
-        },
-        "TodoComment": {
-          "description": "The `TodoComment` rule.",
-          "$ref": "#/$defs/TodoCommentConfig",
-          "default": {
-            "severity": "note"
+            "severity": "note",
+            "keywords": [
+              "TODO"
+            ]
           }
         },
         "UnusedDocComments": {
@@ -1104,7 +1110,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1128,7 +1134,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1196,7 +1202,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false
@@ -1233,6 +1239,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of input names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.InputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag input names that start with a disallowed\nprefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).\n\n##### Example\n\n```toml\n[check.rules.InputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1285,6 +1304,76 @@
       },
       "additionalProperties": false
     },
+    "NamingConventionConfig": {
+      "description": "Configuration for the `NamingConvention` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        },
+        "task": {
+          "description": "The case style for task names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntask = \"pascal_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "workflow": {
+          "description": "The case style for workflow names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nworkflow = \"pascal_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "variable": {
+          "description": "The case style for input, output, and private declaration\nnames.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nvariable = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "type": {
+          "description": "The case style for the names of user-defined types: structs,\nenums, and enum choices.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntype = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "pascal_case"
+        },
+        "struct_member": {
+          "description": "The case style for struct member names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nstruct_member = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "allowed_names": {
+          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nallowed_names = [\"Foo\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "CaseStyle": {
+      "description": "A case style for identifiers.",
+      "oneOf": [
+        {
+          "description": "`snake_case`.",
+          "type": "string",
+          "const": "snake_case"
+        },
+        {
+          "description": "`SCREAMING_SNAKE_CASE`.",
+          "type": "string",
+          "const": "screaming_snake_case"
+        },
+        {
+          "description": "`camelCase`.",
+          "type": "string",
+          "const": "camel_case"
+        },
+        {
+          "description": "`PascalCase`.",
+          "type": "string",
+          "const": "pascal_case"
+        }
+      ]
+    },
     "OutputNameConfig": {
       "description": "Configuration for the `OutputName` lint rule.",
       "type": "object",
@@ -1293,6 +1382,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of output names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.OutputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag output names that start with a disallowed\nprefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).\n\n##### Example\n\n```toml\n[check.rules.OutputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1341,18 +1443,6 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
-        }
-      },
-      "additionalProperties": false
-    },
-    "PascalCaseConfig": {
-      "description": "Configuration for the `PascalCase` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
         }
       },
       "additionalProperties": false
@@ -1429,34 +1519,24 @@
       },
       "additionalProperties": false
     },
-    "SnakeCaseConfig": {
-      "description": "Configuration for the `SnakeCase` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
-        },
-        "allowed_names": {
-          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.SnakeCase]\nallowed_names = [\"Foo\"]\n```",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        }
-      },
-      "additionalProperties": false
-    },
-    "TodoCommentConfig": {
-      "description": "Configuration for the `TodoComment` lint rule.",
+    "FlaggedCommentConfig": {
+      "description": "Configuration for the `FlaggedComment` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "keywords": {
+          "description": "List of keywords to flag in comments.\n\nKeywords are matched as case-sensitive substrings of the comment\ntext, and cannot be empty. When keywords overlap (for example,\n`FIX` and `FIXME`), the longest keyword is reported.\n\n##### Example\n\n```toml\n[check.rules.FlaggedComment]\nkeywords = [\"TODO\", \"FIXME\", \"XXX\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "TODO"
+          ]
         }
       },
       "additionalProperties": false
@@ -2669,11 +2749,6 @@
         },
         "light_mode": {
           "description": "Initialize pages in light mode instead of the default dark mode.",
-          "type": "boolean",
-          "default": false
-        },
-        "with_doc_comments": {
-          "description": "Enables support for documentation comments\n\nThis option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.",
           "type": "boolean",
           "default": false
         },

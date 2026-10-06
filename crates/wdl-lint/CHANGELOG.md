@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added the `NamingConvention` lint rule and the `CaseStyle` type; `NamingConventionConfig` configures the case style of `task`, `workflow`, `variable`, `type`, and `struct_member` names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * Added `RuleSeverity` and a `severity` for every rule in `Config` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `DeprecatedRuntimeKey`, `ExtraneousParameterMeta`, `MutableContainerTag`, `OutputMetaOrder`, `ParameterMetaOrder`, `RecommendedRuntimeKeys`, and `RedundantContainerArray` lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `min_length` and `check_prefixes` parameters to the `InputName` and `OutputName` lint rule configuration ([#1253](https://github.com/stjude-rust-labs/sprocket/pull/1253)).
 
 #### Changed
 
+* `HostPathLiterals` now emits warnings instead of notes by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* `DescriptionLength` and `DocMetaStrings` are now off by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Renamed the `TodoComment` lint rule to `FlaggedComment` ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
 * `Config` now has one table per rule, keyed by rule ID, for both analysis and lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules now report diagnostics at their configured severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Lint rules are now constructed with `new(&Config)` and no longer implement `Default` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
@@ -26,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
 * `UnusedDocComments` now lints floating doc comments separately ([#1238](https://github.com/stjude-rust-labs/sprocket/pull/1238)).
+
+#### Removed
+
+* Removed the `SnakeCase` and `PascalCase` lint rules and their configuration, which are replaced by `NamingConvention` ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
+* The `Spacing` tag ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+
+#### Fixed
+
+* `Linter` now visits enum definitions, so lint rules can check enums ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 
 ## 0.28.0 - 2026-09-16
 
