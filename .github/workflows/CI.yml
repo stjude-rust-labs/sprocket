@@ -25,6 +25,14 @@ jobs:
       - name: Spell Check Repo
         uses: crate-ci/typos@v1.50.2
 
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: rvben/rumdl@v0
+        with:
+          command: fmt-check
+
   format:
     runs-on: ubuntu-latest
     steps:
