@@ -22,7 +22,7 @@ use crate::Value;
 ///
 /// Returns an empty string if the array is empty.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#sep-1
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#sep-1>
 fn sep(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::String));

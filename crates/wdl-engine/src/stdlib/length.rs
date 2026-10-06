@@ -18,7 +18,7 @@ const FUNCTION_NAME: &str = "length";
 ///
 /// For an `Array[X]` argument: the number of elements in the array.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length>
 fn array_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));
@@ -43,7 +43,7 @@ fn array_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 ///
 /// For a `Map[X, Y]` argument: the number of items in the map.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length>
 fn map_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));
@@ -68,7 +68,7 @@ fn map_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 ///
 /// For an `Object` argument: the number of key-value pairs in the object.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length>
 fn object_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));
@@ -89,7 +89,7 @@ fn object_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 ///
 /// For a `String` argument: the number of characters in the string.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#length>
 fn string_length(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));

@@ -98,6 +98,7 @@ use crate::types::v1::task_requirement_types;
 /// are filtered by any partial word already typed at the cursor position.
 ///
 /// Provides context-aware suggestions by:
+///
 /// 1. Determining if the cursor is in a member access context (i.e. after a `.`
 ///    dot)
 /// 2. Walking up the CST to find the appropriate completion context
