@@ -1,0 +1,5 @@
+Failed source::always_succeeds::always_succeeds #1
+
+Sprocket test result summary:
+
+Failed source::always_succeeds::always_succeeds: 1 execution failed assertions (out of 1 execution)

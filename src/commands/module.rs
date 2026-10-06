@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 
-use crate::commands::output::CommandOutput;
+use crate::commands::CommandOutput;
 use crate::config::Config;
 
 pub mod add;

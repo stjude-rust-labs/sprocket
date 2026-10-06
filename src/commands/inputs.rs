@@ -24,6 +24,7 @@ use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
 /// Arguments for the `inputs` subcommand.
@@ -474,7 +475,7 @@ impl InputProcessor {
 }
 
 /// Displays the input schema for a WDL document.
-pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let report_mode = config.common.report_mode;
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
@@ -487,7 +488,7 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -608,10 +609,10 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
 
     if args.yaml {
         let yaml = serde_yaml_ng::to_string(&inputs).context("failed to serialize inputs")?;
-        println!("{yaml}");
+        output.payload(yaml);
     } else {
         let json = serde_json::to_string_pretty(&inputs).context("failed to serialize inputs")?;
-        println!("{json}");
+        output.payload(json);
     }
 
     Ok(())

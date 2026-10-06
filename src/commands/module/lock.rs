@@ -13,9 +13,9 @@ use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::signer_change_mode;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
 const LOCK: Action = Action::new("Locked", "lock");

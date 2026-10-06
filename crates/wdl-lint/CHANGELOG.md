@@ -10,17 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Added the `ShellSplitting` lint rule, which reports `String`, `File`, and `Directory` placeholders in command sections that are subject to shell word splitting ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
-
-#### Changed
-
-* `ShellCheck` no longer reports SC2086, SC2206, or SC2231 for placeholders; `ShellSplitting` reports them instead as warnings. To suppress these diagnostics on placeholders, use `#@ except: ShellSplitting`; `# shellcheck disable` directives in the command no longer apply to them ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
-* `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
-* `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
+* Added `RuleSeverity` and a `severity` for every rule in `Config` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `DeprecatedRuntimeKey`, `ExtraneousParameterMeta`, `MutableContainerTag`, `OutputMetaOrder`, `ParameterMetaOrder`, `RecommendedRuntimeKeys`, and `RedundantContainerArray` lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `min_length` and `check_prefixes` parameters to the `InputName` and `OutputName` lint rule configuration ([#1253](https://github.com/stjude-rust-labs/sprocket/pull/1253)).
 
 #### Fixed
 
 * Fixed false-positive word splitting diagnostics for placeholders that are quoted inside nested `if` expressions or `sep` calls ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
 * Fixed `ShellCheck` treating an apostrophe in a double-quoted string or comment as the start of a single-quoted string, which caused incorrect diagnostics for later placeholders ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
+
+#### Changed
+
+* `ShellCheck` no longer reports SC2086, SC2206, or SC2231 for placeholders; `ShellSplitting` reports them instead as warnings. To suppress these diagnostics on placeholders, use `#@ except: ShellSplitting`; `# shellcheck disable` directives in the command no longer apply to them ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
+* `HostPathLiterals` now emits warnings instead of notes by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* `DescriptionLength` and `DocMetaStrings` are now off by default ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Renamed the `TodoComment` lint rule to `FlaggedComment` ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
+* `Config` now has one table per rule, keyed by rule ID, for both analysis and lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Lint rules now report diagnostics at their configured severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Lint rules are now constructed with `new(&Config)` and no longer implement `Default` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `rules()` no longer returns rules whose severity is `off` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Moved the note-severity checks in `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` into the new rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Renamed `ExpectedRuntimeKeys` to `UnknownRuntimeKeys`; `allowed_runtime_keys` is now configured under `[check.rules.UnknownRuntimeKeys]` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Renamed `ParameterMetaMatched` to `MissingParameterMeta` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `BashSetSyntax` now reports unknown `set` options as warnings instead of errors ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `ShellCheck` now reports a failure to run `shellcheck` as a note instead of an error ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
+* `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
+
+#### Removed
+
+* The `Spacing` tag ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 
 ## 0.28.0 - 2026-09-16
 
@@ -405,4 +424,3 @@ _A patch bump was required because an error was made during the release of `wdl`
 * Ported the `NoCurlyCommands` rule to `wdl-lint` ([#69](https://github.com/stjude-rust-labs/wdl/pull/69)).
 * Added the `wdl-lint` as the crate implementing linting rules for the future
   ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
-

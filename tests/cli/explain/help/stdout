@@ -80,6 +80,7 @@ Available rules:
   - DenyGlobStar
   - DeprecatedObject
   - DeprecatedPlaceholder
+  - DeprecatedRuntimeKey
   - DeprecatedRuntimeSection
   - DescriptionLength
   - DocCommentTabs
@@ -87,7 +88,8 @@ Available rules:
   - EmptyDocComment
   - EmptyOutputs
   - ExceptDirectiveValid
-  - ExpectedRuntimeKeys
+  - ExtraneousParameterMeta
+  - FlaggedComment
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
@@ -99,17 +101,22 @@ Available rules:
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder
+  - MissingParameterMeta
+  - MutableContainerTag
+  - OutputMetaOrder
   - OutputName
   - ParameterDescription
-  - ParameterMetaMatched
+  - ParameterMetaOrder
   - PascalCase
+  - RecommendedRuntimeKeys
+  - RedundantContainerArray
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
   - ShellSplitting
   - SnakeCase
-  - TodoComment
+  - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration
@@ -129,6 +136,5 @@ Available tags:
   - Performance
   - Portability
   - Sorting
-  - Spacing
   - SprocketCompatibility
   - Style

@@ -1,0 +1,351 @@
+[format]
+indent = 4
+max_line_length = 90
+sort_imports = true
+sort_inputs = false
+trailing_commas = true
+reorder_sections = false
+upgrade_deprecations = false
+newline_style = "auto"
+quote_style = "preserve"
+
+[check]
+disable = []
+deny_warnings = false
+deny_notes = false
+hide_notes = false
+hide_warnings = false
+
+[check.rules.UnusedImport]
+severity = "warning"
+
+[check.rules.UnusedInput]
+severity = "warning"
+
+[check.rules.UnusedDeclaration]
+severity = "warning"
+
+[check.rules.UnusedCall]
+severity = "warning"
+
+[check.rules.UnnecessaryFunctionCall]
+severity = "warning"
+
+[check.rules.UsingFallbackVersion]
+severity = "warning"
+
+[check.rules.MisleadingDeclarationOrder]
+severity = "warning"
+
+[check.rules.MeaninglessLintDirective]
+severity = "note"
+
+[check.rules.KnownRules]
+severity = "note"
+
+[check.rules.ExceptDirectiveValid]
+severity = "note"
+
+[check.rules.CommandSectionIndentation]
+severity = "warning"
+
+[check.rules.DeprecatedObject]
+severity = "warning"
+
+[check.rules.DeprecatedPlaceholder]
+severity = "warning"
+
+[check.rules.DeprecatedRuntimeSection]
+severity = "warning"
+
+[check.rules.BashSetSyntax]
+severity = "warning"
+bash_set_options = ["errexit", "nounset", "pipefail"]
+
+[check.rules.CallInputKeyword]
+severity = "note"
+
+[check.rules.ConciseInput]
+severity = "note"
+
+[check.rules.ContainerUri]
+severity = "warning"
+
+[check.rules.DeprecatedRuntimeKey]
+severity = "note"
+
+[check.rules.DeclarationName]
+severity = "note"
+allowed_names = []
+
+[check.rules.ExtraneousParameterMeta]
+severity = "note"
+
+[check.rules.DenyGlobStar]
+severity = "warning"
+
+[check.rules.DescriptionLength]
+severity = "off"
+
+[check.rules.DocCommentTabs]
+severity = "warning"
+
+[check.rules.DocMetaStrings]
+severity = "off"
+
+[check.rules.EmptyDocComment]
+severity = "note"
+
+[check.rules.EmptyOutputs]
+severity = "note"
+
+[check.rules.UnknownRuntimeKeys]
+severity = "warning"
+allowed_runtime_keys = []
+
+[check.rules.HereDocCommands]
+severity = "warning"
+
+[check.rules.HostPathLiterals]
+severity = "warning"
+
+[check.rules.ImportPlacement]
+severity = "warning"
+
+[check.rules.InlineInstall]
+severity = "warning"
+
+[check.rules.InputName]
+severity = "note"
+min_length = 3
+check_prefixes = true
+
+[check.rules.MatchingOutputMeta]
+severity = "warning"
+
+[check.rules.MetaDescription]
+severity = "note"
+
+[check.rules.MetaSections]
+severity = "note"
+
+[check.rules.MutableContainerTag]
+severity = "note"
+
+[check.rules.OutputName]
+severity = "note"
+min_length = 3
+check_prefixes = true
+
+[check.rules.OutputMetaOrder]
+severity = "note"
+
+[check.rules.ParameterDescription]
+severity = "note"
+
+[check.rules.MissingParameterMeta]
+severity = "warning"
+
+[check.rules.ParameterMetaOrder]
+severity = "note"
+
+[check.rules.PascalCase]
+severity = "warning"
+
+[check.rules.RedundantNone]
+severity = "note"
+
+[check.rules.RecommendedRuntimeKeys]
+severity = "note"
+
+[check.rules.RequirementsSection]
+severity = "warning"
+
+[check.rules.RedundantContainerArray]
+severity = "note"
+
+[check.rules.RuntimeSection]
+severity = "warning"
+
+[check.rules.ShellCheck]
+severity = "note"
+
+[check.rules.SnakeCase]
+severity = "warning"
+allowed_names = []
+
+[check.rules.FlaggedComment]
+severity = "note"
+keywords = ["TODO"]
+
+[check.rules.UnusedDocComments]
+severity = "note"
+
+[analyzer]
+lint = false
+
+[run]
+output_dir = "./out"
+events_capacity = 5000
+backend = "default"
+suppress_env_specific_output = false
+experimental_features_enabled = false
+fail = "slow"
+digest_cache_capacity = 1000
+choice_cache_capacity = 1000
+regex_cache_capacity = 1000
+
+[run.http]
+cache_dir = "system"
+retries = 5
+parallelism = "available"
+hash_algorithm = "sha256"
+response_cache_capacity = 1000
+
+[run.workflow]
+
+[run.workflow.scatter]
+concurrency = 1000
+
+[run.task]
+retries = "default"
+container = "ubuntu:latest"
+shell = "bash"
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+cache_dir = "system"
+cache = "off"
+digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
+
+[run.backends]
+
+[run.storage]
+
+[run.storage.azure]
+
+[run.storage.s3]
+
+[run.storage.google]
+
+[server]
+host = "127.0.0.1"
+port = 8080
+allowed_origins = []
+output_dir = "./out"
+allowed_file_paths = []
+allowed_urls = []
+max_concurrent_runs = "unlimited"
+orphan_timeout_minutes = 5
+
+[server.database]
+url = "default"
+
+[server.engine]
+backend = "default"
+suppress_env_specific_output = false
+experimental_features_enabled = false
+fail = "slow"
+digest_cache_capacity = 1000
+choice_cache_capacity = 1000
+regex_cache_capacity = 1000
+
+[server.engine.http]
+cache_dir = "system"
+retries = 5
+parallelism = "available"
+hash_algorithm = "sha256"
+response_cache_capacity = 1000
+
+[server.engine.workflow]
+
+[server.engine.workflow.scatter]
+concurrency = 1000
+
+[server.engine.task]
+retries = "default"
+container = "ubuntu:latest"
+shell = "bash"
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+cache_dir = "system"
+cache = "off"
+digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
+
+[server.engine.backends]
+
+[server.engine.storage]
+
+[server.engine.storage.azure]
+
+[server.engine.storage.s3]
+
+[server.engine.storage.google]
+
+[test]
+parallelism = 50
+throttle = 100
+
+[doc]
+index_page = "none"
+logo = "none"
+alt_light_logo = "none"
+homepage_url = "none"
+github_url = "none"
+slack_url = "none"
+light_mode = false
+
+[doc.extra_html]
+head = "none"
+body_open = "none"
+body_close = "none"
+
+[doc.seo]
+title = "none"
+description = "none"
+author = "none"
+keywords = []
+base_url = "none"
+image_url = "none"
+locale = "none"
+twitter_handle = "none"
+robots = "none"
+theme_color = "none"
+
+[common]
+color = "auto"
+report_mode = "full"
+
+[common.wdl]
+fallback_version = "none"
+
+[common.wdl.feature_flags]
+wdl_1_3 = true
+wdl_1_4 = false
+
+[module]
+
+[module.init]
+
+[modules]
+default_git_platform = "github"
+large_file_warning = "1.0 MiB"
+max_transfer_bytes = "2.0 GiB"
+require_signed = false
+trust_mode = "confirm"
+allowed_schemes = ["https", "ssh"]
+allowed_transitive_schemes = ["https"]
+max_advertised_refs = 100000
+denied_hosts = [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "0.0.0.0",
+]
+allowed_hosts = []
+allowed_transitive_hosts = ["github.com", "gitlab.com"]

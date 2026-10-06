@@ -1,7 +1,7 @@
 ## This is a test of the `ContainerUri` lint.
 
 #@ except: BashSetSyntax, DeprecatedRuntimeSection, EmptyOutputs, MetaDescription, RequirementsSection
-#@ except: TodoComment
+#@ except: FlaggedComment
 
 version 1.3
 
@@ -235,7 +235,7 @@ task m {
     output {}
     requirements {
         # This should NOT be flagged because the per-entry except suppresses it.
-        #@ except: ContainerUri
+        #@ except: ContainerUri, MutableContainerTag
         container: "ubuntu:latest"
     }
 }
