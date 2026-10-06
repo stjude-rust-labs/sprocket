@@ -295,7 +295,7 @@ impl Analyzer<'_, '_> {
                     (Some(separator), Some(array)) => {
                         self.sequence(&array, states, &Separator::Expr(separator))
                     }
-                    _ => self.insert(states, None),
+                    _ => unreachable!("`sep` call must have 2 arguments"),
                 }
             }
             _ => self.value(expr, states, root),
@@ -419,14 +419,14 @@ impl Analyzer<'_, '_> {
                             let states = self.expr(&prefix, states, None);
                             self.element(&array, states)
                         }
-                        _ => self.insert(states, None),
+                        _ => unreachable!("`prefix` call must have 2 arguments"),
                     },
                     "suffix" => match (arguments.next(), arguments.next()) {
                         (Some(suffix), Some(array)) => {
                             let states = self.element(&array, states);
                             self.expr(&suffix, states, None)
                         }
-                        _ => self.insert(states, None),
+                        _ => unreachable!("`suffix` call must have 2 arguments"),
                     },
                     _ => self.array_value(array, states),
                 }
