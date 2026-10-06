@@ -1130,10 +1130,11 @@ impl<'a> State<'a> {
     /// Evaluates sections prior to executing the task.
     ///
     /// This method evaluates the following sections:
-    ///   * runtime
-    ///   * requirements
-    ///   * hints
-    ///   * command
+    ///
+    /// * runtime
+    /// * requirements
+    /// * hints
+    /// * command
     async fn evaluate_sections(
         &mut self,
         id: &str,
@@ -2632,7 +2633,7 @@ task test {
     }
 
     /// Tests that calls to `write_lines` is cacheable.
-    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_write_lines() {
@@ -2699,7 +2700,7 @@ task test {
     }
 
     /// Tests that calls to `write_lines` with no reference in the command is
-    /// cacheable. See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// cacheable. See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_unreferenced_write_lines() {
@@ -2765,7 +2766,7 @@ task test {
     }
 
     /// Tests that swapped calls to `write_lines` invalidates a cache entry.
-    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_swapped_write_lines() {
@@ -2862,7 +2863,7 @@ task test {
     }
 
     /// Tests that excluded input files do not impact the cache.
-    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_excluded_input_file() {

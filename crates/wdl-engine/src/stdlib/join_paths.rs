@@ -26,7 +26,7 @@ const FUNCTION_NAME: &str = "join_paths";
 /// directory; the second path is relative to the first path and may specify a
 /// file or directory.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths>
 fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::String));
@@ -115,7 +115,7 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// may specify a file or directory; all other elements must specify a
 /// directory.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths>
 fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
     debug_assert!(context.return_type_eq(PrimitiveType::String));

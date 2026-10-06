@@ -19,7 +19,7 @@ const FUNCTION_NAME: &str = "chunk";
 /// If the length of the array is not a multiple `n` then the final sub-array
 /// will have length(array) % `n` elements.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-chunk
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-chunk>
 fn chunk(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
 

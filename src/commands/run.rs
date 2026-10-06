@@ -1313,7 +1313,7 @@ mod tests {
 
     use super::*;
 
-    /// Regression test for https://github.com/stjude-rust-labs/sprocket/issues/1051.
+    /// Regression test for <https://github.com/stjude-rust-labs/sprocket/issues/1051>.
     ///
     /// Reproduces the reported repro: a workflow input (`wf.name`) plus a
     /// `requirements` override on a nested call

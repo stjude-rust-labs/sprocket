@@ -43,7 +43,7 @@ const FUNCTION_NAME: &str = "read_objects";
 /// If the file is empty or contains only a header line, an empty array is
 /// returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_objects
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_objects>
 fn read_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);
