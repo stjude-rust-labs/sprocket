@@ -295,8 +295,9 @@ impl Rule for UnusedDocCommentsRule {
         - Enum Definitions
         - Enum Choices
 
-        Additionally, doc comments must be touching the item they intend to document with no blank
-        lines between, otherwise they are considered \"floating\"."
+        Additionally, outside the preamble, doc comments must immediately precede the item they \
+         intend to document with no blank lines between, otherwise they are considered \
+         \"floating\"."
     }
 
     fn examples(&self) -> &'static [Example] {
