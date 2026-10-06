@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Fixed
+### Fixed
 
 * Materializing a Git dependency from an existing cache leaf no longer deletes
   and re-checks-out the folders already materialized there, which raced with
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.2 - 2026-08-26
 
-#### Added
+### Added
 
 * Added `GitPlatform`, `TrustedIdentity`, `VerifyLockedReport`, and
   `CacheCleanStats`, along with `GitResolver::discover_default_branch`, to the
@@ -95,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.2.1 - 2026-06-26
 
-#### Changed
+### Changed
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
@@ -103,7 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.1 - 2026-05-14
 
-#### Added
+### Added
 
 * Initial implementation of the `wdl-modules` crate, the pure-data-and-algorithms
   layer of the WDL module system. This release covers manifest and lockfile

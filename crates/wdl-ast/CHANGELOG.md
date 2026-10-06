@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.27.0 - 2026-09-16
 
-#### Removed
+### Removed
 
 * `crate::doc_comments()` is no longer a public API, use the `Documented` trait instead ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
 
@@ -19,13 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.26.0 - 2026-07-15
 
-#### Added
+### Added
 
 * Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
 
 ## 0.25.0 - 2026-06-26
 
-#### Changed
+### Changed
 
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 
@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.24.0 - 2026-06-03
 
-#### Added
+### Added
 
 * `CommentKind` and `Comment::kind()` to determine the type of a comment ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
 
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.23.0 - 2026-05-14
 
-#### Added
+### Added
 
 * Support for the WDL 1.4 three-form import syntax, including new
   `ImportForm` and `ImportSource` enums on `ImportStatement` and new
@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.22.0 - 2026-03-12
 
-#### Added
+### Added
 
 * Support for identifying and parsing comments with special meaning (i.e. directives and doc comments) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 * `Documented` trait for extracting doc comments from supported node types ([#659](https://github.com/stjude-rust-labs/sprocket/pull/659)).
@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.21.0 - 02-11-2026
 
-#### Added
+### Added
 
 * Support for printing `EnumDefinition`s via `EnumDefinition::display()` and `StructDefinition`s via `Display` ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551)).
 * Support `keyword` method on `CommandSection`, `RequirementsSection`, `MetadataSection`, `ParameterMetadataSection`, `ScatterStatement` and `CallStatement` for accessing the associated keyword for the syntax node ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
@@ -79,14 +79,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.20.0 - 01-12-2026
 
-#### Fixed
+### Fixed
 
 * Fixed `allows_nested_inputs()` not handling WDL v1.3 workflows
   ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
 
 ## 0.19.0 - 11-21-2025
 
-#### Added
+### Added
 
 * Added AST representation for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
@@ -95,10 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
 
-
 ## 0.18.0 - 10-14-2025
 
-#### Changed
+### Changed
 
 * `LiteralString::text()` method signature changed to return an `Option<LiteralStringText<N::Token>>` instead of `Option<StringText<N::Token>>` ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388)).
 
@@ -112,13 +111,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.0 - 08-13-2025
 
-#### Fixed
+### Fixed
 
 * Workflow markdown styling ([#540](https://github.com/stjude-rust-labs/wdl/pull/540)).
 
 ## 0.15.1 - 07-31-2025
 
-#### Added
+### Added
 
 * Added support used by LSP hovers and completions ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 
@@ -128,17 +127,17 @@ Mistaken release, please use `0.15.1`
 
 ## 0.14.0 - 07-09-2025
 
-#### Changed
+### Changed
 
 * Removed inherent impls of `can_cast()`, `cast()`, and `inner()` for `Expr` and `PlaceholderOption` that were redundant with methods on `AstNode` ([#480](https://github.com/stjude-rust-labs/wdl/pull/480)).
 
 ## 0.13.0 - 05-27-2025
 
-#### Fixed
+### Fixed
 
 * If a WDL >=v1.2 workflow has a non-boolean value for the "allow nested inputs" hint, the metadata will also be
-    searched for `allowNestedInputs: <bool>` instead of prematurely dis-allowing nested inputs
-    ([#445](https://github.com/stjude-rust-labs/wdl/pull/445)).
+  searched for `allowNestedInputs: <bool>` instead of prematurely dis-allowing nested inputs
+  ([#445](https://github.com/stjude-rust-labs/wdl/pull/445)).
 
 #### Dependencies
 
@@ -150,14 +149,14 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.12.0 - 05-01-2025
 
-#### Changed
+### Changed
 
 * AST validation has been moved from this crate to `wdl-analysis` ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
-    * This removed the `validation` and `visitor` modules from this crate.
+  * This removed the `validation` and `visitor` modules from this crate.
 
 ## 0.11.0 - 04-01-2025
 
-#### Changed
+### Changed
 
 * Refactored AST API to support different syntax tree element representations ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
@@ -169,7 +168,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.10.0 - 01-17-2025
 
-#### Added
+### Added
 
 * Added AST support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Added `braced_scope_span` and `heredoc_scope_span` methods to `AstNodeExt` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
@@ -189,17 +188,17 @@ _A patch bump was required because an error was made during the release of `wdl`
   end of commands and multiline strings when using Windows line endings ([#291](https://github.com/stjude-rust-labs/wdl/pull/291)).
 * Fixed bug in `strip_whitespace()` that erroneously stripped characters from the first line when it had content.
   Closed [issue #268](https://github.com/stjude-rust-labs/wdl/issues/268) ([#271](https://github.com/stjude-rust-labs/wdl/pull/271)).
-* Fixed same #268 bug in mutliline strings as well as command sections  ([#272](https://github.com/stjude-rust-labs/wdl/pull/272)).
+* Fixed same #268 bug in mutliline strings as well as command sections ([#272](https://github.com/stjude-rust-labs/wdl/pull/272)).
 
 ## 0.9.0 - 10-22-2024
 
-#### Changed
+### Changed
 
 * Refactored the AST token struct definitions to use macros ([#233](https://github.com/stjude-rust-labs/wdl/pull/233)).
 
 ## 0.8.0 - 10-16-2024
 
-#### Changed
+### Changed
 
 * Introduce a guarantee that each CST element (node or token) has one and only one analogous AST element ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
 
@@ -209,16 +208,15 @@ _A patch bump was required because an error was made during the release of `wdl`
 * Split hint section representation into `TaskHintsSection` and
   `WorkflowHintsSection` as workflow hints [do not support expressions](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#workflow-hints) ([#176](https://github.com/stjude-rust-labs/wdl/pull/176))
 
-
 ## 0.7.1 - 09-16-2024
 
-#### Fixed
+### Fixed
 
 * updated to latest wdl-grammar (v0.8.0)
 
 ## 0.7.0 - 09-16-2024
 
-#### Added
+### Added
 
 * moved "except comment" logic from `wdl-lint` into `wdl-ast`.
   This is for future support of disabling certain diagnostics such as "unused import" and the like.
@@ -235,7 +233,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.6.0 - 08-22-2024
 
-#### Added
+### Added
 
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Add `as_*()` and `into_*()` methods for each enum item in `Expr` and `LiteralExpr`
@@ -258,7 +256,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.5.0 - 07-17-2024
 
-#### Added
+### Added
 
 * Add support for `meta` and `parameter_meta` sections in struct definitions in
   WDL 1.2 ([#127](https://github.com/stjude-rust-labs/wdl/pull/127)).
@@ -277,7 +275,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 * Changed the API for parsing documents; `Document::parse` now returns
   `(Document, Vec<Diagnostic>)` rather than a `Parse` type ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
 * The `Type` enumeration, and friends, in `wdl-ast` no longer implement
-  `PartialOrd`  and `Ord`; those implementations have moved to the sort lint
+  `PartialOrd` and `Ord`; those implementations have moved to the sort lint
   rule ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
 * The `PartialEq` implementation of the `Type` enumeration, and friends, is now
   implemented in terms of WDL type equivalence and not by CST node equivalence
@@ -285,7 +283,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.4.0 - 06-28-2024
 
-#### Added
+### Added
 
 * Added a method to `ImportStatement` for deriving the namespace from the
   import URI ([#91](https://github.com/stjude-rust-labs/wdl/pull/91)).
@@ -304,7 +302,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.3.0 - 06-13-2024
 
-#### Fixed
+### Fixed
 
 * Fixed the experimental parser validation to check negative numbers in
   metadata sections ([#66](https://github.com/stjude-rust-labs/wdl/pull/66)).
@@ -329,13 +327,13 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 * Fix ignoring comments in expressions ([#23](https://github.com/stjude-rust-labs/wdl/pull/23)).
 
-#### Changed
+### Changed
 
 * Conform to definition of body as outlined in #12 (#62, contributed by @a-frantz)
 * Changes the singular `Group` feature of lint warnings to one or more `Tags` (#37, contributed by @a-frantz)
 
 ## 0.1.0 — 12-17-2023
 
-#### Added
+### Added
 
 * Adds the initial version of the crate.
