@@ -6,17 +6,18 @@
 //! These directories can be arbitrarily nested to group similar tests together.
 //!
 //! Each test can contain the following files (but all are optional):
-//!   * `args` - entrypoint of each test; contains the arguments to pass to
-//!     `sprocket` (without "sprocket").
-//!   * `inputs` - a directory containing the starting files that the test will
-//!     run with. The contents of this directory are copied to a temp directory
-//!     and the temporary directory used as the command's working directory.
-//!   * `outputs` - a directory containing the expected ending files that the
-//!     temp directory will contain. If a test does not need to verify the
-//!     resulting directory contents, it may omit an `outputs` directory.
-//!   * `stdout` - the expected stdout from the task.
-//!   * `stderr` - the expected stderr from the task.
-//!   * `exit_code` - the expected exit code from the task.
+//!
+//! * `args` - entrypoint of each test; contains the arguments to pass to
+//!   `sprocket` (without "sprocket").
+//! * `inputs` - a directory containing the starting files that the test will
+//!   run with. The contents of this directory are copied to a temp directory
+//!   and the temporary directory used as the command's working directory.
+//! * `outputs` - a directory containing the expected ending files that the
+//!   temp directory will contain. If a test does not need to verify the
+//!   resulting directory contents, it may omit an `outputs` directory.
+//! * `stdout` - the expected stdout from the task.
+//! * `stderr` - the expected stderr from the task.
+//! * `exit_code` - the expected exit code from the task.
 //!
 //! The expected files may be automatically generated or updated by setting the
 //! `BLESS` environment variable when running this test.

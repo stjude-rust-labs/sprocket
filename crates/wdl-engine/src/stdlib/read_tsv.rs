@@ -63,7 +63,7 @@ impl TsvHeader {
 /// table as an Array[String]. There is no requirement that the rows of the
 /// table are all the same length.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv>
 fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);
@@ -126,7 +126,7 @@ fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diag
 /// specified field names override those in the file's header (i.e., the header
 /// line is ignored).
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv>
 fn read_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert!(context.arguments.len() >= 2 && context.arguments.len() <= 3);

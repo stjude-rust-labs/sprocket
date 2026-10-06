@@ -255,6 +255,7 @@ fn token_ty(token: &SyntaxToken, document: &Document) -> Option<(SemanticTokenTy
 ///
 /// This inspects the identifier's parent and ancestor nodes in the CST to
 /// determine its role, checking for:
+///
 /// 1. Definition sites (task, workflow, struct, variable/parameter
 ///    declarations).
 /// 2. Type references.

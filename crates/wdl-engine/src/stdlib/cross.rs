@@ -21,7 +21,7 @@ use crate::Value;
 ///
 /// If either of the input arrays is empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#cross
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#cross>
 fn cross(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(

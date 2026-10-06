@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Changed
+### Changed
 
 * `find_all_references` and `rename` now search only the defining document for
   symbols that cannot be referenced by importers, such as private declarations,
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.26.0 - 2026-09-16
 
-#### Added
+### Added
 
 * Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
   the benefits coming on any _subsequent_ requests. Before, any change in the document triggered a **full** re-analysis.
@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.25.0 - 2026-08-26
 
-#### Added
+### Added
 
 * `ImportedTask` and `ImportedWorkflow` are now public and expose `name()`,
   `document()`, and source accessors, while `Document::imported_task_by_name`
@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.23.0 - 2026-07-15
 
-#### Added
+### Added
 
 * Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 * `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
@@ -110,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.22.0 - 2026-06-26
 
-#### Changed
+### Changed
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
@@ -120,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.21.0 - 2026-06-03
 
-#### Added
+### Added
 
 * Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
 
@@ -135,7 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.20.0 - 2026-05-14
 
-#### Added
+### Added
 
 * `FeatureFlags::wdl_1_4` behind `feature_flags.wdl_1_4` in
   `sprocket.toml`, defaulting to `false` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
@@ -144,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.19.1 - 2026-04-22
 
-#### Fixed
+### Fixed
 
 * Optional-to-default call input coercion (passing an optional value to
   a non-optional input with a default) is no longer gated behind WDL
@@ -153,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.19.0 - 2026-04-02
 
-#### Changed
+### Changed
 
 * Type mismatch diagnostics now distinguish between custom types and references
   to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
@@ -168,7 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.18.0 - 2026-03-12
 
-#### Changed
+### Changed
 
 * Analysis now emits diagnostics for use of `Map` types or map literals where
   the key type is optional ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
@@ -203,7 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.17.0 - 02-11-2026
 
-#### Fixed
+### Fixed
 
 * Fixed a panic when a workflow contains more than one non-empty `output`
   section ([#568](https://github.com/stjude-rust-labs/sprocket/pull/568)).
@@ -211,7 +211,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.0 - 01-12-2026
 
-#### Changed
+### Changed
 
 * WDL v1.3 is now enabled by default; the `wdl_1_3` feature flag is deprecated
   and will emit a warning if explicitly disabled
@@ -230,7 +230,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.15.0 - 11-21-2025
 
-#### Added
+### Added
 
 * Added type analysis and validation for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
@@ -248,10 +248,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.14.0 - 10-14-2025
 
-#### Changed
+### Changed
 
 * `Document.diagnostics` was split into `parse_diagnostics` and `analysis_diagnostics` ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
-    * The `Document::diagnostics()` method still returns the full set of both diagnostics, but it is returned as an `Iterator` now instead of a slice.
+  * The `Document::diagnostics()` method still returns the full set of both diagnostics, but it is returned as an `Iterator` now instead of a slice.
 
 #### Added
 
@@ -266,7 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.13.0 - 09-15-2025
 
-#### Changed
+### Changed
 
 * Added a better error message for array and map type resolution issues
   ([#349](https://github.com/stjude-rust-labs/sprocket/pull/349)).
@@ -283,7 +283,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added semantic highlighting support for the WDL Language Server ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
 
-#### Added
+### Added
 
 * Added support for ignorefiles, although by default it is not enabled ([#565](https://github.com/stjude-rust-labs/wdl/pull/565)).
 * Added rename support for the WDL Language Server ([#563](https://github.com/stjude-rust-labs/wdl/pull/563)).
@@ -291,7 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.11.0 - 07-31-2025
 
-#### Added
+### Added
 
 * Added code completion support for the WDL Language Server ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 * Added an `ArrayType::unqualified` method to cheaply drop the `+` qualifier ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
@@ -302,7 +302,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.10.0 - 07-09-2025
 
-#### Added
+### Added
 
 * Added support for struct members, struct literals and call inputs in `goto_definition` ([#491](https://github.com/stjude-rust-labs/wdl/pull/491)).
 * Added `find references` support for WDL Language Server ([#484](https://github.com/stjude-rust-labs/wdl/pull/484)).
@@ -318,16 +318,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed incorrect assertion pointed out in [#500](https://github.com/stjude-rust-labs/wdl/issues/500) ([#515](https://github.com/stjude-rust-labs/wdl/issues/515)).
 
-
 ## 0.9.0 - 05-27-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.8.2 - 05-05-2025
 
-#### Changed
+### Changed
 
 * `wdl_analysis::document::Document` was moved to `wdl_analysis::Document` ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
 
@@ -337,7 +336,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.8.0 - 05-01-2025
 
-#### Changed
+### Changed
 
 * AST validation now occurs as part of analysis instead of during parsing ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
 
@@ -356,9 +355,9 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.7.0 - 04-01-2025
 
-#### Added
+### Added
 
-* `missing_call_input` now generates a warning for missing inputs when nested inputs are allowed, without changing the existing error behavior ([#344]https://github.com/stjude-rust-labs/wdl/pull/344).
+* `missing_call_input` now generates a warning for missing inputs when nested inputs are allowed, without changing the existing error behavior ([#344](https://github.com/stjude-rust-labs/wdl/pull/344)).
 * Added `path` method to `Document` ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 
 #### Changed
@@ -379,7 +378,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.6.0 - 01-17-2025
 
-#### Added
+### Added
 
 * Added analysis support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Fixed missing diagnostic for unknown local name when using the abbreviated
@@ -432,7 +431,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.5.0 - 10-22-2024
 
-#### Changed
+### Changed
 
 * Refactored the `DocumentScope` API to simply `Document` and exposed more
   information about tasks and workflows such as their inputs and outputs ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
@@ -441,7 +440,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.4.0 - 10-16-2024
 
-#### Added
+### Added
 
 * Implemented `UnusedImport`, `UnusedInput`, `UnusedDeclaration`, and
   `UnusedCall` analysis warnings ([#211](https://github.com/stjude-rust-labs/wdl/pull/211))
@@ -470,7 +469,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.3.0 - 09-16-2024
 
-#### Added
+### Added
 
 * Implemented type checking in task runtime, requirements, and hints sections
   ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
@@ -488,7 +487,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.2.0 - 08-22-2024
 
-#### Added
+### Added
 
 * Implemented type checking of struct definitions ([#160](https://github.com/stjude-rust-labs/wdl/pull/160)).
 * Implemented a type system and representation of the WDL standard library for
@@ -502,6 +501,6 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.1.0 - 07-17-2024
 
-#### Added
+### Added
 
 * Added the `wdl-analysis` crate for analyzing WDL documents ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).

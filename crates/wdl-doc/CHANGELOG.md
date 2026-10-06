@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.2 - 2026-09-16
 
-#### Fixed
+### Fixed
 
 * CSS classes in authored Markdown HTML are preserved in generated documentation
   pages ([#1167](https://github.com/stjude-rust-labs/sprocket/pull/1167)).
 
 ## 0.16.1 - 2026-08-26
 
-#### Fixed
+### Fixed
 
 * Task and workflow pages no longer render an empty Outputs section when no outputs are declared ([#199](https://github.com/stjude-rust-labs/sprocket/issues/199)).
 
@@ -32,13 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.14.1 - 2026-04-22
 
-#### Fixed
+### Fixed
 
 * Large logos will no longer break the layout ([#789](https://github.com/stjude-rust-labs/sprocket/pull/789)).
 
 ## 0.14.0 - 2026-04-02
 
-#### Changed
+### Changed
 
 * `homepage` has been renamed to `index_page` to disambiguate it from `homepage_url` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * `additional_javascript` has been generalized to `additional_html` and now supports inserting HTML in multiple locations at once ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.13.0 - 2026-03-12
 
-#### Added
+### Added
 
 * Added doc comment support for workflows and tasks ([#656](https://github.com/stjude-rust-labs/sprocket/pull/656))
 * Added content-aware search backed by [Pagefind](https://pagefind.app/) ([#616](https://github.com/stjude-rust-labs/sprocket/pull/616)).
@@ -57,13 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.12.1 - 2026-02-12
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.12.0 - 02-11-2026
 
-#### Added
+### Added
 
 * Added `DocError` for concrete error reporting ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
 * Added support for enumerations ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.11.0 - 01-12-2026
 
-#### Added
+### Added
 
 * Added documentation generation placeholder for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 
@@ -95,25 +95,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.9.0 - 10-14-2025
 
-#### Added
+### Added
 
 * Added a toggle for dark/light mode switching ([#367](https://github.com/stjude-rust-labs/sprocket/pull/367)).
 
 #### Changed
 
 * WDL documents with analysis errors **but not parse errors** can now be processed ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
-    * prior to this, analysis errors prevented processing
+  * prior to this, analysis errors prevented processing
 
 ## 0.8.0 - 09-15-2025
 
-#### Changed
+### Changed
 
 * A JavaScript file can be provided that will be read and have its contents embedded in the HTML source of each page ([#591](https://github.com/stjude-rust-labs/wdl/pull/591)).
 * The initial left sidebar view is now set to the "Full Directory" view instead of the "Workflows" view and is also now configurable ([#591](https://github.com/stjude-rust-labs/wdl/pull/591)).
 
 ## 0.7.0 - 08-13-2025
 
-#### Added
+### Added
 
 * Added support for ignorefiles, although by default it is not enabled ([#565](https://github.com/stjude-rust-labs/wdl/pull/565)).
 * Custom logo support for the top of the left sidebar ([#559](https://github.com/stjude-rust-labs/wdl/pull/559)).
@@ -124,25 +124,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.6.0 - 07-31-2025
 
-#### Changed
+### Changed
 
 * `sprocket run --name` changed to `sprocket run --entrypoint` to match downstream API change ([#550](https://github.com/stjude-rust-labs/wdl/pull/550)).
 
 ## 0.5.0 - 07-09-2025
 
-#### Added
+### Added
 
 * `wdl-doc` crate is feature-complete-enough for a beta release :tada: ([#339](https://github.com/stjude-rust-labs/wdl/pull/339)).
 
 ## 0.4.0 - 05-27-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.3.2 - 05-05-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
@@ -152,13 +152,13 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.3.0 - 05-01-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.2.0 - 04-01-2025
 
-#### Added
+### Added
 
 * Basic CSS styling using TailwindCSS ([#262](https://github.com/stjude-rust-labs/wdl/pull/262)).
 
@@ -171,6 +171,6 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.1.0 - 01-17-2025
 
-#### Added
+### Added
 
 * `wdl-doc` crate for documenting WDL codebases ([#258](https://github.com/stjude-rust-labs/wdl/pull/248)).
