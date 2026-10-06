@@ -1,0 +1,5 @@
+error: failed to deserialize configuration file `sprocket.toml`
+  ┌─ sprocket.toml:2:8
+  │
+2 │ task = "snake-case"
+  │        ^^^^^^^^^^^^ expected one of: snake_case, screaming_snake_case, camel_case, pascal_case

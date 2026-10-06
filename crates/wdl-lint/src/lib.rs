@@ -146,13 +146,12 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
 fn all_rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
     let rules: Vec<Box<dyn Rule + Send + Sync>> = vec![
         Box::new(rules::HereDocCommandsRule::new(config)),
-        Box::new(rules::SnakeCaseRule::new(config)),
+        Box::new(rules::NamingConventionRule::new(config)),
         Box::new(rules::RuntimeSectionRule::new(config)),
         Box::new(rules::MissingParameterMetaRule::new(config)),
         Box::new(rules::ExtraneousParameterMetaRule::new(config)),
         Box::new(rules::ParameterMetaOrderRule::new(config)),
         Box::new(rules::ImportPlacementRule::new(config)),
-        Box::new(rules::PascalCaseRule::new(config)),
         Box::new(rules::MetaSectionsRule::new(config)),
         Box::new(rules::CallInputKeywordRule::new(config)),
         Box::new(rules::MetaDescriptionRule::new(config)),

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added the `NamingConvention` lint rule, which enforces a configurable case style (`snake_case`, `screaming_snake_case`, `camel_case`, or `pascal_case`) for task, workflow, variable, type, and struct member names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `min_length` and `check_prefixes` parameters to the `InputName` and `OutputName` lint rules ([#1253](https://github.com/stjude-rust-labs/sprocket/pull/1253)).
@@ -44,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Removed the `-e, --except` argument from the `analyzer` subcommand. Use the `check.disable` list instead ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * Removed the `tags` list from the `[check]` configuration table ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 * Removed `--tag` argument from `check`/`lint` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Removed the `SnakeCase` and `PascalCase` lint rules in favor of `NamingConvention`; `#@ except` directives that name them must be updated ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * Removed `--with-doc-comments` from the `doc` command, as they are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
 * Removed many CL args from the `doc` command: `--homepage-url`, `--github-url`, `--slack-url`, `--light-mode`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
 * Removed many CL args from the `format` command: `--with-tabs`, `--indentation-size`, `--max-line-length`, `--newline-style`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
