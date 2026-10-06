@@ -2,7 +2,7 @@
 
 version 1.3
 
-#@ except: DeprecatedRuntimeSection, RequirementsSection, SnakeCase
+#@ except: DeprecatedRuntimeSection, RequirementsSection, SnakeCase, NamingConvention
 task foo {
     meta {
         description: "This is a test of the configurable output name checks"

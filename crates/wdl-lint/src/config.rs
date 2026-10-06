@@ -12,6 +12,7 @@ use wdl_analysis::Rule as _;
 use wdl_ast::Severity;
 
 use crate::rules::BashSetOption;
+use crate::rules::CaseStyle;
 
 /// The severity of a rule's diagnostics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Toml, JsonSchema)]
@@ -64,6 +65,17 @@ pub struct ConfigField {
     pub default: String,
 }
 
+/// Gets the name of a configuration field, which is its explicit name if it
+/// has one (raw identifiers such as `r#type` need one).
+macro_rules! field_name {
+    ($field:ident) => {
+        stringify!($field)
+    };
+    ($field:ident, $name:tt) => {
+        $name
+    };
+}
+
 /// Defines the rule configuration.
 ///
 /// Each rule gets its own configuration struct with a `severity` field and any
@@ -81,7 +93,7 @@ macro_rules! define_rules_config {
                     severity = $l_severity:expr;
                     $(
                         $(#[doc = $p_doc:literal])+
-                        $p_field:ident: $p_ty:ty = $p_default:expr;
+                        $p_field:ident $(@ $p_name:tt)?: $p_ty:ty = $p_default:expr;
                     )*
                 }
             )+
@@ -120,6 +132,11 @@ macro_rules! define_rules_config {
                 pub severity: RuleSeverity,
                 $(
                     $(#[doc = $p_doc])+
+                    $(
+                        #[serde(rename = $p_name)]
+                        #[toml(rename = $p_name)]
+                        #[schemars(rename = $p_name)]
+                    )?
                     #[toml(default = $p_default)]
                     pub $p_field: $p_ty,
                 )*
@@ -155,7 +172,7 @@ macro_rules! define_rules_config {
                         },
                         $(
                             ConfigField {
-                                name: stringify!($p_field),
+                                name: field_name!($p_field $(, $p_name)?),
                                 description: concat!($($p_doc, '\n',)*).trim(),
                                 default: serde_json::to_string(&default.$p_field)
                                     .expect("should serialize"),
@@ -419,6 +436,80 @@ define_rules_config! {
         "MutableContainerTag" => mutable_container_tag: MutableContainerTagConfig {
             severity = RuleSeverity::Note;
         }
+        "NamingConvention" => naming_convention: NamingConventionConfig {
+            severity = RuleSeverity::Warning;
+            /// The case style for task names.
+            ///
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.NamingConvention]
+            /// task = "pascal_case"
+            /// ```
+            task: CaseStyle = CaseStyle::SnakeCase;
+            /// The case style for workflow names.
+            ///
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.NamingConvention]
+            /// workflow = "pascal_case"
+            /// ```
+            workflow: CaseStyle = CaseStyle::SnakeCase;
+            /// The case style for input, output, and private declaration
+            /// names.
+            ///
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.NamingConvention]
+            /// variable = "camel_case"
+            /// ```
+            variable: CaseStyle = CaseStyle::SnakeCase;
+            /// The case style for the names of user-defined types: structs,
+            /// enums, and enum choices.
+            ///
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.NamingConvention]
+            /// type = "camel_case"
+            /// ```
+            r#type @ "type": CaseStyle = CaseStyle::PascalCase;
+            /// The case style for struct member names.
+            ///
+            /// One of `snake_case`, `screaming_snake_case`, `camel_case`, or
+            /// `pascal_case`. Defaults to `snake_case`.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.NamingConvention]
+            /// struct_member = "camel_case"
+            /// ```
+            struct_member: CaseStyle = CaseStyle::SnakeCase;
+            /// List of names to ignore.
+            ///
+            /// ##### Example
+            ///
+            /// ```toml
+            /// [check.rules.NamingConvention]
+            /// allowed_names = ["Foo"]
+            /// ```
+            allowed_names: Vec<String> = Vec::new();
+        }
         "OutputName" => output_name: OutputNameConfig {
             severity = RuleSeverity::Note;
             /// The minimum length of output names; shorter names are flagged.
@@ -453,9 +544,6 @@ define_rules_config! {
         "ParameterMetaOrder" => parameter_meta_order: ParameterMetaOrderConfig {
             severity = RuleSeverity::Note;
         }
-        "PascalCase" => pascal_case: PascalCaseConfig {
-            severity = RuleSeverity::Warning;
-        }
         "RedundantNone" => redundant_none: RedundantNoneConfig {
             severity = RuleSeverity::Note;
         }
@@ -473,18 +561,6 @@ define_rules_config! {
         }
         "ShellCheck" => shellcheck: ShellCheckConfig {
             severity = RuleSeverity::Note;
-        }
-        "SnakeCase" => snake_case: SnakeCaseConfig {
-            severity = RuleSeverity::Warning;
-            /// List of names to ignore.
-            ///
-            /// ##### Example
-            ///
-            /// ```toml
-            /// [check.rules.SnakeCase]
-            /// allowed_names = ["Foo"]
-            /// ```
-            allowed_names: Vec<String> = Vec::new();
         }
         "FlaggedComment" => flagged_comment: FlaggedCommentConfig {
             severity = RuleSeverity::Note;
