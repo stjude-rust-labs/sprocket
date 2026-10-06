@@ -949,8 +949,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft"
-version = "0.11.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?branch=main#de8e1cbce159c6a01676e7996a1e729b9f5706ff"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc8307b794a42fca901ce7c1a105ffaba911bda786b516ba602bb4625be77df8"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -960,8 +961,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-config"
-version = "0.7.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?branch=main#de8e1cbce159c6a01676e7996a1e729b9f5706ff"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d31db3ac978aae3f394f75e3dc1d6fe3ae97cde370946f797b1b68bf6a8ecaac"
 dependencies = [
  "bon",
  "config",
@@ -974,8 +976,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-docker"
-version = "0.6.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?branch=main#de8e1cbce159c6a01676e7996a1e729b9f5706ff"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c7a2cd90086a37cdc229ba09502d5f46a5bbd97297338c4cd039eb9cfbf7ecc"
 dependencies = [
  "anyhow",
  "bollard",
@@ -994,8 +997,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-engine"
-version = "0.11.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?branch=main#de8e1cbce159c6a01676e7996a1e729b9f5706ff"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "695f84653e878b24ebbe741072d83a0da63a2d8bb4c97d61147b783d5bab77bb"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1028,8 +1032,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-events"
-version = "0.2.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?branch=main#de8e1cbce159c6a01676e7996a1e729b9f5706ff"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fc70a67af3db68d640e9f13ce68f049f0320531f40f316ef592a1cf3c3577a2"
 dependencies = [
  "bytes",
  "nonempty",
