@@ -15,6 +15,7 @@ use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
@@ -28,6 +29,7 @@ use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedCommandPart;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -102,7 +104,7 @@ struct Problem {
 }
 
 /// Creates a diagnostic for an unquoted value.
-fn unquoted_value(problem: &Problem) -> Diagnostic {
+fn unquoted_value(severity: Severity, problem: &Problem) -> Diagnostic {
     let ty = &problem.ty;
     let (message, fix) = match (problem.kind, &problem.name) {
         (ProblemKind::Placeholder, _) => (
@@ -130,7 +132,7 @@ fn unquoted_value(problem: &Problem) -> Diagnostic {
         ),
     };
 
-    Diagnostic::warning(message)
+    Diagnostic::new(severity, message)
         .with_rule(ID)
         .with_highlight(problem.span)
         .with_fix(fix)
@@ -457,10 +459,22 @@ impl Analyzer<'_, '_> {
 }
 
 /// Detects placeholders that are subject to shell word splitting.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct ShellSplittingRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The document being linted.
     document: Option<Document>,
+}
+
+impl ShellSplittingRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.shellcheck.diagnostic_severity(),
+            document: Default::default(),
+        }
+    }
 }
 
 impl Rule for ShellSplittingRule {
@@ -573,7 +587,7 @@ task view {
 
 impl Visitor for ShellSplittingRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.document = Default::default();
     }
 
     fn document(
@@ -623,7 +637,7 @@ impl Visitor for ShellSplittingRule {
         problems.sort_by_key(|p| p.span.start());
         for problem in problems {
             diagnostics.exceptable_add(
-                unquoted_value(&problem),
+                unquoted_value(self.severity, &problem),
                 section.inner(),
                 &self.exceptable_nodes(),
             );

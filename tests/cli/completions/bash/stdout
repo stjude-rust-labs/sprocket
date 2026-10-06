@@ -606,20 +606,12 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__analyzer)
-            opts="-e -v -q -m -c -s -h -V --stdio --lint --except --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            opts="-v -q -m -c -s -h -V --stdio --lint --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --except)
-                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
-                    return 0
-                    ;;
-                -e)
-                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
-                    return 0
-                    ;;
                 --color)
                     COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
                     return 0
@@ -648,22 +640,22 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__check)
-            opts="-e -l -v -q -m -c -s -h -V --except --tag --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --generate-baseline --no-baseline --lint --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            opts="-l -v -q -m -c -s -h -V --off --warn --note --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --generate-baseline --no-baseline --lint --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --except)
-                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                --off)
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder PascalCase RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
-                -e)
-                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                --warn)
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder PascalCase RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
-                --tag)
-                    COMPREPLY=($(compgen -W "All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                --note)
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder PascalCase RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 --color)
@@ -3424,18 +3416,18 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__explain)
-            opts="-t -f -v -q -m -c -s -h -V --tag --definitions --list-all-rules --list-all-tags --format --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion"
+            opts="-t -f -v -q -m -c -s -h -V --tag --definitions --list-all-rules --list-all-tags --format --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder PascalCase RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 --tag)
-                    COMPREPLY=($(compgen -W "All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 -t)
-                    COMPREPLY=($(compgen -W "All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 --format)
@@ -4422,22 +4414,22 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__lint)
-            opts="-e -v -q -m -c -s -h -V --except --tag --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --generate-baseline --no-baseline --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            opts="-v -q -m -c -s -h -V --off --warn --note --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --generate-baseline --no-baseline --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --except)
-                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                --off)
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder PascalCase RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
-                -e)
-                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                --warn)
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder PascalCase RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
-                --tag)
-                    COMPREPLY=($(compgen -W "All Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                --note)
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder PascalCase RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting SnakeCase UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 --color)

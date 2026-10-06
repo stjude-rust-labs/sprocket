@@ -183,7 +183,7 @@ fn all_rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::new(rules::EmptyOutputs::new(config)),
         Box::new(rules::BashSetSyntax::new(config)),
         Box::new(rules::InlineInstall::new(config)),
-        Box::new(rules::ShellCheckRule::new(config)),
+        Box::new(rules::ShellSplittingRule::new(config)),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules

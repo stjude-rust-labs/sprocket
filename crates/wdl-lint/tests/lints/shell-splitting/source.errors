@@ -1,167 +1,321 @@
 warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:23:24
+   ┌─ tests/lints/shell-splitting/source.wdl:24:24
    │
-23 │         samtools index ~{bam}
+24 │         samtools index ~{bam}
    │                        ^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:24:32
+   ┌─ tests/lints/shell-splitting/source.wdl:25:32
    │
-24 │         samtools view --output=~{prefix}.bam
+25 │         samtools view --output=~{prefix}.bam
    │                                ^^^^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `Directory` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:25:12
+   ┌─ tests/lints/shell-splitting/source.wdl:26:12
    │
-25 │         ls ~{reference}/*
+26 │         ls ~{reference}/*
    │            ^^^^^^^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:26:24
+   ┌─ tests/lints/shell-splitting/source.wdl:27:24
    │
-26 │         cat ~{sep(" ", files)}
+27 │         cat ~{sep(" ", files)}
    │                        ^^^^^
    │
    = fix: quote each element with `squote(files)` or `quote(files)`
 
 warning[ShellSplitting]: unquoted `String?` value is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:27:62
+   ┌─ tests/lints/shell-splitting/source.wdl:28:62
    │
-27 │         cat "~{bam}" ~{if defined(region) then "--region " + region else ""}
+28 │         cat "~{bam}" ~{if defined(region) then "--region " + region else ""}
    │                                                              ^^^^^^
    │
    = fix: surround the value with quotes inside the placeholder expression (e.g., `"'~{region}'"`)
 
-warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:28:25
+warning[ShellCheck]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   ┌─ tests/lints/shell-splitting/source.wdl:29:14
    │
-28 │         echo $(basename ~{bam})
+29 │         echo $(basename ~{bam})
+   │              ^^^^^^^^^^^^^^^^^^
+   │              │
+   │              SC2005[style]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   │              more info: https://www.shellcheck.net/wiki/SC2005
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: Quote this to prevent word splitting.
+   ┌─ tests/lints/shell-splitting/source.wdl:29:14
+   │
+29 │         echo $(basename ~{bam})
+   │              ^^^^^^^^^^^^^^^^^^
+   │              │
+   │              SC2046[warning]: Quote this to prevent word splitting.
+   │              more info: https://www.shellcheck.net/wiki/SC2046
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:29:25
+   │
+29 │         echo $(basename ~{bam})
    │                         ^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
-warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:29:26
+warning[ShellCheck]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   ┌─ tests/lints/shell-splitting/source.wdl:30:14
    │
-29 │         echo "$(basename ~{bam})"
+30 │         echo "$(basename ~{bam})"
+   │              ^^^^^^^^^^^^^^^^^^^^
+   │              │
+   │              SC2005[style]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   │              more info: https://www.shellcheck.net/wiki/SC2005
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:30:26
+   │
+30 │         echo "$(basename ~{bam})"
    │                          ^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
-warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:30:24
+warning[ShellCheck]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   ┌─ tests/lints/shell-splitting/source.wdl:31:14
    │
-30 │         echo `basename ~{bam}`
+31 │         echo `basename ~{bam}`
+   │              ^^^^^^^^^^^^^^^^^
+   │              │
+   │              SC2005[style]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   │              more info: https://www.shellcheck.net/wiki/SC2005
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: Use $(...) notation instead of legacy backticks `...`.
+   ┌─ tests/lints/shell-splitting/source.wdl:31:14
+   │
+31 │         echo `basename ~{bam}`
+   │              ^^^^^^^^^^^^^^^^^
+   │              │
+   │              SC2006[style]: Use $(...) notation instead of legacy backticks `...`.
+   │              more info: https://www.shellcheck.net/wiki/SC2006
+   │
+   = fix: did you mean `$(basename ${wdl})`?
+
+warning[ShellCheck]: Quote this to prevent word splitting.
+   ┌─ tests/lints/shell-splitting/source.wdl:31:14
+   │
+31 │         echo `basename ~{bam}`
+   │              ^^^^^^^^^^^^^^^^^
+   │              │
+   │              SC2046[warning]: Quote this to prevent word splitting.
+   │              more info: https://www.shellcheck.net/wiki/SC2046
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:31:24
+   │
+31 │         echo `basename ~{bam}`
    │                        ^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:31:14
+   ┌─ tests/lints/shell-splitting/source.wdl:32:14
    │
-31 │         [ -f ~{bam} ]
+32 │         [ -f ~{bam} ]
    │              ^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:32:19
+   ┌─ tests/lints/shell-splitting/source.wdl:33:19
    │
-32 │         wc -l <<< ~{prefix}
+33 │         wc -l <<< ~{prefix}
    │                   ^^^^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:33:15
+   ┌─ tests/lints/shell-splitting/source.wdl:34:15
    │
-33 │         cat > ~{prefix}.txt
+34 │         cat > ~{prefix}.txt
    │               ^^^^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
-warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:34:14
+warning[ShellCheck]: arr appears unused. Verify use (or export if used externally).
+   ┌─ tests/lints/shell-splitting/source.wdl:35:9
    │
-34 │         arr=(~{prefix} "~{bam}")
+35 │         arr=(~{prefix} "~{bam}")
+   │         ^^^
+   │         │
+   │         SC2034[warning]: arr appears unused. Verify use (or export if used externally).
+   │         more info: https://www.shellcheck.net/wiki/SC2034
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
+   ┌─ tests/lints/shell-splitting/source.wdl:35:14
+   │
+35 │         arr=(~{prefix} "~{bam}")
    │              ^^^^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `Array[File]` elements are subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:35:29
+   ┌─ tests/lints/shell-splitting/source.wdl:36:29
    │
-35 │         for f in ~{sep(" ", files)}; do echo "$f"; done
+36 │         for f in ~{sep(" ", files)}; do echo "$f"; done
    │                             ^^^^^
    │
    = fix: quote each element with `squote(files)` or `quote(files)`
 
 warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
-   ┌─ tests/lints/shell-splitting/source.wdl:36:22
+   ┌─ tests/lints/shell-splitting/source.wdl:37:22
    │
-36 │         echo "~{bam}"~{prefix}"~{bam}"
+37 │         echo "~{bam}"~{prefix}"~{bam}"
    │                      ^^^^^^^^^
    │
    = fix: surround the placeholder with double quotes
 
+warning[ShellCheck]: The surrounding quotes actually unquote this. Remove or escape them.
+   ┌─ tests/lints/shell-splitting/source.wdl:37:22
+   │
+37 │         echo "~{bam}"~{prefix}"~{bam}"
+   │                      ^^^^^^^^^
+   │                      │
+   │                      SC2027[warning]: The surrounding quotes actually unquote this. Remove or escape them.
+   │                      more info: https://www.shellcheck.net/wiki/SC2027
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: x appears unused. Verify use (or export if used externally).
+   ┌─ tests/lints/shell-splitting/source.wdl:78:9
+   │
+78 │         x=~{bam}
+   │         ^
+   │         │
+   │         SC2034[warning]: x appears unused. Verify use (or export if used externally).
+   │         more info: https://www.shellcheck.net/wiki/SC2034
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: 'local' is only valid in functions.
+   ┌─ tests/lints/shell-splitting/source.wdl:80:9
+   │
+80 │         local w=~{bam}
+   │         ^^^^^
+   │         │
+   │         SC2168[error]: 'local' is only valid in functions.
+   │         more info: https://www.shellcheck.net/wiki/SC2168
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: w appears unused. Verify use (or export if used externally).
+   ┌─ tests/lints/shell-splitting/source.wdl:80:15
+   │
+80 │         local w=~{bam}
+   │               ^
+   │               │
+   │               SC2034[warning]: w appears unused. Verify use (or export if used externally).
+   │               more info: https://www.shellcheck.net/wiki/SC2034
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: Quote expansions in case patterns to match literally rather than as a glob.
+   ┌─ tests/lints/shell-splitting/source.wdl:83:13
+   │
+83 │             ~{prefix}) echo "match" ;;
+   │             ^^^^^^^^^
+   │             │
+   │             SC2254[warning]: Quote expansions in case patterns to match literally rather than as a glob.
+   │             more info: https://www.shellcheck.net/wiki/SC2254
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   ┌─ tests/lints/shell-splitting/source.wdl:90:14
+   │
+90 │         echo "$(basename "~{bam}")"
+   │              ^^^^^^^^^^^^^^^^^^^^^^
+   │              │
+   │              SC2005[style]: Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+   │              more info: https://www.shellcheck.net/wiki/SC2005
+   │
+   = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: Remove indentation before end token (or use <<- and indent with tabs).
+   ┌─ tests/lints/shell-splitting/source.wdl:97:9
+   │
+97 │          EOF
+   │         ^
+   │         │
+   │         SC1039[error]: Remove indentation before end token (or use <<- and indent with tabs).
+   │         more info: https://www.shellcheck.net/wiki/SC1039
+   │
+   = fix: address the diagnostic as recommended in the message
+
 warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
-    ┌─ tests/lints/shell-splitting/source.wdl:117:22
+    ┌─ tests/lints/shell-splitting/source.wdl:126:22
     │
-117 │             --output ~{bam}.bai /
+126 │             --output ~{bam}.bai /
     │                      ^^^^^^
     │
     = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `File` placeholder is subject to word splitting
-    ┌─ tests/lints/shell-splitting/source.wdl:118:13
+    ┌─ tests/lints/shell-splitting/source.wdl:127:13
     │
-118 │             ~{bam}
+127 │             ~{bam}
     │             ^^^^^^
     │
     = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `String` value is subject to word splitting
-    ┌─ tests/lints/shell-splitting/source.wdl:148:29
+    ┌─ tests/lints/shell-splitting/source.wdl:160:29
     │
-148 │                     then "~{prefix}.R1.fastq.gz"
+160 │                     then "~{prefix}.R1.fastq.gz"
     │                             ^^^^^^
     │
     = fix: surround the value with quotes inside the placeholder expression (e.g., `"'~{prefix}'"`)
 
 warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting
-    ┌─ tests/lints/shell-splitting/source.wdl:176:45
+    ┌─ tests/lints/shell-splitting/source.wdl:187:66
     │
-176 │                 then "--ctg_name=~{sep(",", contigs)}"
-    │                                             ^^^^^^^
+187 │             ~{if length(contigs) > 0 then "--ctg_name=~{sep(",", contigs)}" else ""}
+    │                                                                  ^^^^^^^
     │
     = fix: quote each element with `squote(contigs)` or `quote(contigs)`
 
 warning[ShellSplitting]: unquoted `String?` placeholder is subject to word splitting
-    ┌─ tests/lints/shell-splitting/source.wdl:198:14
+    ┌─ tests/lints/shell-splitting/source.wdl:211:14
     │
-198 │         echo ~{default="none" name}
+211 │         echo ~{default="none" name}
     │              ^^^^^^^^^^^^^^^^^^^^^^
     │
     = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `String?` placeholder is subject to word splitting
-    ┌─ tests/lints/shell-splitting/source.wdl:199:14
+    ┌─ tests/lints/shell-splitting/source.wdl:212:14
     │
-199 │         echo ~{default="two words" name}
+212 │         echo ~{default="two words" name}
     │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │
     = fix: surround the placeholder with double quotes
 
 warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word splitting
-    ┌─ tests/lints/shell-splitting/source.wdl:202:24
+    ┌─ tests/lints/shell-splitting/source.wdl:215:24
     │
-202 │         echo ~{sep=" " names}
+215 │         echo ~{sep=" " names}
     │                        ^^^^^
     │
     = fix: quote each element with `squote(names)` or `quote(names)`

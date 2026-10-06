@@ -1,21 +1,22 @@
 ## This is a test of the `ShellSplitting` rule
 
 #@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands
-#@ except: MetaDescription, ParameterMetaMatched, ShellCheck
-
+#@ except: MetaDescription, MissingParameterMeta, ParameterMetaMatched
 version 1.2
 
 task unquoted {
-    meta {}
+    meta {
+    }
 
-    parameter_meta {}
+    parameter_meta {
+    }
 
     input {
         File bam
-        String? region
-        String prefix
         Directory reference
         Array[File] files
+        String prefix
+        String? region
     }
 
     command <<<
@@ -36,23 +37,27 @@ task unquoted {
         echo "~{bam}"~{prefix}"~{bam}"
     >>>
 
-    output {}
+    output {
+    }
 
-    requirements {}
+    requirements {
+    }
 }
 
 task quoted {
-    meta {}
+    meta {
+    }
 
-    parameter_meta {}
+    parameter_meta {
+    }
 
     input {
         File bam
-        String? region
-        String prefix
         Array[File] files
-        Int threads = 4
+        String prefix
+        String? region
         Boolean flag = true
+        Int threads = 4
     }
 
     command <<<
@@ -94,16 +99,20 @@ task quoted {
         EOF
     >>>
 
-    output {}
+    output {
+    }
 
-    requirements {}
+    requirements {
+    }
 }
 
 # https://github.com/stjude-rust-labs/sprocket/issues/605
 task issue_605 {
-    meta {}
+    meta {
+    }
 
-    parameter_meta {}
+    parameter_meta {
+    }
 
     input {
         File bam
@@ -118,21 +127,25 @@ task issue_605 {
             ~{bam}
     >>>
 
-    output {}
+    output {
+    }
 
-    requirements {}
+    requirements {
+    }
 }
 
 # https://github.com/stjude-rust-labs/sprocket/issues/823
 task issue_823 {
-    meta {}
+    meta {
+    }
 
-    parameter_meta {}
+    parameter_meta {
+    }
 
     input {
+        String prefix
         Boolean output_fastq
         File? read_two_fastq
-        String prefix
     }
 
     command <<<
@@ -141,26 +154,28 @@ task issue_823 {
                 then "-o '" + if defined(read_two_fastq)
                     then "~{prefix}.R1.fastq.gz'"
                     else "~{prefix}.fastq.gz'"
-                else ""
-            } \
+                else ""} \
             ~{if output_fastq
                 then "-o " + if defined(read_two_fastq)
                     then "~{prefix}.R1.fastq.gz"
                     else "'~{prefix}.fastq.gz'"
-                else ""
-            }
+                else ""}
     >>>
 
-    output {}
+    output {
+    }
 
-    requirements {}
+    requirements {
+    }
 }
 
 # https://github.com/stjude-rust-labs/sprocket/issues/841
 task issue_841 {
-    meta {}
+    meta {
+    }
 
-    parameter_meta {}
+    parameter_meta {
+    }
 
     input {
         Array[String] contigs
@@ -168,29 +183,27 @@ task issue_841 {
 
     command <<<
         run_clair3.sh \
-            ~{if length(contigs) > 0
-                then "--ctg_name='~{sep(",", contigs)}'"
-                else ""
-            } \
-            ~{if length(contigs) > 0
-                then "--ctg_name=~{sep(",", contigs)}"
-                else ""
-            }
+            ~{if length(contigs) > 0 then "--ctg_name='~{sep(",", contigs)}'" else ""} \
+            ~{if length(contigs) > 0 then "--ctg_name=~{sep(",", contigs)}" else ""}
     >>>
 
-    output {}
+    output {
+    }
 
-    requirements {}
+    requirements {
+    }
 }
 
 task placeholder_options {
-    meta {}
+    meta {
+    }
 
-    parameter_meta {}
+    parameter_meta {
+    }
 
     input {
-        String? name
         Array[String] names
+        String? name
         Boolean flag = true
     }
 
@@ -203,15 +216,19 @@ task placeholder_options {
         echo "~{sep=" " names}"
     }
 
-    output {}
+    output {
+    }
 
-    requirements {}
+    requirements {
+    }
 }
 
 task excepted {
-    meta {}
+    meta {
+    }
 
-    parameter_meta {}
+    parameter_meta {
+    }
 
     input {
         File bam
@@ -222,7 +239,9 @@ task excepted {
         samtools index ~{bam}
     >>>
 
-    output {}
+    output {
+    }
 
-    requirements {}
+    requirements {
+    }
 }

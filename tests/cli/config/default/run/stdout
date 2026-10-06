@@ -169,8 +169,11 @@ severity = "note"
 [check.rules.RuntimeSection]
 severity = "warning"
 
+[check.rules.ShellSplitting]
+severity = "warning"
+
 [check.rules.ShellCheck]
-severity = "note"
+severity = "warning"
 
 [check.rules.SnakeCase]
 severity = "warning"

@@ -366,8 +366,11 @@
             "RuntimeSection": {
               "severity": "warning"
             },
+            "ShellSplitting": {
+              "severity": "warning"
+            },
             "ShellCheck": {
-              "severity": "note"
+              "severity": "warning"
             },
             "SnakeCase": {
               "severity": "warning",
@@ -738,11 +741,18 @@
             "severity": "warning"
           }
         },
+        "ShellSplitting": {
+          "description": "The `ShellSplitting` rule.",
+          "$ref": "#/$defs/ShellSplittingConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
         "ShellCheck": {
           "description": "The `ShellCheck` rule.",
           "$ref": "#/$defs/ShellCheckConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
         "SnakeCase": {
@@ -1449,6 +1459,18 @@
       },
       "additionalProperties": false
     },
+    "ShellSplittingConfig": {
+      "description": "Configuration for the `ShellSplitting` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
     "ShellCheckConfig": {
       "description": "Configuration for the `ShellCheck` lint rule.",
       "type": "object",
@@ -1456,7 +1478,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false
