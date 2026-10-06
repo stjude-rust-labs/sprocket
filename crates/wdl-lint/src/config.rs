@@ -581,5 +581,8 @@ define_rules_config! {
         "UnusedDocComments" => unused_doc_comments: UnusedDocCommentsConfig {
             severity = RuleSeverity::Note;
         }
+        "StructOverMap" => struct_over_map: StructOverMapConfig {
+            severity = RuleSeverity::Off;
+        }
     }
 }

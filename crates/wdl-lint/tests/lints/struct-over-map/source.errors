@@ -70,3 +70,35 @@ note[StructOverMap]: usage of `Map[String, Int]`
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
+note[StructOverMap]: usage of `Map[String, Int]`
+   ┌─ tests/lints/struct-over-map/source.wdl:40:9
+   │
+40 │         Map[String, Int] existing_map
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = help: consider using a `struct` instead of a `Map[String, Int]`
+
+note[StructOverMap]: usage of `Map[String, Int]`
+   ┌─ tests/lints/struct-over-map/source.wdl:52:9
+   │
+52 │         Map[String, Int] existing_map
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = help: consider using a `struct` instead of a `Map[String, Int]`
+
+note[StructOverMap]: usage of `Map[String, Int]`
+   ┌─ tests/lints/struct-over-map/source.wdl:56:5
+   │
+56 │     Map[String, Int] from_as_map = as_map(pairs)
+   │     ^^^^^^^^^^^^^^^^
+   │
+   = help: consider using a `struct` instead of a `Map[String, Int]`
+
+note[StructOverMap]: usage of `Map[String, Int]`
+   ┌─ tests/lints/struct-over-map/source.wdl:59:11
+   │
+59 │     Array[Map[String, Int]] from_mixed_arr = [existing_map, {}]
+   │           ^^^^^^^^^^^^^^^^
+   │
+   = help: consider using a `struct` instead of a `Map[String, Int]`
+

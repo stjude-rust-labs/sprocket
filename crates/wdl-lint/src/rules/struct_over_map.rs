@@ -8,16 +8,19 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Expr;
+use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::PrimitiveTypeKind;
 use wdl_ast::v1::Type;
 use wdl_ast::v1::UnboundDecl;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -26,11 +29,11 @@ use crate::TagSet;
 const ID: &str = "StructOverMap";
 
 /// Creates a diagnostic for a `Map[String, ...]` type.
-fn prefer_struct(value_type: Type, span: Span) -> Diagnostic {
-    Diagnostic::note(format!(
-        "usage of `Map[String, {}]`",
-        value_type.inner().text()
-    ))
+fn prefer_struct(severity: Severity, value_type: Type, span: Span) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!("usage of `Map[String, {}]`", value_type.inner().text()),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_help(format!(
@@ -40,10 +43,22 @@ fn prefer_struct(value_type: Type, span: Span) -> Diagnostic {
 }
 
 /// A lint rule for encouraging the use of `struct`s over `Map`s.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct StructOverMap {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The version of the current document.
     version: Option<SupportedVersion>,
+}
+
+impl StructOverMap {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.struct_over_map.diagnostic_severity(),
+            version: None,
+        }
+    }
 }
 
 impl Rule for StructOverMap {
@@ -137,7 +152,12 @@ task example {
 
 impl Visitor for StructOverMap {
     fn reset(&mut self) {
-        *self = Self { version: None }
+        let Self {
+            version,
+            severity: _,
+        } = self;
+
+        *version = None;
     }
 
     fn document(
@@ -168,7 +188,12 @@ impl Visitor for StructOverMap {
             return;
         }
 
-        lint_struct_type(decl.ty(), diagnostics, &self.exceptable_nodes());
+        lint_struct_type(
+            decl.ty(),
+            self.severity,
+            diagnostics,
+            &self.exceptable_nodes(),
+        );
     }
 
     fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
@@ -184,7 +209,12 @@ impl Visitor for StructOverMap {
             return;
         }
 
-        lint_struct_type(decl.ty(), diagnostics, &self.exceptable_nodes());
+        lint_struct_type(
+            decl.ty(),
+            self.severity,
+            diagnostics,
+            &self.exceptable_nodes(),
+        );
     }
 }
 
@@ -205,20 +235,43 @@ impl Visitor for StructOverMap {
 /// In this case, `final_age` is an `Int` *because* `age` is an `Int`.
 fn check_expr_inherited(expr: Expr) -> bool {
     match expr {
-        Expr::Literal(_) => false,
-        Expr::Parenthesized(inner) => check_expr_inherited(inner.expr()),
-        Expr::If(inner) => {
-            let (_, then, else_) = inner.exprs();
+        Expr::Literal(expr) => match expr {
+            LiteralExpr::Array(arr) => {
+                let mut elements = arr.elements().peekable();
+                if elements.peek().is_none() {
+                    return false;
+                }
+
+                elements.all(check_expr_inherited)
+            }
+            LiteralExpr::Pair(expr) => {
+                let (left, right) = expr.exprs();
+                check_expr_inherited(left) && check_expr_inherited(right)
+            }
+            LiteralExpr::Map(_) => false,
+
+            // Can never produce a `Map[String, ...]` anyway
+            LiteralExpr::Boolean(_)
+            | LiteralExpr::Integer(_)
+            | LiteralExpr::Float(_)
+            | LiteralExpr::String(_)
+            | LiteralExpr::Object(_)
+            | LiteralExpr::Struct(_)
+            | LiteralExpr::None(_)
+            | LiteralExpr::Hints(_)
+            | LiteralExpr::Input(_)
+            | LiteralExpr::Output(_) => false,
+        },
+        Expr::Parenthesized(expr) => check_expr_inherited(expr.expr()),
+        Expr::If(expr) => {
+            let (_cond, then, else_) = expr.exprs();
             check_expr_inherited(then) && check_expr_inherited(else_)
         }
 
-        // In any of these cases, the caller is either:
-        //
-        // 1. Referencing an external item that they don't control
-        // 2. Referencing an item that either will be or already has produced a diagnostic itself
-        //
-        // In either case, we'll save them an unnecessary diagnostic.
-        Expr::NameRef(_) | Expr::Index(_) | Expr::Access(_) | Expr::Call(_) => true,
+        // Return values could be coerced into a struct, so still emit a diagnostic
+        Expr::Call(_) => false,
+
+        Expr::NameRef(_) | Expr::Index(_) | Expr::Access(_) => true,
 
         // Can never produce a `Map[String, ...]` anyway
         Expr::LogicalNot(_)
@@ -236,13 +289,14 @@ fn check_expr_inherited(expr: Expr) -> bool {
         | Expr::Multiplication(_)
         | Expr::Division(_)
         | Expr::Modulo(_)
-        | Expr::Exponentiation(_) => true,
+        | Expr::Exponentiation(_) => false,
     }
 }
 
 /// Checks if a [`Type`] contains `Map[String, ...]`.
 fn lint_struct_type(
     ty: Type,
+    severity: Severity,
     diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
@@ -251,20 +305,25 @@ fn lint_struct_type(
             let (key, value) = ty.types();
             if key.kind() == PrimitiveTypeKind::String {
                 diagnostics.exceptable_add(
-                    prefer_struct(value.clone(), ty.span()),
+                    prefer_struct(severity, value.clone(), ty.span()),
                     ty.inner(),
                     exceptable_nodes,
                 );
             }
 
-            lint_struct_type(value, diagnostics, exceptable_nodes);
+            lint_struct_type(value, severity, diagnostics, exceptable_nodes);
         }
-        Type::Array(ty) => lint_struct_type(ty.element_type(), diagnostics, exceptable_nodes),
+        Type::Array(ty) => {
+            lint_struct_type(ty.element_type(), severity, diagnostics, exceptable_nodes)
+        }
         Type::Pair(ty) => {
             let (left, right) = ty.types();
-            lint_struct_type(left, diagnostics, exceptable_nodes);
-            lint_struct_type(right, diagnostics, exceptable_nodes);
+            lint_struct_type(left, severity, diagnostics, exceptable_nodes);
+            lint_struct_type(right, severity, diagnostics, exceptable_nodes);
         }
-        _ => {}
+
+        Type::Object(_) => {}
+        Type::Ref(_) => {}
+        Type::Primitive(_) => {}
     }
 }

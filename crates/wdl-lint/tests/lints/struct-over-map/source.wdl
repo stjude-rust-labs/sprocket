@@ -35,6 +35,32 @@ task bar {
     command <<<>>>
 }
 
+task inherited {
+    input {
+        Map[String, Int] existing_map
+    }
+
+    Array[Map[String, Int]] from_arr = [existing_map]
+    Map[String, Int] from_index = from_arr[0]
+
+    command <<<>>>
+}
+
+task special_cases {
+    input {
+        Array[Pair[String, Int]] pairs
+        Map[String, Int] existing_map
+    }
+
+    # Flag any `Map[String, ...]`-producing functions, since they can be coerced
+    Map[String, Int] from_as_map = as_map(pairs)
+
+    # The array contains a fresh map literal, so still produce a diagnostic
+    Array[Map[String, Int]] from_mixed_arr = [existing_map, {}]
+
+    command <<<>>>
+}
+
 #@ except: StructOverMap
 task excepted {
     input {
