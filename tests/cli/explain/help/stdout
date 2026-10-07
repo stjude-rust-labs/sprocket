@@ -114,6 +114,7 @@ Available rules:
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
+  - ShellSplitting
   - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall
