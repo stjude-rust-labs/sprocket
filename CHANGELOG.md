@@ -16,6 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with recursion, symlink inclusion, and file filtering. This implements
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) and requires
   `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+* `dev server` now records each task execution attempt's WDL call ID, 0-based attempt number,
+  resolved execution constraints, and retry cause. Task API responses expose the same fields
+  ([#1256](https://github.com/stjude-rust-labs/sprocket/pull/1256)).
 
 ### Fixed
 
