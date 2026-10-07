@@ -35,7 +35,7 @@ const FUNCTION_NAME: &str = "read_map";
 ///
 /// If the file is empty, an empty map is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_map
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_map>
 fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

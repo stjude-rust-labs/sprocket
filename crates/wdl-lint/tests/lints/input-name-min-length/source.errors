@@ -1,0 +1,88 @@
+note[InputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/input-name-min-length/source.wdl:27:14
+   │
+27 │         File f
+   │              ^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[InputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/input-name-min-length/source.wdl:28:13
+   │
+28 │         Int ab
+   │             ^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[InputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/input-name-min-length/source.wdl:29:13
+   │
+29 │         Int abc
+   │             ^^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[InputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/input-name-min-length/source.wdl:30:13
+   │
+30 │         Int abcd
+   │             ^^^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[InputName]: declaration identifier starts with 'in'
+   ┌─ tests/lints/input-name-min-length/source.wdl:32:16
+   │
+32 │         String inString
+   │                ^^^^^^^^
+   │
+   = fix: rename the identifier to not start with 'in'
+
+note[InputName]: declaration identifier starts with 'in'
+   ┌─ tests/lints/input-name-min-length/source.wdl:33:16
+   │
+33 │         String InString
+   │                ^^^^^^^^
+   │
+   = fix: rename the identifier to not start with 'in'
+
+note[InputName]: declaration identifier starts with 'input'
+   ┌─ tests/lints/input-name-min-length/source.wdl:34:16
+   │
+34 │         String input_string
+   │                ^^^^^^^^^^^^
+   │
+   = fix: rename the identifier to not start with 'input'
+
+note[InputName]: declaration identifier starts with 'input'
+   ┌─ tests/lints/input-name-min-length/source.wdl:35:16
+   │
+35 │         String Input_string
+   │                ^^^^^^^^^^^^
+   │
+   = fix: rename the identifier to not start with 'input'
+
+note[InputName]: declaration identifier starts with 'in'
+   ┌─ tests/lints/input-name-min-length/source.wdl:36:16
+   │
+36 │         String in_string
+   │                ^^^^^^^^^
+   │
+   = fix: rename the identifier to not start with 'in'
+
+note[InputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/input-name-min-length/source.wdl:37:16
+   │
+37 │         String inA
+   │                ^^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[InputName]: declaration identifier starts with 'in'
+   ┌─ tests/lints/input-name-min-length/source.wdl:37:16
+   │
+37 │         String inA
+   │                ^^^
+   │
+   = fix: rename the identifier to not start with 'in'
+

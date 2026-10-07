@@ -520,7 +520,8 @@ fn resolve_global_identifier(
 /// Evaluates the target expression's type and resolves member access to the
 /// appropriate definition location.
 ///
-/// # Supports:
+/// # Supports
+///
 /// - Struct member access (`person.name`)
 /// - Enum member access (`Person.name`)
 /// - Call output access (`call_result.output`)
@@ -945,12 +946,14 @@ fn resolve_struct_literal_item(
 /// Resolves call input item identifiers.
 ///
 /// For call input items like `i = 3` or `i = i * 2`:
+///
 /// - The left-hand side identifier should resolve to the target task/workflow's
 ///   input parameter
 /// - The right-hand side expressions should be resolved through normal scope
 ///   resolution
 ///
 /// For shorthand syntax like `{ i }`:
+///
 /// - The identifier should be resolved through scope resolution
 fn resolve_call_input_item(
     parent_node: &SyntaxNode,

@@ -1,0 +1,19 @@
+warning: missing required call input `to_truncate` for task `truncate`
+   ┌─ one_level.wdl:21:10
+   │
+21 │     call truncate { }
+   │          ^^^^^^^^
+
+warning: missing required call input `bar` for task `inner`
+   ┌─ source.wdl:23:10
+   │
+23 │     call inner { }  # bar must be specified as a nested input
+   │          ^^^^^
+
+warning: missing required call input `to_copy` for task `copy`
+   ┌─ two_levels.wdl:19:10
+   │
+19 │     call copy { }
+   │          ^^^^
+
+outputs were also written to `./out/runs/outer/_TIMESTAMP_/outputs.json`

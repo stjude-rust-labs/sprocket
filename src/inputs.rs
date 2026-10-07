@@ -12,6 +12,7 @@ use regex::Regex;
 use serde_json::Value as JsonValue;
 use url::Url;
 use wdl::analysis::Document;
+use wdl::analysis::TaskRef;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Inputs as EngineInputs;
 
@@ -554,9 +555,8 @@ pub async fn join_paths_for_target(
     origins: &BTreeMap<String, Vec<EvaluationPath>>,
 ) -> Result<()> {
     let origin = |key: &str| {
-        let key = format!("{target}.{key}");
         origins
-            .get(&key)
+            .get(key)
             .map(|v| v.as_slice())
             .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
     };
@@ -567,7 +567,7 @@ pub async fn join_paths_for_target(
                 .local_task_by_name(target)
                 .with_context(|| format!("task `{target}` was not found"))?;
             task_inputs
-                .join_paths(task, origin)
+                .join_paths(TaskRef::Local(task), &origin)
                 .await
                 .context("failed to resolve input paths")?;
         }
@@ -577,7 +577,7 @@ pub async fn join_paths_for_target(
                 bail!("workflow `{target}` was not found");
             }
             workflow_inputs
-                .join_paths(workflow, origin)
+                .join_paths(document, workflow, &origin)
                 .await
                 .context("failed to resolve input paths")?;
         }

@@ -24,8 +24,13 @@ use super::explain::ALL_RULE_IDS;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+
+/// Baseline generation action.
+const GENERATE: Action = Action::new("Generated", "generate");
 
 /// Common arguments for the `check` and `lint` subcommands.
 #[derive(Parser, Debug)]
@@ -147,7 +152,7 @@ pub struct LintArgs {
 }
 
 /// Performs the `check` subcommand.
-pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn check(args: CheckArgs, config: Config, output: CommandOutput) -> CommandResult<()> {
     let mut disabled = args.common.off;
     disabled.extend(config.check.disable.iter().cloned());
 
@@ -227,7 +232,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -302,10 +307,13 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         new_baseline
             .write(&baseline_path)
             .context("failed to write baseline file")?;
-        eprintln!(
-            "generated baseline with {} diagnostic(s) at `{}`",
-            new_baseline.entries().len(),
-            baseline_path.display()
+        output.completed_stderr(
+            GENERATE,
+            format!(
+                "baseline with {} diagnostic(s) at `{}`",
+                new_baseline.entries().len(),
+                baseline_path.display()
+            ),
         );
         return Ok(());
     }
@@ -371,7 +379,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
                     true
                 }),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -419,14 +427,14 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 }
 
 /// Performs the `lint` subcommand.
-pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn lint(args: LintArgs, config: Config, output: CommandOutput) -> CommandResult<()> {
     check(
         CheckArgs {
             common: args.common,
             lint: true,
         },
         config,
-        colorize,
+        output,
     )
     .await
 }

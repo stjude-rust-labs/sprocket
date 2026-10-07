@@ -14,9 +14,14 @@ use wdl::engine::Inputs as EngineInputs;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::Action;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::inputs::Invocation;
+
+/// Successful validation action.
+const VALIDATE: Action = Action::new("Validated", "validate");
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
@@ -183,7 +188,7 @@ async fn resolve_target_and_inputs(
 }
 
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn validate(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let report_mode = config.common.report_mode;
     if let Source::Directory(_) = args.source {
         return Err(
@@ -198,11 +203,12 @@ pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResu
         config.common.wdl.feature_flags,
         config.common.ignore_filename(),
         report_mode,
-        colorize,
+        output.colorize(),
     )
     .await?;
 
-    validate_inputs(&document, &args.inputs, args.target).await?;
+    let (target, _) = validate_inputs(&document, &args.inputs, args.target).await?;
+    output.completed(VALIDATE, format!("inputs for `{target}`"));
 
     Ok(())
 }

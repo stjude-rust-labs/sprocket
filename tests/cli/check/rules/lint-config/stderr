@@ -1,4 +1,4 @@
-note[SnakeCase]: struct member name `BadName` is not snake_case
+note[NamingConvention]: struct member name `BadName` is not snake_case
   ┌─ source.wdl:6:9
   │
 6 │     Int BadName
