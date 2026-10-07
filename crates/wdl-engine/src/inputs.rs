@@ -10,12 +10,14 @@ use std::path::Path;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde::ser::SerializeMap;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
 use wdl_analysis::Document;
+use wdl_analysis::TaskRef;
 use wdl_analysis::document::Input;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
@@ -203,15 +205,28 @@ impl TaskInputs {
     /// expected types.
     pub async fn join_paths<'a>(
         &mut self,
-        task: &Task,
-        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
+        task: TaskRef<'_>,
+        path: &impl Fn(&str) -> Result<&'a [EvaluationPath]>,
+    ) -> Result<()> {
+        self.join_paths_with_prefix(task, task.name(), path).await
+    }
+
+    /// The logic for [`Self::join_paths()`].
+    ///
+    /// This is split out to allow specifying the `prefix` for input paths in
+    /// nested calls.
+    async fn join_paths_with_prefix<'a>(
+        &mut self,
+        task: TaskRef<'_>,
+        prefix: &str,
+        path: &impl Fn(&str) -> Result<&'a [EvaluationPath]>,
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = task.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let origins = path(name)?;
+            let origins = path(&format!("{prefix}.{name}"))?;
 
             if let Ok(v) = value.coerce(None, &ty) {
                 *value = resolve_with_origins(v, &ty, origins).await?;
@@ -519,20 +534,59 @@ impl WorkflowInputs {
     /// expected types.
     pub async fn join_paths<'a>(
         &mut self,
+        document: &Document,
         workflow: &Workflow,
-        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
+        path: &'a (impl Fn(&str) -> Result<&'a [EvaluationPath]> + Send + Sync),
+    ) -> Result<()> {
+        self.join_paths_with_prefix(document, workflow, workflow.name(), path)
+            .await
+    }
+
+    /// The logic for [`Self::join_paths()`].
+    ///
+    /// This is split out to allow specifying the `prefix` for input paths in
+    /// nested calls.
+    async fn join_paths_with_prefix<'a>(
+        &mut self,
+        document: &Document,
+        workflow: &Workflow,
+        prefix: &str,
+        path: &(impl Fn(&str) -> Result<&'a [EvaluationPath]> + Send + Sync),
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = workflow.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let origins = path(name)?;
+            let origins = path(&format!("{prefix}.{name}"))?;
 
             if let Ok(v) = value.coerce(None, &ty) {
                 *value = resolve_with_origins(v, &ty, origins).await?;
             }
         }
+
+        if !workflow.allows_nested_inputs() {
+            return Ok(());
+        }
+
+        let workflow_calls = workflow.calls();
+        for (call_name, nested_inputs) in self.calls.iter_mut() {
+            let Some(call) = workflow_calls.get(call_name) else {
+                bail!("could not find call {call_name} in workflow");
+            };
+
+            let (target_doc, call_target_name) = resolve_call_document(document, call);
+
+            nested_inputs
+                .join_paths(
+                    target_doc,
+                    call_target_name,
+                    &format!("{prefix}.{call_name}"),
+                    path,
+                )
+                .await?;
+        }
+
         Ok(())
     }
 
@@ -927,6 +981,43 @@ impl Inputs {
         })?);
 
         Self::parse_json_object(document, object)
+    }
+
+    /// Used to recursively join paths.
+    ///
+    /// See [`TaskInputs::join_paths()`] and [`WorkflowInputs::join_paths()`].
+    fn join_paths<'a, 'b>(
+        &'b mut self,
+        document: &'b Document,
+        call_target_name: &'b str,
+        prefix: &'b str,
+        path: &'b (impl Fn(&str) -> Result<&'a [EvaluationPath]> + Send + Sync),
+    ) -> BoxFuture<'b, Result<()>> {
+        Box::pin(async move {
+            match self {
+                Inputs::Task(task_inputs) => {
+                    let task = document
+                        .local_task_by_name(call_target_name)
+                        .expect("task should be present");
+
+                    task_inputs
+                        .join_paths_with_prefix(TaskRef::Local(task), prefix, path)
+                        .await
+                }
+                Inputs::Workflow(workflow_inputs) => {
+                    let workflow = document.workflow().expect("should have a workflow");
+                    assert_eq!(
+                        workflow.name(),
+                        call_target_name,
+                        "call name does not match workflow name"
+                    );
+
+                    workflow_inputs
+                        .join_paths_with_prefix(document, workflow, prefix, path)
+                        .await
+                }
+            }
+        })
     }
 
     /// Determines if the inputs are empty.

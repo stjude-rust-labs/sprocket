@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Various internal caches are now have configurable LRU capacities and are
   evaluation specific rather than scoped to the process or engine ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* `WorkflowInputs::join_paths()` now requires the defining `Document` and `path` must now be `Send + Sync` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
+* `TaskInputs::join_paths()` now takes a `TaskRef` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
 
 #### Fixed
 
