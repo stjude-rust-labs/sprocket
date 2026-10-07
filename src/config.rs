@@ -1938,6 +1938,27 @@ type = "snake_case"
 
                         let mut backend_config = Table::new();
                         backend_config.insert(Key::new("type"), Item::string(variant), arena);
+
+                        if variant == "tes" {
+                            // Write the required fields for the TES backend
+                            // configuration
+                            backend_config.insert(
+                                Key::new("service"),
+                                Item::string("https://example.com"),
+                                arena,
+                            );
+                            backend_config.insert(
+                                Key::new("inputs"),
+                                Item::string("https://example.com/inputs/"),
+                                arena,
+                            );
+                            backend_config.insert(
+                                Key::new("outputs"),
+                                Item::string("https://example.com/outputs/"),
+                                arena,
+                            );
+                        }
+
                         populate_table(&mut backend_config, arena, false, false, count);
 
                         table.insert(Key::new(variant), backend_config.into_item(), arena);

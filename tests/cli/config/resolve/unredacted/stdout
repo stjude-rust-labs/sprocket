@@ -173,8 +173,11 @@ severity = "note"
 [check.rules.RuntimeSection]
 severity = "warning"
 
+[check.rules.ShellSplitting]
+severity = "warning"
+
 [check.rules.ShellCheck]
-severity = "note"
+severity = "warning"
 
 [check.rules.FlaggedComment]
 severity = "note"
@@ -224,6 +227,9 @@ excluded_cache_inputs = []
 
 [run.backends.first]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 insecure = false
 
 [run.backends.first.auth]
@@ -233,6 +239,9 @@ password = "secret!"
 
 [run.backends.second]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 insecure = false
 
 [run.backends.second.auth]

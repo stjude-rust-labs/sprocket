@@ -307,7 +307,8 @@ impl TaskMonitorSvc {
                         .await?;
                 }
             }
-            CrankshaftEvent::ImagePullStarted { id: _, name: _ }
+            CrankshaftEvent::TaskResourceUsage { .. }
+            | CrankshaftEvent::ImagePullStarted { id: _, name: _ }
             | CrankshaftEvent::ImagePullFailed {
                 id: _,
                 name: _,

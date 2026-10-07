@@ -156,6 +156,7 @@ macro_rules! define_rules_config {
                 ///
                 /// A rule that is `off` is never run, so `note` is returned
                 /// for it.
+                #[allow(dead_code)]
                 pub(crate) fn diagnostic_severity(&self) -> Severity {
                     self.severity.severity().unwrap_or(Severity::Note)
                 }
@@ -559,8 +560,11 @@ define_rules_config! {
         "RuntimeSection" => runtime_section: RuntimeSectionConfig {
             severity = RuleSeverity::Warning;
         }
+        "ShellSplitting" => shell_splitting: ShellSplittingConfig {
+            severity = RuleSeverity::Warning;
+        }
         "ShellCheck" => shellcheck: ShellCheckConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Warning;
         }
         "FlaggedComment" => flagged_comment: FlaggedCommentConfig {
             severity = RuleSeverity::Note;
