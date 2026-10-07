@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* `dev server` now records each task execution attempt's WDL call ID, 0-based attempt number,
+  resolved execution constraints, and retry cause. Task API responses expose the same fields
+  ([#1256](https://github.com/stjude-rust-labs/sprocket/pull/1256)).
+
 ## 0.32.0 - 2026-10-07
 
 ### Security Fix
