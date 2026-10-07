@@ -337,16 +337,13 @@ impl Rule for MatchingOutputMetaRule<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that each output field is documented in the meta section under `meta.outputs`, or \
-         with supplementary doc comments."
+        "Ensures that each output field is documented either in `meta.outputs` or \
+         with a doc comment."
     }
 
     fn explanation(&self) -> &'static str {
-        "The meta section should have an `outputs` key that is an object and contains keys with \
-         descriptions for each output of the task/workflow without a doc comment. These must match \
-         exactly. i.e. for each named output of a task or workflow without a doc comment, there \
-         should be an entry under `meta.outputs` with that same name. No extraneous `meta.outputs` \
-         entries are allowed."
+        "Each task or workflow output without a doc comment should have a corresponding \
+        entry in the meta.outputs object. Entries for undeclared outputs are not allowed."
     }
 
     fn examples(&self) -> &'static [Example] {

@@ -33,9 +33,9 @@ allowed_names = ["Foo"]
 | `ImportPlacement` | Clarity | Ensures that imports are placed between the version statement and any document items. |  |
 | `InlineInstall` | Clarity, Portability, Performance | Ensures that `command` sections do not have inline installations. |  |
 | `InputName` | Naming, Style | Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short). |  |
-| `MatchingOutputMeta` | Completeness, Documentation, SprocketCompatibility | Ensures that each output field is documented in the meta section under `meta.outputs`, or with supplementary doc comments. |  |
+| `MatchingOutputMeta` | Completeness, Documentation, SprocketCompatibility | Ensures that each output field is documented either in `meta.outputs` or with a doc comment. |  |
 | `MetaDescription` | Completeness, Documentation, SprocketCompatibility | Ensures that items with a `meta` section either contain a `description` key or a doc comment. |  |
-| `MetaSections` | Completeness, Clarity, Documentation | Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections, or supplementary doc comments. |  |
+| `MetaSections` | Completeness, Clarity, Documentation | Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections or a doc comment. |  |
 | `MutableContainerTag` | Clarity, Portability | Ensures that container URIs use immutable tags. |  |
 | `OutputMetaOrder` | Completeness, Documentation, SprocketCompatibility | Ensures that `meta.outputs` keys are in the same order as output declarations. |  |
 | `OutputName` | Naming, Style | Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too short). |  |
