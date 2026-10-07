@@ -633,9 +633,7 @@ impl Visitor for ShellSplittingRule {
         };
         analyzer.command(section);
 
-        let mut problems = analyzer.problems;
-        problems.sort_by_key(|p| p.span.start());
-        for problem in problems {
+        for problem in analyzer.problems {
             diagnostics.exceptable_add(
                 unquoted_value(self.severity, &problem),
                 section.inner(),
