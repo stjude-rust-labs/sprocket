@@ -9,31 +9,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-* The non-exhaustive `EngineEvent` enum now reports execution metrics:
-  `TaskInitializing` carries the 0-based attempt number; `TaskExecuting`
-  carries a non-exhaustive, serializable `TaskConstraintsSnapshot` of the
-  resolved resource constraints, including the full container URI; and
-  `TaskRetrying` links a failed execution to its successor with a `RetryCause`.
-  The TES backend reports internal preemption resubmissions through
-  `TaskRetrying` and executes each under a derived `{name}~{n}` task name.
-  Consumers should treat that suffix as a resubmission of the same logical
-  attempt. Backends that rename an execution report the final name to the
-  evaluator so any later retry links from the execution that actually failed;
-  for example, a failed TES resubmission links `base~1` to the next evaluator
-  attempt rather than linking `base` twice
-  ([#1255](https://github.com/stjude-rust-labs/sprocket/pull/1255)).
+* The non-exhaustive `EngineEvent` enum now reports execution metrics: `TaskInitializing` carries
+  the 0-based attempt number; `TaskExecuting` carries a non-exhaustive, serializable
+  `TaskConstraintsSnapshot` of the resolved resource constraints, including the full container URI;
+  and `TaskRetrying` links a failed execution to its successor with a `RetryCause`. The TES backend
+  reports internal preemption resubmissions through `TaskRetrying` and executes each under a derived
+  `{name}~{n}` task name. Consumers should treat that suffix as a resubmission of the same logical
+  attempt. Backends that rename an execution return an optional final execution-name override. The
+  evaluator uses that override so any later retry links from the execution that actually failed; for
+  example, a failed TES resubmission links `base~1` to the next evaluator attempt rather than
+  linking `base` twice ([#1255](https://github.com/stjude-rust-labs/sprocket/pull/1255)).
 
 ### Fixed
 
-* Call identifiers — and the task names minted from them — are now qualified
-  by their call path relative to the root workflow, so a call inside a
-  subworkflow no longer shares an identifier with a same-named call elsewhere
-  (e.g. a `call t` made through `call other.sub` is now identified as
-  `other-sub--t` rather than `t`). Path levels are joined by `--`, which
-  cannot occur within a single call's identifier. Top-level call identifiers
-  are unchanged. The run directory layout, which nests by call alias, and call
-  caching, which is keyed by task definition rather than call site, are both
-  unaffected ([#1255](https://github.com/stjude-rust-labs/sprocket/pull/1255)).
+* Call identifiers — and the task names minted from them — are now qualified by their call path
+  relative to the root workflow, so a call inside a subworkflow no longer shares an identifier with
+  a same-named call elsewhere (e.g. a `call t` made through `call other.sub` is now identified as
+  `other-sub--t` rather than `t`). Path levels are joined by `--`, which cannot occur within a
+  single call's identifier. Top-level call identifiers are unchanged. The run directory layout,
+  which nests by call alias, and call caching, which is keyed by task definition rather than call
+  site, are both unaffected ([#1255](https://github.com/stjude-rust-labs/sprocket/pull/1255)).
 
 ## 0.19.0 - 2026-10-07
 
@@ -54,8 +49,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
 * `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the
   parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
-* The default TES polling interval has changed from 1 second to 30 seconds ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
-* `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
 #### Fixed
 

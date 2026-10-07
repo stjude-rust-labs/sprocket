@@ -1117,7 +1117,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 };
 
             Ok(Some(TaskExecutionResult {
-                execution_name: None,
+                execution_name_override: None,
                 image: Some(image),
                 exit_code: exit_code as i32,
                 work_dir: EvaluationPath::from_local_path(work_dir),

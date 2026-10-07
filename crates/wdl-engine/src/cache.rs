@@ -618,7 +618,7 @@ impl CallCache {
             .await?;
 
         Ok(Some(TaskExecutionResult {
-            execution_name: None,
+            execution_name_override: None,
             image: entry.source,
             exit_code: entry.exit,
             work_dir: work,
@@ -793,7 +793,7 @@ mod tests {
             fs::create_dir(&self.work_dir).await.unwrap();
 
             TaskExecutionResult {
-                execution_name: None,
+                execution_name_override: None,
                 image: Some("ubuntu:latest".parse().unwrap()),
                 exit_code: 0,
                 work_dir: EvaluationPath::from_local_path(self.work_dir.clone()),

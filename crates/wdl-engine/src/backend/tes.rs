@@ -79,8 +79,9 @@ const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 /// The default poll interval, in seconds, for the TES backend.
 const DEFAULT_TES_INTERVAL: u64 = 30;
 
-/// Returns the actual name only when it differs from the requested name.
-fn changed_execution_name(requested: &str, actual: String) -> Option<String> {
+/// Returns an override only when the actual name differs from the requested
+/// name.
+fn execution_name_override(requested: &str, actual: String) -> Option<String> {
     (actual != requested).then_some(actual)
 }
 
@@ -537,7 +538,7 @@ impl TaskExecutionBackend for TesBackend {
                 work_dir_url.path_segments_mut().unwrap().push("");
 
                 return Ok(Some(TaskExecutionResult {
-                    execution_name: changed_execution_name(request.name, name),
+                    execution_name_override: execution_name_override(request.name, name),
                     // SAFETY: parsing of an image source is infallible
                     image: result.image.map(|s| s.parse().unwrap()),
                     exit_code: result.status.code().expect("should have exit code"),
@@ -556,10 +557,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn execution_name_is_only_reported_when_changed() {
-        assert_eq!(changed_execution_name("base", "base".to_string()), None);
+    fn execution_name_override_is_only_reported_when_changed() {
+        assert_eq!(execution_name_override("base", "base".to_string()), None);
         assert_eq!(
-            changed_execution_name("base", "base~1".to_string()),
+            execution_name_override("base", "base~1".to_string()),
             Some("base~1".to_string())
         );
     }

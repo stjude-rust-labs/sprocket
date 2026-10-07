@@ -1955,7 +1955,10 @@ impl Evaluator {
                 // announcement can link the failed attempt to its successor;
                 // the `TaskInitializing` event at the top of the loop
                 // announces the new attempt under this name.
-                let prior_name = result.execution_name.as_deref().unwrap_or(&state.task_name);
+                let prior_name = result
+                    .execution_name_override
+                    .as_deref()
+                    .unwrap_or(&state.task_name);
                 let next_name = self.generate_task_name(id);
                 self.notify_task_retrying(
                     prior_name,
@@ -2367,7 +2370,7 @@ mod tests {
                 fs::write(&stdout, "")?;
                 fs::write(&stderr, "")?;
 
-                let (execution_name, exit_code) = if execution == 0 {
+                let (execution_name_override, exit_code) = if execution == 0 {
                     let next_name = resubmit_task_name(request.name, 1);
                     if let Some(sender) = request.context.events().engine() {
                         let _ = sender.send(EngineEvent::TaskRetrying {
@@ -2383,7 +2386,7 @@ mod tests {
                 };
 
                 Ok(Some(TaskExecutionResult {
-                    execution_name,
+                    execution_name_override,
                     image: None,
                     exit_code,
                     work_dir: EvaluationPath::from_local_path(work_dir),
