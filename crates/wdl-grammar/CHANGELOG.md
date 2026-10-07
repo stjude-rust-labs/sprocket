@@ -7,23 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `Diagnostic::new()` to create a diagnostic with a given severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+
 ## 0.26.0 - 2026-09-16
 
-#### Changed
+### Changed
 
 * `SyntaxTree::green()` now returns `&GreenNode` instead of `Cow<GreenNode>` ([#1183](https://github.com/stjude-rust-labs/sprocket/pull/1183)).
 * `SyntaxTokenExt::preceding_trivia()` now returns a `DoubleEndedIterator` ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
 
 ## 0.25.1 - 2026-08-05
 
-#### Fixed
+### Fixed
 
 * Fixed parsing of WDL 1.0 to treat `None` as an identifier (i.e. in a name
   reference expression) instead of as a literal none expression ([#1058](https://github.com/stjude-rust-labs/sprocket/pull/1058)).
 
 ## 0.25.0 - 2026-07-15
 
-#### Added
+### Added
 
 * Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
 
@@ -35,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.24.0 - 2026-06-26
 
-#### Changed
+### Changed
 
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 * Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
@@ -48,14 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.23.0 - 2026-06-03
 
-#### Changed
+### Changed
 
 * `SyntaxKind::is_keyword()` no longer includes types, see `SyntaxKind::is_type()` ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
 * `Parser` now produces a single `Unknown` token and diagnostic for consecutive unknown tokens ([#908](https://github.com/stjude-rust-labs/sprocket/pull/908)).
 
 ## 0.22.0 - 2026-05-14
 
-#### Added
+### Added
 
 * Initial support for WDL 1.4 (`V1::Four`) ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `Token::FromKeyword` and `SyntaxKind::FromKeyword` for the reserved `from`
@@ -81,14 +85,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.21.1 - 2026-04-02
 
-#### Fixed
+### Fixed
 
 * The `is_ident` utility function now properly checks that the parsed token is
   `Token::Ident` ([#758](https://github.com/stjude-rust-labs/sprocket/pull/758)).
 
 ## 0.21.0 - 02-11-2026
 
-#### Added
+### Added
 
 * Added `with_help` builder method to `Diagnostic` for providing additional context ([#602](https://github.com/stjude-rust-labs/sprocket/pull/602)).
 
@@ -96,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.19.0 - 11-21-2025
 
-#### Added
+### Added
 
 * Added parsing support for WDL enumerations (enums) in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
@@ -107,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.18.0 - 10-14-2025
 
-#### Removed
+### Removed
 
 * Removed `SyntaxTokenExt::succeeding_trivia()` ([#413](https://github.com/stjude-rust-labs/sprocket/pull/413)).
 
@@ -117,20 +121,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.0 - 08-13-2025
 
-#### Added
+### Added
 
 * Added `is_keyword` and `is_operator` used for LSP semantic highlighting ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
 
-
 ## 0.15.0 - 07-31-2025
 
-#### Added
+### Added
 
 * Added token sets used for LSP auto-completion ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 
 ## 0.14.0 - 07-09-2025
 
-#### Removed
+### Removed
 
 * Removed the `SyntaxExt` trait ([#482](https://github.com/stjude-rust-labs/wdl/pull/482)).
 
@@ -140,20 +143,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.13.0 - 05-02-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.12.0 - 04-01-2025
 
-#### Changed
+### Changed
 
 * Renamed `NameRefNode` to `NameRefExprNode` ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 
 ## 0.11.0 - 01-17-2025
 
-#### Added
+### Added
 
 * Added parsing support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 
@@ -164,13 +167,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.10.0 - 10-22-2024
 
-#### Changed
+### Changed
 
 * Added a `contains` method to `Span` ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
 
 ## 0.9.0 - 10-16-2024
 
-#### Added
+### Added
 
 * `SyntaxExt` (for better handling of siblings) and `SyntaxTokenExt` (for handling of associated trivia) traits ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
 * `is_trivia()` and `is_symbolic()` methods for `SyntaxKind` ([#133](https://github.com/stjude-rust-labs/wdl/pull/133))
@@ -181,7 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.8.0 - 09-16-2024
 
-#### Added
+### Added
 
 * `describe()` method to `SyntaxKind` ([#162](https://github.com/stjude-rust-labs/wdl/pull/162))
 
@@ -196,7 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.7.0 - 08-22-2024
 
-#### Added
+### Added
 
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 * Add facilities for diving on `SyntaxNode`s ([#138](https://github.com/stjude-rust-labs/wdl/pull/138)).
@@ -208,7 +211,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.6.0 - 07-17-2024
 
-#### Added
+### Added
 
 * Add support for `meta` and `parameter_meta` sections in struct definitions in
   WDL 1.2 ([#127](https://github.com/stjude-rust-labs/wdl/pull/127)).
@@ -231,7 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.5.0 - 06-28-2024
 
-#### Fixed
+### Fixed
 
 * Fixed parsing of workflow conditional statements to require parenthesis
   surrounding the expression ([#94](https://github.com/stjude-rust-labs/wdl/pull/94)).
@@ -253,7 +256,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.4.0 - 6-13-2024
 
-#### Changed
+### Changed
 
 * Removed the old parser implementation in favor of the new parser
   implementation; this also removes the `experimental` feature from the crate ([#79](https://github.com/stjude-rust-labs/wdl/pull/79)).
@@ -263,7 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.0 - 5-31-2024
 
-#### Fixed
+### Fixed
 
 * Fixed the experimental parser to correctly lookahead to disambiguate struct
   literals ([#63](https://github.com/stjude-rust-labs/wdl/pull/63)).
@@ -331,7 +334,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.2.0 - 12-17-2023
 
-#### Added
+### Added
 
 * Adds lint to suggest replacing curly command blocks (4ee030f).
 * Adds the `Pedantic` lint group (bc17014).
@@ -355,20 +358,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.0 — 11-22-2023
 
-#### Added
+### Added
 
 * Adds initial version of parsing WDL 1.x grammar.
 * Adds `wdl-grammar` tool, a tool that is useful in creating and exhaustively
   testing the `wdl-grammar` crate.
-    * The following subcommands are included in the initial release:
-        * `wdl-grammar create-test`: scaffolds otherwise arduous Rust tests that
-        ensure a provided input and grammar rule are generated into the correct
-        Pest parse tree.
-        * `wdl-grammar gauntlet`: an exhaustive testing framework for ensuring
-        `wdl-grammar` can parse a wide variety of grammars in the community.
-        * `wdl-grammar parse`: prints the Pest parse tree for a given input and
-        grammar rule or outputs errors regarding why the input could not be
-        parsed.
-    * This command line tool is available behind the `binaries` feature flag and
-      is not intended to be used by a general audience. It is only intended for
-      developers of the `wdl-grammar` crate.
+  * The following subcommands are included in the initial release:
+    * `wdl-grammar create-test`: scaffolds otherwise arduous Rust tests that
+      ensure a provided input and grammar rule are generated into the correct
+      Pest parse tree.
+    * `wdl-grammar gauntlet`: an exhaustive testing framework for ensuring
+      `wdl-grammar` can parse a wide variety of grammars in the community.
+    * `wdl-grammar parse`: prints the Pest parse tree for a given input and
+      grammar rule or outputs errors regarding why the input could not be
+      parsed.
+  * This command line tool is available behind the `binaries` feature flag and
+    is not intended to be used by a general audience. It is only intended for
+    developers of the `wdl-grammar` crate.

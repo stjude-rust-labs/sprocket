@@ -61,6 +61,7 @@ use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
@@ -885,7 +886,7 @@ pub fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
 pub async fn run(
     args: Args,
     mut config: Config,
-    colorize: bool,
+    output: CommandOutput,
     handle: FileReloadHandle,
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
@@ -933,7 +934,7 @@ pub async fn run(
         .init({
             let progress_bar = progress_bar.clone();
 
-            let template = if colorize {
+            let template = if output.colorize() {
                 "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
             } else {
                 "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
@@ -967,7 +968,7 @@ pub async fn run(
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -988,7 +989,7 @@ pub async fn run(
                 &source,
                 result.document().diagnostics(),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -1025,13 +1026,13 @@ pub async fn run(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        colorize,
+        output.colorize(),
         cancellation.second().clone(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
         args.show_task_stderr,
-        colorize,
+        output.colorize(),
         target.clone(),
         events
             .subscribe_crankshaft()
@@ -1112,8 +1113,11 @@ pub async fn run(
                         if outputs_file.exists() {
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
-                            println!("{outputs_json}");
-                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
+                            output.payload(outputs_json);
+                            output.stderr(format!(
+                                "outputs were also written to `{path}`",
+                                path = outputs_file.display()
+                            ));
                         }
                         Ok(())
                     }
@@ -1128,7 +1132,7 @@ pub async fn run(
                             &[e.diagnostic],
                             &e.backtrace,
                             report_mode,
-                            colorize
+                            output.colorize()
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
                     }
@@ -1309,7 +1313,7 @@ mod tests {
 
     use super::*;
 
-    /// Regression test for https://github.com/stjude-rust-labs/sprocket/issues/1051.
+    /// Regression test for <https://github.com/stjude-rust-labs/sprocket/issues/1051>.
     ///
     /// Reproduces the reported repro: a workflow input (`wf.name`) plus a
     /// `requirements` override on a nested call

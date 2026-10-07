@@ -17,13 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.5 - 2026-07-15
 
-#### Added
+### Added
 
 * Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
 
 ## 0.1.4 - 2026-06-26
 
-#### Changed
+### Changed
 
 * Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
@@ -33,6 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.1 - 2026-04-22
 
-#### Added
+### Added
 
 * `wdl-diagnostics` crate for consistent diagnostic emission across crates ([#686](https://github.com/stjude-rust-labs/sprocket/pull/686)).

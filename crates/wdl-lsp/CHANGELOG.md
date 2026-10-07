@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `LintOptions::config` now sets the severity of analysis rules as well as lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `unnecessary` and `deprecated` `DiagnosticTag`s to applicable diagnostics ([#1235](https://github.com/stjude-rust-labs/sprocket/pull/1235)).
+
+### Changed
+
+* `exceptions` list in `ServerOptions` has been renamed to `disable` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+
 ## 0.23.0 - 2026-09-16
 
 ### Added
@@ -145,13 +154,13 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.8.0 - 05-01-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.7.0 - 04-01-2025
 
-#### Changed
+### Changed
 
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 
@@ -163,7 +172,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.5.0 - 10-22-2024
 
-#### Added
+### Added
 
 * Added formatting to the LSP ([#247](https://github.com/stjude-rust-labs/wdl/pull/247)).
 
@@ -173,13 +182,14 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.4.0 - 10-16-2024
 
-#### Fixed
+### Fixed
 
 * Added "fixes" to LSP diagnostics ([#214](https://github.com/stjude-rust-labs/wdl/pull/214)).
 
 ## 0.3.0 - 09-16-2024
 
-#### Changed
+### Changed
+
 * Use `tracing` events instead of the `log` crate ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
 
 ## 0.2.0 - 08-22-2024
@@ -188,7 +198,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.1.0 - 07-17-2024
 
-#### Added
+### Added
 
 * Added the `wdl-lsp` crate for implementing an LSP server ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
 

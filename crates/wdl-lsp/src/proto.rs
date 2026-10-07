@@ -1,12 +1,14 @@
 //! Helper functions from converting to and from LSP structures
 
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use anyhow::Context;
 use anyhow::Result;
 use async_lsp::lsp_types::Diagnostic;
 use async_lsp::lsp_types::DiagnosticRelatedInformation;
 use async_lsp::lsp_types::DiagnosticSeverity;
+use async_lsp::lsp_types::DiagnosticTag;
 use async_lsp::lsp_types::DocumentDiagnosticParams;
 use async_lsp::lsp_types::DocumentDiagnosticReport;
 use async_lsp::lsp_types::DocumentDiagnosticReportResult;
@@ -31,6 +33,8 @@ use url::Url;
 use wdl_analysis::AnalysisResult;
 use wdl_ast::Severity;
 use wdl_ast::Span;
+use wdl_lint::Config;
+use wdl_lint::Tag;
 
 /// Converts a file byte offset to an LSP position.
 pub fn position(index: &LineIndex, offset: usize) -> Result<Position> {
@@ -58,6 +62,44 @@ pub fn range_from_span(index: &LineIndex, span: Span) -> Result<Range> {
     ))
 }
 
+/// Rules that indicate the usage of a deprecated language feature.
+static DEPRECATED_RULES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    wdl_analysis::rules()
+        .iter()
+        .filter_map(|r| {
+            if r.id().starts_with("Deprecated") {
+                Some(r.id())
+            } else {
+                None
+            }
+        })
+        .chain(wdl_lint::rules(&Config::default()).iter().filter_map(|r| {
+            if r.tags().contains(Tag::Deprecated) {
+                Some(r.id())
+            } else {
+                None
+            }
+        }))
+        .collect()
+});
+
+/// Rules that indicate unused/unnecessary code.
+static UNNECESSARY_RULES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    wdl_analysis::rules()
+        .iter()
+        .filter_map(|r| {
+            if r.id().starts_with("Unused")
+                || r.id().starts_with("Unnecessary")
+                || r.id().starts_with("Meaningless")
+            {
+                Some(r.id())
+            } else {
+                None
+            }
+        })
+        .collect()
+});
+
 /// Converts a WDL diagnostic into an LSP diagnostic.
 pub fn diagnostic(
     uri: &Url,
@@ -78,9 +120,20 @@ pub fn diagnostic(
         Severity::Note => DiagnosticSeverity::INFORMATION,
     };
 
-    let code = diagnostic
-        .rule()
-        .map(|r| NumberOrString::String(r.to_string()));
+    let (code, tag) = if let Some(id) = diagnostic.rule() {
+        let code = NumberOrString::String(id.to_string());
+        let tag = if DEPRECATED_RULES.contains(&id) {
+            Some(DiagnosticTag::DEPRECATED)
+        } else if UNNECESSARY_RULES.contains(&id) {
+            Some(DiagnosticTag::UNNECESSARY)
+        } else {
+            None
+        };
+
+        (Some(code), tag)
+    } else {
+        (None, None)
+    };
 
     let message = diagnostic.message().to_string();
 
@@ -109,7 +162,7 @@ pub fn diagnostic(
         Some(source.to_owned()),
         message,
         Some(related),
-        None,
+        tag.map(|tag| vec![tag]),
     ))
 }
 

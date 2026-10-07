@@ -24,6 +24,7 @@ use wdl::lint::ALL_TAGS;
 use wdl::lint::Config;
 use wdl::lint::Tag as WdlLintTag;
 
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
 /// Usage string for the `explain` subcommand.
@@ -116,7 +117,7 @@ pub enum RuleSource {
     WdlAnalysis,
 }
 
-/// A config field that applies to a lint rule.
+/// A config field that applies to a rule.
 #[derive(Debug, Serialize)]
 pub struct ConfigField {
     /// The name of the field, as it appears in the config file.
@@ -150,8 +151,8 @@ pub struct Rule {
     /// A list of rule IDs related to this rule, if the crate supports them.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub related: Option<&'static [&'static str]>,
-    /// Crate-specific configuration fields that apply to this rule.
-    pub config: Option<Vec<ConfigField>>,
+    /// The fields of the rule's `[check.rules.<RULE>]` configuration table.
+    pub config: Vec<ConfigField>,
 }
 
 /// Helper function for serializing `Example`.
@@ -250,6 +251,29 @@ impl Display for Rule {
             }
         };
 
+        writeln!(
+            f,
+            "\n{} {}",
+            "Configuration:".bold(),
+            format!("[check.rules.{id}]", id = self.id).cyan()
+        )?;
+        for field in &self.config {
+            writeln!(
+                f,
+                "  {name} (default: {default}): {summary}",
+                name = field.name.cyan(),
+                default = field.default,
+                summary = field
+                    .description
+                    .split("\n\n")
+                    .next()
+                    .unwrap_or_default()
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            )?;
+        }
+
         if !self.examples.is_empty() {
             writeln!(f, "\n{}", "Examples:".bold())?;
             for example in self.examples {
@@ -270,38 +294,33 @@ impl Display for Rule {
     }
 }
 
+/// Gets the configuration fields of a rule.
+fn config_fields(id: &str) -> Vec<ConfigField> {
+    Config::fields(id)
+        .expect("every rule should be configurable")
+        .into_iter()
+        .map(|field| ConfigField {
+            name: field.name,
+            description: field.description,
+            default: field.default,
+        })
+        .collect()
+}
+
 /// All lint rules from `wdl-lint`.
 fn wdl_lint() -> impl Iterator<Item = Rule> {
     wdl::lint::rules(&wdl::lint::Config::default())
         .into_iter()
-        .map(|rule| {
-            let applicable_config_fields = Config::fields()
-                .into_iter()
-                .filter(|field| field.applicable_lints.contains(&rule.id()))
-                .map(|field| ConfigField {
-                    name: field.name,
-                    description: field.description,
-                    default: field.default,
-                })
-                .collect::<Vec<_>>();
-
-            let applicable_config_fields = if applicable_config_fields.is_empty() {
-                None
-            } else {
-                Some(applicable_config_fields)
-            };
-
-            Rule {
-                source: RuleSource::WdlLint,
-                id: rule.id(),
-                tags: Some(rule.tags().iter().map(|tag| tag.to_string()).collect()),
-                description: rule.description(),
-                explanation: rule.explanation(),
-                examples: rule.examples(),
-                url: rule.url(),
-                related: Some(rule.related_rules()),
-                config: applicable_config_fields,
-            }
+        .map(|rule| Rule {
+            source: RuleSource::WdlLint,
+            id: rule.id(),
+            tags: Some(rule.tags().iter().map(|tag| tag.to_string()).collect()),
+            description: rule.description(),
+            explanation: rule.explanation(),
+            examples: rule.examples(),
+            url: rule.url(),
+            related: Some(rule.related_rules()),
+            config: config_fields(rule.id()),
         })
 }
 
@@ -316,7 +335,7 @@ fn wdl_analysis() -> impl Iterator<Item = Rule> {
         examples: rule.examples(),
         url: None,
         related: None,
-        config: None,
+        config: config_fields(rule.id()),
     })
 }
 
@@ -387,15 +406,15 @@ pub fn list_all_tags() -> String {
 }
 
 /// Explains a lint rule.
-pub fn explain(args: Args) -> CommandResult<()> {
+pub fn explain(args: Args, output: CommandOutput) -> CommandResult<()> {
     if args.list_all_rules {
         match args.format {
-            Format::Default => println!("{}", list_all_rules()),
+            Format::Default => output.payload(list_all_rules()),
             Format::Json => {
                 let value =
                     serde_json::to_value(wdl_lint().chain(wdl_analysis()).collect::<Vec<_>>())
                         .map_err(anyhow::Error::from)?;
-                println!("{value}")
+                output.payload(value)
             }
         }
 
@@ -405,7 +424,7 @@ pub fn explain(args: Args) -> CommandResult<()> {
     if args.list_all_tags {
         match args.format {
             Format::Default => {
-                println!("{}", list_all_tags());
+                output.payload(list_all_tags());
             }
             Format::Json => {
                 let mut all_tags = collect_all_tags().into_values().collect::<Vec<_>>();
@@ -416,7 +435,7 @@ pub fn explain(args: Args) -> CommandResult<()> {
                         .map(|tag| serde_json::to_value(&tag).unwrap())
                         .collect(),
                 );
-                println!("{value}")
+                output.payload(value)
             }
         }
 
@@ -424,13 +443,13 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     if args.definitions {
-        println!("{}", lint::DEFINITIONS_TEXT);
+        output.payload(lint::DEFINITIONS_TEXT);
         return Ok(());
     };
 
     if let Some(tag) = args.tag {
         let target = tag.parse::<WdlLintTag>().map_err(|_| {
-            println!("{}", list_all_tags());
+            output.payload(list_all_tags());
             anyhow!("invalid tag `{tag}`")
         })?;
 
@@ -440,14 +459,14 @@ pub fn explain(args: Args) -> CommandResult<()> {
 
         match args.format {
             Format::Default => {
-                println!("Rules with the tag `{}`:", tag.name);
+                output.payload(format!("Rules with the tag `{}`:", tag.name));
                 for id in tag.applicable_lints {
-                    println!("  - {id}");
+                    output.payload(format!("  - {id}"));
                 }
             }
             Format::Json => {
                 let value = serde_json::to_value(&tag).map_err(anyhow::Error::from)?;
-                println!("{value}");
+                output.payload(value);
             }
         }
 
@@ -462,10 +481,10 @@ pub fn explain(args: Args) -> CommandResult<()> {
             .find(|rule| rule.id.to_lowercase() == lowercase_name)
         {
             Some(rule) => {
-                print!("{}", rule.format(args.format));
+                output.payload(rule.format(args.format));
             }
             None => {
-                println!("{rules}\n", rules = list_all_rules());
+                output.payload(format!("{rules}\n", rules = list_all_rules()));
                 return Err(anyhow!("no rule found with the name `{rule_name}`").into());
             }
         }

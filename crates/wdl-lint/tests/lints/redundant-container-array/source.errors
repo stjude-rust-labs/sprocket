@@ -1,0 +1,8 @@
+note[RedundantContainerArray]: an array with a single value should be a string literal
+  ┌─ tests/lints/redundant-container-array/source.wdl:8:21
+  │
+8 │         container: ["ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"]
+  │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+  = fix: change the array to a string literal representing the first value
+

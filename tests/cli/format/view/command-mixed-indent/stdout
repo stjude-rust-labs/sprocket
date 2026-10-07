@@ -1,0 +1,17 @@
+version 1.1
+
+task Example {
+    input {
+        File vcf
+        File script
+        String outputPath = "out.vcf"
+    }
+
+    command <<<
+        echo "$(foo)"
+
+	python3 ~{script} ~{vcf} info.bed.gz > ~{
+        outputPath
+    }
+    >>>
+}

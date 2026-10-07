@@ -9,20 +9,6 @@ Commands:
   help       Print this message or the help of the given subcommand(s)
 
 Options:
-  -t, --with-tabs
-          Use tabs for indentation (default is spaces)
-
-  -i, --indentation-size <SIZE>
-          The number of spaces to use for indentation levels (default is 4)
-
-      --max-line-length <LENGTH>
-          The maximum line length (default is 90, valid range is 60–240). `none` means do not use a maximum line length
-
-      --newline-style <STYLE>
-          The newline style to use
-
-          [possible values: auto, unix, windows]
-
   -v, --verbose...
           Increase logging verbosity
 

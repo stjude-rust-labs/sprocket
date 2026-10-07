@@ -31,7 +31,7 @@ const FUNCTION_NAME: &str = "write_map";
 ///
 /// If the Map is empty, an empty file is written.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_map
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_map>
 fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

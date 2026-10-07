@@ -7,16 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added the `NamingConvention` lint rule, which enforces a configurable case style (`snake_case`, `screaming_snake_case`, `camel_case`, or `pascal_case`) for task, workflow, variable, type, and struct member names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
+* Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `min_length` and `check_prefixes` parameters to the `InputName` and `OutputName` lint rules ([#1253](https://github.com/stjude-rust-labs/sprocket/pull/1253)).
+
 ### Changed
 
+* The `check.except` configuration list in the is now named `check.disable` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* The `-e, --except` argument to `check`/`lint` is now `--off` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Renamed the `TodoComment` lint rule to `FlaggedComment` ([#1252](https://github.com/stjude-rust-labs/sprocket/pull/1252)).
+* Moved the lint rule parameters from `[check.lint]` to their rule's table (for example, `[check.rules.SnakeCase]`); `SnakeCase` and `DeclarationName` now have separate `allowed_names` lists ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Moved the note-severity checks in `ContainerUri`, `ExpectedRuntimeKeys`, `MatchingOutputMeta`, and `ParameterMetaMatched` into new lint rules: `MutableContainerTag`, `RedundantContainerArray`, `DeprecatedRuntimeKey`, `RecommendedRuntimeKeys`, `OutputMetaOrder`, `ExtraneousParameterMeta`, and `ParameterMetaOrder` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `BashSetSyntax` now reports unknown `set` options as warnings, and `ShellCheck` reports a failure to run `shellcheck` as a note ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Renamed lint rules `ExpectedRuntimeKeys` to `UnknownRuntimeKeys` and `ParameterMetaMatched` to `MissingParameterMeta` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Renamed the `sprocket config init` command to `sprocket config default` ([#1225](https://github.com/stjude-rust-labs/sprocket/pull/1225)).
 * `-m --report-mode` is now a global option, applying consistently to every Sprocket subcommand ([#1223](https://github.com/stjude-rust-labs/sprocket/pull/1223)).
+* Unknown keys in `sprocket.toml` will now produce warnings, rather than error ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* `Config::new()` now returns a `BuiltConfig` containing parse warnings ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
 ### Fixed
 
+* `check`, `lint`, and `analyzer` now apply the lint rule parameters from `sprocket.toml` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Fixed a stack overflow occurring when parsing CLI options that occurred on
   debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
 * Nested inputs are now shell-expanded in `run` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
+  debug Windows builds of `sprocket` ([#1124](https://github.com/stjude-rust-labs/sprocket/pull/1224)).
+* Fixed intermittent `check` and `run` failures when a document imports several
+  files from one module dependency; resolving an import no longer deletes and
+  rewrites module files that other imports are reading. Cached module content
+  that fails lockfile verification is now restored from Git
+  ([#1236](https://github.com/stjude-rust-labs/sprocket/issues/1236)).
+
+### Removed
+
+* Removed `--with-doc-comments` from the `doc` command and `with_doc_comments` from the `doc` config table, as doc comments are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226), [#1266](https://github.com/stjude-rust-labs/sprocket/pull/1266)).
+* Removed the `-e, --except` argument from the `analyzer` subcommand. Use the `check.disable` list instead ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Removed the `tags` list from the `[check]` configuration table ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Removed `--tag` argument from `check`/`lint` ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
+* Removed the `SnakeCase` and `PascalCase` lint rules in favor of `NamingConvention`; `#@ except` directives that name them must be updated ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
+* Removed `--with-doc-comments` from the `doc` command, as they are now considered a stable feature ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* Removed many CL args from the `doc` command: `--homepage-url`, `--github-url`, `--slack-url`, `--light-mode`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* Removed many CL args from the `format` command: `--with-tabs`, `--indentation-size`, `--max-line-length`, `--newline-style`. All these can instead be specified via keys in a TOML config instead ([#1226](https://github.com/stjude-rust-labs/sprocket/pull/1226)).
+* `Config::{read,write}_config` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234))
 
 ## 0.31.0 - 2026-09-16
 
@@ -50,6 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket run` and `sprocket dev test` now warn on a second Ctrl-C that
   terminating Sprocket leaves Docker containers running
   ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
+* Human-facing output from `sprocket check`, `lint`, `format`, `validate`,
+  `dev doc`, `dev lock`, `dev test`, and `dev server` commands now uses the
+  same action-style lines as `sprocket dev module` (for example, `Passed`,
+  `Failed`, `Generated`, and `Validated`)
+  ([#1164](https://github.com/stjude-rust-labs/sprocket/pull/1164)).
 
 ### Fixed
 
@@ -114,7 +154,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Analysis now warns when a discovered `module-lock.json` is out of date with
   its `module.json`, pointing to `sprocket dev module lock`
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-
 * `dev server` now reports finer-grained progress. A run is `analyzing` while
   its document is resolved and type checked, and a task reports `initializing`,
   `localizing` while its inputs are transferred, or `cached` when the call
@@ -196,11 +235,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that restores ownership of a work directory, is no longer reported among a
   run's tasks
   ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
-
 * Canceling a `dev server` run mid-transfer now records the run as `canceled`
   rather than `failed`, and no longer overwrites an outcome the run reached
   first ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
-
 * `--index-on` no longer panics when a run's output files live outside of the
   output directory; such outputs (e.g. a `File` input that a task passes
   straight through to an output) are reported and left out of the index, and
@@ -728,7 +765,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
   * `--entrypoint` is now required if no inputs are provided.
   * `--entrypoint` will be prefixed to the key of any key-value pairs
-      supplied on the command line.
+    supplied on the command line.
 
 ### Removed
 
@@ -832,9 +869,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
   * Fixed certain misplaced highlights from the `ShellCheck` lint.
   * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
-      many comments.
+    many comments.
   * The `ImportSort` lint rule now supplies the correct order of imports in
-      the `fix` message.
+    the `fix` message.
 * By default, when checking a local file, suppress diagnostics from remote
   files. Added a `--show-remote-diagnostics` flag to recreate the older
   behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).

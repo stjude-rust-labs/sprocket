@@ -20,7 +20,7 @@ const FUNCTION_NAME: &str = "split";
 /// splits the input string on the provided delimiter and stores the results in
 /// a `Array[String]`.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.3/SPEC.md#split
+/// <https://github.com/openwdl/wdl/blob/wdl-1.3/SPEC.md#split>
 fn split(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type().clone()));

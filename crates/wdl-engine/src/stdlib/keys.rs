@@ -22,7 +22,7 @@ use crate::Value;
 ///
 /// When the input Map or Object is empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#keys
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#keys>
 fn keys(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(

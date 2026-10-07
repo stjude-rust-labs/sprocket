@@ -1,11 +1,11 @@
 //! Implementation of the `doc` command.
 
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
-use url::Url;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
@@ -24,7 +24,14 @@ use wdl::doc::install_theme;
 
 use crate::Config;
 use crate::analysis::Source;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+
+/// Documentation check action.
+const CHECK: Action = Action::new("Checked", "check");
+/// Documentation generation action.
+const GENERATE: Action = Action::new("Generated", "generate");
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -43,24 +50,12 @@ pub struct Args {
     /// If not supplied, the default Sprocket logo will be used.
     #[arg(long, value_name = "SVG FILE")]
     pub logo: Option<PathBuf>,
-    /// An optional link to the project's homepage.
-    #[arg(long, value_name = "LINK TO HOMEPAGE")]
-    pub homepage_url: Option<Url>,
-    /// An optional link to the project's GitHub repository.
-    #[arg(long, value_name = "LINK TO GITHUB")]
-    pub github_url: Option<Url>,
-    /// An optional link to the project's Slack workspace.
-    #[arg(long, value_name = "LINK TO SLACK")]
-    pub slack_url: Option<Url>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `--logo` SVG will be used; or if that is also not
     /// supplied, the default Sprocket logo will be used.
     #[arg(long, value_name = "SVG FILE")]
     pub alt_light_logo: Option<PathBuf>,
-    /// Initialize pages in light mode instead of the default dark mode.
-    #[arg(short, long)]
-    pub light_mode: bool,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
     /// `<workspace>/docs`.
@@ -101,29 +96,13 @@ pub struct Args {
     /// `npm` and `npx` are expected to be available in the environment.
     #[arg(long, requires = "theme")]
     pub install: bool,
-    /// Enables support for documentation comments
-    ///
-    /// This option is *experimental* and will be removed in a future major
-    /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
-    #[arg(long)]
-    pub with_doc_comments: bool,
 }
 
 /// The default output directory for the generated documentation.
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    if args.with_doc_comments {
-        tracing::warn!(
-            "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
-        );
-    } else if config.doc.with_doc_comments {
-        tracing::warn!(
-            "documentation comments support is **experimental**. See https://github.com/openwdl/wdl/issues/757"
-        );
-    }
-
+pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
@@ -196,13 +175,12 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
     let index_page = args.index_page.or(config.doc.index_page());
-    let light_mode = args.light_mode || config.doc.light_mode;
+    let light_mode = config.doc.light_mode;
     let logo = args.logo.or(config.doc.logo());
     let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
-    let homepage_url = args.homepage_url.or(config.doc.homepage_url());
-    let github_url = args.github_url.or(config.doc.github_url());
-    let slack_url = args.slack_url.or(config.doc.slack_url());
-    let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
+    let homepage_url = config.doc.homepage_url();
+    let github_url = config.doc.github_url();
+    let slack_url = config.doc.slack_url();
     let seo = Seo {
         title: config.doc.seo.title(),
         description: config.doc.seo.description(),
@@ -229,7 +207,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         })
         .additional_html(addl_html)
         .seo(seo)
-        .enable_doc_comments(with_doc_comments)
+        .enable_doc_comments(true)
         .check(args.check);
 
     let mut counts = DiagnosticCounts::default();
@@ -252,7 +230,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
                             false
                         }),
                         config.common.report_mode,
-                        colorize,
+                        output.colorize(),
                     )
                     .context("failed to emit diagnostics")?;
                 }
@@ -272,6 +250,18 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         return Err(e.into());
     }
 
+    if args.check {
+        output.completed(
+            CHECK,
+            format!("documentation for `{}`", relative_display(&workspace)),
+        );
+    } else {
+        output.completed(
+            GENERATE,
+            format!("documentation at `{}`", relative_display(&docs_dir)),
+        );
+    }
+
     if args.open {
         opener::open(docs_dir.join("index.html")).context("failed to open documentation")?;
     }
@@ -279,23 +269,19 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_slack_url() {
-        // SAFETY: the argument list contains a valid absolute URL.
-        let args = Args::try_parse_from([
-            "doc",
-            "--slack-url",
-            "https://example.slack.com/archives/community",
-        ])
-        .unwrap();
-
-        assert_eq!(
-            args.slack_url.as_ref().map(Url::as_str),
-            Some("https://example.slack.com/archives/community")
-        );
-    }
+/// Displays a path relative to the current directory when it is inside it.
+fn relative_display(path: &Path) -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| path.strip_prefix(cwd).ok().map(Path::to_path_buf))
+        .map(|relative| {
+            if relative.as_os_str().is_empty() {
+                PathBuf::from(".")
+            } else {
+                relative
+            }
+        })
+        .unwrap_or_else(|| path.to_path_buf())
+        .display()
+        .to_string()
 }

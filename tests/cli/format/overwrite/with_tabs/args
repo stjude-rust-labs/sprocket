@@ -1,1 +1,1 @@
-format overwrite --with-tabs file.wdl
+-c tabs.toml format overwrite file.wdl

@@ -50,6 +50,7 @@ pub use workspace_symbol::*;
 /// information.
 ///
 /// The context is specifically designed for LSP handlers where:
+///
 /// - We need to evaluate expression types at a specific cursor position
 /// - We want to avoid collecting diagnostics (since they're handled separately)
 /// - We only need read-only access to scope and document information

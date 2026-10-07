@@ -3,6 +3,7 @@
 mod cache;
 mod locked;
 mod materialize;
+mod materialize_git;
 mod resolve;
 
 use std::fs;
