@@ -1,7 +1,7 @@
 # Rules
 
-This table documents all implemented `wdl` analysis rules implemented on the 
-`main` branch of the `stjude-rust-labs/sprocket` repository. Note that the 
+This table documents all implemented `wdl` analysis rules implemented on the
+`main` branch of the `stjude-rust-labs/sprocket` repository. Note that the
 information may be out of sync with released packages.
 
 Each rule can be configured in its own `[check.rules.<RULE>]` table of
@@ -10,7 +10,7 @@ Each rule can be configured in its own `[check.rules.<RULE>]` table of
 ## Analysis Rules
 
 | Name                       | Description                                                                                               |
-|:---------------------------|:----------------------------------------------------------------------------------------------------------|
+| :------------------------- | :-------------------------------------------------------------------------------------------------------- |
 | CommandSectionIndentation  | Ensures consistent indentation (no mixed spaces/tabs) within command sections.                            |
 | DeprecatedObject           | Ensures that the deprecated `Object` types are not used.                                                  |
 | DeprecatedPlaceholder      | Ensures that deprecated expression placeholder options are not used.                                      |

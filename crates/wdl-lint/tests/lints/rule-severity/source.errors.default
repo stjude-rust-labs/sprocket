@@ -1,4 +1,4 @@
-warning[SnakeCase]: workflow name `BadWorkflow` is not snake_case
+warning[NamingConvention]: workflow name `BadWorkflow` is not snake_case
   ┌─ tests/lints/rule-severity/source.wdl:5:10
   │
 5 │ workflow BadWorkflow {
@@ -6,11 +6,19 @@ warning[SnakeCase]: workflow name `BadWorkflow` is not snake_case
   │
   = fix: replace `BadWorkflow` with `bad_workflow`
 
-warning[PascalCase]: struct name `bad_struct_name` is not PascalCase
+warning[NamingConvention]: struct name `bad_struct_name` is not PascalCase
   ┌─ tests/lints/rule-severity/source.wdl:9:8
   │
 9 │ struct bad_struct_name {
   │        ^^^^^^^^^^^^^^^ this name must be PascalCase
   │
   = fix: replace `bad_struct_name` with `BadStructName`
+
+note[MetaSections]: struct `bad_struct_name` is missing both `meta` and `parameter_meta` sections
+  ┌─ tests/lints/rule-severity/source.wdl:9:8
+  │
+9 │ struct bad_struct_name {
+  │        ^^^^^^^^^^^^^^^ this struct is missing both `meta` and `parameter_meta` sections
+  │
+  = fix: add both the `meta` and `parameter_meta` sections
 

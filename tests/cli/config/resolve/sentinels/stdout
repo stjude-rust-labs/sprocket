@@ -117,6 +117,8 @@ severity = "warning"
 
 [check.rules.InputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.MatchingOutputMeta]
 severity = "warning"
@@ -130,8 +132,19 @@ severity = "note"
 [check.rules.MutableContainerTag]
 severity = "note"
 
+[check.rules.NamingConvention]
+severity = "warning"
+task = "snake_case"
+workflow = "snake_case"
+variable = "snake_case"
+type = "pascal_case"
+struct_member = "snake_case"
+allowed_names = []
+
 [check.rules.OutputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.OutputMetaOrder]
 severity = "note"
@@ -142,11 +155,11 @@ severity = "note"
 [check.rules.MissingParameterMeta]
 severity = "warning"
 
+[check.rules.ParameterizedResources]
+severity = "off"
+
 [check.rules.ParameterMetaOrder]
 severity = "note"
-
-[check.rules.PascalCase]
-severity = "warning"
 
 [check.rules.RedundantNone]
 severity = "note"
@@ -163,15 +176,15 @@ severity = "note"
 [check.rules.RuntimeSection]
 severity = "warning"
 
-[check.rules.ShellCheck]
-severity = "note"
-
-[check.rules.SnakeCase]
+[check.rules.ShellSplitting]
 severity = "warning"
-allowed_names = []
 
-[check.rules.TodoComment]
+[check.rules.ShellCheck]
+severity = "warning"
+
+[check.rules.FlaggedComment]
 severity = "note"
+keywords = ["TODO"]
 
 [check.rules.UnusedDocComments]
 severity = "note"

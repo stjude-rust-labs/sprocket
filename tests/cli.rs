@@ -6,21 +6,23 @@
 //! These directories can be arbitrarily nested to group similar tests together.
 //!
 //! Each test can contain the following files (but all are optional):
-//!   * `args` - entrypoint of each test; contains the arguments to pass to
-//!     `sprocket` (without "sprocket").
-//!   * `inputs` - a directory containing the starting files that the test will
-//!     run with. The contents of this directory are copied to a temp directory
-//!     and the temporary directory used as the command's working directory.
-//!   * `outputs` - a directory containing the expected ending files that the
-//!     temp directory will contain. If a test does not need to verify the
-//!     resulting directory contents, it may omit an `outputs` directory.
-//!   * `stdout` - the expected stdout from the task.
-//!   * `stderr` - the expected stderr from the task.
-//!   * `exit_code` - the expected exit code from the task.
+//!
+//! * `args` - entrypoint of each test; contains the arguments to pass to
+//!   `sprocket` (without "sprocket").
+//! * `inputs` - a directory containing the starting files that the test will
+//!   run with. The contents of this directory are copied to a temp directory
+//!   and the temporary directory used as the command's working directory.
+//! * `outputs` - a directory containing the expected ending files that the temp
+//!   directory will contain. If a test does not need to verify the resulting
+//!   directory contents, it may omit an `outputs` directory.
+//! * `stdout` - the expected stdout from the task.
+//! * `stderr` - the expected stderr from the task.
+//! * `exit_code` - the expected exit code from the task.
 //!
 //! The expected files may be automatically generated or updated by setting the
 //! `BLESS` environment variable when running this test.
 
+use std::collections::HashMap;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -200,6 +202,41 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let mut command = Command::new(sprocket_exe);
     let config_root = TempDir::new().context("failed to create isolated config root")?;
 
+    let env_path = test_path.join("env");
+
+    let mut custom_envs = HashMap::new();
+    if env_path.exists() {
+        let env_string = fs::read_to_string(&env_path)
+            .with_context(|| format!("failed to read env at path {env_path:?}"))?;
+
+        for env in env_string
+            .lines()
+            .map(str::trim)
+            .filter(|s| !s.is_empty() && !s.starts_with('#'))
+        {
+            let Some((var, value)) = env.split_once('=') else {
+                bail!("invalid env var `{env}` in path {env_path:?}")
+            };
+
+            custom_envs.insert(
+                var.to_string(),
+                shellexpand::full_with_context(
+                    value,
+                    || dirs::home_dir()?.into_os_string().into_string().ok(),
+                    |var| {
+                        if var == "CARGO_MANIFEST_DIR" {
+                            // Used by the nested-input-expansion test
+                            return Ok(Some(String::from(env!("CARGO_MANIFEST_DIR"))));
+                        }
+
+                        env::var(var).map(Some)
+                    },
+                )?
+                .to_string(),
+            );
+        }
+    }
+
     let env_config = resolve_env_config(test_path)?;
     if let Some(env_config) = env_config.as_ref() {
         // If an overridden config has been specified via environment variables,
@@ -212,6 +249,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let result = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .envs(custom_envs)
         .env("SPROCKET_CONFIG_ROOT", config_root.path())
         .env("RUST_LOG", "none")
         .env_remove("RUST_BACKTRACE")

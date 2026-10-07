@@ -61,6 +61,7 @@ use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
@@ -755,6 +756,7 @@ async fn progress(
 
                             continue
                         }
+                        CrankshaftEvent::TaskResourceUsage { .. } |
                         CrankshaftEvent::TaskContainerCreated { .. }
                         | CrankshaftEvent::TaskContainerExited { .. }
                         | CrankshaftEvent::TaskStdout { .. }
@@ -885,7 +887,7 @@ pub fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
 pub async fn run(
     args: Args,
     mut config: Config,
-    colorize: bool,
+    output: CommandOutput,
     handle: FileReloadHandle,
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
@@ -933,7 +935,7 @@ pub async fn run(
         .init({
             let progress_bar = progress_bar.clone();
 
-            let template = if colorize {
+            let template = if output.colorize() {
                 "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
             } else {
                 "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
@@ -944,30 +946,27 @@ pub async fn run(
                 progress_bar.pb_set_style(&style);
             })
         })
-        .progress({
+        .progress(move |kind, completed, total| {
             let progress_bar = progress_bar.clone();
-            move |kind, completed, total| {
-                let progress_bar = progress_bar.clone();
-                async move {
-                    if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
-                        return;
-                    }
-
-                    if completed == 0 {
-                        progress_bar.pb_start();
-                        progress_bar.pb_set_length(total.try_into().unwrap());
-                        progress_bar.pb_set_message(&format!("{kind}"));
-                    }
-
-                    progress_bar.pb_set_position(completed.try_into().unwrap());
+            async move {
+                if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
+                    return;
                 }
-                .boxed()
+
+                if completed == 0 {
+                    progress_bar.pb_start();
+                    progress_bar.pb_set_length(total.try_into().unwrap());
+                    progress_bar.pb_set_message(&format!("{kind}"));
+                }
+
+                progress_bar.pb_set_position(completed.try_into().unwrap());
             }
+            .boxed()
         })
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
@@ -988,7 +987,7 @@ pub async fn run(
                 &source,
                 result.document().diagnostics(),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -1010,10 +1009,18 @@ pub async fn run(
     let (ctx, run_dir, db, _heartbeat) =
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
+    if args.disable_retries {
+        config.run.engine.task.retries = RetryConfig::Disabled;
+    }
+
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
+
     // Determined here as the engine configuration is moved into evaluation
     // below.
-    let uses_docker = uses_docker_backend(&config.run.engine);
     let events = Events::new(
         config
             .run
@@ -1025,13 +1032,14 @@ pub async fn run(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        colorize,
+        output.colorize(),
         cancellation.second().clone(),
     ));
+
     let crankshaft_progress = tokio::spawn(progress(
-        progress_bar,
+        tracing::span!(Level::WARN, "progress"),
         args.show_task_stderr,
-        colorize,
+        output.colorize(),
         target.clone(),
         events
             .subscribe_crankshaft()
@@ -1047,14 +1055,6 @@ pub async fn run(
     // CWD as a placeholder.
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
-
-    if args.disable_retries {
-        config.run.engine.task.retries = RetryConfig::Disabled;
-    }
-
-    let engine = Engine::new(config.run.engine)
-        .await
-        .context("failed to create WDL evaluation engine")?;
 
     let mut execute = Box::pin(execute_target(
         db.clone(),
@@ -1112,8 +1112,11 @@ pub async fn run(
                         if outputs_file.exists() {
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
-                            println!("{outputs_json}");
-                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
+                            output.payload(outputs_json);
+                            output.stderr(format!(
+                                "outputs were also written to `{path}`",
+                                path = outputs_file.display()
+                            ));
                         }
                         Ok(())
                     }
@@ -1128,7 +1131,7 @@ pub async fn run(
                             &[e.diagnostic],
                             &e.backtrace,
                             report_mode,
-                            colorize
+                            output.colorize()
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
                     }
@@ -1309,7 +1312,7 @@ mod tests {
 
     use super::*;
 
-    /// Regression test for https://github.com/stjude-rust-labs/sprocket/issues/1051.
+    /// Regression test for <https://github.com/stjude-rust-labs/sprocket/issues/1051>.
     ///
     /// Reproduces the reported repro: a workflow input (`wf.name`) plus a
     /// `requirements` override on a nested call

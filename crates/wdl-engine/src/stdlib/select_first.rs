@@ -21,7 +21,7 @@ const FUNCTION_NAME: &str = "select_first";
 /// If the default value is not provided and the array is empty or contains only
 /// None values, then an error is raised.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#select_first
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#select_first>
 fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
 

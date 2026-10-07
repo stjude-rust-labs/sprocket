@@ -16,7 +16,7 @@ const FUNCTION_NAME: &str = "stdout";
 /// Returns the value of the executed command's standard output (stdout) as a
 /// File.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#stdout
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#stdout>
 fn stdout(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.is_empty());
     debug_assert!(context.return_type_eq(PrimitiveType::File));

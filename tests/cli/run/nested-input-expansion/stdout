@@ -1,0 +1,5 @@
+{
+  "outer.duplicated": "_TEMP_DIR_/out/runs/outer/_TIMESTAMP_/calls/inner/attempts/0/work/out.txt",
+  "outer.truncated": "_TEMP_DIR_/out/runs/outer/_TIMESTAMP_/calls/truncate_and_copy/calls/truncate/attempts/0/work/out.txt",
+  "outer.copied": "_TEMP_DIR_/out/runs/outer/_TIMESTAMP_/calls/truncate_and_copy/calls/copy_wf/calls/copy/attempts/0/work/out.txt"
+}

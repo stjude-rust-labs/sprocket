@@ -38,7 +38,7 @@ impl fmt::Display for DuplicateKeyError {
 /// The order of the key/value pairs in the output Map is the same as the order
 /// of the Pairs in the Array.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#as_map
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#as_map>
 fn as_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(

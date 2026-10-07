@@ -1,4 +1,4 @@
-# Welcome to Sprocket and the `wdl` crates!
+# Welcome to Sprocket and the `wdl` crates
 
 Community contributions rock and we are psyched you're reading this document!
 
@@ -138,7 +138,7 @@ comment to clarify if you aren't sure.
 ### What's the difference between `error`, `warning`, and `note`?
 
 - an `error` is emitted when the source WDL is incorrect or invalid in some way
-    - errors should not be emitted by `wdl-lint`
+  - errors should not be emitted by `wdl-lint`
 - a `warning` is emitted when the source WDL is confusing, problematic,
   error-prone, etc. but not invalid or incorrect
 - a `note` is emitted in all other cases and is mostly used for issues of style or conformity
@@ -176,11 +176,11 @@ fixes:
 - `cargo +nightly fmt` to format your Rust code
 - `cargo clippy --all-features` and then fix any warnings emitted
 - `BLESS=1 cargo test --all-features` to "bless" any test changes
-    - Please review any changes this causes to make sure they seem right!
+  - Please review any changes this causes to make sure they seem right!
 - `cargo run --release -p gauntlet --bin gauntlet -- --bless`
-    - see the `What is gauntlet?` question for more information
+  - see the `What is gauntlet?` question for more information
 - `cargo run --release -p gauntlet --bin gauntlet -- --bless --arena`
-    - see the `What is arena?` question for more information
+  - see the `What is arena?` question for more information
 - `rustup update` to update your local toolchains
 
 ### What's the general workflow for writing a new lint rule?
@@ -263,13 +263,13 @@ these criteria:
 
 - If diagnostic `X` is likely to co-occur with diagnostic `Y` within the same
   lint pass (addressing them often happens together):
-    - rule `X` should implement `related_rules` to include `Y`'s ID, and rule
-      `Y` should implement it to include `X`'s ID.
+  - rule `X` should implement `related_rules` to include `Y`'s ID, and rule
+    `Y` should implement it to include `X`'s ID.
 - If correcting diagnostic `X` naively (without considering other rules) is
   likely to result in diagnostic `Y` being emitted in a subsequent lint pass:
-    - rule `X` should implement `related_rules` to include `Y`'s ID, but rule
-      `Y` should _not_ link back to rule `X` in this case, as the user fixing
-      `Y` isn't necessarily led back to the context of `X`.
+  - rule `X` should implement `related_rules` to include `Y`'s ID, but rule
+    `Y` should _not_ link back to rule `X` in this case, as the user fixing
+    `Y` isn't necessarily led back to the context of `X`.
 
 ## Benchmarking and performance
 
@@ -282,11 +282,11 @@ the end of each execution.
 
 ## Further reading
 
-* `exceptable_add()` defined [here](https://github.com/stjude-rust-labs/sprocket/blob/129fe020c78ecdac7dc3ad1f1cec686eb3634117/crates/wdl-analysis/src/validation.rs#L44).
-* See [here](https://docs.rs/wdl/latest/wdl/grammar/type.SyntaxNode.html) for
+- `exceptable_add()` defined [here](https://github.com/stjude-rust-labs/sprocket/blob/129fe020c78ecdac7dc3ad1f1cec686eb3634117/crates/wdl-analysis/src/validation.rs#L44).
+- See [here](https://docs.rs/wdl/latest/wdl/grammar/type.SyntaxNode.html) for
   the `SyntaxNode` docs.
-* The PR which introduced `exceptable_nodes()` and `exceptable_add()` is [#162](https://github.com/stjude-rust-labs/wdl/pull/162).
-* That PR fixed issue [#135](https://github.com/stjude-rust-labs/wdl/issues/135)
-* The PR which introduced `related_rules()` is [#371](https://github.com/stjude-rust-labs/wdl/pull/371)
+- The PR which introduced `exceptable_nodes()` and `exceptable_add()` is [#162](https://github.com/stjude-rust-labs/wdl/pull/162).
+- That PR fixed issue [#135](https://github.com/stjude-rust-labs/wdl/issues/135)
+- The PR which introduced `related_rules()` is [#371](https://github.com/stjude-rust-labs/wdl/pull/371)
 
 [issues]: https://github.com/stjude-rust-labs/sprocket/issues

@@ -7,7 +7,7 @@ task test_declaration_names {
         description: "This is a test of disallowed declaration names"
     }
 
-    #@ except: SnakeCase
+    #@ except: NamingConvention
     input {
         # BAD
         Array[Int] arrayData
@@ -40,7 +40,7 @@ task test_declaration_names {
 
     command <<<>>>
 
-    #@ except: SnakeCase
+    #@ except: NamingConvention
     output {
         # BAD
         Int result_int = 42

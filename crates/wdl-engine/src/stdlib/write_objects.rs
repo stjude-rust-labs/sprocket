@@ -43,7 +43,7 @@ const FUNCTION_NAME: &str = "write_objects";
 /// primitive types are supported. Attempting to write a Struct or Object that
 /// has a compound member value results in an error.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_objects
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_objects>
 fn write_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

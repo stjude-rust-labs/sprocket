@@ -1,0 +1,64 @@
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:23:9
+   │
+23 │         cpu: 0.5
+   │         ^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:24:9
+   │
+24 │         memory: "2 GiB"
+   │         ^^^^^^^^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:25:9
+   │
+25 │         disks: 1
+   │         ^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:33:9
+   │
+33 │         cpu: (0.5)
+   │         ^^^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:34:9
+   │
+34 │         memory: if true then "2 GiB" else "1 GiB"
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:35:9
+   │
+35 │         disks: 1 + 1
+   │         ^^^^^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:43:9
+   │
+43 │         memory: "~{4 + 4} GiB"
+   │         ^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources-1.1/source.wdl:51:9
+   │
+51 │         disks: ["2", "/mnt/outputs 4 GiB", "/mnt/tmp 1 GiB"]
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: consider moving requirements to user-controlled inputs
+

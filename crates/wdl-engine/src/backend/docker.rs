@@ -930,7 +930,8 @@ mod tests {
                 | CrankshaftEvent::TaskStderr { id, .. }
                 | CrankshaftEvent::ImagePullStarted { id, .. }
                 | CrankshaftEvent::ImagePullFailed { id, .. }
-                | CrankshaftEvent::ImagePullFinished { id, .. } => *id,
+                | CrankshaftEvent::ImagePullFinished { id, .. }
+                | CrankshaftEvent::TaskResourceUsage { id, .. } => *id,
             };
 
             assert_eq!(

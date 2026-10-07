@@ -107,7 +107,9 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .workflow()
             .context("document does not contain a workflow")?;
         inputs
-            .join_paths(workflow, |_| Ok(std::slice::from_ref(&test_dir_path)))
+            .join_paths(result.document(), workflow, &|_| {
+                Ok(std::slice::from_ref(&test_dir_path))
+            })
             .await?;
 
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))

@@ -263,12 +263,12 @@ pub enum BraceCommandToken {
 /// As WDL supports string interpolation, sub-lexers are used when certain
 /// tokens are encountered:
 ///
-/// | Token                                                                    | Sub-lexer token       |
-/// |--------------------------------------------------------------------------|-----------------------|
-/// | [SingleQuote][Token::SingleQuote]                                        | [SQStringToken]       |
-/// | [DoubleQuote][Token::DoubleQuote]                                        | [DQStringToken]       |
-/// | [OpenHeredoc][Token::OpenHeredoc]                                        | [HeredocToken]        |
-/// | [CommandKeyword][Token::CommandKeyword] ~> [OpenBrace][Token::OpenBrace] | [BraceCommandToken]   |
+/// | Token                                                                    | Sub-lexer token     |
+/// | ------------------------------------------------------------------------ | ------------------- |
+/// | [SingleQuote][Token::SingleQuote]                                        | [SQStringToken]     |
+/// | [DoubleQuote][Token::DoubleQuote]                                        | [DQStringToken]     |
+/// | [OpenHeredoc][Token::OpenHeredoc]                                        | [HeredocToken]      |
+/// | [CommandKeyword][Token::CommandKeyword] ~> [OpenBrace][Token::OpenBrace] | [BraceCommandToken] |
 ///
 /// After the start token is encountered, the [morph][super::Lexer::morph]
 /// method is used to morph the current lexer into a sub-lexer.

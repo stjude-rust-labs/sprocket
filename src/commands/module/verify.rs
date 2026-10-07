@@ -17,9 +17,9 @@ use super::project::require_lockfile;
 use super::project::trace_project;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::render_signer;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
 const VERIFY: Action = Action::new("Verified", "verify");

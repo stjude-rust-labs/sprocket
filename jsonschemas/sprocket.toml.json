@@ -315,7 +315,9 @@
               "severity": "warning"
             },
             "InputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "MatchingOutputMeta": {
               "severity": "warning"
@@ -329,8 +331,19 @@
             "MutableContainerTag": {
               "severity": "note"
             },
+            "NamingConvention": {
+              "severity": "warning",
+              "task": "snake_case",
+              "workflow": "snake_case",
+              "variable": "snake_case",
+              "type": "pascal_case",
+              "struct_member": "snake_case",
+              "allowed_names": []
+            },
             "OutputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "OutputMetaOrder": {
               "severity": "note"
@@ -341,11 +354,11 @@
             "MissingParameterMeta": {
               "severity": "warning"
             },
+            "ParameterizedResources": {
+              "severity": "off"
+            },
             "ParameterMetaOrder": {
               "severity": "note"
-            },
-            "PascalCase": {
-              "severity": "warning"
             },
             "RedundantNone": {
               "severity": "note"
@@ -362,15 +375,17 @@
             "RuntimeSection": {
               "severity": "warning"
             },
+            "ShellSplitting": {
+              "severity": "warning"
+            },
             "ShellCheck": {
-              "severity": "note"
+              "severity": "warning"
             },
-            "SnakeCase": {
-              "severity": "warning",
-              "allowed_names": []
-            },
-            "TodoComment": {
-              "severity": "note"
+            "FlaggedComment": {
+              "severity": "note",
+              "keywords": [
+                "TODO"
+              ]
             },
             "UnusedDocComments": {
               "severity": "note"
@@ -619,7 +634,9 @@
           "description": "The `InputName` rule.",
           "$ref": "#/$defs/InputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "MatchingOutputMeta": {
@@ -650,11 +667,26 @@
             "severity": "note"
           }
         },
+        "NamingConvention": {
+          "description": "The `NamingConvention` rule.",
+          "$ref": "#/$defs/NamingConventionConfig",
+          "default": {
+            "severity": "warning",
+            "task": "snake_case",
+            "workflow": "snake_case",
+            "variable": "snake_case",
+            "type": "pascal_case",
+            "struct_member": "snake_case",
+            "allowed_names": []
+          }
+        },
         "OutputName": {
           "description": "The `OutputName` rule.",
           "$ref": "#/$defs/OutputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "OutputMetaOrder": {
@@ -678,18 +710,18 @@
             "severity": "warning"
           }
         },
+        "ParameterizedResources": {
+          "description": "The `ParameterizedResources` rule.",
+          "$ref": "#/$defs/ParameterizedResourcesConfig",
+          "default": {
+            "severity": "off"
+          }
+        },
         "ParameterMetaOrder": {
           "description": "The `ParameterMetaOrder` rule.",
           "$ref": "#/$defs/ParameterMetaOrderConfig",
           "default": {
             "severity": "note"
-          }
-        },
-        "PascalCase": {
-          "description": "The `PascalCase` rule.",
-          "$ref": "#/$defs/PascalCaseConfig",
-          "default": {
-            "severity": "warning"
           }
         },
         "RedundantNone": {
@@ -727,26 +759,28 @@
             "severity": "warning"
           }
         },
+        "ShellSplitting": {
+          "description": "The `ShellSplitting` rule.",
+          "$ref": "#/$defs/ShellSplittingConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
         "ShellCheck": {
           "description": "The `ShellCheck` rule.",
           "$ref": "#/$defs/ShellCheckConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
-        "SnakeCase": {
-          "description": "The `SnakeCase` rule.",
-          "$ref": "#/$defs/SnakeCaseConfig",
+        "FlaggedComment": {
+          "description": "The `FlaggedComment` rule.",
+          "$ref": "#/$defs/FlaggedCommentConfig",
           "default": {
-            "severity": "warning",
-            "allowed_names": []
-          }
-        },
-        "TodoComment": {
-          "description": "The `TodoComment` rule.",
-          "$ref": "#/$defs/TodoCommentConfig",
-          "default": {
-            "severity": "note"
+            "severity": "note",
+            "keywords": [
+              "TODO"
+            ]
           }
         },
         "UnusedDocComments": {
@@ -1225,6 +1259,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of input names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.InputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag input names that start with a disallowed\nprefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).\n\n##### Example\n\n```toml\n[check.rules.InputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1277,6 +1324,76 @@
       },
       "additionalProperties": false
     },
+    "NamingConventionConfig": {
+      "description": "Configuration for the `NamingConvention` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        },
+        "task": {
+          "description": "The case style for task names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntask = \"pascal_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "workflow": {
+          "description": "The case style for workflow names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nworkflow = \"pascal_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "variable": {
+          "description": "The case style for input, output, and private declaration\nnames.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nvariable = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "type": {
+          "description": "The case style for the names of user-defined types: structs,\nenums, and enum choices.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntype = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "pascal_case"
+        },
+        "struct_member": {
+          "description": "The case style for struct member names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nstruct_member = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "allowed_names": {
+          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nallowed_names = [\"Foo\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "CaseStyle": {
+      "description": "A case style for identifiers.",
+      "oneOf": [
+        {
+          "description": "`snake_case`.",
+          "type": "string",
+          "const": "snake_case"
+        },
+        {
+          "description": "`SCREAMING_SNAKE_CASE`.",
+          "type": "string",
+          "const": "screaming_snake_case"
+        },
+        {
+          "description": "`camelCase`.",
+          "type": "string",
+          "const": "camel_case"
+        },
+        {
+          "description": "`PascalCase`.",
+          "type": "string",
+          "const": "pascal_case"
+        }
+      ]
+    },
     "OutputNameConfig": {
       "description": "Configuration for the `OutputName` lint rule.",
       "type": "object",
@@ -1285,6 +1402,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of output names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.OutputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag output names that start with a disallowed\nprefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).\n\n##### Example\n\n```toml\n[check.rules.OutputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1325,6 +1455,18 @@
       },
       "additionalProperties": false
     },
+    "ParameterizedResourcesConfig": {
+      "description": "Configuration for the `ParameterizedResources` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "off"
+        }
+      },
+      "additionalProperties": false
+    },
     "ParameterMetaOrderConfig": {
       "description": "Configuration for the `ParameterMetaOrder` lint rule.",
       "type": "object",
@@ -1333,18 +1475,6 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
-        }
-      },
-      "additionalProperties": false
-    },
-    "PascalCaseConfig": {
-      "description": "Configuration for the `PascalCase` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
         }
       },
       "additionalProperties": false
@@ -1409,6 +1539,18 @@
       },
       "additionalProperties": false
     },
+    "ShellSplittingConfig": {
+      "description": "Configuration for the `ShellSplitting` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
     "ShellCheckConfig": {
       "description": "Configuration for the `ShellCheck` lint rule.",
       "type": "object",
@@ -1416,39 +1558,29 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false
     },
-    "SnakeCaseConfig": {
-      "description": "Configuration for the `SnakeCase` lint rule.",
+    "FlaggedCommentConfig": {
+      "description": "Configuration for the `FlaggedComment` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
+          "default": "note"
         },
-        "allowed_names": {
-          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.SnakeCase]\nallowed_names = [\"Foo\"]\n```",
+        "keywords": {
+          "description": "List of keywords to flag in comments.\n\nKeywords are matched as case-sensitive substrings of the comment\ntext, and cannot be empty. When keywords overlap (for example,\n`FIX` and `FIXME`), the longest keyword is reported.\n\n##### Example\n\n```toml\n[check.rules.FlaggedComment]\nkeywords = [\"TODO\", \"FIXME\", \"XXX\"]\n```",
           "type": "array",
           "items": {
             "type": "string"
           },
-          "default": []
-        }
-      },
-      "additionalProperties": false
-    },
-    "TodoCommentConfig": {
-      "description": "Configuration for the `TodoComment` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": [
+            "TODO"
+          ]
         }
       },
       "additionalProperties": false
@@ -1825,12 +1957,9 @@
           "description": "Use the TES task execution backend.",
           "type": "object",
           "properties": {
-            "url": {
+            "service": {
               "description": "The URL of the Task Execution Service.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "auth": {
@@ -1846,22 +1975,16 @@
             },
             "inputs": {
               "description": "The root cloud storage URL for storing inputs.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "outputs": {
               "description": "The root cloud storage URL for storing outputs.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "interval": {
-              "description": "The polling interval, in seconds, for checking task status.\n\nDefaults to 1 second.",
+              "description": "The polling interval, in seconds, for checking task status.\n\nDefaults to 30 seconds.",
               "type": [
                 "integer",
                 "null"
@@ -1898,7 +2021,10 @@
             }
           },
           "required": [
-            "type"
+            "type",
+            "service",
+            "inputs",
+            "outputs"
           ]
         },
         {
@@ -2096,7 +2222,14 @@
             },
             "password": {
               "description": "The HTTP basic authentication password.",
-              "$ref": "#/$defs/SecretString"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretString"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "type": {
               "type": "string",
@@ -2105,8 +2238,7 @@
           },
           "required": [
             "type",
-            "username",
-            "password"
+            "username"
           ]
         },
         {
@@ -2124,6 +2256,67 @@
           },
           "required": [
             "type",
+            "token"
+          ]
+        },
+        {
+          "description": "Use OAuth authentication for the TES backend.",
+          "type": "object",
+          "properties": {
+            "client_id": {
+              "description": "The OAuth application's client identifier.",
+              "type": "string"
+            },
+            "client_secret": {
+              "description": "The OAuth application's client secret.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretString"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "audience": {
+              "description": "The OAuth audience.\n\nWhen `None`, defaults to the base URI of the TES server.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "authorization": {
+              "description": "The URL for OAuth authorization requests.",
+              "type": "string",
+              "format": "uri"
+            },
+            "token": {
+              "description": "The URL for OAuth token requests.",
+              "type": "string",
+              "format": "uri"
+            },
+            "scopes": {
+              "description": "The desired scopes for OAuth.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "require_refresh": {
+              "description": "Whether or not to require a refresh token.\n\nIf `true` and the OAuth authorization does not return a refresh token,\nan error will be returned when the TES backend is created.\n\nIf `false` and the OAuth authorization does not return a refresh token,\na device reauthorization will occur.\n\nDefaults to `false`.",
+              "type": "boolean",
+              "default": false
+            },
+            "type": {
+              "type": "string",
+              "const": "oauth"
+            }
+          },
+          "required": [
+            "type",
+            "client_id",
+            "authorization",
             "token"
           ]
         }
