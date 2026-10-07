@@ -2474,6 +2474,7 @@ mod tests {
     }
 
     /// Returns the names of the entries in `dir`.
+    #[cfg(unix)]
     fn dir_names(dir: &Path) -> Vec<String> {
         let mut names: Vec<String> = fs::read_dir(dir)
             .unwrap()
