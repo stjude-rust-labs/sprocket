@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Security Fix
+### Security Fix
 
 * Git materialization now validates the fetched tree before any checkout
   and rejects symbolic links, submodules, entry names that are empty, `.`, `..`,
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   module walk rejects symbolic links inside `.sprocket/`
   ([GHSA-6p8x-mjmr-464v](https://github.com/stjude-rust-labs/sprocket/security/advisories/GHSA-6p8x-mjmr-464v)).
 
-#### Fixed
+### Fixed
 
 * Materializing a Git dependency from an existing cache leaf no longer deletes
   and re-checks-out the folders already materialized there, which raced with
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.2 - 2026-08-26
 
-#### Added
+### Added
 
 * Added `GitPlatform`, `TrustedIdentity`, `VerifyLockedReport`, and
   `CacheCleanStats`, along with `GitResolver::discover_default_branch`, to the
@@ -62,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   during one fetch
   ([#1115](https://github.com/stjude-rust-labs/sprocket/pull/1115)).
 
-#### Changed
+### Changed
 
 * `Manifest` no longer has a `version` field, and `Tool` now uses `url` and
   `ids` instead of `homepage`, `doi`, and `biotools`
@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   offending `name` and the underlying `DependencyNameError` as its source
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
-#### Fixed
+### Fixed
 
 * Git remotes reached over SSH now authenticate through `ssh-agent`; the
   credential callback returns only credential types that `libgit2` requested
@@ -117,7 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.1 - 2026-05-14
 
-#### Added
+### Added
 
 * Initial implementation of the `wdl-modules` crate, the pure-data-and-algorithms
   layer of the WDL module system. This release covers manifest and lockfile
@@ -145,7 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ref-count limit (`max_advertised_refs`) to `ModulesConfig`
   ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
 
-#### Changed
+### Changed
 
 * `partial_relock` now returns `Result<RelockOutcome, ResolverError>` and
   errors when a consumer-declared dependency is absent from the
