@@ -26,12 +26,18 @@ use async_lsp::ResponseError;
 use async_lsp::ServerSocket;
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::ClientCapabilities;
+use async_lsp::lsp_types::CreateFilesParams;
+use async_lsp::lsp_types::DeleteFilesParams;
+use async_lsp::lsp_types::FileCreate;
+use async_lsp::lsp_types::FileDelete;
 use async_lsp::lsp_types::InitializeParams;
 use async_lsp::lsp_types::InitializedParams;
 use async_lsp::lsp_types::TextDocumentItem;
 use async_lsp::lsp_types::WorkspaceDiagnosticParams;
 use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use async_lsp::lsp_types::WorkspaceFolder;
+use async_lsp::lsp_types::notification::DidCreateFiles;
+use async_lsp::lsp_types::notification::DidDeleteFiles;
 use async_lsp::lsp_types::request::WorkspaceDiagnosticRequest;
 use async_lsp::router::Router;
 use fs_extra::copy_items;
@@ -324,6 +330,35 @@ impl TestContext {
         })
         .await
         .expect("request should succeed")
+    }
+
+    /// Create a file on disk and notify the server
+    pub async fn create_file(&self, filename: &str, content: &str) {
+        let test_uri = self.doc_uri(filename);
+        let test_path = self.doc_path(filename);
+
+        std::fs::write(&test_path, content).unwrap();
+
+        self.notify::<DidCreateFiles>(CreateFilesParams {
+            files: vec![FileCreate {
+                uri: test_uri.to_string(),
+            }],
+        })
+        .unwrap();
+    }
+
+    /// Delete a file from disk and notify the server
+    pub async fn delete_file(&self, filename: &str) {
+        let test_path = self.doc_path(filename);
+        std::fs::remove_file(test_path).unwrap();
+
+        let test_uri = self.doc_uri(filename);
+        self.notify::<DidDeleteFiles>(DeleteFilesParams {
+            files: vec![FileDelete {
+                uri: test_uri.to_string(),
+            }],
+        })
+        .unwrap();
     }
 }
 

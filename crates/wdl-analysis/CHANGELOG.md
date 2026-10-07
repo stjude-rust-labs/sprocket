@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* `Analyzer::add_documents()` to add multiple documents at once
+  ([#1346](https://github.com/stjude-rust-labs/sprocket/pull/1346)).
+
 ## 0.28.0 - 2026-10-29
 
 ### Added
