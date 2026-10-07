@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.24.0 - 2026-10-07
+
 ### Added
 
 * `LintOptions::config` now sets the severity of analysis rules as well as lint rules ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
