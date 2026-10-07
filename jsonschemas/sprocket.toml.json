@@ -354,6 +354,9 @@
             "MissingParameterMeta": {
               "severity": "warning"
             },
+            "ParameterizedResources": {
+              "severity": "off"
+            },
             "ParameterMetaOrder": {
               "severity": "note"
             },
@@ -705,6 +708,13 @@
           "$ref": "#/$defs/MissingParameterMetaConfig",
           "default": {
             "severity": "warning"
+          }
+        },
+        "ParameterizedResources": {
+          "description": "The `ParameterizedResources` rule.",
+          "$ref": "#/$defs/ParameterizedResourcesConfig",
+          "default": {
+            "severity": "off"
           }
         },
         "ParameterMetaOrder": {
@@ -1441,6 +1451,18 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParameterizedResourcesConfig": {
+      "description": "Configuration for the `ParameterizedResources` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "off"
         }
       },
       "additionalProperties": false

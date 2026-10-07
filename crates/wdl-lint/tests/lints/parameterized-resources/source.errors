@@ -1,0 +1,64 @@
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources/source.wdl:74:9
+   │
+74 │         cpu: 0.5
+   │         ^^^^^^^^
+   │
+   = help: consider using input parameters or `task.attempt` for retry-aware scaling
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources/source.wdl:75:9
+   │
+75 │         memory: "2 GiB"
+   │         ^^^^^^^^^^^^^^^
+   │
+   = help: consider using input parameters or `task.attempt` for retry-aware scaling
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources/source.wdl:76:9
+   │
+76 │         disks: 1
+   │         ^^^^^^^^
+   │
+   = help: consider using input parameters or `task.attempt` for retry-aware scaling
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources/source.wdl:84:9
+   │
+84 │         cpu: (0.5)
+   │         ^^^^^^^^^^
+   │
+   = help: consider using input parameters or `task.attempt` for retry-aware scaling
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources/source.wdl:85:9
+   │
+85 │         memory: if true then "2 GiB" else "1 GiB"
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: consider using input parameters or `task.attempt` for retry-aware scaling
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources/source.wdl:86:9
+   │
+86 │         disks: 1 + 1
+   │         ^^^^^^^^^^^^
+   │
+   = help: consider using input parameters or `task.attempt` for retry-aware scaling
+
+note[ParameterizedResources]: fixed resource allocation
+   ┌─ tests/lints/parameterized-resources/source.wdl:94:9
+   │
+94 │         memory: "~{4 + 4} GiB"
+   │         ^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: consider using input parameters or `task.attempt` for retry-aware scaling
+
+note[ParameterizedResources]: fixed resource allocation
+    ┌─ tests/lints/parameterized-resources/source.wdl:102:9
+    │
+102 │         disks: ["2", "/mnt/outputs 4 GiB", "/mnt/tmp 1 GiB"]
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = help: consider using input parameters or `task.attempt` for retry-aware scaling
+

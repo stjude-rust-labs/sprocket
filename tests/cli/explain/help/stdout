@@ -108,6 +108,7 @@ Available rules:
   - OutputName
   - ParameterDescription
   - ParameterMetaOrder
+  - ParameterizedResources
   - RecommendedRuntimeKeys
   - RedundantContainerArray
   - RedundantNone
