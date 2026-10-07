@@ -337,13 +337,13 @@ impl Rule for MatchingOutputMetaRule<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that each output field is documented either in `meta.outputs` or \
-         with a doc comment."
+        "Ensures that each output field is documented either in `meta.outputs` or with a doc \
+         comment."
     }
 
     fn explanation(&self) -> &'static str {
-        "Each task or workflow output without a doc comment should have a corresponding \
-        entry in the meta.outputs object. Entries for undeclared outputs are not allowed."
+        "Each task or workflow output without a doc comment should have a corresponding entry in \
+         the meta.outputs object. Entries for undeclared outputs are not allowed."
     }
 
     fn examples(&self) -> &'static [Example] {

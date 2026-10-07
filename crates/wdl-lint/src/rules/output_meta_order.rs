@@ -74,9 +74,8 @@ impl Rule for OutputMetaOrderRule<'_> {
     }
 
     fn explanation(&self) -> &'static str {
-        "When outputs without doc comments are documented in meta.outputs, \
-         those metadata keys should appear in the same order as their corresponding \
-         declarations in the output section."
+        "When outputs without doc comments are documented in meta.outputs, those metadata keys \
+         should appear in the same order as their corresponding declarations in the output section."
     }
 
     fn examples(&self) -> &'static [Example] {
