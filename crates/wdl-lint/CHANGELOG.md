@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `ShellCheck` can now report `SC2043` and `SC2157` lints that occur with command text ([#1277](https://github.com/stjude-rust-labs/sprocket/pull/1277)).
 * Added the `ShellSplitting` lint rule, which reports `String`, `File`, and `Directory` placeholders in command sections that are subject to shell word splitting ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
 * Added the `NamingConvention` lint rule and the `CaseStyle` type; `NamingConventionConfig` configures the case style of `task`, `workflow`, `variable`, `type`, and `struct_member` names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * Added `RuleSeverity` and a `severity` for every rule in `Config` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
@@ -35,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed `ExpectedRuntimeKeys` to `UnknownRuntimeKeys`; `allowed_runtime_keys` is now configured under `[check.rules.UnknownRuntimeKeys]` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Renamed `ParameterMetaMatched` to `MissingParameterMeta` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `BashSetSyntax` now reports unknown `set` options as warnings instead of errors ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
-* `ShellCheck` now reports a failure to run `shellcheck` as a note instead of an error ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `ShellCheck` now reports a failure to run `shellcheck` as a warning instead of an error ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).
 * `ParameterMetaMatched` now supports checking both doc comments and `parameter_meta` sections ([#1184](https://github.com/stjude-rust-labs/sprocket/pull/1184)).
 * `MatchingOutputMeta` and `OutputMetaOrder` now recognize output doc comments as satisfying output documentation requirements ([#1251](https://github.com/stjude-rust-labs/sprocket/issues/1251)).
