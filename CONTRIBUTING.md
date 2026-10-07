@@ -173,6 +173,7 @@ There are a handful of reasons the CI may have turned red. Try the following fix
 - `cargo run --release -p gauntlet --bin gauntlet -- --bless --arena`
   - see the `What is arena?` question for more information
 - `rustup update` to update your local toolchains
+- `rumdl fmt` to format any Markdown files
 
 ### What's the general workflow for writing a new lint rule?
 
