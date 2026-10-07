@@ -363,10 +363,32 @@ warning[ShellCheck]: rc is referenced but not assigned.
     │
     = fix: address the diagnostic as recommended in the message
 
-warning[ShellCheck]: Use $(...) notation instead of legacy backticks `...`.
-    ┌─ tests/lints/shellcheck-warn/source.wdl:203:9
+warning[ShellCheck]: This loop will only ever run once. Bad quoting or missing glob/expansion?
+    ┌─ tests/lints/shellcheck-warn/source.wdl:196:18
     │
-203 │         `true`
+196 │         for f in foo; do
+    │                  ^^^
+    │                  │
+    │                  SC2043[warning]: This loop will only ever run once. Bad quoting or missing glob/expansion?
+    │                  more info: https://www.shellcheck.net/wiki/SC2043
+    │
+    = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: Argument to -n is always true due to literal strings.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:200:19
+    │
+200 │         if [[ -n "gah" ]]; then
+    │                   ^^^
+    │                   │
+    │                   SC2157[error]: Argument to -n is always true due to literal strings.
+    │                   more info: https://www.shellcheck.net/wiki/SC2157
+    │
+    = fix: address the diagnostic as recommended in the message
+
+warning[ShellCheck]: Use $(...) notation instead of legacy backticks `...`.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:220:9
+    │
+220 │         `true`
     │         ^^^^^^
     │         │
     │         SC2006[style]: Use $(...) notation instead of legacy backticks `...`.
@@ -375,9 +397,9 @@ warning[ShellCheck]: Use $(...) notation instead of legacy backticks `...`.
     = fix: did you mean `$(true)`?
 
 warning[ShellCheck]: Remove backticks to avoid executing output (or use eval if intentional).
-    ┌─ tests/lints/shellcheck-warn/source.wdl:203:9
+    ┌─ tests/lints/shellcheck-warn/source.wdl:220:9
     │
-203 │         `true`
+220 │         `true`
     │         ^^^^^^
     │         │
     │         SC2092[warning]: Remove backticks to avoid executing output (or use eval if intentional).
