@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `check`, `lint`, and `analyzer` now apply the lint rule parameters from `sprocket.toml` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Fixed a stack overflow occurring when parsing CLI options that occurred on
-  debug Windows builds of `sprocket` (https://github.com/stjude-rust-labs/sprocket/pull/1224).
+  debug Windows builds of `sprocket` ([#1124](https://github.com/stjude-rust-labs/sprocket/pull/1224)).
 * Nested inputs are now shell-expanded in `run` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
   debug Windows builds of `sprocket` ([#1124](https://github.com/stjude-rust-labs/sprocket/pull/1224)).
 * Fixed intermittent `check` and `run` failures when a document imports several
