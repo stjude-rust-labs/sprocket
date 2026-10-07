@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Security Fix
+
+* Fixed a security issue where fetching a Git module dependency from a hostile
+  remote could create or delete files outside the module cache. Sprocket now
+  rejects a module whose Git tree contains a symbolic link, a submodule, an
+  unsafe entry name, or two entries with colliding names before writing
+  anything, and evicts cached modules written by earlier versions from such a
+  tree
+  ([GHSA-6p8x-mjmr-464v](https://github.com/stjude-rust-labs/sprocket/security/advisories/GHSA-6p8x-mjmr-464v)).
+
 ### Added
 
 * Added the `NamingConvention` lint rule, which enforces a configurable case style (`snake_case`, `screaming_snake_case`, `camel_case`, or `pascal_case`) for task, workflow, variable, type, and struct member names ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).

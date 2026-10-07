@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Fixed
+#### Security Fix
+
+* Git materialization now validates the fetched tree before any checkout
+  and rejects symbolic links, submodules, entry names that are empty, `.`, `..`,
+  contain a path separator, NUL, or `:`, or alias `.git` (ignoring case, NTFS
+  trailing dots and spaces, `git~1`, and HFS+ ignorable characters), and trees
+  with two names that collide ignoring case. The check covers the whole
+  selected folder, including `.sprocket/`, and every tree on the path to it.
+  Previously a hostile remote could make libgit2 create or delete files
+  outside the cache leaf. A reused cache leaf whose commit fails the check is
+  evicted, cache cleanup refuses to remove through a symbolic link, and the
+  module walk rejects symbolic links inside `.sprocket/`
+  ([GHSA-6p8x-mjmr-464v](https://github.com/stjude-rust-labs/sprocket/security/advisories/GHSA-6p8x-mjmr-464v)).
+
+#### Fixed
 
 * Materializing a Git dependency from an existing cache leaf no longer deletes
   and re-checks-out the folders already materialized there, which raced with
@@ -26,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.2 - 2026-08-26
 
-### Added
+#### Added
 
 * Added `GitPlatform`, `TrustedIdentity`, `VerifyLockedReport`, and
   `CacheCleanStats`, along with `GitResolver::discover_default_branch`, to the
@@ -103,7 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.1 - 2026-05-14
 
-### Added
+#### Added
 
 * Initial implementation of the `wdl-modules` crate, the pure-data-and-algorithms
   layer of the WDL module system. This release covers manifest and lockfile
