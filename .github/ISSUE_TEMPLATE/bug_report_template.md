@@ -7,23 +7,22 @@ assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Describe the bug** A clear and concise description of what the bug is.
 
-Make sure to add **all the information needed to understand the bug** so that someone can help. If the info is missing we'll add the 'Needs more information' label and close the issue until there is enough information.
+Make sure to add **all the information needed to understand the bug** so that someone can help. If
+the info is missing we'll add the 'Needs more information' label and close the issue until there is
+enough information.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Expected behavior** A clear and concise description of what you expected to happen.
 
-**Terminal Output**
-Please copy and paste the command used, logs generated, and the error produced in the markdown block below. This can also be attached to to the issue as a file.
+**Terminal Output** Please copy and paste the command used, logs generated, and the error produced
+in the markdown block below. This can also be attached to to the issue as a file.
 
 ```bash
 Replace with terminal output
 ```
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Screenshots** If applicable, add screenshots to help explain your problem.
 
 **Environment (please complete the following information):**
 
@@ -32,5 +31,4 @@ If applicable, add screenshots to help explain your problem.
 - Shell: [e.g. bash]
 - Toolchain version: [e.g. output of `rustc --version`]
 
-**Additional context**
-Add any other context about the problem here.
+**Additional context** Add any other context about the problem here.

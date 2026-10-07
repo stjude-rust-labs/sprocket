@@ -2,8 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
@@ -11,44 +11,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Warnings when formatting encounters a command sections with mixed indentation ([#1230](https://github.com/stjude-rust-labs/sprocket/pull/1230))
+* Warnings when formatting encounters a command sections with mixed indentation
+  ([#1230](https://github.com/stjude-rust-labs/sprocket/pull/1230))
 
 ## 0.21.0 - 2026-09-16
 
 ### Added
 
-* `quote_style` configuration option, with choices: `double`, `single`, `preserve`. Use `double` to preserve prior behavior. ([#1200](https://github.com/stjude-rust-labs/sprocket/pull/1200))
-* Added an `upgrade_deprecations` config option to upgrade some deprecated WDL constructs to their replacement styles ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
-* Short literal arrays, if/then/else clauses, and symbolic import clauses are kept on the same line instead of being unconditionally line split ([#1154](https://github.com/stjude-rust-labs/sprocket/pull/1154)).
+* `quote_style` configuration option, with choices: `double`, `single`, `preserve`. Use `double` to
+  preserve prior behavior. ([#1200](https://github.com/stjude-rust-labs/sprocket/pull/1200))
+* Added an `upgrade_deprecations` config option to upgrade some deprecated WDL constructs to their
+  replacement styles ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
+* Short literal arrays, if/then/else clauses, and symbolic import clauses are kept on the same line
+  instead of being unconditionally line split
+  ([#1154](https://github.com/stjude-rust-labs/sprocket/pull/1154)).
 
 #### Changed
 
-* Formatting no longer forces users to adopt Sprocket's opinionated section ordering of tasks and workflows. Set `reorder_sections = true` to retain prior behavior ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).
+* Formatting no longer forces users to adopt Sprocket's opinionated section ordering of tasks and
+  workflows. Set `reorder_sections = true` to retain prior behavior
+  ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).
 
 #### Fixed
 
-* Formatting no longer forces command sections to use heredoc style or tilde-style placeholders. Set `upgrade_deprecations = true` to retain prior behavior ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
-* Formatting no longer panics when an `input` hints item has a value that is not a `hints` literal ([#1174](https://github.com/stjude-rust-labs/sprocket/pull/1174)).
+* Formatting no longer forces command sections to use heredoc style or tilde-style placeholders. Set
+  `upgrade_deprecations = true` to retain prior behavior
+  ([#1201](https://github.com/stjude-rust-labs/sprocket/pull/1201)).
+* Formatting no longer panics when an `input` hints item has a value that is not a `hints` literal
+  ([#1174](https://github.com/stjude-rust-labs/sprocket/pull/1174)).
 
 ## 0.20.2 - 2026-08-26
 
 ### Added
 
-* Extraneous tokens (e.g. trailing commas and empty call input blocks) are dropped from the output ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
+* Extraneous tokens (e.g. trailing commas and empty call input blocks) are dropped from the output
+  ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
 
 #### Fixed
 
-* Commas and closing delimiters are no longer dangled after multiline if/then/else expressions ([#1056](https://github.com/stjude-rust-labs/sprocket/pull/1056)).
-* Duplicate sections in a task, workflow, or struct are no longer dropped; every section is retained in the order it was written. A task that has both a `requirements` and a `runtime` section now retains both ([#1112](https://github.com/stjude-rust-labs/sprocket/pull/1112)).
-* Formatting no longer panics on `input` hints keys that use dotted struct member paths, such as `foo.bar` ([#854](https://github.com/stjude-rust-labs/sprocket/issues/854)).
-* Comments within import statements are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
-* Non-directive comment ordering and blank lines are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
+* Commas and closing delimiters are no longer dangled after multiline if/then/else expressions
+  ([#1056](https://github.com/stjude-rust-labs/sprocket/pull/1056)).
+* Duplicate sections in a task, workflow, or struct are no longer dropped; every section is retained
+  in the order it was written. A task that has both a `requirements` and a `runtime` section now
+  retains both ([#1112](https://github.com/stjude-rust-labs/sprocket/pull/1112)).
+* Formatting no longer panics on `input` hints keys that use dotted struct member paths, such as
+  `foo.bar` ([#854](https://github.com/stjude-rust-labs/sprocket/issues/854)).
+* Comments within import statements are preserved
+  ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
+* Non-directive comment ordering and blank lines are preserved
+  ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
 
 ## 0.20.1 - 2026-08-05
 
 ### Fixed
 
-* Better handling of "interrupting" comments so that common comment placements don't result in awkward whitespace ([#1033](https://github.com/stjude-rust-labs/sprocket/pull/1033)).
+* Better handling of "interrupting" comments so that common comment placements don't result in
+  awkward whitespace ([#1033](https://github.com/stjude-rust-labs/sprocket/pull/1033)).
 
 ## 0.20.0 - 2026-07-15
 
@@ -56,8 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
-* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* Renamed enum terminology from `variant` to `choice`
+  ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
+* Moved from `toml` to `toml-spanner` for TOML serialization
+  ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
 ## 0.18.1 - 2026-06-03
 
@@ -65,13 +85,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added configurable newline style (`auto`, `unix`, `windows`) to formatting configuration ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
-* Formatting for the WDL 1.4 import forms. The namespace and wildcard
-  forms render on a single line. Braced member lists render inline when
-  the full statement fits within `max_line_length` and otherwise wrap
-  with each member on its own indented line. Symbolic module paths are
-  emitted as a single literal so the line-break algorithm never splits
-  them at `/` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* Added configurable newline style (`auto`, `unix`, `windows`) to formatting configuration
+  ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
+* Formatting for the WDL 1.4 import forms. The namespace and wildcard forms render on a single line.
+  Braced member lists render inline when the full statement fits within `max_line_length` and
+  otherwise wrap with each member on its own indented line. Symbolic module paths are emitted as a
+  single literal so the line-break algorithm never splits them at `/`
+  ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 ## 0.17.0 - 2026-04-02
 
@@ -79,20 +99,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added logic for tandem line breaks on matching tokens (e.g. open and close brackets) ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641) [#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
-* Added configuration for input section formatting (off by default) ([#640](https://github.com/stjude-rust-labs/sprocket/pull/640)).
-* Added configuration for trailing commas (on by default) ([#665](https://github.com/stjude-rust-labs/sprocket/pull/665)).
-* Added configuration for import sorting (on by default) ([#679](https://github.com/stjude-rust-labs/sprocket/pull/679)).
-* `#@ except:` comment normalization and consolidation of doc comment blocks ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Added logic for tandem line breaks on matching tokens (e.g. open and close brackets)
+  ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641)
+  [#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+* Added configuration for input section formatting (off by default)
+  ([#640](https://github.com/stjude-rust-labs/sprocket/pull/640)).
+* Added configuration for trailing commas (on by default)
+  ([#665](https://github.com/stjude-rust-labs/sprocket/pull/665)).
+* Added configuration for import sorting (on by default)
+  ([#679](https://github.com/stjude-rust-labs/sprocket/pull/679)).
+* `#@ except:` comment normalization and consolidation of doc comment blocks
+  ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
 #### Changed
 
-* Changed serialization for `MaxLineLength` and `Indent` configurations ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
-* `if...then...else...` statements now always occupy multiple lines ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+* Changed serialization for `MaxLineLength` and `Indent` configurations
+  ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `if...then...else...` statements now always occupy multiple lines
+  ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
 
 #### Fixed
 
-* Correctly calculate bash indent when multiple placeholders are on the same line of `command` text ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+* Correctly calculate bash indent when multiple placeholders are on the same line of `command` text
+  ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
 
 ## 0.15.1 - 2026-02-12
 
@@ -104,40 +133,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Split long `#@ except:` lint directives across multiple lines when they exceed the configured maximum line length.
+* Split long `#@ except:` lint directives across multiple lines when they exceed the configured
+  maximum line length.
 
 ### Fixed
 
-* Correctly format `ConditionalStatement` with `else if` and `else` ([#617](https://github.com/stjude-rust-labs/sprocket/pull/617)).
+* Correctly format `ConditionalStatement` with `else if` and `else`
+  ([#617](https://github.com/stjude-rust-labs/sprocket/pull/617)).
 
 ## 0.14.0 - 01-12-2026
 
 ### Added
 
-* Added sorting of `#@ except` directive rule names ([#505](https://github.com/stjude-rust-labs/sprocket/pull/505)).
+* Added sorting of `#@ except` directive rule names
+  ([#505](https://github.com/stjude-rust-labs/sprocket/pull/505)).
 
 ## 0.13.0 - 11-21-2025
 
 ### Added
 
-* Added formatting support for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
-* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Added formatting support for WDL enumerations in preparation for WDL v1.3
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3)
+  ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 
 ## 0.12.0 - 10-14-2025
 
 ### Changed
 
-* Always format call statement `input`s across multiple lines instead of trying to put single inputs on the same line as the `call` ([#377](https://github.com/stjude-rust-labs/sprocket/pull/377/)).
+* Always format call statement `input`s across multiple lines instead of trying to put single inputs
+  on the same line as the `call` ([#377](https://github.com/stjude-rust-labs/sprocket/pull/377/)).
 
 #### Fixed
 
-* Trailing comments at the end of documents are now captured and output correctly ([#413](https://github.com/stjude-rust-labs/sprocket/pull/413)).
-* Fixed edge case in single quote to double quote conversion for literal strings ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
-* `MaxLineLength::try_new()` and `IndentationSize::try_new()` return appropriate errors ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
+* Trailing comments at the end of documents are now captured and output correctly
+  ([#413](https://github.com/stjude-rust-labs/sprocket/pull/413)).
+* Fixed edge case in single quote to double quote conversion for literal strings
+  ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
+* `MaxLineLength::try_new()` and `IndentationSize::try_new()` return appropriate errors
+  ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
 
 ## 0.11.0 - 09-15-2025
 
-* Added support for sorting input sections ([#597](https://github.com/stjude-rust-labs/wdl/pull/597)).
+* Added support for sorting input sections
+  ([#597](https://github.com/stjude-rust-labs/wdl/pull/597)).
 
 ## 0.10.0 - 08-13-2025
 
@@ -155,12 +194,15 @@ Mistaken release, please use `0.9.1`
 
 ### Added
 
-* Added panic documentation to functions which may panic ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
-* Added documentation to places which needed more clarity ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
+* Added panic documentation to functions which may panic
+  ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
+* Added documentation to places which needed more clarity
+  ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
 
 #### Changed
 
-* Renamed some methods of `TokenStream<PreToken>` for increased clarity ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
+* Renamed some methods of `TokenStream<PreToken>` for increased clarity
+  ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
 
 #### Removed
 
@@ -174,7 +216,8 @@ Mistaken release, please use `0.9.1`
 
 ## 0.6.1 - 05-02-2025
 
-_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding dependencies._
+_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding
+dependencies._
 
 ## 0.6.0 - 05-01-2025
 
@@ -193,20 +236,24 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ### Added
 
-* Leading whitespace in command text is now normalized ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
-* Line breaks are now added in order to keep lines under the max line width (default 90 characters) ([#242](https://github.com/stjude-rust-labs/wdl/pull/242)).
+* Leading whitespace in command text is now normalized
+  ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
+* Line breaks are now added in order to keep lines under the max line width (default 90 characters)
+  ([#242](https://github.com/stjude-rust-labs/wdl/pull/242)).
 
 #### Fixed
 
-* Multi-line placeholders in command blocks are now indented appropriately ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
-* Issue [#289](https://github.com/stjude-rust-labs/wdl/issues/289) (extraneous end line in literal structs)
-  is fixed ([#290](https://github.com/stjude-rust-labs/wdl/pull/290))
+* Multi-line placeholders in command blocks are now indented appropriately
+  ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
+* Issue [#289](https://github.com/stjude-rust-labs/wdl/issues/289) (extraneous end line in literal
+  structs) is fixed ([#290](https://github.com/stjude-rust-labs/wdl/pull/290))
 
 ## 0.3.0 - 10-22-2024
 
 ### Fixed
 
-* Fix panic on multiline strings in WDL 1.2 ([#227](https://github.com/stjude-rust-labs/wdl/pull/227)).
+* Fix panic on multiline strings in WDL 1.2
+  ([#227](https://github.com/stjude-rust-labs/wdl/pull/227)).
 
 ## 0.2.1 - 10-16-2024
 

@@ -2,8 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
@@ -15,175 +15,198 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* `find_all_references` and `rename` now search only the defining document for
-  symbols that cannot be referenced by importers, such as private declarations,
-  call aliases, scatter variables, and import aliases ([#796](https://github.com/stjude-rust-labs/sprocket/pull/796)).
+* `find_all_references` and `rename` now search only the defining document for symbols that cannot
+  be referenced by importers, such as private declarations, call aliases, scatter variables, and
+  import aliases ([#796](https://github.com/stjude-rust-labs/sprocket/pull/796)).
 
 #### Fixed
 
-* `goto_definition` on the target name of an import alias (e.g. `Human` in
-  `alias Person as Human`) now resolves to the alias ([#796](https://github.com/stjude-rust-labs/sprocket/pull/796)).
+* `goto_definition` on the target name of an import alias (e.g. `Human` in `alias Person as Human`)
+  now resolves to the alias ([#796](https://github.com/stjude-rust-labs/sprocket/pull/796)).
 
 ## 0.26.0 - 2026-09-16
 
 ### Added
 
-* Added incremental analysis to improve LSP performance. Initial analysis requests will have similar performance, with
-  the benefits coming on any _subsequent_ requests. Before, any change in the document triggered a **full** re-analysis.
-  Now, the actual differences in the document are tracked, with any untouched items being recycled from the cache ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).
-* `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules, which ensure that deprecated
-  language features are not used ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
+* Added incremental analysis to improve LSP performance. Initial analysis requests will have similar
+  performance, with the benefits coming on any _subsequent_ requests. Before, any change in the
+  document triggered a **full** re-analysis. Now, the actual differences in the document are
+  tracked, with any untouched items being recycled from the cache
+  ([#1101](https://github.com/stjude-rust-labs/sprocket/pull/1101)).
+* `DeprecatedObject`, `DeprecatedPlaceholder`, and `DeprecatedRuntimeSection` rules, which ensure
+  that deprecated language features are not used
+  ([#1166](https://github.com/stjude-rust-labs/sprocket/pull/1166)).
 
 #### Changed
 
-* The `Analyzer::{call_hierarchy, goto_definition, find_all_references, code_lens, hover, rename, semantic_tokens,
-  workspace_symbol, incoming_calls, outgoing_calls, inlay_hints}()` requests perform analysis on-demand and now require
-  a `Context` argument ([#1189](https://github.com/stjude-rust-labs/sprocket/pull/1189)).
+* The
+  `Analyzer::{call_hierarchy, goto_definition, find_all_references, code_lens, hover, rename, semantic_tokens, workspace_symbol, incoming_calls, outgoing_calls, inlay_hints}()`
+  requests perform analysis on-demand and now require a `Context` argument
+  ([#1189](https://github.com/stjude-rust-labs/sprocket/pull/1189)).
 
 ## 0.25.0 - 2026-08-26
 
 ### Added
 
-* `ImportedTask` and `ImportedWorkflow` are now public and expose `name()`,
-  `document()`, and source accessors, while `Document::imported_task_by_name`
-  and `Document::imported_workflow_by_name` are now public
-  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-* `ExceptDirectiveValid` rule, which ensures that `#@ except` comments are placed in valid locations ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
-* `CommandSectionIndentation` rule, which ensures that command sections are indented consistently ([#1144](https://github.com/stjude-rust-labs/sprocket/pull/1144)).
+* `ImportedTask` and `ImportedWorkflow` are now public and expose `name()`, `document()`, and source
+  accessors, while `Document::imported_task_by_name` and `Document::imported_workflow_by_name` are
+  now public ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `ExceptDirectiveValid` rule, which ensures that `#@ except` comments are placed in valid locations
+  ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
+* `CommandSectionIndentation` rule, which ensures that command sections are indented consistently
+  ([#1144](https://github.com/stjude-rust-labs/sprocket/pull/1144)).
 
 #### Changed
 
-* An import must now share the importing document's major version and have a
-  minor version no greater than it; importing a newer minor version is rejected
+* An import must now share the importing document's major version and have a minor version no
+  greater than it; importing a newer minor version is rejected
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-* `Visitor::known_rules()` and `Validator::extend_known_rules()` were renamed to `Visitor::rules()` and
-  `Validator::extend_rules()`, respectively ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
+* `Visitor::known_rules()` and `Validator::extend_known_rules()` were renamed to `Visitor::rules()`
+  and `Validator::extend_rules()`, respectively
+  ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
 
 #### Fixed
 
-* Fixed aliasing of imported enums causing a confusing "not a struct"
-  diagnostic from static analysis ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
-* Fixed static analysis failing to emit a diagnostic for unknown enum choice
-  access ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
-* A task or workflow re-exported into a document through two scope-merging
-  imports that denote the same underlying declaration is no longer a spurious
-  conflict, so diamond-shaped import graphs resolve
+* Fixed aliasing of imported enums causing a confusing "not a struct" diagnostic from static
+  analysis ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Fixed static analysis failing to emit a diagnostic for unknown enum choice access
+  ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* A task or workflow re-exported into a document through two scope-merging imports that denote the
+  same underlying declaration is no longer a spurious conflict, so diamond-shaped import graphs
+  resolve ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* A form-1 (namespaced) import now exposes the imported document's re-exported tasks and workflows,
+  so `call ns.reexported_task` resolves
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-* A form-1 (namespaced) import now exposes the imported document's re-exported
-  tasks and workflows, so `call ns.reexported_task` resolves
-  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-* Unknown unqualified calls are no longer reported when a wildcard import
-  fails to resolve, since the call may have originated from the missing import
+* Unknown unqualified calls are no longer reported when a wildcard import fails to resolve, since
+  the call may have originated from the missing import
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
 ## 0.24.0 - 2026-08-05
 
 ### Fixed
 
-* Supported WDL 1.0 `runtime` resource requirements remain available to
-  execution consumers while static type diagnostics remain version-aware
+* Supported WDL 1.0 `runtime` resource requirements remain available to execution consumers while
+  static type diagnostics remain version-aware
   ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
-* LSP hover and completion for standard library functions are now version-aware:
-  functions and polymorphic signatures whose minimum WDL version exceeds the
-  document's declared version are no longer offered in completion or shown on
-  hover ([#1005](https://github.com/stjude-rust-labs/sprocket/pull/1005)).
+* LSP hover and completion for standard library functions are now version-aware: functions and
+  polymorphic signatures whose minimum WDL version exceeds the document's declared version are no
+  longer offered in completion or shown on hover
+  ([#1005](https://github.com/stjude-rust-labs/sprocket/pull/1005)).
 
 ## 0.23.0 - 2026-07-15
 
 ### Added
 
-* Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
-* `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
-* `KnownRules` rule, which ensures only known rules are used in `except` directives ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard
+  `import * from owner/module` and selected-member `import { a, b } from owner/module` forms)
+  through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis
+  ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything
+  ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* `KnownRules` rule, which ensures only known rules are used in `except` directives
+  ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
 * `Analyzer::delete_documents()` to forcefully delete documents from the graph, regardless of
   dependencies ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
 #### Changed
 
-* `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
-* `Analyzer::remove_documents()` was renamed to `Analyzer::remove_roots()` ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
+* `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus
+  an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to
+  preserve the previous non-resolving behavior
+  ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* `Analyzer::remove_documents()` was renamed to `Analyzer::remove_roots()`
+  ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
 #### Fixed
 
-* `runtime` section key type checking (e.g. for `cpu`, `gpu`, `disks`,
-  `maxRetries`, and `returnCodes`) is now version-aware: these keys are no
-  longer type checked in WDL 1.0 documents, since they were not formally
-  typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
+* `runtime` section key type checking (e.g. for `cpu`, `gpu`, `disks`, `maxRetries`, and
+  `returnCodes`) is now version-aware: these keys are no longer type checked in WDL 1.0 documents,
+  since they were not formally typed until WDL 1.1
+  ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
 
 ### Changed
 
-* The analyzer's formatter now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+* The analyzer's formatter now honors `[format]` configuration
+  ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
 
 ## 0.22.0 - 2026-06-26
 
 ### Changed
 
-* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* Moved from `toml` to `toml-spanner` for TOML serialization
+  ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
 #### Fixed
 
-* The `UnusedInput` rule now fires in `task`s without `command` sections ([#849](https://github.com/stjude-rust-labs/sprocket/pull/849)).
+* The `UnusedInput` rule now fires in `task`s without `command` sections
+  ([#849](https://github.com/stjude-rust-labs/sprocket/pull/849)).
 
 ## 0.21.0 - 2026-06-03
 
 ### Added
 
-* Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
+* Analysis now emits diagnostics for task variable declarations that appear after `command` sections
+  ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
 
 #### Changed
 
-* The type of `task.return_code` is now `Int` instead of `Int?` ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+* The type of `task.return_code` is now `Int` instead of `Int?`
+  ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
 
 #### Fixed
 
-* `task.return_code` can no longer be used outside of `output` sections ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
-* Enum types for struct members will no longer error ([#866](https://github.com/stjude-rust-labs/sprocket/pull/866)).
+* `task.return_code` can no longer be used outside of `output` sections
+  ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+* Enum types for struct members will no longer error
+  ([#866](https://github.com/stjude-rust-labs/sprocket/pull/866)).
 
 ## 0.20.0 - 2026-05-14
 
 ### Added
 
-* `FeatureFlags::wdl_1_4` behind `feature_flags.wdl_1_4` in
-  `sprocket.toml`, defaulting to `false` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
-* `VersionVisitor` diagnostic when a document declares `version 1.4`
-  without the `wdl_1_4` feature flag enabled ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `FeatureFlags::wdl_1_4` behind `feature_flags.wdl_1_4` in `sprocket.toml`, defaulting to `false`
+  ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `VersionVisitor` diagnostic when a document declares `version 1.4` without the `wdl_1_4` feature
+  flag enabled ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 ## 0.19.1 - 2026-04-22
 
 ### Fixed
 
-* Optional-to-default call input coercion (passing an optional value to
-  a non-optional input with a default) is no longer gated behind WDL
-  1.2+, matching Cromwell and miniwdl behavior
+* Optional-to-default call input coercion (passing an optional value to a non-optional input with a
+  default) is no longer gated behind WDL 1.2+, matching Cromwell and miniwdl behavior
   ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
 
 ## 0.19.0 - 2026-04-02
 
 ### Changed
 
-* Type mismatch diagnostics now distinguish between custom types and references
-  to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
-* The `UnusedInput` rule no longer ignores `File` and `Array[File]` inputs with specific names ([#741](https://github.com/stjude-rust-labs/sprocket/pull/741)).
+* Type mismatch diagnostics now distinguish between custom types and references to custom types
+  ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
+* The `UnusedInput` rule no longer ignores `File` and `Array[File]` inputs with specific names
+  ([#741](https://github.com/stjude-rust-labs/sprocket/pull/741)).
 
 #### Fixed
 
-* Fixed a thread panic when analyzing struct definitions with invalid map key types ([#778](https://github.com/stjude-rust-labs/sprocket/pull/778)).
-* Added enum type coercion support
-  ([#706](https://github.com/stjude-rust-labs/sprocket/issues/706),
+* Fixed a thread panic when analyzing struct definitions with invalid map key types
+  ([#778](https://github.com/stjude-rust-labs/sprocket/pull/778)).
+* Added enum type coercion support ([#706](https://github.com/stjude-rust-labs/sprocket/issues/706),
   [#724](https://github.com/stjude-rust-labs/sprocket/pull/724)).
 
 ## 0.18.0 - 2026-03-12
 
 ### Changed
 
-* Analysis now emits diagnostics for use of `Map` types or map literals where
-  the key type is optional ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
-* Implicit input bindings will now error in document versions < WDL v1.1 ([#644](https://github.com/stjude-rust-labs/sprocket/pull/644)).
-* Changed `SyntaxNodeExt` trait to `Exceptable` and gave the methods default
-  implementations ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
-* Struct literals will now error in document versions < WDL v1.1 ([#643](https://github.com/stjude-rust-labs/sprocket/pull/643)).
-* `Analyzer::document_symbol()` will now parse documents on-demand and no longer requires
-  analysis be performed beforehand ([#702](https://github.com/stjude-rust-labs/sprocket/pull/702)).
+* Analysis now emits diagnostics for use of `Map` types or map literals where the key type is
+  optional ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
+* Implicit input bindings will now error in document versions < WDL v1.1
+  ([#644](https://github.com/stjude-rust-labs/sprocket/pull/644)).
+* Changed `SyntaxNodeExt` trait to `Exceptable` and gave the methods default implementations
+  ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Struct literals will now error in document versions < WDL v1.1
+  ([#643](https://github.com/stjude-rust-labs/sprocket/pull/643)).
+* `Analyzer::document_symbol()` will now parse documents on-demand and no longer requires analysis
+  be performed beforehand ([#702](https://github.com/stjude-rust-labs/sprocket/pull/702)).
 
 #### Fixed
 
@@ -192,8 +215,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Removed
 
-* Removed `EXCEPT_COMMENT_PREFIX`. Use `wdl_ast::{DIRECTIVE_COMMENT_PREFIX,Directive}` instead ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
-* Removed `except_comments()` method from `SyntaxNodeExt`/`Exceptable` trait ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Removed `EXCEPT_COMMENT_PREFIX`. Use `wdl_ast::{DIRECTIVE_COMMENT_PREFIX,Directive}` instead
+  ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Removed `except_comments()` method from `SyntaxNodeExt`/`Exceptable` trait
+  ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
 ## 0.17.2 - 2026-02-12
 
@@ -211,64 +236,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* Fixed a panic when a workflow contains more than one non-empty `output`
-  section ([#568](https://github.com/stjude-rust-labs/sprocket/pull/568)).
-* Fix name conflict detection to match WDL spec ([#554](https://github.com/stjude-rust-labs/sprocket/pull/554)).
+* Fixed a panic when a workflow contains more than one non-empty `output` section
+  ([#568](https://github.com/stjude-rust-labs/sprocket/pull/568)).
+* Fix name conflict detection to match WDL spec
+  ([#554](https://github.com/stjude-rust-labs/sprocket/pull/554)).
 
 ## 0.16.0 - 01-12-2026
 
 ### Changed
 
-* WDL v1.3 is now enabled by default; the `wdl_1_3` feature flag is deprecated
-  and will emit a warning if explicitly disabled
-  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
-* Removed `Arc` from type-related enumerations ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
-* Changed `join_paths` to take a `Directory` instead of `File` as the first
-  argument and return `String` instead of `File` per WDL v1.2.1
+* WDL v1.3 is now enabled by default; the `wdl_1_3` feature flag is deprecated and will emit a
+  warning if explicitly disabled ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
+* Removed `Arc` from type-related enumerations
+  ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Changed `join_paths` to take a `Directory` instead of `File` as the first argument and return
+  `String` instead of `File` per WDL v1.2.1
   ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
   [#523](https://github.com/stjude-rust-labs/sprocket/pull/523)).
 
 #### Fixed
 
-* Fixed a bug where a dependency cycle was incorrectly detected due to an
-  invalid edge being added between nodes in the dependency graph when a scatter
-  variable shadowed an outer declaration of the same name (#[509](https://github.com/stjude-rust-labs/sprocket/pull/509)).
+* Fixed a bug where a dependency cycle was incorrectly detected due to an invalid edge being added
+  between nodes in the dependency graph when a scatter variable shadowed an outer declaration of the
+  same name (#[509](https://github.com/stjude-rust-labs/sprocket/pull/509)).
 
 ## 0.15.0 - 11-21-2025
 
 ### Added
 
-* Added type analysis and validation for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
-* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
-* Added feature flags support to enable experimental WDL versions ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
-* Introduced pre-evaluation task type for all pre-evaluation contexts (task requirements, task hints, and task runtime sections) and expanded support of `task.previous` for post-evaluation sections in WDL v1.3 ([#432](https://github.com/stjude-rust-labs/sprocket/pull/432)).
+* Added type analysis and validation for WDL enumerations in preparation for WDL v1.3
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3)
+  ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Added feature flags support to enable experimental WDL versions
+  ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Introduced pre-evaluation task type for all pre-evaluation contexts (task requirements, task
+  hints, and task runtime sections) and expanded support of `task.previous` for post-evaluation
+  sections in WDL v1.3 ([#432](https://github.com/stjude-rust-labs/sprocket/pull/432)).
 
 #### Changed
 
-* Refactored `ScopeUnion` to use `ScopeRef` instead of direct slice indexing, allowing it to be reused in the runtime engine for proper type reconciliation across conditional branches ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
-* The `wdl-analysis` config flag that enables experimental WDL v1.3 features was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Refactored `ScopeUnion` to use `ScopeRef` instead of direct slice indexing, allowing it to be
+  reused in the runtime engine for proper type reconciliation across conditional branches
+  ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* The `wdl-analysis` config flag that enables experimental WDL v1.3 features was renamed from
+  `experimental_versions` to `wdl_1_3`
+  ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
 
 #### Removed
 
-* Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
+* Removed the `codespan` cargo feature in favor of enabling codespan reporting always
+  ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
 
 ## 0.14.0 - 10-14-2025
 
 ### Changed
 
-* `Document.diagnostics` was split into `parse_diagnostics` and `analysis_diagnostics` ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
-  * The `Document::diagnostics()` method still returns the full set of both diagnostics, but it is returned as an `Iterator` now instead of a slice.
+* `Document.diagnostics` was split into `parse_diagnostics` and `analysis_diagnostics`
+  ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
+  * The `Document::diagnostics()` method still returns the full set of both diagnostics, but it is
+    returned as an `Iterator` now instead of a slice.
 
 #### Added
 
-* Added signature help support for the WDL Language Server ([#409](https://github.com/stjude-rust-labs/sprocket/pull/409)).
-* Added snippets for standard library auto-completions ([#373](https://github.com/stjude-rust-labs/sprocket/pull/373)).
+* Added signature help support for the WDL Language Server
+  ([#409](https://github.com/stjude-rust-labs/sprocket/pull/409)).
+* Added snippets for standard library auto-completions
+  ([#373](https://github.com/stjude-rust-labs/sprocket/pull/373)).
 
 #### Fixed
 
-* Correctly rename shadowed variables ([#410](https://github.com/stjude-rust-labs/sprocket/pull/410)).
-* Improved an error message for when downloading a remote WDL source file to
-  include a reference to the URL being downloaded ([#396](https://github.com/stjude-rust-labs/sprocket/pull/396)).
+* Correctly rename shadowed variables
+  ([#410](https://github.com/stjude-rust-labs/sprocket/pull/410)).
+* Improved an error message for when downloading a remote WDL source file to include a reference to
+  the URL being downloaded ([#396](https://github.com/stjude-rust-labs/sprocket/pull/396)).
 
 ## 0.13.0 - 09-15-2025
 
@@ -279,50 +320,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added workspace symbols support for the WDL Language Server ([#588](https://github.com/stjude-rust-labs/wdl/pull/588)).
-* Implemented coercion between `Map` <-> `Object`/`Struct` where the map key
-  type <-> `String` ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
-* Added snippets support for the WDL Language Server ([#577](https://github.com/stjude-rust-labs/wdl/pull/577)).
-* Added document symbols support for the WDL Language Server ([#582](https://github.com/stjude-rust-labs/wdl/pull/582)).
+* Added workspace symbols support for the WDL Language Server
+  ([#588](https://github.com/stjude-rust-labs/wdl/pull/588)).
+* Implemented coercion between `Map` <-> `Object`/`Struct` where the map key type <-> `String`
+  ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
+* Added snippets support for the WDL Language Server
+  ([#577](https://github.com/stjude-rust-labs/wdl/pull/577)).
+* Added document symbols support for the WDL Language Server
+  ([#582](https://github.com/stjude-rust-labs/wdl/pull/582)).
 
 ## 0.12.0 - 08-13-2025
 
-* Added semantic highlighting support for the WDL Language Server ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
+* Added semantic highlighting support for the WDL Language Server
+  ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
 
 ### Added
 
-* Added support for ignorefiles, although by default it is not enabled ([#565](https://github.com/stjude-rust-labs/wdl/pull/565)).
-* Added rename support for the WDL Language Server ([#563](https://github.com/stjude-rust-labs/wdl/pull/563)).
-* Added hover support for the WDL Language Server ([#540](https://github.com/stjude-rust-labs/wdl/pull/540)).
+* Added support for ignorefiles, although by default it is not enabled
+  ([#565](https://github.com/stjude-rust-labs/wdl/pull/565)).
+* Added rename support for the WDL Language Server
+  ([#563](https://github.com/stjude-rust-labs/wdl/pull/563)).
+* Added hover support for the WDL Language Server
+  ([#540](https://github.com/stjude-rust-labs/wdl/pull/540)).
 
 ## 0.11.0 - 07-31-2025
 
 ### Added
 
-* Added code completion support for the WDL Language Server ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
-* Added an `ArrayType::unqualified` method to cheaply drop the `+` qualifier ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
+* Added code completion support for the WDL Language Server
+  ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
+* Added an `ArrayType::unqualified` method to cheaply drop the `+` qualifier
+  ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
 
 #### Changed
 
-* The `UnusedCall` rule no longer emits a diagnostic for tasks/workflows called if they have an empty or missing `output` section ([#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
+* The `UnusedCall` rule no longer emits a diagnostic for tasks/workflows called if they have an
+  empty or missing `output` section ([#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 
 ## 0.10.0 - 07-09-2025
 
 ### Added
 
-* Added support for struct members, struct literals and call inputs in `goto_definition` ([#491](https://github.com/stjude-rust-labs/wdl/pull/491)).
-* Added `find references` support for WDL Language Server ([#484](https://github.com/stjude-rust-labs/wdl/pull/484)).
-* Added `goto_definition` support for WDL Language Server ([#468](https://github.com/stjude-rust-labs/wdl/pull/468)).
-* Added a `fallback_version` configuration option ([#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
+* Added support for struct members, struct literals and call inputs in `goto_definition`
+  ([#491](https://github.com/stjude-rust-labs/wdl/pull/491)).
+* Added `find references` support for WDL Language Server
+  ([#484](https://github.com/stjude-rust-labs/wdl/pull/484)).
+* Added `goto_definition` support for WDL Language Server
+  ([#468](https://github.com/stjude-rust-labs/wdl/pull/468)).
+* Added a `fallback_version` configuration option
+  ([#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
 
 #### Changed
 
-* `Analyzer` now takes a general-purpose `Config` argument, which contains the previous `DiagnosticsConfig` argument ([#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
-* Non-error diagnostics during parsing no longer prevent `wdl-analysis` from analyzing documents ([#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
+* `Analyzer` now takes a general-purpose `Config` argument, which contains the previous
+  `DiagnosticsConfig` argument ([#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
+* Non-error diagnostics during parsing no longer prevent `wdl-analysis` from analyzing documents
+  ([#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
 
 #### Fixed
 
-* Fixed incorrect assertion pointed out in [#500](https://github.com/stjude-rust-labs/wdl/issues/500) ([#515](https://github.com/stjude-rust-labs/wdl/issues/515)).
+* Fixed incorrect assertion pointed out in
+  [#500](https://github.com/stjude-rust-labs/wdl/issues/500)
+  ([#515](https://github.com/stjude-rust-labs/wdl/issues/515)).
 
 ## 0.9.0 - 05-27-2025
 
@@ -334,143 +393,171 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* `wdl_analysis::document::Document` was moved to `wdl_analysis::Document` ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
+* `wdl_analysis::document::Document` was moved to `wdl_analysis::Document`
+  ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
 
 ## 0.8.1 - 05-02-2025
 
-_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding dependencies._
+_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding
+dependencies._
 
 ## 0.8.0 - 05-01-2025
 
 ### Changed
 
-* AST validation now occurs as part of analysis instead of during parsing ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* AST validation now occurs as part of analysis instead of during parsing
+  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
 
 #### Added
 
-* Added `Visitor` (moved trait definition from `wdl-ast` to `wdl-analysis`) ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
-* Added `Validator` (moved struct definition from `wdl-ast` to `wdl-analysis`) ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
-* Added `SyntaxNodeExt` (moved trait definition from `wdl-ast` to `wdl-analysis`) ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
-* Added `Default` impls to `DiagnosticsConfig` and `Analyzer` ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
-* Added static validation of regex expression in a string literal ([#404](https://github.com/stjude-rust-labs/wdl/pull/404)).
+* Added `Visitor` (moved trait definition from `wdl-ast` to `wdl-analysis`)
+  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added `Validator` (moved struct definition from `wdl-ast` to `wdl-analysis`)
+  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added `SyntaxNodeExt` (moved trait definition from `wdl-ast` to `wdl-analysis`)
+  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added `Default` impls to `DiagnosticsConfig` and `Analyzer`
+  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added static validation of regex expression in a string literal
+  ([#404](https://github.com/stjude-rust-labs/wdl/pull/404)).
 
 #### Fixed
 
-* Placeholder options are now statically type checked ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
-* Prevent lsp crash due to panic in single file analysis ([#431](https://github.com/stjude-rust-labs/wdl/pull/431)).
+* Placeholder options are now statically type checked
+  ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
+* Prevent lsp crash due to panic in single file analysis
+  ([#431](https://github.com/stjude-rust-labs/wdl/pull/431)).
 
 ## 0.7.0 - 04-01-2025
 
 ### Added
 
-* `missing_call_input` now generates a warning for missing inputs when nested inputs are allowed, without changing the existing error behavior ([#344](https://github.com/stjude-rust-labs/wdl/pull/344)).
+* `missing_call_input` now generates a warning for missing inputs when nested inputs are allowed,
+  without changing the existing error behavior
+  ([#344](https://github.com/stjude-rust-labs/wdl/pull/344)).
 * Added `path` method to `Document` ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
 
 #### Changed
 
-* Refactored analysis API to support different syntax tree element
-  representations ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
+* Refactored analysis API to support different syntax tree element representations
+  ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 * `Document` is now trivially cloned ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
-* The task evaluation graph now forms implicit edges between the command and
-  other nodes in the graph; the command now always depends on an input even if
-  the input is not transitively referenced by the command. This does not impact
-  the diagnostic relating to unused inputs ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* The task evaluation graph now forms implicit edges between the command and other nodes in the
+  graph; the command now always depends on an input even if the input is not transitively referenced
+  by the command. This does not impact the diagnostic relating to unused inputs
+  ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 
 #### Fixed
 
-* Fixed type of `task.container` to be `String?` ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed a missing version 1.2 constraint on the `String` overload of `basename` ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Fixed type of `task.container` to be `String?`
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed a missing version 1.2 constraint on the `String` overload of `basename`
+  ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
 
 ## 0.6.0 - 01-17-2025
 
 ### Added
 
-* Added analysis support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
-* Fixed missing diagnostic for unknown local name when using the abbreviated
-  syntax for specifying a call input ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
-* Added functions for getting type information of task requirements and hints ([#241](https://github.com/stjude-rust-labs/wdl/pull/241)).
-* Exposed information about workflow calls from an analyzed document ([#239](https://github.com/stjude-rust-labs/wdl/pull/239)).
+* Added analysis support for the WDL 1.2 `env` declaration modifier
+  ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
+* Fixed missing diagnostic for unknown local name when using the abbreviated syntax for specifying a
+  call input ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
+* Added functions for getting type information of task requirements and hints
+  ([#241](https://github.com/stjude-rust-labs/wdl/pull/241)).
+* Exposed information about workflow calls from an analyzed document
+  ([#239](https://github.com/stjude-rust-labs/wdl/pull/239)).
 * Added formatting to the analyzer ([#247](https://github.com/stjude-rust-labs/wdl/pull/247)).
 
 #### Changed
 
-* Entry nodes in a workflow evaluation graph now contain information about the
-  corresponding exit node. ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
-* Removed `Types` collection from `wdl-analysis` to simplify the API ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).
-* Changed the `new` and `new_with_validator` methods of `Analyzer` to take the
-  diagnostics configuration rather than a rule iterator ([#274](https://github.com/stjude-rust-labs/wdl/pull/274)).
-* Refactored the `AnalysisResult` and `Document` types to move properties of
-  the former into the latter; this will assist in evaluation of documents in
-  that the `Document` alone can be passed into evaluation ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
-* Removed the "optional type" constraint for the `select_first`, `select_all`,
-  and `defined` functions; instead, these functions now accepted non-optional
-  types and analysis emits a warning when the functions are called with
-  non-optional types ([#258](https://github.com/stjude-rust-labs/wdl/pull/258)).
-* The "required primitive type" constraint has been removed as every place the
-  constraint was used should allow for optional primitive types as well;
-  consequently, the AnyPrimitiveTypeConstraint was renamed to simply
-  `PrimitiveTypeConstraint` ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
-* The common type calculation now favors the "left-hand side" of the
-  calculation rather than the right, making it more intuitive to use. For
-  example, a calculation of `File | String` is now `File` rather than
-  `String` ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
-* Refactored function call binding information to aid with call evaluation in
-  `wdl-engine` ([#251](https://github.com/stjude-rust-labs/wdl/pull/251)).
-* Made diagnostic creation functions public ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
-* Refactored expression type evaluator to provide context via a trait ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
-* Removed `PartialEq`, `Eq`, and `Hash` from WDL-type-related types ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
+* Entry nodes in a workflow evaluation graph now contain information about the corresponding exit
+  node. ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
+* Removed `Types` collection from `wdl-analysis` to simplify the API
+  ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).
+* Changed the `new` and `new_with_validator` methods of `Analyzer` to take the diagnostics
+  configuration rather than a rule iterator
+  ([#274](https://github.com/stjude-rust-labs/wdl/pull/274)).
+* Refactored the `AnalysisResult` and `Document` types to move properties of the former into the
+  latter; this will assist in evaluation of documents in that the `Document` alone can be passed
+  into evaluation ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
+* Removed the "optional type" constraint for the `select_first`, `select_all`, and `defined`
+  functions; instead, these functions now accepted non-optional types and analysis emits a warning
+  when the functions are called with non-optional types
+  ([#258](https://github.com/stjude-rust-labs/wdl/pull/258)).
+* The "required primitive type" constraint has been removed as every place the constraint was used
+  should allow for optional primitive types as well; consequently, the AnyPrimitiveTypeConstraint
+  was renamed to simply `PrimitiveTypeConstraint`
+  ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
+* The common type calculation now favors the "left-hand side" of the calculation rather than the
+  right, making it more intuitive to use. For example, a calculation of `File | String` is now
+  `File` rather than `String` ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
+* Refactored function call binding information to aid with call evaluation in `wdl-engine`
+  ([#251](https://github.com/stjude-rust-labs/wdl/pull/251)).
+* Made diagnostic creation functions public
+  ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
+* Refactored expression type evaluator to provide context via a trait
+  ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
+* Removed `PartialEq`, `Eq`, and `Hash` from WDL-type-related types
+  ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 
 #### Fixed
 
-* Fixed an issue where imported structs weren't always checked correctly for
-  type equivalence with local structs ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
-* Common type calculation now supports discovering common types between the
-  compound types containing Union and None as inner types, e.g.
-  `Array[String] | Array[None] -> Array[String?]` ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
-* Static analysis of expressions within object literal members now takes place ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
-* Certain standard library functions with an existing constraint on generic
-  parameters that take structs are further constrained to take structs
-  containing only primitive members ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
-* Fixed signatures and minimum required versions for certain standard library
-  functions ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Fixed an issue where imported structs weren't always checked correctly for type equivalence with
+  local structs ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
+* Common type calculation now supports discovering common types between the compound types
+  containing Union and None as inner types, e.g. `Array[String] | Array[None] -> Array[String?]`
+  ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
+* Static analysis of expressions within object literal members now takes place
+  ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Certain standard library functions with an existing constraint on generic parameters that take
+  structs are further constrained to take structs containing only primitive members
+  ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Fixed signatures and minimum required versions for certain standard library functions
+  ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
 
 ## 0.5.0 - 10-22-2024
 
 ### Changed
 
-* Refactored the `DocumentScope` API to simply `Document` and exposed more
-  information about tasks and workflows such as their inputs and outputs ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
-* Switched to `rustls-tls` for TLS implementation rather than relying on
-  OpenSSL for Linux builds ([#228](https://github.com/stjude-rust-labs/wdl/pull/228)).
+* Refactored the `DocumentScope` API to simply `Document` and exposed more information about tasks
+  and workflows such as their inputs and outputs
+  ([#232](https://github.com/stjude-rust-labs/wdl/pull/232)).
+* Switched to `rustls-tls` for TLS implementation rather than relying on OpenSSL for Linux builds
+  ([#228](https://github.com/stjude-rust-labs/wdl/pull/228)).
 
 ## 0.4.0 - 10-16-2024
 
 ### Added
 
-* Implemented `UnusedImport`, `UnusedInput`, `UnusedDeclaration`, and
-  `UnusedCall` analysis warnings ([#211](https://github.com/stjude-rust-labs/wdl/pull/211))
-* Implemented static analysis for workflows ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Implemented `UnusedImport`, `UnusedInput`, `UnusedDeclaration`, and `UnusedCall` analysis warnings
+  ([#211](https://github.com/stjude-rust-labs/wdl/pull/211))
+* Implemented static analysis for workflows
+  ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 
 #### Fixed
 
-* Allow coercion of `Array[T]` to `Array[T]+` unless from an empty array
-  literal ([#213](https://github.com/stjude-rust-labs/wdl/pull/213)).
-* Improved type calculations in function calls and when determining common
-  types in certain expressions ([#209](https://github.com/stjude-rust-labs/wdl/pull/209)).
-* Treat a coercion to `T?` for a function argument of type `T` as a preference
-  over any other coercion ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
-* Fix the signature of `select_first` such that it is monomorphic ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
-* Only consider signatures in overload resolution that have sufficient
-  arguments ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
-* Allow coercion from `File` and `Directory` to `String` ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
-* Allow non-empty array literals to coerce to either empty or non-empty ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
-* Fix element type calculations for `Array` and `Map` so that `[a, b]` and
-  `{"a": a, "b": b }` successfully calculates when `a` is coercible to `b` ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
-* Fix `if` expression type calculation such that `if (x) then a else b` works
-  when `a` is coercible to `b` ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
-* Ensure that only equality/inequality expressions are supported on `File` and
-  `Directory` now that there is a coercion to `String` ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Allow coercion of `Array[T]` to `Array[T]+` unless from an empty array literal
+  ([#213](https://github.com/stjude-rust-labs/wdl/pull/213)).
+* Improved type calculations in function calls and when determining common types in certain
+  expressions ([#209](https://github.com/stjude-rust-labs/wdl/pull/209)).
+* Treat a coercion to `T?` for a function argument of type `T` as a preference over any other
+  coercion ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Fix the signature of `select_first` such that it is monomorphic
+  ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Only consider signatures in overload resolution that have sufficient arguments
+  ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Allow coercion from `File` and `Directory` to `String`
+  ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Allow non-empty array literals to coerce to either empty or non-empty
+  ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Fix element type calculations for `Array` and `Map` so that `[a, b]` and `{"a": a, "b": b }`
+  successfully calculates when `a` is coercible to `b`
+  ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Fix `if` expression type calculation such that `if (x) then a else b` works when `a` is coercible
+  to `b` ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
+* Ensure that only equality/inequality expressions are supported on `File` and `Directory` now that
+  there is a coercion to `String` ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 * Allow index expressions on `Map` ([#199](https://github.com/stjude-rust-labs/wdl/pull/199)).
 
 ## 0.3.0 - 09-16-2024
@@ -479,34 +566,42 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 * Implemented type checking in task runtime, requirements, and hints sections
   ([#170](https://github.com/stjude-rust-labs/wdl/pull/170)).
-* Add support for the `task` variable in WDL 1.2 ([#168](https://github.com/stjude-rust-labs/wdl/pull/168)).
-* Full type checking support in task definitions ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
+* Add support for the `task` variable in WDL 1.2
+  ([#168](https://github.com/stjude-rust-labs/wdl/pull/168)).
+* Full type checking support in task definitions
+  ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
 #### Changed
 
-* Use `tracing` events instead of the `log` crate ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
+* Use `tracing` events instead of the `log` crate
+  ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
 * Refactored crate layout ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
 #### Fixed
 
-* Fixed definition of `basename` and `size` functions to accept `String` ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
+* Fixed definition of `basename` and `size` functions to accept `String`
+  ([#163](https://github.com/stjude-rust-labs/wdl/pull/163)).
 
 ## 0.2.0 - 08-22-2024
 
 ### Added
 
-* Implemented type checking of struct definitions ([#160](https://github.com/stjude-rust-labs/wdl/pull/160)).
-* Implemented a type system and representation of the WDL standard library for
-  future type checking support ([#156](https://github.com/stjude-rust-labs/wdl/pull/156)).
+* Implemented type checking of struct definitions
+  ([#160](https://github.com/stjude-rust-labs/wdl/pull/160)).
+* Implemented a type system and representation of the WDL standard library for future type checking
+  support ([#156](https://github.com/stjude-rust-labs/wdl/pull/156)).
 * Specified the MSRV for the crate ([#144](https://github.com/stjude-rust-labs/wdl/pull/144)).
 
 #### Changed
 
-* Refactored `Analyzer` API to support change notifications ([#146](https://github.com/stjude-rust-labs/wdl/pull/146)).
-* Replaced `AnalysisEngine` with `Analyzer` ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
+* Refactored `Analyzer` API to support change notifications
+  ([#146](https://github.com/stjude-rust-labs/wdl/pull/146)).
+* Replaced `AnalysisEngine` with `Analyzer`
+  ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
 
 ## 0.1.0 - 07-17-2024
 
 ### Added
 
-* Added the `wdl-analysis` crate for analyzing WDL documents ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
+* Added the `wdl-analysis` crate for analyzing WDL documents
+  ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).

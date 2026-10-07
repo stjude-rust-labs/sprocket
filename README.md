@@ -44,43 +44,44 @@
 - **`sprocket explain`** explains validation and lint rules supported by Sprocket.
 - **`sprocket format`** formats a document or directory of documents.
 - **`sprocket inputs`** writes template input file (JSON or YAML) for a task or workflow.
-- **`sprocket lint`** performs static analysis on a document or directory of documents with additional linting rules enabled (effectively a shortcut for `check --lint`).
+- **`sprocket lint`** performs static analysis on a document or directory of documents with
+  additional linting rules enabled (effectively a shortcut for `check --lint`).
 - **`sprocket run`** runs a task or workflow.
-- **`sprocket validate`** validates a set of inputs read from files or on the command line against a task or workflow.
+- **`sprocket validate`** validates a set of inputs read from files or on the command line against a
+  task or workflow.
 
 ## Guiding Principles
 
 The following are high-level guiding principles of the Sprocket project.
 
-- Provide a **high-performance** workflow execution engine capable of
-  orchestrating massive bioinformatics workloads (the stated target is 20,000+
-  concurrent jobs).
-- Develop a suite of **modern development tools** that brings bioinformatics
-  development on par with other modern languages (e.g.,
+- Provide a **high-performance** workflow execution engine capable of orchestrating massive
+  bioinformatics workloads (the stated target is 20,000+ concurrent jobs).
+- Develop a suite of **modern development tools** that brings bioinformatics development on par with
+  other modern languages (e.g.,
   [`wdl-lsp`](https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lsp)).
-- Maintain a **community-focused codebase** that enables a diverse set of
-  contributors from academic, non-profit, and commercial organizations.
-- Build on an **open, domain-tailored standard** to ensure the toolset remains
-  singularly focused on unencumbered innovation within bioinformatics.
+- Maintain a **community-focused codebase** that enables a diverse set of contributors from
+  academic, non-profit, and commercial organizations.
+- Build on an **open, domain-tailored standard** to ensure the toolset remains singularly focused on
+  unencumbered innovation within bioinformatics.
 - Retain a **simple and accessible user experience** when complexity isn't warranted.
 
 ## 📚 Getting Started
 
 ### Installation
 
-Check the [GitHub releases page](https://github.com/stjude-rust-labs/sprocket/releases)
-to see if Sprocket is available for your platform.
+Check the [GitHub releases page](https://github.com/stjude-rust-labs/sprocket/releases) to see if
+Sprocket is available for your platform.
 
-Note that the prebuilt Sprocket for Linux may not work on every distribution
-due to library dependencies.
+Note that the prebuilt Sprocket for Linux may not work on every distribution due to library
+dependencies.
 
-If Sprocket is not available for your platform or architecture, you may install
-it with `cargo` from a [Rust](https://www.rust-lang.org/) toolchain.
+If Sprocket is not available for your platform or architecture, you may install it with `cargo` from
+a [Rust](https://www.rust-lang.org/) toolchain.
 
 We recommend using [rustup](https://rustup.rs/) to install a Rust toolchain.
 
-Once Rust is installed, you can install the latest version of Sprocket by
-running the following command:
+Once Rust is installed, you can install the latest version of Sprocket by running the following
+command:
 
 ```bash
 cargo install sprocket --locked
@@ -88,7 +89,8 @@ cargo install sprocket --locked
 
 ### Homebrew
 
-Sprocket is also available on [Homebrew](https://brew.sh) for both MacOS and Linux. Once Homebrew is installed, you can install Sprocket with the following command.
+Sprocket is also available on [Homebrew](https://brew.sh) for both MacOS and Linux. Once Homebrew is
+installed, you can install Sprocket with the following command.
 
 ```bash
 brew install sprocket
@@ -96,7 +98,8 @@ brew install sprocket
 
 ### Docker
 
-Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sprocket/pkgs/container/sprocket).
+Sprocket is available as a Docker
+[image](https://github.com/stjude-rust-labs/sprocket/pkgs/container/sprocket).
 
 ```bash
 docker pull ghcr.io/stjude-rust-labs/sprocket:v0.31.0
@@ -104,9 +107,8 @@ docker pull ghcr.io/stjude-rust-labs/sprocket:v0.31.0
 
 ### Nix Flake
 
-Sprocket ships a [Nix](https://nixos.org/download/) flake. With flakes
-enabled, you can build or run Sprocket directly from the repository. Pin a
-release tag for reproducible results:
+Sprocket ships a [Nix](https://nixos.org/download/) flake. With flakes enabled, you can build or run
+Sprocket directly from the repository. Pin a release tag for reproducible results:
 
 ```bash
 # Build the binary (output at ./result/bin/sprocket)
@@ -137,34 +139,32 @@ cargo run --release
 
 ### Nix development shell
 
-Alternatively, if you have Nix with flakes enabled, the repository ships
-a development shell that provides the Rust toolchain, `shellcheck`, and
-the cargo tooling used by CI (`cargo-nextest`, `cargo-llvm-cov`,
-`cargo-deny`, `cargo-sort`, `cargo-msrv`, `taplo`) along with the nix
-linters (`nixfmt`, `deadnix`, `statix`). Enter it with:
+Alternatively, if you have Nix with flakes enabled, the repository ships a development shell that
+provides the Rust toolchain, `shellcheck`, and the cargo tooling used by CI (`cargo-nextest`,
+`cargo-llvm-cov`, `cargo-deny`, `cargo-sort`, `cargo-msrv`, `taplo`) along with the nix linters
+(`nixfmt`, `deadnix`, `statix`). Enter it with:
 
 ```bash
 nix develop
 ```
 
-[`direnv`](https://direnv.net/) users can `direnv allow` the bundled
-`.envrc` to auto-activate the shell on `cd`.
+[`direnv`](https://direnv.net/) users can `direnv allow` the bundled `.envrc` to auto-activate the
+shell on `cd`.
 
 ### Dependencies
 
-The WDL specification requires that command scripts are run with the Bash
-shell, and therefore developing for Sprocket will require `/bin/bash`
-be on your `$PATH`. Linux and Mac users should not need to do anything special
-to meet this requirement, but we recommend Windows users fulfill this criteria
-by installing [`Git BASH`](https://gitforwindows.org/).
+The WDL specification requires that command scripts are run with the Bash shell, and therefore
+developing for Sprocket will require `/bin/bash` be on your `$PATH`. Linux and Mac users should not
+need to do anything special to meet this requirement, but we recommend Windows users fulfill this
+criteria by installing [`Git BASH`](https://gitforwindows.org/).
 
-Some tests require the `shellcheck` binary be available on your `$PATH`. See
-instructions for installing ShellCheck
+Some tests require the `shellcheck` binary be available on your `$PATH`. See instructions for
+installing ShellCheck
 [here](https://github.com/koalaman/shellcheck?tab=readme-ov-file#installing).
 
-Note that on an HPC or another environment where normal means of installing
-software are difficult, it may be easiest to wrap an `apptainer` invocation of
-`shellcheck` in a bash script, and then save it as executable in your PATH:
+Note that on an HPC or another environment where normal means of installing software are difficult,
+it may be easiest to wrap an `apptainer` invocation of `shellcheck` in a bash script, and then save
+it as executable in your PATH:
 
 ```bash
 #!/usr/bin/env bash
@@ -172,12 +172,13 @@ software are difficult, it may be easiest to wrap an `apptainer` invocation of
 apptainer -s run docker://koalaman/shellcheck:stable $@
 ```
 
-If you are developing the Python bindings, please see [the Python-specific `README.md`](./python/README.md).
+If you are developing the Python bindings, please see
+[the Python-specific `README.md`](./python/README.md).
 
 ## 🚧️ Tests
 
-Before submitting any pull requests, please make sure the code passes the
-following checks (from the root directory).
+Before submitting any pull requests, please make sure the code passes the following checks (from the
+root directory).
 
 ```bash
 # Run the project's tests.
@@ -201,8 +202,10 @@ cargo doc
 Contributions, issues and feature requests are welcome! Feel free to check the
 [issues page](https://github.com/stjude-rust-labs/sprocket/issues).
 
-Most of the work for this binary happens within [the `wdl` crates](https://github.com/stjude-rust-labs/sprocket/tree/main/crates).
-For more information about our contributor policies, please read the [contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/CONTRIBUTING.md).
+Most of the work for this binary happens within
+[the `wdl` crates](https://github.com/stjude-rust-labs/sprocket/tree/main/crates). For more
+information about our contributor policies, please read the
+[contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/CONTRIBUTING.md).
 
 ## ⚙️ Minimum Supported Rust Version
 
@@ -210,15 +213,14 @@ The minimum supported Rust version is currently `1.95`.
 
 There is a CI job that verifies the declared minimum supported version.
 
-If a contributor submits a PR that uses a feature from a newer version of Rust,
-the contributor is responsible for updating the minimum supported version in
-the `Cargo.toml`.
+If a contributor submits a PR that uses a feature from a newer version of Rust, the contributor is
+responsible for updating the minimum supported version in the `Cargo.toml`.
 
-Contributors may update the minimum supported version as-needed to the latest
-stable release of Rust.
+Contributors may update the minimum supported version as-needed to the latest stable release of
+Rust.
 
-To facilitate the discovery of what the minimum supported version should be,
-install the `cargo-msrv` tool:
+To facilitate the discovery of what the minimum supported version should be, install the
+`cargo-msrv` tool:
 
 ```bash
 cargo install cargo-msrv
@@ -230,15 +232,15 @@ And run the following command:
 cargo msrv --min 1.95
 ```
 
-If the reported version is newer than the crate's current minimum supported
-version, an update is required.
+If the reported version is newer than the crate's current minimum supported version, an update is
+required.
 
 ## 📝 License and Legal
 
-This project is licensed as either [Apache 2.0][license-apache] or
-[MIT][license-mit] at your discretion. Additionally, please see [the
-disclaimer](https://github.com/stjude-rust-labs#disclaimer) that applies to all
-crates and command line tools made available by St. Jude Rust Labs.
+This project is licensed as either [Apache 2.0][license-apache] or [MIT][license-mit] at your
+discretion. Additionally, please see
+[the disclaimer](https://github.com/stjude-rust-labs#disclaimer) that applies to all crates and
+command line tools made available by St. Jude Rust Labs.
 
 Copyright © 2023-Present [St. Jude Children's Research Hospital](https://github.com/stjude).
 
