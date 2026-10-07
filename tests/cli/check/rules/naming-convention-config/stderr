@@ -1,0 +1,23 @@
+warning[NamingConvention]: struct name `fooBar` is not snake_case
+  ┌─ source.wdl:5:8
+  │
+5 │ struct fooBar {
+  │        ^^^^^^ this name must be snake_case
+  │
+  = fix: replace `fooBar` with `foo_bar`
+
+warning[NamingConvention]: task name `Say_hello` is not PascalCase
+  ┌─ source.wdl:9:6
+  │
+9 │ task Say_hello {
+  │      ^^^^^^^^^ this name must be PascalCase
+  │
+  = fix: replace `Say_hello` with `SayHello`
+
+warning[NamingConvention]: input name `greeting_message` is not camelCase
+   ┌─ source.wdl:11:16
+   │
+11 │         String greeting_message
+   │                ^^^^^^^^^^^^^^^^ this name must be camelCase
+   │
+   = fix: replace `greeting_message` with `greetingMessage`

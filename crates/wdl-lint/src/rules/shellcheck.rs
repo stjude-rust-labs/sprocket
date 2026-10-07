@@ -103,6 +103,7 @@ struct ShellCheckFix {
 /// A ShellCheck replacement.
 ///
 /// This differs from a [`Replacement`] in that
+///
 /// 1) columns are 1-indexed
 /// 2) it may span multiple lines and thus cannot be directly passed to a
 ///    [`Fixer`].

@@ -4,7 +4,7 @@
 
 Various CI features have been implemented to ease the release process, but some parts of it are still intended to be manual (e.g., each CHANGELOG for each individual crate should be written by hand _prior to release_). We subscribe to the philosophy outlined on the [keepachangelog site](https://keepachangelog.com/en/1.1.0/). The short version is that (almost) every PR should include a manually written entry to one or more CHANGELOGs in the repository under the `## Unreleased` header.
 
-## Time to Release!
+## Time to Release
 
 Before cutting a release, review every entry under `## Unreleased` in each
 `CHANGELOG.md` and verify that every item links to its originating pull request.
@@ -24,19 +24,22 @@ In the event it fails, they can be performed manually.
 3. Create a new tag for each new crate version _excluding_ `sprocket`, with
    the format `{CRATE_NAME}-v{VERSION}`, where `VERSION` matches that crate's
    version.
-    * For new `sprocket` and `sprocket_bio` releases, the tag name format is
+    - For new `sprocket` and `sprocket_bio` releases, the tag name format is
       `v{VERSION}`, where `VERSION` matches `workspace.package.version`.
 
     ```bash
     git tag {CRATE_NAME}-v{VERSION}
     git push --tags
     ```
+
 4. Publish each crate to [crates.io](https://crates.io)
 
     ```bash
     cargo publish --workspace
     ```
+
 5. If updating `sprocket`, create a new GitHub release with the title `v{VERSION}` and mark it as the latest release
+
 </details>
 
 The body of the `sprocket` GitHub releases must be updated manually, regardless of the success of the `release-plz` workflow.
@@ -47,7 +50,7 @@ Note that the individual `CHANGELOG.md` files hard-wrap lines at ~80 columns. Th
 
 Format each section so that it looks like:
 
-```
+```text
 ### `<crate name>`
 
 <copy and pasted CHANGELOG entries>

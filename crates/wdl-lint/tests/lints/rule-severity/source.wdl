@@ -1,4 +1,4 @@
-#@ except: MetaDescription, MetaSections
+#@ except: MetaDescription
 
 version 1.3
 

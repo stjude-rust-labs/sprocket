@@ -103,11 +103,11 @@ Available rules:
   - MisleadingDeclarationOrder
   - MissingParameterMeta
   - MutableContainerTag
+  - NamingConvention
   - OutputMetaOrder
   - OutputName
   - ParameterDescription
   - ParameterMetaOrder
-  - PascalCase
   - RecommendedRuntimeKeys
   - RedundantContainerArray
   - RedundantNone
@@ -115,7 +115,6 @@ Available rules:
   - RuntimeSection
   - ShellCheck
   - ShellSplitting
-  - SnakeCase
   - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall

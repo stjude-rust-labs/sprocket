@@ -12,7 +12,7 @@ use crate::Value;
 /// Tests whether the given array contains at least one occurrence of the given
 /// value.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains>
 fn contains(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Boolean));

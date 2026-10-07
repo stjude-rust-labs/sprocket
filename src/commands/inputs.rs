@@ -47,7 +47,7 @@ pub struct Args {
     #[arg(long, conflicts_with = "show_non_literals")]
     pub hide_defaults: bool,
 
-    /// Generate inputs for all tasks called in the workflow.  
+    /// Generate inputs for all tasks called in the workflow.
     #[arg(long)]
     pub nested_inputs: bool,
 

@@ -132,6 +132,15 @@ severity = "note"
 [check.rules.MutableContainerTag]
 severity = "note"
 
+[check.rules.NamingConvention]
+severity = "warning"
+task = "snake_case"
+workflow = "snake_case"
+variable = "snake_case"
+type = "pascal_case"
+struct_member = "snake_case"
+allowed_names = []
+
 [check.rules.OutputName]
 severity = "note"
 min_length = 3
@@ -148,9 +157,6 @@ severity = "warning"
 
 [check.rules.ParameterMetaOrder]
 severity = "note"
-
-[check.rules.PascalCase]
-severity = "warning"
 
 [check.rules.RedundantNone]
 severity = "note"
@@ -172,10 +178,6 @@ severity = "warning"
 
 [check.rules.ShellCheck]
 severity = "warning"
-
-[check.rules.SnakeCase]
-severity = "warning"
-allowed_names = []
 
 [check.rules.FlaggedComment]
 severity = "note"
@@ -225,6 +227,9 @@ excluded_cache_inputs = []
 
 [run.backends.first]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 insecure = false
 
 [run.backends.first.auth]
@@ -234,6 +239,9 @@ password = "secret!"
 
 [run.backends.second]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 insecure = false
 
 [run.backends.second.auth]

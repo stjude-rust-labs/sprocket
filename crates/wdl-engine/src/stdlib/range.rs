@@ -20,7 +20,7 @@ const FUNCTION_NAME: &str = "range";
 ///
 /// The length must be >= 0. If the length is 0, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#range
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#range>
 fn range(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_int_type().clone()));

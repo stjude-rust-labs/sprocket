@@ -1788,21 +1788,27 @@ mod tests {
         std::fs::write(
             &first,
             r#"
-[check.rules.SnakeCase]
+[check.rules.NamingConvention]
 allowed_names = ["Foo"]
 
 [check.rules.UnusedInput]
 severity = "off"
 "#,
         )?;
-        std::fs::write(&second, "[check.rules.SnakeCase]\nseverity = \"note\"\n")?;
+        std::fs::write(
+            &second,
+            "[check.rules.NamingConvention]\nseverity = \"note\"\n",
+        )?;
 
         let BuiltConfig { config, warnings } = Config::new([&*first, &*second], true)?;
         assert!(warnings.is_empty());
 
         let rules = &config.check.rules;
-        assert_eq!(rules.snake_case.severity, wdl::lint::RuleSeverity::Note);
-        assert_eq!(rules.snake_case.allowed_names, ["Foo"]);
+        assert_eq!(
+            rules.naming_convention.severity,
+            wdl::lint::RuleSeverity::Note
+        );
+        assert_eq!(rules.naming_convention.allowed_names, ["Foo"]);
         assert_eq!(rules.unused_input.severity, wdl::lint::RuleSeverity::Off);
         assert_eq!(rules.diagnostics_config().unused_input, None);
 
@@ -1824,7 +1830,8 @@ severity = "off"
 [check.rules.NotARule]
 severity = "note"
 
-[check.rules.PascalCase]
+[check.rules.NamingConvention]
+not_a_param = true
 allowed_names = ["Foo"]
 "#,
         )?;
@@ -1836,10 +1843,59 @@ allowed_names = ["Foo"]
     }
 
     #[test]
+    fn naming_convention_styles() -> Result<()> {
+        use wdl::lint::rules::CaseStyle;
+
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        std::fs::write(
+            &path,
+            r#"
+[check.rules.NamingConvention]
+task = "pascal_case"
+workflow = "camel_case"
+variable = "screaming_snake_case"
+type = "snake_case"
+"#,
+        )?;
+
+        let BuiltConfig { config, warnings } = Config::new([&*path], true)?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+
+        let naming = &config.check.rules.naming_convention;
+        assert_eq!(naming.task, CaseStyle::PascalCase);
+        assert_eq!(naming.workflow, CaseStyle::CamelCase);
+        assert_eq!(naming.variable, CaseStyle::ScreamingSnakeCase);
+        assert_eq!(naming.r#type, CaseStyle::SnakeCase);
+        assert_eq!(naming.struct_member, CaseStyle::SnakeCase);
+
+        Ok(())
+    }
+
+    #[test]
+    fn naming_convention_rejects_unknown_styles() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        for style in ["PascalCase", "kebab-case"] {
+            std::fs::write(
+                &path,
+                format!("[check.rules.NamingConvention]\ntask = \"{style}\"\n"),
+            )?;
+
+            assert!(Config::new([&*path], true).is_err(), "{style}");
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn error_severity_is_rejected() -> Result<()> {
         let tempdir = tempfile::TempDir::new()?;
         let path = tempdir.path().join("sprocket.toml");
-        std::fs::write(&path, "[check.rules.SnakeCase]\nseverity = \"error\"\n")?;
+        std::fs::write(
+            &path,
+            "[check.rules.NamingConvention]\nseverity = \"error\"\n",
+        )?;
 
         assert!(Config::new([&*path], true).is_err());
 
@@ -1882,6 +1938,27 @@ allowed_names = ["Foo"]
 
                         let mut backend_config = Table::new();
                         backend_config.insert(Key::new("type"), Item::string(variant), arena);
+
+                        if variant == "tes" {
+                            // Write the required fields for the TES backend
+                            // configuration
+                            backend_config.insert(
+                                Key::new("service"),
+                                Item::string("https://example.com"),
+                                arena,
+                            );
+                            backend_config.insert(
+                                Key::new("inputs"),
+                                Item::string("https://example.com/inputs/"),
+                                arena,
+                            );
+                            backend_config.insert(
+                                Key::new("outputs"),
+                                Item::string("https://example.com/outputs/"),
+                                arena,
+                            );
+                        }
+
                         populate_table(&mut backend_config, arena, false, false, count);
 
                         table.insert(Key::new(variant), backend_config.into_item(), arena);

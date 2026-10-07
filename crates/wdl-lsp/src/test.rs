@@ -124,6 +124,7 @@ impl SprocketTestCache {
 /// Check if a directory is a valid Sprocket test directory.
 ///
 /// A Sprocket test directory is valid if:
+///
 /// 1. Its name is `test`.
 /// 2. Its parent contains at least one `.wdl` file.
 fn is_sprocket_test_dir(path: &std::path::Path) -> bool {
@@ -152,6 +153,7 @@ fn is_sprocket_test_dir(path: &std::path::Path) -> bool {
 /// Check if a file is a valid Sprocket test definition file.
 ///
 /// A Sprocket test definition file is valid if:
+///
 /// 1. Its extension is `yaml` or `yml`.
 /// 2. Either its parent is a valid Sprocket test directory, OR there is an
 ///    accompanying `.wdl` file of the same name in the same directory.
