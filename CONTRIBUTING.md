@@ -1,6 +1,6 @@
 # Welcome to Sprocket and the `wdl` crates
 
-Community contributions rock and we are psyched you're reading this document!
+Community contributions rock and we are pumped you're reading this document!
 
 ## Quick links
 
@@ -34,9 +34,6 @@ find. You can also explore our lint rule documentation by
 hope to replace `sprocket explain` with a website where each rule will have a dedicated page, but that has not been
 realized yet).
 
-The maintainers reserve the right to close issues and discussions as deemed necessary as well as to delete comments and
-interactions within the repository.
-
 ### Your first code contribution
 
 We encourage you to reach out to the core team prior to writing up a pull request. **This is to ensure there isn't any
@@ -50,10 +47,9 @@ We encourage contributors to comment on open issues that they intend to work on 
 multiple individuals are interested in solving the same issue, we recommend reaching out to one another to gauge if
 there is potential for a collaboration.
 
-That being said, we will not assign issues to external contributors, and commenting on an issue does not guarantee
-exclusive rights to work on that issue. If multiple PRs are received for the same issue, the PR that (a) most thoroughly
-addresses the problem being solved and (b) has the best implementation by judgment of the St. Jude Rust Labs team will
-be accepted in favor of the other submitted PRs.
+That being said, commenting on an issue does not guarantee exclusive rights to work on that issue. If multiple PRs are
+received for the same issue, the PR that (a) most thoroughly addresses the problem being solved and (b) has the best
+implementation by judgment of the St. Jude Rust Labs team will be accepted in favor of the other submitted PRs.
 
 ### Review Policy
 
@@ -99,8 +95,8 @@ from external contributors will be closed without review.
 
 ### What IDE should I use?
 
-Most of this team uses VScode with the `rust-analyzer` extension but that preference is not hardcoded anywhere. Feel
-free to use any IDE you want!
+Most of this team uses an IDE configured with the `rust-analyzer` LSP, but that preference is not hardcoded anywhere.
+Feel free to use any IDE you want!
 
 ### What's a good first issue?
 
@@ -131,7 +127,7 @@ the top are all GitHub repositories of WDL code. The remaining entries are diagn
 repositories. These should remain relatively static between PRs, and any change in emitted diagnostics should be
 reviewed carefully.
 
-In order to turn the Gauntlet CI green, run `cargo run --release -p gauntlet --bin gauntlet -- --bless`. The `--bless`
+In order to turn the Gauntlet CI green, run `cargo run -p gauntlet --bin gauntlet -- --bless`. The `--bless`
 flag will save any changes to the `Gauntlet.toml` file. This should then be committed and included in your PR.
 
 ### What is arena?
@@ -141,7 +137,7 @@ Arena is the alternate run mode of `gauntlet`.
 `Gauntlet.toml`, except it has fewer repository entries and instead of analysis diagnostics it contains only lint
 diagnostics (which are not included in `Gauntlet.toml`).
 
-In order to turn the Arena CI green, run `cargo run --release -p gauntlet --bin gauntlet -- --arena --bless`. The
+In order to turn the Arena CI green, run `cargo run -p gauntlet --bin gauntlet -- --arena --bless`. The
 `--bless` flag (in conjunction with the `--arena` flag) will save any changes to the `Arena.toml` file. This should then
 be committed and included in your PR.
 
@@ -153,9 +149,9 @@ There are a handful of reasons the CI may have turned red. Try the following fix
 - `cargo clippy --all-features` and then fix any warnings emitted
 - `BLESS=1 cargo test --all-features` to "bless" any test changes
   - Please review any changes this causes to make sure they seem right!
-- `cargo run --release -p gauntlet --bin gauntlet -- --bless`
+- `cargo run -p gauntlet --bin gauntlet -- --bless`
   - see the `What is gauntlet?` question for more information
-- `cargo run --release -p gauntlet --bin gauntlet -- --bless --arena`
+- `cargo run -p gauntlet --bin gauntlet -- --bless --arena`
   - see the `What is arena?` question for more information
 - `rustup update` to update your local toolchains
 
