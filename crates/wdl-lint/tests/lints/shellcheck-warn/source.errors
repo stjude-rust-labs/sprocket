@@ -199,7 +199,7 @@ warning[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                          SC2086[info]: Double quote to prevent globbing and word splitting.
     │                          more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$lint146"`?
 
 warning[ShellCheck]: lint146 is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:124:26
@@ -254,7 +254,7 @@ warning[ShellCheck]: Double quote to prevent globbing and word splitting.
     │             SC2086[info]: Double quote to prevent globbing and word splitting.
     │             more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$fasta_name"`?
 
 warning[ShellCheck]: fasta_name is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:163:13
@@ -294,7 +294,7 @@ warning[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                 SC2086[info]: Double quote to prevent globbing and word splitting.
     │                 more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$file"`?
 
 warning[ShellCheck]: Double quote to prevent globbing and word splitting.
     ┌─ tests/lints/shellcheck-warn/source.wdl:172:30
@@ -305,7 +305,7 @@ warning[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                              SC2086[info]: Double quote to prevent globbing and word splitting.
     │                              more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$file"`?
 
 error: unknown name `succeed_on_errors`
     ┌─ tests/lints/shellcheck-warn/source.wdl:175:16
@@ -322,7 +322,7 @@ warning[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                                              SC2086[info]: Double quote to prevent globbing and word splitting.
     │                                              more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$outfile_name"`?
 
 warning[ShellCheck]: outfile_name is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:176:46
@@ -350,7 +350,7 @@ warning[ShellCheck]: Double quote to prevent globbing and word splitting.
     │                  SC2086[info]: Double quote to prevent globbing and word splitting.
     │                  more info: https://www.shellcheck.net/wiki/SC2086
     │
-    = fix: address the diagnostic as recommended in the message
+    = fix: did you mean `"$rc"`?
 
 warning[ShellCheck]: rc is referenced but not assigned.
     ┌─ tests/lints/shellcheck-warn/source.wdl:180:18

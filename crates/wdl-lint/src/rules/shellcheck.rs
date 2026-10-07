@@ -55,31 +55,32 @@ use crate::util::program_exists;
 /// The shellcheck executable
 const SHELLCHECK_BIN: &str = "shellcheck";
 
-// TODO 2043, 2050, 2157 should be enabled and only suppressed
-// when it's a placeholder substitution.
-/// Shellcheck lints that we want to suppress.
+/// Shellcheck lints that we want to always suppress.
+// TODO: move 2050 into conditional suppress. Not trivially possible due to the
+// "off target" span reported by shellcheck. The reported span does not overlap
+// with our substituted text.
 const SHELLCHECK_SUPPRESS: &[&str] = &[
     "1009", // the mentioned parser error was in... (unhelpful commentary)
     "1072", // Unexpected eof (unhelpful commentary)
-    "2043", // This loop will only ever run once for a constant value (caused by substitution)
-    "2050", // This expression is constant (caused by substitution)
-    "2157", // Argument to -n is always true due to literal strings (caused by substitution)
+    "2050", // This expression is constant
 ];
 
-/// Shellcheck lints that we want to keep,
-/// but ignore the fix suggestion.
-const SHELLCHECK_IGNORE_FIX: &[&str] = &[
-    "2086", /* Double quote to prevent globbing and word splitting (fix message includes our
-            * substitution) */
-];
-
-/// ShellCheck lints about word splitting that are reported by the
-/// `ShellSplitting` rule when they apply to a placeholder.
+/// Shellcheck lints that we only want to suppress when they apply to a WDL
+/// placeholder.
 ///
-/// These are SC2086 (double quote to prevent globbing and word splitting),
-/// SC2206 (quote to prevent word splitting in an array), and SC2231 (quote
-/// expansions in a `for` loop glob).
-const SHELLCHECK_SPLITTING: &[usize] = &[2086, 2206, 2231];
+/// Word splitting lints are handled by our `ShellSplitting` rule when they
+/// appear in placeholders.
+const SHELLCHECK_CONDITIONAL_SUPPRESS: &[usize] = &[
+    2043, // This loop will only ever run once for a constant value
+    2086, // double quote to prevent globbing and word splitting
+    2157, // Argument to -n is always true due to literal strings
+    2206, // quote to prevent word splitting in an array
+    2231, // quote expansions in a `for` loop glob
+];
+
+/// Shellcheck lints that we want to keep, but ignore the fix suggestion.
+// NOTE: intentionally empty after `ShellSplitting` rule was implemented
+const SHELLCHECK_IGNORE_FIX: &[&str] = &[];
 
 /// ShellCheck: var is referenced but not assigned.
 const SHELLCHECK_REFERENCED_UNASSIGNED: usize = 2154;
@@ -448,7 +449,9 @@ struct SanitizedCommand {
     /// The names of the bash variables that replaced placeholders.
     decls: HashSet<String>,
     /// The ranges of `text` occupied by those bash variables.
-    placeholders: Vec<Range<usize>>,
+    var_ranges: Vec<Range<usize>>,
+    /// The ranges of `text` occupied by substituted literal text.
+    literal_ranges: Vec<Range<usize>>,
     /// The amount of leading whitespace stripped from each line.
     amount_stripped: usize,
 }
@@ -466,7 +469,8 @@ fn sanitize_command(
     let amount_stripped = section.count_whitespace()?;
     let mut sanitized_command = String::new();
     let mut decls = HashSet::new();
-    let mut placeholders = Vec::new();
+    let mut var_ranges = Vec::new();
+    let mut literal_ranges = Vec::new();
     let mut shell = ShellState::default();
 
     let mut evaluator = ExprTypeEvaluator::new(context);
@@ -484,24 +488,26 @@ fn sanitize_command(
 
                     let in_single_quotes = shell.in_single_quotes();
                     shell.insert();
+                    let start = sanitized_command.len();
                     if literal_inserted || in_single_quotes {
                         sanitized_command.push_str(&substitution);
+                        literal_ranges.push(start..sanitized_command.len());
                     } else {
                         let substitution = substitution
                             .chars()
                             .take(substitution.len().saturating_sub(3))
                             .collect::<String>();
                         decls.insert(substitution.clone());
-                        let start = sanitized_command.len();
                         sanitized_command.push_str(&format!("${{{substitution}}}"));
-                        placeholders.push(start..sanitized_command.len());
+                        var_ranges.push(start..sanitized_command.len());
                     }
                 }
             });
             Some(SanitizedCommand {
                 text: sanitized_command,
                 decls,
-                placeholders,
+                var_ranges,
+                literal_ranges,
                 amount_stripped,
             })
         }
@@ -670,7 +676,8 @@ impl Visitor for ShellCheckRule {
         let Some(SanitizedCommand {
             text: sanitized_command,
             decls: cmd_decls,
-            placeholders,
+            var_ranges,
+            literal_ranges,
             amount_stripped,
         }) = sanitize_command(section, &mut context)
         else {
@@ -708,16 +715,15 @@ impl Visitor for ShellCheckRule {
                         continue;
                     }
 
-                    // Word splitting of placeholders is reported by the
-                    // `ShellSplitting` rule instead.
-                    if SHELLCHECK_SPLITTING.contains(&sc_diagnostic.code)
-                        && let (Some(start), Some(end)) = (
+                    if SHELLCHECK_CONDITIONAL_SUPPRESS.contains(&sc_diagnostic.code)
+                        && let (Some(sc_start), Some(sc_end)) = (
                             byte_offset(&lines, sc_diagnostic.line, sc_diagnostic.column),
                             byte_offset(&lines, sc_diagnostic.end_line, sc_diagnostic.end_column),
                         )
-                        && placeholders
-                            .iter()
-                            .any(|r| r.start <= start && end <= r.end)
+                        && var_ranges.iter().chain(literal_ranges.iter()).any(|r| {
+                            (r.start >= sc_start && r.end <= sc_end) // replacement within SC lint
+                            || (r.start <= sc_start && r.end >= sc_end) // SC lint within replacement
+                        })
                     {
                         continue;
                     }
