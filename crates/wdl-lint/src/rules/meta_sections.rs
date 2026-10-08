@@ -234,9 +234,7 @@ impl MetaSectionsRule {
         });
 
         let needs_meta = meta.is_none() && !self_documented;
-        let needs_parameter_meta = (inputs_present && !inputs_documented
-            || context == Context::Struct)
-            && parameter_meta.is_none();
+        let needs_parameter_meta = inputs_present && !inputs_documented && parameter_meta.is_none();
 
         if needs_meta && needs_parameter_meta {
             diagnostics.exceptable_add(
