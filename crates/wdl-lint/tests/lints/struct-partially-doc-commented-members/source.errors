@@ -1,0 +1,8 @@
+warning[MissingParameterMeta]: struct `PartialDocs` is missing a doc comment for field `bar`
+   ┌─ tests/lints/struct-partially-doc-commented-members/source.wdl:10:12
+   │
+10 │     String bar
+   │            ^^^ this field does not have a doc comment
+   │
+   = fix: add a doc comment to `bar` with a detailed description of the field.
+
