@@ -590,6 +590,12 @@ struct State {
     calls_dir: PathBuf,
     /// Whether or not an output has been evaluated.
     output_evaluated: AtomicBool,
+    /// The call path of this workflow relative to the root workflow.
+    ///
+    /// This is empty for the root workflow. For a workflow evaluated via a
+    /// `call` statement, it is the `--`-joined chain of call identifiers
+    /// leading to it.
+    call_path: String,
 }
 
 impl State {
@@ -1478,6 +1484,7 @@ impl State {
                                 inputs.unwrap_workflow_inputs(),
                                 root_dir,
                                 callee_id,
+                                callee_id,
                             )
                             .await
                     }
@@ -1611,12 +1618,17 @@ impl State {
             sep = if scatter_index.is_empty() { "" } else { "-" },
         );
 
-        let call_id = format_id(
+        let relative_id = format_id(
             namespace.as_ref().map(|(n, _)| n.text()),
             target.text(),
             alias.text(),
             &scatter_index,
         );
+        let call_id = if self.call_path.is_empty() {
+            relative_id
+        } else {
+            format!("{path}--{relative_id}", path = self.call_path)
+        };
 
         // Finally, evaluate the task or workflow and return the outputs
         let outputs = call_target
@@ -1739,7 +1751,13 @@ impl Evaluator {
         }
 
         let result = self
-            .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
+            .perform_workflow_evaluation(
+                document,
+                inputs,
+                eval_root_dir.as_ref(),
+                workflow.name(),
+                "",
+            )
             .await;
 
         if self.cancellation().user_canceled()
@@ -1755,12 +1773,15 @@ impl Evaluator {
     ///
     /// This method skips checking the document (and its transitive imports) for
     /// analysis errors as the check occurs at the `evaluate` entrypoint.
+    ///
+    /// `path` is the call path of this workflow relative to the root workflow.
     async fn perform_workflow_evaluation(
         &self,
         document: &Document,
         inputs: WorkflowInputs,
         eval_root_dir: &Path,
         id: &str,
+        path: &str,
     ) -> EvaluationResult<Outputs> {
         // Validate the inputs for the workflow
         let workflow = document
@@ -1860,6 +1881,7 @@ impl Evaluator {
             temp_dir,
             calls_dir,
             output_evaluated: AtomicBool::new(false),
+            call_path: path.to_string(),
         });
 
         // Evaluate the root graph to completion
@@ -1900,6 +1922,7 @@ mod tests {
 
     use super::*;
     use crate::CancellationContext;
+    use crate::EngineEvent;
     use crate::Events;
     use crate::config::Config;
     use crate::config::FailureMode;
@@ -2555,6 +2578,105 @@ workflow w {
         assert_eq!(state.tasks_created.load(Ordering::SeqCst), 10);
         assert_eq!(state.tasks_started.load(Ordering::SeqCst), 10);
         assert_eq!(state.tasks_completed.load(Ordering::SeqCst), 10);
+    }
+
+    #[tokio::test]
+    async fn it_qualifies_nested_call_ids() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("other.wdl"),
+            r#"
+version 1.1
+
+task t {
+  command <<<>>>
+}
+
+workflow sub {
+  call t
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.1
+
+import "other.wdl"
+
+task t {
+  command <<<>>>
+}
+
+workflow w {
+  call t
+  call other.sub
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 2, "expected only two results");
+
+        let events = Events::new(100);
+        let mut engine_rx = events.subscribe_engine().unwrap();
+        let ids = tokio::spawn(async move {
+            let mut ids = Vec::new();
+            loop {
+                match engine_rx.recv().await {
+                    Ok(EngineEvent::TaskInitializing { id, name, .. }) => {
+                        assert!(name.starts_with(&format!("{id}-")));
+                        ids.push(id);
+                    }
+                    Ok(_) => continue,
+                    Err(RecvError::Closed) => break,
+                    Err(e) => panic!("failed to receive event: {e}"),
+                }
+            }
+            ids
+        });
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
+        evaluator
+            .evaluate_workflow(
+                results
+                    .iter()
+                    .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+                    .expect("should have result")
+                    .document(),
+                WorkflowInputs::default(),
+                root_dir.path(),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        drop(evaluator);
+        drop(engine);
+        let mut ids = ids.await.expect("failed to await events task");
+        ids.sort();
+        assert_eq!(ids, ["other-sub--t", "t"]);
+        assert!(root_dir.path().join("calls/t/attempts/0").is_dir());
+        assert!(
+            root_dir
+                .path()
+                .join("calls/sub/calls/t/attempts/0")
+                .is_dir()
+        );
     }
 
     #[tokio::test]

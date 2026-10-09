@@ -101,9 +101,11 @@ use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
 use crate::digest::DigestCalculator;
 use crate::eval::EvaluatedTask;
+use crate::eval::RetryCause;
 use crate::eval::Scope;
 use crate::eval::ScopeIndex;
 use crate::eval::ScopeRef;
+use crate::eval::TaskConstraintsSnapshot;
 use crate::eval::trie::InputTrie;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
@@ -1649,7 +1651,7 @@ impl Evaluator {
         // begins, so that even localization performed while evaluating
         // inputs and declarations is attributable to the task.
         let mut state = State::new(self, document, task, &temp_dir, self.generate_task_name(id))?;
-        self.notify_task_initializing(id, &state.task_name);
+        self.notify_task_initializing(id, &state.task_name, 0);
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
         while current < nodes.len() {
@@ -1691,10 +1693,10 @@ impl Evaluator {
                 return Err(EvaluationError::Canceled);
             }
 
-            // Each attempt is a distinct execution with its own name.
+            // Each attempt is a distinct execution with its own name; the name
+            // for a retry attempt was minted when the retry was announced.
             if attempt > 0 {
-                state.task_name = self.generate_task_name(id);
-                self.notify_task_initializing(id, &state.task_name);
+                self.notify_task_initializing(id, &state.task_name, attempt);
             }
 
             let EvaluatedSections {
@@ -1874,6 +1876,13 @@ impl Evaluator {
                     attempt_dir.push("attempts");
                     attempt_dir.push(attempt.to_string());
 
+                    // Notify that the attempt is being submitted for
+                    // execution, along with its resolved constraints.
+                    self.notify_task_executing(
+                        &state.task_name,
+                        TaskConstraintsSnapshot::from(&constraints),
+                    );
+
                     match self
                         .engine()
                         .backend()
@@ -1941,6 +1950,24 @@ impl Evaluator {
                     let task = task.as_task_post_evaluation().unwrap();
                     previous_task_data = Some(task.data().clone());
                 }
+
+                // Mint the next attempt's name now so that the retry
+                // announcement can link the failed attempt to its successor;
+                // the `TaskInitializing` event at the top of the loop
+                // announces the new attempt under this name.
+                let prior_name = result
+                    .execution_name_override
+                    .as_deref()
+                    .unwrap_or(&state.task_name);
+                let next_name = self.generate_task_name(id);
+                self.notify_task_retrying(
+                    prior_name,
+                    &next_name,
+                    RetryCause::UnacceptableExitCode {
+                        code: result.exit_code,
+                    },
+                );
+                state.task_name = next_name;
 
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
@@ -2259,9 +2286,13 @@ impl Evaluator {
 mod tests {
     use std::fs;
     use std::path::Path;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
 
+    use anyhow::Result;
     use crankshaft::events::Event;
     use futures::FutureExt;
+    use futures::future::BoxFuture;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tempfile::tempdir;
@@ -2273,13 +2304,111 @@ mod tests {
     use crate::CancellationContext;
     use crate::CancellationContextState;
     use crate::Engine;
+    use crate::EngineEvent;
+    use crate::EvaluationPath;
     use crate::Events;
+    use crate::Object;
+    use crate::PrimitiveValue;
+    use crate::RetryCause;
     use crate::TaskInputs;
+    use crate::backend::ExecuteTaskRequest;
+    use crate::backend::TaskExecutionBackend;
+    use crate::backend::TaskExecutionConstraints;
+    use crate::backend::TaskExecutionResult;
     use crate::config::CallCachingMode;
     use crate::config::Config;
     use crate::config::DockerBackendConfig;
     use crate::config::FailureMode;
+    use crate::config::LocalBackendConfig;
     use crate::eval::EvaluatedTask;
+    use crate::http::tests::NotImplementedHttpClient;
+    use crate::resubmit_task_name;
+
+    struct ScriptedRenamingBackend {
+        executions: AtomicUsize,
+    }
+
+    impl ScriptedRenamingBackend {
+        fn new() -> Self {
+            Self {
+                executions: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl TaskExecutionBackend for ScriptedRenamingBackend {
+        fn name(&self) -> &'static str {
+            "scripted-renaming"
+        }
+
+        fn constraints(
+            &self,
+            _inputs: &TaskInputs,
+            _requirements: &Object,
+            _hints: &Object,
+        ) -> Result<TaskExecutionConstraints> {
+            Ok(TaskExecutionConstraints {
+                sources: Vec::new(),
+                cpu: 1.0,
+                memory: 1024 * 1024,
+                gpu: Vec::new(),
+                fpga: Vec::new(),
+                disks: Default::default(),
+            })
+        }
+
+        fn execute<'a>(
+            &'a self,
+            request: &'a ExecuteTaskRequest<'a>,
+        ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
+            async move {
+                let execution = self.executions.fetch_add(1, Ordering::SeqCst);
+                let work_dir = request.work_dir();
+                let stdout = request.stdout_path();
+                let stderr = request.stderr_path();
+                fs::create_dir_all(&work_dir)?;
+                fs::write(&stdout, "")?;
+                fs::write(&stderr, "")?;
+
+                let (execution_name_override, exit_code) = if execution == 0 {
+                    let next_name = resubmit_task_name(request.name, 1);
+                    if let Some(sender) = request.context.events().engine() {
+                        let _ = sender.send(EngineEvent::TaskRetrying {
+                            prior_name: request.name.to_string(),
+                            next_name: next_name.clone(),
+                            cause: RetryCause::Preempted,
+                        });
+                    }
+
+                    (Some(next_name), 1)
+                } else {
+                    (None, 0)
+                };
+
+                Ok(Some(TaskExecutionResult {
+                    execution_name_override,
+                    image: None,
+                    exit_code,
+                    work_dir: EvaluationPath::from_local_path(work_dir),
+                    stdout: PrimitiveValue::new_file(
+                        stdout
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                    .into(),
+                    stderr: PrimitiveValue::new_file(
+                        stderr
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                    .into(),
+                }))
+            }
+            .boxed()
+        }
+    }
 
     /// Creates a configuration for testing with the given mode and root test
     /// directory.
@@ -2293,8 +2422,22 @@ mod tests {
         config
     }
 
-    /// Helper for evaluating a simple task with the given call cache mode.
-    async fn evaluate_task(config: Config, root_dir: &Path, source: &str) -> EvaluatedTask {
+    /// Evaluates a simple task and collects its engine events.
+    async fn evaluate_task_with_events(
+        config: Config,
+        root_dir: &Path,
+        source: &str,
+    ) -> (EvaluatedTask, Vec<EngineEvent>) {
+        let engine = Engine::new(config).await.unwrap();
+        evaluate_task_with_engine(engine, root_dir, source).await
+    }
+
+    /// Evaluates a simple task with the given engine and collects its events.
+    async fn evaluate_task_with_engine(
+        engine: Engine,
+        root_dir: &Path,
+        source: &str,
+    ) -> (EvaluatedTask, Vec<EngineEvent>) {
         fs::write(root_dir.join("source.wdl"), source).expect("failed to write WDL source file");
 
         // Analyze the source file
@@ -2311,13 +2454,12 @@ mod tests {
             .await
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
-
         let document = results.first().expect("should have result").document();
-        let engine = Engine::new(config).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+        let events = Events::new(100);
+        let mut receiver = events.subscribe_engine().unwrap();
+        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
         let runs_dir = root_dir.join("runs");
-        evaluator
+        let evaluated = evaluator
             .evaluate_task(
                 document,
                 document
@@ -2327,7 +2469,220 @@ mod tests {
                 &runs_dir,
             )
             .await
-            .unwrap()
+            .unwrap();
+
+        let mut received = Vec::new();
+        while let Ok(event) = receiver.try_recv() {
+            received.push(event);
+        }
+
+        (evaluated, received)
+    }
+
+    /// Helper for evaluating a simple task with the given call cache mode.
+    async fn evaluate_task(config: Config, root_dir: &Path, source: &str) -> EvaluatedTask {
+        evaluate_task_with_events(config, root_dir, source).await.0
+    }
+
+    #[tokio::test]
+    async fn retry_events_link_each_execution_attempt_in_order() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    command <<<exit 1>>>
+
+    requirements {
+        max_retries: 1
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let mut config = Config::default();
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let (evaluated, events) = evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(evaluated.failed());
+        assert_eq!(evaluated.exit_code(), 1);
+
+        let relevant = events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    EngineEvent::TaskInitializing { .. }
+                        | EngineEvent::TaskExecuting { .. }
+                        | EngineEvent::TaskRetrying { .. }
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let [
+            EngineEvent::TaskInitializing {
+                name: first_attempt,
+                attempt: 0,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: first_execution,
+                ..
+            },
+            EngineEvent::TaskRetrying {
+                prior_name,
+                next_name,
+                cause,
+            },
+            EngineEvent::TaskInitializing {
+                name: second_attempt,
+                attempt: 1,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: second_execution,
+                ..
+            },
+        ] = relevant.as_slice()
+        else {
+            panic!("unexpected execution event sequence");
+        };
+
+        assert_eq!(first_attempt, first_execution);
+        assert_eq!(first_attempt, prior_name);
+        assert_eq!(second_attempt, next_name);
+        assert_eq!(second_attempt, second_execution);
+        assert_ne!(first_attempt, second_attempt);
+        assert_eq!(*cause, RetryCause::UnacceptableExitCode { code: 1 });
+    }
+
+    #[tokio::test]
+    async fn renamed_execution_is_the_predecessor_of_an_evaluator_retry() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    command <<<exit 1>>>
+
+    requirements {
+        max_retries: 1
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let engine = Engine::new_with_backend(
+            Config::local(),
+            NotImplementedHttpClient,
+            Box::new(ScriptedRenamingBackend::new()),
+        )
+        .await
+        .unwrap();
+
+        let (evaluated, events) = evaluate_task_with_engine(engine, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.failed());
+        assert_eq!(evaluated.exit_code(), 0);
+
+        let relevant = events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    EngineEvent::TaskInitializing { .. }
+                        | EngineEvent::TaskExecuting { .. }
+                        | EngineEvent::TaskRetrying { .. }
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let [
+            EngineEvent::TaskInitializing {
+                name: base,
+                attempt: 0,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: base_execution,
+                ..
+            },
+            EngineEvent::TaskRetrying {
+                prior_name: preempted,
+                next_name: resubmitted,
+                cause: RetryCause::Preempted,
+            },
+            EngineEvent::TaskRetrying {
+                prior_name: unacceptable,
+                next_name: fresh,
+                cause: RetryCause::UnacceptableExitCode { code: 1 },
+            },
+            EngineEvent::TaskInitializing {
+                name: fresh_initializing,
+                attempt: 1,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: fresh_execution,
+                ..
+            },
+        ] = relevant.as_slice()
+        else {
+            panic!("unexpected execution event sequence");
+        };
+
+        assert_eq!(base, base_execution);
+        assert_eq!(base, preempted);
+        assert_eq!(resubmitted, &resubmit_task_name(base, 1));
+        assert_eq!(resubmitted, unacceptable);
+        assert_eq!(fresh, fresh_initializing);
+        assert_eq!(fresh, fresh_execution);
+        assert_ne!(fresh, base);
+        assert_ne!(fresh, resubmitted);
+    }
+
+    #[tokio::test]
+    async fn cached_execution_does_not_emit_task_executing() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    command <<<echo "cached">>>
+
+    output {
+        String out = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let mut config = Config::default();
+        config.task.cache = CallCachingMode::On;
+        config.task.cache_dir = root_dir.path().join("cache").to_string_lossy().into();
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let (first, _) = evaluate_task_with_events(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!first.cached());
+
+        let (second, second_events) =
+            evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(second.cached());
+        assert!(
+            second_events
+                .iter()
+                .any(|event| matches!(event, EngineEvent::TaskInitializing { .. }))
+        );
+        assert!(
+            second_events
+                .iter()
+                .any(|event| matches!(event, EngineEvent::ReusedCachedExecutionResult { .. }))
+        );
+        assert!(
+            !second_events
+                .iter()
+                .any(|event| matches!(event, EngineEvent::TaskExecuting { .. }))
+        );
     }
 
     /// Tests task evaluation when call caching is disabled.

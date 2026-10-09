@@ -188,6 +188,7 @@ impl ManagedTask for LocalTask<'_> {
                         let exit_code = status.code().expect("process should have exited");
                         info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
                         Ok(Some(TaskExecutionResult {
+                            execution_name_override: None,
                             image: None,
                             exit_code,
                             work_dir: EvaluationPath::from_local_path(work_dir),
