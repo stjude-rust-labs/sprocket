@@ -1,18 +1,30 @@
-Run-management server commands (start, submit, status, inspect, cancel, retry)
+Show execution metrics for a run
 
-Usage: sprocket dev server [OPTIONS] <COMMAND>
+Usage: sprocket dev server metrics [OPTIONS] <RUN>
 
-Commands:
-  start    Run the HTTP API server for run execution
-  submit   Submit a workflow to a Sprocket HTTP API server
-  status   Show the status of one or all runs
-  inspect  Show detailed information about a run
-  metrics  Show execution metrics for a run
-  cancel   Cancel a running or queued run
-  retry    Retry a previous run, optionally with input overrides
-  help     Print this message or the help of the given subcommand(s)
+Arguments:
+  <RUN>
+          The run to report metrics for.
+
+          May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`).
 
 Options:
+      --call <CALL>
+          Only report metrics for calls whose call id contains this string
+
+      --json
+          Output the raw JSON response instead of the formatted summary
+
+      --host <HOST>
+          The hostname of the running Sprocket server to talk to.
+
+          If not provided, falls back to the value in the Sprocket config.
+
+  -p, --port <PORT>
+          The port of the running Sprocket server to talk to.
+
+          If not provided, falls back to the value in the Sprocket config.
+
   -v, --verbose...
           Increase logging verbosity
 

@@ -31,6 +31,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing::span;
+use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
@@ -1061,6 +1062,17 @@ pub async fn run(
         cancellation.second().clone(),
     ));
 
+    // Collect execution metrics alongside evaluation; the collector returns
+    // once evaluation completes and the event channels close.
+    let metrics_collector = tokio::spawn(crate::metrics::collect_metrics(
+        events
+            .subscribe_crankshaft()
+            .expect("should have Crankshaft events"),
+        events
+            .subscribe_engine()
+            .expect("should have engine events"),
+    ));
+
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
     // passed to `execute_target()` is not used for path resolution. We pass
     // CWD as a placeholder.
@@ -1110,6 +1122,40 @@ pub async fn run(
             res = &mut execute => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
+
+                // Write the collected execution metrics to the run directory.
+                // This is best-effort: a failure to write metrics must not
+                // fail the run.
+                if let Ok(collector) = metrics_collector.await {
+                    let status = match &res {
+                        Ok(()) if cancellation.state() == CancellationContextState::NotCanceled => {
+                            crate::system::v1::db::RunStatus::Completed
+                        }
+                        Ok(()) | Err(EvaluationError::Canceled) => {
+                            crate::system::v1::db::RunStatus::Canceled
+                        }
+                        Err(_) => crate::system::v1::db::RunStatus::Failed,
+                    };
+                    let summary = crate::metrics::local_run_summary(
+                        ctx.run_id,
+                        &ctx.run_generated_name,
+                        status,
+                        ctx.started_at,
+                    );
+                    let response = collector.into_response(summary);
+                    let metrics_file = run_dir.root().join("metrics.json");
+                    match serde_json::to_string_pretty(&response) {
+                        Ok(json) => {
+                            if let Err(e) = std::fs::write(&metrics_file, json) {
+                                warn!(
+                                    "failed to write metrics file `{path}`: {e:#}",
+                                    path = metrics_file.display()
+                                );
+                            }
+                        }
+                        Err(e) => warn!("failed to serialize run metrics: {e:#}"),
+                    }
+                }
 
                 return match res {
                     Ok(()) => {

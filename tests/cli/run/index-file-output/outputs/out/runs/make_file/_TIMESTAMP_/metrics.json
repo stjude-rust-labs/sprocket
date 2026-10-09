@@ -1,0 +1,39 @@
+{
+  "run": {
+    "uuid": "_UUID_",
+    "name": "streamier-bianca-3e2a0b",
+    "status": "completed",
+    "wall_time_ms": 636
+  },
+  "calls": [
+    {
+      "call_id": "make_file",
+      "attempts": [
+        {
+          "name": "make_file-0mXppjDxI16T",
+          "attempt": 0,
+          "status": "completed",
+          "exit_status": 0,
+          "wall_time_ms": 92,
+          "queued_ms": 223,
+          "constraints": {
+            "container": "ubuntu:latest",
+            "cpu": 1.0,
+            "memory": 2147483648,
+            "gpu": [],
+            "fpga": [],
+            "disks": {}
+          },
+          "retry_cause": null,
+          "logs": "make_file-0mXppjDxI16T"
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "attempts": 1,
+    "retries": 0,
+    "cached": 0,
+    "preempted": 0
+  }
+}
