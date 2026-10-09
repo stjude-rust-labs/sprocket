@@ -52,6 +52,9 @@ pub const LIST_RUN_TASKS: &str = "/api/v1/runs/{id}/tasks";
 /// Path template for getting a run's per-status task counts.
 pub const RUN_TASK_COUNTS: &str = "/api/v1/runs/{id}/tasks/counts";
 
+/// Path template for getting a run's execution metrics.
+pub const RUN_METRICS: &str = "/api/v1/runs/{id}/metrics";
+
 // === Sessions ========================================================
 
 /// Path template for listing sessions.
@@ -101,6 +104,11 @@ pub fn list_run_tasks(id: Uuid) -> String {
 /// Build the path for [`RUN_TASK_COUNTS`].
 pub fn run_task_counts(id: Uuid) -> String {
     RUN_TASK_COUNTS.replace("{id}", &id.to_string())
+}
+
+/// Build the path for [`RUN_METRICS`].
+pub fn run_metrics(id: Uuid) -> String {
+    RUN_METRICS.replace("{id}", &id.to_string())
 }
 
 /// Build the path for [`GET_SESSION`].
