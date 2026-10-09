@@ -24,6 +24,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `backends.<name>.resource_usage_interval`
   ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
 
+### Changed
+
+* Execution database writes use fewer commits and less network-filesystem I/O. Run status
+  transitions use a single statement, successful completion stores outputs and status together, and
+  task writes are buffered into transactions. SQLite now uses `PERSIST` journaling with
+  memory-mapped I/O disabled and a smaller connection pool. Task state visible to readers may lag by
+  one 250-millisecond flush interval
+  ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+* Task resource utilization updates use SQLite JSON merge patches instead of a database read
+  followed by a Rust-side merge and update
+  ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+
 ## 0.32.0 - 2026-10-07
 
 ### Security Fix
