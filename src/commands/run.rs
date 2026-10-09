@@ -800,6 +800,10 @@ async fn progress(
                             // announced separately and re-enters preparation.
                             state.depart(&Arc::new(prior_name));
                         }
+                        EngineEvent::TaskDiskUsage { .. } => {
+                            // Disk usage is recorded by the metrics
+                            // collector, not displayed in the progress bar.
+                        }
                         EngineEvent::ReusedCachedExecutionResult { name, .. } => {
                             state.depart(&Arc::new(name));
                             state.cached += 1;
@@ -1031,6 +1035,15 @@ pub async fn run(
 
     let uses_docker = uses_docker_backend(&config.run.engine);
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    // Capture the backend name before the engine configuration is moved
+    // into execution; used for the run's metrics summary.
+    let backend_name = config
+        .run
+        .engine
+        .backend()
+        .ok()
+        .map(|b| b.name().to_string());
+
     let engine = Engine::new(config.run.engine)
         .await
         .context("failed to create WDL evaluation engine")?;
@@ -1075,6 +1088,9 @@ pub async fn run(
         events
             .subscribe_engine()
             .expect("should have engine events"),
+        events
+            .subscribe_transfer()
+            .expect("should have transfer events"),
     ));
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
@@ -1145,6 +1161,8 @@ pub async fn run(
                         &ctx.run_generated_name,
                         status,
                         ctx.started_at,
+                        backend_name.clone(),
+                        collector.transfer_totals(),
                     );
                     let response = collector.into_response(summary);
                     let metrics_file = run_dir.root().join("metrics.json");

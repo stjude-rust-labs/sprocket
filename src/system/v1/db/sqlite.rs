@@ -251,8 +251,8 @@ impl Database for SqliteDatabase {
             "insert into runs (uuid, session_id, name, source, target, status, inputs) select ?, \
              s.id, ?, ?, ?, ?, ? from sessions s where s.uuid = ? returning uuid, (select uuid \
              from sessions where id = session_id) as session_uuid, name, source, target, status, \
-             inputs, outputs, error, directory, index_directory, started_at, completed_at, \
-             created_at",
+             inputs, outputs, error, directory, index_directory, backend, transfer_totals, \
+             started_at, completed_at, created_at",
         )
         .bind(id.to_string())
         .bind(name)
@@ -439,12 +439,32 @@ impl Database for SqliteDatabase {
         Ok(result.rows_affected() > 0)
     }
 
+    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool> {
+        let result = sqlx::query("update runs set backend = ? where uuid = ?")
+            .bind(backend)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_run_transfer_totals(&self, id: Uuid, transfer_totals: &str) -> Result<bool> {
+        let result = sqlx::query("update runs set transfer_totals = ? where uuid = ?")
+            .bind(transfer_totals)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
     async fn get_run(&self, id: Uuid) -> Result<Option<Run>> {
         let run: Option<Run> = sqlx::query_as(
             "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
-             r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
-             where r.uuid = ?",
+             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
+             r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
+             sessions s on r.session_id = s.id where r.uuid = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -465,9 +485,10 @@ impl Database for SqliteDatabase {
         let runs: Vec<Run> = if let Some(status) = status {
             sqlx::query_as(
                 "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
-                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
-                 where r.status = ? order by r.created_at desc limit ? offset ?",
+                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
+                 r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
+                 sessions s on r.session_id = s.id where r.status = ? order by r.created_at desc \
+                 limit ? offset ?",
             )
             .bind(status)
             .bind(limit)
@@ -477,9 +498,9 @@ impl Database for SqliteDatabase {
         } else {
             sqlx::query_as(
                 "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
-                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
-                 order by r.created_at desc limit ? offset ?",
+                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
+                 r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
+                 sessions s on r.session_id = s.id order by r.created_at desc limit ? offset ?",
             )
             .bind(limit)
             .bind(offset)
@@ -508,9 +529,9 @@ impl Database for SqliteDatabase {
     async fn list_runs_by_session(&self, session_id: Uuid) -> Result<Vec<Run>> {
         let runs: Vec<Run> = sqlx::query_as(
             "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
-             r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
-             where s.uuid = ? order by r.created_at",
+             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
+             r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
+             sessions s on r.session_id = s.id where s.uuid = ? order by r.created_at",
         )
         .bind(session_id.to_string())
         .fetch_all(&self.pool)
@@ -644,7 +665,7 @@ impl Database for SqliteDatabase {
              coalesce(tasks.call_id, excluded.call_id), attempt = max(tasks.attempt, \
              excluded.attempt) returning name, (select uuid from runs where id = run_id) as \
              run_uuid, status, exit_status, error, call_id, attempt, \"constraints\", \
-             retry_cause, utilization, created_at, started_at, completed_at",
+             retry_cause, utilization, submitted_at, created_at, started_at, completed_at",
         )
         .bind(task.name)
         .bind(task.status)
@@ -724,13 +745,16 @@ impl Database for SqliteDatabase {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn update_task_pending(&self, name: &str) -> Result<bool> {
+    async fn update_task_pending(&self, name: &str, submitted_at: DateTime<Utc>) -> Result<bool> {
+        // `coalesce` keeps the first observed submission time if the update
+        // is ever repeated.
         let result = sqlx::query(
             "update tasks
-             set status = ?
+             set status = ?, submitted_at = coalesce(submitted_at, ?)
              where name = ? and status in ('initializing', 'localizing')",
         )
         .bind(TaskStatus::Pending)
+        .bind(submitted_at)
         .bind(name)
         .execute(&self.pool)
         .await?;
@@ -848,7 +872,8 @@ impl Database for SqliteDatabase {
     async fn get_task(&self, name: &str) -> Result<Task> {
         let task: Option<Task> = sqlx::query_as(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
-                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization,
+                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization, \
+             t.submitted_at,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id
              where t.name = ?",
@@ -872,7 +897,8 @@ impl Database for SqliteDatabase {
 
         let mut query = String::from(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
-                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization,
+                    t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization, \
+             t.submitted_at,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id where 1=1",
         );
@@ -1111,13 +1137,14 @@ where
             .execute(executor)
             .await?;
         }
-        TaskWrite::Pending { name } => {
+        TaskWrite::Pending { name, submitted_at } => {
             sqlx::query(
                 "update tasks
-                 set status = ?
+                 set status = ?, submitted_at = coalesce(submitted_at, ?)
                  where name = ? and status in ('initializing', 'localizing')",
             )
             .bind(TaskStatus::Pending)
+            .bind(submitted_at)
             .bind(name)
             .execute(executor)
             .await?;
@@ -1859,6 +1886,86 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn submission_times_are_recorded_once(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
+
+        let submitted_at = Utc::now();
+        assert!(
+            db.update_task_pending("t", submitted_at)
+                .await
+                .expect("failed to update task")
+        );
+
+        let task = db.get_task("t").await.expect("failed to get task");
+        let recorded = task.submitted_at.expect("submission time should be set");
+        assert_eq!(recorded.timestamp_millis(), submitted_at.timestamp_millis());
+    }
+
+    #[sqlx::test]
+    async fn run_backend_and_transfer_totals_are_recorded(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        assert!(
+            db.update_run_backend(run_id, "lsf_apptainer")
+                .await
+                .expect("failed to update backend")
+        );
+        let totals = r#"{"downloaded_bytes":1024,"uploaded_bytes":2048}"#;
+        assert!(
+            db.update_run_transfer_totals(run_id, totals)
+                .await
+                .expect("failed to update transfer totals")
+        );
+
+        let run = db
+            .get_run(run_id)
+            .await
+            .expect("failed to get run")
+            .expect("run should exist");
+        assert_eq!(run.backend.as_deref(), Some("lsf_apptainer"));
+        assert_eq!(run.transfer_totals.as_deref(), Some(totals));
+
+        // Unknown runs are reported as not updated.
+        assert!(
+            !db.update_run_backend(Uuid::new_v4(), "docker")
+                .await
+                .expect("failed to update backend")
+        );
+    }
+
+    #[sqlx::test]
     async fn utilization_is_recorded_on_terminal_rows(pool: SqlitePool) {
         let db = SqliteDatabase::from_pool(pool)
             .await
@@ -1971,6 +2078,7 @@ mod tests {
             },
             TaskWrite::Pending {
                 name: "t2".to_string(),
+                submitted_at: started_at,
             },
             TaskWrite::Log {
                 name: "t2".to_string(),
@@ -2235,7 +2343,7 @@ mod tests {
                 .expect("failed to update task")
         );
         assert!(
-            db.update_task_pending("t")
+            db.update_task_pending("t", Utc::now())
                 .await
                 .expect("failed to update task")
         );
@@ -2257,7 +2365,7 @@ mod tests {
                 .expect("failed to update task")
         );
         assert!(
-            !db.update_task_pending("t")
+            !db.update_task_pending("t", Utc::now())
                 .await
                 .expect("failed to update task")
         );

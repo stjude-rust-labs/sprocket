@@ -9,6 +9,7 @@ use std::time::Duration;
 use anyhow::Context as _;
 use anyhow::Result;
 use chrono::Utc;
+use cloud_copy::TransferEvent;
 use crankshaft_events::Event as CrankshaftEvent;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -22,6 +23,7 @@ use uuid::Uuid;
 use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
 use wdl::engine::EngineEvent;
 
+use crate::metrics::TransferAccumulator;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::LogSource;
 use crate::system::v1::db::TaskStatus;
@@ -62,6 +64,8 @@ enum Incoming {
     Crankshaft(CrankshaftEvent),
     /// An engine event.
     Engine(EngineEvent),
+    /// A transfer event.
+    Transfer(TransferEvent),
     /// A channel dropped events because the monitor could not keep up.
     Lagged,
     /// The Crankshaft channel closed.
@@ -70,6 +74,8 @@ enum Incoming {
     EngineClosed,
     /// The periodic flush tick elapsed.
     Tick,
+    /// The transfer channel closed.
+    TransferClosed,
     /// The monitor was asked to shut down.
     Shutdown,
 }
@@ -126,6 +132,10 @@ pub struct TaskMonitorSvc {
     task_meta: HashMap<String, TaskMeta>,
     /// Fires on [`FLUSH_INTERVAL`] to trigger a periodic flush of `pending`.
     flush_tick: Interval,
+    /// The transfer events receiver.
+    transfer: broadcast::Receiver<TransferEvent>,
+    /// Accumulates transfer byte totals for the run.
+    transfers: TransferAccumulator,
 }
 
 impl TaskMonitorSvc {
@@ -135,6 +145,7 @@ impl TaskMonitorSvc {
         db: Arc<dyn Database>,
         crankshaft: broadcast::Receiver<CrankshaftEvent>,
         engine: broadcast::Receiver<EngineEvent>,
+        transfer: broadcast::Receiver<TransferEvent>,
         shutdown: CancellationToken,
     ) -> Self {
         let mut flush_tick = tokio::time::interval(FLUSH_INTERVAL);
@@ -154,6 +165,8 @@ impl TaskMonitorSvc {
             pending: Vec::new(),
             task_meta: HashMap::new(),
             flush_tick,
+            transfer,
+            transfers: TransferAccumulator::default(),
         }
     }
 
@@ -166,8 +179,9 @@ impl TaskMonitorSvc {
     pub async fn run(mut self) -> Result<()> {
         let mut crankshaft_open = true;
         let mut engine_open = true;
+        let mut transfer_open = true;
 
-        while crankshaft_open || engine_open {
+        while crankshaft_open || engine_open || transfer_open {
             // The receivers are only borrowed for the duration of the select,
             // so that handling an event can take the monitor
             // mutably.
@@ -184,6 +198,11 @@ impl TaskMonitorSvc {
                     Err(RecvError::Lagged(_)) => Incoming::Lagged,
                     Err(RecvError::Closed) => Incoming::EngineClosed,
                 },
+                r = self.transfer.recv(), if transfer_open => match r {
+                    Ok(event) => Incoming::Transfer(event),
+                    Err(RecvError::Lagged(_)) => Incoming::Lagged,
+                    Err(RecvError::Closed) => Incoming::TransferClosed,
+                },
                 _ = self.flush_tick.tick() => Incoming::Tick,
             };
 
@@ -196,9 +215,13 @@ impl TaskMonitorSvc {
                          true status",
                     );
                 }
+                Incoming::Transfer(event) => {
+                    self.transfers.handle_event(&event);
+                }
                 Incoming::CrankshaftClosed => crankshaft_open = false,
                 Incoming::EngineClosed => engine_open = false,
                 Incoming::Tick => self.flush().await,
+                Incoming::TransferClosed => transfer_open = false,
                 Incoming::Shutdown => break,
             }
 
@@ -217,7 +240,24 @@ impl TaskMonitorSvc {
 
         // Every write observed for this run, including reconciliation, is
         // flushed together as the monitor's final batch.
-        self.flush_final().await
+        let flush_result = self.flush_final().await;
+
+        // Record the run's transfer totals, if any transfer was observed.
+        if let Some(totals) = self.transfers.totals() {
+            match serde_json::to_string(&totals) {
+                Ok(totals) => {
+                    if let Err(e) = self
+                        .db
+                        .update_run_transfer_totals(self.run_id, &totals)
+                        .await
+                    {
+                        error!("failed to record run transfer totals: {e:#}");
+                    }
+                }
+                Err(e) => error!("failed to serialize run transfer totals: {e:#}"),
+            }
+        }
+        flush_result
     }
 
     /// Flushes every buffered write to the database as a single batch.
@@ -264,6 +304,14 @@ impl TaskMonitorSvc {
         loop {
             match self.engine.try_recv() {
                 Ok(event) => self.handle_engine_event(event),
+                Err(TryRecvError::Lagged(_)) => continue,
+                Err(TryRecvError::Empty | TryRecvError::Closed) => break,
+            }
+        }
+
+        loop {
+            match self.transfer.try_recv() {
+                Ok(event) => self.transfers.handle_event(&event),
                 Err(TryRecvError::Lagged(_)) => continue,
                 Err(TryRecvError::Empty | TryRecvError::Closed) => break,
             }
@@ -385,6 +433,15 @@ impl TaskMonitorSvc {
                 });
                 self.unfinished.remove(&name);
             }
+            EngineEvent::TaskDiskUsage { name, disk_used } => {
+                // Merge the engine-measured disk usage into whatever the
+                // backend may have reported.
+                let patch = serde_json::to_string(&serde_json::json!({
+                    "disk_used": disk_used,
+                }))
+                .context("failed to serialize task disk usage")?;
+                self.pending.push(TaskWrite::Utilization { name, patch });
+            }
             EngineEvent::TaskParked | EngineEvent::TaskUnparked { .. } => {
                 // Parking is a property of the host's resource pool rather than
                 // of the task's own progress, and the task
@@ -433,7 +490,10 @@ impl TaskMonitorSvc {
                     call_id: None,
                     attempt: 0,
                 });
-                self.pending.push(TaskWrite::Pending { name: name.clone() });
+                self.pending.push(TaskWrite::Pending {
+                    name: name.clone(),
+                    submitted_at: Utc::now(),
+                });
                 self.unfinished.insert(name);
             }
             CrankshaftEvent::TaskStarted { id } => {
@@ -621,11 +681,13 @@ mod tests {
 
         let (_crankshaft_tx, crankshaft) = broadcast::channel(1);
         let (_engine_tx, engine) = broadcast::channel(1);
+        let (_transfer_tx, transfer) = broadcast::channel(1);
         let mut monitor = TaskMonitorSvc::new(
             run_id,
             db.clone(),
             crankshaft,
             engine,
+            transfer,
             CancellationToken::new(),
         );
 
