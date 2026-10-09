@@ -27,6 +27,7 @@ use anyhow::bail;
 use bytesize::ByteSize;
 use crankshaft::events::Event as CrankshaftEvent;
 use crankshaft::events::TaskId;
+use crankshaft::events::TaskResourceUsage;
 use crankshaft::events::send_event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
@@ -303,6 +304,10 @@ struct JobRecord<'a> {
     max_vm_size: &'a str,
     /// The average virtual memory size of the job.
     avg_vm_size: &'a str,
+    /// The maximum resident set size of the job.
+    max_rss: &'a str,
+    /// The average resident set size of the job.
+    avg_rss: &'a str,
 }
 
 impl<'a> JobRecord<'a> {
@@ -337,6 +342,12 @@ impl<'a> JobRecord<'a> {
         let avg_vm_size = fields
             .next()
             .context("`sacct` output missing average virtual memory size")?;
+        let max_rss = fields
+            .next()
+            .context("`sacct` output missing maximum resident set size")?;
+        let avg_rss = fields
+            .next()
+            .context("`sacct` output missing average resident set size")?;
 
         Ok(Self {
             job_id,
@@ -347,6 +358,8 @@ impl<'a> JobRecord<'a> {
             user_cpu,
             max_vm_size,
             avg_vm_size,
+            max_rss,
+            avg_rss,
         })
     }
 
@@ -357,8 +370,95 @@ impl<'a> JobRecord<'a> {
     ///
     /// The first must always be the job ID.
     fn fields() -> &'static str {
-        "JobID,State,ExitCode,TotalCPU,SystemCPU,UserCPU,MaxVMSize,AveVMSize"
+        "JobID,State,ExitCode,TotalCPU,SystemCPU,UserCPU,MaxVMSize,AveVMSize,MaxRSS,AveRSS"
     }
+}
+
+impl JobRecord<'_> {
+    /// Builds a utilization snapshot from the record's measurement fields.
+    ///
+    /// Memory measurements use the resident set size fields for parity with
+    /// other backends. Fields that are empty or unparsable contribute
+    /// nothing to the snapshot.
+    // `TaskResourceUsage` is `#[non_exhaustive]`, which prohibits both struct
+    // literal construction and functional update syntax from another crate.
+    #[allow(clippy::field_reassign_with_default)]
+    fn utilization(&self) -> TaskResourceUsage {
+        let mut usage = TaskResourceUsage::default();
+        usage.max_memory = parse_slurm_size(self.max_rss);
+        usage.avg_memory = parse_slurm_size(self.avg_rss);
+        usage.cpu_time_ms = parse_slurm_duration(self.total_cpu);
+        usage.user_cpu_time_ms = parse_slurm_duration(self.user_cpu);
+        usage.system_cpu_time_ms = parse_slurm_duration(self.system_cpu);
+        usage
+    }
+}
+
+/// Merges a usage snapshot by retaining the largest value for each measurement.
+fn merge_slurm_usage(target: &mut TaskResourceUsage, source: TaskResourceUsage) {
+    target.max_memory = target.max_memory.max(source.max_memory);
+    target.avg_memory = target.avg_memory.max(source.avg_memory);
+    target.cpu_time_ms = target.cpu_time_ms.max(source.cpu_time_ms);
+    target.user_cpu_time_ms = target.user_cpu_time_ms.max(source.user_cpu_time_ms);
+    target.system_cpu_time_ms = target.system_cpu_time_ms.max(source.system_cpu_time_ms);
+}
+
+/// Parses a `sacct` size measurement (e.g. `123456K`, `1.5M`, or a bare
+/// number of kibibytes) into bytes.
+///
+/// Returns `None` for empty or unrecognized values, since utilization is
+/// advisory.
+fn parse_slurm_size(value: &str) -> Option<u64> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+
+    let (amount, multiplier) = match value.chars().last()? {
+        'K' | 'k' => (&value[..value.len() - 1], 1024.0),
+        'M' | 'm' => (&value[..value.len() - 1], 1024.0 * 1024.0),
+        'G' | 'g' => (&value[..value.len() - 1], 1024.0 * 1024.0 * 1024.0),
+        'T' | 't' => (&value[..value.len() - 1], 1024.0 * 1024.0 * 1024.0 * 1024.0),
+        // `sacct` sizes default to kibibytes when no suffix is present.
+        c if c.is_ascii_digit() => (value, 1024.0),
+        _ => return None,
+    };
+
+    let bytes = amount.parse::<f64>().ok()? * multiplier;
+    (bytes.is_finite() && bytes >= 0.0).then_some(bytes as u64)
+}
+
+/// Parses a `sacct` duration (e.g. `01:02:03`, `02:03.456`, or
+/// `1-01:02:03`) into milliseconds.
+///
+/// Returns `None` for empty or unrecognized values, since utilization is
+/// advisory.
+fn parse_slurm_duration(value: &str) -> Option<u64> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+
+    // Split off an optional leading `days-` component.
+    let (days, rest) = match value.split_once('-') {
+        Some((days, rest)) => (days.parse::<f64>().ok()?, rest),
+        None => (0.0, value),
+    };
+
+    // The remainder is `HH:MM:SS[.mmm]` or `MM:SS[.mmm]`.
+    let parts: Vec<&str> = rest.split(':').collect();
+    let (hours, minutes, seconds) = match parts.as_slice() {
+        [h, m, s] => (
+            h.parse::<f64>().ok()?,
+            m.parse::<f64>().ok()?,
+            s.parse::<f64>().ok()?,
+        ),
+        [m, s] => (0.0, m.parse::<f64>().ok()?, s.parse::<f64>().ok()?),
+        _ => return None,
+    };
+
+    let ms = (((days * 24.0 + hours) * 60.0 + minutes) * 60.0 + seconds) * 1_000.0;
+    (ms.is_finite() && ms >= 0.0).then_some(ms as u64)
 }
 
 /// Represents information about a Slurm job for the monitor.
@@ -422,6 +522,21 @@ impl MonitorState {
     ///
     /// This is also responsible for sending "task started" events.
     fn update_jobs(&mut self, output: &str) {
+        let mut step_usage = HashMap::<u64, TaskResourceUsage>::new();
+        for line in output.lines() {
+            let mut fields = line.split('|');
+            let Some((job_id, _)) = fields.next().and_then(|id| id.split_once('.')) else {
+                continue;
+            };
+            let Ok(job_id) = job_id.parse() else {
+                continue;
+            };
+            let Ok(record) = JobRecord::new(job_id, fields) else {
+                continue;
+            };
+            merge_slurm_usage(step_usage.entry(job_id).or_default(), record.utilization());
+        }
+
         for line in output.lines() {
             let mut fields = line.split('|');
 
@@ -495,6 +610,24 @@ impl MonitorState {
                     );
 
                     let job = self.jobs.remove(&job_id).unwrap();
+
+                    // Report the utilization measured by Slurm for the
+                    // attempt; this occurs for any termination — successful,
+                    // failed, or canceled alike.
+                    let mut usage = record.utilization();
+                    if let Some(step_usage) = step_usage.remove(&job_id) {
+                        merge_slurm_usage(&mut usage, step_usage);
+                    }
+                    if !usage.is_empty() {
+                        send_event!(
+                            job.events.crankshaft(),
+                            CrankshaftEvent::TaskResourceUsage {
+                                id: job.crankshaft_id,
+                                usage,
+                            },
+                        );
+                    }
+
                     let _ = job.completed.send(Ok(exit_code));
                     continue;
                 } else {
@@ -1152,5 +1285,97 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             result
         }
             .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slurm_size_measurements_parse_to_bytes() {
+        assert_eq!(parse_slurm_size("123456K"), Some(123456 * 1024));
+        assert_eq!(
+            parse_slurm_size("1.5M"),
+            Some((1.5 * 1024.0 * 1024.0) as u64)
+        );
+        assert_eq!(parse_slurm_size("2G"), Some(2 * 1024 * 1024 * 1024));
+        assert_eq!(parse_slurm_size("1T"), Some(1024u64.pow(4)));
+
+        // A bare number defaults to kibibytes.
+        assert_eq!(parse_slurm_size("2048"), Some(2048 * 1024));
+
+        // Empty and unrecognized values are advisory and yield nothing.
+        assert_eq!(parse_slurm_size(""), None);
+        assert_eq!(parse_slurm_size("-"), None);
+        assert_eq!(parse_slurm_size("lots"), None);
+    }
+
+    #[test]
+    fn slurm_durations_parse_to_milliseconds() {
+        assert_eq!(parse_slurm_duration("00:00:01"), Some(1_000));
+        assert_eq!(parse_slurm_duration("01:02:03"), Some(3_723_000));
+        assert_eq!(parse_slurm_duration("02:03.456"), Some(123_456));
+        assert_eq!(
+            parse_slurm_duration("1-01:02:03"),
+            Some(3_723_000 + 24 * 60 * 60 * 1_000)
+        );
+
+        assert_eq!(parse_slurm_duration(""), None);
+        assert_eq!(parse_slurm_duration("-"), None);
+        assert_eq!(parse_slurm_duration("later"), None);
+    }
+
+    #[test]
+    fn job_records_build_utilization_snapshots_from_rss_fields() {
+        let record = JobRecord {
+            job_id: 42,
+            state: JobState::Completed,
+            exit_code: Some(JobExitCode {
+                exit_code: 0,
+                signal: 0,
+            }),
+            total_cpu: "01:00:00",
+            system_cpu: "00:10:00",
+            user_cpu: "00:50:00",
+            max_vm_size: "999999K",
+            avg_vm_size: "888888K",
+            max_rss: "123456K",
+            avg_rss: "100000K",
+        };
+
+        let utilization = record.utilization();
+        // Memory comes from the resident set size fields, not virtual sizes.
+        assert_eq!(utilization.max_memory, Some(123456 * 1024));
+        assert_eq!(utilization.avg_memory, Some(100000 * 1024));
+        assert_eq!(utilization.cpu_time_ms, Some(3_600_000));
+        assert_eq!(utilization.user_cpu_time_ms, Some(3_000_000));
+        assert_eq!(utilization.system_cpu_time_ms, Some(600_000));
+    }
+
+    #[test]
+    fn job_monitor_uses_step_utilization_when_parent_fields_are_empty() {
+        let events = Events::new(10);
+        let mut receiver = events
+            .subscribe_crankshaft()
+            .expect("Crankshaft events should be enabled");
+        let (completed, _completion) = oneshot::channel();
+        let mut monitor = MonitorState::new();
+        monitor.add_job(42, 7, &events, completed);
+
+        monitor.update_jobs(
+            "42|COMPLETED|0:0|||||||\n42.batch|COMPLETED|0:0|01:00:00|00:10:00|00:50:\
+             00|||123456K|100000K",
+        );
+
+        let usage = std::iter::from_fn(|| receiver.try_recv().ok())
+            .find_map(|event| match event {
+                CrankshaftEvent::TaskResourceUsage { usage, .. } => Some(usage),
+                _ => None,
+            })
+            .expect("step utilization should be reported");
+        assert_eq!(usage.max_memory, Some(123456 * 1024));
+        assert_eq!(usage.avg_memory, Some(100000 * 1024));
+        assert_eq!(usage.cpu_time_ms, Some(3_600_000));
     }
 }
