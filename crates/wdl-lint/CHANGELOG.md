@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.29.1 - 2026-10-09
+
 ### Fixed
 
 * `MetaSections` lint rule no longer requires `parameter_meta` for `struct`s whose members are fully
