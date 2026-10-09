@@ -56,7 +56,7 @@ recommend reaching out to one another to gauge if there is potential for a colla
 That being said, commenting on an issue does not guarantee exclusive rights to work on that issue.
 If multiple PRs are received for the same issue, the PR that (a) most thoroughly addresses the
 problem being solved and (b) has the best implementation by judgment of the St. Jude Rust Labs team
-will be accepted in favor of the other submitted PRs.
+will be accepted.
 
 ### Review Policy
 
