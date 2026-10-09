@@ -64,7 +64,7 @@ Our pull request template has an extensive checklist that must be completed prio
 policy is that any PRs submitted with an incomplete checklist will not be reviewed. Part of this
 checklist includes ensuring that our CI checks pass. Additional guidance for satisfying the CI
 checks can be
-[found below](#the-ci-has-turned-red-how-do-i-make-it-green-again-ci-green).
+[found below](#the-ci-has-turned-red-how-do-i-make-it-green-again).
 
 Note that the maintainers reserve the right to close or delete any submission without review for any
 reason. This extends to issues, discussions, pull requests, and comments.
