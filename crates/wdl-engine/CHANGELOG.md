@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.20.0 - 2026-10-09
+
 ### Changed
 
 * The non-exhaustive `EngineEvent` enum now reports execution metrics: `TaskInitializing` carries

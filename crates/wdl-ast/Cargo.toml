@@ -1,6 +1,6 @@
 [package]
 name = "wdl-ast"
-version = "0.27.1"
+version = "0.27.2"
 description = "An abstract syntax tree for Workflow Description Language (WDL) documents"
 authors.workspace = true
 rust-version.workspace = true
@@ -22,10 +22,10 @@ macropol = { workspace = true }
 paste = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 rowan = { workspace = true }
-sprocket-py-macros = { path = "../sprocket-py-macros", version = "0.1.2", optional = true }
+sprocket-py-macros = { path = "../sprocket-py-macros", version = "0.1.3", optional = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
-wdl-grammar = { path = "../wdl-grammar", version = "0.27.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.27.1" }
 
 [dev-dependencies]
 approx = { workspace = true }
