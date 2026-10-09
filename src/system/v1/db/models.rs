@@ -304,6 +304,23 @@ pub struct Task {
     pub exit_status: Option<i32>,
     /// Error message if task failed.
     pub error: Option<String>,
+    /// The stable WDL call path shared by every attempt of the same call.
+    ///
+    /// `None` for rows created before metrics were recorded or observed only
+    /// through backend events.
+    pub call_id: Option<String>,
+    /// The 0-based execution attempt number within the call.
+    pub attempt: i64,
+    /// JSON snapshot of the resolved execution constraints for this attempt.
+    ///
+    /// Captured when the attempt is submitted to a backend; `None` when the
+    /// attempt never reached one (e.g. served from the call cache).
+    pub constraints: Option<String>,
+    /// JSON value recording why this attempt was retried.
+    ///
+    /// Set on the row of the attempt that failed; `None` when the attempt was
+    /// not retried.
+    pub retry_cause: Option<String>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.
