@@ -76,6 +76,12 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
+/// The path to the resource-usage file outside the exported work directory.
+const GUEST_USAGE_PATH: &str = "/mnt/task/usage";
+
+/// The environment variable used by the resource-usage shim.
+const USAGE_FILE_ENV: &str = "SPROCKET_USAGE_FILE";
+
 /// The default poll interval, in seconds, for the TES backend.
 const DEFAULT_TES_INTERVAL: u64 = 30;
 
@@ -403,10 +409,13 @@ impl TaskExecutionBackend for TesBackend {
             let mut work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
             let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
             let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
+            let usage_url = request
+                .measure_resource_usage
+                .then(|| outputs_url.join("usage").expect("should join"));
 
-            // The TES backend will output three things: the working directory
-            // contents, stdout, and stderr.
-            let outputs = vec![
+            // The TES backend outputs the working directory, stdout, stderr,
+            // and, when enabled, the shim's usage file separately.
+            let mut outputs = vec![
                 Output::builder()
                     .path(GUEST_WORK_DIR)
                     .url(work_dir_url.clone())
@@ -423,6 +432,20 @@ impl TaskExecutionBackend for TesBackend {
                     .ty(OutputType::File)
                     .build(),
             ];
+            if let Some(url) = &usage_url {
+                outputs.push(
+                    Output::builder()
+                        .path(GUEST_USAGE_PATH)
+                        .url(url.clone())
+                        .ty(OutputType::File)
+                        .build(),
+                );
+            }
+
+            let mut env = request.env.clone();
+            if request.measure_resource_usage {
+                env.insert(USAGE_FILE_ENV.to_string(), GUEST_USAGE_PATH.to_string());
+            }
 
             // Calculate the total size required for all disks as TES does not
             // have a way of specifying volume sizes; a single disk
@@ -478,7 +501,7 @@ impl TaskExecutionBackend for TesBackend {
                             .program(&self.config.task.shell)
                             .args([GUEST_COMMAND_PATH.to_string()])
                             .work_dir(GUEST_WORK_DIR)
-                            .env(request.env.clone())
+                            .env(env.clone())
                             .stdout(GUEST_STDOUT_PATH)
                             .stderr(GUEST_STDERR_PATH)
                             .build(),
@@ -543,6 +566,10 @@ impl TaskExecutionBackend for TesBackend {
                     image: result.image.map(|s| s.parse().unwrap()),
                     exit_code: result.status.code().expect("should have exit code"),
                     work_dir: EvaluationPath::try_from(work_dir_url)?,
+                    usage_file: usage_url
+                        .clone()
+                        .map(EvaluationPath::try_from)
+                        .transpose()?,
                     stdout: PrimitiveValue::new_file(stdout_url).into(),
                     stderr: PrimitiveValue::new_file(stderr_url).into(),
                 }));

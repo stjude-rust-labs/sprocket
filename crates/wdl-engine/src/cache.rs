@@ -622,6 +622,7 @@ impl CallCache {
             image: entry.source,
             exit_code: entry.exit,
             work_dir: work,
+            usage_file: None,
             stdout: PrimitiveValue::new_file(String::try_from(stdout)?).into(),
             stderr: PrimitiveValue::new_file(String::try_from(stderr)?).into(),
         }))
@@ -797,6 +798,7 @@ mod tests {
                 image: Some("ubuntu:latest".parse().unwrap()),
                 exit_code: 0,
                 work_dir: EvaluationPath::from_local_path(self.work_dir.clone()),
+                usage_file: None,
                 stdout: PrimitiveValue::new_file(self.stdout.to_str().unwrap()).into(),
                 stderr: PrimitiveValue::new_file(self.stderr.to_str().unwrap()).into(),
             }

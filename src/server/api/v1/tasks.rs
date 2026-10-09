@@ -104,12 +104,11 @@ pub struct Task {
     /// retried.
     #[schema(value_type = Option<Object>)]
     pub retry_cause: Option<serde_json::Value>,
-    /// The resource utilization observed for this attempt (resident memory,
-    /// CPU time).
+    /// The resource utilization observed for this attempt (maximum and average
+    /// observed memory, CPU time, and disk space used).
     ///
-    /// Recorded at the attempt's termination by backends whose scheduler
-    /// reports utilization (currently LSF and Slurm); `null` for other
-    /// backends.
+    /// Values may come from backend sampling or scheduler accounting and from
+    /// optional engine measurement. `null` when no source reports utilization.
     #[schema(value_type = Option<Object>)]
     pub utilization: Option<serde_json::Value>,
     /// Timestamp when task was created.

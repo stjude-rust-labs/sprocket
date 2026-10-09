@@ -238,6 +238,109 @@ fn directory_size(dir: &Path) -> std::io::Result<u64> {
     Ok(total)
 }
 
+/// The name of the file the measurement shim writes into the task's work
+/// directory.
+const USAGE_FILE_NAME: &str = ".sprocket_usage";
+/// The environment variable that overrides the measurement shim's output path.
+const USAGE_FILE_ENV: &str = "SPROCKET_USAGE_FILE";
+
+/// The Linux clock tick rate assumed when converting `/proc` CPU times.
+///
+/// `CLK_TCK` is 100 on effectively all Linux systems; minimal containers
+/// often lack `getconf`, so the shim records raw ticks and the engine
+/// converts with this assumption.
+const ASSUMED_CLOCK_TICKS_PER_SECOND: u64 = 100;
+
+/// Wraps an evaluated task command with the resource usage measurement shim.
+///
+/// The shim runs the original command unmodified in a subshell (preserving
+/// its exit code and any `set -e` semantics within it) and then, best-effort
+/// and without touching stdout or stderr, records:
+///
+/// * the shell's child CPU times in clock ticks, read from `/proc/$$/stat`
+///   (fields `cutime`/`cstime` accumulate the reaped subshell, i.e. the entire
+///   command); and
+/// * the peak memory from the cgroup (v2 `memory.peak`, or v1
+///   `memory.max_usage_in_bytes`), which is container-scoped in containerized
+///   environments.
+///
+/// Measurements are written as `key=value` lines to
+/// [`USAGE_FILE_NAME`] in the work directory. On systems without `/proc` or
+/// cgroups (e.g. macOS), the shim records nothing and the command's behavior
+/// is unchanged.
+fn wrap_command_with_usage_shim(command: &str) -> String {
+    format!(
+        r#"__sprocket_usage_file="${{{USAGE_FILE_ENV}:-$PWD/{USAGE_FILE_NAME}}}"
+(
+{command}
+)
+__sprocket_rc=$?
+{{
+    # `$$` is used rather than `self`: the command substitution below runs in
+    # a forked child, where `/proc/self` would resolve to the child itself
+    # (whose reaped-children CPU times are zero), while `$$` remains the PID
+    # of this shell, whose cutime/cstime include the reaped payload subshell
+    __sprocket_stat=$(cat /proc/$$/stat 2>/dev/null) || __sprocket_stat=
+    if [ -n "$__sprocket_stat" ]; then
+        set -- ${{__sprocket_stat##*) }}
+        printf 'cutime_ticks=%s\ncstime_ticks=%s\n' "${{14}}" "${{15}}" > "$__sprocket_usage_file"
+    fi
+    for __sprocket_peak in /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory/memory.max_usage_in_bytes; do
+        if [ -r "$__sprocket_peak" ]; then
+            printf 'peak_memory=%s\n' "$(cat "$__sprocket_peak")" >> "$__sprocket_usage_file"
+            break
+        fi
+    done
+}} 2>/dev/null || true
+exit $__sprocket_rc
+"#
+    )
+}
+
+/// Parses the measurement shim's usage file contents into a resource usage
+/// snapshot.
+///
+/// `containerized` indicates whether the attempt executed in a container;
+/// the cgroup peak memory reading is only container-scoped there and is
+/// discarded for host execution, where it would reflect the whole session.
+///
+/// Note that the cgroup peak is the peak of total cgroup memory usage, which
+/// includes reclaimable page cache; it can therefore exceed a task's memory
+/// constraint and read higher than the working-set values reported by
+/// sampling producers (e.g. the Docker stats sampler, which subtracts the
+/// inactive file cache).
+fn parse_usage_file(contents: &str, containerized: bool) -> crankshaft::events::TaskResourceUsage {
+    /// Converts clock ticks to milliseconds.
+    fn ticks_to_ms(ticks: u64) -> u64 {
+        ticks * 1_000 / ASSUMED_CLOCK_TICKS_PER_SECOND
+    }
+
+    let mut usage = crankshaft::events::TaskResourceUsage::default();
+    for line in contents.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        match key {
+            "cutime_ticks" => {
+                usage.user_cpu_time_ms = value.trim().parse().ok().map(ticks_to_ms);
+            }
+            "cstime_ticks" => {
+                usage.system_cpu_time_ms = value.trim().parse().ok().map(ticks_to_ms);
+            }
+            "peak_memory" if containerized => {
+                usage.max_memory = value.trim().parse().ok();
+            }
+            _ => {}
+        }
+    }
+
+    if let (Some(user), Some(system)) = (usage.user_cpu_time_ms, usage.system_cpu_time_ms) {
+        usage.cpu_time_ms = Some(user + system);
+    }
+
+    usage
+}
+
 /// Used to evaluate expressions in tasks.
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
@@ -1909,6 +2012,15 @@ impl Evaluator {
                     snapshot.max_memory = hints::max_memory(&inputs, &hints).ok().flatten();
                     self.notify_task_executing(&state.task_name, snapshot);
 
+                    // Wrap the command with the measurement shim when
+                    // configured. This happens after the cache key is
+                    // calculated, so measurement never affects call caching.
+                    let command = if self.engine().config().task.measure_resource_usage {
+                        Cow::Owned(wrap_command_with_usage_shim(&command))
+                    } else {
+                        Cow::Borrowed(command.as_str())
+                    };
+
                     match self
                         .engine()
                         .backend()
@@ -1916,6 +2028,11 @@ impl Evaluator {
                             context: &BackendTaskEvaluationContext(self),
                             name: &state.task_name,
                             command: &command,
+                            measure_resource_usage: self
+                                .engine()
+                                .config()
+                                .task
+                                .measure_resource_usage,
                             inputs: &inputs,
                             backend_inputs: state.backend_inputs.as_slice(),
                             requirements: &requirements,
@@ -1940,28 +2057,88 @@ impl Evaluator {
                 }
             };
 
-            // Report the disk space used by the attempt's work directory when
-            // it is on a local file system. This is best-effort and skipped
-            // for cached results, whose work directory belongs to a prior
-            // attempt.
-            if !cached && let Some(work_dir) = result.work_dir.as_local() {
-                let work_dir = work_dir.to_path_buf();
-                match tokio::task::spawn_blocking(move || directory_size(&work_dir)).await {
-                    Ok(Ok(disk_used)) => {
-                        self.notify_task_disk_usage(&state.task_name, disk_used);
+            // Report the resource usage the engine can measure for the
+            // attempt. This is best-effort and skipped for cached results,
+            // whose work directory belongs to a prior attempt.
+            if !cached {
+                let mut usage = crankshaft::events::TaskResourceUsage::default();
+
+                // Collect the measurement shim's recordings, when enabled.
+                // The file is removed before the work directory is measured
+                // or digested so that it never counts as task output.
+                if self.engine().config().task.measure_resource_usage {
+                    let containerized = !constraints.sources.is_empty();
+                    let default_usage_file;
+                    let usage_file = if let Some(path) = result.usage_file.as_ref() {
+                        Some(path)
+                    } else {
+                        default_usage_file = result.work_dir.join(USAGE_FILE_NAME).ok();
+                        default_usage_file.as_ref()
+                    };
+                    let contents = match usage_file.and_then(EvaluationPath::as_local) {
+                        Some(work_dir) => {
+                            let contents = std::fs::read_to_string(work_dir).ok();
+                            if contents.is_some() {
+                                let _ = std::fs::remove_file(work_dir);
+                            }
+                            contents
+                        }
+                        None => match usage_file.and_then(EvaluationPath::as_remote).cloned() {
+                            Some(url) => match self
+                                .http_client()
+                                .download(&url, self.cancellation().first())
+                                .await
+                            {
+                                Ok(location) => location
+                                    .to_str()
+                                    .and_then(|p| std::fs::read_to_string(p).ok()),
+                                Err(e) => {
+                                    debug!(
+                                        "failed to retrieve usage file for task `{name}`: {e:#}",
+                                        name = state.task.name()
+                                    );
+                                    None
+                                }
+                            },
+                            None => None,
+                        },
+                    };
+
+                    if let Some(contents) = contents {
+                        usage = parse_usage_file(&contents, containerized);
                     }
-                    Ok(Err(e)) => {
-                        debug!(
-                            "failed to measure work directory size for task `{name}`: {e:#}",
-                            name = state.task.name()
-                        );
+                }
+
+                // Measure the work directory's size on local file systems.
+                if let Some(work_dir) = result.work_dir.as_local() {
+                    let work_dir = work_dir.to_path_buf();
+                    match tokio::task::spawn_blocking(move || directory_size(&work_dir)).await {
+                        Ok(Ok(disk_used)) => {
+                            usage.disk_used = Some(disk_used);
+                        }
+                        Ok(Err(e)) => {
+                            debug!(
+                                "failed to measure work directory size for task `{name}`: {e:#}",
+                                name = state.task.name()
+                            );
+                        }
+                        Err(e) => {
+                            debug!(
+                                "failed to measure work directory size for task `{name}`: {e:#}",
+                                name = state.task.name()
+                            );
+                        }
                     }
-                    Err(e) => {
-                        debug!(
-                            "failed to measure work directory size for task `{name}`: {e:#}",
-                            name = state.task.name()
-                        );
-                    }
+                }
+
+                if !usage.is_empty() {
+                    self.notify_task_usage_measured(
+                        result
+                            .execution_name_override
+                            .as_deref()
+                            .unwrap_or(&state.task_name),
+                        usage,
+                    );
                 }
             }
 
@@ -2441,6 +2618,7 @@ mod tests {
                     image: None,
                     exit_code,
                     work_dir: EvaluationPath::from_local_path(work_dir),
+                    usage_file: None,
                     stdout: PrimitiveValue::new_file(
                         stdout
                             .into_os_string()
@@ -3581,6 +3759,207 @@ task t {
                 }
             }
         }
+    }
+
+    #[test]
+    fn usage_shims_wrap_commands_and_preserve_exit_codes() {
+        let wrapped = super::wrap_command_with_usage_shim("echo hello\nexit 3");
+
+        // The original command runs unmodified in a subshell.
+        assert!(wrapped.contains("echo hello\nexit 3"));
+        // The payload's exit code is captured and propagated.
+        assert!(wrapped.contains("__sprocket_rc=$?"));
+        assert!(wrapped.trim_end().ends_with("exit $__sprocket_rc"));
+        // Backends may redirect the usage file outside the work directory;
+        // otherwise it is written there by default.
+        assert!(wrapped.contains(super::USAGE_FILE_ENV));
+        assert!(wrapped.contains(super::USAGE_FILE_NAME));
+        // CPU times must be read via `$$` (this shell), not `self`, which
+        // would resolve to the forked command substitution child and always
+        // report zero reaped-children CPU time.
+        assert!(wrapped.contains("/proc/$$/stat"));
+        assert!(!wrapped.contains("/proc/self/stat"));
+    }
+
+    #[test]
+    fn usage_files_parse_into_snapshots() {
+        // 12345 ticks at the assumed 100Hz is 123450ms.
+        let usage = super::parse_usage_file(
+            "cutime_ticks=12345\ncstime_ticks=100\npeak_memory=241172480\n",
+            true,
+        );
+        assert_eq!(usage.user_cpu_time_ms, Some(123_450));
+        assert_eq!(usage.system_cpu_time_ms, Some(1_000));
+        assert_eq!(usage.cpu_time_ms, Some(124_450));
+        assert_eq!(usage.max_memory, Some(241_172_480));
+
+        // Outside a container, the cgroup peak reflects the whole session
+        // and is discarded.
+        let usage = super::parse_usage_file(
+            "cutime_ticks=100\ncstime_ticks=0\npeak_memory=241172480\n",
+            false,
+        );
+        assert_eq!(usage.max_memory, None);
+        assert_eq!(usage.cpu_time_ms, Some(1_000));
+
+        // Garbage yields an empty snapshot rather than an error.
+        assert!(super::parse_usage_file("not a usage file", true).is_empty());
+        assert!(super::parse_usage_file("", false).is_empty());
+    }
+
+    #[tokio::test]
+    async fn measured_usage_preserves_task_behavior() {
+        // Evaluating with measurement enabled must not change a task's
+        // behavior: outputs are unchanged, the usage file does not remain in
+        // the work directory, and a failing command's exit code is
+        // preserved through the shim.
+        let root_dir = tempfile::tempdir().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.2
+
+task test {
+    command <<<echo "hello, measured!">>>
+
+    output {
+        String out = read_string(stdout())
+    }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results.first().expect("should have result").document();
+
+        let mut config = Config::default();
+        config.task.measure_resource_usage = true;
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let events = Events::new(100);
+        let mut engine_rx = events.subscribe_engine().unwrap();
+        let measured = tokio::spawn(async move {
+            let mut measured = Vec::new();
+            loop {
+                match engine_rx.recv().await {
+                    Ok(crate::EngineEvent::TaskUsageMeasured { usage, .. }) => {
+                        measured.push(usage);
+                    }
+                    Ok(_) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    Err(e) => panic!("failed to receive event: {e}"),
+                }
+            }
+            measured
+        });
+
+        let engine = Engine::new(config).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
+
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
+                TaskInputs::default(),
+                root_dir.path().join("runs"),
+            )
+            .await
+            .expect("evaluation should succeed");
+
+        assert!(!evaluated.failed(), "task should succeed with the shim");
+        assert_eq!(evaluated.exit_code(), 0);
+
+        // The usage file must not remain in the work directory.
+        let work_dir = evaluated
+            .work_dir()
+            .as_local()
+            .expect("work dir should be local");
+        assert!(
+            !work_dir.join(super::USAGE_FILE_NAME).exists(),
+            "usage file should be removed after collection"
+        );
+
+        drop(evaluator);
+        let measured = measured.await.expect("failed to await events task");
+
+        // The engine always measures the work directory's size on local file
+        // systems; the shim's CPU/memory recordings are platform-dependent
+        // (absent without `/proc`), so they are not asserted here.
+        assert_eq!(measured.len(), 1);
+        assert!(measured[0].disk_used.is_some());
+    }
+
+    #[tokio::test]
+    async fn measured_usage_preserves_failing_exit_codes() {
+        // The shim must propagate the payload's exit code: a failing task
+        // must still fail, with its original code.
+        let root_dir = tempfile::tempdir().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.2
+
+task test {
+    command <<<exit 7>>>
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results.first().expect("should have result").document();
+
+        let mut config = Config::default();
+        config.task.measure_resource_usage = true;
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let engine = Engine::new(config).await.unwrap();
+        let evaluator =
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
+                TaskInputs::default(),
+                root_dir.path().join("runs"),
+            )
+            .await
+            .expect("evaluation should return an evaluated task");
+
+        assert!(evaluated.failed(), "the task should have failed");
+        assert_eq!(evaluated.exit_code(), 7, "the exit code should propagate");
     }
 
     #[test]

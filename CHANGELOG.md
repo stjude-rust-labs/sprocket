@@ -27,6 +27,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   resolved retry policy and curated hints, local work directory disk usage, execution backend and
   Sprocket version, and localization transfer volume as a data-movement proxy
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
+* Execution metrics report every attempt's wall, queue, and scheduler-pending time; allocated CPU
+  time; resolved constraints; exit status; retry cause; log reference; and observed resource
+  utilization. Run-level totals include retries, cached and preempted attempts, allocated CPU time,
+  time lost to preemption, and transferred bytes. Metrics are available from the task and run APIs,
+  `sprocket dev server metrics`, and the `metrics.json` written beside local-run outputs
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Backend-native utilization includes LSF and Slurm scheduler accounting. A positive Docker
+  `backends.<name>.resource_usage_interval` samples cache-adjusted container memory and cumulative
+  CPU time; short-lived tasks may report no sample, and CPU time may be undercounted by up to one
+  interval ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* The opt-in `run.task.measure_resource_usage` shim records CPU time from inside a task on any
+  backend and peak cgroup memory for containerized tasks. Sprocket also measures local
+  work-directory disk usage. These engine measurements override overlapping backend fields
+  regardless of event order while preserving backend-only fields such as average memory
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Calls in run metrics are grouped by fully qualified call path and include a short display name.
+  The run summary records the execution backend, Sprocket version, and localization transfer volume
+  as a data-movement proxy rather than a billing-egress figure
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 
 ### Changed
 
