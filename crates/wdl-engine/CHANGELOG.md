@@ -2,8 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
@@ -11,42 +11,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Implemented OAuth authorization for the TES backend, using the `oauth` auth
-  type ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
+* Implemented OAuth authorization for the TES backend, using the `oauth` auth type
+  ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
 * `BuilderError::severity()` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 * `BuilderError::UnknownKey` ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
 #### Changed
 
-* The `url` configuration setting for the TES backend has been renamed to
-  `service`, which is now required ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
-* The `inputs` and `outputs` configuration settings for the TES backend are now
+* The `url` configuration setting for the TES backend has been renamed to `service`, which is now
   required ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
-* The default TES polling interval has changed from 1 second to 30 seconds ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
-* `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
+* The `inputs` and `outputs` configuration settings for the TES backend are now required
+  ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
+* The default TES polling interval has changed from 1 second to 30 seconds
+  ([#1275](https://github.com/stjude-rust-labs/sprocket/pull/1275)).
+* `ConfigBuilder::try_build()` now returns the parsed config and any warnings produced during the
+  parse ([#1234](https://github.com/stjude-rust-labs/sprocket/pull/1234)).
 
 #### Fixed
 
-* Non-optional enum choices now coerce at runtime to the matching optional enum
-  type, allowing optional task inputs with defaults to be overridden at call
-  sites ([#1241](https://github.com/stjude-rust-labs/sprocket/issues/1241)).
+* Non-optional enum choices now coerce at runtime to the matching optional enum type, allowing
+  optional task inputs with defaults to be overridden at call sites
+  ([#1241](https://github.com/stjude-rust-labs/sprocket/issues/1241)).
 
 ## 0.18.0 - 2026-09-16
 
 ### Changed
 
-* Various internal caches are now have configurable LRU capacities and are
-  evaluation specific rather than scoped to the process or engine ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
-* `WorkflowInputs::join_paths()` now requires the defining `Document` and `path` must now be `Send + Sync` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
-* `TaskInputs::join_paths()` now takes a `TaskRef` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
+* Various internal caches are now have configurable LRU capacities and are evaluation specific
+  rather than scoped to the process or engine
+  ([#1178](https://github.com/stjude-rust-labs/sprocket/pull/1178)).
+* `WorkflowInputs::join_paths()` now requires the defining `Document` and `path` must now be
+  `Send + Sync` ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
+* `TaskInputs::join_paths()` now takes a `TaskRef`
+  ([#1231](https://github.com/stjude-rust-labs/sprocket/pull/1231)).
 
 #### Fixed
 
-* The Docker backend now hands a task's work directory back to the user
-  performing evaluation after a canceled or failed task, not only a completed
-  one ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
-* Fixed "permission denied" errors when evaluating tasks under rootless
-  Docker ([#1179](https://github.com/stjude-rust-labs/sprocket/pull/1179)).
+* The Docker backend now hands a task's work directory back to the user performing evaluation after
+  a canceled or failed task, not only a completed one
+  ([#1145](https://github.com/stjude-rust-labs/sprocket/pull/1145)).
+* Fixed "permission denied" errors when evaluating tasks under rootless Docker
+  ([#1179](https://github.com/stjude-rust-labs/sprocket/pull/1179)).
 
 ## 0.17.3 - 2026-08-27
 
@@ -54,119 +59,135 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Introduced the `Engine` type which stores a shared reference to the task
-  execution backend and file transferer. Configuration for backend and file
-  transfers are now shared between all evaluations in the same process,
-  specifically for the server and test commands ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
-* Added a shared user-specific image cache for the apptainer-based backends.
-  SIF files are now reused between runs. NOTE: a cache entry for a mutable tag
-  (e.g. `latest`) is not updated if already present in the cache; avoid using
-  mutated tag references in your WDL tasks. ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
-* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft`
-  events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
+* Introduced the `Engine` type which stores a shared reference to the task execution backend and
+  file transferer. Configuration for backend and file transfers are now shared between all
+  evaluations in the same process, specifically for the server and test commands
+  ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added a shared user-specific image cache for the apptainer-based backends. SIF files are now
+  reused between runs. NOTE: a cache entry for a mutable tag (e.g. `latest`) is not updated if
+  already present in the cache; avoid using mutated tag references in your WDL tasks.
+  ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft` events
+  ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
 
 #### Changed
 
-* `EngineEvent` now emits `TaskInitializing` before an execution attempt and
-  `TaskLocalizing` before it transfers inputs; both events identify the attempt
-  by its unique name. `ReusedCachedExecutionResult` now includes that name, and
-  `ExecuteTaskRequest::id` has been renamed to `name` so backends report the
-  same identifier ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+* `EngineEvent` now emits `TaskInitializing` before an execution attempt and `TaskLocalizing` before
+  it transfers inputs; both events identify the attempt by its unique name.
+  `ReusedCachedExecutionResult` now includes that name, and `ExecuteTaskRequest::id` has been
+  renamed to `name` so backends report the same identifier
+  ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
 
 #### Fixed
 
-* Fixed the enum choice value cache to be keyed by document URI; this prevents
-  an enum with the same index and choice index from overwriting a cache entry
-  from another document ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
-* Call cache entries for commands that reference temporary files created by a
-  call to a `write_*` stdlib function will no longer be ignored due to a
-  mismatch between the evaluated command and the cached evaluated command.
+* Fixed the enum choice value cache to be keyed by document URI; this prevents an enum with the same
+  index and choice index from overwriting a cache entry from another document
+  ([#1148](https://github.com/stjude-rust-labs/sprocket/pull/1148)).
+* Call cache entries for commands that reference temporary files created by a call to a `write_*`
+  stdlib function will no longer be ignored due to a mismatch between the evaluated command and the
+  cached evaluated command.
+
   NOTE: this fix will invalidate all existing call cache entries ([#1103](https://github.com/stjude-rust-labs/sprocket/pull/1103)).
-* `WorkflowInputs` serialization no longer drops call-nested inputs.
-  Previously, the `Serialize` impl silently discarded per-call inputs
-  (including task input overrides, requirements, and hints for calls inside a
-  workflow) due to a variable-shadowing bug in the calls-iteration loop
+* `WorkflowInputs` serialization no longer drops call-nested inputs. Previously, the `Serialize`
+  impl silently discarded per-call inputs (including task input overrides, requirements, and hints
+  for calls inside a workflow) due to a variable-shadowing bug in the calls-iteration loop
   ([#1070](https://github.com/stjude-rust-labs/sprocket/pull/1070)).
-* The Docker backend now explains bind mount failures that name a path which
-  is present on the host. Docker resolves bind mounts through the daemon's
-  view of the filesystem, so a work directory the engine had just created was
-  reported as not existing whenever it fell outside the shared folders, or its
-  directory tree had been deleted and recreated while the daemon held a cached
-  view of it
+* The Docker backend now explains bind mount failures that name a path which is present on the host.
+  Docker resolves bind mounts through the daemon's view of the filesystem, so a work directory the
+  engine had just created was reported as not existing whenever it fell outside the shared folders,
+  or its directory tree had been deleted and recreated while the daemon held a cached view of it
   ([#1094](https://github.com/stjude-rust-labs/sprocket/pull/1094)).
-* `Directory` -> `String` coercions will no longer preserve trailing slashes ([#1107](https://github.com/stjude-rust-labs/sprocket/pull/1107)).
-* LSF workflows now survive `bjobs` query failures and retry at the next monitor
-  interval instead of failing every monitored task
-  ([#1120](https://github.com/stjude-rust-labs/sprocket/pull/1120)).
+* `Directory` -> `String` coercions will no longer preserve trailing slashes
+  ([#1107](https://github.com/stjude-rust-labs/sprocket/pull/1107)).
+* LSF workflows now survive `bjobs` query failures and retry at the next monitor interval instead of
+  failing every monitored task ([#1120](https://github.com/stjude-rust-labs/sprocket/pull/1120)).
 
 ## 0.17.1 - 2026-08-05
 
 ### Added
 
-* The LSF and Slurm backends now write files to the attempt directory recording
-  the command used to queue the task and the resulting job identifiers ([#1057](https://github.com/stjude-rust-labs/sprocket/pull/1057)).
+* The LSF and Slurm backends now write files to the attempt directory recording the command used to
+  queue the task and the resulting job identifiers
+  ([#1057](https://github.com/stjude-rust-labs/sprocket/pull/1057)).
 
 #### Fixed
 
-* The execution backend is now considered for the call cache key derivation,
-  which prevents unexpected behavior when switching executing backends. NOTE:
-  this fix will cause existing call cache entries to be ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
-* WDL 1.0 `runtime` resource requirements such as `cpu` are again enforced and
-  passed to execution backends
-  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
+* The execution backend is now considered for the call cache key derivation, which prevents
+  unexpected behavior when switching executing backends. NOTE: this fix will cause existing call
+  cache entries to be ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
+* WDL 1.0 `runtime` resource requirements such as `cpu` are again enforced and passed to execution
+  backends ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
 
 ## 0.17.0 - 2026-07-15
 
 ### Added
 
-* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size,
+  last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy
+  between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy
+  ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
 
 #### Changed
 
-* Input type-mismatch errors now include a hint when a scalar input (e.g., `File`) was given an array value, explaining that this commonly happens when a key is repeated on the command line or when an unquoted shell glob expands to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
+* Input type-mismatch errors now include a hint when a scalar input (e.g., `File`) was given an
+  array value, explaining that this commonly happens when a key is repeated on the command line or
+  when an unquoted shell glob expands to more than one value
+  ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
 
 ## 0.16.0 - 2026-06-26
 
 ### Added
 
-* Added dynamic `bsub` arguments to the LSF backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
-* Added dynamic `sbatch` arguments to the Slurm backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
-* Added `run.http.hash_algorithm` to configure input upload content digest
-  algorithm to use (use `none` to disable, defaults to `sha256`) ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
-* Added `ConfigBuilder` type for merging engine configurations together ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* Added dynamic `bsub` arguments to the LSF backend
+  ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Added dynamic `sbatch` arguments to the Slurm backend
+  ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Added `run.http.hash_algorithm` to configure input upload content digest algorithm to use (use
+  `none` to disable, defaults to `sha256`)
+  ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
+* Added `ConfigBuilder` type for merging engine configurations together
+  ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
 #### Changed
 
-* Apptainer settings for the LSF and Slurm backends have moved into an
-  `apptainer` sub-collection, and `extra_apptainer_exec_args` has been
-  renamed to `apptainer.extra_args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
-* LSF backend setting `extra_bsub_args` has been renamed to `bsub.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
-* Slurm backend setting `extra_sbatch_args` has been renamed to `sbatch.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
-* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
-* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* Apptainer settings for the LSF and Slurm backends have moved into an `apptainer` sub-collection,
+  and `extra_apptainer_exec_args` has been renamed to `apptainer.extra_args`
+  ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* LSF backend setting `extra_bsub_args` has been renamed to `bsub.args`
+  ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Slurm backend setting `extra_sbatch_args` has been renamed to `sbatch.args`
+  ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Renamed enum terminology from `variant` to `choice`
+  ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
+* Moved from `toml` to `toml-spanner` for TOML serialization
+  ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
 #### Fixed
 
-* Fixed an issue where a task could not output a `Directory` value that was a
-  subpath of a `Directory` input ([#933](https://github.com/stjude-rust-labs/sprocket/pull/933)).
+* Fixed an issue where a task could not output a `Directory` value that was a subpath of a
+  `Directory` input ([#933](https://github.com/stjude-rust-labs/sprocket/pull/933)).
 
 #### Dependencies
 
-* Updated to `cloud-copy` 0.9.0 for a number of fixes ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
+* Updated to `cloud-copy` 0.9.0 for a number of fixes
+  ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
 
 ## 0.15.0 - 2026-06-03
 
 ### Added
 
-* Added `CancellationContext::child()` to create dependent cancellation contexts ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+* Added `CancellationContext::child()` to create dependent cancellation contexts
+  ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
 
 #### Fixed
 
-* Fixed shared lock acquisition to reopen new lock files read-only before locking ([#869](https://github.com/stjude-rust-labs/sprocket/pull/869)).
+* Fixed shared lock acquisition to reopen new lock files read-only before locking
+  ([#869](https://github.com/stjude-rust-labs/sprocket/pull/869)).
 
 #### Dependencies
 
-* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
+* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel
+  streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
 
 ## 0.14.0 - 2026-05-14
 
@@ -174,291 +195,344 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* `TaskInputs::join_paths` and `WorkflowInputs::join_paths` now accept
-  a per-key slice of origins (`&[EvaluationPath]`) instead of a single
-  reference, enabling per-element path resolution for array inputs
-  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
-* `TaskInputs::set_path_value` and `WorkflowInputs::set_path_value` now
-  auto-wrap scalar values into single-element arrays when the expected
-  WDL type is `Array[T]`
+* `TaskInputs::join_paths` and `WorkflowInputs::join_paths` now accept a per-key slice of origins
+  (`&[EvaluationPath]`) instead of a single reference, enabling per-element path resolution for
+  array inputs ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+* `TaskInputs::set_path_value` and `WorkflowInputs::set_path_value` now auto-wrap scalar values into
+  single-element arrays when the expected WDL type is `Array[T]`
   ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
 
 #### Fixed
 
-* When a task's `container` requirement is an array, each candidate is
-  now tried in order until one pulls successfully instead of silently
-  using only the first entry
+* When a task's `container` requirement is an array, each candidate is now tried in order until one
+  pulls successfully instead of silently using only the first entry
   ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
-* Optional-to-default input coercion in `check_input_type` is no longer
-  gated behind WDL 1.2+
+* Optional-to-default input coercion in `check_input_type` is no longer gated behind WDL 1.2+
   ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
 
 ## 0.13.1 - 2026-04-02
 
 ### Fixed
 
-* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
-  results for in-flight tasks instead of discarding them as `Canceled`
+* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation results for in-flight tasks
+  instead of discarding them as `Canceled`
   ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
 
 #### Changed
 
-* If only one backend is configured in `backends` and it's name is not `"default"`,
-  it must be explicitly selected by setting `backend` to the appropriate name ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
-* Type mismatch diagnostics now distinguish between custom types and references
-  to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
+* If only one backend is configured in `backends` and it's name is not `"default"`, it must be
+  explicitly selected by setting `backend` to the appropriate name
+  ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Type mismatch diagnostics now distinguish between custom types and references to custom types
+  ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
 
 ## 0.13.0 - 2026-03-12
 
 ### Changed
 
-* Changed how defaults for many `Config` entries are serialized and
-  deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
-* The Slurm (with Apptainer) backend now uses `sbatch` to queue new jobs
-  without waiting; instead a monitor now periodically checks job status with
-  `sacct` ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654)).
-* Removed support for constructing `Map` values with optional key types ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
+* Changed how defaults for many `Config` entries are serialized and deserialized; non-default config
+  value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* The Slurm (with Apptainer) backend now uses `sbatch` to queue new jobs without waiting; instead a
+  monitor now periodically checks job status with `sacct`
+  ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654)).
+* Removed support for constructing `Map` values with optional key types
+  ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
 
 #### Fixed
 
-* Fixed erroneous trimming of container extensions ([#690](https://github.com/stjude-rust-labs/sprocket/pull/690)).
-* Fixed a regression caused by PR 621 where remapping symlinks in a work
-  directory would invalidate the task's call cache entry ([#685](https://github.com/stjude-rust-labs/sprocket/pull/685)).
-* Removed duplicate DEBUG log message from the LSF backend ([#629](https://github.com/stjude-rust-labs/sprocket/pull/629)).
+* Fixed erroneous trimming of container extensions
+  ([#690](https://github.com/stjude-rust-labs/sprocket/pull/690)).
+* Fixed a regression caused by PR 621 where remapping symlinks in a work directory would invalidate
+  the task's call cache entry ([#685](https://github.com/stjude-rust-labs/sprocket/pull/685)).
+* Removed duplicate DEBUG log message from the LSF backend
+  ([#629](https://github.com/stjude-rust-labs/sprocket/pull/629)).
 
 ## 0.12.1 - 2026-02-12
 
 ### Fixed
 
-* Corrected the location for `output.log` to be in the related run directory
-  instead of the top-level output directory ([#626](https://github.com/stjude-rust-labs/sprocket/pull/626)).
+* Corrected the location for `output.log` to be in the related run directory instead of the
+  top-level output directory ([#626](https://github.com/stjude-rust-labs/sprocket/pull/626)).
 
 ## 0.12.0 - 02-11-2026
 
 ### Added
 
-* Added a configurable prefix for LSF job names and ensured the byte-length
-  limit matches LSF's behavior ([#362](https://github.com/stjude-rust-labs/sprocket/issues/362)).
+* Added a configurable prefix for LSF job names and ensured the byte-length limit matches LSF's
+  behavior ([#362](https://github.com/stjude-rust-labs/sprocket/issues/362)).
 
 #### Fixed
 
-* Fix an incorrect remapping of guest symlinks when the input was a remote URL ([#621](https://github.com/stjude-rust-labs/sprocket/pull/621)).
-* Fix an issue where remote directory digesting included double slashes in
-  entry URLs ([#603](https://github.com/stjude-rust-labs/sprocket/pull/603)).
-* Automatically remap symbolic links created by tasks that use guest paths to
-  their corresponding host paths ([#585](https://github.com/stjude-rust-labs/sprocket/pull/585)).
-* Fixed the `size` function not performing guest-to-host path translation for
-  `String` arguments ([#576](https://github.com/stjude-rust-labs/sprocket/pull/576)).
-* Fixed an issue where task requirements and hints sources from an inputs file
-  were not being respected ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
-* Fixed a spec issue where nested task requirements and hints could not be set
-  from inputs unless the the calling workflow allowed nested inputs ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
-* Fixed an issue with call caching not working when a directory being cached
-  contained a broken symlink ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
-* Fixed the `glob` function not properly resolving symlinks to files ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
+* Fix an incorrect remapping of guest symlinks when the input was a remote URL
+  ([#621](https://github.com/stjude-rust-labs/sprocket/pull/621)).
+* Fix an issue where remote directory digesting included double slashes in entry URLs
+  ([#603](https://github.com/stjude-rust-labs/sprocket/pull/603)).
+* Automatically remap symbolic links created by tasks that use guest paths to their corresponding
+  host paths ([#585](https://github.com/stjude-rust-labs/sprocket/pull/585)).
+* Fixed the `size` function not performing guest-to-host path translation for `String` arguments
+  ([#576](https://github.com/stjude-rust-labs/sprocket/pull/576)).
+* Fixed an issue where task requirements and hints sources from an inputs file were not being
+  respected ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
+* Fixed a spec issue where nested task requirements and hints could not be set from inputs unless
+  the the calling workflow allowed nested inputs
+  ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
+* Fixed an issue with call caching not working when a directory being cached contained a broken
+  symlink ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
+* Fixed the `glob` function not properly resolving symlinks to files
+  ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
 
 #### Changed
 
-* Refactored LSF backend to more efficiently track LSF jobs ([#562](github.com/stjude-rust-labs/sprocket/pull/562)).
-* Refactored how task execution backends are passed data relating to the tasks
-  to execute ([#552](https://github.com/stjude-rust-labs/sprocket/pull/552)).
+* Refactored LSF backend to more efficiently track LSF jobs
+  ([#562](github.com/stjude-rust-labs/sprocket/pull/562)).
+* Refactored how task execution backends are passed data relating to the tasks to execute
+  ([#552](https://github.com/stjude-rust-labs/sprocket/pull/552)).
 
 ## 0.11.1 - 01-12-2026
 
 ### Fixed
 
-* Fixed an issue with Docker memory and cpu clamping being erroneously excluded ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
+* Fixed an issue with Docker memory and cpu clamping being erroneously excluded
+  ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
 
 ## 0.11.0 - 01-12-2026
 
 ### Added
 
-* Added support for multiple container protocols: `docker://`, `library://`,
-  `oras://`, and `file://` for local `.sif` files
-  ([#529](https://github.com/stjude-rust-labs/sprocket/pull/529)). Protocol
-  support varies by backend (see documentation for details).
+* Added support for multiple container protocols: `docker://`, `library://`, `oras://`, and
+  `file://` for local `.sif` files ([#529](https://github.com/stjude-rust-labs/sprocket/pull/529)).
+  Protocol support varies by backend (see documentation for details).
 * Added support for `disks` requirement mount points in the Docker backend
-  ([#527](https://github.com/stjude-rust-labs/sprocket/pull/528)). The mount
-  points are created as volumes but size constraints cannot be enforced.
-* Added setting for controlling content digests; supported values are `strong`
-  for full cryptographic hashing of file content and `weak` to digest based
-  solely off file metadata ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
+  ([#527](https://github.com/stjude-rust-labs/sprocket/pull/528)). The mount points are created as
+  volumes but size constraints cannot be enforced.
+* Added setting for controlling content digests; supported values are `strong` for full
+  cryptographic hashing of file content and `weak` to digest based solely off file metadata
+  ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
 * Added runtime support for WDL enumerations in preparation for WDL v1.3
   ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
-* Added `value()` standard library function to extract underlying values from
-  enums ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added `value()` standard library function to extract underlying values from enums
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 
 #### Changed
 
-* Reduced public surface of the wdl-engine crate and cleaned up some code
-  internals ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
-* Changed the `sub()` function to use POSIX ERE/`sed`-style backreferences
-  (`\1`-`\9`) instead of Rust regex syntax (`$1`-`$9`) per the WDL spec
+* Reduced public surface of the wdl-engine crate and cleaned up some code internals
+  ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Changed the `sub()` function to use POSIX ERE/`sed`-style backreferences (`\1`-`\9`) instead of
+  Rust regex syntax (`$1`-`$9`) per the WDL spec
   ([#518](https://github.com/stjude-rust-labs/sprocket/issues/518),
   [#522](https://github.com/stjude-rust-labs/sprocket/pull/522)).
-* Added shared validation for task runtime and hint numeric settings (memory,
-  max_memory, max_retries, preemptible), rejecting invalid or negative values
-  earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
-* Changed `join_paths` to take a `Directory` instead of `File` as the first
-  argument and return `String` instead of `File` per WDL v1.2.1
+* Added shared validation for task runtime and hint numeric settings (memory, max_memory,
+  max_retries, preemptible), rejecting invalid or negative values earlier
+  ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+* Changed `join_paths` to take a `Directory` instead of `File` as the first argument and return
+  `String` instead of `File` per WDL v1.2.1
   ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
   [#523](https://github.com/stjude-rust-labs/sprocket/pull/523)).
 
 #### Fixed
 
-* Cached enum variant values at the Evaluator level to avoid redundant AST
-  lookups and parsing, improving performance for workflows with heavy enum
-  usage ([#511](https://github.com/stjude-rust-labs/sprocket/pull/511)).
+* Cached enum variant values at the Evaluator level to avoid redundant AST lookups and parsing,
+  improving performance for workflows with heavy enum usage
+  ([#511](https://github.com/stjude-rust-labs/sprocket/pull/511)).
 * Fixed enum variant serialization in command placeholders
   ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
-* Fixed `write_json` not translating host paths to guest paths ([#530](https://github.com/stjude-rust-labs/sprocket/pull/530)).
+* Fixed `write_json` not translating host paths to guest paths
+  ([#530](https://github.com/stjude-rust-labs/sprocket/pull/530)).
 * Fixed `select_first` to return the default value when the array is empty
   ([#520](https://github.com/stjude-rust-labs/sprocket/issues/520),
   [#525](https://github.com/stjude-rust-labs/sprocket/pull/525)).
-* Fixed evaluation of literal `input`, `output`, and `hints` expressions to
-  return the correct hidden value types; also fixed clamping of `max_cpu` and
-  `max_memory` hints in the Docker backend
+* Fixed evaluation of literal `input`, `output`, and `hints` expressions to return the correct
+  hidden value types; also fixed clamping of `max_cpu` and `max_memory` hints in the Docker backend
   ([#521](https://github.com/stjude-rust-labs/sprocket/pull/521)).
-* Fixed a missing check for empty arrays in the evaluation of scatter
-  statements ([#504](https://github.com/stjude-rust-labs/sprocket/pull/504)).
-* Fixed authentication issue for cloud storage URLs by moving implementations
-  into the `cloud-copy` crate ([#490](https://github.com/stjude-rust-labs/sprocket/pull/490)).
-* Cache file digests that are calculated during local directory digest
-  calculation. Note: this change will bust existing local cache entries ([#488](https://github.com/stjude-rust-labs/sprocket/pull/488)).
+* Fixed a missing check for empty arrays in the evaluation of scatter statements
+  ([#504](https://github.com/stjude-rust-labs/sprocket/pull/504)).
+* Fixed authentication issue for cloud storage URLs by moving implementations into the `cloud-copy`
+  crate ([#490](https://github.com/stjude-rust-labs/sprocket/pull/490)).
+* Cache file digests that are calculated during local directory digest calculation. Note: this
+  change will bust existing local cache entries
+  ([#488](https://github.com/stjude-rust-labs/sprocket/pull/488)).
 
 ## 0.10.0 - 11-21-2025
 
 ### Added
 
-* Added call caching configuration to `TaskConfig` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
-* Implemented support for [call caching](https://github.com/stjude-rust-labs/rfcs/pull/2)
-  in `TaskEvaluator` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
-* Added a new `fail` configuration option for controlling the default failure mode of the engine ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
-* Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
-* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
-* Added shell expansion to the `apptainer_images_dir` config option, though this is an interim workaround for HPC path awkwardness pending the removal of this option entirely in the future ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
-* Added experimental Slurm + Apptainer backend ([#436](https://github.com/stjude-rust-labs/sprocket/pull/436)).
-* Introduced pre-evaluation task type for all pre-evaluation contexts (task requirements, task hints, and task runtime sections) and expanded support of `task.previous` for post-evaluation sections in WDL v1.3 ([#432](https://github.com/stjude-rust-labs/sprocket/pull/432)).
-* Added GPU support to the Docker backend ([#439](https://github.com/stjude-rust-labs/sprocket/pull/439)).
+* Added call caching configuration to `TaskConfig`
+  ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
+* Implemented support for [call caching](https://github.com/stjude-rust-labs/rfcs/pull/2) in
+  `TaskEvaluator` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
+* Added a new `fail` configuration option for controlling the default failure mode of the engine
+  ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* Added the `split` standard library function in preparation for WDL v1.3
+  ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
+* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3)
+  ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Added shell expansion to the `apptainer_images_dir` config option, though this is an interim
+  workaround for HPC path awkwardness pending the removal of this option entirely in the future
+  ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Added experimental Slurm + Apptainer backend
+  ([#436](https://github.com/stjude-rust-labs/sprocket/pull/436)).
+* Introduced pre-evaluation task type for all pre-evaluation contexts (task requirements, task
+  hints, and task runtime sections) and expanded support of `task.previous` for post-evaluation
+  sections in WDL v1.3 ([#432](https://github.com/stjude-rust-labs/sprocket/pull/432)).
+* Added GPU support to the Docker backend
+  ([#439](https://github.com/stjude-rust-labs/sprocket/pull/439)).
 
 #### Changed
 
-* Azure Storage authentication configuration has been changed to use shared key authentication rather than explicit SAS token authentication; SAS token authentication can still be used by directly adding the query parameters to any input URLs ([#454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
-* Changed how cancellation is supported by the engine; the engine can now wait for executing tasks to complete before canceling them (slow failure mode) or immediately cancel the executing tasks (fast failure mode) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
-* Added optional CPU and memory limits to the queue definitions in the LSF + Apptainer backend configuration. This is a breaking change for previous LSF configurations, as the queues are now a struct with a required `name` string field, rather than just a bare string ([#429](https://github.com/stjude-rust-labs/sprocket/pull/429)).
-* Changed a number of types in the public interface in preparation for a larger refactoring ([#460](https://github.com/stjude-rust-labs/sprocket/pull/460)).
-* Introduced a unified `TopLevelEvaluator` type as a common context for task and workflow evaluations ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
-* Apptainer-based backends now store converted container images within each run directory, rather than in a user-specified directory ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
+* Azure Storage authentication configuration has been changed to use shared key authentication
+  rather than explicit SAS token authentication; SAS token authentication can still be used by
+  directly adding the query parameters to any input URLs
+  ([#454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
+* Changed how cancellation is supported by the engine; the engine can now wait for executing tasks
+  to complete before canceling them (slow failure mode) or immediately cancel the executing tasks
+  (fast failure mode) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* Added optional CPU and memory limits to the queue definitions in the LSF + Apptainer backend
+  configuration. This is a breaking change for previous LSF configurations, as the queues are now a
+  struct with a required `name` string field, rather than just a bare string
+  ([#429](https://github.com/stjude-rust-labs/sprocket/pull/429)).
+* Changed a number of types in the public interface in preparation for a larger refactoring
+  ([#460](https://github.com/stjude-rust-labs/sprocket/pull/460)).
+* Introduced a unified `TopLevelEvaluator` type as a common context for task and workflow
+  evaluations ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
+* Apptainer-based backends now store converted container images within each run directory, rather
+  than in a user-specified directory
+  ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
 
 #### Fixed
 
-* Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
-* Fixed the handling of unusual filenames in generated Apptainer scripts ([#459](https://github.com/stjude-rust-labs/sprocket/pull/459)).
+* Improved the portability of generated Apptainer scripts
+  ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
+* Fixed the handling of unusual filenames in generated Apptainer scripts
+  ([#459](https://github.com/stjude-rust-labs/sprocket/pull/459)).
 
 #### Removed
 
-* Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
+* Removed the `codespan` cargo feature in favor of enabling codespan reporting always
+  ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
 
 ## 0.9.0 - 10-14-2025
 
 ### Added
 
-* Added support for calling `glob` with a remote working directory ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
-* Added `retries` configuration setting for the TES backend ([#408](https://github.com/stjude-rust-labs/sprocket/pull/408)).
-* Added support for passing `None` for non-optional inputs with default
-  expressions in WDL 1.2 call statements ([#356](https://github.com/stjude-rust-labs/sprocket/pull/356)).
-* Added experimental LSF + Apptainer backend ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182), [#372](https://github.com/stjude-rust-labs/sprocket/pull/372), [#378](https://github.com/stjude-rust-labs/sprocket/pull/378), [#379](https://github.com/stjude-rust-labs/sprocket/pull/379), [#404](https://github.com/stjude-rust-labs/sprocket/pull/404))
+* Added support for calling `glob` with a remote working directory
+  ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
+* Added `retries` configuration setting for the TES backend
+  ([#408](https://github.com/stjude-rust-labs/sprocket/pull/408)).
+* Added support for passing `None` for non-optional inputs with default expressions in WDL 1.2 call
+  statements ([#356](https://github.com/stjude-rust-labs/sprocket/pull/356)).
+* Added experimental LSF + Apptainer backend
+  ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182),
+  [#372](https://github.com/stjude-rust-labs/sprocket/pull/372),
+  [#378](https://github.com/stjude-rust-labs/sprocket/pull/378),
+  [#379](https://github.com/stjude-rust-labs/sprocket/pull/379),
+  [#404](https://github.com/stjude-rust-labs/sprocket/pull/404))
 
 #### Fixed
 
-* Fixed checking for existence of `File` and `Directory` values that are remote
-  URLs ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
-* Fixed a panic that can occur when showing debug output with the TES backend ([#397](https://github.com/stjude-rust-labs/sprocket/pull/397)).
-* Make linking to download cache files more likely by using a tmp directory in
-  the cache ([#393](https://github.com/stjude-rust-labs/sprocket/pull/393)).
+* Fixed checking for existence of `File` and `Directory` values that are remote URLs
+  ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
+* Fixed a panic that can occur when showing debug output with the TES backend
+  ([#397](https://github.com/stjude-rust-labs/sprocket/pull/397)).
+* Make linking to download cache files more likely by using a tmp directory in the cache
+  ([#393](https://github.com/stjude-rust-labs/sprocket/pull/393)).
 
 ## 0.8.1 - 09-17-2025
 
 ### Fixed
 
-* Fixed incorrect assertion for the TES backend ([#606](https://github.com/stjude-rust-labs/wdl/pull/606)).
-* Fixed permissions issue in the Docker backend when a container runs with a
-  different user ([#605](https://github.com/stjude-rust-labs/wdl/pull/605)).
+* Fixed incorrect assertion for the TES backend
+  ([#606](https://github.com/stjude-rust-labs/wdl/pull/606)).
+* Fixed permissions issue in the Docker backend when a container runs with a different user
+  ([#605](https://github.com/stjude-rust-labs/wdl/pull/605)).
 
 ## 0.8.0 - 09-15-2025
 
 ### Added
 
-* Added support for uploading inputs to the TES backend ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
-* Implemented coercion between `Map` <-> `Object`/`Struct` where the map key
-  type <-> `String` ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
+* Added support for uploading inputs to the TES backend
+  ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
+* Implemented coercion between `Map` <-> `Object`/`Struct` where the map key type <-> `String`
+  ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
 
 #### Changed
 
-* Replaced remote file downloading with using `cloud-copy` ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
-* Changed how inputs are evaluated to prevent host paths from being observed in
-  evaluated command sections ([#589](https://github.com/stjude-rust-labs/wdl/pull/589)).
-* Removed evaluation progress callbacks in favor of Crankshaft events channel ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).
+* Replaced remote file downloading with using `cloud-copy`
+  ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
+* Changed how inputs are evaluated to prevent host paths from being observed in evaluated command
+  sections ([#589](https://github.com/stjude-rust-labs/wdl/pull/589)).
+* Removed evaluation progress callbacks in favor of Crankshaft events channel
+  ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).
 
 #### Fixed
 
-* Use `IndexMap` for stable serialization of `Config` ([#602](https://github.com/stjude-rust-labs/wdl/pull/602)).
-* Fixed deserialization of `Object` to no longer require keys be WDL
-  identifiers ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
-* Fixed a panic caused by an incorrect type calculation of non-empty array
-  literals ([#585](https://github.com/stjude-rust-labs/wdl/pull/585)).
-* Fixed incorrect common type calculations from `None` values ([#584](https://github.com/stjude-rust-labs/wdl/pull/584)).
+* Use `IndexMap` for stable serialization of `Config`
+  ([#602](https://github.com/stjude-rust-labs/wdl/pull/602)).
+* Fixed deserialization of `Object` to no longer require keys be WDL identifiers
+  ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
+* Fixed a panic caused by an incorrect type calculation of non-empty array literals
+  ([#585](https://github.com/stjude-rust-labs/wdl/pull/585)).
+* Fixed incorrect common type calculations from `None` values
+  ([#584](https://github.com/stjude-rust-labs/wdl/pull/584)).
 
 ## 0.7.0 - 08-13-2025
 
 ### Added
 
-* Added an experimental config flag to support golden testing that reduces
-  environment-specific output ([#553](https://github.com/stjude-rust-labs/wdl/pull/553)).
+* Added an experimental config flag to support golden testing that reduces environment-specific
+  output ([#553](https://github.com/stjude-rust-labs/wdl/pull/553)).
 
 #### Fixed
 
-* Removed mistaken `-C` argument to `bash` invocations ([#558](https://github.com/stjude-rust-labs/wdl/pull/558)).
+* Removed mistaken `-C` argument to `bash` invocations
+  ([#558](https://github.com/stjude-rust-labs/wdl/pull/558)).
 
 ## 0.6.0 - 07-31-2025
 
 ### Added
 
-* Added `cpu_limit_behavior` and `memory_limit_behavior` options to task
-  execution configuration ([#543](https://github.com/stjude-rust-labs/wdl/pull/543))
-* Serialize `Pair` as `Object` for execution-level `inputs.json` and `outputs.json` ([#538](https://github.com/stjude-rust-labs/wdl/pull/538)).
+* Added `cpu_limit_behavior` and `memory_limit_behavior` options to task execution configuration
+  ([#543](https://github.com/stjude-rust-labs/wdl/pull/543))
+* Serialize `Pair` as `Object` for execution-level `inputs.json` and `outputs.json`
+  ([#538](https://github.com/stjude-rust-labs/wdl/pull/538)).
 
 #### Changed
 
-* `wdl-engine::Inputs` supplied via dotted path notation (i.e. user inputs from
-  input files and command line arguments) can be implicitly converted to WDL
-  strings if that is what the task or workflow input expects ([#544](https://github.com/stjude-rust-labs/wdl/pull/544)).
+* `wdl-engine::Inputs` supplied via dotted path notation (i.e. user inputs from input files and
+  command line arguments) can be implicitly converted to WDL strings if that is what the task or
+  workflow input expects ([#544](https://github.com/stjude-rust-labs/wdl/pull/544)).
 
 #### Fixed
 
-* Fixed a failure to clean input file and directory paths ([#537](https://github.com/stjude-rust-labs/wdl/pull/537)).
-* Fixed a panic that may occur in array and map literal evaluation ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
+* Fixed a failure to clean input file and directory paths
+  ([#537](https://github.com/stjude-rust-labs/wdl/pull/537)).
+* Fixed a panic that may occur in array and map literal evaluation
+  ([#529](https://github.com/stjude-rust-labs/wdl/pull/529)).
 
 ## 0.5.0 - 07-09-2025
 
 ### Added
 
-* TES input and outputs now include authentication query parameters ([#466](https://github.com/stjude-rust-labs/wdl/pull/466)).
+* TES input and outputs now include authentication query parameters
+  ([#466](https://github.com/stjude-rust-labs/wdl/pull/466)).
 
 #### Fixed
 
-* Fixed guest paths for redirected stdio for both the Docker and TES backends ([#470](https://github.com/stjude-rust-labs/wdl/pull/470)).
+* Fixed guest paths for redirected stdio for both the Docker and TES backends
+  ([#470](https://github.com/stjude-rust-labs/wdl/pull/470)).
 
 #### Changed
 
-* Backend configuration has changed to allow multiple backends to be defined ([#469](https://github.com/stjude-rust-labs/wdl/pull/469)).
+* Backend configuration has changed to allow multiple backends to be defined
+  ([#469](https://github.com/stjude-rust-labs/wdl/pull/469)).
 
 ## 0.4.0 - 05-27-2025
 
 ### Added
 
-* Implemented a TES task execution backend ([#454](https://github.com/stjude-rust-labs/wdl/pull/454)).
-* Adds the `insecure` option to the TES backend configuration ([#459](https://github.com/stjude-rust-labs/wdl/pull/459)).
+* Implemented a TES task execution backend
+  ([#454](https://github.com/stjude-rust-labs/wdl/pull/454)).
+* Adds the `insecure` option to the TES backend configuration
+  ([#459](https://github.com/stjude-rust-labs/wdl/pull/459)).
 
 #### Dependencies
 
@@ -468,10 +542,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* JSON and YAML files are now correctly parsed ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
-* The `From<IndexMap<String, Value>>` method was moved to the private
-  constructor `wdl_engine::Object::new()`, as there are some guarantees the
-  caller has to uphold that weren't obvious in the `From` implementation ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
+* JSON and YAML files are now correctly parsed
+  ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
+* The `From<IndexMap<String, Value>>` method was moved to the private constructor
+  `wdl_engine::Object::new()`, as there are some guarantees the caller has to uphold that weren't
+  obvious in the `From` implementation ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
 
 #### Dependencies
 
@@ -479,117 +554,161 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.1 - 05-02-2025
 
-_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding dependencies._
+_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding
+dependencies._
 
 ## 0.3.0 - 05-01-2025
 
 ### Added
 
-* Added writing `inputs.json` and `outputs.json` for each task and workflow
-  that was evaluated ([#437](https://github.com/stjude-rust-labs/wdl/pull/437)).
-* Implemented remote file localization for task execution ([#386](https://github.com/stjude-rust-labs/wdl/pull/386)).
-* Implemented concurrent file downloads for localization for task execution ([#424](https://github.com/stjude-rust-labs/wdl/pull/424)).
+* Added writing `inputs.json` and `outputs.json` for each task and workflow that was evaluated
+  ([#437](https://github.com/stjude-rust-labs/wdl/pull/437)).
+* Implemented remote file localization for task execution
+  ([#386](https://github.com/stjude-rust-labs/wdl/pull/386)).
+* Implemented concurrent file downloads for localization for task execution
+  ([#424](https://github.com/stjude-rust-labs/wdl/pull/424)).
 
 #### Fixed
 
-* Fix overly verbose call stacks in task failure messages ([#435](https://github.com/stjude-rust-labs/wdl/pull/435))
-* Fix `sub` replacement of multiple instances ([#426](https://github.com/stjude-rust-labs/wdl/pull/426)).
-* Fix path translation in more expressions ([#422](https://github.com/stjude-rust-labs/wdl/pull/422)).
-* The `sep` placeholder option was not performing guest path translation ([#417](https://github.com/stjude-rust-labs/wdl/pull/417)).
-* Placeholder options are now type checked at runtime ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
-* Whether or not a task manager state represents unlimited resources is now
-  correctly calculated ([#397](https://github.com/stjude-rust-labs/wdl/pull/397)).
-* Fixed environment variable values are not using guest paths for Docker
-  backend ([#398](https://github.com/stjude-rust-labs/wdl/pull/398)).
-* Ensure output files created by Docker tasks running as root have correct host
-  user permissions ([#379](https://github.com/stjude-rust-labs/wdl/pull/379)).
-* Fixes `chown` functionality by making the path absolute ([#428](https://github.com/stjude-rust-labs/wdl/pull/379)).
+* Fix overly verbose call stacks in task failure messages
+  ([#435](https://github.com/stjude-rust-labs/wdl/pull/435))
+* Fix `sub` replacement of multiple instances
+  ([#426](https://github.com/stjude-rust-labs/wdl/pull/426)).
+* Fix path translation in more expressions
+  ([#422](https://github.com/stjude-rust-labs/wdl/pull/422)).
+* The `sep` placeholder option was not performing guest path translation
+  ([#417](https://github.com/stjude-rust-labs/wdl/pull/417)).
+* Placeholder options are now type checked at runtime
+  ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
+* Whether or not a task manager state represents unlimited resources is now correctly calculated
+  ([#397](https://github.com/stjude-rust-labs/wdl/pull/397)).
+* Fixed environment variable values are not using guest paths for Docker backend
+  ([#398](https://github.com/stjude-rust-labs/wdl/pull/398)).
+* Ensure output files created by Docker tasks running as root have correct host user permissions
+  ([#379](https://github.com/stjude-rust-labs/wdl/pull/379)).
+* Fixes `chown` functionality by making the path absolute
+  ([#428](https://github.com/stjude-rust-labs/wdl/pull/379)).
 
 #### Changed
 
-* Refactored `crankshaft` backend to the `docker` backend ([#436](https://github.com/stjude-rust-labs/wdl/pull/436)).
-* Evaluation errors now contain a "backtrace" containing call locations ([#432](https://github.com/stjude-rust-labs/wdl/pull/432)).
-* Changed origin path resolution in inputs to accommodate incremental command
-  line parsing ([#430](https://github.com/stjude-rust-labs/wdl/pull/430)).
+* Refactored `crankshaft` backend to the `docker` backend
+  ([#436](https://github.com/stjude-rust-labs/wdl/pull/436)).
+* Evaluation errors now contain a "backtrace" containing call locations
+  ([#432](https://github.com/stjude-rust-labs/wdl/pull/432)).
+* Changed origin path resolution in inputs to accommodate incremental command line parsing
+  ([#430](https://github.com/stjude-rust-labs/wdl/pull/430)).
 
 ## 0.2.0 - 04-01-2025
 
 ### Added
 
 * Added support for cloud storage URIs ([#367](https://github.com/stjude-rust-labs/wdl/pull/367)).
-* Added support reading of remote files from the stdlib file functions ([#364](https://github.com/stjude-rust-labs/wdl/pull/364))
-* Added support for YAML input files (.yml and .yaml) alongside JSON ([#352](https://github.com/stjude-rust-labs/wdl/pull/352)).
-* Added support for graceful cancellation of evaluation ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Added support for `max_cpu` and `max_memory` hints in task evaluation ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Added a Crankshaft backend with initial support for Docker ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Added calculation for mounting input files for future backends that use
-  containers ([#323](https://github.com/stjude-rust-labs/wdl/pull/323)).
+* Added support reading of remote files from the stdlib file functions
+  ([#364](https://github.com/stjude-rust-labs/wdl/pull/364))
+* Added support for YAML input files (.yml and .yaml) alongside JSON
+  ([#352](https://github.com/stjude-rust-labs/wdl/pull/352)).
+* Added support for graceful cancellation of evaluation
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added support for `max_cpu` and `max_memory` hints in task evaluation
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added a Crankshaft backend with initial support for Docker
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Added calculation for mounting input files for future backends that use containers
+  ([#323](https://github.com/stjude-rust-labs/wdl/pull/323)).
 * Added retry logic for task execution ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
-* Added a `Config` type for specifying evaluation configuration ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
-* Added progress callback to `WorkflowEvaluator` ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
+* Added a `Config` type for specifying evaluation configuration
+  ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Added progress callback to `WorkflowEvaluator`
+  ([#310](https://github.com/stjude-rust-labs/wdl/pull/310)).
 
 #### Fixed
 
-* Fixed support for URLs in file stdlib functions ([#369](https://github.com/stjude-rust-labs/wdl/pull/369)).
-* Fixed panic when an input path in a complex type did not exist ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed path translation in nested placeholder evaluation ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed path translation to mount inputs individually ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed not including task temp directories in mounts ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Fixed an incorrect type being used for scatter statement outputs ([#316](https://github.com/stjude-rust-labs/wdl/pull/316)).
-* Fixed handling of input dependencies in workflow graph evaluation ([#360](https://github.com/stjude-rust-labs/wdl/pull/360)).
+* Fixed support for URLs in file stdlib functions
+  ([#369](https://github.com/stjude-rust-labs/wdl/pull/369)).
+* Fixed panic when an input path in a complex type did not exist
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed path translation in nested placeholder evaluation
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed path translation to mount inputs individually
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed not including task temp directories in mounts
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Fixed an incorrect type being used for scatter statement outputs
+  ([#316](https://github.com/stjude-rust-labs/wdl/pull/316)).
+* Fixed handling of input dependencies in workflow graph evaluation
+  ([#360](https://github.com/stjude-rust-labs/wdl/pull/360)).
 
 #### Changed
 
-* Make stdlib file functions asynchronous ([#359](https://github.com/stjude-rust-labs/wdl/pull/359)).
-* Refactored expression evaluation to make it async ([#357](https://github.com/stjude-rust-labs/wdl/pull/357)).
-* Updated for refactored `wdl-ast` API so that evaluation can now operate
-  directly on AST nodes in `async` context ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
+* Make stdlib file functions asynchronous
+  ([#359](https://github.com/stjude-rust-labs/wdl/pull/359)).
+* Refactored expression evaluation to make it async
+  ([#357](https://github.com/stjude-rust-labs/wdl/pull/357)).
+* Updated for refactored `wdl-ast` API so that evaluation can now operate directly on AST nodes in
+  `async` context ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
-* Docker backend is now the default backend ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Refactored a common task management implementation to use in task execution
-  backends ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
-* Workflow evaluation now uses `tokio::spawn` internally for running graph
-  evaluation concurrently ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
-* Improved evaluation reporting to include how many tasks are ready for
-  execution ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
-* Updates the `crankshaft` and `http-cache-stream-reqwest` dependencies to official, upstreamed crates ([#383](https://github.com/stjude-rust-labs/wdl/pull/383)).
+* Docker backend is now the default backend
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Refactored a common task management implementation to use in task execution backends
+  ([#327](https://github.com/stjude-rust-labs/wdl/pull/327)).
+* Workflow evaluation now uses `tokio::spawn` internally for running graph evaluation concurrently
+  ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Improved evaluation reporting to include how many tasks are ready for execution
+  ([#320](https://github.com/stjude-rust-labs/wdl/pull/320)).
+* Updates the `crankshaft` and `http-cache-stream-reqwest` dependencies to official, upstreamed
+  crates ([#383](https://github.com/stjude-rust-labs/wdl/pull/383)).
 
 ## 0.1.0 - 01-17-2025
 
 ### Fixed
 
-* Limited the local task executor to a maximum level of concurrency ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
-* Fixed regression in workflow input validation when an input is missing ([#286](https://github.com/stjude-rust-labs/wdl/pull/286)).
-* Fixed input validation to not treat directly specified call inputs as missing ([#282](https://github.com/stjude-rust-labs/wdl/pull/282)).
+* Limited the local task executor to a maximum level of concurrency
+  ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
+* Fixed regression in workflow input validation when an input is missing
+  ([#286](https://github.com/stjude-rust-labs/wdl/pull/286)).
+* Fixed input validation to not treat directly specified call inputs as missing
+  ([#282](https://github.com/stjude-rust-labs/wdl/pull/282)).
 
 #### Added
 
-* Added evaluation support for the WDL 1.2 `env` declaration modifier ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
+* Added evaluation support for the WDL 1.2 `env` declaration modifier
+  ([#296](https://github.com/stjude-rust-labs/wdl/pull/296)).
 * Implemented workflow evaluation ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
 * Reduced size of the `Value` type ([#277](https://github.com/stjude-rust-labs/wdl/pull/277)).
-* Implement task evaluation with local execution and remaining WDL 1.2
-  functionality ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
-* Implement the `defined` and `length` functions from the WDL standard library ([#258](https://github.com/stjude-rust-labs/wdl/pull/258)).
-* Fixed `Map` values not accepting `None` for keys ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
-* Implement the generic map functions from the WDL standard library ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
-* Implement the generic array functions from the WDL standard library ([#256](https://github.com/stjude-rust-labs/wdl/pull/256)).
-* Implement the string array functions from the WDL standard library ([#255](https://github.com/stjude-rust-labs/wdl/pull/255)).
-* Replaced the `Value::from_json` method with `Value::deserialize` which allows
-  for deserialization from any self-describing data format; a method for
-  serializing a value was also added ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
-* Implemented the file functions from the WDL standard library ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
-* Implemented the string functions from the WDL standard library ([#252](https://github.com/stjude-rust-labs/wdl/pull/252)).
-* Implemented call evaluation and the numeric functions from the WDL standard
-  library ([#251](https://github.com/stjude-rust-labs/wdl/pull/251)).
+* Implement task evaluation with local execution and remaining WDL 1.2 functionality
+  ([#265](https://github.com/stjude-rust-labs/wdl/pull/265)).
+* Implement the `defined` and `length` functions from the WDL standard library
+  ([#258](https://github.com/stjude-rust-labs/wdl/pull/258)).
+* Fixed `Map` values not accepting `None` for keys
+  ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
+* Implement the generic map functions from the WDL standard library
+  ([#257](https://github.com/stjude-rust-labs/wdl/pull/257)).
+* Implement the generic array functions from the WDL standard library
+  ([#256](https://github.com/stjude-rust-labs/wdl/pull/256)).
+* Implement the string array functions from the WDL standard library
+  ([#255](https://github.com/stjude-rust-labs/wdl/pull/255)).
+* Replaced the `Value::from_json` method with `Value::deserialize` which allows for deserialization
+  from any self-describing data format; a method for serializing a value was also added
+  ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Implemented the file functions from the WDL standard library
+  ([#254](https://github.com/stjude-rust-labs/wdl/pull/254)).
+* Implemented the string functions from the WDL standard library
+  ([#252](https://github.com/stjude-rust-labs/wdl/pull/252)).
+* Implemented call evaluation and the numeric functions from the WDL standard library
+  ([#251](https://github.com/stjude-rust-labs/wdl/pull/251)).
 * Implemented WDL expression evaluation ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
-* Refactored API to remove reliance on the engine for creating values ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
-* Split value representation into primitive and compound values ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
-* Added `InputFiles` type for parsing WDL input JSON files ([#241](https://github.com/stjude-rust-labs/wdl/pull/241)).
-* Added the `wdl-engine` crate that will eventually implement a WDL execution
-  engine ([#225](https://github.com/stjude-rust-labs/wdl/pull/225)).
+* Refactored API to remove reliance on the engine for creating values
+  ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
+* Split value representation into primitive and compound values
+  ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
+* Added `InputFiles` type for parsing WDL input JSON files
+  ([#241](https://github.com/stjude-rust-labs/wdl/pull/241)).
+* Added the `wdl-engine` crate that will eventually implement a WDL execution engine
+  ([#225](https://github.com/stjude-rust-labs/wdl/pull/225)).
 
 #### Changed
 
-* Removed the `Engine` type in favor of direct use of a `WorkflowEvaluator` or
-  `TaskEvaluator` ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
-* Require file existence for a successful validation parse of inputs ([#281](https://github.com/stjude-rust-labs/wdl/pull/281)).
+* Removed the `Engine` type in favor of direct use of a `WorkflowEvaluator` or `TaskEvaluator`
+  ([#292](https://github.com/stjude-rust-labs/wdl/pull/292))
+* Require file existence for a successful validation parse of inputs
+  ([#281](https://github.com/stjude-rust-labs/wdl/pull/281)).
