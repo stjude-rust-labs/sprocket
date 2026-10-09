@@ -41,6 +41,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Fixed `ShellCheck` treating an apostrophe in a double-quoted string or comment as the start of a
   single-quoted string, which caused incorrect diagnostics for later placeholders
   ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
+* `Linter` now visits enum definitions, so lint rules can check enums
+  ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 
 #### Changed
 
@@ -88,11 +90,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Removed the `SnakeCase` and `PascalCase` lint rules and their configuration, which are replaced by
   `NamingConvention` ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 * The `Spacing` tag ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
-
-#### Fixed
-
-* `Linter` now visits enum definitions, so lint rules can check enums
-  ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 
 ## 0.28.0 - 2026-09-16
 

@@ -1,6 +1,6 @@
 # Welcome to Sprocket and the `wdl` crates
 
-Community contributions rock and we are psyched you're reading this document!
+Community contributions rock and we are pumped you're reading this document!
 
 ## Quick links
 
@@ -39,9 +39,6 @@ note any issues you find. You can also explore our lint rule documentation by
 `sprocket explain`. (n.b.: we hope to replace `sprocket explain` with a website where each rule will
 have a dedicated page, but that has not been realized yet).
 
-The maintainers reserve the right to close issues and discussions as deemed necessary as well as to
-delete comments and interactions within the repository.
-
 ### Your first code contribution
 
 We encourage you to reach out to the core team prior to writing up a pull request. **This is to
@@ -56,11 +53,10 @@ We encourage contributors to comment on open issues that they intend to work on 
 duplication of effort. If multiple individuals are interested in solving the same issue, we
 recommend reaching out to one another to gauge if there is potential for a collaboration.
 
-That being said, we will not assign issues to external contributors, and commenting on an issue does
-not guarantee exclusive rights to work on that issue. If multiple PRs are received for the same
-issue, the PR that (a) most thoroughly addresses the problem being solved and (b) has the best
-implementation by judgment of the St. Jude Rust Labs team will be accepted in favor of the other
-submitted PRs.
+That being said, commenting on an issue does not guarantee exclusive rights to work on that issue.
+If multiple PRs are received for the same issue, the PR that (a) most thoroughly addresses the
+problem being solved and (b) has the best implementation by judgment of the St. Jude Rust Labs team
+will be accepted.
 
 ### Review Policy
 
@@ -68,9 +64,10 @@ Our pull request template has an extensive checklist that must be completed prio
 policy is that any PRs submitted with an incomplete checklist will not be reviewed. Part of this
 checklist includes ensuring that our CI checks pass. Additional guidance for satisfying the CI
 checks can be
-[found below](#the-ci-has-turned-red-how-do-i-make-it-green-again-ci-green).
+[found below](#the-ci-has-turned-red-how-do-i-make-it-green-again).
 
-Note that the maintainers reserve the right to close any submission without review for any reason.
+Note that the maintainers reserve the right to close or delete any submission without review for any
+reason. This extends to issues, discussions, pull requests, and comments.
 
 ### Pull Request States
 
@@ -96,12 +93,14 @@ PRs with an `S-awaiting-*` state are closed automatically after 10 days with no 
 
 ### Can I use Artificial Intelligence (AI)?
 
-We have found that AI, while helpful in some contexts, causes more confusion and work for all
-parties involved when interacting with a large, complex codebase such as the `wdl` family of crates.
-To that end, no PRs including AI-generated content—whether that be generated code, generated
-documentation, generated discussion via GitHub comments, or any other AI generated content—will be
-accepted from external contributors. Any submissions deemed to be AI-generated from external
-contributors will be closed without review.
+AI can be used under the following conditions:
+
+1. AI assistance is disclosed for any contribution
+2. Every line of code is attributed to a human who has reviewed and accepted responsibility for it
+  - this means the author of every git commit **must** be a human
+  - **no commits authored by an LLM agent will be accepted**
+3. LLMs are not used to generate text for PR descriptions, GitHub comments, or user-facing
+   documentation
 
 ### How do I set up Rust?
 
@@ -109,8 +108,8 @@ contributors will be closed without review.
 
 ### What IDE should I use?
 
-Most of this team uses VScode with the `rust-analyzer` extension but that preference is not
-hardcoded anywhere. Feel free to use any IDE you want!
+This team uses a variety of IDEs configured with the `rust-analyzer` LSP. Feel free to use any IDE
+you want!
 
 ### What's a good first issue?
 
@@ -144,9 +143,9 @@ The entries at the top are all GitHub repositories of WDL code. The remaining en
 diagnostics emitted while analyzing those repositories. These should remain relatively static
 between PRs, and any change in emitted diagnostics should be reviewed carefully.
 
-In order to turn the Gauntlet CI green, run
-`cargo run --release -p gauntlet --bin gauntlet -- --bless`. The `--bless` flag will save any
-changes to the `Gauntlet.toml` file. This should then be committed and included in your PR.
+In order to turn the Gauntlet CI green, run `cargo run -p gauntlet --bin gauntlet -- --bless`. The
+`--bless` flag will save any changes to the `Gauntlet.toml` file. This should then be committed and
+included in your PR.
 
 ### What is arena?
 
@@ -155,10 +154,9 @@ Arena is the alternate run mode of `gauntlet`.
 very similar to `Gauntlet.toml`, except it has fewer repository entries and instead of analysis
 diagnostics it contains only lint diagnostics (which are not included in `Gauntlet.toml`).
 
-In order to turn the Arena CI green, run
-`cargo run --release -p gauntlet --bin gauntlet -- --arena --bless`. The `--bless` flag (in
-conjunction with the `--arena` flag) will save any changes to the `Arena.toml` file. This should
-then be committed and included in your PR.
+In order to turn the Arena CI green, run `cargo run -p gauntlet --bin gauntlet -- --arena --bless`.
+The `--bless` flag (in conjunction with the `--arena` flag) will save any changes to the
+`Arena.toml` file. This should then be committed and included in your PR.
 
 ### The CI has turned red. How do I make it green again?
 
@@ -168,9 +166,9 @@ There are a handful of reasons the CI may have turned red. Try the following fix
 - `cargo clippy --all-features` and then fix any warnings emitted
 - `BLESS=1 cargo test --all-features` to "bless" any test changes
   - Please review any changes this causes to make sure they seem right!
-- `cargo run --release -p gauntlet --bin gauntlet -- --bless`
+- `cargo run -p gauntlet --bin gauntlet -- --bless`
   - see the `What is gauntlet?` question for more information
-- `cargo run --release -p gauntlet --bin gauntlet -- --bless --arena`
+- `cargo run -p gauntlet --bin gauntlet -- --bless --arena`
   - see the `What is arena?` question for more information
 - `rustup update` to update your local toolchains
 - `rumdl fmt` to format any Markdown files
