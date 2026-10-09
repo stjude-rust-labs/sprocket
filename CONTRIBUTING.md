@@ -66,7 +66,8 @@ checklist includes ensuring that our CI checks pass. Additional guidance for sat
 checks can be
 [found below](#the-ci-has-turned-red-how-do-i-make-it-green-again-ci-green).
 
-Note that the maintainers reserve the right to close any submission without review for any reason.
+Note that the maintainers reserve the right to close or delete any submission without review for any
+reason. This extends to issues, discussions, pull requests, and comments.
 
 ### Pull Request States
 
