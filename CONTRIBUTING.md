@@ -108,8 +108,8 @@ AI can be used under the following conditions:
 
 ### What IDE should I use?
 
-Most of this team uses an IDE configured with the `rust-analyzer` LSP, but that preference is not
-hardcoded anywhere. Feel free to use any IDE you want!
+This team uses a variety of IDEs configured with the `rust-analyzer` LSP. Feel free to use any IDE
+you want!
 
 ### What's a good first issue?
 
