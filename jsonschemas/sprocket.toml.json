@@ -2030,6 +2030,11 @@
               "type": "boolean",
               "default": false
             },
+            "resource_usage_metadata": {
+              "description": "Whether or not to read task resource usage from the TES server's task\nlog metadata.\n\nWhen enabled, tasks are polled with the `BASIC` view and the\ndocumented resource usage metadata keys (e.g. `peak_memory_bytes`,\n`avg_memory_bytes`, `cpu_time_ms`), when reported by the server, are\nrecorded as task resource usage.\n\nDefaults to `false`.",
+              "type": "boolean",
+              "default": false
+            },
             "type": {
               "type": "string",
               "const": "tes"

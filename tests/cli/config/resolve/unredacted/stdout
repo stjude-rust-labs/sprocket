@@ -235,6 +235,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+resource_usage_metadata = false
 
 [run.backends.first.auth]
 type = "basic"
@@ -247,6 +248,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+resource_usage_metadata = false
 
 [run.backends.second.auth]
 type = "bearer"
