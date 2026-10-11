@@ -1,0 +1,32 @@
+note[MetaSections]: struct `NoDocs` is missing doc comments for itself and its fields
+  ┌─ tests/lints/struct-doc-comments-v1-1/source.wdl:5:8
+  │
+5 │ struct NoDocs {
+  │        ^^^^^^ this struct is missing doc comments for itself and its fields
+  │
+  = fix: add doc comments describing the struct and its fields
+
+note[MetaSections]: struct `StructOnly` is missing a doc comment for its fields
+   ┌─ tests/lints/struct-doc-comments-v1-1/source.wdl:16:8
+   │
+16 │ struct StructOnly {
+   │        ^^^^^^^^^^ this struct is missing a doc comment for its fields
+   │
+   = fix: add doc comments describing the struct's fields
+
+note[MetaSections]: struct `FieldsOnly` is missing a doc comment
+   ┌─ tests/lints/struct-doc-comments-v1-1/source.wdl:20:8
+   │
+20 │ struct FieldsOnly {
+   │        ^^^^^^^^^^ this struct is missing a doc comment
+   │
+   = fix: add doc comment describing the struct
+
+warning[MissingParameterMeta]: struct `PartialDocs` is missing a doc comment for field `second`
+   ┌─ tests/lints/struct-doc-comments-v1-1/source.wdl:29:12
+   │
+29 │     String second
+   │            ^^^^^^ this field does not have a doc comment
+   │
+   = fix: add a doc comment to `second` with a detailed description of the field.
+
