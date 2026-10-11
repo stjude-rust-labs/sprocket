@@ -1,5 +1,7 @@
 //! Formatting for workflow calls.
 
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
 
 use crate::Config;
@@ -174,9 +176,34 @@ pub fn format_call_statement(
         (&open_brace).write(stream, config);
 
         if let Some(input_keyword) = input_keyword {
-            stream.end_word();
-            (&input_keyword).write(stream, config);
-            (&colon.expect("colon")).write(stream, config);
+            let drop_input_keyword = config.upgrade_deprecations
+                && element
+                    .element()
+                    .as_node()
+                    .and_then(|node| {
+                        node.inner()
+                            .ancestors()
+                            .last()
+                            .and_then(wdl_ast::Document::cast)
+                            .and_then(|doc| doc.version_statement())
+                            .and_then(|stmt| {
+                                stmt.version()
+                                    .text()
+                                    .parse::<wdl_ast::SupportedVersion>()
+                                    .ok()
+                            })
+                    })
+                    .is_some_and(|version| {
+                        version > wdl_ast::SupportedVersion::V1(wdl_ast::version::V1::One)
+                    })
+                && !input_keyword.has_comment()
+                && !colon.as_ref().is_some_and(|c| c.has_comment());
+
+            if !drop_input_keyword {
+                stream.end_word();
+                (&input_keyword).write(stream, config);
+                (&colon.expect("colon")).write(stream, config);
+            }
         }
         stream.increment_indent();
         stream.end_line();
