@@ -6983,6 +6983,7 @@ dependencies = [
  "git2",
  "globset",
  "hex",
+ "jsonschema",
  "path-clean",
  "pretty_assertions",
  "schemars 1.2.2",
