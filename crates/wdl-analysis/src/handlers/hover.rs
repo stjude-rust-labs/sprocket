@@ -99,11 +99,10 @@ pub fn hover(
     let hovered_token = root
         .token_at_offset(offset)
         .find(|t| {
-            tracing::error!("TOKEN KIND: {:?}", t.kind());
-            matches!(
-                t.kind(),
-                SyntaxKind::Ident | SyntaxKind::Comment | SyntaxKind::LiteralStringText
-            )
+            matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::Comment)
+                || (t.kind() == SyntaxKind::LiteralStringText
+                    && t.parent_ancestors()
+                        .any(|ancestor| ancestor.kind() == SyntaxKind::ImportStatementNode))
         })
         .ok_or_else(|| anyhow!("no hoverable token found at offset"))?;
 
