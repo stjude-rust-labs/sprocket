@@ -187,6 +187,9 @@ _sprocket() {
             sprocket__subcmd__dev__subcmd__help__subcmd__server,submit)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__submit"
                 ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__test,bless-executables)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__test__subcmd__bless__subcmd__executables"
+                ;;
             sprocket__subcmd__dev__subcmd__help__subcmd__test,schema)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__test__subcmd__schema"
                 ;;
@@ -382,11 +385,17 @@ _sprocket() {
             sprocket__subcmd__dev__subcmd__server__subcmd__help,submit)
                 cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__submit"
                 ;;
+            sprocket__subcmd__dev__subcmd__test,bless-executables)
+                cmd="sprocket__subcmd__dev__subcmd__test__subcmd__bless__subcmd__executables"
+                ;;
             sprocket__subcmd__dev__subcmd__test,help)
                 cmd="sprocket__subcmd__dev__subcmd__test__subcmd__help"
                 ;;
             sprocket__subcmd__dev__subcmd__test,schema)
                 cmd="sprocket__subcmd__dev__subcmd__test__subcmd__schema"
+                ;;
+            sprocket__subcmd__dev__subcmd__test__subcmd__help,bless-executables)
+                cmd="sprocket__subcmd__dev__subcmd__test__subcmd__help__subcmd__bless__subcmd__executables"
                 ;;
             sprocket__subcmd__dev__subcmd__test__subcmd__help,help)
                 cmd="sprocket__subcmd__dev__subcmd__test__subcmd__help__subcmd__help"
@@ -552,6 +561,9 @@ _sprocket() {
                 ;;
             sprocket__subcmd__help__subcmd__dev__subcmd__server,submit)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__submit"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__test,bless-executables)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__test__subcmd__bless__subcmd__executables"
                 ;;
             sprocket__subcmd__help__subcmd__dev__subcmd__test,schema)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__test__subcmd__schema"
@@ -1460,8 +1472,22 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__help__subcmd__test)
-            opts="schema"
+            opts="schema bless-executables"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__test__subcmd__bless__subcmd__executables)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -3250,7 +3276,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__test)
-            opts="-w -t -f -i -e -p -v -q -m -c -s -h -V --workspace --target --filter --exact --include-tag --exclude-tag --no-clean --clean-all --parallelism --fixtures-dir --run-dir --no-status --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version schema help"
+            opts="-w -t -f -i -e -p -v -q -m -c -s -h -V --workspace --target --filter --exact --include-tag --exclude-tag --no-clean --clean-all --parallelism --fixtures-dir --bin-dir --run-dir --no-status --enable-custom-assertions --trust --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version schema bless-executables help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -3308,6 +3334,10 @@ _sprocket() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --bin-dir)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 --run-dir)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
@@ -3339,9 +3369,57 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        sprocket__subcmd__dev__subcmd__test__subcmd__help)
-            opts="schema help"
+        sprocket__subcmd__dev__subcmd__test__subcmd__bless__subcmd__executables)
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__test__subcmd__help)
+            opts="schema bless-executables help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__test__subcmd__help__subcmd__bless__subcmd__executables)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -4204,8 +4282,22 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help__subcmd__dev__subcmd__test)
-            opts="schema"
+            opts="schema bless-executables"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__test__subcmd__bless__subcmd__executables)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi

@@ -229,6 +229,7 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml_ng.workspace = true
 shellexpand = { workspace = true, features = ["full"] }
+shlex.workspace = true
 similar.workspace = true
 sprocket-test-types.workspace = true
 sqlx.workspace = true
@@ -261,7 +262,6 @@ jsonschema = { workspace = true }
 libtest-mimic.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
-shlex.workspace = true
 ssh-key = { workspace = true, features = ["ed25519", "getrandom"] }
 toml = { workspace = true }
 tracing-test.workspace = true

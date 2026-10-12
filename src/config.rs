@@ -801,10 +801,18 @@ pub struct TestConfig {
     ///
     /// If not set, fixtures are resolved from `<workspace>/test/fixtures`.
     pub fixtures_dir: Option<PathBuf>,
+    /// Directory containing executable files to run for custom assertions.
+    ///
+    /// If not set, executables are resolved from `<workspace>/test/bin`.
+    pub bin_dir: Option<PathBuf>,
     /// Directory to use for executing tests.
     ///
     /// If not set, runs are written to `<workspace>/test/runs`.
     pub run_dir: Option<PathBuf>,
+    /// Whether to enable arbitrary code execution for custom test assertions.
+    ///
+    /// TODO: document DANGER.
+    pub enable_custom_assertions: bool,
 }
 
 impl Default for TestConfig {
@@ -813,7 +821,9 @@ impl Default for TestConfig {
             parallelism: DEFAULT_TEST_PARALLELISM,
             throttle: DEFAULT_TEST_THROTTLE,
             fixtures_dir: None,
+            bin_dir: None,
             run_dir: None,
+            enable_custom_assertions: false,
         }
     }
 }

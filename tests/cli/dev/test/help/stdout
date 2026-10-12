@@ -3,8 +3,9 @@ Runs unit tests for a WDL workspace
 Usage: sprocket dev test [OPTIONS] [SOURCE] [COMMAND]
 
 Commands:
-  schema  Print the JSON schema for Sprocket test definition YAMLs to stdout
-  help    Print this message or the help of the given subcommand(s)
+  schema             Print the JSON schema for Sprocket test definition YAMLs to stdout
+  bless-executables  Bless executables used in custom assertions
+  help               Print this message or the help of the given subcommand(s)
 
 Arguments:
   [SOURCE]
@@ -57,19 +58,27 @@ Options:
 
           If not specified, defaults to `<workspace>/test/fixtures`.
 
+      --bin-dir <BIN_DIR>
+          Directory containing executables to run for custom assertions.
+
+          If not specified, defaults to `<workspace>/test/bin/`.
+
       --run-dir <RUN_DIR>
           Directory to execute tests in.
 
           If not specified, defaults to `<workspace>/test/runs`.
 
-      --no-status
-          Do not print results as tests complete
-
   -v, --verbose...
           Increase logging verbosity
 
+      --no-status
+          Do not print results as tests complete
+
   -q, --quiet...
           Decrease logging verbosity
+
+      --enable-custom-assertions
+          Enable custom assertions. TODO danger
 
       --no-ignore
           Ignore `.sprocketignore` files while discovering WDL documents
@@ -83,6 +92,11 @@ Options:
           - never:  Never colorize output
 
           [default: auto]
+
+      --trust
+          Disable checking whether custom assertion executables have been blessed.
+
+          TODO: danger
 
   -m, --report-mode <MODE>
           The report mode for any emitted diagnostics

@@ -25,6 +25,11 @@ use crate::yaml::Spanned;
 use crate::yaml::SpannedField;
 use crate::yaml::spanned_fields;
 
+/// The placeholder expected in each custom assertion argument string.
+///
+/// This value will be replaced with the path to the WDL output JSON.
+pub const OUTPUTS_PLACEHOLDER: &str = "$OUTPUTS";
+
 /// Type mismatch for a field value.
 fn invalid_type(expected: &str, field: &Spanned<String>, value: &Value) -> Diagnostic {
     let found = match value {
@@ -103,10 +108,15 @@ pub struct Assertions {
     /// Assertions about WDL outputs.
     #[schemars(default)]
     pub outputs: HashMap<Spanned<String>, Vec<OutputAssertion>>,
-    /// A custom command to execute.
-    // TODO(Ari): implement this assertion.
-    #[allow(unused)]
-    pub custom: Option<String>,
+    /// A custom command to execute. The key is the binary name and the value is
+    /// the arguments to pass.
+    ///
+    /// The arguments string _must_ contain the literal `$OUTPUTS` to denote
+    /// where the path to the WDL output JSON will be inserted.
+    ///
+    /// TODO: Document dangers
+    #[schemars(default)]
+    pub custom: HashMap<Spanned<String>, String>,
 }
 
 spanned_fields! {
@@ -117,7 +127,7 @@ spanned_fields! {
         pub stdout: Option<SpannedField<MaybeSequence<Value>>>,
         pub stderr: Option<SpannedField<MaybeSequence<Value>>>,
         pub outputs: Option<SpannedField<MaybeMap<Value>>>,
-        pub custom: Option<SpannedField<Value>>,
+        pub custom: Option<SpannedField<MaybeMap<Value>>>,
     }
 }
 
@@ -200,14 +210,38 @@ impl Assertions {
             .stderr
             .and_then(|f| Self::parse_stdio(f, &mut diagnostics));
 
-        let mut custom = None;
+        let mut custom_bins = HashMap::new();
         if let Some(raw_custom) = raw.custom {
             match raw_custom.value {
-                Value::String(custom_val) => {
-                    custom = Some(custom_val);
+                MaybeMap::Map(bins) => {
+                    for (bin, raw_args) in bins {
+                        let parsed_args =
+                            match serde_json::from_value::<String>(raw_args.0.value.clone()) {
+                                Ok(a) => a,
+                                Err(e) => {
+                                    diagnostics.add(
+                                        invalid_type("string", &bin, &raw_args.0.value)
+                                            .with_help(e.to_string()),
+                                    );
+                                    continue;
+                                }
+                            };
+                        if parsed_args.contains(OUTPUTS_PLACEHOLDER) {
+                            custom_bins.insert(bin, parsed_args);
+                        } else {
+                            diagnostics.add(
+                                Diagnostic::error("missing `$OUTPUTS` placeholder")
+                                    .with_help(format!(
+                                        "`{}` must contain an `$OUTPUTS` placeholder",
+                                        raw_args.0.value,
+                                    ))
+                                    .with_highlight(convert_yaml_span(raw_args.0.defined.span())),
+                            )
+                        }
+                    }
                 }
-                other => {
-                    diagnostics.add(invalid_type("string", &raw_custom.key, &other));
+                MaybeMap::Other(other) => {
+                    diagnostics.add(invalid_type("map", &raw_custom.key, &other));
                 }
             }
         }
@@ -240,7 +274,7 @@ impl Assertions {
                 stdout,
                 stderr,
                 outputs,
-                custom,
+                custom: custom_bins,
             })
         } else {
             Err(diagnostics)

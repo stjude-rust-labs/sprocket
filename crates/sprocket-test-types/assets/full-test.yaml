@@ -51,6 +51,8 @@ every_option:
               Defined: true
         out13:
           - Empty: true
+      custom:
+        some_executable: "$OUTPUTS json_field"
   - name: second_test
 second_target:
   - name: test
