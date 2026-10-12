@@ -1,8 +1,12 @@
 # Rules
 
-This table documents all `sprocket` lint rules implemented on the `main` branch of the `stjude-rust-labs/sprocket` repository. Note that the information may be out of sync with released packages.
+This table documents all `sprocket` lint rules implemented on the `main` branch of the
+`stjude-rust-labs/sprocket` repository. Note that the information may be out of sync with released
+packages.
 
-Each rule is configured in its own `[check.rules.<RULE>]` table of `sprocket.toml`. Every rule has a `severity` of `off`, `note`, or `warning`; the Config column lists any additional parameters. For example:
+Each rule is configured in its own `[check.rules.<RULE>]` table of `sprocket.toml`. Every rule has a
+`severity` of `off`, `note`, or `warning`; the Config column lists any additional parameters. For
+example:
 
 ```toml
 [check.rules.NamingConvention]

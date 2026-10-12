@@ -48,6 +48,7 @@ use crate::INITIAL_EXPECTED_NAMES;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
+use crate::RetryCause;
 use crate::TaskInputs;
 use crate::backend::STDERR_FILE_NAME;
 use crate::backend::STDOUT_FILE_NAME;
@@ -56,6 +57,7 @@ use crate::config::Config;
 use crate::config::ContentDigestMode;
 use crate::config::TesBackendAuthConfig;
 use crate::digest::UrlDigestExt;
+use crate::resubmit_task_name;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::hints;
@@ -76,6 +78,12 @@ const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
 /// The default poll interval, in seconds, for the TES backend.
 const DEFAULT_TES_INTERVAL: u64 = 30;
+
+/// Returns an override only when the actual name differs from the requested
+/// name.
+fn execution_name_override(requested: &str, actual: String) -> Option<String> {
+    (actual != requested).then_some(actual)
+}
 
 /// Represents the Task Execution Service (TES) backend.
 pub struct TesBackend {
@@ -456,9 +464,11 @@ impl TaskExecutionBackend for TesBackend {
             }
 
             let mut preemptible = preemptible;
+            let mut name = request.name.to_string();
+            let mut resubmission: u64 = 0;
             loop {
                 let task = Task::builder()
-                    .name(request.name)
+                    .name(&name)
                     .executions(NonEmpty::new(
                         Execution::builder()
                             .images(request.constraints.sources.iter().map(|c| match c {
@@ -499,8 +509,21 @@ impl TaskExecutionBackend for TesBackend {
                 {
                     Ok(results) => results,
                     Err(TaskRunError::Preempted) if preemptible > 0 => {
-                        // Decrement the preemptible count and retry
+                        // Decrement the preemptible count and resubmit under a
+                        // derived name so that consumers can attribute each
+                        // resubmission distinctly; see
+                        // `RESUBMIT_NAME_SEPARATOR`.
                         preemptible -= 1;
+                        resubmission += 1;
+                        let next_name = resubmit_task_name(&name, resubmission);
+                        if let Some(sender) = request.context.events().engine() {
+                            let _ = sender.send(EngineEvent::TaskRetrying {
+                                prior_name: name.clone(),
+                                next_name: next_name.clone(),
+                                cause: RetryCause::Preempted,
+                            });
+                        }
+                        name = next_name;
                         continue;
                     }
                     Err(TaskRunError::Canceled) => return Ok(None),
@@ -515,6 +538,7 @@ impl TaskExecutionBackend for TesBackend {
                 work_dir_url.path_segments_mut().unwrap().push("");
 
                 return Ok(Some(TaskExecutionResult {
+                    execution_name_override: execution_name_override(request.name, name),
                     // SAFETY: parsing of an image source is infallible
                     image: result.image.map(|s| s.parse().unwrap()),
                     exit_code: result.status.code().expect("should have exit code"),
@@ -525,5 +549,19 @@ impl TaskExecutionBackend for TesBackend {
             }
         }
         .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn execution_name_override_is_only_reported_when_changed() {
+        assert_eq!(execution_name_override("base", "base".to_string()), None);
+        assert_eq!(
+            execution_name_override("base", "base~1".to_string()),
+            Some("base~1".to_string())
+        );
     }
 }

@@ -199,7 +199,11 @@ impl TaskMonitorSvc {
     /// Handles a received engine event.
     async fn handle_engine_event(&mut self, event: EngineEvent) -> Result<()> {
         match event {
-            EngineEvent::TaskInitializing { id: _, name } => {
+            EngineEvent::TaskInitializing {
+                id: _,
+                name,
+                attempt: _,
+            } => {
                 self.db
                     .create_task(&name, self.run_id, TaskStatus::Initializing)
                     .await?;
@@ -207,6 +211,11 @@ impl TaskMonitorSvc {
             }
             EngineEvent::TaskLocalizing { name } => {
                 let _ = self.db.update_task_localizing(&name).await?;
+            }
+            EngineEvent::TaskExecuting { .. } | EngineEvent::TaskRetrying { .. } => {
+                // Execution constraints and retry causes are not yet recorded
+                // in the database; these events will be consumed when task
+                // metrics are persisted.
             }
             EngineEvent::ReusedCachedExecutionResult { id: _, name } => {
                 // The task may never have been announced as initializing if
@@ -223,6 +232,7 @@ impl TaskMonitorSvc {
                 // of the task's own progress, and the task
                 // remains pending throughout.
             }
+            _ => {}
         }
 
         Ok(())
