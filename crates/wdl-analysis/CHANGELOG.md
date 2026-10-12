@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+* Rule exception directives placed within placeholder nodes are now supported and properly
+  attributed.
+
 ## 0.27.0 - 2026-10-07
 
 ### Added

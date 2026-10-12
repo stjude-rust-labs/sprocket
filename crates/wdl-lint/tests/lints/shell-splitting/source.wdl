@@ -245,3 +245,31 @@ task excepted {
     requirements {
     }
 }
+
+task placeholder_excepted {
+    meta {
+    }
+
+    parameter_meta {
+    }
+
+    input {
+        String bar
+        String baz
+    }
+
+    command <<<
+        echo ~{
+            #@ except: ShellSplitting
+            bar
+        }
+        echo ~{baz}
+    >>>
+
+    output {
+    }
+
+    requirements {
+    }
+}
+

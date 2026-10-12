@@ -750,6 +750,12 @@ impl ExceptRule {
         });
 
         comment.and_then(|c| {
+            if let Some(parent) = c.inner().parent()
+                && parent.kind() == SyntaxKind::PlaceholderNode
+            {
+                return Some(parent);
+            }
+
             c.inner()
                 .siblings_with_tokens(Direction::Next)
                 .find_map(|sibling| {

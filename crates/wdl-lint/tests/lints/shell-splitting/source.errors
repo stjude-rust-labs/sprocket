@@ -320,3 +320,11 @@ warning[ShellSplitting]: unquoted `Array[String]` elements are subject to word s
     │
     = fix: quote each element with `squote(names)` or `quote(names)`
 
+warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting
+    ┌─ tests/lints/shell-splitting/source.wdl:266:14
+    │
+266 │         echo ~{baz}
+    │              ^^^^^^
+    │
+    = fix: surround the placeholder with double quotes
+

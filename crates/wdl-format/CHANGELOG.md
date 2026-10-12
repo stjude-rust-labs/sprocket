@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+* Placeholders containing comments are now formatted across multiple lines with proper indentation
+  and closing brace placement.
+
 ## 0.22.0 - 2026-10-07
 
 ### Added

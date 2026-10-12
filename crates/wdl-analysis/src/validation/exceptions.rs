@@ -152,9 +152,18 @@ impl Visitor for Exceptions {
                     continue; // `None` means exceptable on any node
                 };
 
+                let is_valid = excepted_element.as_ref().is_some_and(|el| {
+                    exceptable_nodes.contains(&el.kind())
+                        || (comment
+                            .inner()
+                            .parent()
+                            .is_some_and(|p| p.kind() == SyntaxKind::PlaceholderNode)
+                            && exceptable_nodes.contains(&SyntaxKind::PlaceholderNode))
+                });
+
                 if let Some(severity) = self.except_directive_valid.0
                     && let Some(excepted_element) = &excepted_element
-                    && !exceptable_nodes.contains(&excepted_element.kind())
+                    && !is_valid
                 {
                     let diagnostic = misplaced_except_directive(
                         &rule.name,

@@ -101,6 +101,8 @@ struct Problem {
     ty: Type,
     /// The name of the value, if it is a name reference.
     name: Option<String>,
+    /// The AST syntax node of the problem.
+    node: wdl_ast::SyntaxNode,
 }
 
 /// Creates a diagnostic for an unquoted value.
@@ -231,7 +233,7 @@ impl Analyzer<'_, '_> {
         top_level: bool,
     ) -> States {
         let expr = placeholder.expr();
-        let root = top_level.then(|| placeholder.span());
+        let root = top_level.then_some(placeholder);
         match placeholder.option() {
             Some(PlaceholderOption::Sep(sep)) => {
                 self.sequence(&expr, states, &Separator::String(sep.separator()))
@@ -271,9 +273,9 @@ impl Analyzer<'_, '_> {
 
     /// Analyzes an expression that is rendered as a single value.
     ///
-    /// `root` is the span of the enclosing top-level placeholder if the
-    /// expression is the entire placeholder expression.
-    fn expr(&mut self, expr: &Expr, states: States, root: Option<Span>) -> States {
+    /// `root` is the enclosing top-level placeholder if the expression is the
+    /// entire placeholder expression.
+    fn expr(&mut self, expr: &Expr, states: States, root: Option<&Placeholder>) -> States {
         match expr {
             Expr::Literal(LiteralExpr::String(string)) => self.string(string, states),
             Expr::Literal(_) => self.insert(states, None),
@@ -315,23 +317,25 @@ impl Analyzer<'_, '_> {
     }
 
     /// Analyzes an expression whose value is not known until runtime.
-    fn value(&mut self, expr: &Expr, states: States, root: Option<Span>) -> States {
+    fn value(&mut self, expr: &Expr, states: States, root: Option<&Placeholder>) -> States {
         let problem = self
             .evaluator
             .evaluate_expr(expr)
             .filter(is_splittable)
             .map(|ty| match root {
-                Some(span) => Problem {
-                    span,
+                Some(placeholder) => Problem {
+                    span: placeholder.span(),
                     kind: ProblemKind::Placeholder,
                     ty,
                     name: None,
+                    node: placeholder.inner().clone(),
                 },
                 None => Problem {
                     span: expr.span(),
                     kind: ProblemKind::Value,
                     ty,
                     name: name_of(expr),
+                    node: expr.inner().clone(),
                 },
             });
 
@@ -452,6 +456,7 @@ impl Analyzer<'_, '_> {
                 kind: ProblemKind::Array,
                 ty,
                 name: name_of(array),
+                node: array.inner().clone(),
             });
 
         self.insert(states, problem)
@@ -577,6 +582,7 @@ task view {
         Some(&[
             SyntaxKind::VersionStatementNode,
             SyntaxKind::CommandSectionNode,
+            SyntaxKind::PlaceholderNode,
         ])
     }
 
@@ -636,7 +642,7 @@ impl Visitor for ShellSplittingRule {
         for problem in analyzer.problems {
             diagnostics.exceptable_add(
                 unquoted_value(self.severity, &problem),
-                section.inner(),
+                &problem.node,
                 &self.exceptable_nodes(),
             );
         }

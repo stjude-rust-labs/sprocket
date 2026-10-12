@@ -85,7 +85,8 @@ pub trait Exceptable {
 
 impl Exceptable for SyntaxNode {
     fn rule_exceptions(&self) -> HashSet<ExceptRule> {
-        self.siblings_with_tokens(Direction::Prev)
+        let mut exceptions: HashSet<ExceptRule> = self
+            .siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
             .map_while(|s| {
                 if s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment {
@@ -99,7 +100,21 @@ impl Exceptable for SyntaxNode {
             .flat_map(|d| match d {
                 Directive::Except(e) => e,
             })
-            .collect()
+            .collect();
+
+        if self.kind() == SyntaxKind::PlaceholderNode {
+            exceptions.extend(
+                self.children_with_tokens()
+                    .filter_map(|s| s.into_token())
+                    .filter_map(Comment::cast)
+                    .filter_map(|c| c.directive())
+                    .flat_map(|d| match d {
+                        Directive::Except(e) => e,
+                    }),
+            );
+        }
+
+        exceptions
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {

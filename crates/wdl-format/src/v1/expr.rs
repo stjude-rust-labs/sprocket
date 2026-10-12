@@ -128,6 +128,16 @@ pub fn format_placeholder(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    let has_comment = element
+        .element()
+        .as_node()
+        .map(|n| {
+            n.inner()
+                .descendants_with_tokens()
+                .any(|c| c.kind() == SyntaxKind::Comment)
+        })
+        .unwrap_or(false);
+
     let mut children = element.children().expect("placeholder children");
 
     let open = children.next().expect("placeholder open");
@@ -146,13 +156,29 @@ pub fn format_placeholder(
         }
     }
 
+    if has_comment {
+        stream.increment_indent();
+        stream.end_line();
+    }
+
     if let Some(first) = children.next() {
+        if first.element().kind() == SyntaxKind::CloseBrace {
+            if has_comment {
+                stream.decrement_indent();
+                stream.end_line();
+            }
+            (&first).write(stream, config);
+            return;
+        }
         // do not end_word() before the first child
         (&first).write(stream, config);
     }
     for child in children {
         if child.element().kind() != SyntaxKind::CloseBrace {
             stream.end_word();
+        } else if has_comment {
+            stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
     }
