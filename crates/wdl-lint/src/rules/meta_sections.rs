@@ -78,10 +78,10 @@ fn missing_section(
     suggest_doc_comments: bool,
 ) -> Diagnostic {
     let (missing, fix) = match (suggest_doc_comments, section) {
-        (true, Section::Meta) => ("a doc comment", "add doc comment describing the struct"),
+        (true, Section::Meta) => ("a doc comment", "add a doc comment describing the struct"),
         (true, Section::ParameterMeta) => (
-            "a doc comment for its fields",
-            "add doc comments describing the struct's fields",
+            "a doc comment for every field of the struct",
+            "add a descriptive doc comment to each field of the struct",
         ),
         (false, Section::Meta) => ("a `meta` section", "add the missing section"),
         (false, Section::ParameterMeta) => {
@@ -109,8 +109,8 @@ fn missing_sections(
 ) -> Diagnostic {
     let (missing, fix) = if suggest_doc_comments {
         (
-            "doc comments for itself and its fields",
-            "add doc comments describing the struct and its fields",
+            "a doc comment for the struct and each of the struct's fields",
+            "add a descriptive doc comment to the struct and to each of the struct's fields",
         )
     } else {
         (
@@ -155,7 +155,7 @@ impl Rule for MetaSectionsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks, workflows and structs have the required `meta` and `parameter_meta` \
+        "Ensures that tasks, workflows, and structs have the required `meta` and `parameter_meta` \
          sections, or supplementary doc comments."
     }
 
@@ -163,7 +163,8 @@ impl Rule for MetaSectionsRule {
         "It is important that WDL code is well-documented. Every task, workflow and struct should \
          be documented with both a meta and parameter_meta section, or doc comments. Tasks without \
          an `input` section are permitted to skip the `parameter_meta` section. WDL 1.0/1.1 \
-         structs don't support `meta` or `parameter_meta` but require doc comments instead."
+         structs don't support the `meta` or `parameter_meta` sections but require doc comments \
+         instead."
     }
 
     fn examples(&self) -> &'static [Example] {
