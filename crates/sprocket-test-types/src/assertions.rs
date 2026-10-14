@@ -215,7 +215,7 @@ impl Assertions {
             match raw_custom.value {
                 MaybeMap::Map(bins) => {
                     for (bin, raw_args) in bins {
-                       let parsed_args = match raw_args.0.value {
+                        let parsed_args = match raw_args.0.value {
                             Value::String(args) => args,
                             v => {
                                 diagnostics.add(invalid_type("string", &bin, &v));
@@ -228,9 +228,7 @@ impl Assertions {
                         } else {
                             diagnostics.add(
                                 Diagnostic::error("missing `$OUTPUTS` placeholder")
-                                    .with_help(format!(
-                                        "`{parsed_args}` must contain an `$OUTPUTS` placeholder"
-                                    ))
+                                    .with_help("the value must contain an `$OUTPUTS` placeholder")
                                     .with_highlight(convert_yaml_span(raw_args.0.defined.span())),
                             )
                         }

@@ -4,6 +4,6 @@ error: missing `$OUTPUTS` placeholder
 14 │         invalid: "no output placeholder"
    │                  ^^^^^^^^^^^^^^^^^^^^^^^
    │
-   = help: `"no output placeholder"` must contain an `$OUTPUTS` placeholder
+   = help: the value must contain an `$OUTPUTS` placeholder
 
 error: failing due to 1 error

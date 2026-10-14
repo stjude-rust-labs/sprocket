@@ -93,7 +93,7 @@ Options:
 
           [default: auto]
 
-      --trust
+      --trusted
           Disable checking whether custom assertion executables have been blessed.
 
           TODO: danger

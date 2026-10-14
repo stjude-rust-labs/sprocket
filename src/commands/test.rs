@@ -292,6 +292,8 @@ fn run_custom_bins<'a>(
     executables: &HashMap<String, PathBuf>,
     custom: &'a HashMap<Spanned<String>, String>,
 ) -> Result<Option<&'a Spanned<String>>> {
+    const OUTPUTS_FILE: &str = "outputs.json";
+
     for (bin, args) in custom {
         let Some(bin_path) = executables.get(&bin.0.value) else {
             bail!(
@@ -305,24 +307,21 @@ fn run_custom_bins<'a>(
         let outputs = serde_json::to_string_pretty(&outputs)?;
         write(outputs_path, outputs)?;
 
-        let args = shlex::split(&args.replace(OUTPUTS_PLACEHOLDER, OUTPUTS_FILE))
-            .with_context(|| format!("failed to shell split arguments `{args}` to the `{bin}` executable"))?;
+        let args =
+            shlex::split(&args.replace(OUTPUTS_PLACEHOLDER, OUTPUTS_FILE)).with_context(|| {
+                format!(
+                    "failed to shell split arguments `{args}` to the `{bin}` executable",
+                    bin = bin.0.value
+                )
+            })?;
         let output = Command::new(bin_path)
             .args(args)
             .current_dir(exec_dir.path())
             .output()?;
         if !output.status.success() {
-            let stdout: String = output
-                .stdout
-                .iter()
-                .map(|u| u.escape_ascii().to_string())
-                .collect();
+            let stdout = String::from_utf8_lossy(&output.stdout);
             warn!("custom assertion stdout: {stdout}");
-            let stderr: String = output
-                .stderr
-                .iter()
-                .map(|u| u.escape_ascii().to_string())
-                .collect();
+            let stderr = String::from_utf8_lossy(&output.stderr);
             warn!("custom assertion stderr: {stderr}");
             return Ok(Some(bin));
         }
@@ -1313,7 +1312,7 @@ pub async fn test(
     }
 
     let executables = if enable_custom_assertions {
-        Some(find_executables(bin_dir, args.trust)?)
+        Some(find_executables(bin_dir, args.trusted)?)
     } else {
         None
     };
@@ -1455,7 +1454,7 @@ mod tests {
             filters: Filters::default(),
             exact: false,
             enable_custom_assertions: false,
-            trust: false,
+            trusted: false,
             command: None,
         }
     }
