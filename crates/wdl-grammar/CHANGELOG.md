@@ -186,8 +186,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 #### Changed
 
-* Made construction of a CST from a list of parser events public via the
-`construct_tree` function ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
+* Made construction of a CST from a list of parser events public via the `construct_tree` function
+  ([#249](https://github.com/stjude-rust-labs/wdl/pull/249)).
 
 ## 0.10.0 - 10-22-2024
 
