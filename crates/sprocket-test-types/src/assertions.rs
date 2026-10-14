@@ -215,25 +215,21 @@ impl Assertions {
             match raw_custom.value {
                 MaybeMap::Map(bins) => {
                     for (bin, raw_args) in bins {
-                        let parsed_args =
-                            match serde_json::from_value::<String>(raw_args.0.value.clone()) {
-                                Ok(a) => a,
-                                Err(e) => {
-                                    diagnostics.add(
-                                        invalid_type("string", &bin, &raw_args.0.value)
-                                            .with_help(e.to_string()),
-                                    );
-                                    continue;
-                                }
-                            };
+                       let parsed_args = match raw_args.0.value {
+                            Value::String(args) => args,
+                            v => {
+                                diagnostics.add(invalid_type("string", &bin, &v));
+                                continue;
+                            }
+                        };
+
                         if parsed_args.contains(OUTPUTS_PLACEHOLDER) {
                             custom_bins.insert(bin, parsed_args);
                         } else {
                             diagnostics.add(
                                 Diagnostic::error("missing `$OUTPUTS` placeholder")
                                     .with_help(format!(
-                                        "`{}` must contain an `$OUTPUTS` placeholder",
-                                        raw_args.0.value,
+                                        "`{parsed_args}` must contain an `$OUTPUTS` placeholder"
                                     ))
                                     .with_highlight(convert_yaml_span(raw_args.0.defined.span())),
                             )

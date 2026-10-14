@@ -193,7 +193,7 @@ pub struct Args {
     ///
     /// TODO: danger
     #[clap(long)]
-    pub trust: bool,
+    pub trusted: bool,
     #[command(subcommand)]
     pub command: Option<Subcommand>,
 }
@@ -295,18 +295,18 @@ fn run_custom_bins<'a>(
     for (bin, args) in custom {
         let Some(bin_path) = executables.get(&bin.0.value) else {
             bail!(
-                "no permitted executable with name `{bin}`",
+                "executable `{bin}` is not blessed and will not be executed",
                 bin = bin.0.value,
             );
         };
 
         let exec_dir = tempfile::TempDir::new()?;
-        let outputs_path = exec_dir.path().join("outputs.json");
+        let outputs_path = exec_dir.path().join(OUTPUTS_FILE);
         let outputs = serde_json::to_string_pretty(&outputs)?;
         write(outputs_path, outputs)?;
 
-        let args = shlex::split(&args.replace(OUTPUTS_PLACEHOLDER, "outputs.json"))
-            .ok_or_else(|| anyhow!("error while shell splitting arguments: `{args}`"))?;
+        let args = shlex::split(&args.replace(OUTPUTS_PLACEHOLDER, OUTPUTS_FILE))
+            .with_context(|| format!("failed to shell split arguments `{args}` to the `{bin}` executable"))?;
         let output = Command::new(bin_path)
             .args(args)
             .current_dir(exec_dir.path())
