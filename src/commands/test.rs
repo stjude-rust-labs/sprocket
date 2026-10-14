@@ -78,6 +78,7 @@ use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
+use crate::system::v1::fs::OUTPUTS_FILE;
 use crate::system::v1::fs::RUNS_DIR;
 
 /// Test definitions may appear either sibling to their source WDL, or nested
@@ -292,8 +293,6 @@ fn run_custom_bins<'a>(
     executables: &HashMap<String, PathBuf>,
     custom: &'a HashMap<Spanned<String>, String>,
 ) -> Result<Option<&'a Spanned<String>>> {
-    const OUTPUTS_FILE: &str = "outputs.json";
-
     for (bin, args) in custom {
         let Some(bin_path) = executables.get(&bin.0.value) else {
             bail!(
