@@ -175,11 +175,11 @@ There are a handful of reasons the CI may have turned red. Try the following fix
 
 ### What's the general workflow for writing a new lint rule?
 
-1. create a `wdl-lint/src/rules/<>.rs` file and tinker until you are calling
-  `exceptable_add()` in some case
+1. create a `wdl-lint/src/rules/<>.rs` file and tinker until you are calling `exceptable_add()` in
+   some case
     - review the existing rules in `wdl-lint/src/rules/` for guidance on this
-2. write a `wdl-lint/tests/lints/<>/source.wdl` that has cases that should and
-  should not trigger the above call to `exceptable_add()`
+2. write a `wdl-lint/tests/lints/<>/source.wdl` that has cases that should and should not trigger
+   the above call to `exceptable_add()`
 3. run `BLESS=1 cargo test -p wdl-lint --all-features` to generate a `source.errors`
     - this file should not be edited by hand
 4. review `source.errors` to see if it matches our expectations
