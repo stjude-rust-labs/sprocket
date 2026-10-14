@@ -315,6 +315,8 @@ define_rules_config! {
             = wdl_analysis::DeprecatedPlaceholderRule;
         "DeprecatedRuntimeSection" => deprecated_runtime_section: DeprecatedRuntimeSectionConfig
             = wdl_analysis::DeprecatedRuntimeSectionRule;
+        "DeprecatedInputKeyword" => deprecated_input_keyword: DeprecatedInputKeywordConfig
+            = wdl_analysis::DeprecatedInputKeywordRule;
     }
     lint {
         "BashSetSyntax" => bash_set_syntax: BashSetSyntaxConfig {
@@ -333,9 +335,6 @@ define_rules_config! {
                 BashSetOption::NoUnset,
                 BashSetOption::Pipefail,
             ];
-        }
-        "CallInputKeyword" => call_input_keyword: CallInputKeywordConfig {
-            severity = RuleSeverity::Note;
         }
         "ConciseInput" => concise_input: ConciseInputConfig {
             severity = RuleSeverity::Note;
