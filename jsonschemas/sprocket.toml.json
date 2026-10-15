@@ -253,6 +253,9 @@
             "DeprecatedRuntimeSection": {
               "severity": "warning"
             },
+            "DeprecatedInputKeyword": {
+              "severity": "warning"
+            },
             "BashSetSyntax": {
               "severity": "warning",
               "bash_set_options": [
@@ -260,9 +263,6 @@
                 "nounset",
                 "pipefail"
               ]
-            },
-            "CallInputKeyword": {
-              "severity": "note"
             },
             "ConciseInput": {
               "severity": "note"
@@ -497,6 +497,13 @@
             "severity": "warning"
           }
         },
+        "DeprecatedInputKeyword": {
+          "description": "The `DeprecatedInputKeyword` rule.",
+          "$ref": "#/$defs/DeprecatedInputKeywordConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
         "BashSetSyntax": {
           "description": "The `BashSetSyntax` rule.",
           "$ref": "#/$defs/BashSetSyntaxConfig",
@@ -507,13 +514,6 @@
               "nounset",
               "pipefail"
             ]
-          }
-        },
-        "CallInputKeyword": {
-          "description": "The `CallInputKeyword` rule.",
-          "$ref": "#/$defs/CallInputKeywordConfig",
-          "default": {
-            "severity": "note"
           }
         },
         "ConciseInput": {
@@ -981,6 +981,18 @@
       },
       "additionalProperties": false
     },
+    "DeprecatedInputKeywordConfig": {
+      "description": "Configuration for the `DeprecatedInputKeyword` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
     "BashSetSyntaxConfig": {
       "description": "Configuration for the `BashSetSyntax` lint rule.",
       "type": "object",
@@ -1030,18 +1042,6 @@
         "verbose",
         "xtrace"
       ]
-    },
-    "CallInputKeywordConfig": {
-      "description": "Configuration for the `CallInputKeyword` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
-        }
-      },
-      "additionalProperties": false
     },
     "ConciseInputConfig": {
       "description": "Configuration for the `ConciseInput` lint rule.",
