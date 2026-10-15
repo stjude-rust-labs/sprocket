@@ -15,6 +15,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::CommandSectionIndentationRule;
+use crate::DeprecatedInputKeywordRule;
 use crate::DeprecatedObjectRule;
 use crate::DeprecatedPlaceholderRule;
 use crate::DeprecatedRuntimeSectionRule;
@@ -373,6 +374,11 @@ pub struct DiagnosticsConfig {
     /// A value of `None` disables the diagnostic.
     #[toml(FromToml with = parse_string)]
     pub deprecated_runtime_section: Option<Severity>,
+    /// The severity for the deprecated call `input` keywords diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub deprecated_input_keyword: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -398,6 +404,7 @@ impl DiagnosticsConfig {
         let mut deprecated_object = None;
         let mut deprecated_placeholder = None;
         let mut deprecated_runtime_section = None;
+        let mut deprecated_input_keyword = None;
 
         for rule in rules {
             let rule = rule.as_ref();
@@ -422,6 +429,7 @@ impl DiagnosticsConfig {
                 DeprecatedRuntimeSectionRule::ID => {
                     deprecated_runtime_section = Some(rule.severity())
                 }
+                DeprecatedInputKeywordRule::ID => deprecated_input_keyword = Some(rule.severity()),
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -446,6 +454,7 @@ impl DiagnosticsConfig {
             deprecated_object,
             deprecated_placeholder,
             deprecated_runtime_section,
+            deprecated_input_keyword,
         }
     }
 
@@ -470,6 +479,7 @@ impl DiagnosticsConfig {
                 DeprecatedObjectRule::ID => self.deprecated_object = None,
                 DeprecatedPlaceholderRule::ID => self.deprecated_placeholder = None,
                 DeprecatedRuntimeSectionRule::ID => self.deprecated_runtime_section = None,
+                DeprecatedInputKeywordRule::ID => self.deprecated_input_keyword = None,
                 _ => {}
             }
         }
@@ -494,6 +504,7 @@ impl DiagnosticsConfig {
             deprecated_object: None,
             deprecated_placeholder: None,
             deprecated_runtime_section: None,
+            deprecated_input_keyword: None,
         }
     }
 }

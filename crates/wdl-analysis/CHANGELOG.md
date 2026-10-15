@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* `DeprecatedInputKeyword` rule to flag call statements with unnecessary `input` keywords
+  ([#1299](https://github.com/stjude-rust-labs/sprocket/pull/1299)).
+
 ## 0.27.0 - 2026-10-07
 
 ### Added

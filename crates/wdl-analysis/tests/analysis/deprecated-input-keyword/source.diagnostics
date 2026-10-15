@@ -1,0 +1,7 @@
+warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later
+   ┌─ tests/analysis/deprecated-input-keyword/source.wdl:54:21
+   │
+54 │     call example1 { input:
+   │                     ^^^^^
+   │
+   = fix: remove the `input:` keyword from the call statement
