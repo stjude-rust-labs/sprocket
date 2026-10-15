@@ -153,7 +153,6 @@ fn all_rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::new(rules::ParameterMetaOrderRule::new(config)),
         Box::new(rules::ImportPlacementRule::new(config)),
         Box::new(rules::MetaSectionsRule::new(config)),
-        Box::new(rules::CallInputKeywordRule::new(config)),
         Box::new(rules::MetaDescriptionRule::new(config)),
         Box::new(rules::UnknownRuntimeKeysRule::new(config)),
         Box::new(rules::DeprecatedRuntimeKeyRule::new(config)),
