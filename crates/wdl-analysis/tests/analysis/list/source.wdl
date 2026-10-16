@@ -1,3 +1,5 @@
+#@ except: DeprecatedInputKeyword
+
 version 1.4
 
 task list_task {
