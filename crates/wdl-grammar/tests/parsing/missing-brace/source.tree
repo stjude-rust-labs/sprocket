@@ -1,4 +1,4 @@
-RootNode@0..181
+RootNode@0..420
   Comment@0..35 "## This is a test of  ..."
   Whitespace@35..37 "\n\n"
   VersionStatementNode@37..48
@@ -50,7 +50,7 @@ RootNode@0..181
     Whitespace@139..140 "\n"
     CloseBrace@140..141 "}"
   Whitespace@141..143 "\n\n"
-  TaskDefinitionNode@143..180
+  TaskDefinitionNode@143..182
     TaskKeyword@143..147 "task"
     Whitespace@147..148 " "
     Ident@148..151 "bar"
@@ -69,5 +69,94 @@ RootNode@0..181
       OpenBrace@177..178 "{"
       Whitespace@178..179 "\n"
       CloseBrace@179..180 "}"
-    CloseBrace@180..180 ""
-  Whitespace@180..181 "\n"
+    Whitespace@180..182 "\n\n"
+    CloseBrace@182..182 ""
+  TaskDefinitionNode@182..420
+    TaskKeyword@182..186 "task"
+    Whitespace@186..187 " "
+    Ident@187..190 "baz"
+    Whitespace@190..191 " "
+    OpenBrace@191..192 "{"
+    Whitespace@192..197 "\n    "
+    MetadataSectionNode@197..420
+      MetaKeyword@197..201 "meta"
+      Whitespace@201..202 " "
+      OpenBrace@202..203 "{"
+      Whitespace@203..212 "\n        "
+      MetadataObjectItemNode@212..240
+        Ident@212..215 "foo"
+        Colon@215..216 ":"
+        Whitespace@216..217 " "
+        MetadataObjectNode@217..240
+          OpenBrace@217..218 "{"
+          Whitespace@218..231 "\n            "
+          MetadataObjectItemNode@231..238
+            Ident@231..234 "bar"
+            Colon@234..235 ":"
+            Whitespace@235..236 " "
+            MetadataObjectNode@236..238
+              OpenBrace@236..237 "{"
+              CloseBrace@237..238 "}"
+          Whitespace@238..239 "\n"
+          CloseBrace@239..240 "}"
+      Whitespace@240..242 "\n\n"
+      Ident@242..246 "task"
+      Whitespace@246..247 " "
+      Ident@247..250 "qux"
+      Whitespace@250..251 " "
+      OpenBrace@251..252 "{"
+      Whitespace@252..257 "\n    "
+      Ident@257..262 "hints"
+      Whitespace@262..263 " "
+      OpenBrace@263..264 "{"
+      Whitespace@264..273 "\n        "
+      MetadataObjectItemNode@273..420
+        Ident@273..279 "inputs"
+        Colon@279..280 ":"
+        Whitespace@280..281 " "
+        MetadataObjectNode@281..420
+          OpenBrace@281..282 "{"
+          Whitespace@282..295 "\n            "
+          MetadataObjectItemNode@295..420
+            Ident@295..298 "foo"
+            Colon@298..299 ":"
+            Whitespace@299..300 " "
+            MetadataObjectNode@300..420
+              OpenBrace@300..301 "{"
+              Whitespace@301..318 "\n                "
+              MetadataObjectItemNode@318..420
+                Ident@318..321 "bar"
+                Colon@321..322 ":"
+                Whitespace@322..323 " "
+                MetadataObjectNode@323..420
+                  OpenBrace@323..324 "{"
+                  Whitespace@324..345 "\n                    "
+                  MetadataObjectItemNode@345..420
+                    Ident@345..348 "baz"
+                    Colon@348..349 ":"
+                    Whitespace@349..350 " "
+                    MetadataObjectNode@350..420
+                      OpenBrace@350..351 "{"
+                      Whitespace@351..376 "\n                     ..."
+                      MetadataObjectItemNode@376..420
+                        Ident@376..379 "qux"
+                        Colon@379..380 ":"
+                        Whitespace@380..381 " "
+                        MetadataObjectNode@381..420
+                          OpenBrace@381..382 "{"
+                          Whitespace@382..411 "\n                     ..."
+                          MetadataObjectItemNode@411..420
+                            Ident@411..415 "quux"
+                            Colon@415..416 ":"
+                            Whitespace@416..417 " "
+                            MetadataObjectNode@417..420
+                              OpenBrace@417..418 "{"
+                              Whitespace@418..419 "\n"
+                              CloseBrace@419..420 "}"
+                          CloseBrace@420..420 ""
+                      CloseBrace@420..420 ""
+                  CloseBrace@420..420 ""
+              CloseBrace@420..420 ""
+          CloseBrace@420..420 ""
+      CloseBrace@420..420 ""
+    CloseBrace@420..420 ""
