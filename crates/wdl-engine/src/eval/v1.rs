@@ -205,6 +205,17 @@ impl Evaluator {
         }
     }
 
+    /// Notifies of the disk space used by a task execution attempt's work
+    /// directory.
+    fn notify_task_disk_usage(&self, name: &str, disk_used: u64) {
+        if let Some(sender) = &self.0.events.engine {
+            let _ = sender.send(EngineEvent::TaskDiskUsage {
+                name: name.to_string(),
+                disk_used,
+            });
+        }
+    }
+
     /// Notifies that a task execution attempt failed and is being retried.
     fn notify_task_retrying(&self, prior_name: &str, next_name: &str, cause: RetryCause) {
         if let Some(sender) = &self.0.events.engine {
