@@ -1,6 +1,6 @@
 [package]
 name = "wdl-format"
-version = "0.22.0"
+version = "0.22.1"
 description = "Formatting of WDL (Workflow Description Language) documents"
 license.workspace = true
 edition.workspace = true
@@ -15,7 +15,7 @@ schemars.workspace = true
 thiserror.workspace = true
 toml-spanner.workspace = true
 tracing.workspace = true
-wdl-ast = { path = "../wdl-ast", version = "0.27.1" }
+wdl-ast = { path = "../wdl-ast", version = "0.27.2" }
 
 [dev-dependencies]
 anyhow = { workspace = true }
