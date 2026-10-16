@@ -191,6 +191,7 @@ impl TesBackend {
                 .url(backend_config.service.clone())
                 .http(http)
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
+                .resource_usage_metadata(backend_config.resource_usage_metadata)
                 .build(),
             // SAFETY: the URL is the only required field and it was supplied above
             client.try_build().unwrap(),
