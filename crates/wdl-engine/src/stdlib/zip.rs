@@ -22,7 +22,7 @@ const FUNCTION_NAME: &str = "zip";
 ///
 /// If the input arrays are empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#zip
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#zip>
 fn zip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
 

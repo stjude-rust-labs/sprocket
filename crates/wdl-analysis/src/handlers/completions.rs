@@ -98,6 +98,7 @@ use crate::types::v1::task_requirement_types;
 /// are filtered by any partial word already typed at the cursor position.
 ///
 /// Provides context-aware suggestions by:
+///
 /// 1. Determining if the cursor is in a member access context (i.e. after a `.`
 ///    dot)
 /// 2. Walking up the CST to find the appropriate completion context
@@ -792,16 +793,16 @@ fn add_stdlib_completions(version: Option<SupportedVersion>, items: &mut Vec<Com
                 })
             }
             Function::Polymorphic(p) => {
+                let docs = p.definition(v).and_then(|d| make_md_docs(d.to_string()));
                 for sig in p.signatures().iter().filter(|s| s.minimum_version() <= v) {
                     let params = TypeParameters::new(sig.type_parameters());
                     let detail = Some(format!("{name}{}", sig.display(&params)));
-                    let docs = sig.definition().and_then(|d| make_md_docs(d.to_string()));
                     let snippet = build_function_snippet(name, sig);
                     items.push(CompletionItem {
                         label: name.to_string(),
                         kind: Some(CompletionItemKind::FUNCTION),
                         detail,
-                        documentation: docs,
+                        documentation: docs.clone(),
                         insert_text_format: Some(InsertTextFormat::SNIPPET),
                         insert_text: Some(snippet),
                         ..Default::default()

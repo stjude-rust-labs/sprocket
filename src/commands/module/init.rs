@@ -13,9 +13,9 @@ use serde_json::Value;
 use wdl::ast::SupportedVersion;
 use wdl_modules::normalize_git_remote;
 
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 use crate::config::ModuleInitConfig;
 
 const INITIALIZE: Action = Action::new("Initialized", "initialize");

@@ -70,14 +70,12 @@ pub(crate) use cache_store::remove_cache_leaves;
 pub(crate) use cache_store::remove_cache_root;
 #[expect(unused_imports)]
 pub(crate) use checkout::GitTreeStats;
+pub(crate) use checkout::MaterializeMode;
+pub(crate) use checkout::Materialized;
 pub(crate) use checkout::TreeLimits;
 #[expect(unused_imports)]
 pub(crate) use checkout::clone_with_sparse_checkout;
-#[expect(unused_imports)]
-pub(crate) use checkout::enforce_tree_limits;
 pub(crate) use checkout::ensure_materialized;
-#[expect(unused_imports)]
-pub(crate) use checkout::extend_sparse_checkout;
 #[expect(unused_imports)]
 pub(crate) use checkout::inspect_subtree_stats;
 pub(crate) use creds::CredentialMode;

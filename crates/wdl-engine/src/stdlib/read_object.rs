@@ -39,7 +39,7 @@ const FUNCTION_NAME: &str = "read_object";
 /// The second row specifies the object member values corresponding to the names
 /// in the first row. All of the Object's values are of type String.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_object
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_object>
 fn read_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

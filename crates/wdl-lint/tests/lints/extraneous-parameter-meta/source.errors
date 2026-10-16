@@ -1,0 +1,24 @@
+note[ExtraneousParameterMeta]: workflow `extraneous_parameter_meta_workflow` has an extraneous parameter metadata key named `extra_workflow`
+  ┌─ tests/lints/extraneous-parameter-meta/source.wdl:9:9
+  │
+9 │         extra_workflow: "An extra workflow key"
+  │         ^^^^^^^^^^^^^^ this key does not correspond to any input declaration
+  │
+  = fix: remove the extraneous key from the `parameter_meta` section
+
+note[ExtraneousParameterMeta]: struct `ExtraneousParameterMetaStruct` has an extraneous parameter metadata key named `extra_struct`
+   ┌─ tests/lints/extraneous-parameter-meta/source.wdl:20:9
+   │
+20 │         extra_struct: "An extra struct key"
+   │         ^^^^^^^^^^^^ this key does not correspond to any input declaration
+   │
+   = fix: remove the extraneous key from the `parameter_meta` section
+
+note[ExtraneousParameterMeta]: task `extraneous_parameter_meta_task` has an extraneous parameter metadata key named `extra_task`
+   ┌─ tests/lints/extraneous-parameter-meta/source.wdl:29:9
+   │
+29 │         extra_task: "An extra task key"
+   │         ^^^^^^^^^^ this key does not correspond to any input declaration
+   │
+   = fix: remove the extraneous key from the `parameter_meta` section
+

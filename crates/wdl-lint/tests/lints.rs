@@ -32,9 +32,12 @@ use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::Validator;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
+use wdl_lint::ALL_RULE_IDS;
 use wdl_lint::Config;
 use wdl_lint::Linter;
 use wdl_lint::Rule;
+use wdl_lint::RuleSeverity;
 use wdl_lint::rules;
 
 /// Finds tests for this package.
@@ -118,30 +121,42 @@ fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
 /// Runs a lint test.
 async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let config_path = test.join("config.toml");
-    if config_path.exists() {
+    let base_config = if config_path.exists() {
         let config_str = fs::read_to_string(&config_path)?;
-        let config = toml_spanner::from_str(&config_str)?;
+        let config: Config = toml_spanner::from_str(&config_str)?;
 
         run_test_inner(test, "source.errors.default", Config::default()).await?;
-        run_test_inner(test, "source.errors", config).await?;
+        run_test_inner(test, "source.errors", config.clone()).await?;
+        config
     } else {
         run_test_inner(test, "source.errors", Config::default()).await?;
-    }
+        Config::default()
+    };
+
+    assert_lint_diagnostic_severity(
+        test,
+        base_config.clone(),
+        RuleSeverity::Note,
+        Severity::Note,
+    )
+    .await?;
+    assert_lint_diagnostic_severity(test, base_config, RuleSeverity::Warning, Severity::Warning)
+        .await?;
 
     Ok(())
 }
 
-/// Runs a lint test with the specified [`Config`]
-async fn run_test_inner(
+/// Analyzes a lint fixture with the specified [`Config`].
+async fn analyze_source(
     test: &Path,
-    errors_path: &str,
     config: Config,
-) -> Result<(), anyhow::Error> {
+) -> Result<(Vec<Diagnostic>, String), anyhow::Error> {
     let analyzer = Analyzer::new_with_validator(
         AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
         |_, _, _, _| async {},
         move || {
             let mut validator = Validator::default();
+            validator.extend_rules(wdl_lint::RULE_MAP.clone());
             validator.add_visitor(Linter::new(
                 rules(&config).into_iter().map(|r| r as Box<dyn Rule>),
             ));
@@ -156,7 +171,6 @@ async fn run_test_inner(
 
     let base = absolute(test)?.clean();
     let source_path = base.join("source.wdl");
-    let errors_path = base.join(errors_path);
 
     let Some(result) = results
         .into_iter()
@@ -164,14 +178,61 @@ async fn run_test_inner(
     else {
         bail!("failed to find test result");
     };
+
+    Ok((
+        result.document().diagnostics().cloned().collect(),
+        result.document().root().text().to_string(),
+    ))
+}
+
+/// Runs a lint test with the specified [`Config`]
+async fn run_test_inner(
+    test: &Path,
+    errors_path: &str,
+    config: Config,
+) -> Result<(), anyhow::Error> {
+    let (diagnostics, source) = analyze_source(test, config).await?;
+    let base = absolute(test)?.clean();
+    let errors_path = base.join(errors_path);
+
     compare_result(
         &errors_path,
-        &format_diagnostics(
-            result.document().diagnostics(),
-            &test.join("source.wdl"),
-            &result.document().root().text().to_string(),
-        ),
+        &format_diagnostics(diagnostics.iter(), &test.join("source.wdl"), &source),
     )
+}
+
+/// Asserts that all lint rule diagnostics use the configured severity.
+async fn assert_lint_diagnostic_severity(
+    test: &Path,
+    mut config: Config,
+    rule_severity: RuleSeverity,
+    expected: Severity,
+) -> Result<(), anyhow::Error> {
+    for id in ALL_RULE_IDS.iter() {
+        assert!(config.set_severity(id, rule_severity));
+    }
+
+    let (diagnostics, _) = analyze_source(test, config).await?;
+    for diagnostic in diagnostics {
+        let Some(rule) = diagnostic.rule() else {
+            continue;
+        };
+
+        if !ALL_RULE_IDS.iter().any(|id| id == rule) {
+            continue;
+        }
+
+        if diagnostic.severity() != expected {
+            bail!(
+                "diagnostic for lint rule `{rule}` in `{path}` had severity `{actual:?}`; \
+                 expected `{expected:?}`",
+                path = test.display(),
+                actual = diagnostic.severity(),
+            );
+        }
+    }
+
+    Ok(())
 }
 
 fn main() -> Result<(), anyhow::Error> {

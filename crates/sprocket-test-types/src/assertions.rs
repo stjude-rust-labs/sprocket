@@ -614,7 +614,7 @@ mod tests {
     /// changes which syntax is expected from nested externally tagged enums.
     /// Without `FlattenedWrapper`, `serde_yaml_ng` would expect
     /// OutputAssertions to be defined with YAML tag syntax instead of the map
-    /// syntax used in these tests. See https://github.com/acatton/serde-yaml-ng/issues/14
+    /// syntax used in these tests. See <https://github.com/acatton/serde-yaml-ng/issues/14>
     #[derive(Debug, serde::Deserialize)]
     struct FlattenedWrapper {
         #[serde(flatten)]

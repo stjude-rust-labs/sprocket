@@ -1,0 +1,1 @@
+check --note UnusedInput --warn UnusedInput unused-input.wdl

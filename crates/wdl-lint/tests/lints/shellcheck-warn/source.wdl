@@ -1,7 +1,7 @@
 ## This is a test of having shellcheck warnings
 
-#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands
-#@ except: MetaDescription, ParameterMetaMatched
+#@ except: BashSetSyntax, EmptyOutputs, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, HereDocCommands
+#@ except: MetaDescription, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder
 
 version 1.1
 
@@ -185,6 +185,23 @@ task test7 {
 
     output {}
 
+    runtime {}
+}
+
+task test8 {
+    meta {}
+    parameter_meta {}
+    input {}
+    command <<<
+        for f in foo; do
+            echo $f
+        done
+
+        if [[ -n "gah" ]]; then
+            echo 'GAH :O'
+        fi
+    >>>
+    output {}
     runtime {}
 }
 

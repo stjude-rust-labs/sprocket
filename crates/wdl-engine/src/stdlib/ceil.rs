@@ -11,7 +11,7 @@ use crate::Value;
 
 /// Rounds a floating point number up to the next higher integer.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#ceil
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#ceil>
 fn ceil(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));

@@ -30,7 +30,7 @@ const FUNCTION_NAME: &str = "glob";
 /// Returns the Bash expansion of the glob string relative to the task's
 /// execution directory, and in the same order (i.e. lexicographical).
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob>
 fn glob(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

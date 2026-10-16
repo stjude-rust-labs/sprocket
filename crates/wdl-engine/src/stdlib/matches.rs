@@ -16,7 +16,7 @@ const FUNCTION_NAME: &str = "matches";
 /// Given two String parameters `input` and `pattern`, tests whether `pattern`
 /// matches `input` at least once.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-matches
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-matches>
 fn matches(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
