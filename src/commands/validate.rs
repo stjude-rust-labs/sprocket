@@ -10,6 +10,7 @@ use crate::Config;
 use crate::analysis::Source;
 use crate::analysis::analyze_singular_source;
 use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::inputs::Invocation;
 

@@ -23,6 +23,7 @@ use wdl::ast::v1::TaskDefinition;
 use crate::Config;
 use crate::analysis::Source;
 use crate::analysis::analyze_singular_source;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
 /// Arguments for the `inputs` subcommand.
@@ -487,7 +488,7 @@ pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> Comman
         config.common.wdl.feature_flags,
         config.common.ignore_filename(),
         report_mode,
-        colorize,
+        output.colorize(),
     )
     .await?;
 

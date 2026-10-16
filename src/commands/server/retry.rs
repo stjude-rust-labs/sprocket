@@ -12,6 +12,7 @@ use super::client::send_json;
 use crate::analysis::Source;
 use crate::analysis::analyze_singular_source;
 use crate::analysis::ensure_no_analysis_errors;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::commands::run::inputs_to_json;
 use crate::config::Config;

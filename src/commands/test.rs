@@ -1060,7 +1060,7 @@ pub async fn test(
                 .context(format!("parsing {p}", p = wdl_path.display()))
                 .into());
         }
-        ensure_no_analysis_errors(document, report_mode, colorize)?;
+        ensure_no_analysis_errors(document, report_mode, output.colorize())?;
 
         let yaml_path = match find_yaml(&wdl_path)? {
             Some(p) => p,

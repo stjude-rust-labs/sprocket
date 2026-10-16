@@ -171,37 +171,22 @@ pub async fn format(args: Args, config: Config, output: CommandOutput) -> Comman
         FormatSubcommand::View(s) => {
             let source = s.source;
 
-            let result = analyze_singular_source(
+            let document = analyze_singular_source(
                 &source,
                 fallback_version,
                 modules_config,
                 feature_flags,
                 ignore_filename,
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .await?;
 
-            if let Some(err) = result.error() {
-                return Err(anyhow!(
-                    "error analyzing `{path}`: {err:#}",
-                    path = result.document().path()
-                )
-                .into());
-            }
-
-            let (_source, formatted) = format_document(
-                &formatter,
-                result.document(),
-                report_mode,
-                output.colorize(),
-            )
-            .with_context(|| {
-                format!(
-                    "could not view document `{path}`",
-                    path = result.document().path()
-                )
-            })?;
+            let (_source, formatted) =
+                format_document(&formatter, &document, report_mode, output.colorize())
+                    .with_context(|| {
+                        format!("could not view document `{path}`", path = document.path())
+                    })?;
             output.payload(formatted);
         }
         FormatSubcommand::Overwrite(s) => {

@@ -15,7 +15,6 @@ use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tracing::info;
 use wdl::analysis::Analyzer;
-use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::Document;
 use wdl::analysis::ProgressKind;
 use wdl::analysis::Validator;
