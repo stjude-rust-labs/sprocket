@@ -205,13 +205,13 @@ impl Evaluator {
         }
     }
 
-    /// Notifies of the disk space used by a task execution attempt's work
-    /// directory.
-    fn notify_task_disk_usage(&self, name: &str, disk_used: u64) {
+    /// Notifies of resource usage the engine measured for a task execution
+    /// attempt.
+    fn notify_task_usage_measured(&self, name: &str, usage: crankshaft::events::TaskResourceUsage) {
         if let Some(sender) = &self.0.events.engine {
-            let _ = sender.send(EngineEvent::TaskDiskUsage {
+            let _ = sender.send(EngineEvent::TaskUsageMeasured {
                 name: name.to_string(),
-                disk_used,
+                usage,
             });
         }
     }

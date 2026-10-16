@@ -679,22 +679,29 @@ pub enum EngineEvent {
         /// The unique name of the task for this attempt.
         name: String,
     },
-    /// The disk space used by a task execution attempt's work directory.
+    /// Resource usage the engine measured for a task execution attempt.
     ///
-    /// Measured by the engine after the attempt's execution returns, when the
-    /// work directory is on a local file system; attempts whose work
-    /// directory is remote (e.g. on the TES backend) do not report it. This
-    /// complements the scheduler-observed measurements a backend may report
-    /// through Crankshaft's `TaskResourceUsage` event.
+    /// Emitted by the engine after the attempt's execution returns, carrying
+    /// whatever the engine could measure:
     ///
-    /// Note: this measures the directory's size at the end of execution, not
-    /// its high-water mark, and does not include scratch space written
-    /// outside the work directory.
-    TaskDiskUsage {
+    /// * the disk space used by the attempt's work directory, when the work
+    ///   directory is on a local file system (its size at the end of execution,
+    ///   not a high-water mark, excluding scratch space written outside the
+    ///   work directory); and
+    /// * when resource usage measurement is enabled in the configuration, the
+    ///   CPU time and (in containerized environments) peak cgroup memory
+    ///   recorded by the measurement shim from within the execution
+    ///   environment.
+    ///
+    /// This complements the scheduler-observed measurements a backend may
+    /// report through Crankshaft's `TaskResourceUsage` event: consumers
+    /// should merge the fields present in this snapshot over whatever the
+    /// backend reported.
+    TaskUsageMeasured {
         /// The unique name of the task for this attempt.
         name: String,
-        /// The size of the attempt's work directory, in bytes.
-        disk_used: u64,
+        /// The measured resource usage; only the measured fields are set.
+        usage: crankshaft::events::TaskResourceUsage,
     },
     /// A locally running task has been parked by the engine due to insufficient
     /// resources.

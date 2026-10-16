@@ -324,6 +324,7 @@ impl ManagedTask for DockerTask<'_> {
             image: result.image.map(ImageSource::Docker),
             exit_code: result.status.code().expect("should have exit code"),
             work_dir: EvaluationPath::from_local_path(work_dir),
+            usage_file: None,
             stdout: PrimitiveValue::new_file(
                 stdout_path
                     .into_os_string()
@@ -841,6 +842,7 @@ mod tests {
             context: &context,
             name: "cleanup-after-cancellation-0",
             command: "mkdir -p testdir && echo hello > testdir/hello.txt && sleep 60",
+            measure_resource_usage: false,
             inputs: &inputs,
             backend_inputs: &[],
             requirements: &requirements,
