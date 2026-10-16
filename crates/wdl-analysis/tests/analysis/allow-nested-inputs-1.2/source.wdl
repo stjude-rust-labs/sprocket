@@ -1,7 +1,7 @@
 ## This is a test of allowed nested inputs in 1.2.
 ## This should be accepted without diagnostics.
 
-#@ except: UnusedCall, UnusedInput
+#@ except: UnusedCall, UnusedInput, DeprecatedInputKeyword
 
 version 1.2
 

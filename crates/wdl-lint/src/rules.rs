@@ -1,7 +1,6 @@
 //! Module for the lint rules.
 
 mod bash_set_syntax;
-mod call_input_keyword;
 mod concise_input;
 mod container_uri;
 mod declaration_name;
@@ -41,7 +40,6 @@ mod unknown_runtime_keys;
 mod unused_doc_comments;
 
 pub use bash_set_syntax::*;
-pub use call_input_keyword::*;
 pub use concise_input::*;
 pub use container_uri::*;
 pub use declaration_name::*;

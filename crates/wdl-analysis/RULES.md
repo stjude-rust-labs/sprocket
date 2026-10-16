@@ -12,6 +12,7 @@ Each rule can be configured in its own `[check.rules.<RULE>]` table of `sprocket
 | Name                       | Description                                                                                               |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------- |
 | CommandSectionIndentation  | Ensures consistent indentation (no mixed spaces/tabs) within command sections.                            |
+| CallInputKeyword           | Ensures that the `input:` keyword is not used in call statements when WDL version is 1.2 or later.        |
 | DeprecatedObject           | Ensures that the deprecated `Object` types are not used.                                                  |
 | DeprecatedPlaceholder      | Ensures that deprecated expression placeholder options are not used.                                      |
 | DeprecatedRuntimeSection   | Ensures that deprecated `runtime` sections are not used in WDL v1.2 and later.                            |

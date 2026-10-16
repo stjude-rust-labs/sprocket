@@ -72,12 +72,12 @@ Options:
 
 Available rules:
   - BashSetSyntax
-  - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
   - ContainerUri
   - DeclarationName
   - DenyGlobStar
+  - DeprecatedInputKeyword
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DeprecatedRuntimeKey

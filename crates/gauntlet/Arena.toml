@@ -2203,43 +2203,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:101:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L101"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:106:7: note[ConciseInput]: redundant input assignment"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L106"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:113:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L113"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:120:7: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L120"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:130:7: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L130"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:138:7: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L138"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:149:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L149"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:157:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L157"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
@@ -2273,43 +2238,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:49:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L49"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:57:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L57"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:64:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L64"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:6:6: note[MetaSections]: task `create_cram_directory` is missing a `parameter_meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:72:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L72"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:78:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L78"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:85:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L85"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:93:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L93"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -4178,48 +4108,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:53:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L53"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:61:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:68:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L68"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:6:6: note[MetaSections]: task `create_cram_directory` is missing a `parameter_meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:76:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:82:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L82"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:89:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L89"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:97:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L97"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:118:7: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L118"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
@@ -4233,23 +4123,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:132:7: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L132"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:139:9: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L139"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
 message = "ww-imputation.wdl:13:8: note[MetaSections]: struct `ChromosomeData` is missing both `meta` and `parameter_meta` sections"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L13"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:160:9: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L160"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
@@ -4288,28 +4163,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:177:7: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L177"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
 message = "ww-imputation.wdl:181:9: note[ConciseInput]: redundant input assignment"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L181"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:189:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L189"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
 message = "ww-imputation.wdl:193:7: note[ConciseInput]: redundant input assignment"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L193"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
-message = "ww-imputation.wdl:201:7: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L201"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"

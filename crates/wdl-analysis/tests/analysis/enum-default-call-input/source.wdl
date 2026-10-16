@@ -19,7 +19,7 @@ task hello {
 }
 
 workflow main {
-    call hello { input:
+    call hello {
         name = "Alice",
         my_enum = Type.B,
         my_enum2 = Type.C,
