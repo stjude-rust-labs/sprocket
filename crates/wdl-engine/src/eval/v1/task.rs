@@ -2372,9 +2372,9 @@ mod tests {
     use crate::EngineEvent;
     use crate::EvaluationPath;
     use crate::Events;
+    use crate::Object;
     #[cfg(unix)]
     use crate::Outputs;
-    use crate::Object;
     use crate::PrimitiveValue;
     use crate::RetryCause;
     use crate::TaskInputs;
