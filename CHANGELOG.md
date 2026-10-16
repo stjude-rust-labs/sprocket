@@ -19,6 +19,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and `--call` for filtering. Local `sprocket run` executions write the same structure to
   `metrics.json` beside `outputs.json`
   ([#1258](https://github.com/stjude-rust-labs/sprocket/pull/1258)).
+* Execution metrics include backend-reported peak and average memory and cumulative CPU time when
+  available. The Docker backend can sample these measurements with
+  `backends.<name>.resource_usage_interval`
+  ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
 
 ## 0.32.0 - 2026-10-07
 
