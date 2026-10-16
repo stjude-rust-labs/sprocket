@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the experimental WDL 1.4 `list` function for listing a directory's files and subdirectories,
+  with recursion, symlink inclusion, and file filtering. This implements
+  [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) and requires
+  `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+
 ## 0.32.0 - 2026-10-07
 
 ### Security Fix
