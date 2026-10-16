@@ -7,6 +7,7 @@
 mod cancel;
 mod client;
 mod inspect;
+mod metrics;
 mod retry;
 mod status;
 mod submit;
@@ -43,6 +44,8 @@ pub enum ServerSubcommand {
     Status(status::Args),
     /// Show detailed information about a run.
     Inspect(inspect::Args),
+    /// Show execution metrics for a run.
+    Metrics(metrics::Args),
     /// Cancel a running or queued run.
     Cancel(cancel::Args),
     /// Retry a previous run, optionally with input overrides.
@@ -150,6 +153,7 @@ pub async fn server(args: Args, config: Config, output: CommandOutput) -> Comman
         ServerSubcommand::Submit(args) => submit::submit(args, config, output).await,
         ServerSubcommand::Status(args) => status::status(args, config, output).await,
         ServerSubcommand::Inspect(args) => inspect::inspect(args, config, output).await,
+        ServerSubcommand::Metrics(args) => metrics::metrics(args, config, output).await,
         ServerSubcommand::Cancel(args) => cancel::cancel(args, config, output).await,
         ServerSubcommand::Retry(args) => retry::retry(args, config, output).await,
     }
