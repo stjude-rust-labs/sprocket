@@ -42,6 +42,7 @@ use crate::config::FailureMode;
 use crate::http::Location;
 use crate::v1::requirements::ImageSource;
 
+pub mod images;
 mod trie;
 pub mod v1;
 

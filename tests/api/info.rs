@@ -52,6 +52,7 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
+        None,
     )
     .await
     .expect("failed to spawn run manager service");

@@ -1,0 +1,11 @@
+note: unknown container source
+  ┌─ source.wdl:8:20
+  │
+8 │         container: "unknown://foo"
+  │                    ^^^^^^^^^^^^^^^ this will not be included in the lockfile
+
+note: unknown container source
+   ┌─ source.wdl:17:21
+   │
+17 │         container: ["unknown://foo", "python:3"]
+   │                     ^^^^^^^^^^^^^^^ this will not be included in the lockfile

@@ -1998,7 +1998,7 @@ workflow test {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
 
         // Evaluate the `test` workflow in `source.wdl` using the default local
         // backend
@@ -2128,7 +2128,7 @@ workflow test {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2222,7 +2222,7 @@ workflow test {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2315,7 +2315,7 @@ workflow foo {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
 
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
@@ -2550,7 +2550,7 @@ workflow w {
         });
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default(), None);
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend
@@ -2650,7 +2650,7 @@ workflow w {
         });
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default(), None);
         evaluator
             .evaluate_workflow(
                 results
@@ -2718,7 +2718,7 @@ workflow w {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), cancellation.clone());
+        let evaluator = engine.create_v1_evaluator(Events::disabled(), cancellation.clone(), None);
 
         let mut evaluation = evaluator
             .evaluate_workflow(

@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Implemented `sprocket dev lock` to pin `task` container images
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+
+### Changed
+
+* The `--locked` flag in `run` has been renamed to `--lock-modules`
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* `run --locked` now enforces that all `task` container images have an entry in `sprocket.lock`
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+
 ## 0.32.0 - 2026-10-07
 
 ### Security Fix

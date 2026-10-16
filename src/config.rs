@@ -67,7 +67,7 @@ fn default_output_directory() -> &'static str {
 }
 
 /// The name of the Sprocket configuration file.
-const CONFIG_FILENAME: &str = "sprocket.toml";
+pub(crate) const CONFIG_FILENAME: &str = "sprocket.toml";
 
 /// Returns the user-level Sprocket configuration directory, the same root
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
