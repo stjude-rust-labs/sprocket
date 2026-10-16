@@ -47,6 +47,7 @@ use tracing::span;
 use tracing::subscriber::NoSubscriber;
 use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
@@ -67,6 +68,7 @@ use wdl::engine::config::RetryConfig;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::Config;
+use crate::FilterReloadHandle;
 use crate::Stdout;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -195,6 +197,10 @@ pub struct Args {
     /// TODO: danger
     #[clap(long)]
     pub trusted: bool,
+    /// Show STDOUT and STDERR of running custom assertions.
+    #[clap(long)]
+    pub show_assertion_stdio: bool,
+
     #[command(subcommand)]
     pub command: Option<Subcommand>,
 }
@@ -317,12 +323,38 @@ fn run_custom_bins<'a>(
             .args(args)
             .current_dir(exec_dir.path())
             .output()?;
+        let mut buffer: Vec<u8> = Vec::new();
         if !output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            warn!("custom assertion stdout: {stdout}");
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            warn!("custom assertion stderr: {stderr}");
+            log_stdio!(
+                warn,
+                buffer,
+                "custom-assertion-stderr",
+                bin.0.value,
+                &output.stderr
+            );
+            log_stdio!(
+                warn,
+                buffer,
+                "custom-assertion-stdout",
+                bin.0.value,
+                &output.stdout
+            );
             return Ok(Some(bin));
+        } else {
+            log_stdio!(
+                debug,
+                buffer,
+                "custom-assertion-stderr",
+                bin.0.value,
+                &output.stderr
+            );
+            log_stdio!(
+                debug,
+                buffer,
+                "custom-assertion-stdout",
+                bin.0.value,
+                &output.stdout
+            );
         }
     }
 
@@ -1152,6 +1184,7 @@ pub async fn test(
     mut config: Config,
     output: CommandOutput,
     stdout: Stdout,
+    filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
@@ -1161,6 +1194,18 @@ pub async fn test(
         return Ok(());
     } else if matches!(args.command, Some(Subcommand::BlessExecutables)) {
         todo!();
+    }
+
+    if args.show_assertion_stdio {
+        filter_handle
+            .modify(|filter| {
+                let current_directives = filter.to_string();
+                *filter = EnvFilter::builder().parse_lossy(format!(
+                    "{},custom-assertion-stdout=debug,custom-assertion-stderr=debug",
+                    current_directives
+                ));
+            })
+            .context("failed to modify tracing filter")?;
     }
 
     let report_mode = config.common.report_mode;
@@ -1454,6 +1499,7 @@ mod tests {
             exact: false,
             enable_custom_assertions: false,
             trusted: false,
+            show_assertion_stdio: false,
             command: None,
         }
     }

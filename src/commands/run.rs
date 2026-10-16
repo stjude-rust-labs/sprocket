@@ -326,8 +326,6 @@ struct Task {
 }
 
 impl Task {
-    const STDERR_BUFFER_SIZE: usize = 4096;
-
     fn new(name: Arc<String>, token: CancellationToken) -> Self {
         Self {
             name,
@@ -547,6 +545,44 @@ impl State {
     }
 }
 
+macro_rules! log_stdio {
+    ($lvl:ident, $buff:expr, $trgt:expr, $prefix:expr, $msg:expr) => {
+        let buff_size = 4096;
+        $buff.reserve(buff_size);
+        $buff.extend_from_slice($msg);
+        while let Some(line_end) = $buff.iter().position(|&b| b == b'\n') {
+            if line_end > buff_size {
+                tracing::$lvl!(
+                    target: $trgt,
+                    "{} {}",
+                    $prefix.magenta().bold(),
+                    format!("line too long, dropped {line_end} bytes").yellow()
+                );
+            } else {
+                let line_bytes = &$buff[..line_end];
+                let line = String::from_utf8_lossy(line_bytes);
+                tracing::$lvl!(
+                    target: $trgt,
+                    "{} {}",
+                    $prefix.magenta().bold(),
+                    line.blue()
+                );
+            }
+            $buff.drain(..=line_end);
+        }
+        if $buff.len() > buff_size {
+            tracing::$lvl!(
+                target: $trgt,
+                "{} {}",
+                $prefix.magenta().bold(),
+                format!("line too long, dropped {} bytes", $buff.len()).yellow()
+            );
+            $buff.clear();
+        }
+        $buff.shrink_to(buff_size);
+    }
+}
+
 /// Displays evaluation progress.
 async fn progress(
     progress_bar: tracing::Span,
@@ -713,46 +749,7 @@ async fn progress(
                                 continue;
                             };
 
-                            if task.stderr_buffer.capacity() == 0 {
-                                task.stderr_buffer.reserve(Task::STDERR_BUFFER_SIZE);
-                            }
-
-                            task.stderr_buffer.extend_from_slice(&message);
-                            while let Some(line_end) = task.stderr_buffer.iter().position(|&b| b == b'\n') {
-                                if line_end > Task::STDERR_BUFFER_SIZE {
-                                    tracing::warn!(
-                                        target: "task-stderr",
-                                        "{} {}",
-                                        task.name.magenta().bold(),
-                                        format!("line too long, dropped {line_end} bytes").yellow()
-                                    );
-                                } else {
-                                    let line_bytes = &task.stderr_buffer[..line_end];
-                                    let line = String::from_utf8_lossy(line_bytes);
-                                    tracing::debug!(
-                                        target: "task-stderr",
-                                        "{} {}",
-                                        task.name.magenta().bold(),
-                                        line.blue()
-                                    );
-                                }
-
-                                task.stderr_buffer.drain(..=line_end);
-                            }
-
-                            if task.stderr_buffer.len() > Task::STDERR_BUFFER_SIZE {
-                                tracing::warn!(
-                                    target: "task-stderr",
-                                    "{} {}",
-                                    task.name.magenta().bold(),
-                                    format!("line too long, dropped {} bytes", task.stderr_buffer.len()).yellow()
-                                );
-                                task.stderr_buffer.clear();
-                            }
-
-                            if task.stderr_buffer.capacity() > Task::STDERR_BUFFER_SIZE {
-                                task.stderr_buffer.shrink_to(Task::STDERR_BUFFER_SIZE);
-                            }
+                            log_stdio!(debug, task.stderr_buffer, "task-stderr", task.name, &message);
 
                             continue
                         }
