@@ -257,6 +257,11 @@ message = "testrun.wdl:12:10: note[MetaSections]: workflow `bowtie_example` is m
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie/testrun.wdl/#L12"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bowtie/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `BowtieSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie/testrun.wdl/#L6"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie/ww-bowtie.wdl"
 message = "ww-bowtie.wdl:115:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie/ww-bowtie.wdl/#L115"
@@ -270,6 +275,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/testrun.wdl"
 message = "testrun.wdl:12:10: note[MetaSections]: workflow `bowtie2_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/testrun.wdl/#L12"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `Bowtie2Sample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bowtie2/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bowtie2/ww-bowtie2.wdl"
@@ -325,6 +335,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
 message = "testrun.wdl:156:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L156"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `BwaSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bwa/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
@@ -937,6 +952,11 @@ message = "testrun.wdl:14:10: note[MetaSections]: workflow `deeptools_example` i
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/testrun.wdl/#L14"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `DeeptoolsSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/testrun.wdl/#L6"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
 message = "ww-deeptools.wdl:151:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L151"
@@ -1160,6 +1180,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/testrun.wdl"
 message = "testrun.wdl:12:10: note[MetaSections]: workflow `deepvariant_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/testrun.wdl/#L12"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `DeepVariantSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/testrun.wdl"
@@ -1632,6 +1657,11 @@ message = "testrun.wdl:17:10: note[MetaSections]: workflow `fastp_example` is mi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/testrun.wdl/#L17"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastp/testrun.wdl"
+message = "testrun.wdl:8:8: note[MetaSections]: struct `FastpSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/testrun.wdl/#L8"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastp/ww-fastp.wdl"
 message = "ww-fastp.wdl:156:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-fastp/ww-fastp.wdl/#L156"
@@ -1865,6 +1895,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:562:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L562"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:7:8: note[MetaSections]: struct `GatkSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/testrun.wdl/#L7"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -2325,6 +2360,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:230:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L230"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `IchorSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -2912,6 +2952,11 @@ message = "testrun.wdl:33:10: note[OutputName]: declaration identifier starts wi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/testrun.wdl/#L33"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `ShapeMapperSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/testrun.wdl/#L6"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
 message = "ww-shapemapper.wdl:60:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-shapemapper/ww-shapemapper.wdl/#L60"
@@ -2985,6 +3030,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:133:13: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L133"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `SmooveSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
@@ -3197,6 +3247,11 @@ message = "testrun.wdl:289:13: note[MutableContainerTag]: container URI uses a m
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L289"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `StarSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/testrun.wdl/#L6"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
 message = "ww-star.wdl:121:10: note[InputName]: declaration identifier must be at least 3 characters"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-star/ww-star.wdl/#L121"
@@ -3337,6 +3392,11 @@ message = "testrun.wdl:363:13: note[MutableContainerTag]: container URI uses a m
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L363"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `StrelkaSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/testrun.wdl/#L6"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:179:7: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L179"
@@ -3430,6 +3490,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
 message = "testrun.wdl:43:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/testrun.wdl/#L43"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
+message = "testrun.wdl:8:8: note[MetaSections]: struct `TemplateSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-template/testrun.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
@@ -3707,6 +3772,11 @@ message = "testrun.wdl:17:10: note[MetaSections]: workflow `trimgalore_example` 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-trimgalore/testrun.wdl/#L17"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-trimgalore/testrun.wdl"
+message = "testrun.wdl:8:8: note[MetaSections]: struct `TrimGaloreSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-trimgalore/testrun.wdl/#L8"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-trimgalore/ww-trimgalore.wdl"
 message = "ww-trimgalore.wdl:156:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-trimgalore/ww-trimgalore.wdl/#L156"
@@ -3725,6 +3795,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
 message = "testrun.wdl:13:10: note[MetaSections]: workflow `tritonnp_example` is missing a `parameter_meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/testrun.wdl/#L13"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `TritonSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
@@ -3805,6 +3880,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/testrun.wdl"
 message = "testrun.wdl:17:10: note[MetaSections]: workflow `umi_tools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/testrun.wdl/#L17"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `DedupSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-umi-tools/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-umi-tools/ww-umi-tools.wdl"
@@ -3937,14 +4017,49 @@ message = "testrun.wdl:12:10: note[MetaSections]: workflow `bwa_gatk_example` is
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-bwa-gatk/testrun.wdl/#L12"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-bwa-gatk/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `BwaSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-bwa-gatk/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-bwa-gatk/ww-bwa-gatk.wdl"
+message = "ww-bwa-gatk.wdl:6:8: note[MetaSections]: struct `BwaSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-bwa-gatk/ww-bwa-gatk.wdl/#L6"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-ena-star/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `ena_star_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-ena-star/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-ena-star/ww-ena-star.wdl"
+message = "ww-ena-star.wdl:6:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-ena-star/ww-ena-star.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:13:8: note[MetaSections]: struct `SampleData` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/testrun.wdl/#L13"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `fastq_to_cram_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/testrun.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:7:8: note[MetaSections]: struct `FastqGroup` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:11:8: note[MetaSections]: struct `FastqGroup` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L11"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:17:8: note[MetaSections]: struct `SampleData` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L17"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
@@ -4082,14 +4197,49 @@ message = "testrun_hpc.wdl:12:10: note[MetaSections]: workflow `leukemia_test` i
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/testrun_hpc.wdl/#L12"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-leukemia/ww-leukemia.wdl"
+message = "ww-leukemia.wdl:55:8: note[MetaSections]: struct `SampleDetails` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-leukemia/ww-leukemia.wdl/#L55"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/testrun.wdl"
+message = "testrun.wdl:13:8: note[MetaSections]: struct `ProseqReferences` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/testrun.wdl/#L13"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `proseq_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/testrun.wdl/#L20"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/testrun.wdl"
+message = "testrun.wdl:7:8: note[MetaSections]: struct `ProseqSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/ww-proseq.wdl"
+message = "ww-proseq.wdl:10:8: note[MetaSections]: struct `ProseqSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/ww-proseq.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-proseq/ww-proseq.wdl"
+message = "ww-proseq.wdl:16:8: note[MetaSections]: struct `ProseqReferences` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-proseq/ww-proseq.wdl/#L16"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/testrun.wdl"
 message = "testrun.wdl:13:10: note[MetaSections]: workflow `rnaseq_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/testrun.wdl/#L13"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/testrun.wdl"
+message = "testrun.wdl:7:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
+message = "ww-rnaseq.wdl:12:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-rnaseq/ww-rnaseq.wdl"
@@ -4172,9 +4322,39 @@ message = "ww-rnaseq.wdl:455:13: note[MutableContainerTag]: container URI uses a
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-rnaseq/ww-rnaseq.wdl/#L455"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-saturation/testrun.wdl"
+message = "testrun.wdl:6:8: note[MetaSections]: struct `SaturationSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-saturation/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-saturation/ww-saturation.wdl"
+message = "ww-saturation.wdl:6:8: note[MetaSections]: struct `SaturationSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-saturation/ww-saturation.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-splicing-proteomics/testrun.wdl"
+message = "testrun.wdl:14:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/testrun.wdl/#L14"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-splicing-proteomics/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `splicing_proteomics_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/testrun.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-splicing-proteomics/testrun.wdl"
+message = "testrun.wdl:7:8: note[MetaSections]: struct `SampleInfo` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl"
+message = "ww-splicing-proteomics.wdl:13:8: note[MetaSections]: struct `SampleInfo` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl/#L13"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl"
+message = "ww-splicing-proteomics.wdl:20:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-splicing-proteomics/ww-splicing-proteomics.wdl/#L20"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-cellranger/testrun.wdl"
@@ -4292,14 +4472,44 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_salmon_example` i
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-salmon/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-salmon/ww-sra-salmon.wdl"
+message = "ww-sra-salmon.wdl:6:8: note[MetaSections]: struct `SalmonSample` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-salmon/ww-sra-salmon.wdl/#L6"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-star/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_star_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-star/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-sra-star/ww-sra-star.wdl"
+message = "ww-sra-star.wdl:6:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-sra-star/ww-sra-star.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:14:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-star-deseq2/testrun.wdl/#L14"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `star_deseq2_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-star-deseq2/testrun.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:7:8: note[MetaSections]: struct `SampleInfo` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-star-deseq2/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:15:8: note[MetaSections]: struct `RefGenome` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-star-deseq2/ww-star-deseq2.wdl/#L15"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:8:8: note[MetaSections]: struct `SampleInfo` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-star-deseq2/ww-star-deseq2.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-starling-batch/testrun.wdl"
@@ -4310,6 +4520,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
 message = "flag_filter.wdl:110:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/flag_filter.wdl/#L110"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:63:8: note[MetaSections]: struct `FlagFilter` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/flag_filter.wdl/#L63"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
@@ -4345,6 +4560,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:425:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/read_group.wdl/#L425"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:46:8: note[MetaSections]: struct `ReadGroup` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/read_group.wdl/#L46"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
@@ -5000,6 +5220,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:902:20: note[MutableContainerTag]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L902"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:910:8: note[MetaSections]: struct `SpliceJunctionMotifs` is missing a doc comment for the struct and each of the struct's fields"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L910"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
