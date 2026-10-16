@@ -1,4 +1,4 @@
-note[ShellCheck]: Couldn't parse this test expression. Fix to allow more checks.
+warning[ShellCheck]: Couldn't parse this test expression. Fix to allow more checks.
    ┌─ tests/lints/shellcheck-error/source.wdl:19:12
    │
 19 │         if [ -f "$broken"]
@@ -9,7 +9,7 @@ note[ShellCheck]: Couldn't parse this test expression. Fix to allow more checks.
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Expected this to be an argument to the unary condition.
+warning[ShellCheck]: Expected this to be an argument to the unary condition.
    ┌─ tests/lints/shellcheck-error/source.wdl:19:17
    │
 19 │         if [ -f "$broken"]
@@ -20,7 +20,7 @@ note[ShellCheck]: Expected this to be an argument to the unary condition.
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: You need a space before the ].
+warning[ShellCheck]: You need a space before the ].
    ┌─ tests/lints/shellcheck-error/source.wdl:19:27
    │
 19 │         if [ -f "$broken"]
@@ -31,7 +31,7 @@ note[ShellCheck]: You need a space before the ].
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Couldn't parse this test expression. Fix to allow more checks.
+warning[ShellCheck]: Couldn't parse this test expression. Fix to allow more checks.
    ┌─ tests/lints/shellcheck-error/source.wdl:38:12
    │
 38 │         if [ -f "$broken"]
@@ -42,7 +42,7 @@ note[ShellCheck]: Couldn't parse this test expression. Fix to allow more checks.
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Expected this to be an argument to the unary condition.
+warning[ShellCheck]: Expected this to be an argument to the unary condition.
    ┌─ tests/lints/shellcheck-error/source.wdl:38:17
    │
 38 │         if [ -f "$broken"]
@@ -53,7 +53,7 @@ note[ShellCheck]: Expected this to be an argument to the unary condition.
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: You need a space before the ].
+warning[ShellCheck]: You need a space before the ].
    ┌─ tests/lints/shellcheck-error/source.wdl:38:27
    │
 38 │         if [ -f "$broken"]

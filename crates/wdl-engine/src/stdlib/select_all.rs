@@ -16,7 +16,7 @@ use crate::Value;
 /// If the input array is empty or contains only None values, an empty array is
 /// returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#select_all
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#select_all>
 fn select_all(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(

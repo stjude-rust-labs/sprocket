@@ -28,7 +28,7 @@ const FUNCTION_NAME: &str = "write_lines";
 ///
 /// If the Array is empty, an empty file is written.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_lines
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_lines>
 fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

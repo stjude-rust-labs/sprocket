@@ -17,7 +17,7 @@ use crate::Value;
 ///
 /// The elements in the concatenated array are not deduplicated.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#flatten
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#flatten>
 fn flatten(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(

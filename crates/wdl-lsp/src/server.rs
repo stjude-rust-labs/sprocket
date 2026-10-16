@@ -45,7 +45,6 @@ use url::Url;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
-use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::FeatureFlags;
 use wdl_analysis::FormatConfig;
 use wdl_analysis::IncrementalChange;
@@ -58,6 +57,7 @@ use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 use wdl_analysis::path_to_uri;
 use wdl_lint::Linter;
 use wdl_lint::Rule;
+use wdl_lint::RuleSeverity;
 
 use crate::handlers;
 use crate::proto;
@@ -274,8 +274,8 @@ pub struct ServerOptions {
     /// Context for resolving symbolic module imports.
     pub resolution_context: wdl_analysis::ResolutionContext,
 
-    /// Analysis or lint rule IDs to except (ignore).
-    pub exceptions: Vec<String>,
+    /// Analysis or lint rule IDs to disable.
+    pub disable: Vec<String>,
 
     /// Basename for any ignorefiles which should be respected.
     pub ignore_filename: Option<String>,
@@ -302,7 +302,7 @@ impl Default for ServerOptions {
         Self {
             name: String::from(env!("CARGO_CRATE_NAME")),
             version: String::from(env!("CARGO_PKG_VERSION")),
-            exceptions: Vec::new(),
+            disable: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
             resolution_context: Default::default(),
@@ -342,7 +342,9 @@ impl Default for UserOptions {
 pub struct LintOptions {
     /// Whether or not linting is enabled.
     pub enabled: bool,
-    /// The lint rule configuration.
+    /// The rule configuration.
+    ///
+    /// This applies to analysis rules even when linting is disabled.
     #[patch(skip)]
     pub config: Arc<wdl_lint::Config>,
 }
@@ -454,22 +456,29 @@ struct ServerConfig {
     analyzer: Analyzer<ProgressToken>,
 }
 
+/// Gets the rule configuration with the server's excepted rules turned off.
+fn rules_config(options: &ServerOptions, lint_options: &LintOptions) -> wdl_lint::Config {
+    let mut config = (*lint_options.config).clone();
+    for disable in &options.disable {
+        config.set_severity(disable, RuleSeverity::Off);
+    }
+    config
+}
+
 /// Create an [`Analyzer`] validator for the current LSP configuration.
 fn validator(
     options: &ServerOptions,
     lint_options: &LintOptions,
 ) -> impl Fn() -> Validator + Send + Sync + 'static {
-    let exceptions = options.exceptions.clone();
     let linting_enabled = lint_options.enabled;
-    let lint_config = lint_options.config.clone();
+    let rules_config = rules_config(options, lint_options);
 
     move || {
         let mut validator = Validator::default();
         if linting_enabled {
             validator.add_visitor(Linter::new(
-                wdl_lint::rules(&lint_config)
+                wdl_lint::rules(&rules_config)
                     .into_iter()
-                    .filter(|r| !exceptions.contains(&r.id().into()))
                     .map(|r| r as Box<dyn Rule>),
             ));
         }
@@ -488,7 +497,6 @@ impl ServerOptions {
         client: ClientSocket,
         lint_options: &LintOptions,
     ) -> Analyzer<ProgressToken> {
-        let exceptions = self.exceptions.clone();
         let ignore_name = self.ignore_filename.clone();
         let analyzer_client = client.clone();
 
@@ -504,11 +512,7 @@ impl ServerOptions {
         // behavior; see https://github.com/stjude-rust-labs/wdl/issues/517
         let analyzer_config = AnalysisConfig::default()
             .with_fallback_version(Some(Default::default()))
-            .with_diagnostics_config(DiagnosticsConfig::new(
-                wdl_analysis::rules()
-                    .iter()
-                    .filter(|r| !exceptions.contains(&r.id().into())),
-            ))
+            .with_diagnostics_config(rules_config(self, lint_options).diagnostics_config())
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
             .with_feature_flags(self.feature_flags)

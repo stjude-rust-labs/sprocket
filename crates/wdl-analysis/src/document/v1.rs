@@ -54,6 +54,7 @@ use super::ImportedStruct;
 use super::ImportedTask;
 use super::ImportedWorkflow;
 use super::Input;
+use super::NameVisibility;
 use super::Namespace;
 use super::Output;
 use super::Scope;
@@ -1600,6 +1601,7 @@ fn add_task(
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
+                    NameVisibility::Exported,
                     |_, _, n, _| task.inputs[n].ty.clone(),
                 ) {
                     continue;
@@ -1647,6 +1649,7 @@ fn add_task(
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
+                    NameVisibility::Local,
                     |cache, diagnostics, _, decl| {
                         convert_ast_type(cache, diagnostics, &decl.ty(), Some(signature_hash))
                     },
@@ -1693,6 +1696,7 @@ fn add_task(
                     document,
                     ScopeRefMut::new(&mut task.scopes, scope_index),
                     &decl,
+                    NameVisibility::Exported,
                     |_, _, n, _| task.outputs[n].ty.clone(),
                 );
             }
@@ -1826,6 +1830,7 @@ fn add_task(
 }
 
 /// Adds a declaration to a scope.
+#[allow(clippy::too_many_arguments)]
 fn add_decl(
     cache: &mut AnalysisCache,
     diagnostics: &mut Diagnostics,
@@ -1833,6 +1838,7 @@ fn add_decl(
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
     decl: &Decl,
+    visibility: NameVisibility,
     ty: impl FnOnce(&mut AnalysisCache, &mut Diagnostics, &str, &Decl) -> Type,
 ) -> bool {
     let (name, expr) = (decl.name(), decl.expr());
@@ -1842,7 +1848,7 @@ fn add_decl(
     }
 
     let ty = ty(cache, diagnostics, name.text(), decl);
-    scope.insert(name.text(), name.span(), ty.clone());
+    scope.insert_with_visibility(name.text(), name.span(), ty.clone(), visibility);
 
     if let Some(expr) = expr {
         type_check_expr(
@@ -2014,6 +2020,7 @@ fn populate_workflow(
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
                     &decl,
+                    NameVisibility::Exported,
                     |_, _, n, _| inputs[n].ty.clone(),
                 ) {
                     continue;
@@ -2048,6 +2055,7 @@ fn populate_workflow(
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
+                    NameVisibility::Local,
                     |cache, diagnostics, _, decl| {
                         convert_ast_type(cache, diagnostics, &decl.ty(), Some(signature_hash))
                     },
@@ -2092,6 +2100,7 @@ fn populate_workflow(
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
+                    NameVisibility::Exported,
                     |_, _, n, _| outputs[n].ty.clone(),
                 );
             }
@@ -2224,7 +2233,15 @@ fn populate_workflow(
                 let (left, right) = scopes.split_at_mut(parent.0 + 1);
                 let scope = &right[scope_index.0 - parent.0 - 1];
                 let parent = &mut left[parent.0];
-                for (name, Name { span, ty }) in scope.names.iter() {
+                for (
+                    name,
+                    Name {
+                        span,
+                        ty,
+                        visibility,
+                    },
+                ) in scope.names.iter()
+                {
                     if name.as_str() == variable.text() {
                         continue;
                     }
@@ -2232,6 +2249,7 @@ fn populate_workflow(
                     parent.names.entry(name.clone()).or_insert_with(|| Name {
                         span: *span,
                         ty: ty.promote_scatter(),
+                        visibility: *visibility,
                     });
                 }
             }

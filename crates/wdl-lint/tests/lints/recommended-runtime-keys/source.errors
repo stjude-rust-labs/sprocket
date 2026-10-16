@@ -1,0 +1,16 @@
+note[RecommendedRuntimeKeys]: the following runtime keys are recommended by the WDL 1.0 specification: `docker` and `memory`
+  ┌─ tests/lints/recommended-runtime-keys/source.wdl:7:5
+  │
+7 │     runtime {}
+  │     ^^^^^^^
+  │
+  = fix: include entries for the `docker` and `memory` keys in the `runtime` section
+
+note[RecommendedRuntimeKeys]: the following runtime key is recommended by the WDL 1.0 specification: `memory`
+   ┌─ tests/lints/recommended-runtime-keys/source.wdl:15:5
+   │
+15 │     runtime {
+   │     ^^^^^^^
+   │
+   = fix: include an entry for the `memory` key in the `runtime` section
+

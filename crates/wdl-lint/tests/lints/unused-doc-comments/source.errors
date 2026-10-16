@@ -3,17 +3,8 @@ note[UnusedDocComments]: unused doc comment
    │  
 37 │ ╭     ## The user should be warned about this doc comment as it targets
 38 │ │     ## command, despite the interruption below.
-   │ ╰───────────────────────────────────────────────^
-   ·  
-44 │       command <<<
-   │       ------- documentation will not be generated for this item
-   │  
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
-
-note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:40:5
-   │  
-40 │ ╭     ## Commands don't support doc comments so the user should be warned here.
+39 │ │     # regular comments do not split a documentation block
+40 │ │     ## Commands don't support doc comments so the user should be warned here.
 41 │ │     ## about this multiline comment with whitespace...
 42 │ │     ##
 43 │ │     ## ... that isn't doing anything!
@@ -29,26 +20,22 @@ note[UnusedDocComments]: unused doc comment
 52 │ ╭     ## doc comment
 53 │ │     ## more text
 54 │ │     ## these 3 lines should all be highlighted by one span
-   │ ╰──────────────────────────────────────────────────────────^
-   ·  
-65 │       command <<<>>>
-   │       ------- documentation will not be generated for this item
+55 │ │     #@ directive
+56 │ │     # regular comment
+57 │ │     ## these comments remain in the same documentation block
+58 │ │     ## because regular comments and directives do not split it
+   │ ╰──────────────────────────────────────────────────────────────^
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:57:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:60:5
    │  
-57 │ ╭     ## another doc comment block
-58 │ │     ## that gets a new diagnostic fired with a new span
-59 │ │ 
-60 │ │     ## but there's a blank line in the middle!
-61 │ │     ## but we are going to consider these consecutive anyway
-62 │ │     ## this line and the prior 5 lines should all be in the same highlighted span
-   │ ╰─────────────────────────────────────────────────────────────────────────────────^
-   ·  
-65 │       command <<<>>>
-   │       ------- documentation will not be generated for this item
+60 │ ╭     ## now there's a blank line in the middle!
+61 │ │     ## a blank line starts a separate floating documentation block
+62 │ │     ## that receives its own diagnostic
+63 │ │     # another regular comment for good measure
+   │ ╰──────────────────────────────────────────────^
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
@@ -104,13 +91,13 @@ note[UnusedDocComments]: unused doc comment
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:92:5
-   │
-92 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-93 │     #@ except: UnusedDeclaration
-94 │     Person p = Person {
-   │     ------ documentation will not be generated for this item
-   │
+   │  
+92 │ ╭     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
+93 │ │     #@ except: UnusedDeclaration
+   │ ╰────────────────────────────────^
+94 │       Person p = Person {
+   │       ------ documentation will not be generated for this item
+   │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
@@ -174,9 +161,25 @@ note[UnusedDocComments]: unused doc comment
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:121:1
+    ┌─ tests/lints/unused-doc-comments/source.wdl:122:1
     │
-121 │ ## Trailing Doc Comment should be linted
+122 │ ## This comment is floating. It doesn't document `floating_comment`, and should be linted
+    │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = help: doc comments must be attached to the item to be recognized
+
+note[UnusedDocComments]: unused doc comment
+    ┌─ tests/lints/unused-doc-comments/source.wdl:128:1
+    │
+128 │ ## I'm floating, so I don't document the task...
+    │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = help: doc comments must be attached to the item to be recognized
+
+note[UnusedDocComments]: unused doc comment
+    ┌─ tests/lints/unused-doc-comments/source.wdl:134:1
+    │
+134 │ ## Trailing Doc Comment should be linted
     │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item

@@ -3,7 +3,7 @@
 version 1.1
 
 # This applies only to the struct and everything in it
-#@ except: PascalCase, SnakeCase
+#@ except: NamingConvention
 struct OK {         # OK
     Int AlsoOk      # OK
     Int OKTOO       # OK
@@ -11,7 +11,7 @@ struct OK {         # OK
 
 # This applies to the specified members only
 struct Ok {         # OK
-    #@ except: SnakeCase
+    #@ except: NamingConvention
     Int AlsoOk      # OK
     Int NotOk       # NOT OK
 }

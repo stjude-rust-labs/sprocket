@@ -1,7 +1,12 @@
 //! Sparse checkout and materialization operations for Git cache leaves.
 
+use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::collections::HashSet;
+use std::fmt;
 use std::path::Path;
+use std::path::PathBuf;
 
 use git2::Repository;
 use serde::Deserialize;
@@ -18,11 +23,119 @@ use super::cache_store::sparse_meta_path;
 use super::creds::default_fetch_options;
 use super::error::classify;
 
-/// The module folders currently materialized in a sparse-checkout cache
-/// leaf.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(transparent)]
-struct SparseMeta(BTreeSet<String>);
+/// A repository-relative path selected by a sparse checkout.
+///
+/// Paths are compared by component, so `lib` covers `lib/common` but not
+/// `library`. The root, written `.`, covers everything.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[serde(from = "String", into = "String")]
+enum SparsePath {
+    /// The whole repository.
+    Root,
+    /// A `/`-separated path below the repository root.
+    Sub(String),
+}
+
+impl SparsePath {
+    /// Parses a sparse path, treating `.` and the empty string as the root.
+    fn new<'a>(path: impl Into<Cow<'a, str>>) -> Self {
+        let path = path.into();
+        match path.as_ref() {
+            "" | "." => Self::Root,
+            _ => Self::Sub(path.into_owned()),
+        }
+    }
+
+    /// Returns the path as written in sparse metadata.
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Root => ".",
+            Self::Sub(path) => path,
+        }
+    }
+
+    /// Returns the path below the root, or `None` for the root itself.
+    fn as_sub(&self) -> Option<&str> {
+        match self {
+            Self::Root => None,
+            Self::Sub(path) => Some(path),
+        }
+    }
+
+    /// Returns whether materializing `self` also materializes `other`.
+    fn covers(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Root, _) => true,
+            (Self::Sub(_), Self::Root) => false,
+            (Self::Sub(this), Self::Sub(other)) => other
+                .strip_prefix(this.as_str())
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/')),
+        }
+    }
+
+    /// Returns the child path `name` below `self`.
+    fn join(&self, name: &str) -> Self {
+        match self {
+            Self::Root => Self::Sub(name.to_string()),
+            Self::Sub(path) => Self::Sub(format!("{path}/{name}")),
+        }
+    }
+
+    /// Returns the proper ancestors of `self` below the root, outermost
+    /// first.
+    fn ancestors(&self) -> impl Iterator<Item = &str> {
+        let path = self.as_sub().unwrap_or_default();
+        path.match_indices('/').map(|(index, _)| &path[..index])
+    }
+
+    /// Returns whether this is the leaf's own `.git` directory.
+    fn is_git_dir(&self) -> bool {
+        self.as_sub() == Some(".git")
+    }
+
+    /// Returns where this path is materialized inside `leaf`.
+    fn worktree_path(&self, leaf: &Path) -> PathBuf {
+        match self {
+            Self::Root => leaf.to_path_buf(),
+            Self::Sub(path) => leaf.join(path),
+        }
+    }
+
+    /// Deduplicates `paths` and drops any path covered by another one.
+    fn normalize(paths: impl IntoIterator<Item = Self>) -> BTreeSet<Self> {
+        let unique: BTreeSet<Self> = paths.into_iter().collect();
+        unique
+            .iter()
+            .filter(|path| {
+                !unique
+                    .iter()
+                    .any(|other| other != *path && other.covers(path))
+            })
+            .cloned()
+            .collect()
+    }
+}
+
+impl From<String> for SparsePath {
+    fn from(path: String) -> Self {
+        Self::new(path)
+    }
+}
+
+impl From<SparsePath> for String {
+    fn from(path: SparsePath) -> Self {
+        match path {
+            SparsePath::Root => ".".into(),
+            SparsePath::Sub(path) => path,
+        }
+    }
+}
+
+impl fmt::Display for SparsePath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// Statistics about a Git tree object collected without checkout by
 /// walking the tree's blob entries.
@@ -57,24 +170,23 @@ pub(crate) fn inspect_subtree_stats(
     let root_tree = commit
         .tree()
         .map_err(|source| GitError::Object { source })?;
-    let subtree = if path.is_empty() || path == "." {
-        root_tree
-    } else {
-        let entry = root_tree
-            .get_path(Path::new(path))
-            .map_err(|source| GitError::Object { source })?;
-        repo.find_tree(entry.id())
-            .map_err(|source| GitError::Object { source })?
+    let subtree = match SparsePath::new(path).as_sub() {
+        None => root_tree,
+        Some(sub) => {
+            let entry = root_tree
+                .get_path(Path::new(sub))
+                .map_err(|source| GitError::Object { source })?;
+            repo.find_tree(entry.id())
+                .map_err(|source| GitError::Object { source })?
+        }
     };
     let mut blob_oids = Vec::new();
-    subtree
-        .walk(git2::TreeWalkMode::PreOrder, |_, entry| {
-            if entry.kind() == Some(git2::ObjectType::Blob) {
-                blob_oids.push(entry.id());
-            }
-            git2::TreeWalkResult::Ok
-        })
-        .map_err(|source| GitError::Object { source })?;
+    walk_tree(&subtree, |_, entry| {
+        if entry.kind() == Some(git2::ObjectType::Blob) {
+            blob_oids.push(entry.id());
+        }
+        Ok(())
+    })?;
 
     let odb = repo.odb().map_err(|source| GitError::Object { source })?;
     let mut stats = GitTreeStats {
@@ -100,22 +212,22 @@ pub(crate) fn inspect_subtree_stats(
 
 /// Checks that the tree statistics at each of the given `paths` fall within
 /// configured limits.
-pub(crate) fn enforce_tree_limits(
+fn enforce_tree_limits<'p>(
     repo: &Repository,
     oid: git2::Oid,
-    paths: &[String],
+    paths: impl IntoIterator<Item = &'p SparsePath>,
     limits: TreeLimits,
 ) -> Result<(), GitError> {
     if limits.max_files.is_none() && limits.max_bytes.is_none() {
         return Ok(());
     }
     for path in paths {
-        let stats = inspect_subtree_stats(repo, oid, path)?;
+        let stats = inspect_subtree_stats(repo, oid, path.as_str())?;
         let files_exceeded = limits.max_files.is_some_and(|limit| stats.files > limit);
         let bytes_exceeded = limits.max_bytes.is_some_and(|limit| stats.bytes > limit);
         if files_exceeded || bytes_exceeded {
             return Err(GitError::TreeLimitExceeded {
-                path: path.clone(),
+                path: path.to_string(),
                 files: stats.files,
                 bytes: stats.bytes,
                 max_files: limits.max_files,
@@ -126,17 +238,262 @@ pub(crate) fn enforce_tree_limits(
     Ok(())
 }
 
-/// Materializes only the listed module folders from the repo's HEAD
-/// tree using libgit2's path-filtered checkout.
-fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitError> {
-    let head_commit = repo
-        .head()
-        .map_err(|source| GitError::Object { source })?
-        .peel_to_commit()
-        .map_err(|source| GitError::Object { source })?;
-    let tree = head_commit
-        .tree()
-        .map_err(|source| GitError::Object { source })?;
+/// Returns whether HFS+ ignores `c` when comparing file names.
+///
+/// This is the set Git itself strips when checking for `.git` aliases on
+/// HFS+ (see `is_hfs_dotgit` in Git's `utf8.c`).
+fn is_hfs_ignorable(c: char) -> bool {
+    matches!(
+        c,
+        '\u{200C}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{206A}'..='\u{206F}' | '\u{FEFF}'
+    )
+}
+
+/// Returns the name a case-folding filesystem would store `name` under.
+///
+/// Two entries with the same key can land on the same file on macOS or
+/// Windows. The key ignores ASCII and Unicode case, the code points HFS+
+/// ignores, and the trailing dots and spaces NTFS strips. Unicode
+/// normalization is not folded.
+fn collision_key(name: &str) -> String {
+    let name: String = name.chars().filter(|c| !is_hfs_ignorable(*c)).collect();
+    name.trim_end_matches(['.', ' ']).to_lowercase()
+}
+
+/// Checks that `name` is safe to create as one path component.
+///
+/// Rejects names that are empty, `.` or `..`, that contain a path separator,
+/// NUL, or `:` (a Windows drive prefix or NTFS stream separator), or that a
+/// common filesystem treats as `.git` (including the NTFS short name
+/// `git~1`).
+fn check_entry_name(name: &str) -> Result<(), &'static str> {
+    if name.is_empty() {
+        return Err("an entry has an empty name");
+    }
+    if name == "." || name == ".." {
+        return Err("an entry is named `.` or `..`");
+    }
+    if name.contains(['/', '\\']) {
+        return Err("an entry name contains a path separator");
+    }
+    if name.contains('\0') {
+        return Err("an entry name contains a NUL byte");
+    }
+    if name.contains(':') {
+        return Err("an entry name contains `:`");
+    }
+    let key = collision_key(name);
+    if key == ".git" || key == "git~1" {
+        return Err("an entry is named like the Git metadata directory `.git`");
+    }
+    Ok(())
+}
+
+/// Checks that `entry` is a regular file or a directory.
+fn check_entry_mode(entry: &git2::TreeEntry<'_>) -> Result<(), &'static str> {
+    const BLOB: i32 = 0o100644;
+    const BLOB_GROUP_WRITABLE: i32 = 0o100664;
+    const BLOB_EXECUTABLE: i32 = 0o100755;
+    const TREE: i32 = 0o040000;
+    const LINK: i32 = 0o120000;
+    const COMMIT: i32 = 0o160000;
+    match (entry.filemode(), entry.kind()) {
+        (BLOB | BLOB_GROUP_WRITABLE | BLOB_EXECUTABLE, Some(git2::ObjectType::Blob))
+        | (TREE, Some(git2::ObjectType::Tree)) => Ok(()),
+        (LINK, _) => Err("it is a symbolic link"),
+        (COMMIT, _) => Err("it is a submodule"),
+        _ => Err("it has an unsupported file mode"),
+    }
+}
+
+/// Returns a [`GitError::UnsafeTreeEntry`] for the entry `name` below
+/// `parent`.
+fn unsafe_entry(parent: &SparsePath, name: &str, reason: &'static str) -> GitError {
+    GitError::UnsafeTreeEntry {
+        path: parent.join(&name.escape_debug().to_string()).to_string(),
+        reason,
+    }
+}
+
+/// Validates the parts of a hostile Git tree that a sparse checkout writes
+/// to disk.
+///
+/// libgit2 creates symbolic links and submodule directories from a tree,
+/// and in a tree with two entries of the same name it writes the later
+/// entry through a link it just created. So every entry that checkout may
+/// write is validated before anything touches the worktree.
+struct TreeValidator<'r> {
+    /// The repository holding the trees.
+    repo: &'r Repository,
+    /// Trees already validated in full, by object ID.
+    validated: HashSet<git2::Oid>,
+}
+
+impl<'r> TreeValidator<'r> {
+    /// Creates a validator for trees in `repo`.
+    fn new(repo: &'r Repository) -> Self {
+        Self {
+            repo,
+            validated: HashSet::new(),
+        }
+    }
+
+    /// Validates everything a checkout of `path` from `root` may write.
+    ///
+    /// Each tree on the way from `root` to `path` has its entry names
+    /// checked, because libgit2 matches a literal path against the entries of
+    /// every ancestor tree. The entry at `path` and everything below it must
+    /// also be a regular file or directory.
+    fn check_path(&mut self, root: &git2::Tree<'r>, path: &SparsePath) -> Result<(), GitError> {
+        let Some(sub) = path.as_sub() else {
+            return self.check_subtree(root.clone(), SparsePath::Root);
+        };
+        for component in sub.split('/') {
+            check_entry_name(component).map_err(|reason| GitError::UnsafeTreeEntry {
+                path: path.as_str().escape_debug().to_string(),
+                reason,
+            })?;
+        }
+        let mut tree = root.clone();
+        let mut parent = SparsePath::Root;
+        let mut components = sub.split('/').peekable();
+        while let Some(component) = components.next() {
+            self.check_names(&tree, &parent)?;
+            // Names that collide are rejected above, so at most one entry
+            // matches. The match ignores case because libgit2 does on
+            // case-insensitive filesystems.
+            let key = collision_key(component);
+            let Some(entry) = tree
+                .iter()
+                .find(|entry| entry.name().is_ok_and(|name| collision_key(name) == key))
+            else {
+                return Ok(());
+            };
+            let name = tree_entry_name(&entry)?;
+            check_entry_mode(&entry).map_err(|reason| unsafe_entry(&parent, name, reason))?;
+            if entry.kind() != Some(git2::ObjectType::Tree) {
+                // Nothing below a regular file is materialized.
+                return Ok(());
+            }
+            let child = parent.join(name);
+            let id = entry.id();
+            drop(entry);
+            let subtree = self
+                .repo
+                .find_tree(id)
+                .map_err(|source| GitError::Object { source })?;
+            if components.peek().is_none() {
+                return self.check_subtree(subtree, child);
+            }
+            tree = subtree;
+            parent = child;
+        }
+        Ok(())
+    }
+
+    /// Checks that no entry name in `tree` is unsafe and that no two names
+    /// collide.
+    fn check_names(&self, tree: &git2::Tree<'_>, parent: &SparsePath) -> Result<(), GitError> {
+        let mut keys = HashSet::new();
+        for entry in tree.iter() {
+            let name = entry.name().map_err(|_| GitError::UnsafeTreeEntry {
+                path: parent
+                    .join(&String::from_utf8_lossy(entry.name_bytes()))
+                    .to_string(),
+                reason: "an entry name is not valid UTF-8",
+            })?;
+            check_entry_name(name).map_err(|reason| unsafe_entry(parent, name, reason))?;
+            if !keys.insert(collision_key(name)) {
+                return Err(unsafe_entry(
+                    parent,
+                    name,
+                    "its tree has another entry with the same name, ignoring case",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Validates `tree`, found at `path`, and every tree below it.
+    fn check_subtree(&mut self, tree: git2::Tree<'r>, path: SparsePath) -> Result<(), GitError> {
+        let mut pending = vec![(tree, path)];
+        while let Some((tree, path)) = pending.pop() {
+            // Validity depends only on a tree's content, so a tree shared by
+            // several paths is checked once.
+            if !self.validated.insert(tree.id()) {
+                continue;
+            }
+            self.check_names(&tree, &path)?;
+            for entry in tree.iter() {
+                let name = tree_entry_name(&entry)?;
+                check_entry_mode(&entry).map_err(|reason| unsafe_entry(&path, name, reason))?;
+                if entry.kind() == Some(git2::ObjectType::Tree) {
+                    let subtree = self
+                        .repo
+                        .find_tree(entry.id())
+                        .map_err(|source| GitError::Object { source })?;
+                    pending.push((subtree, path.join(name)));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// A leaf's HEAD tree, validated for checkout at a set of sparse paths.
+///
+/// [`apply_sparse_checkout`] only accepts a checked tree, so hostile tree
+/// content is always rejected before anything is written.
+struct CheckedTree<'r> {
+    /// The validated tree.
+    tree: git2::Tree<'r>,
+    /// The sparse paths the tree was validated at.
+    paths: Vec<SparsePath>,
+}
+
+impl<'r> CheckedTree<'r> {
+    /// Reads the HEAD tree of `repo` and validates it at `paths`.
+    fn new<'p>(
+        repo: &'r Repository,
+        paths: impl IntoIterator<Item = &'p SparsePath>,
+    ) -> Result<Self, GitError> {
+        let tree = head_tree(repo)?;
+        let paths: Vec<SparsePath> = paths.into_iter().cloned().collect();
+        let mut validator = TreeValidator::new(repo);
+        for path in &paths {
+            validator.check_path(&tree, path)?;
+        }
+        Ok(Self { tree, paths })
+    }
+
+    /// Returns whether `path` lies within a validated sparse path.
+    fn covers(&self, path: &SparsePath) -> bool {
+        self.paths.iter().any(|checked| checked.covers(path))
+    }
+}
+
+/// Materializes only the listed repository-relative paths from a checked
+/// HEAD tree using libgit2's path-filtered checkout.
+///
+/// Each path is matched literally and covers everything beneath it. The
+/// path `.` selects the whole tree. An empty list writes nothing. Every
+/// path must lie within a path `tree` was validated at.
+fn apply_sparse_checkout<'p>(
+    repo: &Repository,
+    tree: &CheckedTree<'_>,
+    paths: impl IntoIterator<Item = &'p SparsePath>,
+) -> Result<(), GitError> {
+    let paths: Vec<&SparsePath> = paths.into_iter().collect();
+    if paths.is_empty() {
+        return Ok(());
+    }
+    if let Some(path) = paths.iter().find(|path| !tree.covers(path)) {
+        return Err(GitError::UnsafeTreeEntry {
+            path: path.to_string(),
+            reason: "the path was not validated before checkout",
+        });
+    }
+    let tree = &tree.tree;
 
     let mut checkout = git2::build::CheckoutBuilder::new();
     // Disable all libgit2 filters (CRLF/LF conversion, `ident`, clean/smudge)
@@ -150,10 +507,14 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitE
     checkout
         .disable_filters(true)
         .force()
-        .recreate_missing(true);
-    for p in paths {
-        // Match every entry under the given module folder.
-        checkout.path(format!("{p}/**"));
+        .recreate_missing(true)
+        .disable_pathspec_match(true);
+    // A literal path matches the entry and everything beneath it. `.` means
+    // the whole tree, which libgit2 expresses as no path filter at all.
+    if !paths.contains(&&SparsePath::Root) {
+        for path in paths {
+            checkout.path(path.as_str());
+        }
     }
     repo.checkout_tree(tree.as_object(), Some(&mut checkout))
         .map_err(|source| GitError::Checkout {
@@ -167,10 +528,9 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitE
 }
 
 /// Writes the sparse-checkout metadata next to the cache leaf.
-fn save_sparse_meta(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
-    let meta = SparseMeta(paths.iter().cloned().collect());
+fn save_sparse_meta(leaf: &Path, paths: &BTreeSet<SparsePath>) -> Result<(), GitError> {
     let path = sparse_meta_path(leaf);
-    let bytes = serde_json::to_vec_pretty(&meta).map_err(|source| GitError::Json {
+    let bytes = serde_json::to_vec_pretty(paths).map_err(|source| GitError::Json {
         path: path.clone(),
         source,
     })?;
@@ -201,42 +561,14 @@ fn save_sparse_meta(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
     })
 }
 
-/// Parsed state of a sparse-checkout metadata file.
-#[derive(Debug)]
-enum SparseMetaState {
-    /// The metadata file does not exist.
-    Missing,
-    /// The metadata file contains a valid sparse path set.
-    Valid,
-    /// The metadata file exists but is not valid JSON.
-    Corrupt,
-}
-
-/// Reads and classifies sparse-checkout metadata without hiding corruption.
-fn sparse_meta_state(leaf: &Path) -> Result<SparseMetaState, GitError> {
-    let path = sparse_meta_path(leaf);
-    let bytes = match std::fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(SparseMetaState::Missing);
-        }
-        Err(source) => return Err(GitError::Io { path, source }),
-    };
-    Ok(if serde_json::from_slice::<SparseMeta>(&bytes).is_ok() {
-        SparseMetaState::Valid
-    } else {
-        SparseMetaState::Corrupt
-    })
-}
-
-/// Reads the sparse-checkout metadata for a cache leaf, returning the
-/// default empty meta if the file is missing.
-fn load_sparse_meta(leaf: &Path) -> Result<SparseMeta, GitError> {
+/// Reads the sparse paths recorded as materialized in a cache leaf,
+/// returning an empty set if the metadata file is missing.
+fn load_sparse_meta(leaf: &Path) -> Result<BTreeSet<SparsePath>, GitError> {
     let path = sparse_meta_path(leaf);
     let bytes = match std::fs::read(&path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(SparseMeta::default());
+            return Ok(BTreeSet::new());
         }
         Err(source) => return Err(GitError::Io { path, source }),
     };
@@ -265,7 +597,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    let owned: Vec<String> = paths.into_iter().map(|s| s.as_ref().to_string()).collect();
+    let paths = SparsePath::normalize(paths.into_iter().map(|p| SparsePath::new(p.as_ref())));
     let parent = leaf
         .parent()
         .ok_or_else(|| GitError::RootLeaf(leaf.to_path_buf()))?;
@@ -394,95 +726,433 @@ where
 
     repo.set_head_detached(oid)
         .map_err(|source| GitError::Object { source })?;
-    enforce_tree_limits(&repo, oid, &owned, limits)?;
-    apply_sparse_checkout(&repo, &owned)?;
-    save_sparse_meta(leaf, &owned)?;
+    let checked = CheckedTree::new(&repo, &paths)?;
+    enforce_tree_limits(&repo, oid, &paths, limits)?;
+    apply_sparse_checkout(&repo, &checked, &paths)?;
+    save_sparse_meta(leaf, &paths)?;
 
     Ok(())
 }
 
-/// Extends an existing sparse-checkout cache leaf to additionally materialize
-/// paths.
-pub(crate) fn extend_sparse_checkout<I, S>(
-    leaf: &Path,
-    paths: I,
-    limits: TreeLimits,
-) -> Result<(), GitError>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    let repo = Repository::open(leaf).map_err(|source| GitError::Object { source })?;
-    let existing = load_sparse_meta(leaf)?.0;
-    let mut all = existing.clone();
-    let mut new_paths = Vec::new();
-    for p in paths {
-        let s = p.as_ref().to_string();
-        if !existing.contains(&s) {
-            new_paths.push(s.clone());
-        }
-        all.insert(s);
-    }
-    if !new_paths.is_empty() {
-        let head_oid = repo
-            .head()
-            .map_err(|source| GitError::Object { source })?
-            .peel_to_commit()
-            .map_err(|source| GitError::Object { source })?
-            .id();
-        enforce_tree_limits(&repo, head_oid, &new_paths, limits)?;
-    }
-    let all_owned: Vec<String> = all.into_iter().collect();
-    clear_sparse_paths(leaf, &all_owned)?;
-    apply_sparse_checkout(&repo, &all_owned)?;
-    save_sparse_meta(leaf, &all_owned)?;
-    Ok(())
-}
-
-/// Removes materialized sparse paths before restoring them from Git objects.
-fn clear_sparse_paths(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
-    for path in paths {
-        if path == "." {
-            let entries = std::fs::read_dir(leaf).map_err(|source| GitError::Io {
-                path: leaf.to_path_buf(),
-                source,
-            })?;
-            for entry in entries {
-                let entry = entry.map_err(|source| GitError::Io {
-                    path: leaf.to_path_buf(),
-                    source,
-                })?;
-                if entry.file_name() == ".git" {
-                    continue;
-                }
-                remove_worktree_path(&entry.path())?;
-            }
-        } else {
-            remove_worktree_path(&leaf.join(path))?;
-        }
-    }
-    Ok(())
-}
-
-/// Returns whether an existing cache leaf is pinned to `commit`.
-fn cache_leaf_matches_commit(leaf: &Path, commit: &str) -> Result<bool, GitError> {
-    let repo = Repository::open(leaf).map_err(|source| GitError::Object { source })?;
-    let observed = repo
+/// Returns the leaf's checked-out HEAD commit.
+fn head_commit(repo: &Repository) -> Result<git2::Oid, GitError> {
+    Ok(repo
         .head()
         .map_err(|source| GitError::Object { source })?
         .peel_to_commit()
         .map_err(|source| GitError::Object { source })?
-        .id();
+        .id())
+}
+
+/// Returns the tree of the leaf's checked-out HEAD commit.
+fn head_tree(repo: &Repository) -> Result<git2::Tree<'_>, GitError> {
+    repo.head()
+        .map_err(|source| GitError::Object { source })?
+        .peel_to_tree()
+        .map_err(|source| GitError::Object { source })
+}
+
+/// Walks every entry below `tree` in pre-order, passing each entry's parent
+/// path relative to `tree` (empty or ending in `/`).
+///
+/// The walk stops at the first error returned by `visit`.
+fn walk_tree(
+    tree: &git2::Tree<'_>,
+    mut visit: impl FnMut(&str, &git2::TreeEntry<'_>) -> Result<(), GitError>,
+) -> Result<(), GitError> {
+    let mut error = None;
+    let result = tree.walk(git2::TreeWalkMode::PreOrder, |root, entry| {
+        match visit(root, entry) {
+            Ok(()) => git2::TreeWalkResult::Ok,
+            Err(e) => {
+                error = Some(e);
+                git2::TreeWalkResult::Abort
+            }
+        }
+    });
+    if let Some(error) = error {
+        return Err(error);
+    }
+    result.map_err(|source| GitError::Object { source })
+}
+
+/// Returns a tree entry's name, rejecting names that are not UTF-8.
+fn tree_entry_name<'e>(entry: &'e git2::TreeEntry<'_>) -> Result<&'e str, GitError> {
+    entry.name().map_err(|_| GitError::Object {
+        source: git2::Error::new(
+            git2::ErrorCode::GenericError,
+            git2::ErrorClass::Tree,
+            "tree entry name is not valid UTF-8",
+        ),
+    })
+}
+
+/// The Git entries at and below one sparse path.
+#[derive(Default)]
+struct TreeEntries {
+    /// Blobs by path, with their object ID and file mode.
+    blobs: BTreeMap<SparsePath, (git2::Oid, i32)>,
+    /// Directories.
+    dirs: BTreeSet<SparsePath>,
+    /// Submodule commits, which are never materialized.
+    gitlinks: BTreeSet<SparsePath>,
+}
+
+impl TreeEntries {
+    /// Records `entry` at `path`.
+    fn add(&mut self, path: SparsePath, entry: &git2::TreeEntry<'_>) {
+        match entry.kind() {
+            Some(git2::ObjectType::Tree) => {
+                self.dirs.insert(path);
+            }
+            Some(git2::ObjectType::Blob) => {
+                self.blobs.insert(path, (entry.id(), entry.filemode()));
+            }
+            _ => {
+                self.gitlinks.insert(path);
+            }
+        }
+    }
+
+    /// Returns whether `path` is tracked as something other than a
+    /// directory.
+    fn tracks_leaf_entry(&self, path: &SparsePath) -> bool {
+        self.blobs.contains_key(path) || self.gitlinks.contains(path)
+    }
+}
+
+/// What [`CacheLeaf::sync`] changed on disk.
+#[derive(Clone, Copy, Debug, Default)]
+struct SyncReport {
+    /// Entries removed because Git does not track them.
+    removed: usize,
+    /// Files written from Git because they were missing or differed.
+    restored: usize,
+}
+
+/// An existing cache leaf, opened while holding its leaf lock.
+struct CacheLeaf<'a> {
+    /// The leaf's worktree directory.
+    path: &'a Path,
+    /// The leaf's Git repository.
+    repo: Repository,
+    /// The sparse paths recorded as materialized.
+    materialized: BTreeSet<SparsePath>,
+}
+
+impl<'a> CacheLeaf<'a> {
+    /// Opens an existing cache leaf and reads its sparse metadata.
+    fn open(path: &'a Path) -> Result<Self, GitError> {
+        let repo = Repository::open(path).map_err(|source| GitError::Object { source })?;
+        let materialized = load_sparse_meta(path)?;
+        Ok(Self {
+            path,
+            repo,
+            materialized,
+        })
+    }
+
+    /// Materializes the sparse paths in `paths` that are not yet covered by
+    /// the leaf's sparse metadata.
+    ///
+    /// Covered content is not rewritten: other resolutions may be reading it
+    /// without holding the leaf lock. When nothing is new this writes
+    /// nothing.
+    fn extend(&mut self, paths: &BTreeSet<SparsePath>, limits: TreeLimits) -> Result<(), GitError> {
+        let new: Vec<SparsePath> = paths
+            .iter()
+            .filter(|path| !self.materialized.iter().any(|m| m.covers(path)))
+            .cloned()
+            .collect();
+        if new.is_empty() {
+            return Ok(());
+        }
+        enforce_tree_limits(&self.repo, head_commit(&self.repo)?, &new, limits)?;
+        // Syncing rather than checking out wholesale removes leftovers from an
+        // interrupted earlier extension and leaves any materialized folders
+        // inside the new paths untouched.
+        for path in &new {
+            self.sync(path)?;
+        }
+        self.materialized = SparsePath::normalize(self.materialized.iter().cloned().chain(new));
+        save_sparse_meta(self.path, &self.materialized)
+    }
+
+    /// Restores the materialized sparse path `path` to match Git, returning
+    /// whether anything was written.
+    fn reconcile(&self, path: &SparsePath) -> Result<bool, GitError> {
+        let report = self.sync(path)?;
+        if report.removed == 0 && report.restored == 0 {
+            return Ok(false);
+        }
+        tracing::warn!(
+            cache_leaf = %self.path.display(),
+            path = %path,
+            restored = report.restored,
+            removed = report.removed,
+            "restored module cache content that did not match its Git commit"
+        );
+        Ok(true)
+    }
+
+    /// Makes the worktree at `path` match the leaf's HEAD tree.
+    ///
+    /// Each on-disk entry is compared with its Git blob, so edits that keep
+    /// the file size and timestamp are still found. Only entries that are
+    /// missing or differ are written, and only entries absent from the tree
+    /// are removed. Content that already matches is never touched, so this
+    /// is safe to run while other resolutions read the same folder.
+    fn sync(&self, path: &SparsePath) -> Result<SyncReport, GitError> {
+        let checked = CheckedTree::new(&self.repo, [path])?;
+        let entries = self.tree_entries(&checked.tree, path)?;
+
+        // Remove entries absent from the tree first. This includes a file or
+        // symlink sitting where the tree has a directory, so the blob
+        // comparison below never looks through a replaced directory.
+        let mut untracked = Vec::new();
+        self.collect_untracked_ancestor(path, &mut untracked)?;
+        if untracked.is_empty() {
+            match std::fs::symlink_metadata(path.worktree_path(self.path)) {
+                Ok(metadata) => {
+                    self.collect_untracked(path, metadata.is_dir(), &entries, &mut untracked)?
+                }
+                Err(error) if is_absent(&error) => {}
+                Err(source) => {
+                    return Err(GitError::Io {
+                        path: path.worktree_path(self.path),
+                        source,
+                    });
+                }
+            }
+        }
+        for entry in &untracked {
+            remove_worktree_path(self.path, entry)?;
+        }
+
+        let mut stale = Vec::new();
+        for (rel, &(oid, mode)) in &entries.blobs {
+            let file = rel.worktree_path(self.path);
+            if !blob_matches(&file, oid, mode)? {
+                remove_worktree_path(self.path, &file)?;
+                stale.push(rel.clone());
+            }
+        }
+        apply_sparse_checkout(&self.repo, &checked, &stale)?;
+        Ok(SyncReport {
+            removed: untracked.len(),
+            restored: stale.len(),
+        })
+    }
+
+    /// Returns the Git entries at and below `path` in the HEAD tree.
+    ///
+    /// A path absent from the tree has no entries. A path below a tracked
+    /// file or submodule is an error, so syncing it never removes that
+    /// entry.
+    fn tree_entries(
+        &self,
+        tree: &git2::Tree<'_>,
+        path: &SparsePath,
+    ) -> Result<TreeEntries, GitError> {
+        let tree = tree.clone();
+        let mut entries = TreeEntries::default();
+        let subtree = match path.as_sub() {
+            None => tree,
+            Some(sub) => match tree.get_path(Path::new(sub)) {
+                Ok(entry) if entry.kind() == Some(git2::ObjectType::Tree) => self
+                    .repo
+                    .find_tree(entry.id())
+                    .map_err(|source| GitError::Object { source })?,
+                Ok(entry) => {
+                    entries.add(path.clone(), &entry);
+                    return Ok(entries);
+                }
+                Err(error) if error.code() == git2::ErrorCode::NotFound => {
+                    let below_non_tree = path.ancestors().any(|ancestor| {
+                        tree.get_path(Path::new(ancestor))
+                            .is_ok_and(|e| e.kind() != Some(git2::ObjectType::Tree))
+                    });
+                    if below_non_tree {
+                        return Err(GitError::Object { source: error });
+                    }
+                    return Ok(entries);
+                }
+                Err(source) => return Err(GitError::Object { source }),
+            },
+        };
+        entries.dirs.insert(path.clone());
+        walk_tree(&subtree, |root, entry| {
+            let rel = path.join(&format!("{root}{}", tree_entry_name(entry)?));
+            entries.add(rel, entry);
+            Ok(())
+        })?;
+        Ok(entries)
+    }
+
+    /// Collects the nearest ancestor of `path` that is on disk but is not a
+    /// real directory, so nothing below it is read through a symlink.
+    fn collect_untracked_ancestor(
+        &self,
+        path: &SparsePath,
+        out: &mut Vec<PathBuf>,
+    ) -> Result<(), GitError> {
+        for ancestor in path.ancestors() {
+            let dir = self.path.join(ancestor);
+            match std::fs::symlink_metadata(&dir) {
+                Ok(metadata) if metadata.is_dir() => {}
+                Ok(_) => {
+                    out.push(dir);
+                    return Ok(());
+                }
+                Err(error) if is_absent(&error) => return Ok(()),
+                Err(source) => return Err(GitError::Io { path: dir, source }),
+            }
+        }
+        Ok(())
+    }
+
+    /// Collects the on-disk entry at `rel`, or entries below it, that are
+    /// absent from `entries`.
+    fn collect_untracked(
+        &self,
+        rel: &SparsePath,
+        is_dir: bool,
+        entries: &TreeEntries,
+        out: &mut Vec<PathBuf>,
+    ) -> Result<(), GitError> {
+        if rel.is_git_dir() || entries.tracks_leaf_entry(rel) {
+            return Ok(());
+        }
+        let dir = rel.worktree_path(self.path);
+        if !is_dir || !entries.dirs.contains(rel) {
+            out.push(dir);
+            return Ok(());
+        }
+        let children = std::fs::read_dir(&dir).map_err(|source| GitError::Io {
+            path: dir.clone(),
+            source,
+        })?;
+        for child in children {
+            let child = child.map_err(|source| GitError::Io {
+                path: dir.clone(),
+                source,
+            })?;
+            let Some(name) = child.file_name().to_str().map(str::to_string) else {
+                out.push(child.path());
+                continue;
+            };
+            let file_type = child.file_type().map_err(|source| GitError::Io {
+                path: child.path(),
+                source,
+            })?;
+            self.collect_untracked(&rel.join(&name), file_type.is_dir(), entries, out)?;
+        }
+        Ok(())
+    }
+
+    /// Checks that the Git tree is safe to check out at `paths`.
+    fn check(&self, paths: &BTreeSet<SparsePath>) -> Result<(), GitError> {
+        CheckedTree::new(&self.repo, paths).map(drop)
+    }
+}
+
+/// Returns whether the worktree entry at `path` is a regular file matching a
+/// Git blob.
+///
+/// Anything else on disk, including a symbolic link, is a mismatch.
+fn blob_matches(path: &Path, oid: git2::Oid, mode: i32) -> Result<bool, GitError> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if is_absent(&error) => return Ok(false),
+        Err(source) => {
+            return Err(GitError::Io {
+                path: path.to_path_buf(),
+                source,
+            });
+        }
+    };
+    if !metadata.is_file() {
+        return Ok(false);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let executable = metadata.permissions().mode() & 0o111 != 0;
+        if executable != (mode == i32::from(git2::FileMode::BlobExecutable)) {
+            return Ok(false);
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = mode;
+    let observed = git2::Oid::hash_file(git2::ObjectType::Blob, path)
+        .map_err(|source| GitError::Object { source })?;
+    Ok(observed == oid)
+}
+
+/// Returns whether an I/O error means the path does not exist.
+fn is_absent(error: &std::io::Error) -> bool {
+    matches!(
+        error.kind(),
+        std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+    )
+}
+
+/// The state of a cache leaf found on disk.
+enum LeafState<'a> {
+    /// No leaf exists yet.
+    Missing,
+    /// The leaf is pinned to the expected commit and can be reused.
+    Usable(CacheLeaf<'a>),
+    /// The leaf must be evicted and cloned again, for the given reason.
+    Evict(&'static str),
+}
+
+/// Inspects the cache leaf at `path`, expected to be pinned to `commit`.
+fn inspect_leaf<'a>(path: &'a Path, commit: &str) -> Result<LeafState<'a>, GitError> {
+    if !path.exists() {
+        return Ok(LeafState::Missing);
+    }
+    let leaf = match CacheLeaf::open(path) {
+        Ok(leaf) => leaf,
+        // Only sparse metadata is parsed as JSON here.
+        Err(GitError::Json { .. }) => return Ok(LeafState::Evict("corrupt sparse metadata")),
+        Err(error) => return Err(error),
+    };
     let expected = git2::Oid::from_str(commit).map_err(|source| GitError::Object { source })?;
-    Ok(observed == expected)
+    if head_commit(&leaf.repo)? != expected {
+        return Ok(LeafState::Evict("an unexpected Git HEAD"));
+    }
+    Ok(LeafState::Usable(leaf))
+}
+
+/// How [`ensure_materialized`] treats content already in a cache leaf.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MaterializeMode {
+    /// Adds missing module folders and never writes existing ones.
+    Reuse,
+    /// Also restores requested folders whose content differs from the
+    /// pinned Git commit.
+    Reconcile,
+}
+
+/// The outcome of [`ensure_materialized`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Materialized {
+    /// A new cache leaf was cloned.
+    Cloned,
+    /// An existing cache leaf was reused without rewriting its content.
+    Reused,
+    /// An existing cache leaf was reused and some of its content was
+    /// restored from Git.
+    Reconciled,
 }
 
 /// Ensures `leaf` contains a sparse checkout of `url` at `commit`
 /// covering at least `paths`. Clones if `leaf` does not yet exist;
 /// otherwise extends the existing leaf's sparse-checkout set.
 ///
-/// Returns `true` when a new cache leaf is cloned and `false` when an
-/// existing leaf is reused.
+/// Content already materialized in an existing leaf is only rewritten in
+/// [`MaterializeMode::Reconcile`], and then only where it differs from Git.
 ///
 /// If the initial clone fails, the partially-written leaf is removed so a
 /// corrupt checkout does not persist.
@@ -493,72 +1163,107 @@ pub(crate) fn ensure_materialized<I, S>(
     paths: I,
     fetch: super::creds::FetchPolicy,
     limits: TreeLimits,
-) -> Result<bool, GitError>
+    mode: MaterializeMode,
+) -> Result<Materialized, GitError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
+    let paths = SparsePath::normalize(paths.into_iter().map(|p| SparsePath::new(p.as_ref())));
     let _cache_lock = lock_cache_root_shared(cache.root)?;
     let leaf = cache.leaf;
-    let existed = leaf.exists();
     tracing::debug!(
         cache_leaf = %leaf.display(),
         url = %url,
         commit,
-        exists = existed,
+        exists = leaf.exists(),
         "preparing module cache leaf"
     );
     tracing::trace!(cache_leaf = %leaf.display(), "acquiring module cache leaf lock");
     let _lock = lock_cache_leaf(leaf)?;
     tracing::trace!(cache_leaf = %leaf.display(), "acquired module cache leaf lock");
-    if leaf.exists() && !cache_leaf_matches_commit(leaf, commit)? {
-        tracing::warn!(
-            cache_leaf = %leaf.display(),
-            commit,
-            "evicting module cache leaf with an unexpected Git HEAD"
-        );
-        clear_cache_leaf(leaf)?;
-    }
-    if leaf.exists() {
-        match sparse_meta_state(leaf)? {
-            SparseMetaState::Corrupt => {
-                tracing::warn!(
-                    cache_leaf = %leaf.display(),
-                    "evicting module cache leaf with corrupt sparse metadata",
-                );
-                clear_cache_leaf(leaf)?;
-            }
-            SparseMetaState::Missing | SparseMetaState::Valid => {}
-        }
-    }
-    if leaf.exists() {
-        tracing::debug!(
-            cache_leaf = %leaf.display(),
-            commit,
-            "using cached module checkout"
-        );
-        extend_sparse_checkout(leaf, paths, limits)?;
-        Ok(false)
-    } else {
-        tracing::info!(
-            cache_leaf = %leaf.display(),
-            url = %url,
-            commit,
-            "fetching module into cache"
-        );
-        let result = clone_with_sparse_checkout(url, commit, leaf, paths, fetch, limits);
-        if result.is_err()
-            && leaf.exists()
-            && let Err(error) = std::fs::remove_dir_all(leaf)
-        {
+
+    let mut cached = match inspect_leaf(leaf, commit)? {
+        LeafState::Usable(cached) => cached,
+        LeafState::Missing => return clone_leaf(url, commit, leaf, &paths, fetch, limits),
+        LeafState::Evict(reason) => {
             tracing::warn!(
-                path = %leaf.display(),
-                %error,
-                "failed to clean up cache leaf after a failed clone",
+                cache_leaf = %leaf.display(),
+                commit,
+                "evicting module cache leaf with {reason}"
             );
+            clear_cache_leaf(leaf)?;
+            return clone_leaf(url, commit, leaf, &paths, fetch, limits);
         }
-        result.map(|()| true)
+    };
+
+    // A leaf written by an older version may hold content from a tree that
+    // is no longer accepted, so it is checked even when nothing is written.
+    if let Err(error) = cached.check(&paths) {
+        if matches!(error, GitError::UnsafeTreeEntry { .. }) {
+            tracing::warn!(
+                cache_leaf = %leaf.display(),
+                commit,
+                %error,
+                "evicting module cache leaf whose Git commit is unsafe to check out"
+            );
+            drop(cached);
+            clear_cache_leaf(leaf)?;
+        }
+        return Err(error);
     }
+    tracing::debug!(
+        cache_leaf = %leaf.display(),
+        commit,
+        "using cached module checkout"
+    );
+    cached.extend(&paths, limits)?;
+    if mode == MaterializeMode::Reconcile {
+        let mut reconciled = false;
+        for path in &paths {
+            reconciled |= cached.reconcile(path)?;
+        }
+        if reconciled {
+            return Ok(Materialized::Reconciled);
+        }
+    }
+    Ok(Materialized::Reused)
+}
+
+/// Clones a new cache leaf, removing it again if the clone fails.
+fn clone_leaf(
+    url: &Url,
+    commit: &str,
+    leaf: &Path,
+    paths: &BTreeSet<SparsePath>,
+    fetch: super::creds::FetchPolicy,
+    limits: TreeLimits,
+) -> Result<Materialized, GitError> {
+    tracing::info!(
+        cache_leaf = %leaf.display(),
+        url = %url,
+        commit,
+        "fetching module into cache"
+    );
+    let result = clone_with_sparse_checkout(
+        url,
+        commit,
+        leaf,
+        paths.iter().map(SparsePath::as_str),
+        fetch,
+        limits,
+    );
+    if result.is_err()
+        && leaf.exists()
+        && let Err(error) = std::fs::remove_dir_all(leaf)
+    {
+        tracing::warn!(
+            path = %leaf.display(),
+            %error,
+            "failed to clean up cache leaf after a failed clone",
+        );
+    }
+    result.map(|()| Materialized::Cloned)
 }
 
 #[cfg(test)]
@@ -573,6 +1278,10 @@ mod tests {
     use crate::resolver::git::ops::CredentialMode;
     use crate::resolver::git::ops::FetchPolicy;
     use crate::resolver::git::ops::test_support::build_upstream;
+    use crate::resolver::git::ops::test_support::mode;
+    use crate::resolver::git::ops::test_support::raw_blob;
+    use crate::resolver::git::ops::test_support::raw_tree;
+    use crate::resolver::git::ops::test_support::raw_upstream;
 
     #[test]
     fn materialization_fetches_only_the_pinned_commit() {
@@ -594,6 +1303,7 @@ mod tests {
                 max_transfer_bytes: None,
             },
             TreeLimits::default(),
+            MaterializeMode::Reuse,
         )
         .unwrap();
 
@@ -622,6 +1332,7 @@ mod tests {
                 max_transfer_bytes: Some(1),
             },
             TreeLimits::default(),
+            MaterializeMode::Reuse,
         )
         .unwrap_err();
 
@@ -663,11 +1374,7 @@ mod tests {
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
 
-        let meta = load_sparse_meta(&leaf).unwrap();
-        assert_eq!(
-            meta.0.iter().cloned().collect::<Vec<_>>(),
-            vec!["csvkit".to_string()]
-        );
+        assert_eq!(meta_paths(&leaf), vec!["csvkit"]);
     }
 
     #[test]
@@ -702,9 +1409,10 @@ mod tests {
                 max_transfer_bytes: None,
             },
             TreeLimits::default(),
+            MaterializeMode::Reuse,
         )
         .unwrap();
-        assert!(fetched);
+        assert_eq!(fetched, Materialized::Cloned);
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
         std::fs::write(leaf.join("csvkit").join("index.wdl"), b"tampered").unwrap();
@@ -723,15 +1431,18 @@ mod tests {
                 max_transfer_bytes: None,
             },
             TreeLimits::default(),
+            MaterializeMode::Reuse,
         )
         .unwrap();
-        assert!(!fetched);
+        assert_eq!(fetched, Materialized::Reused);
         assert!(leaf.join("csvkit").join("module.json").exists());
+        // Extending the leaf never rewrites a folder that is already
+        // materialized, even when its content has been changed on disk.
         assert_eq!(
             std::fs::read(leaf.join("csvkit").join("index.wdl")).unwrap(),
-            b"workflow w {}"
+            b"tampered"
         );
-        assert!(!leaf.join("csvkit").join("untracked.wdl").exists());
+        assert!(leaf.join("csvkit").join("untracked.wdl").exists());
         assert!(leaf.join("spellbook").join("module.json").exists());
 
         {
@@ -764,9 +1475,10 @@ mod tests {
                 max_transfer_bytes: None,
             },
             TreeLimits::default(),
+            MaterializeMode::Reuse,
         )
         .unwrap();
-        assert!(fetched);
+        assert_eq!(fetched, Materialized::Cloned);
         let cached = Repository::open(&leaf).unwrap();
         assert_eq!(
             cached.head().unwrap().peel_to_commit().unwrap().id(),
@@ -785,7 +1497,7 @@ mod tests {
             max_transfer_bytes: None,
         };
 
-        assert!(
+        assert_eq!(
             ensure_materialized(
                 CacheLocation {
                     root: dest.path(),
@@ -796,12 +1508,14 @@ mod tests {
                 ["csvkit"],
                 fetch,
                 TreeLimits::default(),
+                MaterializeMode::Reuse,
             )
-            .unwrap()
+            .unwrap(),
+            Materialized::Cloned
         );
         fs::write(sparse_meta_path(&leaf), b"not json").unwrap();
 
-        assert!(
+        assert_eq!(
             ensure_materialized(
                 CacheLocation {
                     root: dest.path(),
@@ -812,8 +1526,10 @@ mod tests {
                 ["csvkit"],
                 fetch,
                 TreeLimits::default(),
+                MaterializeMode::Reuse,
             )
-            .unwrap()
+            .unwrap(),
+            Materialized::Cloned
         );
         assert!(leaf.join("csvkit/module.json").exists());
         assert!(load_sparse_meta(&leaf).is_ok());
@@ -840,8 +1556,7 @@ mod tests {
         .unwrap();
         fs::write(sparse_meta_path(&leaf), b"not json").unwrap();
 
-        let error =
-            extend_sparse_checkout(&leaf, ["spellbook"], TreeLimits::default()).unwrap_err();
+        let error = extend(&leaf, &["spellbook"], TreeLimits::default()).unwrap_err();
         assert!(matches!(error, GitError::Json { .. }));
         assert!(leaf.exists());
         assert_eq!(fs::read(sparse_meta_path(&leaf)).unwrap(), b"not json");
@@ -880,14 +1595,10 @@ mod tests {
         .unwrap();
         assert!(!leaf.join("spellbook").exists());
 
-        extend_sparse_checkout(&leaf, ["spellbook"], TreeLimits::default()).unwrap();
+        extend(&leaf, &["spellbook"], TreeLimits::default()).unwrap();
         assert!(leaf.join("spellbook").join("module.json").exists());
         assert!(leaf.join("csvkit").join("module.json").exists());
-
-        let meta = load_sparse_meta(&leaf).unwrap();
-        let mut paths: Vec<_> = meta.0.into_iter().collect();
-        paths.sort();
-        assert_eq!(paths, vec!["csvkit".to_string(), "spellbook".to_string()]);
+        assert_eq!(meta_paths(&leaf), vec!["csvkit", "spellbook"]);
     }
 
     #[test]
@@ -1043,9 +1754,9 @@ mod tests {
         )
         .unwrap();
 
-        let err = extend_sparse_checkout(
+        let err = extend(
             &leaf,
-            ["big"],
+            &["big"],
             TreeLimits {
                 max_files: Some(2),
                 max_bytes: None,
@@ -1149,5 +1860,1103 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(error, GitError::TransferLimitExceeded { .. }));
+    }
+
+    /// Returns a fetch policy with no transfer cap.
+    fn open_fetch_policy() -> FetchPolicy {
+        FetchPolicy {
+            credentials: CredentialMode::Enabled,
+            max_transfer_bytes: None,
+        }
+    }
+
+    /// Extends the cache leaf at `leaf` to cover `paths`.
+    fn extend(leaf: &Path, paths: &[&str], limits: TreeLimits) -> Result<(), GitError> {
+        let paths = SparsePath::normalize(paths.iter().map(|p| SparsePath::new(*p)));
+        CacheLeaf::open(leaf)?.extend(&paths, limits)
+    }
+
+    /// Returns the sparse paths recorded in the leaf's metadata.
+    fn meta_paths(leaf: &Path) -> Vec<String> {
+        load_sparse_meta(leaf)
+            .unwrap()
+            .into_iter()
+            .map(String::from)
+            .collect()
+    }
+
+    /// Materializes `paths` from `url` into `leaf` in the given mode.
+    fn materialize(
+        root: &Path,
+        leaf: &Path,
+        url: &Url,
+        sha: &str,
+        paths: &[&str],
+        mode: MaterializeMode,
+    ) -> Materialized {
+        ensure_materialized(
+            CacheLocation { root, leaf },
+            url,
+            sha,
+            paths.iter().copied(),
+            open_fetch_policy(),
+            TreeLimits::default(),
+            mode,
+        )
+        .unwrap()
+    }
+
+    /// Returns the inode of `path`, which changes when a file is replaced.
+    #[cfg(unix)]
+    fn inode(path: &Path) -> u64 {
+        use std::os::unix::fs::MetadataExt;
+        fs::metadata(path).unwrap().ino()
+    }
+
+    /// Builds an upstream with two sibling modules and a top-level file.
+    fn two_module_upstream() -> (tempfile::TempDir, String) {
+        build_upstream(&[
+            ("README.md", b"# repo"),
+            (
+                "csvkit/module.json",
+                br#"{"name":"csvkit","license":"MIT"}"#,
+            ),
+            ("csvkit/index.wdl", b"workflow w {}"),
+            ("csvkit/tasks/sort.wdl", b"task sort {}"),
+            (
+                "spellbook/module.json",
+                br#"{"name":"spellbook","license":"MIT"}"#,
+            ),
+            ("spellbook/index.wdl", b"workflow w {}"),
+        ])
+    }
+
+    #[test]
+    fn sparse_path_coverage_is_component_based() {
+        let covers = |a: &str, b: &str| SparsePath::new(a).covers(&SparsePath::new(b));
+        assert!(covers(".", "lib"));
+        assert!(covers(".", "."));
+        assert!(covers("lib", "lib"));
+        assert!(covers("lib", "lib/common"));
+        assert!(!covers("lib", "library"));
+        assert!(!covers("lib", "lib2"));
+        assert!(!covers("lib/common", "lib"));
+        assert!(!covers("lib", "."));
+        let normalize = |paths: &[&str]| -> Vec<String> {
+            SparsePath::normalize(paths.iter().map(|p| SparsePath::new(*p)))
+                .into_iter()
+                .map(String::from)
+                .collect()
+        };
+        assert_eq!(
+            normalize(&["lib/common", "lib", "library", "lib"]),
+            vec!["lib", "library"]
+        );
+        assert_eq!(normalize(&["a", "."]), vec!["."]);
+        assert_eq!(normalize(&[""]), vec!["."]);
+    }
+
+    #[test]
+    fn sparse_path_ancestors_are_outermost_first() {
+        let ancestors: Vec<String> = SparsePath::new("a/b/c")
+            .ancestors()
+            .map(String::from)
+            .collect();
+        assert_eq!(ancestors, vec!["a", "a/b"]);
+        assert_eq!(SparsePath::new("a").ancestors().count(), 0);
+        assert_eq!(SparsePath::Root.ancestors().count(), 0);
+        assert!(SparsePath::new(".git").is_git_dir());
+        assert!(!SparsePath::new("lib/.git").is_git_dir());
+    }
+
+    #[test]
+    fn extend_with_materialized_path_writes_nothing() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        let first = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        assert_eq!(first, Materialized::Cloned);
+        fs::write(leaf.join("csvkit/sentinel"), b"s").unwrap();
+        let meta = fs::read(sparse_meta_path(&leaf)).unwrap();
+        #[cfg(unix)]
+        let (file_inode, meta_inode) = (
+            inode(&leaf.join("csvkit/index.wdl")),
+            inode(&sparse_meta_path(&leaf)),
+        );
+
+        for paths in [&["csvkit"][..], &["csvkit/tasks"][..]] {
+            let again = materialize(
+                dest.path(),
+                &leaf,
+                &url,
+                &sha,
+                paths,
+                MaterializeMode::Reuse,
+            );
+            assert_eq!(again, Materialized::Reused);
+        }
+
+        assert!(leaf.join("csvkit/sentinel").exists());
+        assert_eq!(fs::read(sparse_meta_path(&leaf)).unwrap(), meta);
+        #[cfg(unix)]
+        {
+            assert_eq!(inode(&leaf.join("csvkit/index.wdl")), file_inode);
+            assert_eq!(inode(&sparse_meta_path(&leaf)), meta_inode);
+        }
+    }
+
+    #[test]
+    fn root_path_materializes_the_whole_tree() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["."],
+            MaterializeMode::Reuse,
+        );
+        assert!(leaf.join("README.md").exists());
+        assert!(leaf.join("csvkit/tasks/sort.wdl").exists());
+        assert!(leaf.join("spellbook/index.wdl").exists());
+        fs::write(leaf.join("spellbook/sentinel"), b"s").unwrap();
+
+        // A path under an already-materialized `.` is covered and is a no-op.
+        extend(&leaf, &["spellbook"], TreeLimits::default()).unwrap();
+        assert!(leaf.join("spellbook/sentinel").exists());
+        assert_eq!(meta_paths(&leaf), vec!["."]);
+    }
+
+    #[test]
+    fn extend_with_sibling_prefix_is_not_covered() {
+        let (upstream, sha) = build_upstream(&[
+            ("lib/module.json", br#"{"name":"lib"}"#),
+            ("library/module.json", br#"{"name":"library"}"#),
+        ]);
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["lib"],
+            MaterializeMode::Reuse,
+        );
+        assert!(!leaf.join("library").exists());
+        extend(&leaf, &["library"], TreeLimits::default()).unwrap();
+        assert!(leaf.join("library/module.json").exists());
+    }
+
+    #[test]
+    fn extend_with_ancestor_path_keeps_existing_folders() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit/tasks"],
+            MaterializeMode::Reuse,
+        );
+        #[cfg(unix)]
+        let file_inode = inode(&leaf.join("csvkit/tasks/sort.wdl"));
+
+        extend(&leaf, &["."], TreeLimits::default()).unwrap();
+
+        assert!(leaf.join("README.md").exists());
+        assert!(leaf.join("csvkit/index.wdl").exists());
+        assert!(leaf.join("spellbook/index.wdl").exists());
+        assert!(leaf.join("csvkit/tasks/sort.wdl").exists());
+        #[cfg(unix)]
+        assert_eq!(inode(&leaf.join("csvkit/tasks/sort.wdl")), file_inode);
+        assert_eq!(meta_paths(&leaf), vec!["."]);
+    }
+
+    #[test]
+    fn reconcile_restores_only_content_that_differs() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit", "spellbook"],
+            MaterializeMode::Reuse,
+        );
+        // Same length as the original, so only a content comparison finds it.
+        fs::write(leaf.join("csvkit/index.wdl"), b"workflow x {}").unwrap();
+        fs::remove_file(leaf.join("csvkit/module.json")).unwrap();
+        fs::write(leaf.join("csvkit/extra.wdl"), b"extra").unwrap();
+        fs::create_dir_all(leaf.join("csvkit/tasks/nested")).unwrap();
+        fs::write(leaf.join("csvkit/tasks/nested/extra.wdl"), b"extra").unwrap();
+        fs::write(leaf.join("spellbook/index.wdl"), b"tampered").unwrap();
+        #[cfg(unix)]
+        let untouched_inode = inode(&leaf.join("csvkit/tasks/sort.wdl"));
+
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reconcile,
+        );
+        assert_eq!(outcome, Materialized::Reconciled);
+        assert_eq!(
+            fs::read(leaf.join("csvkit/index.wdl")).unwrap(),
+            b"workflow w {}"
+        );
+        assert!(leaf.join("csvkit/module.json").exists());
+        assert!(!leaf.join("csvkit/extra.wdl").exists());
+        assert!(!leaf.join("csvkit/tasks/nested").exists());
+        assert!(leaf.join("csvkit/tasks/sort.wdl").exists());
+        #[cfg(unix)]
+        assert_eq!(inode(&leaf.join("csvkit/tasks/sort.wdl")), untouched_inode);
+        // Only the requested folder is reconciled.
+        assert_eq!(
+            fs::read(leaf.join("spellbook/index.wdl")).unwrap(),
+            b"tampered"
+        );
+
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reconcile,
+        );
+        assert_eq!(outcome, Materialized::Reused);
+    }
+
+    #[test]
+    fn reconcile_of_clean_content_writes_nothing() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["."],
+            MaterializeMode::Reuse,
+        );
+        #[cfg(unix)]
+        let inodes: Vec<u64> = ["README.md", "csvkit/index.wdl", "spellbook/index.wdl"]
+            .iter()
+            .map(|p| inode(&leaf.join(p)))
+            .collect();
+
+        for paths in [&["."][..], &["csvkit"][..]] {
+            let outcome = materialize(
+                dest.path(),
+                &leaf,
+                &url,
+                &sha,
+                paths,
+                MaterializeMode::Reconcile,
+            );
+            assert_eq!(outcome, Materialized::Reused);
+        }
+        #[cfg(unix)]
+        {
+            let after: Vec<u64> = ["README.md", "csvkit/index.wdl", "spellbook/index.wdl"]
+                .iter()
+                .map(|p| inode(&leaf.join(p)))
+                .collect();
+            assert_eq!(after, inodes);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reconcile_restores_file_mode() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        let path = leaf.join("csvkit/index.wdl");
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reconcile,
+        );
+        assert_eq!(outcome, Materialized::Reconciled);
+        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o111, 0);
+    }
+
+    #[test]
+    fn reconcile_restores_directory_replaced_by_file() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        fs::remove_dir_all(leaf.join("csvkit/tasks")).unwrap();
+        fs::write(leaf.join("csvkit/tasks"), b"not a directory").unwrap();
+
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reconcile,
+        );
+        assert_eq!(outcome, Materialized::Reconciled);
+        assert_eq!(
+            fs::read(leaf.join("csvkit/tasks/sort.wdl")).unwrap(),
+            b"task sort {}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reconcile_restores_directory_replaced_by_symlink() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        // A symlink to identical content must still be replaced, because the
+        // module walker rejects symlinks.
+        let copy = dest.path().join("copy");
+        fs::create_dir_all(&copy).unwrap();
+        fs::write(copy.join("sort.wdl"), b"task sort {}").unwrap();
+        fs::remove_dir_all(leaf.join("csvkit/tasks")).unwrap();
+        std::os::unix::fs::symlink(&copy, leaf.join("csvkit/tasks")).unwrap();
+
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reconcile,
+        );
+        assert_eq!(outcome, Materialized::Reconciled);
+        let tasks = fs::symlink_metadata(leaf.join("csvkit/tasks")).unwrap();
+        assert!(tasks.is_dir());
+        assert!(leaf.join("csvkit/tasks/sort.wdl").is_file());
+        assert!(copy.join("sort.wdl").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reconcile_does_not_follow_a_symlinked_ancestor() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit/tasks"],
+            MaterializeMode::Reuse,
+        );
+        let outside = dest.path().join("outside");
+        fs::create_dir_all(outside.join("tasks")).unwrap();
+        fs::write(outside.join("tasks/keep.txt"), b"keep").unwrap();
+        fs::remove_dir_all(leaf.join("csvkit")).unwrap();
+        std::os::unix::fs::symlink(&outside, leaf.join("csvkit")).unwrap();
+
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit/tasks"],
+            MaterializeMode::Reconcile,
+        );
+        assert_eq!(outcome, Materialized::Reconciled);
+        assert!(outside.join("tasks/keep.txt").exists());
+        assert!(fs::symlink_metadata(leaf.join("csvkit")).unwrap().is_dir());
+        assert!(leaf.join("csvkit/tasks/sort.wdl").is_file());
+    }
+
+    #[test]
+    fn extend_replaces_leftovers_from_an_interrupted_extension() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        fs::create_dir_all(leaf.join("spellbook")).unwrap();
+        fs::write(leaf.join("spellbook/index.wdl"), b"partial").unwrap();
+        fs::write(leaf.join("spellbook/stray"), b"stray").unwrap();
+
+        extend(&leaf, &["spellbook"], TreeLimits::default()).unwrap();
+        assert_eq!(
+            fs::read(leaf.join("spellbook/index.wdl")).unwrap(),
+            b"workflow w {}"
+        );
+        assert!(leaf.join("spellbook/module.json").is_file());
+        assert!(!leaf.join("spellbook/stray").exists());
+    }
+
+    #[test]
+    fn reconcile_of_path_below_a_tracked_file_is_an_error() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        let error = ensure_materialized(
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
+            &url,
+            &sha,
+            ["csvkit/index.wdl/x"],
+            open_fetch_policy(),
+            TreeLimits::default(),
+            MaterializeMode::Reconcile,
+        )
+        .unwrap_err();
+        assert!(matches!(error, GitError::Object { .. }), "got: {error}");
+        assert_eq!(
+            fs::read(leaf.join("csvkit/index.wdl")).unwrap(),
+            b"workflow w {}"
+        );
+    }
+
+    #[test]
+    fn extend_with_path_absent_from_the_tree_writes_nothing() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        extend(&leaf, &["missing"], TreeLimits::default()).unwrap();
+        assert!(!leaf.join("missing").exists());
+        assert!(!leaf.join("spellbook").exists());
+        assert_eq!(meta_paths(&leaf), vec!["csvkit", "missing"]);
+    }
+
+    /// Builds a hostile upstream whose root tree has a clean `other`
+    /// module and a `mod` module with the extra `entries`.
+    fn hostile_upstream(
+        entries: impl FnOnce(&Repository) -> Vec<(&'static str, Vec<u8>, git2::Oid)>,
+    ) -> (tempfile::TempDir, String) {
+        raw_upstream(|repo| {
+            let manifest = raw_blob(repo, br#"{"name":"mod"}"#);
+            let other = raw_tree(repo, &[(mode::BLOB, b"module.json", manifest)]);
+            let mut module = vec![(mode::BLOB, b"module.json".to_vec(), manifest)];
+            module.extend(entries(repo));
+            let module: Vec<_> = module
+                .iter()
+                .map(|(mode, name, oid)| (*mode, name.as_slice(), *oid))
+                .collect();
+            let module = raw_tree(repo, &module);
+            raw_tree(
+                repo,
+                &[(mode::TREE, b"mod", module), (mode::TREE, b"other", other)],
+            )
+        })
+    }
+
+    /// Materializes `paths` from `upstream` into a new leaf, returning the
+    /// error.
+    fn materialize_err(
+        root: &Path,
+        leaf: &Path,
+        upstream: &Path,
+        sha: &str,
+        paths: &[&str],
+        mode: MaterializeMode,
+    ) -> GitError {
+        ensure_materialized(
+            CacheLocation { root, leaf },
+            &Url::from_directory_path(upstream).unwrap(),
+            sha,
+            paths.iter().copied(),
+            open_fetch_policy(),
+            TreeLimits::default(),
+            mode,
+        )
+        .unwrap_err()
+    }
+
+    /// Asserts that `error` rejects the tree entry at `path`.
+    #[track_caller]
+    fn assert_unsafe_entry(error: &GitError, expected: &str) {
+        match error {
+            GitError::UnsafeTreeEntry { path, .. } => assert_eq!(path, expected, "{error}"),
+            _ => panic!("expected an unsafe tree entry, got: {error}"),
+        }
+    }
+
+    /// Returns the names of the entries in `dir`.
+    #[cfg(unix)]
+    fn dir_names(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn clone_rejects_unsafe_entries_before_writing() {
+        // The link target is irrelevant because nothing may be written.
+        let cases: Vec<(&str, &[u8], &str, &str)> = vec![
+            ("symlink", b"link", mode::LINK, "mod/link"),
+            ("gitlink", b"sub", mode::GITLINK, "mod/sub"),
+            ("parent", b"..", mode::TREE, "mod/.."),
+            ("git", b".git", mode::TREE, "mod/.git"),
+            ("git-upper", b".GIT", mode::TREE, "mod/.GIT"),
+            ("git-ntfs", b".git. ", mode::TREE, "mod/.git. "),
+            ("git-short", b"GIT~1", mode::TREE, "mod/GIT~1"),
+            (
+                "git-hfs",
+                ".g\u{200c}it".as_bytes(),
+                mode::TREE,
+                "mod/.g\\u{200c}it",
+            ),
+            ("backslash", b"a\\b", mode::BLOB, "mod/a\\\\b"),
+            ("drive", b"C:x", mode::BLOB, "mod/C:x"),
+            (
+                "stream",
+                b".git::$INDEX_ALLOCATION",
+                mode::TREE,
+                "mod/.git::$INDEX_ALLOCATION",
+            ),
+        ];
+        for (label, name, entry_mode, expected) in cases {
+            let (upstream, sha) = hostile_upstream(|repo| {
+                let blob = raw_blob(repo, b"x");
+                let tree = raw_tree(repo, &[(mode::BLOB, b"x", blob)]);
+                let oid = match entry_mode {
+                    mode::TREE => tree,
+                    mode::GITLINK => git2::Oid::from_str(&"1".repeat(40)).unwrap(),
+                    _ => blob,
+                };
+                vec![(entry_mode, name.to_vec(), oid)]
+            });
+            let dest = tempdir().unwrap();
+            let leaf = dest.path().join("leaf");
+            let error = materialize_err(
+                dest.path(),
+                &leaf,
+                upstream.path(),
+                &sha,
+                &["mod"],
+                MaterializeMode::Reuse,
+            );
+            assert_unsafe_entry(&error, expected);
+            assert!(!leaf.exists(), "{label}: the rejected leaf was kept");
+            assert!(!sparse_meta_path(&leaf).exists(), "{label}");
+        }
+    }
+
+    #[test]
+    fn clone_rejects_a_symlink_under_sprocket() {
+        let outside = tempdir().unwrap();
+        let (upstream, sha) = hostile_upstream(|repo| {
+            let link = raw_blob(repo, outside.path().as_os_str().as_encoded_bytes());
+            let sprocket = raw_tree(repo, &[(mode::LINK, b"link", link)]);
+            vec![(mode::TREE, b".sprocket".to_vec(), sprocket)]
+        });
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let error = materialize_err(
+            dest.path(),
+            &leaf,
+            upstream.path(),
+            &sha,
+            &["mod"],
+            MaterializeMode::Reuse,
+        );
+        assert_unsafe_entry(&error, "mod/.sprocket/link");
+        assert!(!leaf.exists());
+    }
+
+    #[test]
+    fn clone_rejects_colliding_names() {
+        for (first, second) in [("h", "h"), ("h", "H"), ("h", "h.")] {
+            let (upstream, sha) = hostile_upstream(|repo| {
+                let blob = raw_blob(repo, b"x");
+                let tree = raw_tree(repo, &[(mode::BLOB, b"x", blob)]);
+                vec![
+                    (mode::BLOB, first.as_bytes().to_vec(), blob),
+                    (mode::TREE, second.as_bytes().to_vec(), tree),
+                ]
+            });
+            let dest = tempdir().unwrap();
+            let leaf = dest.path().join("leaf");
+            let error = materialize_err(
+                dest.path(),
+                &leaf,
+                upstream.path(),
+                &sha,
+                &["mod"],
+                MaterializeMode::Reuse,
+            );
+            assert_unsafe_entry(&error, &format!("mod/{second}"));
+            assert!(!leaf.exists());
+        }
+    }
+
+    /// A symlink and a tree with the same name make libgit2 write the tree's
+    /// entries through the link, outside the leaf.
+    #[cfg(unix)]
+    #[test]
+    fn clone_does_not_write_through_a_duplicate_name_symlink() {
+        let outside = tempdir().unwrap();
+        let (upstream, sha) = hostile_upstream(|repo| {
+            let link = raw_blob(repo, outside.path().as_os_str().as_encoded_bytes());
+            let file = raw_blob(repo, b"planted");
+            let dir = raw_tree(repo, &[(mode::BLOB, b"file", file)]);
+            let inner = raw_tree(
+                repo,
+                &[
+                    (mode::TREE, b"dir", dir),
+                    (mode::BLOB, b"file", file),
+                    (mode::LINK, b"link", link),
+                ],
+            );
+            let sprocket = raw_tree(repo, &[(mode::LINK, b"h", link), (mode::TREE, b"h", inner)]);
+            vec![(mode::TREE, b".sprocket".to_vec(), sprocket)]
+        });
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let result = ensure_materialized(
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
+            &Url::from_directory_path(upstream.path()).unwrap(),
+            &sha,
+            ["mod"],
+            open_fetch_policy(),
+            TreeLimits::default(),
+            MaterializeMode::Reuse,
+        );
+        assert_eq!(dir_names(outside.path()), Vec::<String>::new());
+        assert_unsafe_entry(&result.unwrap_err(), "mod/.sprocket/h");
+        assert!(!leaf.exists());
+    }
+
+    #[test]
+    fn clone_validates_ancestor_trees() {
+        /// Builds a root tree in the given repository.
+        type BuildTree = Box<dyn Fn(&Repository) -> git2::Oid>;
+
+        /// Writes a blob and a tree holding it as `x`.
+        fn blob_tree(repo: &Repository) -> (git2::Oid, git2::Oid) {
+            let blob = raw_blob(repo, b"x");
+            (blob, raw_tree(repo, &[(mode::BLOB, b"x", blob)]))
+        }
+
+        let dest = tempdir().unwrap();
+        let cases: Vec<(&str, BuildTree, &str, &str)> = vec![
+            (
+                "symlink component",
+                Box::new(|repo| {
+                    let (blob, _) = blob_tree(repo);
+                    raw_tree(repo, &[(mode::LINK, b"a", blob)])
+                }),
+                "a/mod",
+                "a",
+            ),
+            (
+                "duplicate component",
+                Box::new(|repo| {
+                    let (blob, tree) = blob_tree(repo);
+                    let a = raw_tree(repo, &[(mode::TREE, b"mod", tree)]);
+                    raw_tree(repo, &[(mode::LINK, b"a", blob), (mode::TREE, b"a", a)])
+                }),
+                "a/mod",
+                "a",
+            ),
+            (
+                "case-folded component",
+                Box::new(|repo| {
+                    let (blob, _) = blob_tree(repo);
+                    let module = raw_tree(repo, &[(mode::LINK, b"link", blob)]);
+                    let a = raw_tree(repo, &[(mode::TREE, b"MOD", module)]);
+                    raw_tree(repo, &[(mode::TREE, b"a", a)])
+                }),
+                "a/mod",
+                "a/MOD/link",
+            ),
+            (
+                "case-folded sibling",
+                Box::new(|repo| {
+                    let (blob, tree) = blob_tree(repo);
+                    let module = raw_tree(repo, &[(mode::LINK, b"link", blob)]);
+                    let a = raw_tree(
+                        repo,
+                        &[(mode::TREE, b"MOD", module), (mode::TREE, b"mod", tree)],
+                    );
+                    raw_tree(repo, &[(mode::TREE, b"a", a)])
+                }),
+                "a/mod",
+                "a/mod",
+            ),
+            (
+                "slash in ancestor",
+                Box::new(|repo| {
+                    let (blob, tree) = blob_tree(repo);
+                    let a = raw_tree(
+                        repo,
+                        &[(mode::TREE, b"mod", tree), (mode::BLOB, b"mod/y", blob)],
+                    );
+                    raw_tree(repo, &[(mode::TREE, b"a", a)])
+                }),
+                "a/mod",
+                "a/mod/y",
+            ),
+        ];
+        for (label, build, path, expected) in cases {
+            let (upstream, sha) = raw_upstream(|repo| build(repo));
+            let leaf = dest.path().join(label.replace(' ', "-"));
+            let error = materialize_err(
+                dest.path(),
+                &leaf,
+                upstream.path(),
+                &sha,
+                &[path],
+                MaterializeMode::Reuse,
+            );
+            assert_unsafe_entry(&error, expected);
+            assert!(!leaf.exists(), "{label}");
+        }
+    }
+
+    #[test]
+    fn clone_rejects_unsafe_sparse_path_components() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let error = materialize_err(
+            dest.path(),
+            &leaf,
+            upstream.path(),
+            &sha,
+            &[".GIT/objects"],
+            MaterializeMode::Reuse,
+        );
+        assert_unsafe_entry(&error, ".GIT/objects");
+        assert!(!leaf.exists());
+    }
+
+    #[test]
+    fn clone_allows_symlinks_outside_the_selected_paths() {
+        let (upstream, sha) = raw_upstream(|repo| {
+            let manifest = raw_blob(repo, br#"{"name":"mod"}"#);
+            let link = raw_blob(repo, b"mod/module.json");
+            let module = raw_tree(repo, &[(mode::BLOB, b"module.json", manifest)]);
+            raw_tree(
+                repo,
+                &[(mode::LINK, b"README", link), (mode::TREE, b"mod", module)],
+            )
+        });
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &Url::from_directory_path(upstream.path()).unwrap(),
+            &sha,
+            &["mod"],
+            MaterializeMode::Reuse,
+        );
+        assert_eq!(outcome, Materialized::Cloned);
+        assert!(leaf.join("mod/module.json").is_file());
+        assert!(fs::symlink_metadata(leaf.join("README")).is_err());
+    }
+
+    /// Builds a leaf as an older version would have left it after checking
+    /// out a duplicate-name tree: `mod/h` is a symlink to `outside`, which
+    /// holds a file the tree also lists as `mod/h/x`.
+    #[cfg(unix)]
+    fn planted_leaf(outside: &Path) -> (tempfile::TempDir, String, tempfile::TempDir, PathBuf) {
+        let (upstream, sha) = hostile_upstream(|repo| {
+            let link = raw_blob(repo, outside.as_os_str().as_encoded_bytes());
+            let file = raw_blob(repo, b"hostile");
+            let inner = raw_tree(repo, &[(mode::BLOB, b"x", file)]);
+            vec![
+                (mode::LINK, b"h".to_vec(), link),
+                (mode::TREE, b"h".to_vec(), inner),
+            ]
+        });
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &Url::from_directory_path(upstream.path()).unwrap(),
+            &sha,
+            &["other"],
+            MaterializeMode::Reuse,
+        );
+        assert_eq!(outcome, Materialized::Cloned);
+        fs::create_dir_all(leaf.join("mod")).unwrap();
+        fs::write(leaf.join("mod/module.json"), br#"{"name":"mod"}"#).unwrap();
+        std::os::unix::fs::symlink(outside, leaf.join("mod/h")).unwrap();
+        fs::write(outside.join("x"), b"keep").unwrap();
+        save_sparse_meta(
+            &leaf,
+            &SparsePath::normalize([SparsePath::new("mod"), SparsePath::new("other")]),
+        )
+        .unwrap();
+        (upstream, sha, dest, leaf)
+    }
+
+    /// Without validation, syncing `mod` hashes `mod/h/x` through the planted
+    /// link and deletes the mismatched file outside the leaf.
+    #[cfg(unix)]
+    #[test]
+    fn reusing_a_planted_leaf_evicts_it_without_following_the_link() {
+        for mode in [MaterializeMode::Reconcile, MaterializeMode::Reuse] {
+            let outside = tempdir().unwrap();
+            let (upstream, sha, dest, leaf) = planted_leaf(outside.path());
+            let result = ensure_materialized(
+                CacheLocation {
+                    root: dest.path(),
+                    leaf: &leaf,
+                },
+                &Url::from_directory_path(upstream.path()).unwrap(),
+                &sha,
+                ["mod"],
+                open_fetch_policy(),
+                TreeLimits::default(),
+                mode,
+            );
+            assert_eq!(fs::read(outside.path().join("x")).unwrap(), b"keep");
+            assert_eq!(dir_names(outside.path()), vec!["x"]);
+            assert_unsafe_entry(&result.unwrap_err(), "mod/h");
+            assert!(!leaf.exists(), "{mode:?}: the unsafe leaf was kept");
+            assert!(!sparse_meta_path(&leaf).exists());
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn syncing_a_planted_leaf_does_not_follow_the_link() {
+        let outside = tempdir().unwrap();
+        let (_upstream, _sha, _dest, leaf) = planted_leaf(outside.path());
+        let cached = CacheLeaf::open(&leaf).unwrap();
+        let reconciled = cached.reconcile(&SparsePath::new("mod"));
+        assert_eq!(fs::read(outside.path().join("x")).unwrap(), b"keep");
+        assert_unsafe_entry(&reconciled.unwrap_err(), "mod/h");
+
+        save_sparse_meta(&leaf, &BTreeSet::from([SparsePath::new("other")])).unwrap();
+        let extended = extend(&leaf, &["mod"], TreeLimits::default());
+        assert_eq!(fs::read(outside.path().join("x")).unwrap(), b"keep");
+        assert_unsafe_entry(&extended.unwrap_err(), "mod/h");
+        assert_eq!(dir_names(outside.path()), vec!["x"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reconcile_replaces_a_symlink_where_a_file_belongs() {
+        let (upstream, sha) = two_module_upstream();
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reuse,
+        );
+        let outside = dest.path().join("outside.wdl");
+        fs::write(&outside, b"workflow w {}").unwrap();
+        fs::remove_file(leaf.join("csvkit/index.wdl")).unwrap();
+        std::os::unix::fs::symlink(&outside, leaf.join("csvkit/index.wdl")).unwrap();
+
+        let outcome = materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["csvkit"],
+            MaterializeMode::Reconcile,
+        );
+        assert_eq!(outcome, Materialized::Reconciled);
+        let metadata = fs::symlink_metadata(leaf.join("csvkit/index.wdl")).unwrap();
+        assert!(metadata.is_file());
+        assert_eq!(fs::read(&outside).unwrap(), b"workflow w {}");
+    }
+
+    #[test]
+    fn shared_subtrees_are_validated_once() {
+        let (upstream, sha) = raw_upstream(|repo| {
+            let blob = raw_blob(repo, b"x");
+            let mut tree = raw_tree(repo, &[(mode::BLOB, b"x", blob)]);
+            // Each level references the level below twice, so a naive walk
+            // would visit 2^40 trees.
+            for _ in 0..40 {
+                tree = raw_tree(repo, &[(mode::TREE, b"a", tree), (mode::TREE, b"b", tree)]);
+            }
+            raw_tree(repo, &[(mode::TREE, b"mod", tree)])
+        });
+        let repo = Repository::open(upstream.path()).unwrap();
+        repo.set_head_detached(git2::Oid::from_str(&sha).unwrap())
+            .unwrap();
+        CheckedTree::new(&repo, &[SparsePath::new("mod")]).unwrap();
+    }
+
+    /// Regression test for #1236: resolving imports from an already
+    /// materialized leaf must not disturb concurrent readers of that leaf.
+    #[test]
+    fn concurrent_materialization_does_not_disturb_readers() {
+        use std::sync::atomic::AtomicBool;
+        use std::sync::atomic::Ordering;
+
+        let (upstream, sha) = build_upstream(&[
+            ("dep/module.json", br#"{"name":"dep","license":"MIT"}"#),
+            ("dep/a.wdl", b"task a {}"),
+            ("dep/b.wdl", b"task b {}"),
+            ("dep/c.wdl", b"task c {}"),
+            ("dep/d.wdl", b"task d {}"),
+            ("other/module.json", br#"{"name":"other","license":"MIT"}"#),
+        ]);
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+        materialize(
+            dest.path(),
+            &leaf,
+            &url,
+            &sha,
+            &["dep"],
+            MaterializeMode::Reuse,
+        );
+
+        let done = AtomicBool::new(false);
+        std::thread::scope(|scope| {
+            let readers: Vec<_> = ["a", "b", "c", "d"]
+                .into_iter()
+                .map(|name| {
+                    let path = leaf.join(format!("dep/{name}.wdl"));
+                    let done = &done;
+                    scope.spawn(move || {
+                        let mut reads = 0usize;
+                        while !done.load(Ordering::Relaxed) || reads == 0 {
+                            let bytes = fs::read(&path)
+                                .unwrap_or_else(|e| panic!("reading `{}`: {e}", path.display()));
+                            assert!(!bytes.is_empty());
+                            reads += 1;
+                        }
+                    })
+                })
+                .collect();
+            let writers: Vec<_> = (0..4)
+                .map(|i| {
+                    let (root, leaf, url, sha) = (dest.path(), &leaf, &url, &sha);
+                    scope.spawn(move || {
+                        for iteration in 0..25 {
+                            let paths: &[&str] = if i == 0 && iteration == 10 {
+                                &["other"]
+                            } else {
+                                &["dep"]
+                            };
+                            materialize(root, leaf, url, sha, paths, MaterializeMode::Reuse);
+                        }
+                    })
+                })
+                .collect();
+            for writer in writers {
+                writer.join().unwrap();
+            }
+            done.store(true, Ordering::Relaxed);
+            for reader in readers {
+                reader.join().unwrap();
+            }
+        });
+        assert!(leaf.join("other/module.json").exists());
     }
 }

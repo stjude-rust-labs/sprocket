@@ -48,8 +48,9 @@ pub struct TreeStats {
 ///
 /// The walk enforces these rules.
 ///
-/// - Entries named `.git` or `.sprocket` are skipped.
-/// - Any symbolic link is rejected with [`ModuleWalkError::Symlink`].
+/// - Entries named `.git` or `.sprocket` are not visited or counted.
+/// - Any symbolic link is rejected with [`ModuleWalkError::Symlink`], including
+///   one inside a `.sprocket` directory.
 /// - Only regular files are visited.
 pub fn walk_module_tree<E>(
     root: &Path,
@@ -74,6 +75,39 @@ impl<E> From<ModuleWalkError> for WalkError<E> {
     fn from(e: ModuleWalkError) -> Self {
         Self::Walk(e)
     }
+}
+
+/// The name of the per-module Sprocket metadata directory.
+const SPROCKET_DIR: &str = ".sprocket";
+
+/// Rejects any symbolic link at or below the directory `dir`, skipping
+/// nested `.git` directories.
+fn reject_symlinks(dir: &Path) -> Result<(), ModuleWalkError> {
+    let mut pending = vec![dir.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let entries = std::fs::read_dir(&dir).map_err(|source| ModuleWalkError::Io {
+            path: dir.clone(),
+            source,
+        })?;
+        for entry in entries {
+            let entry = entry.map_err(|source| ModuleWalkError::Io {
+                path: dir.clone(),
+                source,
+            })?;
+            let path = entry.path();
+            let file_type = entry.file_type().map_err(|source| ModuleWalkError::Io {
+                path: path.clone(),
+                source,
+            })?;
+            if file_type.is_symlink() {
+                return Err(ModuleWalkError::Symlink(path.display().to_string()));
+            }
+            if file_type.is_dir() && entry.file_name() != ".git" {
+                pending.push(path);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Recursive directory walker. Rejects any symbolic link encountered.
@@ -110,6 +144,11 @@ fn walk_recursive<E>(
             )));
         }
         if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
+            // `.sprocket` is excluded from module content but is still part of
+            // a materialized module, so it must not hide a symbolic link.
+            if name == SPROCKET_DIR && meta.is_dir() {
+                reject_symlinks(&path)?;
+            }
             continue;
         }
         if meta.is_dir() {
@@ -146,6 +185,44 @@ mod tests {
             result,
             Err(WalkError::Walk(ModuleWalkError::Symlink(_)))
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_symlink_inside_sprocket_directory() -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempdir()?;
+        let outside = tempdir()?;
+        std::fs::create_dir_all(root.path().join(".sprocket/nested"))?;
+        std::fs::write(root.path().join(".sprocket/nested/file"), b"x")?;
+        symlink(outside.path(), root.path().join(".sprocket/nested/link"))?;
+
+        let mut visited = Vec::new();
+        let result = walk_module_tree(root.path(), &mut |path, _| -> Result<(), Infallible> {
+            visited.push(path.to_path_buf());
+            Ok(())
+        });
+
+        assert!(matches!(
+            result,
+            Err(WalkError::Walk(ModuleWalkError::Symlink(path))) if path.ends_with("link")
+        ));
+        assert!(visited.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn sprocket_directory_is_not_module_content() -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempdir()?;
+        std::fs::create_dir_all(root.path().join(".sprocket/nested"))?;
+        std::fs::write(root.path().join(".sprocket/nested/file"), b"x")?;
+        std::fs::write(root.path().join("index.wdl"), b"version 1.3\n")?;
+
+        let stats = walk_module_tree(root.path(), &mut |_, _| -> Result<(), Infallible> {
+            Ok(())
+        })
+        .map_err(|_| "walk failed")?;
+
+        assert_eq!(stats.files, 1);
         Ok(())
     }
 }

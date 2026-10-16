@@ -33,7 +33,7 @@ const FUNCTION_NAME: &str = "write_object";
 /// Each line is terminated by the newline (\n) character. The ordering of the
 /// columns is unspecified.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_object
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_object>
 fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

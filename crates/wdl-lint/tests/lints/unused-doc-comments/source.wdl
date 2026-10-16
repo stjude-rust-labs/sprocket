@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs, BashSetSyntax, ParameterMetaMatched
+#@ except: EmptyOutputs, BashSetSyntax, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder, RequirementsSection, MetaSections
 
 ## This preamble is considered a valid doc comment,
 ## despite having whitespace between it and the version statement.
@@ -36,7 +36,7 @@ task test_task {
 
     ## The user should be warned about this doc comment as it targets
     ## command, despite the interruption below.
-    # comment interrupting doc block resulting in two diagnostics
+    # regular comments do not split a documentation block
     ## Commands don't support doc comments so the user should be warned here.
     ## about this multiline comment with whitespace...
     ##
@@ -54,12 +54,12 @@ task test_task_2 {
     ## these 3 lines should all be highlighted by one span
     #@ directive
     # regular comment
-    ## another doc comment block
-    ## that gets a new diagnostic fired with a new span
+    ## these comments remain in the same documentation block
+    ## because regular comments and directives do not split it
 
-    ## but there's a blank line in the middle!
-    ## but we are going to consider these consecutive anyway
-    ## this line and the prior 5 lines should all be in the same highlighted span
+    ## now there's a blank line in the middle!
+    ## a blank line starts a separate floating documentation block
+    ## that receives its own diagnostic
     # another regular comment for good measure
 
     command <<<>>>
@@ -68,7 +68,7 @@ task test_task_2 {
 ## While it's not what we want people to do, I should be able to
 ## sandwich lint directives with doc comments or whitespace
 ## for the purposes of the unused doc comment lint.
-#@ except: MatchingOutputMeta, MetaSections
+#@ except: MatchingOutputMeta, OutputMetaOrder, MetaSections
 ## This doc comment should be allowed.
 workflow test_workflow {
     ## This doc comment does nothing and the user should be warned!
@@ -117,5 +117,18 @@ workflow test_workflow {
         ## An element of an output should be doc commentable.
         Boolean my_output = banana
     }
+}
+
+## This comment is floating. It doesn't document `floating_comment`, and should be linted
+
+task floating_comment {
+    command <<<>>>
+}
+
+## I'm floating, so I don't document the task...
+
+## ...but I do!
+task floating_above_attached {
+    command <<<>>>
 }
 ## Trailing Doc Comment should be linted

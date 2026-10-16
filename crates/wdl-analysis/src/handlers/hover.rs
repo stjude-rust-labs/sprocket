@@ -66,6 +66,7 @@ use crate::types::v1::ExprTypeEvaluator;
 /// hover information.
 ///
 /// Provides hover information by:
+///
 /// 1. Attempting to resolve the symbol based on its CST context.
 /// 2. Looking up the symbol in the current scope.
 /// 3. Checking for global definitions (tasks, workflows and structs) across the

@@ -23,7 +23,7 @@ const FUNCTION_NAME: &str = "transpose";
 ///
 /// If either the inner or the outer array is empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#transpose
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#transpose>
 fn transpose(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(

@@ -15,7 +15,7 @@ use super::project::Project;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::SignerChangeMode;
 use super::signer_policy::enforce_lockfile_signer_policy;
-use crate::commands::output::CommandOutput;
+use crate::commands::CommandOutput;
 use crate::config::Config;
 
 /// A resolved lockfile update plus signer metadata gathered while

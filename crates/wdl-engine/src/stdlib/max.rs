@@ -11,7 +11,7 @@ use crate::Value;
 
 /// Returns the larger of two integer values.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#max
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#max>
 fn int_max(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));
@@ -27,7 +27,7 @@ fn int_max(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Returns the larger of two float values.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#max
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#max>
 fn float_max(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Float));
