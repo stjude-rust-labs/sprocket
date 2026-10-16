@@ -21,9 +21,8 @@ use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
 
 use crate::Config;
-use crate::analysis::Analysis;
 use crate::analysis::Source;
-use crate::commands::CommandError;
+use crate::analysis::analyze_singular_source;
 use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
@@ -482,22 +481,16 @@ pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> Comman
         ref other => other.clone(),
     };
 
-    let results = Analysis::default()
-        .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version.into())
-        .modules_config(config.modules.clone())
-        .feature_flags(config.common.wdl.feature_flags)
-        .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, output.colorize())
-        .await
-        .map_err(CommandError::from)?;
-
-    let document = results
-        .filter(&[&source])
-        .next()
-        // SAFETY: the root source was added to the analysis above.
-        .unwrap()
-        .document();
+    let document = analyze_singular_source(
+        &source,
+        config.common.wdl.fallback_version.into(),
+        config.modules,
+        config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
+        report_mode,
+        output.colorize(),
+    )
+    .await?;
 
     let mut processor = InputProcessor::new(
         args.nested_inputs,
@@ -549,7 +542,7 @@ pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> Comman
                     // be found, so this should always unwrap.
                     .unwrap();
 
-                processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
+                processor.workflow(namespace, &document, analysis_wf, &ast_wf)?;
             }
             (None, None) => {
                 return Err(anyhow!(
@@ -575,7 +568,7 @@ pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> Comman
             // be found, so this should always unwrap.
             .unwrap();
 
-        processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
+        processor.workflow(namespace, &document, analysis_wf, &ast_wf)?;
     } else {
         let mut tasks = document.tasks();
         let first = tasks.next();
