@@ -23,10 +23,10 @@ use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::format_meta_value;
 use wdl_ast::v1::get_param_meta;
 
-use crate::EnumRef;
-use crate::StructRef;
-use crate::TaskRef;
+use crate::document::EnumRef;
 use crate::document::Namespace;
+use crate::document::StructRef;
+use crate::document::TaskRef;
 use crate::document::Workflow;
 
 /// Makes a LSP documentation from a definition text.
@@ -304,7 +304,7 @@ pub fn provide_task_documentation(task: &TaskRef<'_>, root: &wdl_ast::Document) 
     let (root, name_span) = match task {
         TaskRef::Local(t) => (root.inner().clone(), t.name_span()),
         TaskRef::Imported(t) => {
-            let root = t.document.root();
+            let root = t.document().root();
             let ast = root.ast();
             let mut tasks = ast.as_v1()?.tasks();
             let target = tasks.find(|task| task.name().text() == t.name())?;

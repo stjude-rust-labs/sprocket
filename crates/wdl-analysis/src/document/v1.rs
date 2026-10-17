@@ -119,7 +119,9 @@ use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
 use crate::diagnostics::wildcard_import_conflict;
 use crate::diagnostics::workflow_conflict;
+use crate::document::EnumRef;
 use crate::document::Name;
+use crate::document::StructRef;
 use crate::document::cache::*;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
@@ -538,12 +540,12 @@ fn add_namespace(
             }
             None => {
                 cache_item.add_struct(ImportedStruct {
-                    span,
                     local_name: aliased_name.to_string(),
+                    offset: s.offset(),
                     node: s.node().clone(),
+                    span,
                     document: imported_doc.clone(),
                     ty: s.ty().cloned(),
-                    offset: s.offset(),
                 });
             }
         }
@@ -707,11 +709,11 @@ fn add_wildcard_import(
             .local_structs()
             .map(|(_idx, _hash, s)| ImportedStruct {
                 local_name: s.name().to_string(),
+                offset: s.offset,
                 node: s.node.clone(),
                 span,
                 document: imported_doc.clone(),
                 ty: s.ty().cloned(),
-                offset: s.offset,
             }),
         span,
         wildcard_import_conflict,
@@ -727,11 +729,11 @@ fn add_wildcard_import(
             .local_enums()
             .map(|(_idx, _hash, e)| ImportedEnum {
                 local_name: e.name().to_string(),
+                offset: e.offset,
                 node: e.node.clone(),
                 span,
                 document: imported_doc.clone(),
                 ty: e.ty().cloned(),
-                offset: e.offset,
             }),
         span,
         wildcard_import_conflict,
@@ -871,11 +873,11 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    offset: s.item().offset,
                     node: s.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
                     ty: s.item().ty().cloned(),
-                    offset: s.item().offset,
                 };
 
                 import_structs(
@@ -890,11 +892,11 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    offset: s.offset,
                     node: s.node.clone(),
                     span: member_span,
                     document: s.document.clone(),
                     ty: s.ty().cloned(),
-                    offset: s.offset,
                 };
 
                 import_structs(
@@ -909,11 +911,11 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    offset: e.item().offset,
                     node: e.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
                     ty: e.item().ty().cloned(),
-                    offset: e.item().offset,
                 };
 
                 import_enums(
@@ -928,11 +930,11 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    offset: e.offset,
                     node: e.node.clone(),
                     span: member_span,
                     document: e.document.clone(),
                     ty: e.ty().cloned(),
-                    offset: e.offset,
                 };
 
                 import_enums(

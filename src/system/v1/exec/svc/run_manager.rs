@@ -47,11 +47,17 @@ pub(crate) mod commands;
 pub use commands::*;
 use wdl::diagnostics::Mode;
 
-/// Channel capacity for events.
+/// Channel capacity for Crankshaft events.
 ///
 /// This number represents a reasonable, arbitrary buffer size to handle burst
 /// event production.
-const EVENTS_CHANNEL_CAPACITY: usize = 2048;
+const CRANKSHAFT_EVENTS_CHANNEL_CAPACITY: usize = 2048;
+
+/// Channel capacity for WDL engine events.
+///
+/// This number represents a reasonable, arbitrary buffer size to handle burst
+/// event production.
+const ENGINE_EVENTS_CHANNEL_CAPACITY: usize = 2048;
 
 /// A receiver for commands issued to the run manager service.
 type Rx = mpsc::Receiver<RunManagerCmd>;
@@ -419,7 +425,9 @@ impl RunManagerSvc {
         )
         .await?;
 
-        let events = Events::new(EVENTS_CHANNEL_CAPACITY);
+        let events = Events::default()
+            .with_crankshaft(CRANKSHAFT_EVENTS_CHANNEL_CAPACITY)
+            .with_engine(ENGINE_EVENTS_CHANNEL_CAPACITY);
         let cancellation = CancellationContext::new(self.engine.config().failure_mode);
         let executor = RunnableExecutor::builder()
             .db(self.db.clone())

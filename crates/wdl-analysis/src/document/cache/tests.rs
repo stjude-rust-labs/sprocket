@@ -317,7 +317,7 @@ struct ToBeRemoved {}
     let result = doc_handle.analyze(&analyzer).await;
     let doc_post = result.document();
     let cache_post = doc_post.cache();
-    assert!(cache_post.is_empty());
+    assert_eq!(cache_post.len(), 0);
 }
 
 #[tokio::test]

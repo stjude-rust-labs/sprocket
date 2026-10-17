@@ -35,13 +35,13 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 use wdl_ast::version::V1;
 
-use crate::AnalysisCache;
 use crate::AppliedEdit;
 use crate::Config;
 use crate::Diagnostics;
 use crate::IncrementalChange;
 use crate::UsingFallbackVersion;
 use crate::document::Document;
+use crate::document::cache::AnalysisCache;
 
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace = petgraph::algo::DfsSpace<

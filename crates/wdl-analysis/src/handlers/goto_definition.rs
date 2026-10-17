@@ -31,11 +31,11 @@ use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1;
 
-use crate::EnumRef;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
-use crate::StructRef;
 use crate::document::Document;
+use crate::document::EnumRef;
+use crate::document::StructRef;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
