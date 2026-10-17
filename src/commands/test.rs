@@ -1135,19 +1135,31 @@ fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<String, Pat
     }
 
     let mut found = HashMap::new();
-    for entry in std::fs::read_dir(bin_dir)? {
+    for entry in std::fs::read_dir(bin_dir).with_context(|| "reading provided `bin` directory")? {
         let entry = entry?;
-        if !entry.path().is_file() {
+        let path = entry.path();
+        if path.symlink_metadata()?.is_symlink() {
+            warn!(
+                "skipping `{path}` as symlinks are not permitted",
+                path = path.display()
+            );
+            continue;
+        }
+        if !path.is_file() {
+            warn!(
+                "skipping `{path}` as it is not a file",
+                path = path.display()
+            );
             continue;
         }
         let name = entry.file_name();
-        if name.to_string_lossy() == BLESSED_FILE_NAME {
+        let name = name.to_string_lossy();
+        if name == BLESSED_FILE_NAME {
             continue;
         }
 
-        // TODO: check +x bit
-
-        found.insert(name.to_string_lossy().into(), absolute(entry.path())?);
+        info!("found file named `{name}` for custom assertions",);
+        found.insert(name.into(), absolute(entry.path())?);
     }
 
     if trust {
