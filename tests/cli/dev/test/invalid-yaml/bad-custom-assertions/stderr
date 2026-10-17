@@ -1,0 +1,9 @@
+error: missing `$OUTPUTS` placeholder
+   ┌─ foo/foo.yml:14:18
+   │
+14 │         invalid: "no output placeholder"
+   │                  ^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: the value must contain an `$OUTPUTS` placeholder
+
+error: failing due to 1 error

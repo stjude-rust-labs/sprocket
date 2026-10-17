@@ -396,6 +396,7 @@ secret = "<REDACTED>"
 [test]
 parallelism = 50
 throttle = 100
+enable_custom_assertions = false
 
 [doc]
 index_page = "none"

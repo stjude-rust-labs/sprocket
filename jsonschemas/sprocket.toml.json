@@ -2804,18 +2804,30 @@
             "null"
           ]
         },
+        "bin_dir": {
+          "description": "Directory containing executable files to run for custom assertions.\n\nIf not set, executables are resolved from `<workspace>/test/bin`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "run_dir": {
           "description": "Directory to use for executing tests.\n\nIf not set, runs are written to `<workspace>/test/runs`.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "enable_custom_assertions": {
+          "description": "Whether to enable arbitrary code execution for custom test assertions.\n\nTODO: document DANGER.",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
       "required": [
         "parallelism",
-        "throttle"
+        "throttle",
+        "enable_custom_assertions"
       ]
     },
     "DocConfig": {
