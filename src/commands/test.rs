@@ -10,7 +10,6 @@ use std::fs::write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -34,6 +33,7 @@ use sprocket_test_types::OutputAssertion;
 use sprocket_test_types::TestDefinition;
 use sprocket_test_types::yaml::Spanned;
 use tokio::fs::remove_dir_all;
+use tokio::process::Command;
 use tokio::select;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
@@ -294,11 +294,13 @@ fn file_matches<'a>(path: &str, regexs: &'a [Regex]) -> Result<Option<&'a str>> 
     Ok(None)
 }
 
-fn run_custom_bins<'a>(
+async fn run_custom_bins(
     outputs: Outputs,
     executables: &HashMap<String, PathBuf>,
-    custom: &'a HashMap<Spanned<String>, String>,
-) -> Result<Option<&'a Spanned<String>>> {
+    custom: &HashMap<Spanned<String>, String>,
+    id: &str,
+) -> Result<IterationResult> {
+    let mut futures = JoinSet::new();
     for (bin, args) in custom {
         let Some(bin_path) = executables.get(&bin.0.value) else {
             bail!(
@@ -319,46 +321,48 @@ fn run_custom_bins<'a>(
                     bin = bin.0.value
                 )
             })?;
-        let output = Command::new(bin_path)
-            .args(args)
-            .current_dir(exec_dir.path())
-            .output()?;
+        let bin_name = bin.0.value.clone();
+        let bin_path = bin_path.clone();
+        futures.spawn(async move {
+            (
+                bin_name,
+                Command::new(bin_path)
+                    .args(args)
+                    .current_dir(exec_dir.path())
+                    .output()
+                    .await,
+            )
+        });
+    }
+    while let Some(output) = futures.join_next().await {
+        let (bin, output) = output?;
+        let output = output?;
         let mut buffer: Vec<u8> = Vec::new();
         if !output.status.success() {
-            log_stdio!(
-                warn,
-                buffer,
-                "custom-assertion-stderr",
-                bin.0.value,
-                &output.stderr
-            );
-            log_stdio!(
-                warn,
-                buffer,
-                "custom-assertion-stdout",
-                bin.0.value,
-                &output.stdout
-            );
-            return Ok(Some(bin));
+            log_stdio!(warn, buffer, "custom-assertion-stderr", bin, &output.stderr);
+            log_stdio!(warn, buffer, "custom-assertion-stdout", bin, &output.stdout);
+            return Ok(IterationResult::Fail(anyhow!(
+                "{id} custom assertion `{bin}` did not succeed"
+            )));
         } else {
             log_stdio!(
                 debug,
                 buffer,
                 "custom-assertion-stderr",
-                bin.0.value,
+                bin,
                 &output.stderr
             );
             log_stdio!(
                 debug,
                 buffer,
                 "custom-assertion-stdout",
-                bin.0.value,
+                bin,
                 &output.stdout
             );
         }
     }
 
-    Ok(None)
+    Ok(IterationResult::Success)
 }
 
 fn evaluate_outputs(
@@ -433,14 +437,7 @@ impl TestIteration {
                             Ok(IterationResult::Fail(e))
                         } else if !assertions.custom.is_empty() {
                             if let Some(executables) = executables {
-                                match run_custom_bins(outputs, executables, &assertions.custom) {
-                                    Ok(None) => Ok(IterationResult::Success),
-                                    Ok(Some(bin)) => Ok(IterationResult::Fail(anyhow!(
-                                        "{id} custom assertion `{bin}` did not succeed",
-                                        bin = bin.0.value
-                                    ))),
-                                    Err(e) => Err(e),
-                                }
+                                run_custom_bins(outputs, executables, &assertions.custom, &id).await
                             } else {
                                 warn!(
                                     "found custom assertions but running custom assertions isn't \
@@ -534,14 +531,7 @@ impl TestIteration {
                             ))
                         } else if !assertions.custom.is_empty() {
                             if let Some(executables) = executables {
-                                match run_custom_bins(outputs, executables, &assertions.custom) {
-                                    Ok(None) => Ok(IterationResult::Success),
-                                    Ok(Some(bin)) => Ok(IterationResult::Fail(anyhow!(
-                                        "{id} custom assertion `{bin}` did not succeed",
-                                        bin = bin.0.value
-                                    ))),
-                                    Err(e) => Err(e),
-                                }
+                                run_custom_bins(outputs, executables, &assertions.custom, &id).await
                             } else {
                                 warn!(
                                     "found custom assertions but running custom assertions isn't \
