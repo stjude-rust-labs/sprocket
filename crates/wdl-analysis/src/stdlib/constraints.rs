@@ -29,7 +29,7 @@ pub struct SizeableConstraint;
 
 impl Constraint for SizeableConstraint {
     fn description(&self) -> &'static str {
-        "any compound type that recursively contains a `File` or `Directory`"
+        "any compound type that recursively contains a file system path"
     }
 
     fn satisfied(&self, ty: &Type) -> bool {

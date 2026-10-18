@@ -12,6 +12,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `MetaSections` lint rule no longer requires `parameter_meta` for `struct`s whose members are fully
   documented by doc comments ([#1285](https://github.com/stjude-rust-labs/sprocket/pull/1285)).
 
+### Removed
+
+* The `CallInputKeyword` rule was promoted to `wdl-analysis`
+  ([#1299](https://github.com/stjude-rust-labs/sprocket/pull/1299)).
+
 ## 0.29.0 - 2026-10-07
 
 ### Added

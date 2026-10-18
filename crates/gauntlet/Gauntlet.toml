@@ -12044,6 +12044,41 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:101:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L101"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:113:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L113"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:120:7: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L120"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:130:7: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L130"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:138:7: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L138"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:149:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L149"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:157:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L157"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:22:16: warning[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L22"
 
@@ -12056,6 +12091,41 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:34:3: warning[DeprecatedRuntimeSection]: task `create_cram_directory` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L34"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:49:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:57:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L57"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:64:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:72:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L72"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:78:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L78"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:85:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L85"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:93:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L93"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -12251,6 +12321,76 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:34:3: warning[DeprecatedRuntimeSection]: task `create_cram_directory` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L34"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:53:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L53"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:61:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L61"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:68:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L68"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:76:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L76"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:82:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L82"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:89:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L89"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:97:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L97"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
+message = "ww-imputation.wdl:118:7: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L118"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
+message = "ww-imputation.wdl:132:7: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L132"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
+message = "ww-imputation.wdl:139:9: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L139"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
+message = "ww-imputation.wdl:160:9: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L160"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
+message = "ww-imputation.wdl:177:7: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L177"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
+message = "ww-imputation.wdl:189:5: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L189"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/ww-imputation.wdl"
+message = "ww-imputation.wdl:201:7: warning[DeprecatedInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/ww-imputation.wdl/#L201"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
