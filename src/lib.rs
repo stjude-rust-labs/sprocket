@@ -258,6 +258,7 @@ async fn real_main() -> CommandResult<()> {
         Commands::Format(args) => commands::format::format(args, config, output).await,
         Commands::Inputs(args) => commands::inputs::inputs(args, config, output).await,
         Commands::Lint(args) => commands::check::lint(args, config, output).await,
+        Commands::Localize(args) => commands::localize::localize(args, config, output).await,
         Commands::Run(args) => commands::run::run(args, config, output, file_handle, writer).await,
         Commands::Validate(args) => commands::validate::validate(args, config, output).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {

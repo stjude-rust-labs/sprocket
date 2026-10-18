@@ -11,6 +11,7 @@ Commands:
   format       Formats a document or a directory containing documents
   inputs       Writes the inputs schema for a WDL document
   lint         Lints a document or a directory containing documents
+  localize     Downloads the remote outputs of a completed run to the local file system
   run          Runs a task or workflow
   validate     Validate a set of inputs against a task or workflow
   dev          Developmental and experimental commands

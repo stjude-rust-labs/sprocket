@@ -46,6 +46,8 @@
 - **`sprocket inputs`** writes template input file (JSON or YAML) for a task or workflow.
 - **`sprocket lint`** performs static analysis on a document or directory of documents with
   additional linting rules enabled (effectively a shortcut for `check --lint`).
+- **`sprocket localize`** downloads the remote outputs of a completed run (e.g. a run on a cloud
+  backend) to the local file system.
 - **`sprocket run`** runs a task or workflow.
 - **`sprocket validate`** validates a set of inputs read from files or on the command line against a
   task or workflow.
