@@ -12,6 +12,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `DeprecatedInputKeyword` rule to flag call statements with unnecessary `input` keywords
   ([#1299](https://github.com/stjude-rust-labs/sprocket/pull/1299)).
 
+### Changed
+
+* Ensured that analysis cache types are not exposed via the public API of `wdl-analysis` and made
+  some public type fields private ([#1303](https://github.com/stjude-rust-labs/sprocket/pull/1303)).
+
 ### Fixed
 
 * Standard-library hover, completion, and signature help now use documentation appropriate for the
