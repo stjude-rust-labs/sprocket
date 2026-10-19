@@ -215,7 +215,6 @@ pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandRe
         })
         .additional_html(addl_html)
         .seo(seo)
-        .enable_doc_comments(true)
         .check(args.check);
 
     let mut counts = DiagnosticCounts::default();

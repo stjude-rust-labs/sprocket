@@ -69,9 +69,8 @@ impl Enum {
         version: SupportedVersion,
         external: bool,
         wdl_path: Option<PathBuf>,
-        enable_doc_comments: bool,
     ) -> Self {
-        let (meta, choices) = parse_meta(&definition, enable_doc_comments);
+        let (meta, choices) = parse_meta(&definition);
 
         Self {
             meta,
@@ -155,11 +154,8 @@ impl Enum {
 }
 
 /// Parse the doc comments on the enum definition and its choices.
-fn parse_meta(
-    definition: &EnumDefinition,
-    enable_doc_comments: bool,
-) -> (MetaMap, Vec<DocumentedEnumChoice>) {
-    let enum_docs = if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+fn parse_meta(definition: &EnumDefinition) -> (MetaMap, Vec<DocumentedEnumChoice>) {
+    let enum_docs = if let Some(comments) = definition.doc_comments() {
         doc_comments(comments)
     } else {
         MetaMap::new()
@@ -167,7 +163,7 @@ fn parse_meta(
 
     let mut choice_docs = Vec::new();
     for choice in definition.choices() {
-        let meta = if enable_doc_comments && let Some(comments) = choice.doc_comments() {
+        let meta = if let Some(comments) = choice.doc_comments() {
             doc_comments(comments)
         } else {
             MetaMap::new()
@@ -215,7 +211,7 @@ mod tests {
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let ast_enum = doc_item.into_enum_definition().unwrap();
 
-        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), false, None, true);
+        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), false, None);
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(
