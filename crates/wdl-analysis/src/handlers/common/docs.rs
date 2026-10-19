@@ -26,6 +26,7 @@ use wdl_ast::v1::get_param_meta;
 use crate::EnumRef;
 use crate::StructRef;
 use crate::TaskRef;
+use crate::document::Namespace;
 use crate::document::Workflow;
 
 /// Makes a LSP documentation from a definition text.
@@ -336,6 +337,23 @@ pub fn provide_workflow_documentation(
             .map(|n| render_workflow_doc(&n)),
         Err(_) => None,
     }
+}
+
+/// Provides documentation for namespaces.
+pub fn provide_namespace_documentation(namespace: &Namespace) -> Option<String> {
+    let import_doc = namespace.document();
+
+    let mut s = format!(
+        "```wdl\n(import) {}\n```\nImports from `{}`",
+        namespace.name(),
+        namespace.source()
+    );
+
+    if let Some(desc) = comments_to_string(import_doc.root().doc_comments().unwrap_or_default()) {
+        let _ = write!(&mut s, "\n\n---\n{desc}\n");
+    }
+
+    Some(s)
 }
 
 /// Provides documentation for structs.
