@@ -60,12 +60,12 @@ severity = "warning"
 [check.rules.DeprecatedRuntimeSection]
 severity = "warning"
 
+[check.rules.DeprecatedInputKeyword]
+severity = "warning"
+
 [check.rules.BashSetSyntax]
 severity = "warning"
 bash_set_options = ["errexit", "nounset", "pipefail"]
-
-[check.rules.CallInputKeyword]
-severity = "note"
 
 [check.rules.ConciseInput]
 severity = "note"
