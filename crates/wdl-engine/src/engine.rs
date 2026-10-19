@@ -61,6 +61,31 @@ impl Engine {
     where
         T: HttpClient + 'static,
     {
+        Self::new_with_http_client_and_backend(config, client, None).await
+    }
+
+    /// Constructs a new engine with the provided HTTP client and task backend.
+    #[cfg(test)]
+    pub(crate) async fn new_with_backend<T>(
+        config: Config,
+        client: T,
+        backend: Box<dyn TaskExecutionBackend>,
+    ) -> Result<Self>
+    where
+        T: HttpClient + 'static,
+    {
+        Self::new_with_http_client_and_backend(config, client, Some(backend)).await
+    }
+
+    /// Constructs a new engine with an optional task backend override.
+    async fn new_with_http_client_and_backend<T>(
+        config: Config,
+        client: T,
+        backend: Option<Box<dyn TaskExecutionBackend>>,
+    ) -> Result<Self>
+    where
+        T: HttpClient + 'static,
+    {
         config
             .validate()
             .await
@@ -68,9 +93,12 @@ impl Engine {
 
         let config = Arc::new(config);
 
-        let backend = Self::create_backend(config.clone())
-            .await
-            .context("failed to create task execution backend")?;
+        let backend = match backend {
+            Some(backend) => backend,
+            None => Self::create_backend(config.clone())
+                .await
+                .context("failed to create task execution backend")?,
+        };
 
         let call_cache = match config.task.cache {
             CallCachingMode::Off => {

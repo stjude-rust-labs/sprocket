@@ -320,6 +320,7 @@ impl ManagedTask for DockerTask<'_> {
         let result = results.into_iter().next().unwrap();
 
         Ok(Some(TaskExecutionResult {
+            execution_name_override: None,
             image: result.image.map(ImageSource::Docker),
             exit_code: result.status.code().expect("should have exit code"),
             work_dir: EvaluationPath::from_local_path(work_dir),
@@ -930,7 +931,8 @@ mod tests {
                 | CrankshaftEvent::TaskStderr { id, .. }
                 | CrankshaftEvent::ImagePullStarted { id, .. }
                 | CrankshaftEvent::ImagePullFailed { id, .. }
-                | CrankshaftEvent::ImagePullFinished { id, .. } => *id,
+                | CrankshaftEvent::ImagePullFinished { id, .. }
+                | CrankshaftEvent::TaskResourceUsage { id, .. } => *id,
             };
 
             assert_eq!(

@@ -2,14 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
 ### Added
 
-* Added `unnecessary` and `deprecated` `DiagnosticTag`s to applicable diagnostics ([#1235](https://github.com/stjude-rust-labs/sprocket/pull/1235)).
+* Extended `textDocument/hover` to render preamble comments of import documents
+  ([#1288](https://github.com/stjude-rust-labs/sprocket/pull/1288)).
+
+## 0.24.0 - 2026-10-07
+
+### Added
+
+* `LintOptions::config` now sets the severity of analysis rules as well as lint rules
+  ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* Added `unnecessary` and `deprecated` `DiagnosticTag`s to applicable diagnostics
+  ([#1235](https://github.com/stjude-rust-labs/sprocket/pull/1235)).
+
+### Changed
+
+* `exceptions` list in `ServerOptions` has been renamed to `disable`
+  ([#1265](https://github.com/stjude-rust-labs/sprocket/pull/1265)).
 
 ## 0.23.0 - 2026-09-16
 
@@ -26,13 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added support for the `textDocument/codeLens` request on tasks/workflows with no required
-  inputs ([#981](https://github.com/stjude-rust-labs/sprocket/pull/981)).
+* Added support for the `textDocument/codeLens` request on tasks/workflows with no required inputs
+  ([#981](https://github.com/stjude-rust-labs/sprocket/pull/981)).
 
 ### Changed
 
-* `[format]` configuration now honored when formatting documents, matching
-  `sprocket format` output ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+* `[format]` configuration now honored when formatting documents, matching `sprocket format` output
+  ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
 
 ## 0.20.1 - 2026-06-26
 
@@ -41,15 +56,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added support for the `textDocument/prepareCallHierarchy`, `callHierarchy/incomingCalls`, and
-  `callHierarchy/outgoingCalls` requests ([#874](https://github.com/stjude-rust-labs/sprocket/pull/874)).
-* Added support for the `textDocument/foldingRange` request ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+  `callHierarchy/outgoingCalls` requests
+  ([#874](https://github.com/stjude-rust-labs/sprocket/pull/874)).
+* Added support for the `textDocument/foldingRange` request
+  ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
 
 ### Changed
 
-* Improved `textDocument/semanticTokens` output, allowing for better syntax highlighting ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
-* Extended hover to render docs when the cursor is over a doc comment or the file preamble ([#873](https://github.com/stjude-rust-labs/sprocket/pull/873)).
-* Switched from [`tower-lsp`](https://crates.io/crates/tower-lsp) to [`async-lsp`](https://crates.io/crates/async-lsp) ([#888](https://github.com/stjude-rust-labs/sprocket/pull/888)).
-* `Server::new()` and `Server::run()` now take a `UserOptions` ([#888](https://github.com/stjude-rust-labs/sprocket/pull/888)).
+* Improved `textDocument/semanticTokens` output, allowing for better syntax highlighting
+  ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+* Extended hover to render docs when the cursor is over a doc comment or the file preamble
+  ([#873](https://github.com/stjude-rust-labs/sprocket/pull/873)).
+* Switched from [`tower-lsp`](https://crates.io/crates/tower-lsp) to
+  [`async-lsp`](https://crates.io/crates/async-lsp)
+  ([#888](https://github.com/stjude-rust-labs/sprocket/pull/888)).
+* `Server::new()` and `Server::run()` now take a `UserOptions`
+  ([#888](https://github.com/stjude-rust-labs/sprocket/pull/888)).
 
 ## 0.19.1 - 2026-05-14
 
@@ -59,8 +81,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added support for the `workspace/didChangeConfiguration` notification, allowing for configuration updates without
-  restarting the server ([#722](https://github.com/stjude-rust-labs/sprocket/pull/722)).
+* Added support for the `workspace/didChangeConfiguration` notification, allowing for configuration
+  updates without restarting the server
+  ([#722](https://github.com/stjude-rust-labs/sprocket/pull/722)).
 
 ## 0.17.2 - 2026-03-12
 
@@ -107,10 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added support for semantic highlighting ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
-
-### Added
-
+* Added support for semantic highlighting
+  ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
 * Added support for renaming ([#563](https://github.com/stjude-rust-labs/wdl/pull/563)).
 * Added support for hover ([#540](https://github.com/stjude-rust-labs/wdl/pull/540)).
 
@@ -125,11 +146,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added `goto_definition`, `find_all_references` tests ([#489](https://github.com/stjude-rust-labs/wdl/pull/489)).
+* Added `goto_definition`, `find_all_references` tests
+  ([#489](https://github.com/stjude-rust-labs/wdl/pull/489)).
 
 ### Fixed
 
-* Ensure the server is fully initialized before responding ([#487](https://github.com/stjude-rust-labs/wdl/pull/487)).
+* Ensure the server is fully initialized before responding
+  ([#487](https://github.com/stjude-rust-labs/wdl/pull/487)).
 
 ## 0.9.0 - 05-27-2025
 
@@ -145,46 +168,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.8.1 - 05-02-2025
 
-_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding dependencies._
+_A patch bump was required because an error was made during the release of `wdl` v0.13.0 regarding
+dependencies._
 
 ## 0.8.0 - 05-01-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.7.0 - 04-01-2025
 
-#### Changed
+### Changed
 
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 
 #### Fixed
 
-* Fixed an issue where the LSP was expecting a directory URI instead of file URI ([#362](https://github.com/stjude-rust-labs/wdl/pull/362)).
+* Fixed an issue where the LSP was expecting a directory URI instead of file URI
+  ([#362](https://github.com/stjude-rust-labs/wdl/pull/362)).
 
 ## 0.6.0 - 01-17-2025
 
 ## 0.5.0 - 10-22-2024
 
-#### Added
+### Added
 
 * Added formatting to the LSP ([#247](https://github.com/stjude-rust-labs/wdl/pull/247)).
 
 #### Fixed
 
-* Fixed an issue on Windows where request URIs were not being normalized ([#231](https://github.com/stjude-rust-labs/wdl/pull/231)).
+* Fixed an issue on Windows where request URIs were not being normalized
+  ([#231](https://github.com/stjude-rust-labs/wdl/pull/231)).
 
 ## 0.4.0 - 10-16-2024
 
-#### Fixed
+### Fixed
 
 * Added "fixes" to LSP diagnostics ([#214](https://github.com/stjude-rust-labs/wdl/pull/214)).
 
 ## 0.3.0 - 09-16-2024
 
-#### Changed
-* Use `tracing` events instead of the `log` crate ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
+### Changed
+
+* Use `tracing` events instead of the `log` crate
+  ([#172](https://github.com/stjude-rust-labs/wdl/pull/172))
 
 ## 0.2.0 - 08-22-2024
 
@@ -192,9 +220,10 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.1.0 - 07-17-2024
 
-#### Added
+### Added
 
-* Added the `wdl-lsp` crate for implementing an LSP server ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
+* Added the `wdl-lsp` crate for implementing an LSP server
+  ([#143](https://github.com/stjude-rust-labs/wdl/pull/143)).
 
 #### Changed
 

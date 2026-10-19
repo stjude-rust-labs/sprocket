@@ -24,7 +24,7 @@ const FUNCTION_NAME: &str = "read_int";
 /// If the line contains a valid integer, that value is returned as an Int. If
 /// the file is empty or does not contain a single integer, an error is raised.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_int
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_int>
 fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

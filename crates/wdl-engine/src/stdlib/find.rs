@@ -20,7 +20,7 @@ const FUNCTION_NAME: &str = "find";
 /// occurrence of `pattern` within `input` and returns the first match or `None`
 /// if there are no matches.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-find
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-find>
 fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(Type::from(PrimitiveType::String).optional()));

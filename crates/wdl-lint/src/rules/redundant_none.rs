@@ -9,11 +9,13 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -22,10 +24,11 @@ use crate::TagSet;
 const ID: &str = "RedundantNone";
 
 /// Create a "redundant `= None` assignment" diagnostic
-fn redundant_none(span: Span, name: &str) -> Diagnostic {
-    Diagnostic::note(format!(
-        "redundant assignment of `None` to optional input `{name}`"
-    ))
+fn redundant_none(severity: Severity, span: Span, name: &str) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        format!("redundant assignment of `None` to optional input `{name}`"),
+    )
     .with_rule(ID)
     .with_highlight(span)
     .with_fix(format!("remove `= None` for input `{name}`"))
@@ -33,8 +36,20 @@ fn redundant_none(span: Span, name: &str) -> Diagnostic {
 
 /// A rule that identifies redundant `= None` assignments for
 /// optional inputs.
-#[derive(Debug, Default, Clone)]
-pub struct RedundantNone;
+#[derive(Debug, Clone)]
+pub struct RedundantNone {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl RedundantNone {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.redundant_none.diagnostic_severity(),
+        }
+    }
+}
 
 impl Rule for RedundantNone {
     fn id(&self) -> &'static str {
@@ -96,9 +111,7 @@ workflow example {
 }
 
 impl Visitor for RedundantNone {
-    fn reset(&mut self) {
-        *self = Default::default();
-    }
+    fn reset(&mut self) {}
 
     fn bound_decl(
         &mut self,
@@ -124,7 +137,7 @@ impl Visitor for RedundantNone {
 
         let expr = decl.expr();
         if matches!(expr, Expr::Literal(LiteralExpr::None(_))) {
-            let diagnostic = redundant_none(expr.span(), decl.name().text());
+            let diagnostic = redundant_none(self.severity, expr.span(), decl.name().text());
             diagnostics.exceptable_add(diagnostic, decl.inner(), &self.exceptable_nodes());
         }
     }

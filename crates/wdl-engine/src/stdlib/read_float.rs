@@ -24,7 +24,7 @@ const FUNCTION_NAME: &str = "read_float";
 /// as a Float. If the file is empty or does not contain a single float, an
 /// error is raised.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_float
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_float>
 fn read_float(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

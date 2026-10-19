@@ -1,0 +1,6 @@
+# WARN: this test can only have one execution defined so that
+# the order statuses are printed remains deterministic
+always_succeeds:
+  - name: always_succeeds
+    assertions:
+      should_fail: true

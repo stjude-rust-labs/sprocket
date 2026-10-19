@@ -1,4 +1,4 @@
-#@ except: MetaDescription, EmptyOutputs, BashSetSyntax
+#@ except: MetaDescription, EmptyOutputs, BashSetSyntax, ParameterizedResources
 
 version 1.0
 
@@ -19,7 +19,7 @@ task a_task_with_excepted_runtime {
 
     output {}
 
-    #@ except: ExpectedRuntimeKeys
+    #@ except: UnknownRuntimeKeys, RecommendedRuntimeKeys
     runtime {}  # Errors should be ignored
 }
 

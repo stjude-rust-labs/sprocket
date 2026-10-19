@@ -17,8 +17,8 @@ use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 
 use super::trust_store::TrustStoreFile;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::config::Config;
 
 const ACCEPT: Action = Action::new("Accepted", "accept");
@@ -384,54 +384,54 @@ fn confirm_signer_key_upgrade(
     trust: &TrustStore,
     output: CommandOutput,
 ) -> anyhow::Result<bool> {
-    output.diagnostic("module signer key requires trust changes");
+    output.stderr("module signer key requires trust changes");
     for change in changes {
         match change {
             SignerChange::Added(signer) => {
-                output.diagnostic_blank();
-                output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
-                output.diagnostic("  Change     signer added");
-                output.diagnostic(format!(
+                output.stderr_blank();
+                output.stderr(format!("  Module     `{}`", signer.dep().manifest()));
+                output.stderr("  Change     signer added");
+                output.stderr(format!(
                     "  Signer     {}",
                     render_signer_with_trust(&signer.key, signer.identity.as_ref(), trust)
                 ));
             }
             SignerChange::Changed(signer) => match signer.old_key {
                 Some(old_key) => {
-                    output.diagnostic_blank();
-                    output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
-                    output.diagnostic("  Change     signer changed");
-                    output.diagnostic(format!(
+                    output.stderr_blank();
+                    output.stderr(format!("  Module     `{}`", signer.dep().manifest()));
+                    output.stderr("  Change     signer changed");
+                    output.stderr(format!(
                         "  Previous   {}",
                         render_signer_with_trust(&old_key, None, trust)
                     ));
-                    output.diagnostic(format!(
+                    output.stderr(format!(
                         "  Current    {}",
                         render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
                     ));
                 }
                 None => {
-                    output.diagnostic_blank();
-                    output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
-                    output.diagnostic("  Change     previously unsigned module gained a signer");
-                    output.diagnostic(format!(
+                    output.stderr_blank();
+                    output.stderr(format!("  Module     `{}`", signer.dep().manifest()));
+                    output.stderr("  Change     previously unsigned module gained a signer");
+                    output.stderr(format!(
                         "  Signer     {}",
                         render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
                     ));
                 }
             },
             SignerChange::Removed(signer) => {
-                output.diagnostic_blank();
-                output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
-                output.diagnostic("  Change     signer removed; dependency is now unsigned");
-                output.diagnostic(format!(
+                output.stderr_blank();
+                output.stderr(format!("  Module     `{}`", signer.dep().manifest()));
+                output.stderr("  Change     signer removed; dependency is now unsigned");
+                output.stderr(format!(
                     "  Previous   {}",
                     render_signer_with_trust(&signer.key, None, trust)
                 ));
             }
         }
     }
-    output.diagnostic_blank();
+    output.stderr_blank();
     output.confirm("Accept these signer trust changes and update the lockfile?")
 }
 

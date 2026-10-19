@@ -1,5 +1,5 @@
 #@ except: BashSetSyntax, EmptyOutputs, MetaDescription, MetaSections, RuntimeSection
-#@ except: TodoComment, UnusedDocComments
+#@ except: FlaggedComment, UnusedDocComments
 
 version 1.1
 

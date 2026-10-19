@@ -1,0 +1,40 @@
+note[OutputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/output-name-custom/source.wdl:32:14
+   │
+32 │         File f = "test.wdl"
+   │              ^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[OutputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/output-name-custom/source.wdl:33:13
+   │
+33 │         Int ab = 1
+   │             ^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[OutputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/output-name-custom/source.wdl:34:13
+   │
+34 │         Int abc = 1
+   │             ^^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[OutputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/output-name-custom/source.wdl:35:13
+   │
+35 │         Int abcd = 1
+   │             ^^^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+
+note[OutputName]: declaration identifier must be at least 5 characters
+   ┌─ tests/lints/output-name-custom/source.wdl:42:16
+   │
+42 │         String outA = "string"
+   │                ^^^^
+   │
+   = fix: rename the identifier to be at least 5 characters long
+

@@ -30,9 +30,9 @@ use super::resolver::ResolverEnvironment;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::enforce_lockfile_signer_policy;
 use super::signer_policy::signer_change_mode;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
 const UPGRADE: Action = Action::new("Upgraded", "upgrade");

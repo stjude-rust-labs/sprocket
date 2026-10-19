@@ -6,6 +6,10 @@ git_tag_enable = true
 git_tag_name = "{{ package }}-v{{ version }}"
 
 [[package]]
+name = "wdl"
+features_always_increment_minor = true
+
+[[package]]
 name = "sprocket"
 features_always_increment_minor = true
 git_release_enable = true

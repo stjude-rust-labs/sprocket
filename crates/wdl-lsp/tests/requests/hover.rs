@@ -75,7 +75,7 @@ async fn should_hover_local_variable() {
 async fn should_hover_struct_definition() {
     let mut ctx = setup().await;
     // Position of `Person` in `struct Person`
-    let response = hover_request(&mut ctx, "lib.wdl", Position::new(16, 7))
+    let response = hover_request(&mut ctx, "lib.wdl", Position::new(18, 7))
         .await
         .expect("request should succeed");
     assert_hover_content(&response, "struct Person {");
@@ -96,7 +96,7 @@ async fn should_hover_struct_object() {
 async fn should_hover_task_definition() {
     let mut ctx = setup().await;
     // Position of `greet` in `task greet`
-    let response = hover_request(&mut ctx, "lib.wdl", Position::new(2, 7))
+    let response = hover_request(&mut ctx, "lib.wdl", Position::new(4, 7))
         .await
         .expect("request should succeed");
     assert_hover_content(&response, "task greet");
@@ -130,6 +130,16 @@ async fn should_hover_imported_task_call() {
 #[tokio::test]
 async fn should_hover_import_namespace() {
     let mut ctx = setup().await;
+    // Position of `lib` in `import "lib.wdl" as lib`
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(2, 20))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(&response, "(import) lib");
+    assert_hover_content(&response, "Imports from `");
+    let imported_doc_path = ctx.doc_uri("lib.wdl");
+    assert_hover_content(&response, imported_doc_path.as_ref());
+    assert_hover_content(&response, "Utilities to greet a person");
+
     // Position of `lib` in `call lib.greet`
     let response = hover_request(&mut ctx, "source.wdl", Position::new(16, 9))
         .await
@@ -138,6 +148,21 @@ async fn should_hover_import_namespace() {
     assert_hover_content(&response, "Imports from `");
     let imported_doc_path = ctx.doc_uri("lib.wdl");
     assert_hover_content(&response, imported_doc_path.as_ref());
+    assert_hover_content(&response, "Utilities to greet a person");
+}
+
+#[tokio::test]
+async fn should_hover_import_source() {
+    let mut ctx = setup().await;
+    // Position of `lib.wdl` in `import "lib.wdl" as lib`
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(2, 8))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(&response, "(import) lib");
+    assert_hover_content(&response, "Imports from `");
+    let imported_doc_path = ctx.doc_uri("lib.wdl");
+    assert_hover_content(&response, imported_doc_path.as_ref());
+    assert_hover_content(&response, "Utilities to greet a person");
 }
 
 #[tokio::test]
@@ -171,6 +196,8 @@ async fn should_hover_version_filtering() {
         &response,
         "basename(path: Directory, <suffix: String>) -> String",
     );
+    assert_hover_content(&response, "Returns the \"basename\" of a file or directory");
+    assert_hover_content(&response, "version 1.2");
     // Position of `split`
     let response = hover_request(&mut ctx, wdl, Position::new(12, 23))
         .await
@@ -206,6 +233,8 @@ async fn should_hover_version_filtering_v1_0() {
         &response,
         "basename(path: Directory, <suffix: String>) -> String",
     );
+    assert_hover_content(&response, "basename of a file path passed to it");
+    assert_hover_not_content(&response, "file or directory");
     // Position of `split`
     let response = hover_request(&mut ctx, wdl, Position::new(12, 23))
         .await

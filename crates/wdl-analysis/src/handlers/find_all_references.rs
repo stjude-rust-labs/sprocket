@@ -10,13 +10,18 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use lsp_types::Location;
+use petgraph::graph::NodeIndex;
 use url::Url;
 use wdl_ast::AstNode;
+use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxToken;
 use wdl_ast::TreeToken;
+use wdl_ast::v1;
 
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
+use crate::document::Document as AnalysisDocument;
 use crate::graph::DocumentGraph;
 use crate::handlers;
 use crate::handlers::common::location_from_span;
@@ -30,6 +35,63 @@ struct TargetDefinition {
     name: String,
     /// The location where the target is defined.
     location: Location,
+}
+
+/// Returns document node indices to scan for references to a symbol defined at
+/// `token`.
+fn reference_search_scope(
+    graph: &DocumentGraph,
+    definition_doc: NodeIndex,
+    document: &AnalysisDocument,
+    token: &SyntaxToken,
+) -> Vec<NodeIndex> {
+    if needs_transitive_importers(document, token) {
+        graph.transitive_dependents(definition_doc).collect()
+    } else {
+        vec![definition_doc]
+    }
+}
+
+/// Returns `true` when a definition can be referenced from importer documents.
+///
+/// Local-only symbols, like call aliases and declarations inside task/workflow
+/// bodies, should remain within the defining document.
+fn needs_transitive_importers(document: &AnalysisDocument, token: &SyntaxToken) -> bool {
+    if is_local_by_syntax(token) {
+        return false;
+    }
+
+    if let Some(scope) = document.find_scope_by_position(token.span().start())
+        && let Some(name) = scope.lookup(token.text())
+        && name.span() == token.span()
+    {
+        return !name.is_local();
+    }
+
+    true
+}
+
+/// Determines whether a definition token is local to its document based on
+/// its syntax alone.
+///
+/// This covers local names that a name scope lookup at the token's position
+/// does not find: explicit import namespaces, import alias targets, and
+/// scatter variables (the scatter scope begins after the variable).
+fn is_local_by_syntax(token: &SyntaxToken) -> bool {
+    let Some(parent) = token.parent() else {
+        return false;
+    };
+
+    match parent.kind() {
+        SyntaxKind::ImportStatementNode => v1::ImportStatement::cast(parent)
+            .and_then(|import| import.explicit_namespace())
+            .is_some_and(|namespace| namespace.span() == token.span()),
+        SyntaxKind::ImportAliasNode => v1::ImportAlias::cast(parent)
+            .is_some_and(|alias| alias.names().1.span() == token.span()),
+        SyntaxKind::ScatterStatementNode => v1::ScatterStatement::cast(parent)
+            .is_some_and(|scatter| scatter.variable().span() == token.span()),
+        _ => false,
+    }
 }
 
 /// Finds all references to the identifier at the given position.
@@ -90,8 +152,7 @@ pub fn find_all_references(
         location: definition_location.clone(),
     };
 
-    // TODO: better search scope for performance.
-    let search_scope: Vec<_> = graph.transitive_dependents(doc_index).collect();
+    let search_scope = reference_search_scope(graph, doc_index, document, &token);
 
     let mut locations = Vec::new();
     for doc_index in search_scope {
@@ -169,4 +230,174 @@ fn collect_references_from_document(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+    use wdl_ast::AstNode;
+    use wdl_ast::SyntaxKind;
+
+    use super::needs_transitive_importers;
+
+    /// Analyzes `source.wdl` along with any additional documents it imports.
+    async fn analyzed_document(source: &str, imports: &[(&str, &str)]) -> crate::Document {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        for (name, contents) in imports {
+            fs::write(dir.path().join(name), contents).expect("failed to write imported document");
+        }
+
+        let path = dir.path().join("source.wdl");
+        fs::write(&path, source).expect("failed to write source document");
+        let uri = crate::path_to_uri(&path).expect("should convert path to URI");
+
+        let analyzer = crate::Analyzer::default();
+        analyzer
+            .add_document(uri.clone())
+            .await
+            .expect("should add document");
+
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("analysis should complete");
+        results
+            .iter()
+            .find(|result| result.document().uri().as_ref() == &uri)
+            .expect("should have analyzed source document")
+            .document()
+            .clone()
+    }
+
+    fn ident_token(document: &crate::Document, ident: &str) -> wdl_ast::SyntaxToken {
+        document
+            .root()
+            .inner()
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Ident && token.text() == ident)
+            .unwrap_or_else(|| panic!("missing identifier token `{ident}`"))
+    }
+
+    #[tokio::test]
+    async fn classifies_reference_visibility_from_analyzed_name_scope() {
+        let document = analyzed_document(
+            r#"version 1.3
+
+struct Person {
+    String struct_member
+}
+
+enum Status {
+    Active
+}
+
+task greet {
+    input {
+        String task_input
+    }
+
+    String task_local = task_input
+
+    command <<<
+        echo "~{task_local}"
+    >>>
+
+    output {
+        String task_output = task_local
+    }
+}
+
+workflow example {
+    input {
+        String workflow_input
+    }
+
+    String x = "hi"
+    call greet as worker { input: task_input = workflow_input }
+
+    scatter (item in [1, 2]) {
+        Int scattered = item
+    }
+
+    if (true) {
+        String conditional = x
+    }
+
+    output {
+        String out = x
+        String task_result = worker.task_output
+    }
+}
+"#,
+            &[],
+        )
+        .await;
+
+        let cases = [
+            ("Person", true),
+            ("struct_member", true),
+            ("Status", true),
+            ("Active", true),
+            ("greet", true),
+            ("task_input", true),
+            ("task_local", false),
+            ("task_output", true),
+            ("example", true),
+            ("workflow_input", true),
+            ("x", false),
+            ("worker", false),
+            ("item", false),
+            ("scattered", false),
+            ("conditional", false),
+            ("out", true),
+            ("task_result", true),
+        ];
+
+        for (ident, expected) in cases {
+            let token = ident_token(&document, ident);
+            assert_eq!(
+                needs_transitive_importers(&document, &token),
+                expected,
+                "unexpected classification for `{ident}`"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn classifies_import_names_as_local() {
+        let document = analyzed_document(
+            r#"version 1.3
+
+import "lib.wdl" as lib alias Source as Target
+
+workflow main {
+    input {
+        Target value
+    }
+}
+"#,
+            &[(
+                "lib.wdl",
+                r#"version 1.3
+
+struct Source {
+    String name
+}
+"#,
+            )],
+        )
+        .await;
+
+        assert!(!needs_transitive_importers(
+            &document,
+            &ident_token(&document, "lib")
+        ));
+        assert!(!needs_transitive_importers(
+            &document,
+            &ident_token(&document, "Target")
+        ));
+    }
 }

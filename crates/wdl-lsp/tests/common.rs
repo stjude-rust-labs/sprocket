@@ -5,9 +5,10 @@
 //! message format and Content-Length headers (similar to LSP over stdio).
 //!
 //! The protocol works by:
+//!
 //! - Encoding JSON-RPC messages with a simple format
 //!
-//!  `Content-Length: <size>\r\n\r\n<payload>`
+//!   `Content-Length: <size>\r\n\r\n<payload>`
 //!
 //! - Using in-memory streams to simulate client-server communication
 

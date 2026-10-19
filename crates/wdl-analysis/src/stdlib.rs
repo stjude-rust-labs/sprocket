@@ -1520,6 +1520,19 @@ impl PolymorphicFunction {
         &self.signatures
     }
 
+    /// Gets the function definition for the given WDL version.
+    pub fn definition(&self, version: SupportedVersion) -> Option<&'static str> {
+        self.signatures
+            .iter()
+            .filter(|s| s.minimum_version() <= version)
+            .filter_map(|s| {
+                s.definition()
+                    .map(|definition| (s.minimum_version(), definition))
+            })
+            .max_by_key(|(version, _)| *version)
+            .map(|(_, definition)| definition)
+    }
+
     /// Binds the function to the given arguments.
     ///
     /// This performs overload resolution for the polymorphic function.
@@ -2261,7 +2274,14 @@ workflow test_split {
             .is_none()
     );
 
-    const BASENAME_DEFINITION: &str = r#"
+    // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#string-basenamestring
+    const BASENAME_DEFINITION_V1_0: &str = r#"
+- This function returns the basename of a file path passed to it: `basename("/path/to/file.txt")` returns `"file.txt"`.
+- Also supports an optional parameter, suffix to remove: `basename("/path/to/file.txt", ".txt")` returns `"file"`.
+"#;
+
+    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
+    const BASENAME_DEFINITION_V1_2: &str = r#"
 Returns the "basename" of a file or directory - the name after the last directory separator in the path.
 
 The optional second parameter specifies a literal suffix to remove from the file name. If the file name does not end with the specified suffix then it is ignored.
@@ -2288,7 +2308,6 @@ workflow test_basename {
 ```
 "#;
 
-    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
     assert!(
         functions
             .insert(
@@ -2299,9 +2318,9 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::File,
-                            "Path of the file or directory to read. If the argument is a \
-                             `String`, it is assumed to be a local file path relative to the \
-                             current working directory of the task.",
+                            "Path of the file to read. If the argument is a `String`, it is \
+                             assumed to be a local file path relative to the current working \
+                             directory of the task.",
                         )
                         .parameter(
                             "suffix",
@@ -2309,7 +2328,7 @@ workflow test_basename {
                             "(Optional) Suffix to remove from the file name.",
                         )
                         .ret(PrimitiveType::String)
-                        .definition(BASENAME_DEFINITION)
+                        .definition(BASENAME_DEFINITION_V1_0)
                         .build(),
                     // This overload isn't explicitly specified in the spec, but the spec
                     // allows for `String` where file/directory are accepted; an explicit
@@ -2331,7 +2350,7 @@ workflow test_basename {
                             "(Optional) Suffix to remove from the file name."
                         )
                         .ret(PrimitiveType::String)
-                        .definition(BASENAME_DEFINITION)
+                        .definition(BASENAME_DEFINITION_V1_2)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -2349,7 +2368,7 @@ workflow test_basename {
                             "(Optional) Suffix to remove from the file name.",
                         )
                         .ret(PrimitiveType::String)
-                        .definition(BASENAME_DEFINITION)
+                        .definition(BASENAME_DEFINITION_V1_2)
                         .build(),
                 ])
                 .into(),
@@ -2521,7 +2540,44 @@ task gen_files {
             .is_none()
     );
 
-    const SIZE_DEFINITION: &str = r#"
+    // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#float-sizefile-string
+    const SIZE_DEFINITION_V1_0: &str = r#"
+Given a `File` and a `String` (optional), returns the size of the file in Bytes or in the unit specified by the second argument.
+
+```wdl
+version 1.0
+
+task example {
+  input {
+    File input_file
+  }
+
+  command {
+    echo "this file is 22 bytes" > created_file
+  }
+
+  output {
+    Float input_file_size = size(input_file)
+    Float created_file_size = size("created_file") # 22.0
+    Float created_file_size_in_KB = size("created_file", "K") # 0.022
+  }
+}
+```
+
+Supported units are KiloByte ("K", "KB"), MegaByte ("M", "MB"), GigaByte ("G", "GB"), TeraByte ("T", "TB") as well as their [binary version](https://en.wikipedia.org/wiki/Binary_prefix) "Ki" ("KiB"), "Mi" ("MiB"), "Gi" ("GiB"), "Ti" ("TiB").
+Default unit is Bytes ("B").
+
+### Acceptable compound input types
+
+Varieties of the `size` function also exist for the following compound types. The `String` unit is always treated the same as above. Note that to avoid numerical overflow, very long arrays of files should probably favor larger units.
+
+- `Float size(File?, [String])`: Returns the size of the file, if specified, or 0.0 otherwise.
+- `Float size(Array[File], [String])`: Returns the sum of sizes of the files in the array.
+- `Float size(Array[File?], [String])`: Returns the sum of sizes of all specified files in the array.
+"#;
+
+    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
+    const SIZE_DEFINITION_V1_2: &str = r#"
 Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. The files may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage)
 
 In the second variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
@@ -2567,7 +2623,6 @@ task file_sizes {
 ```
 "#;
 
-    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
     assert!(
         functions
             .insert(
@@ -2590,15 +2645,14 @@ task file_sizes {
                             "(Optional) The unit of storage; defaults to 'B'."
                         )
                         .ret(PrimitiveType::Float)
-                        .definition(SIZE_DEFINITION)
+                        .definition(SIZE_DEFINITION_V1_2)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
                         .parameter(
                             "value",
                             Type::from(PrimitiveType::File).optional(),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A file for which to determine the size."
                         )
                         .parameter(
                             "unit",
@@ -2606,7 +2660,7 @@ task file_sizes {
                             "(Optional) The unit of storage; defaults to 'B'."
                         )
                         .ret(PrimitiveType::Float)
-                        .definition(SIZE_DEFINITION)
+                        .definition(SIZE_DEFINITION_V1_0)
                         .build(),
                     // This overload isn't explicitly specified in the spec, but the spec
                     // allows for `String` where file/directory are accepted; an explicit
@@ -2627,7 +2681,7 @@ task file_sizes {
                             "(Optional) The unit of storage; defaults to 'B'.",
                         )
                         .ret(PrimitiveType::Float)
-                        .definition(SIZE_DEFINITION)
+                        .definition(SIZE_DEFINITION_V1_2)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -2644,7 +2698,7 @@ task file_sizes {
                             "(Optional) The unit of storage; defaults to 'B'."
                         )
                         .ret(PrimitiveType::Float)
-                        .definition(SIZE_DEFINITION)
+                        .definition(SIZE_DEFINITION_V1_2)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
@@ -2652,8 +2706,8 @@ task file_sizes {
                         .parameter(
                             "value",
                             GenericType::Parameter("X"),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A compound value containing file system paths for which to determine \
+                             the total size."
                         )
                         .parameter(
                             "unit",
@@ -2661,7 +2715,7 @@ task file_sizes {
                             "(Optional) The unit of storage; defaults to 'B'."
                         )
                         .ret(PrimitiveType::Float)
-                        .definition(SIZE_DEFINITION)
+                        .definition(SIZE_DEFINITION_V1_0)
                         .build(),
                 ])
                 .into(),
@@ -3038,8 +3092,38 @@ task write_lines {
             .is_none()
     );
 
-    const READ_TSV_DEFINITION: &str = r#"
-Reads a tab-separated value (TSV) file as an `Array[Array[String]]` representing a table of values. Trailing end-of-line characters (`` and `\n`) are removed from each line.
+    // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#arrayarraystring-read_tsvstringfile
+    const READ_TSV_DEFINITION_V1_0: &str = r#"
+The `read_tsv()` function takes one parameter, which is a file-like object (`String`, `File`) and returns an `Array[Array[String]]` representing the table from the TSV file.
+
+If the parameter is a `String`, this is assumed to be a local file path relative to the current working directory of the task.
+
+For example, if I write a task that outputs a file to `./results/file_list.tsv`, and my task is defined as:
+
+```wdl
+version 1.0
+
+task do_stuff {
+  input {
+    File file
+  }
+  command {
+    python do_stuff.py ${file}
+  }
+  output {
+    Array[Array[String]] output_table = read_tsv("./results/file_list.tsv")
+  }
+}
+```
+
+Then when the task finishes, to fulfill the `outputs_table` variable, `./results/file_list.tsv` must be a valid TSV file or an error will be reported.
+
+If the entire contents of the file can not be read for any reason, the calling task or workflow will be considered to have failed. Examples of failure include but are not limited to not having access to the file, resource limitations (e.g. memory) when reading the file, and implementation-imposed file size limits.
+"#;
+
+    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
+    const READ_TSV_DEFINITION_V1_2: &str = r#"
+Reads a tab-separated value (TSV) file as an `Array[Array[String]]` representing a table of values. Trailing end-of-line characters (`\r` and `\n`) are removed from each line.
 
 This function has three variants:
 
@@ -3090,7 +3174,6 @@ task read_tsv {
 ```
 "#;
 
-    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
     assert!(
         functions
             .insert(
@@ -3099,7 +3182,7 @@ task read_tsv {
                     FunctionSignature::builder()
                         .parameter("file", PrimitiveType::File, "The TSV file to read.")
                         .ret(array_array_string.clone())
-                        .definition(READ_TSV_DEFINITION)
+                        .definition(READ_TSV_DEFINITION_V1_0)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -3110,7 +3193,7 @@ task read_tsv {
                             "(Optional) Whether to treat the file's first line as a header.",
                         )
                         .ret(array_object.clone())
-                        .definition(READ_TSV_DEFINITION)
+                        .definition(READ_TSV_DEFINITION_V1_2)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -3127,7 +3210,7 @@ task read_tsv {
                              parameter is also required.",
                         )
                         .ret(array_object.clone())
-                        .definition(READ_TSV_DEFINITION)
+                        .definition(READ_TSV_DEFINITION_V1_2)
                         .build(),
                 ])
                 .into(),
@@ -3135,7 +3218,37 @@ task read_tsv {
             .is_none()
     );
 
-    const WRITE_TSV_DEFINITION: &str = r#"
+    // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#file-write_tsvarrayarraystring
+    const WRITE_TSV_DEFINITION_V1_0: &str = r#"
+Given something that's compatible with `Array[Array[String]]`, this writes a TSV file of the data structure.
+
+```wdl
+version 1.0
+
+task example {
+  Array[String] array = [["one", "two", "three"], ["un", "deux", "trois"]]
+  command {
+    ./script --tsv=${write_tsv(array)}
+  }
+}
+```
+
+If this task were run, the command might look like:
+
+```
+./script --tsv=/local/fs/tmp/array.tsv
+```
+
+And `/local/fs/tmp/array.tsv` would contain:
+
+```
+one\ttwo\tthree
+un\tdeux\ttrois
+```
+"#;
+
+    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
+    const WRITE_TSV_DEFINITION_V1_2: &str = r#"
 Given an `Array` of elements, writes a tab-separated value (TSV) file with one line for each element.
 
 There are three variants of this function:
@@ -3210,7 +3323,6 @@ task write_tsv {
 ```
 "#;
 
-    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
     assert!(
         functions
             .insert(
@@ -3220,11 +3332,10 @@ task write_tsv {
                         .parameter(
                             "data",
                             array_array_string.clone(),
-                            "An array of rows, where each row is either an `Array` of column \
-                             values or a struct whose values are the column values.",
+                            "An array of rows, where each row is an `Array` of column values.",
                         )
                         .ret(PrimitiveType::File)
-                        .definition(WRITE_TSV_DEFINITION)
+                        .definition(WRITE_TSV_DEFINITION_V1_0)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -3248,7 +3359,7 @@ task write_tsv {
                              is false."
                         )
                         .ret(PrimitiveType::File)
-                        .definition(WRITE_TSV_DEFINITION)
+                        .definition(WRITE_TSV_DEFINITION_V1_2)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -3274,7 +3385,7 @@ task write_tsv {
                              is false."
                         )
                         .ret(PrimitiveType::File)
-                        .definition(WRITE_TSV_DEFINITION)
+                        .definition(WRITE_TSV_DEFINITION_V1_2)
                         .build(),
                 ])
                 .into(),
@@ -3625,43 +3736,79 @@ task read_objects {
             .is_none()
     );
 
-    const WRITE_OBJECT_DEFINITION: &str = r#"
-Writes a tab-separated value (TSV) file representing the names and values of the members of an `Object`. The file will contain exactly two rows. The first row specifies the object member names. The second row specifies the object member values corresponding to the names in the first row.
+    // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#file-write_objectobject
+    const WRITE_OBJECT_DEFINITION_V1_0: &str = r#"
+Given any `Object`, this will write out a 2-row, n-column TSV file with the object's attributes and values.
 
-Each line is terminated by the newline (`\n`) character.
+```wdl
+version 1.0
 
-The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
+task test {
+  Object input
+  command <<<
+    /bin/do_work --obj=~{write_object(input)}
+  >>>
+  output {
+    File results = stdout()
+  }
+}
+```
 
-If the entire contents of the file can not be written for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, insufficient disk space to write the file.
+If `input` were to have the value:
+
+|Attribute|Value|
+|---------|-----|
+|key_1    |"value_1"|
+|key_2    |"value_2"|
+|key_3    |"value_3"|
+
+The command would instantiate to:
+
+```
+/bin/do_work --obj=/path/to/input.tsv
+```
+
+Where `/path/to/input.tsv` would contain:
+
+```
+key_1\tkey_2\tkey_3
+value_1\tvalue_2\tvalue_3
+```
+"#;
+
+    // https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#write_object
+    const WRITE_OBJECT_DEFINITION_V1_1: &str = r#"
+Writes a tab-separated value (TSV) file with the contents of a `Object` or `Struct`. The file contains two tab-delimited lines. The first line is the names of the members, and the second line is the corresponding values. Each line is terminated by the newline (`\n`) character. The ordering of the columns is unspecified.
+
+The member values must be serializable to strings, meaning that only primitive types are supported. Attempting to write a `Struct` or `Object` that has a compound member value results in an error.
 
 **Parameters**
 
-1. `Object`: An `Object` whose members will be written to the file.
+1. `Struct|Object`: An object to write.
 
 **Returns**: A `File`.
 
 Example: write_object_task.wdl
 
 ```wdl
-version 1.2
+version 1.1
 
 task write_object {
   input {
-    Object my_obj = {"key_0": "value_A0", "key_1": "value_A1", "key_2": "value_A2"}
+    Object obj
   }
 
   command <<<
-    cat ~{write_object(my_obj)}
+    cut -f 1 ~{write_object(obj)}
   >>>
 
   output {
-    Object new_obj = read_object(stdout())
+    Array[String] results = read_lines(stdout())
   }
 }
 ```
 "#;
 
-    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_object
     assert!(
         functions
             .insert(
@@ -3670,14 +3817,14 @@ task write_object {
                     FunctionSignature::builder()
                         .parameter("object", Type::Object, "An object to write.")
                         .ret(PrimitiveType::File)
-                        .definition(WRITE_OBJECT_DEFINITION)
+                        .definition(WRITE_OBJECT_DEFINITION_V1_0)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .parameter("object", GenericType::Parameter("S"), "An object to write.")
                         .ret(PrimitiveType::File)
-                        .definition(WRITE_OBJECT_DEFINITION)
+                        .definition(WRITE_OBJECT_DEFINITION_V1_1)
                         .build(),
                 ])
                 .into(),
@@ -3685,47 +3832,91 @@ task write_object {
             .is_none()
     );
 
-    const WRITE_OBJECTS_DEFINITION: &str = r#"
-Writes a tab-separated value (TSV) file representing the names and values of the members of any number of `Object`s. The first line of the file will be a header row with the names of the object members. There will be one additional row for each element in the input array, where each additional row contains the values of an object corresponding to the member names.
+    // https://github.com/openwdl/wdl/blob/wdl-1.0/SPEC.md#file-write_objectsarrayobject
+    const WRITE_OBJECTS_DEFINITION_V1_0: &str = r#"
+Given any `Array[Object]`, this will write out a 2+ row, n-column TSV file with each object's attributes and values.
 
-Each line is terminated by the newline (`\n`) character.
+```wdl
+version 1.0
 
-The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
+task test {
+  input {
+    Array[Object] in
+  }
+  command <<<
+    /bin/do_work --obj=~{write_objects(in)}
+  >>>
+  output {
+    File results = stdout()
+  }
+}
+```
 
-If the entire contents of the file can not be written for any reason, the calling task or workflow fails with an error. Examples of failure include, but are not limited to, insufficient disk space to write the file.
+If `in` were to have the value:
+
+|Index|Attribute|Value|
+|-----|---------|-----|
+|0    |key_1    |"value_1"|
+|     |key_2    |"value_2"|
+|     |key_3    |"value_3"|
+|1    |key_1    |"value_4"|
+|     |key_2    |"value_5"|
+|     |key_3    |"value_6"|
+|2    |key_1    |"value_7"|
+|     |key_2    |"value_8"|
+|     |key_3    |"value_9"|
+
+The command would instantiate to:
+
+```
+/bin/do_work --obj=/path/to/input.tsv
+```
+
+Where `/path/to/input.tsv` would contain:
+
+```
+key_1\tkey_2\tkey_3
+value_1\tvalue_2\tvalue_3
+value_4\tvalue_5\tvalue_6
+value_7\tvalue_8\tvalue_9
+```
+"#;
+
+    // https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#write_objects
+    const WRITE_OBJECTS_DEFINITION_V1_1: &str = r#"
+Writes a tab-separated value (TSV) file with the contents of a `Array[Struct]` or `Array[Object]`. All elements of the `Array` must have the same member names, or an error is raised.
+
+The file contains `N+1` tab-delimited lines, where `N` is the number of elements in the `Array`. The first line is the names of the `Struct`/`Object` members, and the subsequent lines are the corresponding values for each element. Each line is terminated by a newline (`\n`) character. The lines are written in the same order as the elements in the `Array`. The ordering of the columns is the same as the order in which the `Struct`'s members are defined; the column ordering for `Object`s is unspecified. If the `Array` is empty, an empty file is written.
+
+The member values must be serializable to strings, meaning that only primitive types are supported. Attempting to write a `Struct` or `Object` that has a compound member value results in an error.
 
 **Parameters**
 
-1. `Array[Object]`: An `Array[Object]` whose elements will be written to the file.
+1. `Array[Struct|Object]`: An array of objects to write.
 
 **Returns**: A `File`.
 
 Example: write_objects_task.wdl
 
 ```wdl
-version 1.2
+version 1.1
 
 task write_objects {
   input {
-    Array[Object] my_objs = [
-      {"key_0": "value_A0", "key_1": "value_A1", "key_2": "value_A2"},
-      {"key_0": "value_B0", "key_1": "value_B1", "key_2": "value_B2"},
-      {"key_0": "value_C0", "key_1": "value_C1", "key_2": "value_C2"}
-    ]
+    Array[Object] obj_array
   }
 
   command <<<
-    cat ~{write_objects(my_objs)}
+    cut -f 1 ~{write_objects(obj_array)}
   >>>
 
   output {
-    Array[Object] new_objs = read_objects(stdout())
+    Array[String] results = read_lines(stdout())
   }
 }
 ```
 "#;
 
-    // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_objects
     assert!(
         functions
             .insert(
@@ -3734,7 +3925,7 @@ task write_objects {
                     FunctionSignature::builder()
                         .parameter("objects", array_object.clone(), "The objects to write.")
                         .ret(PrimitiveType::File)
-                        .definition(WRITE_OBJECTS_DEFINITION)
+                        .definition(WRITE_OBJECTS_DEFINITION_V1_0)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
@@ -3745,7 +3936,7 @@ task write_objects {
                             "The objects to write."
                         )
                         .ret(PrimitiveType::File)
-                        .definition(WRITE_OBJECTS_DEFINITION)
+                        .definition(WRITE_OBJECTS_DEFINITION_V1_1)
                         .build(),
                 ])
                 .into(),
@@ -4647,35 +4838,99 @@ task as_map {
             .is_none()
     );
 
-    const KEYS_DEFINITION: &str = r#"
-Given a `Map[K, V]` `m`, returns a new `Array[K]` containing all the keys in `m`. The order of the keys in the returned array is the same as the order in which the elements were added to the `Map`.
-
-If `m` is empty, an empty array is returned.
+    // https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#-keys
+    const KEYS_DEFINITION_V1_1: &str = r#"
+Creates an `Array` of the keys from the input `Map`, in the same order as the elements in the map.
 
 **Parameters**
 
-1. `Map[K, V]`: The map to get the keys from.
+1. `Map[P, Y]`: `Map` from which to extract keys.
 
-**Returns**: A new `Array[K]` with the keys.
+**Returns**: `Array[P]` of the input `Map`s keys.
 
-Example: keys_map_task.wdl
+Example: test_keys.wdl
 
 ```wdl
-version 1.2
+version 1.1
 
-task keys_map {
+workflow test_keys {
   input {
-    Map[String, Int] map = {"a": 1, "b": 2}
+    Map[String,Int] x = {"a": 1, "b": 2, "c": 3}
+    Map[String, Pair[File, File]] str_to_files = {
+      "a": ("data/questions.txt", "data/answers.txt"),
+      "b": ("data/request.txt", "data/response.txt")
+    }
   }
 
+  scatter (item in as_pairs(str_to_files)) {
+    String key = item.left
+  }
+
+  Array[String] str_to_files_keys = key
+  Array[String] expected = ["a", "b", "c"]
+
   output {
-    Array[String] keys = keys(map) # ["a", "b"]
+    Boolean is_true1 = keys(x) == expected
+    Boolean is_true2 = str_to_files_keys == keys(str_to_files)
   }
 }
 ```
 "#;
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#keys
+    const KEYS_DEFINITION_V1_2: &str = r#"
+Given a key-value type collection (`Map`, `Struct`, or `Object`), returns an `Array` of the keys from the input collection, in the same order as the elements in the collection.
+
+When the argument is a `Struct`, the returned array will contain the keys in the same order they appear in the struct definition. When the argument is an `Object`, the returned array has no guaranteed order.
+
+When the input `Map` or `Object` is empty, an empty array is returned.
+
+**Parameters**
+
+1. `Map[P, Y]`|`Struct`|`Object`: Collection from which to extract keys.
+
+**Returns**: `Array[P]` of the input collection's keys. If the input is a `Struct` or `Object`, then the returned array will be of type `Array[String]`.
+
+Example: test_keys.wdl
+
+```wdl
+version 1.2
+
+struct Name {
+  String first
+  String last
+}
+
+workflow test_keys {
+  input {
+    Map[String, Int] x = {"a": 1, "b": 2, "c": 3}
+    Map[String, Pair[File, File]] str_to_files = {
+      "a": ("data/questions.txt", "data/answers.txt"),
+      "b": ("data/request.txt", "data/response.txt")
+    }
+    Name name = Name {
+      first: "John",
+      last: "Doe"
+    }
+  }
+
+  scatter (item in as_pairs(str_to_files)) {
+    String key = item.left
+  }
+
+  Array[String] str_to_files_keys = key
+  Array[String] expected = ["a", "b", "c"]
+  Array[String] expectedKeys = ["first", "last"]
+
+  output {
+    Boolean is_true1 = length(keys(x)) == 3 && keys(x) == expected
+    Boolean is_true2 = str_to_files_keys == keys(str_to_files)
+    Boolean is_true3 = length(keys(name)) == 2 && keys(name) == expectedKeys
+  }
+}
+```
+"#;
+
     assert!(
         functions
             .insert(
@@ -4694,7 +4949,7 @@ task keys_map {
                             "Collection from which to extract keys.",
                         )
                         .ret(GenericArrayType::new(GenericType::Parameter("K")))
-                        .definition(KEYS_DEFINITION)
+                        .definition(KEYS_DEFINITION_V1_1)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -4705,7 +4960,7 @@ task keys_map {
                             "Collection from which to extract keys.",
                         )
                         .ret(array_string.clone())
-                        .definition(KEYS_DEFINITION)
+                        .definition(KEYS_DEFINITION_V1_2)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
@@ -4715,7 +4970,7 @@ task keys_map {
                             "Collection from which to extract keys.",
                         )
                         .ret(array_string.clone())
-                        .definition(KEYS_DEFINITION)
+                        .definition(KEYS_DEFINITION_V1_2)
                         .build(),
                 ])
                 .into(),
@@ -5190,6 +5445,8 @@ task length_array {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -5242,7 +5499,7 @@ mod tests {
                 "size(value: String?, <unit: String>) -> Float",
                 "size(value: Directory?, <unit: String>) -> Float",
                 "size(value: X, <unit: String>) -> Float where `X`: any compound type that \
-                 recursively contains a `File` or `Directory`",
+                 recursively contains a file system path",
                 "stdout() -> File",
                 "stderr() -> File",
                 "read_string(file: File) -> String",
@@ -5312,6 +5569,107 @@ mod tests {
                 "length(string: String) -> Int",
             ]
         );
+    }
+
+    #[test_log::test]
+    fn verify_versioned_polymorphic_definitions() {
+        fn definition(name: &str, version: V1) -> &'static str {
+            let Function::Polymorphic(function) =
+                STDLIB.function(name).expect("function should exist")
+            else {
+                panic!("function should be polymorphic");
+            };
+
+            function
+                .definition(SupportedVersion::V1(version))
+                .expect("function should have a definition")
+        }
+
+        let v1_0 = V1::Zero;
+        let v1_1 = V1::One;
+        let v1_2 = V1::Two;
+        let v1_3 = V1::Three;
+
+        assert!(definition("basename", v1_0).contains("basename of a file path passed to it"));
+        assert!(!definition("basename", v1_0).contains("file or directory"));
+        assert_eq!(definition("basename", v1_0), definition("basename", v1_1));
+        assert!(definition("basename", v1_2).contains("file or directory"));
+
+        assert!(definition("size", v1_0).contains("Given a `File` and a `String`"));
+        assert!(!definition("size", v1_0).contains("files/directories"));
+        assert_eq!(definition("size", v1_0), definition("size", v1_1));
+        assert!(definition("size", v1_2).contains("file, directory"));
+
+        for name in ["read_tsv", "write_tsv"] {
+            assert!(!definition(name, v1_0).contains("three variants"));
+            assert_eq!(definition(name, v1_0), definition(name, v1_1));
+            assert!(definition(name, v1_2).contains("three variants"));
+        }
+
+        for name in ["write_object", "write_objects"] {
+            assert!(!definition(name, v1_0).contains("Struct"));
+            assert!(definition(name, v1_1).contains("Struct"));
+            assert_eq!(definition(name, v1_1), definition(name, v1_2));
+        }
+
+        assert!(definition("keys", v1_1).contains("keys from the input `Map`"));
+        assert!(!definition("keys", v1_1).contains("`Struct`"));
+        assert!(definition("keys", v1_2).contains("`Struct`"));
+
+        for name in [
+            "basename",
+            "size",
+            "read_tsv",
+            "write_tsv",
+            "write_object",
+            "write_objects",
+            "keys",
+        ] {
+            assert_eq!(definition(name, v1_2), definition(name, v1_3));
+        }
+    }
+
+    #[test_log::test]
+    fn verify_polymorphic_definition_tiers() {
+        const MIXED_VERSION_FUNCTIONS: [&str; 7] = [
+            "basename",
+            "size",
+            "read_tsv",
+            "write_tsv",
+            "write_object",
+            "write_objects",
+            "keys",
+        ];
+
+        for (name, function) in STDLIB.functions() {
+            let Function::Polymorphic(function) = function else {
+                continue;
+            };
+
+            let mut tiers = BTreeMap::new();
+            for signature in function.signatures() {
+                let definition = signature
+                    .definition()
+                    .expect("every polymorphic signature should have a definition");
+                if let Some(existing) = tiers.get(&signature.minimum_version()) {
+                    assert_eq!(
+                        *existing, definition,
+                        "`{name}` signatures in the same version tier should share prose"
+                    );
+                } else {
+                    tiers.insert(signature.minimum_version(), definition);
+                }
+            }
+
+            if MIXED_VERSION_FUNCTIONS.contains(&name) {
+                let definitions = tiers.values().copied().collect::<IndexSet<_>>();
+                assert_eq!(
+                    definitions.len(),
+                    tiers.len(),
+                    "`{name}` should have distinct prose for each version tier"
+                );
+            }
+        }
     }
 
     #[test_log::test]
