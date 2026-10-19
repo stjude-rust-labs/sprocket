@@ -28,7 +28,6 @@ use crate::StructRef;
 use crate::TaskRef;
 use crate::document::Namespace;
 use crate::document::Workflow;
-use crate::graph::DocumentGraph;
 
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
@@ -341,12 +340,8 @@ pub fn provide_workflow_documentation(
 }
 
 /// Provides documentation for namespaces.
-pub fn provide_namespace_documentation(
-    graph: &DocumentGraph,
-    namespace: &Namespace,
-) -> Option<String> {
-    let node = graph.get(graph.get_index(&namespace.source()).unwrap());
-    let import_doc = node.document().unwrap();
+pub fn provide_namespace_documentation(namespace: &Namespace) -> Option<String> {
+    let import_doc = namespace.document();
 
     let mut s = format!(
         "```wdl\n(import) {}\n```\nImports from `{}`",

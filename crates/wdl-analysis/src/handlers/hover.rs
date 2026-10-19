@@ -156,7 +156,7 @@ fn resolve_hover_content(
     }
 
     // Finds hover information across global definitions.
-    if let Some(content) = find_global_hover_in_doc(graph, document, token)? {
+    if let Some(content) = find_global_hover_in_doc(document, token)? {
         return Ok(Some(content));
     }
 
@@ -168,7 +168,7 @@ fn resolve_hover_content(
         let Some(imported_doc) = node.document() else {
             continue;
         };
-        if let Some(content) = find_global_hover_in_doc(graph, imported_doc, token)? {
+        if let Some(content) = find_global_hover_in_doc(imported_doc, token)? {
             return Ok(Some(content));
         }
     }
@@ -249,7 +249,7 @@ fn resolve_hover_by_context(
                 return Ok(None);
             };
 
-            return Ok(provide_namespace_documentation(graph, ns));
+            return Ok(provide_namespace_documentation(ns));
         }
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
@@ -312,7 +312,7 @@ fn resolve_hover_by_context(
                             return Ok(None);
                         };
 
-                        return Ok(provide_namespace_documentation(graph, ns));
+                        return Ok(provide_namespace_documentation(ns));
                     } else {
                         return Ok(None);
                     }
@@ -557,7 +557,7 @@ fn resolve_hover_by_context(
                 return Ok(None);
             };
 
-            return Ok(provide_namespace_documentation(graph, ns));
+            return Ok(provide_namespace_documentation(ns));
         }
         _ => debug!("hover is not implemented for {:?}", parent_node.kind()),
     }
@@ -566,13 +566,9 @@ fn resolve_hover_by_context(
 }
 
 /// Finds hover information for a globally defined symbol within a [`Document`].
-fn find_global_hover_in_doc(
-    graph: &DocumentGraph,
-    document: &Document,
-    token: &SyntaxToken,
-) -> Result<Option<String>> {
+fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<Option<String>> {
     if let Some(ns) = document.namespace(token.text()) {
-        return Ok(provide_namespace_documentation(graph, ns));
+        return Ok(provide_namespace_documentation(ns));
     }
     if let Some(s) = document.struct_by_name(token.text()) {
         return Ok(provide_struct_documentation(&s, &document.root()));
