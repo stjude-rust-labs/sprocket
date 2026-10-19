@@ -215,6 +215,29 @@ fn strip_url_path_prefix(url: &Url, base: &Url) -> Option<String> {
     None
 }
 
+/// Recursively computes the total size, in bytes, of the files in a
+/// directory.
+///
+/// Symbolic links are not followed and contribute nothing to the total, so
+/// links back into the inputs (or elsewhere) are not counted as space used by
+/// the directory.
+fn directory_size(dir: &Path) -> std::io::Result<u64> {
+    let mut total = 0;
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let metadata = entry.metadata()?;
+        if metadata.is_symlink() {
+            continue;
+        }
+        if metadata.is_dir() {
+            total += directory_size(&entry.path())?;
+        } else {
+            total += metadata.len();
+        }
+    }
+    Ok(total)
+}
+
 /// Used to evaluate expressions in tasks.
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
@@ -1877,11 +1900,14 @@ impl Evaluator {
                     attempt_dir.push(attempt.to_string());
 
                     // Notify that the attempt is being submitted for
-                    // execution, along with its resolved constraints.
-                    self.notify_task_executing(
-                        &state.task_name,
-                        TaskConstraintsSnapshot::from(&constraints),
-                    );
+                    // execution, along with its resolved constraints and the
+                    // curated hints and retry policy that inform metrics.
+                    let mut snapshot = TaskConstraintsSnapshot::from(&constraints);
+                    snapshot.max_retries = Some(max_retries);
+                    snapshot.preemptible = hints::preemptible(&inputs, &hints).ok();
+                    snapshot.max_cpu = hints::max_cpu(&inputs, &hints);
+                    snapshot.max_memory = hints::max_memory(&inputs, &hints).ok().flatten();
+                    self.notify_task_executing(&state.task_name, snapshot);
 
                     match self
                         .engine()
@@ -1913,6 +1939,31 @@ impl Evaluator {
                     }
                 }
             };
+
+            // Report the disk space used by the attempt's work directory when
+            // it is on a local file system. This is best-effort and skipped
+            // for cached results, whose work directory belongs to a prior
+            // attempt.
+            if !cached && let Some(work_dir) = result.work_dir.as_local() {
+                let work_dir = work_dir.to_path_buf();
+                match tokio::task::spawn_blocking(move || directory_size(&work_dir)).await {
+                    Ok(Ok(disk_used)) => {
+                        self.notify_task_disk_usage(&state.task_name, disk_used);
+                    }
+                    Ok(Err(e)) => {
+                        debug!(
+                            "failed to measure work directory size for task `{name}`: {e:#}",
+                            name = state.task.name()
+                        );
+                    }
+                    Err(e) => {
+                        debug!(
+                            "failed to measure work directory size for task `{name}`: {e:#}",
+                            name = state.task.name()
+                        );
+                    }
+                }
+            }
 
             // Update the task variable for the execution result
             if version >= SupportedVersion::V1(V1::Two) {
@@ -3530,5 +3581,20 @@ task t {
                 }
             }
         }
+    }
+
+    #[test]
+    fn directory_sizes_sum_files_and_skip_symlinks() {
+        let dir = tempfile::tempdir().expect("failed to create temporary directory");
+        std::fs::write(dir.path().join("a"), vec![0u8; 100]).expect("failed to write file");
+        std::fs::create_dir(dir.path().join("sub")).expect("failed to create directory");
+        std::fs::write(dir.path().join("sub/b"), vec![0u8; 50]).expect("failed to write file");
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(dir.path().join("a"), dir.path().join("link"))
+            .expect("failed to create symlink");
+
+        let size = super::directory_size(dir.path()).expect("failed to measure directory");
+        assert_eq!(size, 150);
     }
 }

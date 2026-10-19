@@ -34,6 +34,7 @@ pub(crate) use api::v1::metrics::RunMetricsRun;
 #[allow(unused_imports)]
 pub(crate) use api::v1::metrics::RunMetricsTotals;
 pub(crate) use api::v1::metrics::TaskAttemptMetrics;
+pub(crate) use api::v1::metrics::TransferTotals;
 pub(crate) use api::v1::metrics::build_run_metrics;
 pub use api::v1::paths;
 pub(crate) use api::v1::runs::CancelRunResponse;

@@ -68,6 +68,31 @@ pub async fn metrics(args: Args, config: Config, output: CommandOutput) -> Comma
     Ok(())
 }
 
+/// Formats a byte count for display, choosing the largest unit (B, KiB,
+/// MiB, or GiB) for which the value is at least 1.
+///
+/// A fixed unit (e.g. always GiB) can silently round a real, nonzero
+/// transfer down to `0.0`, which is visually indistinguishable from no
+/// transfer having happened at all. Choosing the unit by magnitude avoids
+/// that: the displayed value is always `>= 1.0` in its chosen unit unless
+/// the byte count is genuinely zero.
+fn format_bytes(bytes: u64) -> String {
+    const KIB: f64 = 1024.0;
+    const MIB: f64 = KIB * 1024.0;
+    const GIB: f64 = MIB * 1024.0;
+
+    let bytes_f = bytes as f64;
+    if bytes_f < KIB {
+        format!("{bytes} B")
+    } else if bytes_f < MIB {
+        format!("{:.1} KiB", bytes_f / KIB)
+    } else if bytes_f < GIB {
+        format!("{:.1} MiB", bytes_f / MIB)
+    } else {
+        format!("{:.1} GiB", bytes_f / GIB)
+    }
+}
+
 /// Formats a millisecond duration for display.
 fn format_ms(ms: Option<i64>) -> String {
     match ms {
@@ -265,6 +290,26 @@ fn render_metrics(body: &RunMetricsResponse, colorize: bool) -> String {
         preempted = body.totals.preempted,
     ));
 
+    if body.totals.allocated_cpu_time_ms > 0 {
+        out.push_str(&format!(
+            "allocated cpu {}\n",
+            format_ms(Some(body.totals.allocated_cpu_time_ms))
+        ));
+    }
+    if body.totals.preemption_wasted_ms > 0 {
+        out.push_str(&format!(
+            "wasted to preemption {}\n",
+            format_ms(Some(body.totals.preemption_wasted_ms))
+        ));
+    }
+    if let Some(transfer) = &body.run.transfer {
+        out.push_str(&format!(
+            "transferred {downloaded} down, {uploaded} up\n",
+            downloaded = format_bytes(transfer.downloaded_bytes),
+            uploaded = format_bytes(transfer.uploaded_bytes),
+        ));
+    }
+
     out
 }
 
@@ -275,6 +320,7 @@ mod tests {
     use super::*;
     use crate::server::RunMetricsRun;
     use crate::server::RunMetricsTotals;
+    use crate::server::TransferTotals;
     use crate::system::v1::db::RunStatus;
     use crate::system::v1::db::TaskStatus;
 
@@ -285,6 +331,9 @@ mod tests {
                 name: "happy-dolphin-42".to_string(),
                 status: RunStatus::Completed,
                 wall_time_ms: Some(83_000),
+                backend: Some("lsf_apptainer".to_string()),
+                sprocket_version: "0.0.0-test".to_string(),
+                transfer: None,
             },
             calls: vec![
                 CallMetrics {
@@ -298,6 +347,8 @@ mod tests {
                             exit_status: Some(137),
                             wall_time_ms: Some(45_500),
                             queued_ms: Some(300),
+                            pending_ms: Some(120),
+                            allocated_cpu_time_ms: Some(182_000),
                             constraints: Some(serde_json::json!({
                                 "cpu": 4.0,
                                 "memory": 8589934592i64,
@@ -317,6 +368,8 @@ mod tests {
                             exit_status: Some(0),
                             wall_time_ms: Some(37_000),
                             queued_ms: Some(150),
+                            pending_ms: Some(80),
+                            allocated_cpu_time_ms: Some(148_000),
                             constraints: None,
                             retry_cause: None,
                             utilization: Some(serde_json::json!({
@@ -340,6 +393,8 @@ mod tests {
                         exit_status: Some(0),
                         wall_time_ms: Some(10_000),
                         queued_ms: Some(100),
+                        pending_ms: Some(50),
+                        allocated_cpu_time_ms: Some(10_000),
                         constraints: None,
                         retry_cause: None,
                         utilization: None,
@@ -352,6 +407,8 @@ mod tests {
                 retries: 1,
                 cached: 0,
                 preempted: 0,
+                allocated_cpu_time_ms: 340_000,
+                preemption_wasted_ms: 0,
             },
         }
     }
@@ -417,5 +474,42 @@ mod tests {
         // identifier as a qualifier.
         assert!(report.contains("wf-align (sub--wf-align) (1 attempt)"));
         assert!(report.contains("3 attempts total: 1 retried, 0 cached, 0 preempted"));
+        assert!(report.contains("allocated cpu 5m40s"));
+    }
+
+    /// Transferred bytes are reported for a failed run just like a
+    /// successful one: transfer accounting reflects data actually moved
+    /// during localization/delocalization, independent of the run's final
+    /// status.
+    #[test]
+    fn report_includes_transfer_for_failed_run() {
+        let mut failed = body();
+        failed.run.status = RunStatus::Failed;
+        failed.run.transfer = Some(TransferTotals {
+            downloaded_bytes: 3 * 1024 * 1024 * 1024,
+            uploaded_bytes: 1024 * 1024 * 1024,
+        });
+
+        let report = render_metrics(&failed, false);
+        assert!(report.contains("failed, wall 1m23s"));
+        assert!(report.contains("transferred 3.0 GiB down, 1.0 GiB up"));
+    }
+
+    /// A transfer well under 1 GiB (e.g. a single small-to-medium input
+    /// staged to a remote TES backend) must not render as `0.0 GiB`, which
+    /// is visually indistinguishable from "no data transferred" and has
+    /// been reported as looking like a bug even though the underlying bytes
+    /// were correctly recorded.
+    #[test]
+    fn report_does_not_round_small_transfers_to_zero() {
+        let mut small = body();
+        small.run.transfer = Some(TransferTotals {
+            downloaded_bytes: 20_000_000, // ~19.1 MiB
+            uploaded_bytes: 512,
+        });
+
+        let report = render_metrics(&small, false);
+        assert!(!report.contains("0.0 GiB down"));
+        assert!(report.contains("transferred 19.1 MiB down, 512 B up"));
     }
 }

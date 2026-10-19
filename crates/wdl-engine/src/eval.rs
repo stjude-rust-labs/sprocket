@@ -581,6 +581,18 @@ pub struct TaskConstraintsSnapshot {
     /// A map of disk mount points to the initial amount of disk space
     /// allocated, in bytes.
     pub disks: BTreeMap<String, i64>,
+    /// The resolved `max_retries` requirement in force for the attempt.
+    ///
+    /// Both the attempt count and the cost of a run depend on the retry
+    /// policy, so it is recorded alongside the constraints.
+    pub max_retries: Option<u64>,
+    /// The resolved `preemptible` hint: the number of times the task may be
+    /// preempted before it must be run on non-preemptible resources.
+    pub preemptible: Option<i64>,
+    /// The resolved `max_cpu` hint, if one was provided.
+    pub max_cpu: Option<f64>,
+    /// The resolved `max_memory` hint in bytes, if one was provided.
+    pub max_memory: Option<i64>,
 }
 
 impl From<&TaskExecutionConstraints> for TaskConstraintsSnapshot {
@@ -596,6 +608,10 @@ impl From<&TaskExecutionConstraints> for TaskConstraintsSnapshot {
                 .iter()
                 .map(|(k, v)| (k.clone(), *v))
                 .collect(),
+            max_retries: None,
+            preemptible: None,
+            max_cpu: None,
+            max_memory: None,
         }
     }
 }
@@ -662,6 +678,23 @@ pub enum EngineEvent {
         id: String,
         /// The unique name of the task for this attempt.
         name: String,
+    },
+    /// The disk space used by a task execution attempt's work directory.
+    ///
+    /// Measured by the engine after the attempt's execution returns, when the
+    /// work directory is on a local file system; attempts whose work
+    /// directory is remote (e.g. on the TES backend) do not report it. This
+    /// complements the scheduler-observed measurements a backend may report
+    /// through Crankshaft's `TaskResourceUsage` event.
+    ///
+    /// Note: this measures the directory's size at the end of execution, not
+    /// its high-water mark, and does not include scratch space written
+    /// outside the work directory.
+    TaskDiskUsage {
+        /// The unique name of the task for this attempt.
+        name: String,
+        /// The size of the attempt's work directory, in bytes.
+        disk_used: u64,
     },
     /// A locally running task has been parked by the engine due to insufficient
     /// resources.
@@ -1449,6 +1482,12 @@ mod tests {
             snapshot.container.as_deref(),
             Some("library://example.org/tools/tool:1")
         );
+        // The curated hints and retry policy are populated at emission, not
+        // from the constraints.
+        assert_eq!(snapshot.max_retries, None);
+        assert_eq!(snapshot.preemptible, None);
+        assert_eq!(snapshot.max_cpu, None);
+        assert_eq!(snapshot.max_memory, None);
         assert_eq!(snapshot.cpu, 4.0);
         assert_eq!(snapshot.memory, 8 * 1024 * 1024 * 1024);
         assert_eq!(snapshot.gpu, ["nvidia-tesla-t4"]);
