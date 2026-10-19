@@ -333,8 +333,8 @@ pub struct Task {
     pub retry_cause: Option<String>,
     /// JSON snapshot of the resource utilization observed for this attempt.
     ///
-    /// Recorded at the attempt's termination by backends whose scheduler
-    /// reports utilization; `None` for other backends.
+    /// Values may come from backend sampling or scheduler accounting and from
+    /// optional engine measurement; `None` when no source reports utilization.
     pub utilization: Option<String>,
     /// Timestamp when the task was submitted to an execution backend.
     ///

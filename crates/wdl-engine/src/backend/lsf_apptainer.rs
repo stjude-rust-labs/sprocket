@@ -1099,6 +1099,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                     image: Some(image),
                     exit_code: exit_code as i32,
                     work_dir: EvaluationPath::from_local_path(work_dir),
+                    usage_file: None,
                     stdout: PrimitiveValue::new_file(
                         stdout_path
                             .into_os_string()

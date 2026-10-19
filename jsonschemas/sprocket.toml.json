@@ -1792,6 +1792,11 @@
           "description": "The behavior when a task's `memory` requirement cannot be met.",
           "$ref": "#/$defs/TaskResourceLimitBehavior"
         },
+        "measure_resource_usage": {
+          "description": "Whether to measure a task's resource usage from within its execution\nenvironment.\n\nWhen enabled, the engine wraps each task command with a portable\nmeasurement shim that records CPU time and, in containerized\nenvironments, peak cgroup memory, reporting them as resource usage\nmetrics. This works on any backend — including remote ones like TES —\nwithout requiring measurement tools in the container. Non-null shim\nmeasurements override overlapping backend measurements; fields\nreported only by the backend remain intact.\n\nThe shim writes a small hidden file (`.sprocket_usage`) into the\ntask's work directory, which is removed after collection on local\nfile systems but remains in remote work directories.\n\nDefaults to `false`.",
+          "type": "boolean",
+          "default": false
+        },
         "cache_dir": {
           "description": "The call cache directory to use for caching task execution results.\n\nDefaults to an operating system specific cache directory for the user.",
           "type": "string",
@@ -1945,7 +1950,7 @@
               "default": true
             },
             "resource_usage_interval": {
-              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nWhen set, each task's peak and average memory and cumulative CPU time\nare sampled from the Docker daemon at this interval and reported in\nthe run's metrics.\n\nWhen unset or zero, resource usage is not sampled. Sampling applies\nonly to local container execution; it is not supported for Docker\nSwarm services.",
+              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nWhen set to a positive value, Sprocket asks Crankshaft to sample local\ncontainers at this interval. Memory is sampled container memory with\ninactive file cache removed; the maximum is the largest observed\nsample, and the average is the arithmetic mean of successful samples.\nCPU time may be undercounted by up to one interval.\n\nAn unset or zero value disables sampling. Sampling is unavailable for\nDocker Swarm services, and tasks that finish before the first interval\nmay report no usage.",
               "type": [
                 "integer",
                 "null"

@@ -47,6 +47,11 @@ struct AttemptRecord {
     /// The resource utilization observed for the attempt, when the backend
     /// reported it.
     utilization: Option<serde_json::Value>,
+    /// Resource utilization measured by the engine.
+    ///
+    /// These fields override backend measurements regardless of event-channel
+    /// arrival order.
+    measured_utilization: serde_json::Map<String, serde_json::Value>,
     /// When the attempt was first observed.
     created_at: DateTime<Utc>,
     /// When the attempt was submitted to an execution backend.
@@ -68,6 +73,7 @@ impl AttemptRecord {
             constraints: None,
             retry_cause: None,
             utilization: None,
+            measured_utilization: Default::default(),
             created_at: Utc::now(),
             submitted_at: None,
             started_at: None,
@@ -94,6 +100,39 @@ fn status_rank(status: TaskStatus) -> u8 {
         | TaskStatus::Preempted
         | TaskStatus::Orphaned => 4,
     }
+}
+
+/// Serializes the non-null fields in a resource usage snapshot.
+fn usage_fields(
+    usage: &crankshaft_events::TaskResourceUsage,
+) -> serde_json::Map<String, serde_json::Value> {
+    if usage.is_empty() {
+        return Default::default();
+    }
+
+    let serde_json::Value::Object(mut fields) =
+        serde_json::to_value(usage).expect("TaskResourceUsage must serialize as JSON")
+    else {
+        unreachable!("TaskResourceUsage must serialize as a JSON object");
+    };
+    fields.retain(|_, value| !value.is_null());
+    fields
+}
+
+/// Merges resource usage fields into an attempt's effective utilization.
+fn merge_fields(
+    target: &mut Option<serde_json::Value>,
+    fields: &serde_json::Map<String, serde_json::Value>,
+) {
+    if fields.is_empty() {
+        return;
+    }
+
+    let target = target.get_or_insert_with(|| serde_json::json!({}));
+    let target = target
+        .as_object_mut()
+        .expect("attempt utilization must be a JSON object");
+    target.extend(fields.clone());
 }
 
 /// Accumulates transfer byte totals from the transfer event stream.
@@ -244,16 +283,11 @@ impl MetricsCollector {
                 record.status = TaskStatus::Cached;
                 record.completed_at = Some(Utc::now());
             }
-            EngineEvent::TaskDiskUsage { name, disk_used } => {
-                // Merge the engine-measured disk usage into whatever the
-                // backend may have reported.
+            EngineEvent::TaskUsageMeasured { name, usage } => {
+                let fields = usage_fields(&usage);
                 let record = self.attempt(&name, None, 0, TaskStatus::Initializing);
-                let utilization = record
-                    .utilization
-                    .get_or_insert_with(|| serde_json::json!({}));
-                if let Some(map) = utilization.as_object_mut() {
-                    map.insert("disk_used".to_string(), disk_used.into());
-                }
+                record.measured_utilization.extend(fields);
+                merge_fields(&mut record.utilization, &record.measured_utilization);
             }
             EngineEvent::TaskParked | EngineEvent::TaskUnparked { .. } => {}
             _ => {}
@@ -308,12 +342,11 @@ impl MetricsCollector {
                 }
             }
             CrankshaftEvent::TaskResourceUsage { id, usage } => {
-                // Utilization is a cumulative snapshot: the last received is
-                // authoritative.
                 if let Some(name) = self.task_names.get(&id).cloned() {
-                    let usage = serde_json::to_value(&usage).ok();
-                    self.attempt(&name, None, 0, TaskStatus::Initializing)
-                        .utilization = usage;
+                    let fields = usage_fields(&usage);
+                    let record = self.attempt(&name, None, 0, TaskStatus::Initializing);
+                    merge_fields(&mut record.utilization, &fields);
+                    merge_fields(&mut record.utilization, &record.measured_utilization);
                 }
             }
             _ => {}
@@ -570,6 +603,108 @@ mod tests {
     }
 
     #[test]
+    fn engine_usage_overrides_backend_usage_regardless_of_event_order() {
+        for engine_first in [false, true] {
+            let mut collector = MetricsCollector::default();
+            collector.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+                id: 7,
+                name: "wf-t-x1".to_string(),
+                tes_id: None,
+                token: Default::default(),
+            });
+
+            let mut backend = crankshaft_events::TaskResourceUsage::default();
+            backend.max_memory = Some(200);
+            backend.avg_memory = Some(100);
+            backend.cpu_time_ms = Some(300);
+
+            let mut measured = crankshaft_events::TaskResourceUsage::default();
+            measured.max_memory = Some(250);
+            measured.disk_used = Some(400);
+
+            if engine_first {
+                collector.handle_engine_event(EngineEvent::TaskUsageMeasured {
+                    name: "wf-t-x1".to_string(),
+                    usage: measured,
+                });
+                collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage {
+                    id: 7,
+                    usage: backend,
+                });
+            } else {
+                collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage {
+                    id: 7,
+                    usage: backend,
+                });
+                collector.handle_engine_event(EngineEvent::TaskUsageMeasured {
+                    name: "wf-t-x1".to_string(),
+                    usage: measured,
+                });
+            }
+
+            let usage = collector.attempts["wf-t-x1"].utilization.as_ref().unwrap();
+            assert_eq!(usage["max_memory"], 250);
+            assert_eq!(usage["avg_memory"], 100);
+            assert_eq!(usage["cpu_time_ms"], 300);
+            assert_eq!(usage["disk_used"], 400);
+        }
+    }
+
+    #[test]
+    fn partial_and_empty_backend_snapshots_do_not_erase_measurements() {
+        let mut collector = MetricsCollector::default();
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+            id: 7,
+            name: "wf-t-x1".to_string(),
+            tes_id: None,
+            token: Default::default(),
+        });
+
+        let mut first = crankshaft_events::TaskResourceUsage::default();
+        first.max_memory = Some(200);
+        first.avg_memory = Some(100);
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage {
+            id: 7,
+            usage: first,
+        });
+
+        let mut second = crankshaft_events::TaskResourceUsage::default();
+        second.max_memory = Some(220);
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage {
+            id: 7,
+            usage: second,
+        });
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage {
+            id: 7,
+            usage: Default::default(),
+        });
+
+        let usage = collector.attempts["wf-t-x1"].utilization.as_ref().unwrap();
+        assert_eq!(usage["max_memory"], 220);
+        assert_eq!(usage["avg_memory"], 100);
+    }
+
+    #[test]
+    fn usage_after_terminal_event_does_not_reopen_the_attempt() {
+        let mut collector = MetricsCollector::default();
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+            id: 7,
+            name: "wf-t-x1".to_string(),
+            tes_id: None,
+            token: Default::default(),
+        });
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCanceled { id: 7 });
+
+        let mut usage = crankshaft_events::TaskResourceUsage::default();
+        usage.cpu_time_ms = Some(300);
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage { id: 7, usage });
+
+        let attempt = &collector.attempts["wf-t-x1"];
+        assert_eq!(attempt.status, TaskStatus::Canceled);
+        assert_eq!(attempt.utilization.as_ref().unwrap()["cpu_time_ms"], 300);
+    }
+
+    #[test]
     fn transfers_total_successful_sized_transfers_by_direction() {
         use std::path::PathBuf;
 
@@ -629,9 +764,11 @@ mod tests {
             name: "wf-t-x1".to_string(),
             attempt: 0,
         });
-        collector.handle_engine_event(EngineEvent::TaskDiskUsage {
+        let mut measured = crankshaft_events::TaskResourceUsage::default();
+        measured.disk_used = Some(4096);
+        collector.handle_engine_event(EngineEvent::TaskUsageMeasured {
             name: "wf-t-x1".to_string(),
-            disk_used: 4096,
+            usage: measured,
         });
 
         let utilization = collector.attempts["wf-t-x1"]
