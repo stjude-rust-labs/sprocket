@@ -174,9 +174,11 @@ pub async fn analyze_singular_source(
     report_mode: wdl::diagnostics::Mode,
     colorize: bool,
 ) -> Result<Document, NonEmpty<Arc<anyhow::Error>>> {
-    source.is_singular().ok_or(NonEmpty::new(Arc::new(anyhow!(
-        "source must be a single document"
-    ))))?;
+    if !source.is_singular() {
+        return Err(NonEmpty::new(Arc::new(anyhow!(
+            "source must be a single document"
+        ))));
+    }
 
     let results = Analysis::default()
         .add_source(source.clone())
