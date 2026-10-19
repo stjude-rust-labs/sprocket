@@ -533,7 +533,7 @@ pub struct AnalysisQueue<Progress, Context, Return> {
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The active validator pool.
-    validators: RwLock<Arc<ValidatorPool>>,
+    validators: Mutex<Arc<ValidatorPool>>,
     /// A marker for the `Context` and `Return` types.
     marker: PhantomData<(Context, Return)>,
 }
@@ -569,7 +569,7 @@ where
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
-            validators: RwLock::new(Arc::new(ValidatorPool::new(validator))),
+            validators: Mutex::new(Arc::new(ValidatorPool::new(validator))),
         }
     }
 
@@ -1482,7 +1482,7 @@ where
 
             let tasks = {
                 let graph = self.graph.read();
-                let validators = self.validators.read().clone();
+                let validators = self.validators.lock().clone();
 
                 let handles = FuturesUnordered::new();
                 for index in set.iter().copied() {
@@ -2114,7 +2114,7 @@ where
 
     /// Replace the current validator function.
     fn swap_validator(&self, validator: ValidatorFn) {
-        *self.validators.write() = Arc::new(ValidatorPool::new(validator));
+        *self.validators.lock() = Arc::new(ValidatorPool::new(validator));
 
         // Invalidate the *entire* graph
         self.graph.write().reanalyze_all();
