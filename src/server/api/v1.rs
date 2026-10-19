@@ -11,6 +11,7 @@ use utoipa::OpenApi;
 
 use self::error::Error;
 use self::info::*;
+use self::metrics::*;
 use self::runs::*;
 use self::sessions::*;
 use self::tasks::*;
@@ -19,6 +20,7 @@ use crate::system::v1::exec::svc::run_manager::RunManagerCmd;
 
 pub mod error;
 pub mod info;
+pub mod metrics;
 pub mod paths;
 pub mod runs;
 pub mod sessions;
@@ -44,11 +46,13 @@ pub use crate::system::v1::db::TaskStatus;
         list_tasks,
         list_run_tasks,
         get_run_task_counts,
+        get_run_metrics,
         get_task,
         get_task_logs,
         get_server_info,
     ),
     components(schemas(
+        CallMetrics,
         CancelRunResponse,
         GetTaskResponse,
         ListRunsQueryParams,
@@ -62,6 +66,9 @@ pub use crate::system::v1::db::TaskStatus;
         ListTasksResponse,
         LogSource,
         Run,
+        RunMetricsResponse,
+        RunMetricsRun,
+        RunMetricsTotals,
         RunOutputsResponse,
         RunResponse,
         RunStatus,
@@ -74,6 +81,7 @@ pub use crate::system::v1::db::TaskStatus;
         SubmitResponse,
         SubmitRunRequest,
         Task,
+        TaskAttemptMetrics,
         TaskLog,
         TaskStatus,
     )),
@@ -106,6 +114,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             paths::route_template(paths::RUN_TASK_COUNTS),
             get(get_run_task_counts),
+        )
+        .route(
+            paths::route_template(paths::RUN_METRICS),
+            get(get_run_metrics),
         )
         .route(
             paths::route_template(paths::LIST_SESSIONS),
