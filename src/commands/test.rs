@@ -327,9 +327,16 @@ async fn run_custom_bins(
         futures.spawn(async move {
             (
                 bin_name,
-                Command::new(bin_path)
+                Command::new("bash")
+                    .arg(&bin_path)
                     .args(args)
                     .current_dir(exec_dir.path())
+                    .env(
+                        "TEST_BIN",
+                        bin_path
+                            .parent()
+                            .expect("binary should have parent directory"),
+                    )
                     .output()
                     .await,
             )
