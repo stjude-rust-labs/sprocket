@@ -6,7 +6,6 @@ use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
-use std::fs::write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -17,6 +16,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use blake3::Hasher;
 use clap::Parser;
 use colored::Colorize as _;
 use crankshaft::events::Event;
@@ -37,6 +37,7 @@ use tokio::process::Command;
 use tokio::select;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
+use tokio::task::spawn_blocking;
 use tokio::time::sleep;
 use tracing::Level;
 use tracing::debug;
@@ -312,7 +313,7 @@ async fn run_custom_bins(
         let exec_dir = tempfile::TempDir::new()?;
         let outputs_path = exec_dir.path().join(OUTPUTS_FILE);
         let outputs = serde_json::to_string_pretty(&outputs)?;
-        write(outputs_path, outputs)?;
+        tokio::fs::write(outputs_path, outputs).await?;
 
         let args =
             shlex::split(&args.replace(OUTPUTS_PLACEHOLDER, OUTPUTS_FILE)).with_context(|| {
@@ -1119,14 +1120,68 @@ fn resolve_test_paths(
     )
 }
 
-fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<String, PathBuf>> {
-    // #[derive(serde::Serialize, serde::Deserialize)]
-    // struct Blessed {
-    //     path: PathBuf,
-    //     hash: String,
-    // }
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Blessed {
+    path: PathBuf,
+    hash: String,
+}
 
+fn is_regular_file(path: &Path) -> Result<bool> {
+    Ok(!path.symlink_metadata()?.is_symlink() && path.is_file())
+}
+
+async fn bless_executables(bin_dir: &Path) -> Result<()> {
+    let mut executables = Vec::new();
+    for entry in std::fs::read_dir(bin_dir)
+        .with_context(|| format!("reading `{}` directory", bin_dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if !is_regular_file(&path)? {
+            bail!(
+                "all contents of the test `bin` directory must be regular files: `{}`",
+                path.display()
+            );
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name == BLESSED_FILE_NAME {
+            continue;
+        }
+
+        let hash = spawn_blocking(move || {
+            let mut hasher = Hasher::new();
+            hasher
+                .update_mmap_rayon(&path)
+                .with_context(|| format!("failed to calculate digest of `{}`", path.display()))?;
+            anyhow::Ok(hasher.finalize())
+        })
+        .await
+        .context("file digest task paniched")??;
+
+        let blessed = Blessed {
+            path: entry
+                .path()
+                .strip_prefix(bin_dir)
+                .expect("entry is within bin dir")
+                .into(),
+            hash: hash.to_string(),
+        };
+        executables.push(blessed);
+    }
+    tokio::fs::write(
+        bin_dir.join(BLESSED_FILE_NAME),
+        serde_json::to_string_pretty(&executables)?,
+    )
+    .await
+    .with_context(|| format!("writing `{BLESSED_FILE_NAME}` to `{}`", bin_dir.display()))
+}
+
+async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<String, PathBuf>> {
     if !bin_dir.is_dir() {
+        // NOTE: users may have enabled custom assertions without actually
+        // writing any, so we warn but gracefully continue without
+        // running custom executables
         warn!(
             "couldn't find `{}` containing custom assertion executables",
             bin_dir.display()
@@ -1135,22 +1190,16 @@ fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<String, Pat
     }
 
     let mut found = HashMap::new();
-    for entry in std::fs::read_dir(bin_dir).with_context(|| "reading provided `bin` directory")? {
+    for entry in std::fs::read_dir(&bin_dir)
+        .with_context(|| format!("reading `{}` directory", bin_dir.display()))?
+    {
         let entry = entry?;
         let path = entry.path();
-        if path.symlink_metadata()?.is_symlink() {
-            warn!(
-                "skipping `{path}` as symlinks are not permitted",
-                path = path.display()
+        if !is_regular_file(&path)? {
+            bail!(
+                "all contents of the test `bin` directory must be regular files: `{}`",
+                path.display()
             );
-            continue;
-        }
-        if !path.is_file() {
-            warn!(
-                "skipping `{path}` as it is not a file",
-                path = path.display()
-            );
-            continue;
         }
         let name = entry.file_name();
         let name = name.to_string_lossy();
@@ -1166,10 +1215,43 @@ fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<String, Pat
         return Ok(found);
     }
 
-    todo!("implement bless check");
-    // let _blessed: Vec<Blessed> =
-    //     serde_json::from_str(&read_to_string(bin_dir.
-    // join(BLESSED_FILE_NAME))?)?;
+    let blessed_files_path = bin_dir.join(BLESSED_FILE_NAME);
+    if !blessed_files_path.is_file() {
+        bail!("no {BLESSED_FILE_NAME} found");
+    }
+
+    let blessed: Vec<Blessed> = serde_json::from_str(&read_to_string(&blessed_files_path)?)?;
+    let mut blessed_names: HashSet<String> = HashSet::with_capacity(blessed.len());
+    for executable in &blessed {
+        let path = bin_dir.join(&executable.path);
+        if !path.is_file() {
+            bail!(
+                "`{}` from blessed executables not found",
+                executable.path.display()
+            );
+        }
+
+        let hash = spawn_blocking(move || {
+            let mut hasher = Hasher::new();
+            hasher
+                .update_mmap_rayon(&path)
+                .with_context(|| format!("failed to calculate digest of `{}`", path.display()))?;
+            anyhow::Ok(hasher.finalize())
+        })
+        .await
+        .context("file digest task paniched")??;
+
+        if hash.to_string() != executable.hash {
+            bail!("hash mismatch for `{}`", executable.path.display());
+        }
+        blessed_names.insert(executable.path.to_string_lossy().into());
+    }
+    for f in found.keys() {
+        if !blessed_names.contains(f) {
+            bail!("`{}` file has not been blessed", f);
+        }
+    }
+    Ok(found)
 }
 
 async fn clean_all_run_root(run_root: &Path) -> Result<()> {
@@ -1194,8 +1276,6 @@ pub async fn test(
             serde_json::to_string_pretty(&schema).context("serializing test schema")?;
         output.payload(schema_pretty);
         return Ok(());
-    } else if matches!(args.command, Some(Subcommand::BlessExecutables)) {
-        todo!();
     }
 
     if args.show_assertion_stdio {
@@ -1253,6 +1333,16 @@ pub async fn test(
         &args.run_dir,
     );
     let fixture_origins = EvaluationPath::from(fixtures_dir.as_path());
+
+    if matches!(args.command, Some(Subcommand::BlessExecutables)) {
+        return bless_executables(&bin_dir).await.map_err(|e| e.into());
+    }
+
+    let executables = if enable_custom_assertions {
+        Some(find_executables(bin_dir, args.trusted).await?)
+    } else {
+        None
+    };
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
@@ -1356,12 +1446,6 @@ pub async fn test(
     if let Some(e) = counts.verify_no_errors() {
         return Err(e.into());
     }
-
-    let executables = if enable_custom_assertions {
-        Some(find_executables(bin_dir, args.trusted)?)
-    } else {
-        None
-    };
 
     config.run.engine.task.cache = CallCachingMode::Off;
     config.run.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
@@ -1681,15 +1765,17 @@ mod tests {
         clean_all_run_root(&run_root).await
     }
 
-    #[test]
-    fn find_executables_ignores_blessed_json() {
+    #[tokio::test]
+    async fn find_executables_ignores_blessed_json_when_trusted() {
         let temp_dir = tempfile::tempdir().unwrap();
         let exec1_path = temp_dir.path().join("exec1.sh");
         let blessed_path = temp_dir.path().join(BLESSED_FILE_NAME);
 
         std::fs::write(exec1_path, "").unwrap();
         std::fs::write(blessed_path, "").unwrap();
-        let found = find_executables(temp_dir.path().to_path_buf(), true).unwrap();
+        let found = find_executables(temp_dir.path().to_path_buf(), true)
+            .await
+            .unwrap();
         assert!(found.contains_key("exec1.sh"));
         assert!(!found.contains_key(BLESSED_FILE_NAME));
     }
