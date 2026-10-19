@@ -58,6 +58,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Task resource utilization updates use SQLite JSON merge patches instead of a database read
   followed by a Rust-side merge and update
   ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+* Backend-native utilization adds an opt-in Crankshaft source. TES
+  `backends.<name>.resource_usage_metadata = true` reads supported top-level `TaskLog.metadata`
+  keys. Planetary supplies sampled Kubernetes working-set memory and cumulative CPU time through
+  those keys ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ## 0.32.0 - 2026-10-07
 
