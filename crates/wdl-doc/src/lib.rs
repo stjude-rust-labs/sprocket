@@ -487,7 +487,13 @@ async fn analyze_workspace(
 /// are already present.
 pub async fn document_workspace(config: Config) -> DocResult<()> {
     let workspace_abs_path = absolute(&config.workspace)?.clean();
-    let index_page = config.index_page.and_then(|p| absolute(p).ok());
+    let index_page = config.index_page.map(|p| {
+        if p.is_absolute() {
+            p
+        } else {
+            workspace_abs_path.join(&p)
+        }
+    });
 
     if !workspace_abs_path.is_dir() {
         return Err(
