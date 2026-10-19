@@ -13,6 +13,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   for WDL `module.json` definitions
   ([#1295](https://github.com/stjude-rust-labs/sprocket/pull/1295)).
 
+### Fixed
+
+* Relative paths for `doc` configured index pages are now resolved relative to the root workspace
+  being documented ([#1304](https://github.com/stjude-rust-labs/sprocket/pull/1304)).
+
 ## 0.32.0 - 2026-10-07
 
 ### Security Fix
