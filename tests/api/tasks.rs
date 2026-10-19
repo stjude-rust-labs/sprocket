@@ -826,6 +826,12 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
     db.update_task_completed("wf-a-x2", Some(0), Utc::now())
         .await
         .unwrap();
+    db.update_task_utilization(
+        "wf-a-x2",
+        r#"{"max_memory":241172480,"cpu_time_ms":324000}"#,
+    )
+    .await
+    .unwrap();
 
     // Call `wf-b`: served from the call cache.
     db.create_task(NewTask {
@@ -900,11 +906,17 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
     assert!(attempts[0]["queued_ms"].as_i64().unwrap() >= 0);
     assert_eq!(attempts[0]["logs"], paths::get_task_logs("wf-a-x1"));
 
-    // The successful attempt has no retry cause.
+    // The successful attempt has no retry cause; its utilization (recorded
+    // by the backend at termination) is reported.
     assert_eq!(attempts[1]["name"], "wf-a-x2");
     assert_eq!(attempts[1]["attempt"], 1);
     assert_eq!(attempts[1]["status"], "completed");
     assert!(attempts[1]["retry_cause"].is_null());
+    assert_eq!(attempts[1]["utilization"]["max_memory"], 241172480);
+    assert_eq!(attempts[1]["utilization"]["cpu_time_ms"], 324000);
+
+    // The retried attempt has no utilization recorded.
+    assert!(attempts[0]["utilization"].is_null());
 
     // The cached attempt reports no wall time (it never started executing).
     let wf_b = calls
