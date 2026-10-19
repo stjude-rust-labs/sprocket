@@ -43,7 +43,7 @@ git2 = { workspace = true, optional = true, features = ["https", "ssh"] }
 globset = { workspace = true, optional = true }
 hex = { workspace = true }
 path-clean = { workspace = true }
-schemars = { workspace = true }
+schemars = { workspace = true, features = ["url2"] }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -72,6 +72,7 @@ wdl-grammar = { path = "../wdl-grammar", version = "0.27.0" }
 git2 = { workspace = true, optional = true, features = ["https", "ssh", "vendored-openssl"] }
 
 [dev-dependencies]
+jsonschema = { workspace = true }
 pretty_assertions = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
