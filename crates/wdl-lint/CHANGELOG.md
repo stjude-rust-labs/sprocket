@@ -14,6 +14,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `MetaSections` now suggests doc comments instead of `meta` or `parameter_meta` for structs in v1.1
   and v1.0 documents ([#1209](https://github.com/stjude-rust-labs/sprocket/issues/1209))
+
 ### Removed
 
 * The `CallInputKeyword` rule was promoted to `wdl-analysis`
