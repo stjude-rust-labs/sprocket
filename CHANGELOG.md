@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added `sprocket dev module schema` subcommand to generate a [JSON schema](https://json-schema.org)
+  for WDL `module.json` definitions
+  ([#1295](https://github.com/stjude-rust-labs/sprocket/pull/1295)).
+
 ## 0.32.0 - 2026-10-07
 
 ### Security Fix
@@ -893,7 +899,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Removed the `--config` option of `sprocket run`; the run command's configuration is now merged
   into `sprocket.toml` under the `run` section
-  ([#121](github.com/stjude-rust-labs/sprocket/pull/121))
+  ([#121](https://github.com/stjude-rust-labs/sprocket/pull/121))
 
 ### Fixed
 
@@ -905,7 +911,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   engine configuration fields ([#124](https://github.com/stjude-rust-labs/sprocket/pull/124)).
 * The `sprocket run`, `sprocket validate`, and `sprocket inputs` commands will no longer require the
   `--name` option if passed a WDL document containing a single task and no workflow
-  ([#121](github.com/stjude-rust-labs/sprocket/pull/121)).
+  ([#121](https://github.com/stjude-rust-labs/sprocket/pull/121)).
 * The `sprocket run` command now correctly includes the workflow/task name prefix in the output
   ([#131](github.com/stjude-rust-labs/sprocket/pull/131)).
 
@@ -967,6 +973,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 * Introduced the `run` subcommand ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
+* Added configuration file support ([#104](https://github.com/stjude-rust-labs/sprocket/pull/104)).
 
 ### Changed
 
@@ -978,10 +985,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
 * Updates the underlying `wdl` dependency to v0.13.1
   ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
-
-### Added
-
-* Added configuration file support ([#104](https://github.com/stjude-rust-labs/sprocket/pull/104)).
 
 ## 0.11.0 - 04-01-2025
 
