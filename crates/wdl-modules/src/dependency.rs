@@ -1,10 +1,15 @@
 //! Dependency names and sources for `module.json`.
 
+use std::borrow::Cow;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
+use schemars::Schema;
+use schemars::SchemaGenerator;
+use schemars::json_schema;
 use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
 use thiserror::Error;
@@ -58,6 +63,19 @@ pub struct DependencyName {
     manifest: String,
     /// The WDL identifier form (hyphens replaced with underscores).
     identifier: String,
+}
+
+impl JsonSchema for DependencyName {
+    fn schema_name() -> Cow<'static, str> {
+        Cow::Borrowed("DependencyName")
+    }
+
+    fn json_schema(_generator: &mut SchemaGenerator) -> Schema {
+        json_schema!({
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+        })
+    }
 }
 
 impl PartialEq for DependencyName {
