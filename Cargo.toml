@@ -148,7 +148,7 @@ wdl-modules = { version = "0.4.0", path = "crates/wdl-modules", features = ["git
 which = "8.0.0"
 whoami = "2.1.0"
 windows-sys = "0.61"
-zip = { version = "8.1.0", default-features = false, features = [] }
+zip = { version = "9.0.0", default-features = false, features = [] }
 
 [workspace.lints.rust]
 missing_docs = "warn"
