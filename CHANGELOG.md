@@ -15,6 +15,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added `GET /api/v1/runs/{id}/metrics`, which reports task attempts grouped by fully qualified WDL
   call path with a short display name
   ([#1257](https://github.com/stjude-rust-labs/sprocket/pull/1257)).
+* `sprocket dev server metrics <RUN>` renders execution metrics, with `--json` for the raw response
+  and `--call` for filtering. Local `sprocket run` executions write the same structure to
+  `metrics.json` beside `outputs.json`
+  ([#1258](https://github.com/stjude-rust-labs/sprocket/pull/1258)).
 
 ## 0.32.0 - 2026-10-07
 
