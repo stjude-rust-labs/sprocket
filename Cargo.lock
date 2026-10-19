@@ -540,7 +540,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c719d56f7e96194cfc53460976d3ba51c85719747c9c62ed99981847b551152b"
 dependencies = [
  "rust_decimal",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "serde",
  "utf8-width",
 ]
@@ -4731,9 +4731,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "687274d293b6cdc6e73e0fee520bf2049650090d7164f87672d212a3c530cf4a"
+checksum = "ab508826f74a77ca9d5aba6ff19b522583ee3eaf28a19384ff3d0e5835fadf6e"
 dependencies = [
  "dyn-clone",
  "indexmap 2.14.2",
@@ -4746,9 +4746,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d98c67716b46af2f0b8cf752abc930f6f9aecfbf671ecfb531db8a31dbe4e2ba"
+checksum = "e1c3a92094fa7d61aa124645844facb6b554dfc797136d0f5fd1f890e2bffc69"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4981,7 +4981,7 @@ dependencies = [
  "indexmap 2.14.2",
  "jiff",
  "schemars 0.9.0",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "serde_core",
  "serde_json",
  "serde_with_macros",
@@ -5233,7 +5233,7 @@ dependencies = [
  "rand 0.10.3",
  "regex",
  "reqwest",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -5299,7 +5299,7 @@ dependencies = [
  "jsonschema",
  "pretty_assertions",
  "regex",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -6736,7 +6736,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rowan",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "semver",
  "sha2 0.11.0",
  "smallvec",
@@ -6782,7 +6782,7 @@ dependencies = [
  "clap",
  "codespan-reporting",
  "pyo3",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "wdl-ast",
  "wdl-engine",
 ]
@@ -6801,7 +6801,7 @@ dependencies = [
  "path-clean",
  "pathdiff",
  "pulldown-cmark",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "tempfile",
@@ -6848,7 +6848,7 @@ dependencies = [
  "regex",
  "rev_buf_reader",
  "rowan",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "secrecy",
  "serde",
  "serde_json",
@@ -6883,7 +6883,7 @@ dependencies = [
  "libtest-mimic",
  "nonempty",
  "pretty_assertions",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "thiserror 2.0.21",
  "toml-spanner",
  "tracing",
@@ -6924,7 +6924,7 @@ dependencies = [
  "rand 0.10.3",
  "regex",
  "rowan",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "strum",
@@ -6987,7 +6987,7 @@ dependencies = [
  "jsonschema",
  "path-clean",
  "pretty_assertions",
- "schemars 1.2.2",
+ "schemars 1.2.3",
  "semver",
  "serde",
  "serde_json",
