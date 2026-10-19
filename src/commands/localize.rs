@@ -535,6 +535,17 @@ impl Downloader {
     }
 }
 
+/// Formats a path for display using `/` separators on every platform, so that
+/// output (and its snapshots) does not depend on the host operating system.
+fn display_path(path: &Path) -> String {
+    let path = path.to_string_lossy();
+    if cfg!(windows) {
+        path.replace('\\', "/")
+    } else {
+        path.into_owned()
+    }
+}
+
 /// The main function for the `localize` subcommand.
 pub async fn localize(args: Args, mut config: Config, output: CommandOutput) -> CommandResult<()> {
     let run = resolve_run(&args.run)?;
@@ -583,7 +594,7 @@ pub async fn localize(args: Args, mut config: Config, output: CommandOutput) -> 
                 format!(
                     "`{url}` to `{path}`",
                     url = item.url.display(),
-                    path = destination.join(item.relative_path()).display()
+                    path = display_path(&destination.join(item.relative_path()))
                 ),
             );
         }
