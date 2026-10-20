@@ -5622,8 +5622,13 @@ mod tests {
                 "size(value: Directory?, <unit: String>) -> Float",
                 "size(value: X, <unit: String>) -> Float where `X`: any compound type that \
                  recursively contains a file system path",
-                "list(directory: Directory, <recursive: Boolean>, <include_symlinks: Boolean>, \
-                 <pattern: String>) -> Pair[Array[File], Array[Directory]]",
+                "list(directory: Directory) -> Pair[Array[File], Array[Directory]]",
+                "list(directory: Directory, recursive: Boolean) -> Pair[Array[File], \
+                 Array[Directory]]",
+                "list(directory: Directory, recursive: Boolean, include_symlinks: Boolean) -> \
+                 Pair[Array[File], Array[Directory]]",
+                "list(directory: Directory, recursive: Boolean, include_symlinks: Boolean, \
+                 pattern: String) -> Pair[Array[File], Array[Directory]]",
                 "stdout() -> File",
                 "stderr() -> File",
                 "read_string(file: File) -> String",
