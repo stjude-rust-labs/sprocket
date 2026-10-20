@@ -31,20 +31,30 @@ note[ExtraneousParameterMeta]: task `bar` has an extraneous parameter metadata k
    = fix: remove the extraneous key from the `parameter_meta` section
 
 note[ParameterMetaOrder]: parameter metadata in task `baz` is out of order
-   ┌─ tests/lints/matching-param-meta/source.wdl:75:5
+   ┌─ tests/lints/matching-param-meta/source.wdl:76:9
    │
-75 │     parameter_meta {
-   │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+76 │         second: "This should be second"
+   │         ^^^^^^ expected parameter metadata for `first` here, but found `second`
+77 │         first: "This should be first"
+   │         ----- parameter metadata for `first` is defined after `second` here
+   ·
+82 │         String first
+   │                ----- input `first` is declared before `second`
    │
    = fix: based on the current `input` order, order the parameter metadata as:
      first
      second
 
 note[ParameterMetaOrder]: parameter metadata in task `quux` is out of order
-    ┌─ tests/lints/matching-param-meta/source.wdl:113:5
+    ┌─ tests/lints/matching-param-meta/source.wdl:114:9
     │
-113 │     parameter_meta {
-    │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+107 │         String first
+    │                ----- input `first` is declared before `third`
+    ·
+114 │         third: "`third` also gets a parameter_meta entry"
+    │         ^^^^^ expected parameter metadata for `first` here, but found `third`
+115 │         first: "`first` is documented with parameter_meta"
+    │         ----- parameter metadata for `first` is defined after `third` here
     │
     = fix: based on the current `input` order, order the parameter metadata as:
       first

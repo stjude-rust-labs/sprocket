@@ -29,16 +29,30 @@ use crate::rules::collect_parameter_meta;
 const ID: &str = "ParameterMetaOrder";
 
 /// Creates a "mismatched order" diagnostic.
+///
+/// # Note on Relative Direction Invariants
+/// Because `i` is the first index where `actual_order[i] != expected_order[i]`,
+/// and all earlier positions `j < i` match identically, `expected_name` has not
+/// yet been encountered in `actual_order`. Therefore:
+/// - In `parameter_meta`, `expected_name` is guaranteed to appear strictly
+///   after `actual_name` in document order.
+/// - In declarations, `expected_name` is guaranteed to be declared strictly
+///   before `actual_name`.
+#[allow(clippy::too_many_arguments)]
 fn mismatched_param_order(
     severity: Severity,
     parent: &SectionParent,
-    span: Span,
+    actual_span: Span,
+    actual_name: &str,
+    expected_meta_span: Span,
+    expected_name: &str,
+    decl_span: Span,
     expected_order: &str,
 ) -> Diagnostic {
-    let (context, parent) = match parent {
-        SectionParent::Task(t) => ("task", t.name()),
-        SectionParent::Workflow(w) => ("workflow", w.name()),
-        SectionParent::Struct(s) => ("struct", s.name()),
+    let (context, decl_type, parent) = match parent {
+        SectionParent::Task(t) => ("task", "input", t.name()),
+        SectionParent::Workflow(w) => ("workflow", "input", w.name()),
+        SectionParent::Struct(s) => ("struct", "field", s.name()),
     };
 
     Diagnostic::new(
@@ -50,11 +64,22 @@ fn mismatched_param_order(
     )
     .with_rule(ID)
     .with_label(
-        "parameter metadata must be in the same order as inputs",
-        span,
+        format!(
+            "expected parameter metadata for `{expected_name}` here, but found `{actual_name}`"
+        ),
+        actual_span,
+    )
+    .with_label(
+        format!("parameter metadata for `{expected_name}` is defined after `{actual_name}` here"),
+        expected_meta_span,
+    )
+    .with_label(
+        format!("{decl_type} `{expected_name}` is declared before `{actual_name}`"),
+        decl_span,
     )
     .with_fix(format!(
-        "based on the current `input` order, order the parameter metadata as:\n{expected_order}"
+        "based on the current `{decl_type}` order, order the parameter metadata \
+         as:\n{expected_order}"
     ))
 }
 
@@ -281,14 +306,40 @@ fn check_parameter_meta(
         .collect();
 
     if expected_order != actual_order {
-        let span = param_meta
-            .inner()
-            .first_token()
-            .expect("must have parameter meta token")
-            .text_range()
-            .into();
+        let mismatch_idx = actual_order
+            .iter()
+            .zip(expected_order.iter())
+            .position(|(actual, expected)| actual != expected)
+            .expect("orders differ");
+
+        let actual_name = &actual_order[mismatch_idx];
+        let expected_name = &expected_order[mismatch_idx];
+
+        let actual_span = *context
+            .parameter_meta_map
+            .get(actual_name)
+            .expect("must have actual key span");
+        let expected_meta_span = *context
+            .parameter_meta_map
+            .get(expected_name)
+            .expect("must have expected key span in parameter_meta");
+        let decl_span = context
+            .decls
+            .get(expected_name)
+            .expect("must have expected key declaration")
+            .span;
+
         diagnostics.exceptable_add(
-            mismatched_param_order(severity, &context.parent, span, &expected_order.join("\n")),
+            mismatched_param_order(
+                severity,
+                &context.parent,
+                actual_span,
+                actual_name,
+                expected_meta_span,
+                expected_name,
+                decl_span,
+                &expected_order.join("\n"),
+            ),
             param_meta.inner(),
             exceptable_nodes,
         );
