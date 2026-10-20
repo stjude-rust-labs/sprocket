@@ -10,6 +10,7 @@ use std::io::BufRead;
 use std::mem;
 use std::path::Component;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
 
@@ -187,7 +188,7 @@ fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) ->
 /// The returned remainder is always cleaned.
 ///
 /// Returns `None` if the given path is not prefixed with the given base path.
-fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<String> {
+fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<PathBuf> {
     let remainder = clean(path.as_ref().strip_prefix(base.as_ref()).ok()?);
 
     // If the cleaned remainder starts with a parent directory reference,
@@ -196,7 +197,28 @@ fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<S
         return None;
     }
 
-    remainder.into_os_string().into_string().ok()
+    Some(remainder)
+}
+
+/// Utility function for normalizing [`Path`]s to use unix-style separators.
+///
+/// Returns `None` is the path is not UTF-8.
+fn unix_path(path: impl AsRef<Path>) -> Option<String> {
+    let mut components = path.as_ref().components();
+    let Some(first) = components.next() else {
+        return Some(String::new());
+    };
+
+    let path = first.as_os_str().to_str()?.to_string();
+    components
+        .map(|c| c.as_os_str().to_str())
+        // Guest paths always use `/`; join components rather than
+        // replacing `\`, which a Unix file name may contain
+        .fold_options(path, |mut acc, component| {
+            acc.push('/');
+            acc.push_str(component);
+            acc
+        })
 }
 
 /// Utility function for stripping the path prefix of a URL given a base URL.
@@ -210,7 +232,9 @@ fn strip_url_path_prefix(url: &Url, base: &Url) -> Option<String> {
         && url.host_str() == base.host_str()
         && url.port() == base.port()
     {
-        return strip_path_prefix(url.path(), base.path());
+        return strip_path_prefix(url.path(), base.path())
+            .map(PathBuf::into_os_string)
+            .and_then(|s| s.into_string().ok());
     }
 
     None
@@ -679,7 +703,10 @@ impl<'a> State<'a> {
             for (host, guest) in self.path_map.iter() {
                 // Check to see if the provided guest path is prefixed by this
                 // entry
-                if let Some(remainder) = strip_path_prefix(path, guest) {
+                if let Some(remainder) = strip_path_prefix(path, guest)
+                    .map(PathBuf::into_os_string)
+                    .and_then(|s| s.into_string().ok())
+                {
                     // If the host is a URL, parse it and join it with the
                     // remainder
                     if is_supported_url(host.as_str()) {
@@ -717,7 +744,8 @@ impl<'a> State<'a> {
     /// Returns `None` if no directory input with a guest path contains the
     /// path.
     fn guest_path_in_directory_input(&self, path: &Path) -> Option<GuestPath> {
-        self.backend_inputs
+        let (_, guest_path, remainder) = self
+            .backend_inputs
             .as_slice()
             .iter()
             .filter(|input| input.kind() == ContentKind::Directory)
@@ -726,16 +754,10 @@ impl<'a> State<'a> {
                 let remainder = strip_path_prefix(path, directory)?;
                 Some((directory.as_os_str().len(), input.guest_path()?, remainder))
             })
-            .max_by_key(|(len, ..)| *len)
-            .map(|(_, guest_path, remainder)| {
-                // Guest paths always use `/`; join components rather than
-                // replacing `\`, which a Unix file name may contain
-                let remainder = Path::new(&remainder)
-                    .components()
-                    .filter_map(|c| c.as_os_str().to_str())
-                    .join("/");
-                GuestPath::new(format!("{guest_path}/{remainder}"))
-            })
+            .max_by_key(|(len, ..)| *len)?;
+
+        let remainder = unix_path(remainder)?;
+        Some(GuestPath::new(format!("{guest_path}/{remainder}")))
     }
 
     /// Gets a guest path representation of a host path.
@@ -763,12 +785,11 @@ impl<'a> State<'a> {
 
                 match (&path_url, &host_url) {
                     (None, None) => {
-                        if let Some(remainder) = strip_path_prefix(path, host) {
+                        if let Some(remainder) = strip_path_prefix(path, host)
+                            && let Some(remainder) = unix_path(remainder)
+                        {
                             // Note: guest paths are always Unix-style paths
-                            return Some(GuestPath::new(format!(
-                                "{guest}/{remainder}",
-                                remainder = remainder.replace('\\', "/")
-                            )));
+                            return Some(GuestPath::new(format!("{guest}/{remainder}",)));
                         }
                     }
                     (Some(path_url), Some(host_url)) => {
