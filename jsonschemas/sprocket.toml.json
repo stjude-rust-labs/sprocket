@@ -1910,6 +1910,10 @@
           "description": "Use the local task execution backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "local"
+            },
             "cpu": {
               "description": "Set the number of CPUs available for task execution.\n\nDefaults to the number of logical CPUs for the host.\n\nThe value cannot be zero or exceed the host's number of CPUs.",
               "type": [
@@ -1925,10 +1929,6 @@
                 "string",
                 "null"
               ]
-            },
-            "type": {
-              "type": "string",
-              "const": "local"
             }
           },
           "required": [
@@ -1939,14 +1939,14 @@
           "description": "Use the Docker task execution backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "docker"
+            },
             "cleanup": {
               "description": "Whether or not to remove a task's container after the task completes.\n\nDefaults to `true`.",
               "type": "boolean",
               "default": true
-            },
-            "type": {
-              "type": "string",
-              "const": "docker"
             }
           },
           "required": [
@@ -1957,6 +1957,10 @@
           "description": "Use the TES task execution backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "tes"
+            },
             "service": {
               "description": "The URL of the Task Execution Service.",
               "type": "string",
@@ -2014,10 +2018,6 @@
               "description": "Whether or not the TES server URL may use an insecure protocol like\nHTTP.",
               "type": "boolean",
               "default": false
-            },
-            "type": {
-              "type": "string",
-              "const": "tes"
             }
           },
           "required": [
@@ -2031,6 +2031,10 @@
           "description": "Use the experimental LSF + Apptainer task execution backend.\n\nRequires enabling experimental features.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "lsf_apptainer"
+            },
             "interval": {
               "description": "The task monitor polling interval, in seconds.\n\nDefaults to 30 seconds.",
               "type": [
@@ -2107,10 +2111,6 @@
             "apptainer": {
               "description": "The configuration of Apptainer, which is used as the container runtime\non the compute nodes where LSF dispatches tasks.\n\nNote that this will likely be replaced by an abstraction over multiple\ncontainer execution runtimes in the future, rather than being\nhardcoded to Apptainer.",
               "$ref": "#/$defs/ApptainerConfig"
-            },
-            "type": {
-              "type": "string",
-              "const": "lsf_apptainer"
             }
           },
           "required": [
@@ -2121,6 +2121,10 @@
           "description": "Use the experimental Slurm + Apptainer task execution backend.\n\nRequires enabling experimental features.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "slurm_apptainer"
+            },
             "interval": {
               "description": "The task monitor polling interval, in seconds.\n\nDefaults to 30 seconds.",
               "type": [
@@ -2197,10 +2201,6 @@
             "apptainer": {
               "description": "The configuration of Apptainer, which is used as the container runtime\non the compute nodes where Slurm dispatches tasks.\n\nNote that this will likely be replaced by an abstraction over multiple\ncontainer execution runtimes in the future, rather than being\nhardcoded to Apptainer.",
               "$ref": "#/$defs/ApptainerConfig"
-            },
-            "type": {
-              "type": "string",
-              "const": "slurm_apptainer"
             }
           },
           "required": [
@@ -2216,6 +2216,10 @@
           "description": "Use basic authentication for the TES backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "basic"
+            },
             "username": {
               "description": "The HTTP basic authentication username.",
               "type": "string"
@@ -2230,10 +2234,6 @@
                   "type": "null"
                 }
               ]
-            },
-            "type": {
-              "type": "string",
-              "const": "basic"
             }
           },
           "required": [
@@ -2245,13 +2245,13 @@
           "description": "Use bearer token authentication for the TES backend.",
           "type": "object",
           "properties": {
-            "token": {
-              "description": "The HTTP bearer authentication token.",
-              "$ref": "#/$defs/SecretString"
-            },
             "type": {
               "type": "string",
               "const": "bearer"
+            },
+            "token": {
+              "description": "The HTTP bearer authentication token.",
+              "$ref": "#/$defs/SecretString"
             }
           },
           "required": [
@@ -2263,6 +2263,10 @@
           "description": "Use OAuth authentication for the TES backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "oauth"
+            },
             "client_id": {
               "description": "The OAuth application's client identifier.",
               "type": "string"
@@ -2307,10 +2311,6 @@
               "description": "Whether or not to require a refresh token.\n\nIf `true` and the OAuth authorization does not return a refresh token,\nan error will be returned when the TES backend is created.\n\nIf `false` and the OAuth authorization does not return a refresh token,\na device reauthorization will occur.\n\nDefaults to `false`.",
               "type": "boolean",
               "default": false
-            },
-            "type": {
-              "type": "string",
-              "const": "oauth"
             }
           },
           "required": [

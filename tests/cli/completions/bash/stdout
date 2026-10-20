@@ -133,6 +133,9 @@ _sprocket() {
             sprocket__subcmd__dev__subcmd__help__subcmd__module,remove)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__module__subcmd__remove"
                 ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__module,schema)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__module__subcmd__schema"
+                ;;
             sprocket__subcmd__dev__subcmd__help__subcmd__module,sign)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__module__subcmd__sign"
                 ;;
@@ -217,6 +220,9 @@ _sprocket() {
             sprocket__subcmd__dev__subcmd__module,remove)
                 cmd="sprocket__subcmd__dev__subcmd__module__subcmd__remove"
                 ;;
+            sprocket__subcmd__dev__subcmd__module,schema)
+                cmd="sprocket__subcmd__dev__subcmd__module__subcmd__schema"
+                ;;
             sprocket__subcmd__dev__subcmd__module,sign)
                 cmd="sprocket__subcmd__dev__subcmd__module__subcmd__sign"
                 ;;
@@ -270,6 +276,9 @@ _sprocket() {
                 ;;
             sprocket__subcmd__dev__subcmd__module__subcmd__help,remove)
                 cmd="sprocket__subcmd__dev__subcmd__module__subcmd__help__subcmd__remove"
+                ;;
+            sprocket__subcmd__dev__subcmd__module__subcmd__help,schema)
+                cmd="sprocket__subcmd__dev__subcmd__module__subcmd__help__subcmd__schema"
                 ;;
             sprocket__subcmd__dev__subcmd__module__subcmd__help,sign)
                 cmd="sprocket__subcmd__dev__subcmd__module__subcmd__help__subcmd__sign"
@@ -507,6 +516,9 @@ _sprocket() {
                 ;;
             sprocket__subcmd__help__subcmd__dev__subcmd__module,remove)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__module__subcmd__remove"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__module,schema)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__module__subcmd__schema"
                 ;;
             sprocket__subcmd__help__subcmd__dev__subcmd__module,sign)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__module__subcmd__sign"
@@ -1094,7 +1106,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__help__subcmd__module)
-            opts="init add remove lock update upgrade tree list verify fetch cache sign trust"
+            opts="init add remove lock update upgrade tree list verify fetch cache sign schema trust"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1206,6 +1218,20 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__help__subcmd__module__subcmd__remove)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__module__subcmd__schema)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1556,7 +1582,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module)
-            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version init add remove lock update upgrade tree list verify fetch cache sign trust help"
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version init add remove lock update upgrade tree list verify fetch cache sign schema trust help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1812,7 +1838,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__help)
-            opts="init add remove lock update upgrade tree list verify fetch cache sign trust help"
+            opts="init add remove lock update upgrade tree list verify fetch cache sign schema trust help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1938,6 +1964,20 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__help__subcmd__remove)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__module__subcmd__help__subcmd__schema)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -2250,6 +2290,40 @@ _sprocket() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__module__subcmd__schema)
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 --color)
                     COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
                     return 0
@@ -3904,7 +3978,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help__subcmd__dev__subcmd__module)
-            opts="init add remove lock update upgrade tree list verify fetch cache sign trust"
+            opts="init add remove lock update upgrade tree list verify fetch cache sign schema trust"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -4016,6 +4090,20 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help__subcmd__dev__subcmd__module__subcmd__remove)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__module__subcmd__schema)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
