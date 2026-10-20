@@ -2723,42 +2723,7 @@ task file_sizes {
             .is_none()
     );
 
-    assert!(
-        functions
-            .insert(
-                "list",
-                MonomorphicFunction::new(
-                    FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::Four))
-                        .required(1)
-                        .parameter(
-                            "directory",
-                            PrimitiveType::Directory,
-                            "The directory whose contents to list.",
-                        )
-                        .parameter(
-                            "recursive",
-                            PrimitiveType::Boolean,
-                            "(Optional) Whether to recursively traverse subdirectories. Defaults \
-                             to `false`.",
-                        )
-                        .parameter(
-                            "include_symlinks",
-                            PrimitiveType::Boolean,
-                            "(Optional) Whether to include symbolic links. Defaults to `true`.",
-                        )
-                        .parameter(
-                            "pattern",
-                            PrimitiveType::String,
-                            "(Optional) A glob pattern to filter files by basename (e.g., \
-                             `\"*.fastq.gz\"`).",
-                        )
-                        .ret(Type::from(PairType::new(
-                            array_file.clone(),
-                            ArrayType::new(PrimitiveType::Directory),
-                        )))
-                        .definition(
-                            r#"
+    const LIST_DEFINITION: &str = r#"
 Lists the contents of the given directory. The `left` member of the returned `Pair` contains files, and the `right` member contains directories. The input directory itself is not included.
 
 By default, only entries in the top level of the input directory are returned. If recursive traversal is enabled, all files and directories at any depth are returned.
@@ -2781,10 +2746,100 @@ To provide an optional argument, all preceding arguments must also be provided.
 **Returns**: A `Pair[Array[File], Array[Directory]]` containing the matching files in its `left` array and directories in its `right` array. Either array is empty if it has no matching entries.
 
 **Restrictions**: This function reads directory contents and may only be called in a context where the directory exists. If the directory is an input to a task or workflow, then it may be called anywhere in that task or workflow.
-"#
+"#;
+
+    assert!(
+        functions
+            .insert(
+                "list",
+                PolymorphicFunction::new(vec![
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Four))
+                        .required(1)
+                        .parameter(
+                            "directory",
+                            PrimitiveType::Directory,
+                            "The directory whose contents to list.",
                         )
+                        .ret(Type::from(PairType::new(
+                            array_file.clone(),
+                            ArrayType::new(PrimitiveType::Directory),
+                        )))
+                        .definition(LIST_DEFINITION)
                         .build(),
-                )
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Four))
+                        .required(2)
+                        .parameter(
+                            "directory",
+                            PrimitiveType::Directory,
+                            "The directory whose contents to list.",
+                        )
+                        .parameter(
+                            "recursive",
+                            PrimitiveType::Boolean,
+                            "Whether to recursively traverse subdirectories. Defaults to `false`.",
+                        )
+                        .ret(Type::from(PairType::new(
+                            array_file.clone(),
+                            ArrayType::new(PrimitiveType::Directory),
+                        )))
+                        .definition(LIST_DEFINITION)
+                        .build(),
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Four))
+                        .required(3)
+                        .parameter(
+                            "directory",
+                            PrimitiveType::Directory,
+                            "The directory whose contents to list.",
+                        )
+                        .parameter(
+                            "recursive",
+                            PrimitiveType::Boolean,
+                            "Whether to recursively traverse subdirectories. Defaults to `false`.",
+                        )
+                        .parameter(
+                            "include_symlinks",
+                            PrimitiveType::Boolean,
+                            "Whether to include symbolic links. Defaults to `true`.",
+                        )
+                        .ret(Type::from(PairType::new(
+                            array_file.clone(),
+                            ArrayType::new(PrimitiveType::Directory),
+                        )))
+                        .definition(LIST_DEFINITION)
+                        .build(),
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Four))
+                        .required(4)
+                        .parameter(
+                            "directory",
+                            PrimitiveType::Directory,
+                            "The directory whose contents to list.",
+                        )
+                        .parameter(
+                            "recursive",
+                            PrimitiveType::Boolean,
+                            "Whether to recursively traverse subdirectories. Defaults to `false`.",
+                        )
+                        .parameter(
+                            "include_symlinks",
+                            PrimitiveType::Boolean,
+                            "Whether to include symbolic links. Defaults to `true`.",
+                        )
+                        .parameter(
+                            "pattern",
+                            PrimitiveType::String,
+                            "A glob pattern to filter files by basename (e.g., `\"*.fastq.gz\"`).",
+                        )
+                        .ret(Type::from(PairType::new(
+                            array_file.clone(),
+                            ArrayType::new(PrimitiveType::Directory),
+                        )))
+                        .definition(LIST_DEFINITION)
+                        .build(),
+                ])
                 .into(),
             )
             .is_none()

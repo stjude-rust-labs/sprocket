@@ -271,11 +271,27 @@ fn listed_path(root: &EvaluationPath, relative: &str) -> Result<String> {
 pub const fn descriptor() -> Function {
     Function::new(
         const {
-            &[Signature::new(
-                "(directory: Directory, <recursive: Boolean>, <include_symlinks: Boolean>, \
-                 <pattern: String>) -> Pair[Array[File], Array[Directory]]",
-                Callback::Async(list),
-            )]
+            &[
+                Signature::new(
+                    "(directory: Directory) -> Pair[Array[File], Array[Directory]]",
+                    Callback::Async(list),
+                ),
+                Signature::new(
+                    "(directory: Directory, recursive: Boolean) -> Pair[Array[File], \
+                     Array[Directory]]",
+                    Callback::Async(list),
+                ),
+                Signature::new(
+                    "(directory: Directory, recursive: Boolean, include_symlinks: Boolean) -> \
+                     Pair[Array[File], Array[Directory]]",
+                    Callback::Async(list),
+                ),
+                Signature::new(
+                    "(directory: Directory, recursive: Boolean, include_symlinks: Boolean, \
+                     pattern: String) -> Pair[Array[File], Array[Directory]]",
+                    Callback::Async(list),
+                ),
+            ]
         },
     )
 }
