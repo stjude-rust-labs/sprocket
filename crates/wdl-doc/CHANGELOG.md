@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Removed
+
+* Experimental `enable_doc_comments` field of `Config` now that doc comments are stable
+  ([#1304](https://github.com/stjude-rust-labs/sprocket/pull/1304)).
+
+### Fixed
+
+* Relative paths for configured index pages are now resolved relative to the root workspace
+  ([#1304](https://github.com/stjude-rust-labs/sprocket/pull/1304)).
+
 ## 0.17.0 - 2026-10-07
 
 ## 0.16.2 - 2026-09-16

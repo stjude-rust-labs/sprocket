@@ -331,11 +331,7 @@ fn meta_to_description(value: &MetaMapValueSource) -> Option<MetaMap> {
 }
 
 /// Parse the [`InputSection`] into a vector of [`Parameter`]s.
-fn parse_inputs(
-    input_section: &InputSection,
-    parameter_meta: &MetaMap,
-    enable_doc_comments: bool,
-) -> Vec<Parameter> {
+fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<Parameter> {
     input_section
         .declarations()
         .map(|decl| {
@@ -345,16 +341,14 @@ fn parse_inputs(
                 .and_then(meta_to_description)
                 .unwrap_or_default();
 
-            if enable_doc_comments {
-                let comments = match &decl {
-                    Decl::Bound(decl) => decl.doc_comments(),
-                    Decl::Unbound(decl) => decl.doc_comments(),
-                };
+            let comments = match &decl {
+                Decl::Bound(decl) => decl.doc_comments(),
+                Decl::Unbound(decl) => decl.doc_comments(),
+            };
 
-                if let Some(comments) = comments {
-                    // Doc comments take precedence
-                    meta.append(&mut doc_comments(comments));
-                }
+            if let Some(comments) = comments {
+                // Doc comments take precedence
+                meta.append(&mut doc_comments(comments));
             }
 
             Parameter::new(decl.clone(), meta, InputOutput::Input)
@@ -367,7 +361,6 @@ fn parse_outputs(
     output_section: &OutputSection,
     meta: &MetaMap,
     parameter_meta: &MetaMap,
-    enable_doc_comments: bool,
 ) -> Vec<Parameter> {
     let output_meta: MetaMap = meta
         .get("outputs")
@@ -397,7 +390,7 @@ fn parse_outputs(
                 .and_then(meta_to_description)
                 .unwrap_or_default();
 
-            if enable_doc_comments && let Some(comments) = decl.doc_comments() {
+            if let Some(comments) = decl.doc_comments() {
                 // Doc comments take precedence
                 meta.append(&mut doc_comments(comments));
             }
@@ -576,7 +569,6 @@ mod tests {
         let inputs = parse_inputs(
             &doc_item.as_workflow_definition().unwrap().input().unwrap(),
             &meta_map,
-            false,
         );
         assert_eq!(inputs.len(), 3);
         assert_eq!(inputs[0].name(), "a");
@@ -643,7 +635,6 @@ mod tests {
             &doc_item.as_workflow_definition().unwrap().output().unwrap(),
             &meta_map,
             &parameter_meta,
-            false,
         );
         assert_eq!(outputs.len(), 3);
         assert_eq!(outputs[0].name(), "a");
