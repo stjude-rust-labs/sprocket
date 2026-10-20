@@ -344,11 +344,11 @@ mod tests {
         .into();
 
         assert_eq!(f.param_min_max(VERSION), Some((1, 4)));
-        for count in 1..=arguments.len() {
+        for (index, count) in (1..=arguments.len()).enumerate() {
             let binding = f
                 .bind(VERSION, &arguments[..count])
                 .expect("binding should succeed");
-            assert_eq!(binding.index(), 0);
+            assert_eq!(binding.index(), index);
             assert_eq!(binding.return_type(), &expected);
         }
     }
