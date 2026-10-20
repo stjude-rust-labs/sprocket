@@ -2,30 +2,33 @@
 
 ## Between Releases
 
-Various CI features have been implemented to ease the release process, but some parts of it are still intended to be manual (e.g., each CHANGELOG for each individual crate should be written by hand _prior to release_). We subscribe to the philosophy outlined on the [keepachangelog site](https://keepachangelog.com/en/1.1.0/). The short version is that (almost) every PR should include a manually written entry to one or more CHANGELOGs in the repository under the `## Unreleased` header.
+Various CI features have been implemented to ease the release process, but some parts of it are
+still intended to be manual (e.g., each CHANGELOG for each individual crate should be written by
+hand _prior to release_). We subscribe to the philosophy outlined on the
+[keepachangelog site](https://keepachangelog.com/en/1.1.0/). The short version is that (almost)
+every PR should include a manually written entry to one or more CHANGELOGs in the repository under
+the `## Unreleased` header.
 
 ## Time to Release
 
-Before cutting a release, review every entry under `## Unreleased` in each
-`CHANGELOG.md` and verify that every item links to its originating pull request.
+Before cutting a release, review every entry under `## Unreleased` in each `CHANGELOG.md` and verify
+that every item links to its originating pull request.
 
-The following steps are handled automatically by the [release-plz](./.github/workflows/release-plz.yml) workflow.
-In the event it fails, they can be performed manually.
+The following steps are handled automatically by the
+[release-plz](./.github/workflows/release-plz.yml) workflow. In the event it fails, they can be
+performed manually.
 
 <details>
 <summary>Manual release steps</summary>
 
-1. Increment `workspace.package.version` in the root `Cargo.toml` for
-   `sprocket` and `sprocket_bio`. Go through each remaining publishable crate
-   (i.e., each `wdl-*` crate and `wdl`) and increment its version in
-   `Cargo.toml`, as well as any internal dependency versions that need to be
-   bumped.
+1. Increment `workspace.package.version` in the root `Cargo.toml` for `sprocket` and `sprocket_bio`.
+   Go through each remaining publishable crate (i.e., each `wdl-*` crate and `wdl`) and increment
+   its version in `Cargo.toml`, as well as any internal dependency versions that need to be bumped.
 2. Update each CHANGELOG.md file with a new release header.
-3. Create a new tag for each new crate version _excluding_ `sprocket`, with
-   the format `{CRATE_NAME}-v{VERSION}`, where `VERSION` matches that crate's
-   version.
-    - For new `sprocket` and `sprocket_bio` releases, the tag name format is
-      `v{VERSION}`, where `VERSION` matches `workspace.package.version`.
+3. Create a new tag for each new crate version _excluding_ `sprocket`, with the format
+   `{CRATE_NAME}-v{VERSION}`, where `VERSION` matches that crate's version.
+    - For new `sprocket` and `sprocket_bio` releases, the tag name format is `v{VERSION}`, where
+      `VERSION` matches `workspace.package.version`.
 
     ```bash
     git tag {CRATE_NAME}-v{VERSION}
@@ -38,15 +41,20 @@ In the event it fails, they can be performed manually.
     cargo publish --workspace
     ```
 
-5. If updating `sprocket`, create a new GitHub release with the title `v{VERSION}` and mark it as the latest release
+5. If updating `sprocket`, create a new GitHub release with the title `v{VERSION}` and mark it as
+   the latest release
 
 </details>
 
-The body of the `sprocket` GitHub releases must be updated manually, regardless of the success of the `release-plz` workflow.
-By default, the release will only include the changelog of the `sprocket` crate. Each crate's most recent CHANGELOG entries should be copy and pasted into the release notes.
-These should be ordered with `sprocket` first, followed by the remaining crates topologically (starting with `wdl-grammar`).
+The body of the `sprocket` GitHub releases must be updated manually, regardless of the success of
+the `release-plz` workflow. By default, the release will only include the changelog of the
+`sprocket` crate. Each crate's most recent CHANGELOG entries should be copy and pasted into the
+release notes. These should be ordered with `sprocket` first, followed by the remaining crates
+topologically (starting with `wdl-grammar`).
 
-Note that the individual `CHANGELOG.md` files hard-wrap lines at ~80 columns. The GitHub release body should _not_ hard-wrap lines—each bullet point should be a single unwrapped line so that it renders cleanly on GitHub.
+Note that the individual `CHANGELOG.md` files hard-wrap lines at ~80 columns. The GitHub release
+body should _not_ hard-wrap lines—each bullet point should be a single unwrapped line so that it
+renders cleanly on GitHub.
 
 Format each section so that it looks like:
 
@@ -58,21 +66,19 @@ Format each section so that it looks like:
 
 ## Python Package Releases
 
-The `sprocket_bio` Python package has the same version as the `sprocket` CLI.
-Both packages inherit `workspace.package.version` from the root `Cargo.toml`,
-and the standard `v{VERSION}` tag publishes both releases.
+The `sprocket_bio` Python package has the same version as the `sprocket` CLI. Both packages inherit
+`workspace.package.version` from the root `Cargo.toml`, and the standard `v{VERSION}` tag publishes
+both releases.
 
 To publish a Python release:
 
-1. Follow the standard release process above. Release-plz updates the shared
-   workspace version and creates the `v{VERSION}` tag.
-2. Confirm that the
-   [Python release workflow](./.github/workflows/python-release.yml) publishes
-   the matching Python distributions to PyPI.
+1. Follow the standard release process above. Release-plz updates the shared workspace version and
+   creates the `v{VERSION}` tag.
+2. Confirm that the [Python release workflow](./.github/workflows/python-release.yml) publishes the
+   matching Python distributions to PyPI.
 
-Create a GitHub environment named `pypi` before the first release. Require
-reviewers for deployments and restrict deployment tags to
-`v*`. Configure the PyPI trusted publisher with these values:
+Create a GitHub environment named `pypi` before the first release. Require reviewers for deployments
+and restrict deployment tags to `v*`. Configure the PyPI trusted publisher with these values:
 
 - Owner: `stjude-rust-labs`
 - Repository: `sprocket`
@@ -81,14 +87,24 @@ reviewers for deployments and restrict deployment tags to
 
 ## Post-Release
 
-After the release is complete, the following tasks should be performed. For each downstream repository, read its `RELEASE.md` before starting—the steps may have changed since the last release.
+After the release is complete, the following tasks should be performed. For each downstream
+repository, read its `RELEASE.md` before starting—the steps may have changed since the last release.
 
-- [ ] Follow the release process in [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio/blob/main/RELEASE.md).
-- [ ] Follow the release process in [`stjude-rust-labs/sprocket-action`](https://github.com/stjude-rust-labs/sprocket-action/blob/main/RELEASE.md).
-- [ ] Follow the release process in [`stjude-rust-labs/sprocket-vscode`](https://github.com/stjude-rust-labs/sprocket-vscode/blob/main/RELEASE.md) if applicable.
-- [ ] Follow the release process in [`stjude-rust-labs/sprocket-zed`](https://github.com/stjude-rust-labs/sprocket-zed/blob/main/RELEASE.md) if applicable.
-- [ ] Follow the release process in [`stjude-rust-labs/sprocket.nvim`](https://github.com/stjude-rust-labs/sprocket.nvim/blob/main/RELEASE.md) if applicable.
+- [ ] Follow the release process in
+      [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio/blob/main/RELEASE.md).
+- [ ] Follow the release process in
+      [`stjude-rust-labs/sprocket-action`](https://github.com/stjude-rust-labs/sprocket-action/blob/main/RELEASE.md).
+- [ ] Follow the release process in
+      [`stjude-rust-labs/sprocket-vscode`](https://github.com/stjude-rust-labs/sprocket-vscode/blob/main/RELEASE.md)
+      if applicable.
+- [ ] Follow the release process in
+      [`stjude-rust-labs/sprocket-zed`](https://github.com/stjude-rust-labs/sprocket-zed/blob/main/RELEASE.md)
+      if applicable.
+- [ ] Follow the release process in
+      [`stjude-rust-labs/sprocket.nvim`](https://github.com/stjude-rust-labs/sprocket.nvim/blob/main/RELEASE.md)
+      if applicable.
 - [ ] Release the latest version on the St. Jude HPC module system.
-- [ ] Update the Docker pull command in [`README.md`](./README.md) to use the latest `sprocket` release tag.
+- [ ] Update the Docker pull command in [`README.md`](./README.md) to use the latest `sprocket`
+      release tag.
 - [ ] Update the official WDL documentation for the Sprocket entries if anything changed.
 - [ ] Post a message to Slack channels with the updated version.

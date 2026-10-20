@@ -756,6 +756,7 @@ async fn progress(
 
                             continue
                         }
+                        CrankshaftEvent::TaskResourceUsage { .. } |
                         CrankshaftEvent::TaskContainerCreated { .. }
                         | CrankshaftEvent::TaskContainerExited { .. }
                         | CrankshaftEvent::TaskStdout { .. }
@@ -784,6 +785,16 @@ async fn progress(
                         EngineEvent::TaskLocalizing { name } => {
                             state.enter_preparation(name, Preparation::Localizing);
                         }
+                        EngineEvent::TaskExecuting { .. } => {
+                            // Submission to the backend is reported by the
+                            // Crankshaft `TaskCreated` event; the constraints
+                            // this event carries are not displayed here.
+                        }
+                        EngineEvent::TaskRetrying { prior_name, .. } => {
+                            // The failed attempt is finished; the retry is
+                            // announced separately and re-enters preparation.
+                            state.depart(&Arc::new(prior_name));
+                        }
                         EngineEvent::ReusedCachedExecutionResult { name, .. } => {
                             state.depart(&Arc::new(name));
                             state.cached += 1;
@@ -798,6 +809,7 @@ async fn progress(
                                 state.canceled += 1;
                             }
                         }
+                        _ => {}
                     };
 
                     progress_bar.pb_set_message(&message(&mut state));
@@ -894,6 +906,7 @@ pub async fn run(
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
+    assert!(source.is_singular());
 
     if args.show_task_stderr {
         filter_handle
@@ -945,25 +958,22 @@ pub async fn run(
                 progress_bar.pb_set_style(&style);
             })
         })
-        .progress({
+        .progress(move |kind, completed, total| {
             let progress_bar = progress_bar.clone();
-            move |kind, completed, total| {
-                let progress_bar = progress_bar.clone();
-                async move {
-                    if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
-                        return;
-                    }
-
-                    if completed == 0 {
-                        progress_bar.pb_start();
-                        progress_bar.pb_set_length(total.try_into().unwrap());
-                        progress_bar.pb_set_message(&format!("{kind}"));
-                    }
-
-                    progress_bar.pb_set_position(completed.try_into().unwrap());
+            async move {
+                if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
+                    return;
                 }
-                .boxed()
+
+                if completed == 0 {
+                    progress_bar.pb_start();
+                    progress_bar.pb_set_length(total.try_into().unwrap());
+                    progress_bar.pb_set_message(&format!("{kind}"));
+                }
+
+                progress_bar.pb_set_position(completed.try_into().unwrap());
             }
+            .boxed()
         })
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
@@ -972,7 +982,7 @@ pub async fn run(
         .await
         .map_err(CommandError::from)?;
 
-    // Emits diagnostics for all analyzed documents
+    // Emit all diagnostics for all analyzed documents, but only track `Error`s
     let mut errors = 0;
     for result in results.as_slice() {
         let mut diagnostics = result.document().diagnostics().peekable();
@@ -1003,6 +1013,10 @@ pub async fn run(
         .into());
     }
 
+    // NOTE: earlier we asserted `source.is_singular()` so the below filter will
+    // only return one Document.
+    //
+    // SAFETY: input source was added to the analysis so must be in the results.
     let document = results.filter(&[&source]).next().unwrap().document();
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
@@ -1011,10 +1025,18 @@ pub async fn run(
     let (ctx, run_dir, db, _heartbeat) =
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
+    if args.disable_retries {
+        config.run.engine.task.retries = RetryConfig::Disabled;
+    }
+
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
+
     // Determined here as the engine configuration is moved into evaluation
     // below.
-    let uses_docker = uses_docker_backend(&config.run.engine);
     let events = Events::new(
         config
             .run
@@ -1029,8 +1051,9 @@ pub async fn run(
         output.colorize(),
         cancellation.second().clone(),
     ));
+
     let crankshaft_progress = tokio::spawn(progress(
-        progress_bar,
+        tracing::span!(Level::WARN, "progress"),
         args.show_task_stderr,
         output.colorize(),
         target.clone(),
@@ -1048,14 +1071,6 @@ pub async fn run(
     // CWD as a placeholder.
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
-
-    if args.disable_retries {
-        config.run.engine.task.retries = RetryConfig::Disabled;
-    }
-
-    let engine = Engine::new(config.run.engine)
-        .await
-        .context("failed to create WDL evaluation engine")?;
 
     let mut execute = Box::pin(execute_target(
         db.clone(),

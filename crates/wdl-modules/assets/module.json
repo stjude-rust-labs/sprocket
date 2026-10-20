@@ -1,0 +1,28 @@
+{
+  "name": "spellbook",
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "authors": ["Jane Doe <jane.doe@example.com>"],
+  "description": "spellbook wrapper",
+  "repository": "https://github.com/openwdl/spellbook",
+  "homepage": "https://example.com",
+  "entrypoint": "main.wdl",
+  "readme": false,
+  "exclude": ["./to_exclude"],
+  "tools": [
+    {
+      "name": "spellcheck",
+      "version": "2.0.1",
+      "license": "MIT",
+      "url": "https://example.com/sc",
+      "ids": ["doi:10.21105/joss.04704", "biotools:csvkit"]
+    }
+  ],
+  "dependencies": {
+    "common": {
+      "git": "https://github.com/openwdl/common",
+      "version": "^1.0.0"
+    },
+    "local_utils": { "path": "../utils" }
+  }
+}

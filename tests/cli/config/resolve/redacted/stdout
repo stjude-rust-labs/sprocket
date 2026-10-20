@@ -58,12 +58,12 @@ severity = "warning"
 [check.rules.DeprecatedRuntimeSection]
 severity = "warning"
 
+[check.rules.DeprecatedInputKeyword]
+severity = "warning"
+
 [check.rules.BashSetSyntax]
 severity = "warning"
 bash_set_options = ["errexit", "nounset", "pipefail"]
-
-[check.rules.CallInputKeyword]
-severity = "note"
 
 [check.rules.ConciseInput]
 severity = "note"
@@ -155,6 +155,9 @@ severity = "note"
 [check.rules.MissingParameterMeta]
 severity = "warning"
 
+[check.rules.ParameterizedResources]
+severity = "off"
+
 [check.rules.ParameterMetaOrder]
 severity = "note"
 
@@ -173,8 +176,11 @@ severity = "note"
 [check.rules.RuntimeSection]
 severity = "warning"
 
+[check.rules.ShellSplitting]
+severity = "warning"
+
 [check.rules.ShellCheck]
-severity = "note"
+severity = "warning"
 
 [check.rules.FlaggedComment]
 severity = "note"
@@ -227,6 +233,9 @@ excluded_cache_inputs = []
 
 [run.backends.first]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 insecure = false
 
 [run.backends.first.auth]
@@ -236,11 +245,30 @@ password = "<REDACTED>"
 
 [run.backends.second]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 insecure = false
 
 [run.backends.second.auth]
 type = "bearer"
 token = "<REDACTED>"
+
+[run.backends.third]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+insecure = false
+
+[run.backends.third.auth]
+type = "oauth"
+client_id = "foo"
+client_secret = "<REDACTED>"
+authorization = "http://example.com/"
+token = "http://example.com/"
+scopes = []
+require_refresh = false
 
 [run.storage]
 
@@ -309,15 +337,64 @@ excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
 
-[server.engine.backends]
+[server.engine.backends.first]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+insecure = false
+
+[server.engine.backends.first.auth]
+type = "basic"
+username = "foo"
+password = "<REDACTED>"
+
+[server.engine.backends.second]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+insecure = false
+
+[server.engine.backends.second.auth]
+type = "bearer"
+token = "<REDACTED>"
+
+[server.engine.backends.third]
+type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
+insecure = false
+
+[server.engine.backends.third.auth]
+type = "oauth"
+client_id = "foo"
+client_secret = "<REDACTED>"
+authorization = "http://example.com/"
+token = "http://example.com/"
+scopes = []
+require_refresh = false
 
 [server.engine.storage]
 
 [server.engine.storage.azure]
 
+[server.engine.storage.azure.auth]
+account_name = "foo"
+access_key = "<REDACTED>"
+
 [server.engine.storage.s3]
 
+[server.engine.storage.s3.auth]
+access_key_id = "foo"
+secret_access_key = "<REDACTED>"
+
 [server.engine.storage.google]
+
+[server.engine.storage.google.auth]
+access_key = "foo"
+secret = "<REDACTED>"
 
 [test]
 parallelism = 50

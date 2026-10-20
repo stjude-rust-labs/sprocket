@@ -1,4 +1,13 @@
 flavor = "gfm"
-line-length = 120
+line-length = 100
 extend-enable = ["MD060"]
 include = ["**/*.md", "**/*.rs"]
+
+[per-file-ignores]
+"**/*.rs" = ["MD013"]
+
+[MD013]
+code-blocks = false
+code-spans = false
+reflow = true
+reflow-mode = "normalize"

@@ -6,3 +6,11 @@ note[MetaSections]: task `test` is missing a `meta` section
   │
   = fix: add the missing section
 
+note[MetaSections]: struct `Test` is missing a doc comment for the struct and each of the struct's fields
+   ┌─ tests/lints/missing-meta/source.wdl:19:8
+   │
+19 │ struct Test {
+   │        ^^^^ this struct is missing a doc comment for the struct and each of the struct's fields
+   │
+   = fix: add a descriptive doc comment to the struct and to each of the struct's fields
+

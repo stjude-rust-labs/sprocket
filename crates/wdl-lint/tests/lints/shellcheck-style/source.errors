@@ -1,4 +1,4 @@
-note[ShellCheck]: Use 'false' instead of empty [/[[ conditionals.
+warning[ShellCheck]: Use 'false' instead of empty [/[[ conditionals.
    ┌─ tests/lints/shellcheck-style/source.wdl:18:9
    │
 18 │         [[ ]]
@@ -9,7 +9,7 @@ note[ShellCheck]: Use 'false' instead of empty [/[[ conditionals.
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Instead of '[ true ]', just use 'true'.
+warning[ShellCheck]: Instead of '[ true ]', just use 'true'.
    ┌─ tests/lints/shellcheck-style/source.wdl:19:11
    │
 19 │         [ true ]
@@ -20,7 +20,7 @@ note[ShellCheck]: Instead of '[ true ]', just use 'true'.
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Use 'false' instead of empty [/[[ conditionals.
+warning[ShellCheck]: Use 'false' instead of empty [/[[ conditionals.
    ┌─ tests/lints/shellcheck-style/source.wdl:37:9
    │
 37 │         [[ ]]
@@ -31,7 +31,7 @@ note[ShellCheck]: Use 'false' instead of empty [/[[ conditionals.
    │
    = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Instead of '[ true ]', just use 'true'.
+warning[ShellCheck]: Instead of '[ true ]', just use 'true'.
    ┌─ tests/lints/shellcheck-style/source.wdl:38:11
    │
 38 │         [ true ]

@@ -4,6 +4,7 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use wdl::analysis::Document;
+use wdl::analysis::TaskRef;
 use wdl::engine::CancellationContext;
 use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
@@ -82,7 +83,9 @@ impl<'a> Evaluator<'a> {
         // Ensure all the paths specified in the inputs are relative to
         // their respective origin paths.
         inputs
-            .join_paths(task, |_| Ok(std::slice::from_ref(self.base_dir)))
+            .join_paths(TaskRef::Local(task), &|_| {
+                Ok(std::slice::from_ref(self.base_dir))
+            })
             .await?;
 
         self.engine
@@ -118,7 +121,9 @@ impl<'a> Evaluator<'a> {
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
                 inputs
-                    .join_paths(workflow, |_| Ok(std::slice::from_ref(self.base_dir)))
+                    .join_paths(self.document, workflow, &|_| {
+                        Ok(std::slice::from_ref(self.base_dir))
+                    })
                     .await?;
 
                 self.engine

@@ -1,7 +1,6 @@
 //! Module for the lint rules.
 
 mod bash_set_syntax;
-mod call_input_keyword;
 mod concise_input;
 mod container_uri;
 mod declaration_name;
@@ -29,18 +28,19 @@ mod output_meta_order;
 mod output_name;
 mod parameter_description;
 mod parameter_meta_order;
+mod parameterized_resources;
 mod recommended_runtime_keys;
 mod redundant_container_array;
 mod redundant_none;
 mod requirements_section;
 mod runtime_section;
+mod shell_splitting;
 mod shellcheck;
 mod struct_over_map;
 mod unknown_runtime_keys;
 mod unused_doc_comments;
 
 pub use bash_set_syntax::*;
-pub use call_input_keyword::*;
 pub use concise_input::*;
 pub use container_uri::*;
 pub use declaration_name::*;
@@ -68,11 +68,13 @@ pub use output_meta_order::*;
 pub use output_name::*;
 pub use parameter_description::*;
 pub use parameter_meta_order::*;
+pub use parameterized_resources::*;
 pub use recommended_runtime_keys::*;
 pub use redundant_container_array::*;
 pub use redundant_none::*;
 pub use requirements_section::*;
 pub use runtime_section::*;
+pub use shell_splitting::*;
 pub use shellcheck::*;
 pub use struct_over_map::*;
 pub use unknown_runtime_keys::*;

@@ -188,6 +188,23 @@ task test7 {
     runtime {}
 }
 
+task test8 {
+    meta {}
+    parameter_meta {}
+    input {}
+    command <<<
+        for f in foo; do
+            echo $f
+        done
+
+        if [[ -n "gah" ]]; then
+            echo 'GAH :O'
+        fi
+    >>>
+    output {}
+    runtime {}
+}
+
 # https://github.com/stjude-rust-labs/sprocket/issues/146
 task issue_146 {
     meta {}

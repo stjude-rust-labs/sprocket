@@ -25,6 +25,8 @@ use wdl_analysis::Document;
 use wdl_analysis::types::EnumChoiceCacheKey;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::SupportedVersion;
+use wdl_ast::version::V1;
 
 use super::CancellationContext;
 use super::Events;
@@ -37,6 +39,8 @@ use crate::Value;
 use crate::diagnostics::unknown_enum;
 use crate::diagnostics::unknown_enum_choice;
 use crate::digest::DigestCalculator;
+use crate::eval::RetryCause;
+use crate::eval::TaskConstraintsSnapshot;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.
@@ -53,6 +57,14 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
         .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
     serde_json::to_writer_pretty(BufWriter::new(file), value)
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))
+}
+
+/// Determines if a document's `File` values may be broken symbolic links.
+///
+/// WDL 1.4 `list` returns broken symbolic links as files, so they must remain
+/// valid after they are bound to declarations.
+fn allows_broken_symlinks(document: &Document) -> bool {
+    document.version() >= Some(SupportedVersion::V1(V1::Four))
 }
 
 /// The inner state of [`Evaluator`].
@@ -173,11 +185,12 @@ impl Evaluator {
     }
 
     /// Notifies that a task has started evaluating an execution attempt.
-    fn notify_task_initializing(&self, id: &str, name: &str) {
+    fn notify_task_initializing(&self, id: &str, name: &str, attempt: u64) {
         if let Some(sender) = &self.0.events.engine {
             let _ = sender.send(EngineEvent::TaskInitializing {
                 id: id.to_string(),
                 name: name.to_string(),
+                attempt,
             });
         }
     }
@@ -187,6 +200,28 @@ impl Evaluator {
         if let Some(sender) = &self.0.events.engine {
             let _ = sender.send(EngineEvent::TaskLocalizing {
                 name: name.to_string(),
+            });
+        }
+    }
+
+    /// Notifies that a task execution attempt is being submitted to the
+    /// backend.
+    fn notify_task_executing(&self, name: &str, constraints: TaskConstraintsSnapshot) {
+        if let Some(sender) = &self.0.events.engine {
+            let _ = sender.send(EngineEvent::TaskExecuting {
+                name: name.to_string(),
+                constraints,
+            });
+        }
+    }
+
+    /// Notifies that a task execution attempt failed and is being retried.
+    fn notify_task_retrying(&self, prior_name: &str, next_name: &str, cause: RetryCause) {
+        if let Some(sender) = &self.0.events.engine {
+            let _ = sender.send(EngineEvent::TaskRetrying {
+                prior_name: prior_name.to_string(),
+                next_name: next_name.to_string(),
+                cause,
             });
         }
     }

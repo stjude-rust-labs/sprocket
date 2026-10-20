@@ -156,6 +156,7 @@ macro_rules! define_rules_config {
                 ///
                 /// A rule that is `off` is never run, so `note` is returned
                 /// for it.
+                #[allow(dead_code)]
                 pub(crate) fn diagnostic_severity(&self) -> Severity {
                     self.severity.severity().unwrap_or(Severity::Note)
                 }
@@ -314,6 +315,8 @@ define_rules_config! {
             = wdl_analysis::DeprecatedPlaceholderRule;
         "DeprecatedRuntimeSection" => deprecated_runtime_section: DeprecatedRuntimeSectionConfig
             = wdl_analysis::DeprecatedRuntimeSectionRule;
+        "DeprecatedInputKeyword" => deprecated_input_keyword: DeprecatedInputKeywordConfig
+            = wdl_analysis::DeprecatedInputKeywordRule;
     }
     lint {
         "BashSetSyntax" => bash_set_syntax: BashSetSyntaxConfig {
@@ -332,9 +335,6 @@ define_rules_config! {
                 BashSetOption::NoUnset,
                 BashSetOption::Pipefail,
             ];
-        }
-        "CallInputKeyword" => call_input_keyword: CallInputKeywordConfig {
-            severity = RuleSeverity::Note;
         }
         "ConciseInput" => concise_input: ConciseInputConfig {
             severity = RuleSeverity::Note;
@@ -541,6 +541,9 @@ define_rules_config! {
         "MissingParameterMeta" => missing_parameter_meta: MissingParameterMetaConfig {
             severity = RuleSeverity::Warning;
         }
+        "ParameterizedResources" => parameterized_resources: ParameterizedResourcesConfig {
+            severity = RuleSeverity::Off;
+        }
         "ParameterMetaOrder" => parameter_meta_order: ParameterMetaOrderConfig {
             severity = RuleSeverity::Note;
         }
@@ -559,8 +562,11 @@ define_rules_config! {
         "RuntimeSection" => runtime_section: RuntimeSectionConfig {
             severity = RuleSeverity::Warning;
         }
+        "ShellSplitting" => shell_splitting: ShellSplittingConfig {
+            severity = RuleSeverity::Warning;
+        }
         "ShellCheck" => shellcheck: ShellCheckConfig {
-            severity = RuleSeverity::Note;
+            severity = RuleSeverity::Warning;
         }
         "FlaggedComment" => flagged_comment: FlaggedCommentConfig {
             severity = RuleSeverity::Note;
