@@ -1,9 +1,17 @@
 error: missing `$OUTPUTS` placeholder
-   ┌─ foo/foo.yml:14:18
+   ┌─ foo/foo.yml:15:18
    │
-14 │         invalid: "no output placeholder"
-   │                  ^^^^^^^^^^^^^^^^^^^^^^^
+15 │         invalid: [ "no output placeholder", "with multiple args" ]
+   │                  ^
    │
-   = help: the value must contain an `$OUTPUTS` placeholder
+   = help: the array must contain an `$OUTPUTS` placeholder
 
-error: failing due to 1 error
+error: invalid type
+   ┌─ foo/foo.yml:16:9
+   │
+16 │         invalid_type: "string instead of array"
+   │         ^^^^^^^^^^^^
+   │
+   = help: `invalid_type` must be a `array`, found `string`
+
+error: failing due to 2 errors

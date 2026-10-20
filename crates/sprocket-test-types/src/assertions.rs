@@ -43,7 +43,7 @@ fn invalid_type(expected: &str, field: &Spanned<String>, value: &Value) -> Diagn
 
     Diagnostic::error("invalid type")
         .with_help(format!(
-            "`{}` must be a `{expected}`, found `{found:?}`",
+            "`{}` must be a `{expected}`, found `{found}`",
             field.0.value
         ))
         .with_highlight(convert_yaml_span(field.0.defined.span()))
@@ -232,6 +232,17 @@ impl Assertions {
                                     }
                                     parsed_args.push(arg);
                                 }
+                                if !found_placeholder {
+                                    diagnostics.add(
+                                        Diagnostic::error("missing `$OUTPUTS` placeholder")
+                                            .with_help(
+                                                "the array must contain an `$OUTPUTS` placeholder",
+                                            )
+                                            .with_highlight(convert_yaml_span(
+                                                raw_args.0.defined.span(),
+                                            )),
+                                    )
+                                }
                             }
                             MaybeSequence::Other(other) => {
                                 diagnostics.add(invalid_type("array", &bin, &other));
@@ -240,12 +251,6 @@ impl Assertions {
 
                         if found_placeholder {
                             custom_bins.insert(bin, parsed_args);
-                        } else {
-                            diagnostics.add(
-                                Diagnostic::error("missing `$OUTPUTS` placeholder")
-                                    .with_help("the array must contain an `$OUTPUTS` placeholder")
-                                    .with_highlight(convert_yaml_span(raw_args.0.defined.span())),
-                            )
                         }
                     }
                 }
