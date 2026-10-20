@@ -752,7 +752,11 @@ impl<'a> State<'a> {
             .filter_map(|input| {
                 let directory = input.path().as_local()?;
                 let remainder = strip_path_prefix(path, directory)?;
-                Some((directory.as_os_str().len(), input.guest_path()?, remainder))
+                Some((
+                    directory.components().count(),
+                    input.guest_path()?,
+                    remainder,
+                ))
             })
             .max_by_key(|(len, ..)| *len)?;
 
@@ -2206,7 +2210,7 @@ impl Evaluator {
                 .path_map
                 .right_values()
                 .filter(|p| symlink_guest_path.starts_with(p))
-                .max_by_key(|p| p.as_str().len())
+                .max_by_key(|p| p.as_ref().components().count())
             else {
                 bail!(
                     "`{path}` links to guest path `{link_path}` but it is not to a task input or \
