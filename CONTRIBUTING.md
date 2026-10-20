@@ -116,15 +116,28 @@ you want!
 We will try to keep a handful of [issues][issues] marked `good first issue` open and ready for new
 contributors.
 
-### I see a commit or merged PR already referencing this issue, but it is still open?
+There are a few areas of the codebase that are designed with small extensions in mind. These areas
+can make for easy introductions to the rest of the repository. If none of the open issues are
+grabbing your interest, you may want to poke around these areas and see if there are any additions
+or improvements that come to mind. In particular, these areas are:
 
-In addition to the history of _this_ git repository, we included the git history from the now
-archived [`wdl` repository](https://github.com/stjude-rust-labs/wdl) when we consolidated them. This
-unfortunately confuses the GitHub interface, which interprets historic commits from the older
-repository as referencing new issues created here, in the `sprocket` repository.
+- Lint rules
+  - These are such a common first issue, we've included a
+    [full FAQ entry](#whats-the-general-workflow-for-writing-a-new-lint-rule) to discuss them!
+  - See <https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lint/src/rules>
+- Test assertions
+  - New types of assertions that expand Sprocket's ability to test useful properties of completed
+    tasks and workflows are always welcome!
+  - See
+    <https://github.com/stjude-rust-labs/sprocket/blob/main/crates/sprocket-test-types/src/assertions.rs>
+- Alternate formatting
+  - Expanding the configuration of WDL formatting to better match user preferences is a valuable
+    addition to the codebase.
+  - See <https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lint/src/rules>
 
-These old commits and closed PRs can usually be ignored, but feel free to leave a comment to clarify
-if you aren't sure.
+It's always encouraged to open an issue with your idea before starting a PR, just to make sure your
+idea aligns with our team's intentions. We don't want you to waste effort on a new feature that we
+may reject for being out of sync with plans the maintenance team has.
 
 ### What's the difference between `error`, `warning`, and `note`?
 

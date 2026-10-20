@@ -80,7 +80,6 @@ impl Struct {
         version: SupportedVersion,
         external: bool,
         wdl_path: Option<PathBuf>,
-        enable_doc_comments: bool,
     ) -> Self {
         let mut meta = definition
             .metadata()
@@ -90,7 +89,7 @@ impl Struct {
                 acc
             });
 
-        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+        if let Some(comments) = definition.doc_comments() {
             // Doc comments take precedence
             meta.append(&mut doc_comments(comments));
         }
@@ -103,7 +102,7 @@ impl Struct {
                 acc
             });
 
-        let members = parse_member_meta(&definition, &parameter_meta, enable_doc_comments);
+        let members = parse_member_meta(&definition, &parameter_meta);
         Self {
             meta,
             members,
@@ -197,11 +196,7 @@ impl Struct {
 }
 
 /// Parse the `meta`/`parameter_meta` and doc comments on the struct members.
-fn parse_member_meta(
-    definition: &StructDefinition,
-    parameter_meta: &MetaMap,
-    enable_doc_comments: bool,
-) -> Vec<Member> {
+fn parse_member_meta(definition: &StructDefinition, parameter_meta: &MetaMap) -> Vec<Member> {
     definition
         .members()
         .map(|decl| {
@@ -227,7 +222,7 @@ fn parse_member_meta(
                 }
             }
 
-            if enable_doc_comments && let Some(comments) = decl.doc_comments() {
+            if let Some(comments) = decl.doc_comments() {
                 // Doc comments take precedence
                 meta_map.append(&mut doc_comments(comments));
             }
@@ -263,7 +258,7 @@ mod tests {
         );
         let item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let def = item.into_struct_definition().unwrap();
-        let r#struct = Struct::new(def, SupportedVersion::V1(V1::Two), false, None, true);
+        let r#struct = Struct::new(def, SupportedVersion::V1(V1::Two), false, None);
 
         let links = PageLinkIndex::from_pages([("Person", PathBuf::from("Person-struct.html"))]);
         let (markup, _) = r#struct.render(Path::new("assets"), &links, Path::new(""));
