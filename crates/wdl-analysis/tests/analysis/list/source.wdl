@@ -1,5 +1,3 @@
-#@ except: DeprecatedInputKeyword
-
 version 1.4
 
 task list_task {
@@ -26,8 +24,7 @@ workflow test_list {
     }
 
     call list_task {
-        input:
-            directory
+        directory
     }
 
     output {
