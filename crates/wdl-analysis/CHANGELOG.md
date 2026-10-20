@@ -11,6 +11,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `DeprecatedInputKeyword` rule to flag call statements with unnecessary `input` keywords
   ([#1299](https://github.com/stjude-rust-labs/sprocket/pull/1299)).
+* Added WDL 1.4 `list` directory-listing function support from
+  [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800), gated by `feature_flags.wdl_1_4`
+  ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
 
 #### Changed
 

@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the WDL 1.4 `list` function from
+  [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800), returning a pair of file and
+  directory arrays with optional recursion, symlink inclusion, and basename glob filtering. WDL 1.4
+  documents accept a broken symbolic link as a `File` value when it is evaluated, because `list`
+  returns broken links as files ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+
 ### Changed
 
 * The non-exhaustive `EngineEvent` enum now reports execution metrics: `TaskInitializing` carries
