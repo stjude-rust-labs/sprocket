@@ -298,7 +298,7 @@ fn file_matches<'a>(path: &str, regexs: &'a [Regex]) -> Result<Option<&'a str>> 
 async fn run_custom_bins(
     outputs: Outputs,
     executables: &HashMap<String, PathBuf>,
-    custom: &HashMap<Spanned<String>, String>,
+    custom: &HashMap<Spanned<String>, Vec<String>>,
     id: &str,
 ) -> Result<IterationResult> {
     let mut futures = JoinSet::new();
@@ -315,13 +315,16 @@ async fn run_custom_bins(
         let outputs = serde_json::to_string_pretty(&outputs)?;
         tokio::fs::write(outputs_path, outputs).await?;
 
-        let args =
-            shlex::split(&args.replace(OUTPUTS_PLACEHOLDER, OUTPUTS_FILE)).with_context(|| {
-                format!(
-                    "failed to shell split arguments `{args}` to the `{bin}` executable",
-                    bin = bin.0.value
-                )
-            })?;
+        let args: Vec<String> = args
+            .iter()
+            .map(|a| {
+                if a == OUTPUTS_PLACEHOLDER {
+                    OUTPUTS_FILE.into()
+                } else {
+                    a.to_owned()
+                }
+            })
+            .collect();
         let bin_name = bin.0.value.clone();
         let bin_path = bin_path.clone();
         futures.spawn(async move {

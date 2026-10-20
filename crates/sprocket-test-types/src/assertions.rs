@@ -111,12 +111,12 @@ pub struct Assertions {
     /// A custom command to execute. The key is the binary name and the value is
     /// the arguments to pass.
     ///
-    /// The arguments string _must_ contain the literal `$OUTPUTS` to denote
+    /// The arguments array _must_ contain the literal `$OUTPUTS` to denote
     /// where the path to the WDL output JSON will be inserted.
     ///
     /// TODO: Document dangers
     #[schemars(default)]
-    pub custom: HashMap<Spanned<String>, String>,
+    pub custom: HashMap<Spanned<String>, Vec<String>>,
 }
 
 spanned_fields! {
@@ -127,7 +127,7 @@ spanned_fields! {
         pub stdout: Option<SpannedField<MaybeSequence<Value>>>,
         pub stderr: Option<SpannedField<MaybeSequence<Value>>>,
         pub outputs: Option<SpannedField<MaybeMap<Value>>>,
-        pub custom: Option<SpannedField<MaybeMap<Value>>>,
+        pub custom: Option<SpannedField<MaybeMap<MaybeSequence<Value>>>>,
     }
 }
 
@@ -215,20 +215,35 @@ impl Assertions {
             match raw_custom.value {
                 MaybeMap::Map(bins) => {
                     for (bin, raw_args) in bins {
-                        let parsed_args = match raw_args.0.value {
-                            Value::String(args) => args,
-                            v => {
-                                diagnostics.add(invalid_type("string", &bin, &v));
-                                continue;
+                        let mut parsed_args = Vec::new();
+                        let mut found_placeholder = false;
+                        match raw_args.0.value {
+                            MaybeSequence::Seq(args) => {
+                                for raw_arg in args {
+                                    let arg = match raw_arg.0.value {
+                                        Value::String(a) => a,
+                                        v => {
+                                            diagnostics.add(invalid_type("string", &bin, &v));
+                                            continue;
+                                        }
+                                    };
+                                    if arg == OUTPUTS_PLACEHOLDER {
+                                        found_placeholder = true;
+                                    }
+                                    parsed_args.push(arg);
+                                }
                             }
-                        };
+                            MaybeSequence::Other(other) => {
+                                diagnostics.add(invalid_type("array", &bin, &other));
+                            }
+                        }
 
-                        if parsed_args.contains(OUTPUTS_PLACEHOLDER) {
+                        if found_placeholder {
                             custom_bins.insert(bin, parsed_args);
                         } else {
                             diagnostics.add(
                                 Diagnostic::error("missing `$OUTPUTS` placeholder")
-                                    .with_help("the value must contain an `$OUTPUTS` placeholder")
+                                    .with_help("the array must contain an `$OUTPUTS` placeholder")
                                     .with_highlight(convert_yaml_span(raw_args.0.defined.span())),
                             )
                         }
