@@ -17,6 +17,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) and requires
   `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
 
+### Fixed
+
+* Relative paths for `doc` configured index pages are now resolved relative to the root workspace
+  being documented ([#1304](https://github.com/stjude-rust-labs/sprocket/pull/1304)).
+
 ## 0.32.0 - 2026-10-07
 
 ### Security Fix
