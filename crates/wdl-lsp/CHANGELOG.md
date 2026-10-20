@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Extended `textDocument/hover` to render preamble comments of import documents
+  ([#1288](https://github.com/stjude-rust-labs/sprocket/pull/1288)).
+
 ## 0.24.0 - 2026-10-07
 
 ### Added
@@ -127,9 +132,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Added support for semantic highlighting
   ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
-
-### Added
-
 * Added support for renaming ([#563](https://github.com/stjude-rust-labs/wdl/pull/563)).
 * Added support for hover ([#540](https://github.com/stjude-rust-labs/wdl/pull/540)).
 

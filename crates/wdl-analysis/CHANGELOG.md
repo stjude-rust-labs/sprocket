@@ -15,8 +15,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800), gated by `feature_flags.wdl_1_4`
   ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
 
-### Fixed
+#### Changed
 
+* `Visitor` implementations must now be `Send` so that validators can move between analysis worker
+  threads ([#1175](https://github.com/stjude-rust-labs/sprocket/pull/1175)).
+
+#### Fixed
+
+* `Analyzer` reuses validators again, through a pool owned by each analyzer, so that validator
+  configuration is never shared between analyzers
+  ([#1175](https://github.com/stjude-rust-labs/sprocket/pull/1175)).
 * Standard-library hover, completion, and signature help now use documentation appropriate for the
   document's WDL version, and signature help no longer shows overloads introduced in later versions
   ([#1006](https://github.com/stjude-rust-labs/sprocket/pull/1163)).

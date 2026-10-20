@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added `JsonSchema` support for `Manifest`
+  ([#1295](https://github.com/stjude-rust-labs/sprocket/issues/1295)).
+
 ## 0.4.0 - 2026-10-07
 
 ### Security Fix

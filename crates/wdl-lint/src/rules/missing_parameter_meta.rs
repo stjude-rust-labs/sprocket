@@ -142,10 +142,15 @@ pub(crate) fn collect_parameter_meta(
             workflow.parameter_metadata(),
         ),
         ParameterMetaTarget::Struct(def, version) => {
-            if version < SupportedVersion::V1(V1::Two) {
+            // The `MetaSections` lint will emit a diagnostic when none of the
+            // struct's fields have doc comments
+            if version < SupportedVersion::V1(V1::Two)
+                && def
+                    .members()
+                    .all(|d| d.doc_comments().is_none_or(|docs| docs.is_empty()))
+            {
                 return None;
             }
-
             (
                 SectionParent::Struct(def.clone()),
                 def.members().map(Decl::Unbound).collect(),

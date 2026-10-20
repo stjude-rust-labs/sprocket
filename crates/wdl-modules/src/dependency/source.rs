@@ -5,6 +5,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_with::DeserializeFromStr;
@@ -50,7 +51,20 @@ pub enum GitModulePathError {
 /// and empty strings, both of which are semantically equivalent to "no
 /// sub-path" (i.e., the module sits at the repository root).
 #[derive(
-    Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr,
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    SerializeDisplay,
+    DeserializeFromStr,
+    JsonSchema,
+)]
+#[schemars(
+    transparent,
+    description = "A canonical sub-path within a Git-backed dependency."
 )]
 pub struct GitModulePath(RelativePath);
 
@@ -176,18 +190,22 @@ pub enum DependencySourceError {
 ///
 /// The two possible sources are a Git repository (with one of four
 /// selectors plus an optional sub-path) or a local filesystem path.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(try_from = "DependencySourceFields", into = "DependencySourceFields")]
+#[schemars(untagged, !try_from, !into)]
 pub enum DependencySource {
     /// A Git-backed dependency.
     Git {
         /// The Git repository URL.
+        #[schemars(rename = "git")]
         url: Url,
         /// The selector controlling which revision to resolve to.
+        #[schemars(flatten)]
         selector: GitSelector,
         /// Optional sub-path within the repository where the module lives.
         path: Option<GitModulePath>,
         /// Unknown fields, preserved for round-trip and inspection.
+        #[schemars(skip)]
         extra: serde_json::Map<String, serde_json::Value>,
     },
     /// A local filesystem dependency.
@@ -195,6 +213,7 @@ pub enum DependencySource {
         /// The path to the local module directory.
         path: PathBuf,
         /// Unknown fields, preserved for round-trip and inspection.
+        #[schemars(skip)]
         extra: serde_json::Map<String, serde_json::Value>,
     },
 }
@@ -273,7 +292,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
 }
 
 /// A Git revision selector.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum GitSelector {
     /// A semver requirement matched against the repository's tags.
@@ -283,7 +302,6 @@ pub enum GitSelector {
     /// A Git branch name.
     Branch(String),
     /// A Git commit SHA, or any unique prefix of one (4 to 40 hex chars).
-    /// The resolver expands a prefix to the full SHA at lock time.
     Commit(GitCommitish),
 }
 

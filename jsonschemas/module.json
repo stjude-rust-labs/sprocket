@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Manifest",
+  "description": "A WDL module manifest.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "description": "The module's display name. Not used for dependency resolution.",
+      "type": "string"
+    },
+    "license": {
+      "description": "The module's SPDX license expression.",
+      "$ref": "#/$defs/LicenseExpression"
+    },
+    "authors": {
+      "description": "The author descriptions.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "description": {
+      "description": "A brief description of the module.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "repository": {
+      "description": "The canonical Git URL for the module's source repository.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri",
+      "default": null
+    },
+    "homepage": {
+      "description": "A URL for the module's documentation or landing page.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri",
+      "default": null
+    },
+    "entrypoint": {
+      "description": "The path to the module's entrypoint WDL file",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RelativePath"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "index.wdl"
+    },
+    "readme": {
+      "description": "The module's readme.",
+      "$ref": "#/$defs/Readme"
+    },
+    "exclude": {
+      "description": "Gitignore-style glob patterns identifying files within the module\nthat consumers may not reach via symbolic import.\n\nExcluded files have no effect on content hashing, signing, validation,\nor quoted within-module imports.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RelativePath"
+      },
+      "default": []
+    },
+    "tools": {
+      "description": "The upstream tools wrapped by the module.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Tool"
+      },
+      "default": []
+    },
+    "dependencies": {
+      "description": "The module's dependencies, keyed by consumer-chosen name.",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z0-9_-]*$": {
+          "$ref": "#/$defs/DependencySource"
+        }
+      },
+      "default": {}
+    }
+  },
+  "required": [
+    "name",
+    "license"
+  ],
+  "$defs": {
+    "LicenseExpression": {
+      "description": "An SPDX license expression",
+      "type": "string"
+    },
+    "RelativePath": {
+      "description": "A relative path under a module root.",
+      "type": "string"
+    },
+    "Readme": {
+      "description": "The `readme` field of a manifest.",
+      "anyOf": [
+        {
+          "description": "A relative path to a markdown file.",
+          "$ref": "#/$defs/RelativePath"
+        },
+        {
+          "description": "No readme is associated with the module.",
+          "const": false
+        }
+      ]
+    },
+    "Tool": {
+      "description": "A `tools[]` entry.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The tool name.",
+          "type": "string"
+        },
+        "version": {
+          "description": "The tool version.",
+          "type": "string"
+        },
+        "license": {
+          "description": "The tool's SPDX license identifier.",
+          "$ref": "#/$defs/LicenseExpression"
+        },
+        "url": {
+          "description": "URL for the tool's homepage, documentation, repository, or\ncanonical project page.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "ids": {
+          "description": "External identifiers for the tool, each a [CURIE](https://www.w3.org/TR/curie/)\nof the form `prefix:reference` (e.g. `doi:10.21105/joss.04704`,\n`biotools:csvkit`).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "license"
+      ]
+    },
+    "DependencySource": {
+      "description": "A dependency source.\n\nThe two possible sources are a Git repository (with one of four\nselectors plus an optional sub-path) or a local filesystem path.",
+      "anyOf": [
+        {
+          "description": "A Git-backed dependency.",
+          "type": "object",
+          "properties": {
+            "git": {
+              "description": "The Git repository URL.",
+              "type": "string",
+              "format": "uri"
+            },
+            "path": {
+              "description": "Optional sub-path within the repository where the module lives.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/GitModulePath"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "git"
+          ],
+          "oneOf": [
+            {
+              "description": "A semver requirement matched against the repository's tags.",
+              "type": "object",
+              "properties": {
+                "version": {
+                  "$ref": "#/$defs/VersionRequirement"
+                }
+              },
+              "required": [
+                "version"
+              ]
+            },
+            {
+              "description": "An exact Git tag name.",
+              "type": "object",
+              "properties": {
+                "tag": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tag"
+              ]
+            },
+            {
+              "description": "A Git branch name.",
+              "type": "object",
+              "properties": {
+                "branch": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "branch"
+              ]
+            },
+            {
+              "description": "A Git commit SHA, or any unique prefix of one (4 to 40 hex chars).",
+              "type": "object",
+              "properties": {
+                "commit": {
+                  "$ref": "#/$defs/GitCommitish"
+                }
+              },
+              "required": [
+                "commit"
+              ]
+            }
+          ]
+        },
+        {
+          "description": "A local filesystem dependency.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "The path to the local module directory.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      ]
+    },
+    "VersionRequirement": {
+      "description": "A SemVer version requirement.",
+      "type": "string"
+    },
+    "GitCommitish": {
+      "description": "A Git commit selector: any unique prefix of a commit SHA, from 4 to 40 lowercase hex characters.",
+      "type": "string",
+      "pattern": "^[a-f0-9]{4,40}$"
+    },
+    "GitModulePath": {
+      "description": "A canonical sub-path within a Git-backed dependency.",
+      "$ref": "#/$defs/RelativePath"
+    }
+  }
+}
