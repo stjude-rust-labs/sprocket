@@ -115,7 +115,9 @@ impl InputTrie {
     ///
     /// Returns `Ok(None)` if the provided path was already a guest input path.
     ///
-    /// Returns an error for an invalid input path.
+    /// # Errors
+    ///
+    /// * `base_dir` is non UTF-8
     pub fn insert(
         &mut self,
         kind: ContentKind,
@@ -156,7 +158,10 @@ impl InputTrie {
     /// Returns `Ok(None)` if the trie has no guest inputs directory or if the
     /// path is already a guest input path.
     ///
-    /// Returns an error for an invalid path.
+    /// # Errors
+    ///
+    /// * `path` is non UTF-8
+    /// * `path` is not normalized (contains `.` or `..` components)
     pub fn reserve_guest_path(&mut self, path: &Path) -> Result<Option<GuestPath>> {
         if self
             .guest_inputs_dir
