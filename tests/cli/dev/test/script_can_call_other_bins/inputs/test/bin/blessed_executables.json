@@ -1,10 +1,10 @@
 [
   {
     "path": "entrypoint.sh",
-    "hash": "a449be91e02a2ab7df386f8836a03a3059459b5bf0efe5a1bcc5b7a0e9769696"
+    "hash": "bf3d8c4313dde656ffacabb58ae812f5405ae3940fc634947b8625bf2af381ad"
   },
   {
     "path": "say_hello",
-    "hash": "ac1df973279109c35984a6b46934b00a8f72021ecbc91bbfe64536302826d1ee"
+    "hash": "1350055c775ddb864a46701aceebcf8426ea95d26ae821150b624311171b8a1a"
   }
 ]
