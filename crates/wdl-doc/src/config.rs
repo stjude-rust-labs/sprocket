@@ -117,8 +117,6 @@ pub struct Config {
     pub(crate) additional_html: AdditionalHtml,
     /// Site-level SEO metadata embedded into each page's `<head>`.
     pub(crate) seo: Seo,
-    /// (**EXPERIMENTAL**) Enable support for documentation comments.
-    pub(crate) enable_doc_comments: bool,
 }
 
 impl Config {
@@ -141,7 +139,6 @@ impl Config {
             alt_logo: None,
             additional_html: AdditionalHtml::default(),
             seo: Seo::default(),
-            enable_doc_comments: false,
         }
     }
 
@@ -196,17 +193,6 @@ impl Config {
     /// Overwrite the config's SEO metadata with the new value.
     pub fn seo(mut self, seo: Seo) -> Self {
         self.seo = seo;
-        self
-    }
-
-    /// Enable support for documentation comments.
-    ///
-    /// NOTE: This is an experimental option, and will be removed in a future
-    /// major release.
-    ///
-    /// For more information, see the [pre-RFC discussion](https://github.com/openwdl/wdl/issues/757).
-    pub fn enable_doc_comments(mut self, enable_doc_comments: bool) -> Self {
-        self.enable_doc_comments = enable_doc_comments;
         self
     }
 }

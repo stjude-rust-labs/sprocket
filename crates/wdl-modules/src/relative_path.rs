@@ -13,6 +13,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
 use thiserror::Error;
@@ -44,11 +45,20 @@ pub enum RelativePathError {
     EscapesRoot(String),
 }
 
-/// A validated, canonical, NFC-normalized relative path under a module
-/// root.
+/// A relative path under a module root.
 #[derive(
-    Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr,
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    SerializeDisplay,
+    DeserializeFromStr,
+    JsonSchema,
 )]
+#[schemars(with = "String")]
 pub struct RelativePath(String);
 
 impl RelativePath {
