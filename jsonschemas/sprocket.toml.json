@@ -2819,7 +2819,7 @@
           ]
         },
         "enable_custom_assertions": {
-          "description": "Whether to enable arbitrary code execution for custom test assertions.\n\nTODO: document DANGER.",
+          "description": "Whether to enable arbitrary code execution for custom test assertions.\n\n**Warning:** this may run arbitrary user code on the host machine!",
           "type": "boolean"
         }
       },

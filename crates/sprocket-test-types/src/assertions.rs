@@ -113,8 +113,6 @@ pub struct Assertions {
     ///
     /// The arguments array _must_ contain the literal `$OUTPUTS` to denote
     /// where the path to the WDL output JSON will be inserted.
-    ///
-    /// TODO: Document dangers
     #[schemars(default)]
     pub custom: HashMap<Spanned<String>, Vec<String>>,
 }

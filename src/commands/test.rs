@@ -190,12 +190,14 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
-    /// Enable custom assertions. TODO danger.
+    /// Enable custom assertions. **Warning:** this may run arbitrary user code
+    /// on the host machine!
     #[clap(long)]
     pub enable_custom_assertions: bool,
     /// Disable checking whether custom assertion executables have been blessed.
     ///
-    /// TODO: danger
+    /// **Warning:** unblessed user scripts may expose you to
+    /// malicious executables.
     #[clap(long)]
     pub trusted: bool,
     /// Show STDOUT and STDERR of running custom assertions.
@@ -211,9 +213,8 @@ pub struct Args {
 pub enum Subcommand {
     /// Print the JSON schema for Sprocket test definition YAMLs to stdout.
     Schema,
-    /// Bless executables used in custom assertions.
-    ///
-    /// TODO: danger
+    /// Bless executables used in custom assertions. **Warning:** only bless
+    /// executables you trust!
     BlessExecutables,
 }
 

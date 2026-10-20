@@ -4,7 +4,7 @@ Usage: sprocket dev test [OPTIONS] [SOURCE] [COMMAND]
 
 Commands:
   schema             Print the JSON schema for Sprocket test definition YAMLs to stdout
-  bless-executables  Bless executables used in custom assertions
+  bless-executables  Bless executables used in custom assertions. **Warning:** only bless executables you trust!
   help               Print this message or the help of the given subcommand(s)
 
 Arguments:
@@ -78,7 +78,7 @@ Options:
           Decrease logging verbosity
 
       --enable-custom-assertions
-          Enable custom assertions. TODO danger
+          Enable custom assertions. **Warning:** this may run arbitrary user code on the host machine!
 
       --no-ignore
           Ignore `.sprocketignore` files while discovering WDL documents
@@ -96,7 +96,7 @@ Options:
       --trusted
           Disable checking whether custom assertion executables have been blessed.
 
-          TODO: danger
+          **Warning:** unblessed user scripts may expose you to malicious executables.
 
   -m, --report-mode <MODE>
           The report mode for any emitted diagnostics

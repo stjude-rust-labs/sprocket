@@ -94,7 +94,7 @@
           }
         },
         "custom": {
-          "description": "A custom command to execute. The key is the binary name and the value is\nthe arguments to pass.\n\nThe arguments array _must_ contain the literal `$OUTPUTS` to denote\nwhere the path to the WDL output JSON will be inserted.\n\nTODO: Document dangers",
+          "description": "A custom command to execute. The key is the binary name and the value is\nthe arguments to pass.\n\nThe arguments array _must_ contain the literal `$OUTPUTS` to denote\nwhere the path to the WDL output JSON will be inserted.",
           "type": "object",
           "additionalProperties": {
             "type": "array",

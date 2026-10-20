@@ -811,7 +811,7 @@ pub struct TestConfig {
     pub run_dir: Option<PathBuf>,
     /// Whether to enable arbitrary code execution for custom test assertions.
     ///
-    /// TODO: document DANGER.
+    /// **Warning:** this may run arbitrary user code on the host machine!
     pub enable_custom_assertions: bool,
 }
 
