@@ -116,7 +116,7 @@ pub fn goto_definition(
                     target.inner(),
                     callee_name.inner(),
                     analysis_doc,
-                    &lines,
+                    lines,
                     graph,
                 );
             }
@@ -147,7 +147,7 @@ fn resolve_by_context(
         }
 
         SyntaxKind::CallTargetNode => {
-            resolve_call_target(parent_node, token, analysis_doc, lines, graph)
+            resolve_call_target(parent_node, token, analysis_doc, lines.clone(), graph)
         }
         SyntaxKind::ImportStatementNode => {
             resolve_import_namespace(parent_node, token, &analysis_doc.uri(), lines)
@@ -317,7 +317,7 @@ fn resolve_call_target(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    lines: &Arc<LineIndex>,
+    mut lines: Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
     let target = wdl_ast::v1::CallTarget::cast(parent_node.clone()).unwrap();
@@ -326,126 +326,71 @@ fn resolve_call_target(
         .last()
         .is_some_and(|n| n.span() == token.span());
 
-    if is_callee_name_clicked {
-        let callee_name_str = token.text();
-
-        // NOTE: Namespaced (foo.bar)
-        if target_names.len() == 2 {
-            let namespaced_name_str = target_names.first().unwrap().text();
-            let Some(ns_info) = analysis_doc.namespace(namespaced_name_str) else {
-                return Ok(None);
-            };
-
-            let node = graph.get(graph.get_index(&ns_info.source()).unwrap());
-            let Some(imported_doc) = node.document() else {
-                return Ok(None);
-            };
-            let imported_lines = node.parse_state().lines().unwrap();
-
-            if let Some(task_def) = imported_doc.task_by_name(callee_name_str) {
-                return Ok(Some(location_from_span(
-                    &ns_info.source(),
-                    task_def.name_span(),
-                    imported_lines,
-                )?));
-            }
-
-            if let Some(workflow) = imported_doc.workflow_by_name(callee_name_str) {
-                match workflow {
-                    crate::WorkflowRef::Local(workflow) => {
-                        return Ok(Some(location_from_span(
-                            &ns_info.source(),
-                            workflow.name_span(),
-                            imported_lines,
-                        )?));
-                    }
-                    crate::WorkflowRef::Imported(workflow) => {
-                        let Some(index) = graph.get_index(&workflow.source()) else {
-                            return Ok(None);
-                        };
-                        let node = graph.get(index);
-                        let Some(definition) =
-                            workflow.document().local_workflow_by_name(workflow.name())
-                        else {
-                            return Ok(None);
-                        };
-                        return Ok(Some(location_from_span(
-                            &workflow.source(),
-                            definition.name_span(),
-                            node.parse_state().lines().unwrap(),
-                        )?));
-                    }
-                }
-            }
-        } else if target_names.len() == 1 {
-            // NOTE: Local calls
-            if let Some(task_def) = analysis_doc.local_task_by_name(callee_name_str) {
-                return Ok(Some(location_from_span(
-                    &analysis_doc.uri(),
-                    task_def.name_span(),
-                    lines,
-                )?));
-            }
-
-            if let Some(wf_def) = analysis_doc.local_workflow_by_name(callee_name_str) {
-                return Ok(Some(location_from_span(
-                    &analysis_doc.uri(),
-                    wf_def.name_span(),
-                    lines,
-                )?));
-            }
-
-            if let Some(imported_task) = analysis_doc.imported_task_by_name(callee_name_str) {
-                let Some(index) = graph.get_index(&imported_task.source()) else {
-                    return Ok(None);
-                };
-                let node = graph.get(index);
-                let Some(imported_doc) = node.document() else {
-                    return Ok(None);
-                };
-                let Some(task_def) = imported_doc.task_by_name(imported_task.name()) else {
-                    return Ok(None);
-                };
-                return Ok(Some(location_from_span(
-                    &imported_task.source(),
-                    task_def.name_span(),
-                    node.parse_state().lines().unwrap(),
-                )?));
-            }
-
-            if let Some(imported_workflow) = analysis_doc.imported_workflow_by_name(callee_name_str)
-            {
-                let Some(index) = graph.get_index(&imported_workflow.source()) else {
-                    return Ok(None);
-                };
-                let node = graph.get(index);
-                let Some(imported_doc) = node.document() else {
-                    return Ok(None);
-                };
-                let Some(workflow_def) =
-                    imported_doc.local_workflow_by_name(imported_workflow.name())
-                else {
-                    return Ok(None);
-                };
-                return Ok(Some(location_from_span(
-                    &imported_workflow.source(),
-                    workflow_def.name_span(),
-                    node.parse_state().lines().unwrap(),
-                )?));
-            }
-        } else {
-            // More than 2 names (e.g. foo.bar.baz) - invalid expression.
-            return Ok(None);
+    if !is_callee_name_clicked {
+        if let Some(ns_info) = analysis_doc.namespace(token.text()) {
+            return Ok(Some(location_from_span(
+                &analysis_doc.uri(),
+                ns_info.span(),
+                &lines,
+            )?));
         }
-    } else if let Some(ns_info) = analysis_doc.namespace(token.text()) {
-        return Ok(Some(location_from_span(
-            &analysis_doc.uri(),
-            ns_info.span(),
-            lines,
-        )?));
+
+        return Ok(None);
     }
 
-    Ok(None)
+    if target_names.len() > 2 {
+        // More than 2 names (e.g. foo.bar.baz) - invalid expression.
+        return Ok(None);
+    }
+
+    let callee_name_str = token.text();
+
+    let target_doc = if target_names.len() == 2 {
+        // NOTE: Namespaced (foo.bar)
+        let namespaced_name_str = target_names.first().unwrap().text();
+        let Some(ns_info) = analysis_doc.namespace(namespaced_name_str) else {
+            return Ok(None);
+        };
+
+        let node = graph.get(graph.get_index(&ns_info.source()).unwrap());
+        let Some(imported_doc) = node.document() else {
+            return Ok(None);
+        };
+
+        lines = node.parse_state().lines().cloned().unwrap();
+
+        imported_doc
+    } else {
+        // NOTE: Local calls
+        analysis_doc
+    };
+
+    let Some(callable) = target_doc.callable_by_name(callee_name_str) else {
+        return Ok(None);
+    };
+
+    let mut source_uri = target_doc.uri();
+    let mut name_span = callable.name_span();
+
+    // Re-exported definition, need to find the actual source...
+    if callable.is_imported() {
+        let Some(source_doc) = callable.source_document() else {
+            return Ok(None);
+        };
+
+        let Some(source_callable) = source_doc.local_callable_by_name(callable.source_name())
+        else {
+            return Ok(None);
+        };
+
+        let node = graph.get(graph.get_index(&source_doc.uri()).unwrap());
+
+        source_uri = source_doc.uri();
+        name_span = source_callable.name_span();
+        lines = node.parse_state().lines().cloned().unwrap();
+    }
+
+    Ok(Some(location_from_span(&source_uri, name_span, &lines)?))
 }
 
 /// Resolves import namespace identifier to their definition locations.

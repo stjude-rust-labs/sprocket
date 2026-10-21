@@ -878,6 +878,15 @@ pub enum Callable<'a> {
 
 impl Callable<'_> {
     /// Get the name of this callable.
+    ///
+    /// NOTE: For imported callables, this will return the aliased name. e.g.,
+    /// "bar_alias" in:
+    ///
+    /// ```wdl
+    /// import { bar as bar_alias } from "bar.wdl"
+    /// ```
+    ///
+    /// See also: [`Callable::source_name()`]
     pub fn name(&self) -> &str {
         match self {
             Callable::Workflow(w) => w.name(),
@@ -885,11 +894,68 @@ impl Callable<'_> {
         }
     }
 
+    /// Get the original name of this callable.
+    ///
+    /// For locally defined callables, the behavior is identical to
+    /// [`Self::name()`]. For imported callables, this returns the name as
+    /// defined in the source document.
+    ///
+    /// See also: [`Callable::name()`]
+    pub fn source_name(&self) -> &str {
+        match self {
+            Callable::Workflow(WorkflowRef::Imported(w)) => &w.name,
+            Callable::Task(TaskRef::Imported(w)) => &w.name,
+            _ => self.name(),
+        }
+    }
+
     /// Get the [`Span`] of the callable's name.
+    ///
+    /// For locally defined callables, this is the span in the callable's
+    /// definition. e.g., "foo" in:
+    ///
+    /// ```wdl
+    /// workflow foo {}
+    ///          ---
+    /// ```
+    ///
+    /// For imported callables, this is the span of the import statement that
+    /// brought it into scope.
+    ///
+    /// For namespace and wildcard imports, the span will be of the entire
+    /// import statement:
+    ///
+    /// ```wdl
+    /// import "foo.wdl"
+    /// ----------------
+    ///
+    /// import * from "bar.wdl"
+    /// -----------------------
+    /// ```
+    ///
+    /// For selected imports, the span will be of the name:
+    ///
+    /// ```wdl
+    /// import { foo } from "foo.wdl"
+    ///          ---
+    ///
+    /// import { bar as bar_alias } from "bar.wdl"
+    ///                 ---------
+    /// ```
     pub fn name_span(&self) -> Span {
         match self {
             Callable::Workflow(w) => w.name_span(),
             Callable::Task(t) => t.name_span(),
+        }
+    }
+
+    /// Get the defining [`Document`] of the callable, if it was imported
+    ///
+    /// NOTE: This will always return `None` for locally defined callables.
+    pub fn source_document(&self) -> Option<&Document> {
+        match self {
+            Callable::Workflow(w) => w.source_document(),
+            Callable::Task(t) => t.source_document(),
         }
     }
 
@@ -927,6 +993,14 @@ impl Callable<'_> {
     /// Whether this callable represents a task.
     pub fn is_task(&self) -> bool {
         matches!(self, Callable::Task(_))
+    }
+
+    /// Whether this callable was imported from another document.
+    pub fn is_imported(&self) -> bool {
+        matches!(
+            self,
+            Callable::Task(TaskRef::Imported(_)) | Callable::Workflow(WorkflowRef::Imported(_))
+        )
     }
 
     /// Get the inputs of the callable.

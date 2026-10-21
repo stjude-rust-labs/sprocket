@@ -26,6 +26,7 @@ use wdl_grammar::SyntaxKind;
 
 use crate::AppliedEdit;
 use crate::Diagnostics;
+use crate::Document;
 use crate::Exceptable;
 use crate::document::Enum;
 use crate::document::ImportedEnum;
@@ -234,10 +235,24 @@ impl<'a> WorkflowRef<'a> {
     }
 
     /// Gets the span of the name.
+    ///
+    /// See also: [`Callable::name_space()`]
+    ///
+    /// [`Callable::name_space()`]: crate::document::Callable::name_span
     pub fn name_span(&self) -> Span {
         match self {
             WorkflowRef::Local(w) => w.name_span(),
             WorkflowRef::Imported(i) => i.span,
+        }
+    }
+
+    /// Get the defining [`Document`] of the workflow, if it was imported
+    ///
+    /// NOTE: This will always return `None` for locally defined workflows.
+    pub fn source_document(&self) -> Option<&Document> {
+        match self {
+            WorkflowRef::Local(_) => None,
+            WorkflowRef::Imported(i) => Some(i.document()),
         }
     }
 
@@ -278,10 +293,24 @@ impl<'a> TaskRef<'a> {
     }
 
     /// Gets the span of the name.
+    ///
+    /// See also: [`Callable::name_space()`]
+    ///
+    /// [`Callable::name_space()`]: crate::document::Callable::name_span
     pub fn name_span(&self) -> Span {
         match self {
             TaskRef::Local(t) => t.name_span(),
             TaskRef::Imported(i) => i.span,
+        }
+    }
+
+    /// Get the defining [`Document`] of the task, if it was imported
+    ///
+    /// NOTE: This will always return `None` for locally defined tasks.
+    pub fn source_document(&self) -> Option<&Document> {
+        match self {
+            TaskRef::Local(_) => None,
+            TaskRef::Imported(i) => Some(i.document()),
         }
     }
 
