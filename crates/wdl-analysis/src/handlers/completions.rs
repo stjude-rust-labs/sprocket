@@ -203,7 +203,7 @@ pub fn completion(
                     add_struct_completions(document, scope, &mut items);
                     add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, &mut items);
+                    add_callable_completions(document, true, &mut items);
                     break;
                 }
                 SyntaxKind::ScatterStatementNode | SyntaxKind::ConditionalStatementNode => {
@@ -216,7 +216,7 @@ pub fn completion(
                     add_struct_completions(document, scope, &mut items);
                     add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, &mut items);
+                    add_callable_completions(document, true, &mut items);
                     break;
                 }
 
@@ -343,7 +343,7 @@ fn add_member_access_completions(
         && token.kind() == SyntaxKind::Ident
         && let Some(ns) = document.namespace(token.text())
     {
-        add_callable_completions(ns.document(), items);
+        add_callable_completions(ns.document(), false, items);
         return Ok(());
     }
 
@@ -588,14 +588,18 @@ fn add_member_access_completions(
 /// Adds completions for callable items available in the current document.
 ///
 /// Includes both local and imported tasks and workflows.
-fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>) {
+fn add_callable_completions(
+    document: &Document,
+    prefix_namespaces: bool,
+    items: &mut Vec<CompletionItem>,
+) {
     fn inner<F>(mut label: F, document: &Document, items: &mut Vec<CompletionItem>)
     where
         F: FnMut(Callable<'_>) -> String,
     {
         let version = document.version();
 
-        for callable in document.local_callables() {
+        for callable in document.callables() {
             let ty = match callable {
                 Callable::Task(_) => "task",
                 Callable::Workflow(_) => "workflow",
@@ -627,9 +631,18 @@ fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>
     }
 
     inner(|callable| callable.name().to_string(), document, items);
+
     for ns in document.namespaces() {
         inner(
-            |callable| format!("{}.{}", ns.name(), callable.name()),
+            |callable| {
+                if prefix_namespaces {
+                    format!("{}.{}", ns.name(), callable.name())
+                } else {
+                    // Namespaces are at most one level. Any imports *within* a
+                    // namespace are merged into the namespace.
+                    callable.name().to_string()
+                }
+            },
             ns.document(),
             items,
         );
