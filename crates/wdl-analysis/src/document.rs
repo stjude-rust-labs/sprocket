@@ -1230,6 +1230,10 @@ impl Document {
     }
 
     /// Gets the tasks in the document.
+    ///
+    /// NOTE: This includes both locally defined and imported tasks.
+    ///
+    /// See also: [`Self::local_tasks()`]
     pub fn tasks(&self) -> impl Iterator<Item = TaskRef<'_>> {
         self.data.cache.tasks()
     }
@@ -1248,6 +1252,11 @@ impl Document {
     }
 
     /// Gets a task in the document by name.
+    ///
+    /// NOTE: This includes both locally defined and imported tasks.
+    ///
+    /// See also: [`Self::local_task_by_name()`],
+    /// [`Self::imported_task_by_name()`]
     pub fn task_by_name(&self, name: &str) -> Option<TaskRef<'_>> {
         self.data.cache.task_by_name(name).map(|(_hash, task)| task)
     }
@@ -1263,6 +1272,8 @@ impl Document {
     /// Gets the workflows in the document.
     ///
     /// NOTE: This includes both locally defined and imported workflows.
+    ///
+    /// See also: [`Self::local_workflows()`]
     pub fn workflows(&self) -> impl Iterator<Item = WorkflowRef<'_>> {
         self.data.cache.workflows()
     }
@@ -1295,6 +1306,11 @@ impl Document {
     }
 
     /// Gets a workflow in the document by name.
+    ///
+    /// NOTE: This includes both locally defined and imported workflows.
+    ///
+    /// See also: [`Self::local_workflow_by_name()`],
+    /// [`Self::imported_workflow_by_name()`]
     pub fn workflow_by_name(&self, name: &str) -> Option<WorkflowRef<'_>> {
         self.data.cache.workflow_by_name(name).map(|(_, w)| w)
     }
@@ -1318,7 +1334,9 @@ impl Document {
         None
     }
 
-    /// Get all callable targets in the document, including imports.
+    /// Get all callable targets in the document.
+    ///
+    /// NOTE: This includes both locally defined and imported callables.
     ///
     /// See also: [`Self::local_callables()`]
     pub fn callables(&self) -> impl Iterator<Item = Callable<'_>> {
