@@ -898,6 +898,7 @@ impl State {
             value = value
                 .resolve_paths(
                     expected_ty.is_optional(),
+                    super::allows_broken_symlinks(&self.document),
                     self.base_dir.as_local(),
                     Some((self.evaluator.http_client(), self.http_cancellation_token())),
                     &|path| Ok(path.clone()),
@@ -971,6 +972,7 @@ impl State {
             value = value
                 .resolve_paths(
                     expected_ty.is_optional(),
+                    super::allows_broken_symlinks(&self.document),
                     self.base_dir.as_local(),
                     Some((self.evaluator.http_client(), self.http_cancellation_token())),
                     &|path| Ok(path.clone()),
@@ -1035,6 +1037,7 @@ impl State {
         value = value
             .resolve_paths(
                 expected_ty.is_optional(),
+                super::allows_broken_symlinks(&self.document),
                 self.base_dir.as_local(),
                 Some((self.evaluator.http_client(), self.http_cancellation_token())),
                 &|path| {
