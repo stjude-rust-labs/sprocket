@@ -1060,22 +1060,20 @@ fn find_target_input_parameter(
     uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    if let Some(task) = doc.local_task_by_name(target_name)
-        && task.inputs().contains_key(token.text())
-    {
-        let scope = task.scope();
-        if let Some(ident) = scope.lookup(token.text()) {
-            return Ok(Some(location_from_span(uri, ident.span(), lines)?));
-        }
+    let Some(callable) = doc.local_callable_by_name(target_name) else {
+        return Ok(None);
+    };
+
+    if !callable.inputs().contains_key(token.text()) {
+        return Ok(None);
     }
 
-    if let Some(workflow) = doc.local_workflow_by_name(target_name)
-        && workflow.inputs().contains_key(token.text())
-    {
-        let scope = workflow.scope();
-        if let Some(ident) = scope.lookup(token.text()) {
-            return Ok(Some(location_from_span(uri, ident.span(), lines)?));
-        }
+    let Some(scope) = callable.scope() else {
+        return Ok(None);
+    };
+
+    if let Some(ident) = scope.lookup(token.text()) {
+        return Ok(Some(location_from_span(uri, ident.span(), lines)?));
     }
 
     Ok(None)

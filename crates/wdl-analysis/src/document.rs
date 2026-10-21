@@ -893,6 +893,32 @@ impl Callable<'_> {
         }
     }
 
+    /// Get the [`Span`] of the callable definition
+    ///
+    /// NOTE: This will always return `None` for imported callables.
+    pub fn span(&self) -> Option<Span> {
+        match self {
+            Callable::Workflow(WorkflowRef::Local(w)) => Some(w.span()),
+            Callable::Task(TaskRef::Local(t)) => Some(t.span()),
+            Callable::Workflow(WorkflowRef::Imported(_)) | Callable::Task(TaskRef::Imported(_)) => {
+                None
+            }
+        }
+    }
+
+    /// Get the scope of the callable
+    ///
+    /// NOTE: This will always return `None` for imported callables.
+    pub fn scope(&self) -> Option<ScopeRef<'_>> {
+        match self {
+            Callable::Workflow(WorkflowRef::Local(w)) => Some(w.scope()),
+            Callable::Task(TaskRef::Local(t)) => Some(t.scope()),
+            Callable::Workflow(WorkflowRef::Imported(_)) | Callable::Task(TaskRef::Imported(_)) => {
+                None
+            }
+        }
+    }
+
     /// Whether this callable represents a workflow.
     pub fn is_workflow(&self) -> bool {
         matches!(self, Callable::Workflow(_))
