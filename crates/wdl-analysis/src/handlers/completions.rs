@@ -610,7 +610,7 @@ fn add_callable_completions(
             items.push(CompletionItem {
                 label: label.clone(),
                 kind: Some(CompletionItemKind::FUNCTION),
-                detail: Some(format!("{ty} {label}")),
+                detail: Some(ty.to_string()),
                 documentation: provide_callable_documentation(callable, &document.root())
                     .and_then(make_md_docs),
                 ..Default::default()
