@@ -29,7 +29,7 @@ repository = "https://github.com/stjude-rust-labs/sprocket"
 rust-version = "1.95"
 
 [workspace.dependencies]
-ammonia = "4.1.2"
+ammonia = "4.2.4"
 anyhow = "1.0.100"
 approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
@@ -84,7 +84,7 @@ nonempty = "0.12.0"
 notify = "8.2.0"
 num_enum = "0.7.5"
 oci-client = "0.18.0"
-opener = "0.8.4"
+opener = "0.9.0"
 ordered-float = "5.1.0"
 parking_lot = "0.12.5"
 paste = "1.0.15"
@@ -151,7 +151,7 @@ wdl-modules = { version = "0.4.0", path = "crates/wdl-modules", features = ["git
 which = "8.0.0"
 whoami = "2.1.0"
 windows-sys = "0.61"
-zip = { version = "8.1.0", default-features = false, features = [] }
+zip = { version = "9.0.5", default-features = false, features = [] }
 
 [workspace.lints.rust]
 missing_docs = "warn"

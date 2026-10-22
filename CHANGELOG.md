@@ -11,6 +11,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Implemented `sprocket dev lock` to pin `task` container images
   ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* Added `sprocket dev module schema` subcommand to generate a [JSON schema](https://json-schema.org)
+  for WDL `module.json` definitions
+  ([#1295](https://github.com/stjude-rust-labs/sprocket/pull/1295)).
+* Added the experimental WDL 1.4 `list` function for listing a directory's files and subdirectories,
+  with recursion, symlink inclusion, and file filtering. This implements
+  [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) and requires
+  `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
 
 ### Changed
 
@@ -18,6 +25,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 * `run --locked` now enforces that all `task` container images have an entry in `sprocket.lock`
   ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+
+### Fixed
+
+* Relative paths for `doc` configured index pages are now resolved relative to the root workspace
+  being documented ([#1304](https://github.com/stjude-rust-labs/sprocket/pull/1304)).
 
 ## 0.32.0 - 2026-10-07
 
@@ -905,7 +917,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Removed the `--config` option of `sprocket run`; the run command's configuration is now merged
   into `sprocket.toml` under the `run` section
-  ([#121](github.com/stjude-rust-labs/sprocket/pull/121))
+  ([#121](https://github.com/stjude-rust-labs/sprocket/pull/121))
 
 ### Fixed
 
@@ -917,7 +929,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   engine configuration fields ([#124](https://github.com/stjude-rust-labs/sprocket/pull/124)).
 * The `sprocket run`, `sprocket validate`, and `sprocket inputs` commands will no longer require the
   `--name` option if passed a WDL document containing a single task and no workflow
-  ([#121](github.com/stjude-rust-labs/sprocket/pull/121)).
+  ([#121](https://github.com/stjude-rust-labs/sprocket/pull/121)).
 * The `sprocket run` command now correctly includes the workflow/task name prefix in the output
   ([#131](github.com/stjude-rust-labs/sprocket/pull/131)).
 
@@ -979,6 +991,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 * Introduced the `run` subcommand ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
+* Added configuration file support ([#104](https://github.com/stjude-rust-labs/sprocket/pull/104)).
 
 ### Changed
 
@@ -990,10 +1003,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
 * Updates the underlying `wdl` dependency to v0.13.1
   ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
-
-### Added
-
-* Added configuration file support ([#104](https://github.com/stjude-rust-labs/sprocket/pull/104)).
 
 ## 0.11.0 - 04-01-2025
 

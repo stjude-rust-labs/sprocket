@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 
 use anyhow::Context;
 use anyhow::anyhow;
@@ -174,7 +175,14 @@ pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandRe
         .with_ignore_filename(config.common.ignore_filename())
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
-    let index_page = args.index_page.or(config.doc.index_page());
+    let index_page = if let Some(index) = args.index_page {
+        Some(
+            absolute(&index)
+                .with_context(|| format!("getting absolute path for `{}`", index.display()))?,
+        )
+    } else {
+        config.doc.index_page()
+    };
     let light_mode = config.doc.light_mode;
     let logo = args.logo.or(config.doc.logo());
     let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
@@ -207,7 +215,6 @@ pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandRe
         })
         .additional_html(addl_html)
         .seo(seo)
-        .enable_doc_comments(true)
         .check(args.check);
 
     let mut counts = DiagnosticCounts::default();

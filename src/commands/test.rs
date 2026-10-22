@@ -45,7 +45,6 @@ use tracing::subscriber::NoSubscriber;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
-use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
@@ -67,6 +66,7 @@ use crate::Config;
 use crate::Stdout;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::analysis::ensure_no_analysis_errors;
 use crate::commands::Action;
 use crate::commands::CommandError;
 use crate::commands::CommandOutput;
@@ -1075,24 +1075,7 @@ pub async fn test(
                 .context(format!("parsing {p}", p = wdl_path.display()))
                 .into());
         }
-        if document.has_errors() {
-            let source = document.root().text().to_string();
-            emit_diagnostics(
-                &document.path(),
-                &source,
-                document.diagnostics().filter(|d| {
-                    if d.severity().is_error() {
-                        counts.errors += 1;
-                        true
-                    } else {
-                        false
-                    }
-                }),
-                report_mode,
-                output.colorize(),
-            )
-            .context("failed to emit diagnostics")?;
-        }
+        ensure_no_analysis_errors(document, report_mode, output.colorize())?;
 
         let yaml_path = match find_yaml(&wdl_path)? {
             Some(p) => p,

@@ -10,7 +10,6 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
-use wdl_ast::TokenText;
 use wdl_ast::v1::CommandKeyword;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::HintsKeyword;
@@ -235,7 +234,7 @@ fn empty_struct(name: Ident) -> Diagnostic {
 #[derive(Default, Debug)]
 pub struct CountingVisitor {
     /// Keeps track of what task names we've seen.
-    tasks_seen: HashSet<TokenText>,
+    tasks_seen: HashSet<String>,
     /// Whether or not we should ignore the task or workflow.
     ignore_current: bool,
     /// Whether or not the document has at least one workflow.
@@ -337,7 +336,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        self.ignore_current = !self.tasks_seen.insert(task.name().hashable());
+        self.ignore_current = !self.tasks_seen.insert(task.name().text().to_string());
     }
 
     fn struct_definition(

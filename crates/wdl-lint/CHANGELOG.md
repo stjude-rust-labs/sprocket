@@ -12,6 +12,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `MetaSections` lint rule no longer requires `parameter_meta` for `struct`s whose members are fully
   documented by doc comments ([#1285](https://github.com/stjude-rust-labs/sprocket/pull/1285)).
 
+* `MetaSections` now suggests doc comments instead of `meta` or `parameter_meta` for structs in v1.1
+  and v1.0 documents ([#1209](https://github.com/stjude-rust-labs/sprocket/issues/1209))
+
 ### Removed
 
 * The `CallInputKeyword` rule was promoted to `wdl-analysis`
@@ -39,7 +42,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added `ParameterizedResources` lint rule to flag tasks with fixed resource allocations
   ([#1232](https://github.com/stjude-rust-labs/sprocket/pull/1232)).
 
-#### Fixed
+### Fixed
 
 * Fixed false-positive word splitting diagnostics for placeholders that are quoted inside nested
   `if` expressions or `sep` calls ([#1168](https://github.com/stjude-rust-labs/sprocket/pull/1168)).
@@ -49,8 +52,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `Linter` now visits enum definitions, so lint rules can check enums
   ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
 
-#### Changed
+### Changed
 
+* `Rule` implementations must now be `Send` because `wdl_analysis::Visitor` requires it
+  ([#1175](https://github.com/stjude-rust-labs/sprocket/pull/1175)).
 * `ShellCheck` no longer reports SC2086, SC2206, or SC2231 for placeholders; `ShellSplitting`
   reports them instead as warnings. To suppress these diagnostics on placeholders, use
   `#@ except: ShellSplitting`; `# shellcheck disable` directives in the command no longer apply to
@@ -90,7 +95,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `UnusedDocComments` now lints floating doc comments separately
   ([#1238](https://github.com/stjude-rust-labs/sprocket/pull/1238)).
 
-#### Removed
+### Removed
 
 * Removed the `SnakeCase` and `PascalCase` lint rules and their configuration, which are replaced by
   `NamingConvention` ([#1254](https://github.com/stjude-rust-labs/sprocket/pull/1254)).
@@ -103,7 +108,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `MetaSections` now supports checking both doc comments and `meta`/`parameter_meta` sections
   ([#1185](https://github.com/stjude-rust-labs/sprocket/pull/1185)).
 
-#### Removed
+### Removed
 
 * Removed `SectionOrder` lint rule. Use `format check` with `reorder_sections = true` to satisfy any
   ordering checks ([#1203](https://github.com/stjude-rust-labs/sprocket/pull/1203)).
@@ -117,12 +122,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added `DeprecatedRuntimeSection` lint rule
   ([#1040](https://github.com/stjude-rust-labs/sprocket/pull/1040)).
 
-#### Changed
+### Changed
 
 * Updated `RequirementsSection` to only check for missing `requirements` sections
   ([#1040](https://github.com/stjude-rust-labs/sprocket/pull/1040)).
 
-#### Removed
+### Removed
 
 * Removed the `DoubleQuotes` lint rule
   ([#1200](https://github.com/stjude-rust-labs/sprocket/pull/1200)).
@@ -144,7 +149,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [bash set](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html) commands in
   every `command` section ([#843](https://github.com/stjude-rust-labs/sprocket/pull/843)).
 
-#### Removed
+### Removed
 
 * Removed the `KnownRules` rule, and promoted it to `wdl-analysis`
   ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
@@ -167,19 +172,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New lint rule `EmptyOutputs` to detect `task`s with no `output`s
   ([#846](https://github.com/stjude-rust-labs/sprocket/pull/846)).
 
-#### Fixed
+### Fixed
 
 * `#@ except:` directives on ancestor nodes are now honored by the `UnnecessaryFunctionCall` lint
   rule ([#842](https://github.com/stjude-rust-labs/sprocket/pull/842)).
 
-#### Changed
+### Changed
 
 * The `Rule` trait now requires implementors to be `Clone`
   ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
 * `rules()` now returns `Vec<Box<dyn Rule + Send + Sync>>`
   ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
 
-#### Removed
+### Removed
 
 * Removed the `ConsistentNewlines` rule
   ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
@@ -198,7 +203,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Updated `DeprecatedPlaceholder` lint rule to deprecate `${}`
   ([#760](https://github.com/stjude-rust-labs/sprocket/pull/760)).
 
-#### Removed
+### Removed
 
 * Removed the `InputSorting` rule ([#730](https://github.com/stjude-rust-labs/sprocket/pull/730))
 
@@ -209,12 +214,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `allowed_names` configuration key for allowing certain names in the SnakeCase and DeclarationName
   rules ([#660](https://github.com/stjude-rust-labs/sprocket/pull/660)).
 
-#### Changed
+### Changed
 
 * Renamed `LintDirectiveValid` to `ExceptDirectiveValid`
   ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
-#### Removed
+### Removed
 
 * Removed some "formatting only" lint rules (CallInputSpacing, CommentWhitespace, ElementSpacing,
   ExpressionSpacing, EndingNewline, ImportSorted, ImportWhitespace, LineWidth,
@@ -240,7 +245,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New lint rule `UnusedDocComments` to ensure users are warned if they document unsupported syntax
   items ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
 
-#### Fixed
+### Fixed
 
 * Fixed `LineWidth` rule incorrectly emitting diagnostics for import statements
   ([#501](https://github.com/stjude-rust-labs/sprocket/pull/501)).
@@ -274,12 +279,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New `Tag::Documentation` ([#592](https://github.com/stjude-rust-labs/wdl/pull/592)).
 
-#### Fixed
+### Fixed
 
 * The `LineWidth` lint rule now ignores import statements
   ([#590](https://github.com/stjude-rust-labs/wdl/pull/590)).
 
-#### Changed
+### Changed
 
 * Some lint rules had their `tags()` modified
   ([#592](https://github.com/stjude-rust-labs/wdl/pull/592)).
@@ -297,7 +302,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Updated shellcheck logic that erroneously flagged placeholders that are quoted
   ([#541](https://github.com/stjude-rust-labs/wdl/pull/541)).
 
-#### Removed
+### Removed
 
 * Removed the `OutputSection` lint rule ([#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 
@@ -314,7 +319,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Added `RedundantNone` rule ([#444](https://github.com/stjude-rust-labs/wdl/pull/444)).
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
@@ -331,6 +336,14 @@ dependencies._
 
 ## 0.11.0 - 05-01-2025
 
+### Added
+
+* Added `serialize_oxford_comma()` to the `util` module
+  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* Added a `Linter` struct which lints analyzed documents
+  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
+* made `find_nearest_rule()` pub ([#412](https://github.com/stjude-rust-labs/wdl/pull/412)).
+
 ### Changed
 
 * `util::is_properly_quoted` is now `util::is_quote_balanced`
@@ -343,21 +356,10 @@ dependencies._
 * Linting is now based off an analyzed document instead of just a parsed AST
   ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
   * This removes the `LintVisitor` struct.
-
-#### Added
-
-* Added `serialize_oxford_comma()` to the `util` module
-  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
-* Added a `Linter` struct which lints analyzed documents
-  ([#341](https://github.com/stjude-rust-labs/wdl/pull/341)).
-* made `find_nearest_rule()` pub ([#412](https://github.com/stjude-rust-labs/wdl/pull/412)).
-
-#### Changed
-
 * Renamed lint rules to be more consistent
   ([#408](https://github.com/stjude-rust-labs/wdl/pull/408)).
 
-#### Fixed
+### Fixed
 
 * Downgraded `PreambleCommentPlacement` severity from `error` to `note`
   ([#418](https://github.com/stjude-rust-labs/wdl/pull/418)).
@@ -376,7 +378,7 @@ dependencies._
 * Added `TryFrom` for Tags to convert strings to Tag enums
   ([#374](https://github.com/stjude-rust-labs/wdl/pull/374)).
 
-#### Changed
+### Changed
 
 * Added `InputSectionNode` and `OutputSectionNode` to `SnakeCase` `exceptable_nodes()`
   ([#343](https://github.com/stjude-rust-labs/wdl/pull/343)).
@@ -391,7 +393,7 @@ dependencies._
 * Replaced `TryFrom` with `FromStr` for Tags
   ([#376](https://github.com/stjude-rust-labs/wdl/pull/376)).
 
-#### Fixed
+### Fixed
 
 * Fixed the `MatchingParameterMeta` rule to also check if the order of inputs matches parameter
   metadata ([#354](https://github.com/stjude-rust-labs/wdl/pull/354))
@@ -408,12 +410,12 @@ dependencies._
 * Added a `RedundantInputAssignment` rule
   ([#244](https://github.com/stjude-rust-labs/wdl/pull/244)).
 
-#### Changed
+### Changed
 
 * Upgraded some `note` diagnostics to `warning` in `ContainerValue` rule
   ([#244](https://github.com/stjude-rust-labs/wdl/pull/244)).
 
-#### Fixed
+### Fixed
 
 * Shortened many reported spans and ensured all lint diagnostics use a `fix` message
   ([#260](https://github.com/stjude-rust-labs/wdl/pull/260)).
@@ -443,13 +445,13 @@ dependencies._
 * Some `warning` diagnostics are now `note` diagnostics
   ([#187](https://github.com/stjude-rust-labs/wdl/pull/187)).
 
-#### Added
+### Added
 
 * Added comments to the trailing whitespace check of the `Whitespace` rule
   ([#177](https://github.com/stjude-rust-labs/wdl/pull/177)).
 * Added a `MalformedLintDirective` rule ([#194](https://github.com/stjude-rust-labs/wdl/pull/194)).
 
-#### Fixed
+### Fixed
 
 * Fixed inline comment detection edge case
   ([#219](https://github.com/stjude-rust-labs/wdl/pull/219)).
@@ -478,7 +480,7 @@ dependencies._
 * Added the `MissingRequirements` lint rule
   ([#142](https://github.com/stjude-rust-labs/wdl/pull/142)).
 
-#### Fixed
+### Fixed
 
 * Fixed `LintVisitor` to support reuse ([#147](https://github.com/stjude-rust-labs/wdl/pull/147)).
 * Fixed a bug in `MissingRuntime` that caused false positives to fire for WDL v1.2 and greater
@@ -502,7 +504,7 @@ dependencies._
 * Added the `BlankLinesBetweenElements` lint rule
   ([#131](https://github.com/stjude-rust-labs/wdl/pull/131)).
 
-#### Fixed
+### Fixed
 
 * Fixed a bug in `SectionOrder` that caused false positives to fire
   ([#129](https://github.com/stjude-rust-labs/wdl/pull/129))
@@ -510,7 +512,7 @@ dependencies._
   blank line after the version statement remaining in the document
   ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
 
-#### Changed
+### Changed
 
 * All lint rule visitations now reset their states upon document entry, allowing a validator to be
   reused between documents ([#110](https://github.com/stjude-rust-labs/wdl/pull/110)).
@@ -532,7 +534,7 @@ dependencies._
 * Added the `InputNotSorted` lint rule ([#100](https://github.com/stjude-rust-labs/wdl/pull/100)).
 * Added the `InputSpacing` lint rule ([#102](https://github.com/stjude-rust-labs/wdl/pull/102)).
 
-#### Fixed
+### Fixed
 
 * Fixed the preamble whitespace rule to check for a blank line following the version statement
   ([#89](https://github.com/stjude-rust-labs/wdl/pull/89)).
@@ -540,7 +542,7 @@ dependencies._
   based on it now being children of the version statement
   ([#85](https://github.com/stjude-rust-labs/wdl/pull/85)).
 
-#### Changed
+### Changed
 
 * Refactored the lint rules so that they directly implement `Visitor`; renamed `ExceptVisitor` to
   `LintVisitor` ([#103](https://github.com/stjude-rust-labs/wdl/pull/103)).
