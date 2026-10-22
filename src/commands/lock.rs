@@ -94,7 +94,9 @@ fn no_container(span: Span, version: SupportedVersion) -> Diagnostic {
         .with_help(
             "tasks should specify a container image, otherwise the engine's default will be used",
         )
-        .with_fix(format!("consider adding a `{section_name}` section"))
+        .with_fix(format!(
+            "consider adding a `{section_name}.container` field"
+        ))
 }
 
 /// Create a "container with placeholder" diagnostic.
@@ -115,7 +117,7 @@ fn unknown_source(span: Span, strict: bool) -> Diagnostic {
     let severity = if strict {
         Severity::Error
     } else {
-        Severity::Note
+        Severity::Warning
     };
 
     Diagnostic::new(severity, "unknown container source")

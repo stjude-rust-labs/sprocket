@@ -202,13 +202,8 @@ pub(crate) fn has_container_requirement(inputs: &TaskInputs, requirements: &Obje
     .is_some()
 }
 
-/// Gets the `container` requirement from a requirements map.
-///
-/// Returns a list of [`ImageSource`] candidates to try in order.
-/// Any [`ImageSource::Any`] entries (from the WDL `*` wildcard) are
-/// resolved to the configured default container.
-/// Resolves an image source string against the provided override map,
-/// wildcard replacement, and default container.
+/// Resolves an image source string against the provided override map and
+/// default container.
 fn resolve_image_source(
     s: &str,
     overrides: &ContainerImageOverrides,
@@ -1013,7 +1008,7 @@ mod tests {
     }
 
     #[test]
-    fn container_resolves_overrides_with_docker_prefix() {
+    fn container_resolves_overrides_without_docker_prefix() {
         let requirements = object_with_value(
             TASK_REQUIREMENT_CONTAINER,
             PrimitiveValue::new_string("foo:1.0").into(),
