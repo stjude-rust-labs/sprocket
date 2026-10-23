@@ -43,8 +43,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:27:3: note[ParameterMetaOrder]: parameter metadata in task `annotsv_annotate` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/ww-annotsv.wdl/#L27"
+message = "ww-annotsv.wdl:36:5: note[ParameterMetaOrder]: parameter metadata in task `annotsv_annotate` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-annotsv/ww-annotsv.wdl/#L36"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
@@ -768,8 +768,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:28:3: note[ParameterMetaOrder]: parameter metadata in task `create_reference` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L28"
+message = "ww-cnvkit.wdl:31:5: note[ParameterMetaOrder]: parameter metadata in task `create_reference` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L31"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -1343,8 +1343,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:29:3: note[ParameterMetaOrder]: parameter metadata in task `combine_count_matrices` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L29"
+message = "ww-deseq2.wdl:35:5: note[ParameterMetaOrder]: parameter metadata in task `combine_count_matrices` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deseq2/ww-deseq2.wdl/#L35"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
@@ -2373,8 +2373,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:27:3: note[ParameterMetaOrder]: parameter metadata in task `readcounter_wig` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L27"
+message = "ww-ichorcna.wdl:31:5: note[ParameterMetaOrder]: parameter metadata in task `readcounter_wig` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L31"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -2888,8 +2888,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:28:3: note[ParameterMetaOrder]: parameter metadata in task `crams_to_fastq` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L28"
+message = "ww-samtools.wdl:29:5: note[ParameterMetaOrder]: parameter metadata in task `crams_to_fastq` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-samtools/ww-samtools.wdl/#L29"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
@@ -3093,6 +3093,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
+message = "ww-sourmash.wdl:103:5: note[ParameterMetaOrder]: parameter metadata in task `gather` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L103"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:120:5: warning[BashSetSyntax]: bad `set` command"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L120"
 
@@ -3113,8 +3118,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:26:3: note[ParameterMetaOrder]: parameter metadata in task `sketch` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L26"
+message = "ww-sourmash.wdl:34:5: note[ParameterMetaOrder]: parameter metadata in task `sketch` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L34"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
@@ -3130,11 +3135,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:62:59: warning[ShellSplitting]: unquoted `String` placeholder is subject to word splitting"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:97:3: note[ParameterMetaOrder]: parameter metadata in task `gather` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-sourmash/ww-sourmash.wdl/#L97"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-spades/testrun.wdl"
@@ -3643,8 +3643,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:235:3: note[ParameterMetaOrder]: parameter metadata in task `download_fastq_data` is out of order"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L235"
+message = "ww-testdata.wdl:236:5: note[ParameterMetaOrder]: parameter metadata in task `download_fastq_data` is out of order"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L236"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
