@@ -1076,7 +1076,7 @@ mod tests {
     fn monitor_continues_after_bjobs_error() {
         let mut state = MonitorState::new();
         let (completed_tx, mut completed_rx) = oneshot::channel();
-        state.add_job(42, 0, &Events::disabled(), completed_tx);
+        state.add_job(42, 0, &Events::default(), completed_tx);
         let state = Mutex::new(state);
 
         Monitor::handle_query_result(

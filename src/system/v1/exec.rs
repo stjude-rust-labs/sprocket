@@ -27,7 +27,7 @@ use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::analysis::Document as AnalysisDocument;
 use wdl::analysis::FeatureFlags;
-use wdl::analysis::TaskRef;
+use wdl::analysis::document::TaskRef;
 use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
