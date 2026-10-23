@@ -480,11 +480,13 @@ impl DocumentGraphNode {
                 version_token.text().parse::<SupportedVersion>(),
                 self.config.fallback_version(),
             ) {
-                // The version in the document is supported, so there's no diagnostic to add
+                // The version in the document is supported, so there's no
+                // diagnostic to add
                 (Ok(version), _) => {
                     wdl_version = Some(version);
                 }
-                // The version in the document is not supported, but fallback behavior is configured
+                // The version in the document is not supported, but fallback
+                // behavior is configured
                 (Err(_), Some(fallback)) => {
                     if let Some(severity) = self.config.diagnostics_config().using_fallback_version
                     {

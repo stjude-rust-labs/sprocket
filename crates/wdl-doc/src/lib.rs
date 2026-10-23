@@ -561,8 +561,9 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                 }
             },
             Err(_) => (
-                // The URI could not be converted to a file path, so it must be a remote WDL file.
-                // In this case, we will generate documentation in the `external/` directory.
+                // The URI could not be converted to a file path, so it must be
+                // a remote WDL file. In this case, we will generate
+                // documentation in the `external/` directory.
                 PathBuf::from("external").join(
                     uri.path()
                         .strip_prefix("/")

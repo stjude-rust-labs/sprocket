@@ -1155,8 +1155,8 @@ impl<S: 'static> Server<S> {
                 res.map(|(end_line, end_col, formatted)| {
                     vec![TextEdit {
                         range: Range {
-                            // NOTE: always replace the full set of text starting at the
-                            // very first position.
+                            // NOTE: always replace the full set of text
+                            // starting at the very first position.
                             start: Position {
                                 line: 0,
                                 character: 0,
@@ -1807,13 +1807,14 @@ impl<S: 'static> LanguageServer for Server<S> {
                         DiagnosticOptions {
                             inter_file_dependencies: true,
                             workspace_diagnostics: true,
-                            // Intentionally disabled as currently VS code doesn't send a work done
-                            // token on the diagnostic requests, only one for partial results;
+                            // Intentionally disabled as currently VS code
+                            // doesn't send a work done token on the diagnostic
+                            // requests, only one for partial results;
                             // instead, we'll use a token created by the
                             // server to report progress.
-                            // work_done_progress_options: WorkDoneProgressOptions {
-                            //     work_done_progress: Some(true),
-                            // },
+                            // work_done_progress_options:
+                            // WorkDoneProgressOptions {     work_done_progress:
+                            // Some(true), },
                             ..Default::default()
                         },
                     )),
@@ -2098,8 +2099,9 @@ impl<S: 'static> LanguageServer for Server<S> {
                     register_options: Some(
                         to_value(DidChangeWatchedFilesRegistrationOptions {
                             watchers: vec![FileSystemWatcher {
-                                // We use a generic glob so we can be notified for when directories,
-                                // which might contain WDL documents, are deleted
+                                // We use a generic glob so we can be notified
+                                // for when directories, which might contain WDL
+                                // documents, are deleted
                                 glob_pattern: GlobPattern::String("**/*".to_string()),
                                 kind: None,
                             }],

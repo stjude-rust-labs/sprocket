@@ -796,10 +796,11 @@ where
                         .and_then(|index| {
                             graph.get(index).root().and_then(|document| {
                                 match graph.get(index).parse_state() {
-                                    // NOTE: if we haven't parsed the document yet, then
-                                    // we don't have the line lengths of the document,
-                                    // so we can't proceed with formatting and we should
-                                    // just silently return.
+                                    // NOTE: if we haven't parsed the document
+                                    // yet, then we don't have the line lengths
+                                    // of the document, so we can't proceed with
+                                    // formatting and we should just silently
+                                    // return.
                                     ParseState::NotParsed | ParseState::Error(_) => None,
                                     ParseState::Parsed {
                                         lines, diagnostics, ..
@@ -1794,25 +1795,24 @@ where
                                         None => continue,
                                     };
 
-                                    let symbolic_path: SymbolicPath = match module_path
-                                        .text()
-                                        .parse()
-                                    {
-                                        Ok(path) => path,
-                                        Err(e) => {
-                                            // Record the syntax failure so the
-                                            // import surfaces a precise
-                                            // diagnostic
-                                            // instead of the generic "not in a
-                                            // module" message during analysis.
-                                            graph.insert_failed_symbolic_import(
-                                                index,
-                                                module_path.text().to_string(),
-                                                e.to_string(),
-                                            );
-                                            continue;
-                                        }
-                                    };
+                                    let symbolic_path: SymbolicPath =
+                                        match module_path.text().parse() {
+                                            Ok(path) => path,
+                                            Err(e) => {
+                                                // Record the syntax failure so
+                                                // the import surfaces a precise
+                                                // diagnostic
+                                                // instead of the generic "not
+                                                // in a module" message during
+                                                // analysis.
+                                                graph.insert_failed_symbolic_import(
+                                                    index,
+                                                    module_path.text().to_string(),
+                                                    e.to_string(),
+                                                );
+                                                continue;
+                                            }
+                                        };
 
                                     // Collapse imports of the same dependency
                                     // from the same module into one

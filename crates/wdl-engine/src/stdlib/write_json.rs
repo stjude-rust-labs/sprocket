@@ -70,8 +70,8 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(value: X) -> File where `X`: any JSON-serializable type",
-                // The `write_json` callback does not need to be async as `serde-json` doesn't
-                // support async writers
+                // The `write_json` callback does not need to be async as
+                // `serde-json` doesn't support async writers
                 Callback::Sync(write_json),
             )]
         },
