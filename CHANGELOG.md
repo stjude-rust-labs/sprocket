@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.33.0 - 2026-10-23
+
 ### Added
 
 * Added `sprocket dev module schema` subcommand to generate a [JSON schema](https://json-schema.org)
