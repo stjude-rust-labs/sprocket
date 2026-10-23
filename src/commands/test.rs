@@ -190,8 +190,9 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
-    /// Enable custom assertions. **Warning:** this may run arbitrary user code
-    /// on the host machine!
+    /// Enable custom assertions.
+    ///
+    /// **Warning:** this may run arbitrary user code on the host machine!
     #[clap(long)]
     pub enable_custom_assertions: bool,
     /// Disable checking whether custom assertion executables have been blessed.
