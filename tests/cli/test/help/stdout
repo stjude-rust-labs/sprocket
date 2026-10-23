@@ -75,7 +75,9 @@ Options:
           Increase logging verbosity
 
       --enable-custom-assertions
-          Enable custom assertions. **Warning:** this may run arbitrary user code on the host machine!
+          Enable custom assertions.
+
+          **Warning:** this may run arbitrary user code on the host machine!
 
   -q, --quiet...
           Decrease logging verbosity
