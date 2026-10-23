@@ -259,6 +259,9 @@ async fn real_main() -> CommandResult<()> {
         Commands::Inputs(args) => commands::inputs::inputs(args, config, output).await,
         Commands::Lint(args) => commands::check::lint(args, config, output).await,
         Commands::Run(args) => commands::run::run(args, config, output, file_handle, writer).await,
+        Commands::Test(args) => {
+            commands::test::test(args, config, output, indicatif_writers.stdout, writer).await
+        }
         Commands::Validate(args) => commands::validate::validate(args, config, output).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, output).await
@@ -271,9 +274,6 @@ async fn real_main() -> CommandResult<()> {
         }
         Commands::Dev(commands::DevCommands::Server(args)) => {
             commands::server::server(args, config, output).await
-        }
-        Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args, config, output, indicatif_writers.stdout, writer).await
         }
     }
 }

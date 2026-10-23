@@ -208,7 +208,7 @@ pub struct Args {
     pub command: Option<Subcommand>,
 }
 
-/// Subcommands for `sprocket dev test`
+/// Subcommands for `sprocket test`
 #[derive(clap::Subcommand, Debug)]
 pub enum Subcommand {
     /// Print the JSON schema for Sprocket test definition YAMLs to stdout.

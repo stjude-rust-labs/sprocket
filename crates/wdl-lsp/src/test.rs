@@ -1,4 +1,4 @@
-//! Utilities for working with `sprocket dev test` test definitions.
+//! Utilities for working with `sprocket test` test definitions.
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -15,7 +15,7 @@ use url::Url;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::IncrementalChange;
 
-/// The parse status of a `sprocket dev test` YAML file.
+/// The parse status of a `sprocket test` YAML file.
 #[derive(Clone, Debug)]
 pub enum Document {
     /// The document was successfully parsed.
@@ -25,7 +25,7 @@ pub enum Document {
     Failed(Diagnostics),
 }
 
-/// A `sprocket dev test` YAML file.
+/// A `sprocket test` YAML file.
 #[derive(Clone, Debug)]
 pub struct SprocketTestYaml {
     /// The line index of the document.
@@ -38,7 +38,7 @@ pub struct SprocketTestYaml {
     pub document: Option<Document>,
 }
 
-/// A cache of all known `sprocket dev test` YAML files.
+/// A cache of all known `sprocket test` YAML files.
 #[derive(Debug, Default)]
 pub struct SprocketTestCache {
     /// The documents in the cache.
