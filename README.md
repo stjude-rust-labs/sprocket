@@ -40,13 +40,13 @@
 - **`sprocket dev`** subcommand containing developmental and experimental commands:
   - **`sprocket dev doc`** generates documentation for a WDL workspace.
   - **`sprocket dev server`** runs an HTTP API server for workflow execution.
-  - **`sprocket dev test`** runs unit tests for a WDL workspace.
 - **`sprocket explain`** explains validation and lint rules supported by Sprocket.
 - **`sprocket format`** formats a document or directory of documents.
 - **`sprocket inputs`** writes template input file (JSON or YAML) for a task or workflow.
 - **`sprocket lint`** performs static analysis on a document or directory of documents with
   additional linting rules enabled (effectively a shortcut for `check --lint`).
 - **`sprocket run`** runs a task or workflow.
+- **`sprocket test`** runs unit tests for a WDL workspace.
 - **`sprocket validate`** validates a set of inputs read from files or on the command line against a
   task or workflow.
 

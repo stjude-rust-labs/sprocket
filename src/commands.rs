@@ -26,6 +26,7 @@ pub mod format;
 pub mod inputs;
 pub mod lock;
 pub mod module;
+#[macro_use]
 pub mod run;
 pub mod server;
 pub mod test;
@@ -145,6 +146,9 @@ pub enum Commands {
     /// Runs a task or workflow.
     Run(run::Args),
 
+    /// Runs unit tests for a WDL workspace.
+    Test(test::Args),
+
     /// Validate a set of inputs against a task or workflow.
     ///
     /// This ensures that every required input is supplied, every supplied input
@@ -174,8 +178,6 @@ pub enum DevCommands {
     /// Run-management server commands (start, submit, status, inspect, cancel,
     /// retry).
     Server(server::Args),
-    /// Runs unit tests for a WDL workspace.
-    Test(test::Args),
 }
 
 /// A command operation with completed and planned forms.

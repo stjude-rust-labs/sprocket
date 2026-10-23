@@ -324,7 +324,7 @@ mod tests {
             current_schema_pretty,
             json_schema().trim(),
             "The `sprocket test` schema at `{}` is out of date! Update it with the output of \
-             `sprocket dev test schema`.",
+             `sprocket test schema`.",
             json_schema_path().display()
         );
     }
