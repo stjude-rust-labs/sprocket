@@ -2893,7 +2893,8 @@ impl Coercible for CompoundValue {
                         v.0.right.clone(),
                     )?));
                 }
-                // Enum -> Enum, Enum -> Enum?, Enum? -> Enum? where: same enum type
+                // Enum -> Enum, Enum -> Enum?, Enum? -> Enum? where: same enum
+                // type
                 (Self::EnumChoice(v), CompoundType::Custom(CustomType::Enum(target_ty))) => {
                     if v.enum_ty().eq(target_ty) {
                         return Ok(self.clone());

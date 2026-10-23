@@ -2475,8 +2475,9 @@ impl LsfQueueConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("bqueues").arg(queue).output(),
         )
@@ -2698,8 +2699,9 @@ impl SlurmPartitionConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("scontrol")
                 .arg("show")

@@ -514,7 +514,8 @@ fn add_namespace(
                 let b = s.definition();
                 if !are_structs_equal(&a, &b) {
                     match prev {
-                        // Import conflicts with a struct defined in this document
+                        // Import conflicts with a struct defined in this
+                        // document
                         StructRef::Local(prev) => {
                             diagnostics.add(struct_conflicts_with_import(
                                 aliased_name,
@@ -577,7 +578,8 @@ fn add_namespace(
                 let b = e.definition();
                 if !are_enums_equal(&a, &b) {
                     match prev {
-                        // Import conflicts with an enum defined in this document
+                        // Import conflicts with an enum defined in this
+                        // document
                         EnumRef::Local(prev) => {
                             diagnostics.add(enum_conflicts_with_import(
                                 aliased_name,
@@ -2699,8 +2701,9 @@ fn resolve_import<'a>(
             let span = uri.span();
             let text = match uri.text() {
                 Some(text) => text,
-                // The import URI isn't valid; this is caught at validation time, so we do not
-                // emit any additional diagnostics for it here.
+                // The import URI isn't valid; this is caught at validation
+                // time, so we do not emit any additional diagnostics for it
+                // here.
                 None => return Err(None),
             };
             let label = text.text().to_string();
@@ -2774,8 +2777,8 @@ fn resolve_import<'a>(
         match imported_document.root().version_statement() {
             // The import's version statement is flat-out missing
             None => return Err(Some(import_missing_version(span))),
-            // The import has a version statement, but it's not a supported version and no fallback
-            // is configured
+            // The import has a version statement, but it's not a supported
+            // version and no fallback is configured
             Some(imported_version_stmt) => {
                 return Err(Some(incompatible_import(
                     imported_version_stmt.version().text(),
