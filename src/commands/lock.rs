@@ -45,6 +45,7 @@ use crate::commands::Action;
 use crate::commands::CommandError;
 use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+use crate::config::LockConfig;
 use crate::lock::file::LockFile;
 
 /// Name for the lock file.
@@ -124,15 +125,31 @@ fn unknown_source(span: Span, strict: bool) -> Diagnostic {
         .with_label("this will not be included in the lockfile", span)
 }
 
+/// Create an "missing container registry" diagnostic.
+fn unknown_sylabs_registry(span: Span, strict: bool) -> Diagnostic {
+    let severity = if strict {
+        Severity::Error
+    } else {
+        Severity::Warning
+    };
+
+    Diagnostic::new(severity, "missing Sylabs library registry")
+        .with_label("this will not be included in the lockfile", span)
+        .with_help("registries must be known ahead of time for Sylabs images")
+        .with_fix("add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a default under [lock.sylabs].registry")
+}
+
 /// Determine the container images that the `task` references.
 fn task_container_images(
     task: TaskDefinition,
     version: SupportedVersion,
+    config: &LockConfig,
     strict: bool,
 ) -> (Vec<ImageSource>, Diagnostics) {
     fn check_string(
         expr: &Expr,
         s: &LiteralString,
+        config: &LockConfig,
         containers: &mut Vec<ImageSource>,
         diagnostics: &mut Diagnostics,
         strict: bool,
@@ -157,7 +174,12 @@ fn task_container_images(
                         containers.push(source);
                     }
                     ImageSource::Library(ref image) => {
-                        if image.contains(":sha256.") {
+                        if image.registry.is_none() && config.sylabs.library.is_none() {
+                            diagnostics.add(unknown_sylabs_registry(expr.span(), strict));
+                            return;
+                        }
+
+                        if image.container.contains(":sha256.") {
                             // Nothing to do, already locked
                             return;
                         }
@@ -197,7 +219,7 @@ fn task_container_images(
 
     match expr {
         Expr::Literal(LiteralExpr::String(ref s)) => {
-            check_string(&expr, s, &mut containers, &mut diagnostics, strict);
+            check_string(&expr, s, config, &mut containers, &mut diagnostics, strict);
         }
         Expr::Literal(LiteralExpr::Array(arr)) => {
             for e in arr.elements() {
@@ -205,7 +227,7 @@ fn task_container_images(
                     unreachable!("should be handled by validation");
                 };
 
-                check_string(&e, s, &mut containers, &mut diagnostics, strict);
+                check_string(&e, s, config, &mut containers, &mut diagnostics, strict);
             }
         }
         _ => {
@@ -265,7 +287,11 @@ impl LockContext {
     }
 
     /// Attempt to resolve the digests of all specified images.
-    async fn resolve_digests(&mut self, colorize: bool) -> anyhow::Result<ImageOverrideMap> {
+    async fn resolve_digests(
+        &mut self,
+        colorize: bool,
+        config: &LockConfig,
+    ) -> anyhow::Result<ImageOverrideMap> {
         let template = if colorize {
             "[{elapsed_precise:.cyan/blue}] {spinner:.cyan/blue} checking image {msg} ({pos}/{len})"
         } else {
@@ -296,14 +322,14 @@ impl LockContext {
                     map.insert(source.clone(), ImageDigests::OciManifest(locked_source));
                 }
                 ImageSource::Library(image) => {
-                    let Some((image, tag)) = image.rsplit_once(':') else {
+                    if image.container.rsplit_once(':').is_none() {
                         return Err(anyhow!("image doesn't specify a tag"));
-                    };
+                    }
 
                     let digests = crate::lock::sylabs::resolve_sylabs_image(
                         self.http_client.as_ref().expect("should be set"),
                         image,
-                        tag,
+                        config,
                     )
                     .await?;
 
@@ -372,7 +398,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
             .tasks()
         {
             let (sources, diagnostics) =
-                task_container_images(task, doc.version().unwrap(), args.strict);
+                task_container_images(task, doc.version().unwrap(), &config.lock, args.strict);
             emit_diagnostics(
                 &doc.path(),
                 &doc.root().text().to_string(),
@@ -390,7 +416,9 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     }
 
     let mut context = LockContext::init(images)?;
-    let resolved_images = context.resolve_digests(output.colorize).await?;
+    let resolved_images = context
+        .resolve_digests(output.colorize, &config.lock)
+        .await?;
 
     if resolved_images.is_empty() {
         warn!("no applicable images were found");

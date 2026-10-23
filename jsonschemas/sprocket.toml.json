@@ -43,6 +43,10 @@
     "modules": {
       "description": "Configuration for the module system (`[modules]` section).",
       "$ref": "#/$defs/ModulesConfig"
+    },
+    "lock": {
+      "description": "Configuration for the `lock` command.",
+      "$ref": "#/$defs/LockConfig"
     }
   },
   "additionalProperties": false,
@@ -3272,6 +3276,32 @@
           "const": "confirm"
         }
       ]
+    },
+    "LockConfig": {
+      "description": "Configuration for the `lock` subcommand.",
+      "type": "object",
+      "properties": {
+        "sylabs": {
+          "description": "Configuration for locking Sylabs cloud images.",
+          "$ref": "#/$defs/SylabsLockConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SylabsLockConfig": {
+      "description": "Configuration for locking Sylabs cloud images.",
+      "type": "object",
+      "properties": {
+        "library": {
+          "description": "The default registry to download images from.\n\nFor `library://` container images that *don't* specify a registry (e.g.,\n`library://sylabs/default/alpine:3.18`), this is the registry that will\nbe used.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

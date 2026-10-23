@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -65,6 +66,84 @@ const SIF_EXTENSION: &str = "sif";
 /// acceptable.
 const WILDCARD_CONTAINER: &str = "*";
 
+/// A parsed Sylabs cloud URI (`library://`).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SylabsLibraryUri {
+    /// The registry hosting the image, if specified.
+    pub registry: Option<String>,
+    entity: Option<String>,
+    collection: Option<String>,
+    /// The container image name.
+    pub container: String,
+}
+
+impl SylabsLibraryUri {
+    /// The entity (user) responsible for the image.
+    pub fn entity(&self) -> &str {
+        self.entity.as_deref().unwrap_or("library")
+    }
+
+    /// The collection that the image belongs to.
+    pub fn collection(&self) -> &str {
+        self.collection.as_deref().unwrap_or("default")
+    }
+}
+
+impl FromStr for SylabsLibraryUri {
+    type Err = ();
+
+    fn from_str(s: &str) -> anyhow::Result<Self, Self::Err> {
+        // library://library.sylabs.io/library/default/ubuntu:latest
+        //           ----------------- ------- ------- -------------
+        //                   |            |       |          |
+        //                registry      entity collection   image
+
+        let mut parts = s.split('/').collect::<Vec<_>>();
+
+        let registry = if parts.len() > 1 && parts[0].contains('.') {
+            Some(parts.remove(0))
+        } else {
+            None
+        };
+
+        let (entity, collection, container) = match parts.len() {
+            // library://ubuntu:latest
+            1 => (None, None, parts[0]),
+            // library://entity/ubuntu:latest
+            2 => (Some(parts[0]), None, parts[1]),
+            // library://library/default/ubuntu:latest
+            3 => (Some(parts[0]), Some(parts[1]), parts[2]),
+            _ => return Err(()),
+        };
+
+        Ok(Self {
+            registry: registry.map(ToString::to_string),
+            entity: entity.map(ToString::to_string),
+            collection: collection.map(ToString::to_string),
+            container: container.to_string(),
+        })
+    }
+}
+
+impl Display for SylabsLibraryUri {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(registry) = &self.registry {
+            write!(f, "{registry}/")?;
+        }
+
+        write!(
+            f,
+            "{}/{}/{}",
+            self.entity(),
+            self.collection(),
+            self.container
+        )?;
+
+        Ok(())
+    }
+}
+
 /// Represents the source of a container image.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -72,7 +151,7 @@ pub enum ImageSource {
     /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
     /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
-    Library(String),
+    Library(SylabsLibraryUri),
     /// An OCI Registry as Storage image (e.g., `oras://ghcr.io/org/image`).
     Oras(String),
     /// A local SIF file (e.g., `file:///path/to/image.sif`).
@@ -116,9 +195,10 @@ impl ImageSource {
     /// Gets the display name of the image source.
     ///
     /// Returns `None` if the source is a file or an unknown source.
-    pub fn name(&self) -> Option<&str> {
+    pub fn name(&self) -> Option<Cow<'_, str>> {
         match self {
-            Self::Docker(name) | Self::Library(name) | Self::Oras(name) => Some(name),
+            Self::Library(uri) => Some(Cow::Owned(uri.to_string())),
+            Self::Docker(name) | Self::Oras(name) => Some(Cow::Borrowed(name)),
             Self::SifFile(_) | Self::Unknown(_) => None,
         }
     }
@@ -130,7 +210,7 @@ impl ImageSource {
         match self {
             ImageSource::SifFile(path) => format!("file://{}", path.display()),
             ImageSource::Unknown(unknown) => unknown.clone(),
-            _ => format!("{}://{}", self.scheme().unwrap(), self.name().unwrap()),
+            ImageSource::Docker(_) | ImageSource::Oras(_) | ImageSource::Library(_) => format!("{}://{}", self.scheme().unwrap(), self.name().unwrap()),
         }
     }
 }
@@ -153,7 +233,7 @@ impl FromStr for ImageSource {
             return Ok(Self::Docker(image.to_string()));
         }
         if let Some(image) = s.strip_prefix(LIBRARY_PROTOCOL) {
-            return Ok(Self::Library(image.to_string()));
+            return SylabsLibraryUri::from_str(image).map(Self::Library).or_else(|_| Ok(Self::Unknown(s.to_string())));
         }
         if let Some(image) = s.strip_prefix(ORAS_PROTOCOL) {
             return Ok(Self::Oras(image.to_string()));
@@ -183,7 +263,8 @@ impl std::fmt::Display for ImageSource {
         } else {
             // Normal format omits protocol prefix.
             match self {
-                Self::Docker(s) | Self::Library(s) | Self::Oras(s) | Self::Unknown(s) => {
+                Self::Library(s) => write!(f, "{s}"),
+                Self::Docker(s) | Self::Oras(s) | Self::Unknown(s) => {
                     write!(f, "{s}")
                 }
                 Self::SifFile(p) => write!(f, "{}", p.display()),
@@ -351,9 +432,10 @@ pub(crate) fn gpu(inputs: &TaskInputs, requirements: &Object, hints: &Object) ->
 
     match hint.as_integer() {
         Some(count) if count >= 1 => Some(count as u64),
-        // If the hint is zero or negative, it's not clear what the user intends. Maybe they have
-        // tried to disable GPUs by setting the count to zero, or have made a logic error. Emit a
-        // warning, and continue with no GPU request.
+        // If the hint is zero or negative, it's not clear what the user
+        // intends. Maybe they have tried to disable GPUs by setting the count
+        // to zero, or have made a logic error. Emit a warning, and continue
+        // with no GPU request.
         Some(count) => {
             warn!(
                 %count,
@@ -654,7 +736,12 @@ mod tests {
             toml_spanner::from_str(r#"img = "library://sylabs/default/alpine:3.18""#).unwrap();
         assert_eq!(
             library.img,
-            ImageSource::Library("sylabs/default/alpine:3.18".to_string())
+            ImageSource::Library(SylabsLibraryUri {
+                registry: None,
+                entity: Some(String::from("sylabs")),
+                collection: Some(String::from("default")),
+                container: String::from("alpine:3.18"),
+            })
         );
     }
 
@@ -722,7 +809,12 @@ mod tests {
         let source: ImageSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
         assert_eq!(
             source,
-            ImageSource::Library("sylabs/default/alpine:3.18".to_string())
+            ImageSource::Library(SylabsLibraryUri {
+                registry: None,
+                entity: Some(String::from("sylabs")),
+                collection: Some(String::from("default")),
+                container: String::from("alpine:3.18"),
+            })
         );
         assert_eq!(source.to_string(), "sylabs/default/alpine:3.18");
         assert_eq!(

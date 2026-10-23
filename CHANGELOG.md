@@ -11,6 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Implemented `sprocket dev lock` to pin `task` container images
   ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* Added `[lock.sylabs]` configuration section to configure Sylabs image registries
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 * Added `sprocket dev module schema` subcommand to generate a [JSON schema](https://json-schema.org)
   for WDL `module.json` definitions
   ([#1295](https://github.com/stjude-rust-labs/sprocket/pull/1295)).

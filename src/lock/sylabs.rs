@@ -7,13 +7,15 @@ use anyhow::bail;
 use axum::http::StatusCode;
 use reqwest::Client;
 use serde::Deserialize;
-use wdl::engine::v1::requirements::ImageSource;
+use wdl::engine::v1::requirements::{ImageSource, SylabsLibraryUri};
+
+use crate::config::LockConfig;
 
 /// Determine the architecture-specific digests for a Sylabs Cloud image.
 pub async fn resolve_sylabs_image(
     client: &Client,
-    image: &str,
-    tag: &str,
+    uri: &SylabsLibraryUri,
+    config: &LockConfig,
 ) -> anyhow::Result<BTreeMap<String, ImageSource>> {
     /// Mapping of Sylabs architecture variants ->
     /// [`std::env::consts::ARCH`] variants.
@@ -36,34 +38,18 @@ pub async fn resolve_sylabs_image(
         hash: String,
     }
 
-    // library://library.sylabs.io/library/default/ubuntu:latest
-    //           ----------------- ------- ------- -------------
-    //                   |            |       |          |
-    //                registry      entity collection   image
-
-    let mut parts = image.split('/').collect::<Vec<_>>();
-
-    let registry = if !parts.is_empty() && (parts[0].contains('.') || parts[0].contains(':')) {
-        parts.remove(0)
-    } else {
-        "library.sylabs.io"
-    };
-
-    let (entity, collection, container) = match parts.len() {
-        // library://ubuntu:latest
-        1 => ("library", "default", String::from(parts[0])),
-        // library://entity/ubuntu:latest
-        2 => (parts[0], "default", String::from(parts[1])),
-        // library://library/default/ubuntu:latest
-        3 => (parts[0], parts[1], String::from(parts[2])),
-        _ => bail!("invalid image format"),
+    let Some(registry) = uri.registry.as_deref().or(config.sylabs.library.as_deref()) else {
+        bail!("image `{uri}` doesn't specify a registry");
     };
 
     let mut resolved_digests = BTreeMap::new();
 
     for (arch, normalized_arch) in SUPPORTED_ARCHITECTURES {
         let url = format!(
-            "https://{registry}/v1/images/{entity}/{collection}/{container}:{tag}?arch={arch}",
+            "https://{registry}/v1/images/{entity}/{collection}/{container}?arch={arch}",
+            entity = uri.entity(),
+            collection = uri.collection(),
+            container = uri.container,
         );
 
         let request = client.get(&url).build()?;
@@ -75,21 +61,25 @@ pub async fn resolve_sylabs_image(
                     .json::<Response>()
                     .await
                     .context("failed to parse response")?;
+
+                let mut uri = uri.clone();
+                uri.container = format!("{}:{}", uri.container, response.data.hash);
+
                 resolved_digests.insert(
                     normalized_arch.to_string(),
-                    ImageSource::Library(format!("{image}:{}", response.data.hash)),
+                    ImageSource::Library(uri),
                 );
             }
             // Assume this means the specified arch isn't supported
             StatusCode::NOT_FOUND => {}
             _ => {
-                bail!("failed to inspect image `{image}:{tag}` for arch `{arch}`");
+                bail!("failed to inspect image `{uri}` for arch `{arch}`");
             }
         }
     }
 
     if resolved_digests.is_empty() {
-        bail!("`{image}:{tag}` was not found for any architecture on `{registry}`");
+        bail!("`{uri}` was not found for any architecture on `{registry}`");
     }
 
     Ok(resolved_digests)

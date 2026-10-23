@@ -224,6 +224,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub modules: ModulesConfig,
+    /// Configuration for the `lock` command.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub lock: LockConfig,
 }
 
 impl Config {
@@ -1182,6 +1186,32 @@ impl Default for DocSeoConfig {
             theme_color: sentinel_doc_config_value().into(),
         }
     }
+}
+
+/// Configuration for the `lock` subcommand.
+#[derive(Default, Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct LockConfig {
+    /// Configuration for locking Sylabs cloud images.
+    #[toml(default)]
+    #[schemars(default)]
+    pub sylabs: SylabsLockConfig,
+}
+
+/// Configuration for locking Sylabs cloud images.
+#[derive(Default, Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct SylabsLockConfig {
+    /// The default registry to download images from.
+    ///
+    /// For `library://` container images that *don't* specify a registry (e.g.,
+    /// `library://sylabs/default/alpine:3.18`), this is the registry that will
+    /// be used.
+    #[toml(default)]
+    #[schemars(default)]
+    pub library: Option<String>,
 }
 
 impl Config {
