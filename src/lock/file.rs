@@ -11,10 +11,16 @@ use toml_spanner::Key;
 use toml_spanner::Table;
 use toml_spanner::ToToml;
 use toml_spanner::ToTomlError;
+use wdl::ast::Diagnostic;
+use wdl::ast::Severity;
+use wdl::ast::Span;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::images::ContainerImageOverrides;
 use wdl::engine::images::ImageOverrideMap;
 
 use crate::analysis::Source;
+use crate::commands::CommandOutput;
 use crate::commands::lock::LOCK_FILE;
 use crate::config::CONFIG_FILENAME;
 
@@ -153,7 +159,11 @@ impl LockFile {
     /// root.
     ///
     /// Returns `Ok(None)` if no lock file is found.
-    pub(crate) fn locate(source: &Source) -> anyhow::Result<Option<Self>> {
+    pub(crate) fn locate(
+        source: &Source,
+        report_mode: Mode,
+        output: CommandOutput,
+    ) -> anyhow::Result<Option<Self>> {
         let start_dir = match source.local_start_dir() {
             Some(dir) => dir,
             None => std::env::current_dir().context("failed to get current directory")?,
@@ -169,9 +179,46 @@ impl LockFile {
                     Err(e) => bail!("failed to read `{}`: {e}", candidate.display()),
                 };
 
-                return toml_spanner::from_str(&lock_file)
-                    .context("failed to parse lock file")
-                    .map(Some);
+                match toml_spanner::from_str(&lock_file) {
+                    Ok(file) => return Ok(Some(file)),
+                    Err(e) => {
+                        let mut diagnostics = Vec::with_capacity(e.errors.len());
+                        for e in e.errors {
+                            let mut diagnostic = Diagnostic::error(e.message(&lock_file))
+                                .with_severity(Severity::Error);
+
+                            for (span, text) in [e.primary_label(), e.secondary_label()]
+                                .into_iter()
+                                .flatten()
+                            {
+                                let span = Span::new(
+                                    span.start as usize,
+                                    (span.end - span.start) as usize,
+                                );
+                                let text: &str = text.trim();
+
+                                if text.is_empty() {
+                                    diagnostic = diagnostic.with_highlight(span);
+                                } else {
+                                    diagnostic = diagnostic.with_label(text, span);
+                                }
+                            }
+
+                            diagnostics.push(diagnostic);
+                        }
+
+                        emit_diagnostics(
+                            &candidate.display().to_string(),
+                            &lock_file,
+                            &diagnostics,
+                            report_mode,
+                            output.colorize(),
+                        )
+                        .context("failed to emit diagnostics")?;
+
+                        bail!("failed to parse lock file")
+                    }
+                }
             }
 
             if dir.join(".git").is_dir() || dir.join(CONFIG_FILENAME).is_file() {

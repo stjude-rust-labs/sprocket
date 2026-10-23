@@ -928,10 +928,12 @@ pub async fn run(
             .context("failed to modify tracing filter")?;
     }
 
+    let report_mode = config.common.report_mode;
+
     let lock_file = if args.unlocked {
         LockFile::default()
     } else {
-        let file = LockFile::locate(&source)?;
+        let file = LockFile::locate(&source, report_mode, output)?;
         if args.locked && file.is_none() {
             return Err(
                 anyhow!("--locked cannot be used without a `sprocket.lock` present").into(),
@@ -941,7 +943,6 @@ pub async fn run(
         file.unwrap_or_default()
     };
 
-    let report_mode = config.common.report_mode;
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
     }

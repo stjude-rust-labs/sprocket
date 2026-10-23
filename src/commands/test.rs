@@ -1046,7 +1046,7 @@ pub async fn test(
     let lock_file = if args.unlocked {
         LockFile::default()
     } else {
-        LockFile::locate(&source)?.unwrap_or_default()
+        LockFile::locate(&source, report_mode, output)?.unwrap_or_default()
     };
 
     let analysis_results = Analysis::default()
