@@ -186,7 +186,8 @@ impl TesBackend {
                 .http(http)
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
                 .build(),
-            // SAFETY: the URL is the only required field and it was supplied above
+            // SAFETY: the URL is the only required field and it was supplied
+            // above
             client.try_build().unwrap(),
             names.clone(),
         )

@@ -333,8 +333,8 @@ impl ApptainerRuntime {
         );
 
         let pull = Retry::spawn_notify(
-            // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
-            // with flakiness of the container registries. This is a
+            // TODO ACF 2025-09-22: configure the retry behavior based on actual
+            // experience with flakiness of the container registries. This is a
             // finger-in-the-wind guess at some reasonable parameters that
             // shouldn't lead to us making our own problems worse by
             // overwhelming registries with repeated retries.
