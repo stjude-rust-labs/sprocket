@@ -136,7 +136,10 @@ fn unknown_sylabs_registry(span: Span, strict: bool) -> Diagnostic {
     Diagnostic::new(severity, "missing Sylabs library registry")
         .with_label("this will not be included in the lockfile", span)
         .with_help("registries must be known ahead of time for Sylabs images")
-        .with_fix("add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a default under [lock.sylabs].registry")
+        .with_fix(
+            "add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a \
+             default under [lock.sylabs].registry",
+        )
 }
 
 /// Determine the container images that the `task` references.

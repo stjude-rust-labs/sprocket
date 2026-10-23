@@ -72,7 +72,9 @@ const WILDCARD_CONTAINER: &str = "*";
 pub struct SylabsLibraryUri {
     /// The registry hosting the image, if specified.
     pub registry: Option<String>,
+    /// The entity (user) responsible for the image.
     entity: Option<String>,
+    /// The collection that the image belongs to.
     collection: Option<String>,
     /// The container image name.
     pub container: String,
@@ -210,7 +212,9 @@ impl ImageSource {
         match self {
             ImageSource::SifFile(path) => format!("file://{}", path.display()),
             ImageSource::Unknown(unknown) => unknown.clone(),
-            ImageSource::Docker(_) | ImageSource::Oras(_) | ImageSource::Library(_) => format!("{}://{}", self.scheme().unwrap(), self.name().unwrap()),
+            ImageSource::Docker(_) | ImageSource::Oras(_) | ImageSource::Library(_) => {
+                format!("{}://{}", self.scheme().unwrap(), self.name().unwrap())
+            }
         }
     }
 }
@@ -233,7 +237,9 @@ impl FromStr for ImageSource {
             return Ok(Self::Docker(image.to_string()));
         }
         if let Some(image) = s.strip_prefix(LIBRARY_PROTOCOL) {
-            return SylabsLibraryUri::from_str(image).map(Self::Library).or_else(|_| Ok(Self::Unknown(s.to_string())));
+            return SylabsLibraryUri::from_str(image)
+                .map(Self::Library)
+                .or_else(|_| Ok(Self::Unknown(s.to_string())));
         }
         if let Some(image) = s.strip_prefix(ORAS_PROTOCOL) {
             return Ok(Self::Oras(image.to_string()));

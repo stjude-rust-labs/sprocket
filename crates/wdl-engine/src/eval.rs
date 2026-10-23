@@ -1156,7 +1156,10 @@ impl EvaluatedTask {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
+    use crate::v1::requirements::SylabsLibraryUri;
 
     #[test]
     fn cancellation_slow() {
@@ -1437,7 +1440,9 @@ mod tests {
     #[test]
     fn constraints_snapshot_captures_the_resolved_resources() {
         let constraints = TaskExecutionConstraints {
-            sources: vec![ImageSource::Library("example.org/tools/tool:1".to_string())],
+            sources: vec![ImageSource::Library(
+                SylabsLibraryUri::from_str("example.org/tools/tool:1").unwrap(),
+            )],
             cpu: 4.0,
             memory: 8 * 1024 * 1024 * 1024,
             gpu: vec!["nvidia-tesla-t4".to_string()],
@@ -1448,7 +1453,7 @@ mod tests {
         let snapshot = TaskConstraintsSnapshot::from(&constraints);
         assert_eq!(
             snapshot.container.as_deref(),
-            Some("library://example.org/tools/tool:1")
+            Some("library://example.org/tools/default/tool:1")
         );
         assert_eq!(snapshot.cpu, 4.0);
         assert_eq!(snapshot.memory, 8 * 1024 * 1024 * 1024);

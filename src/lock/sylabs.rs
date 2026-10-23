@@ -7,7 +7,8 @@ use anyhow::bail;
 use axum::http::StatusCode;
 use reqwest::Client;
 use serde::Deserialize;
-use wdl::engine::v1::requirements::{ImageSource, SylabsLibraryUri};
+use wdl::engine::v1::requirements::ImageSource;
+use wdl::engine::v1::requirements::SylabsLibraryUri;
 
 use crate::config::LockConfig;
 
@@ -65,10 +66,7 @@ pub async fn resolve_sylabs_image(
                 let mut uri = uri.clone();
                 uri.container = format!("{}:{}", uri.container, response.data.hash);
 
-                resolved_digests.insert(
-                    normalized_arch.to_string(),
-                    ImageSource::Library(uri),
-                );
+                resolved_digests.insert(normalized_arch.to_string(), ImageSource::Library(uri));
             }
             // Assume this means the specified arch isn't supported
             StatusCode::NOT_FOUND => {}
