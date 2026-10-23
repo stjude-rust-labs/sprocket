@@ -189,6 +189,9 @@ keywords = ["TODO"]
 [check.rules.UnusedDocComments]
 severity = "note"
 
+[check.rules.StructOverMap]
+severity = "off"
+
 [analyzer]
 lint = false
 

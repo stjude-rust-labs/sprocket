@@ -36,6 +36,7 @@ mod requirements_section;
 mod runtime_section;
 mod shell_splitting;
 mod shellcheck;
+mod struct_over_map;
 mod unknown_runtime_keys;
 mod unused_doc_comments;
 
@@ -75,5 +76,6 @@ pub use requirements_section::*;
 pub use runtime_section::*;
 pub use shell_splitting::*;
 pub use shellcheck::*;
+pub use struct_over_map::*;
 pub use unknown_runtime_keys::*;
 pub use unused_doc_comments::*;

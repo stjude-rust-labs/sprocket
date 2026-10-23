@@ -7,11 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* New lint rule `StructOverMap` to detect usage of `Map[String, ...]` types, encouraging the use of
+  `struct`s when possible ([#850](https://github.com/stjude-rust-labs/sprocket/pull/850)).
+
 ### Fixed
 
 * `MetaSections` lint rule no longer requires `parameter_meta` for `struct`s whose members are fully
   documented by doc comments ([#1285](https://github.com/stjude-rust-labs/sprocket/pull/1285)).
-
 * `MetaSections` now suggests doc comments instead of `meta` or `parameter_meta` for structs in v1.1
   and v1.0 documents ([#1209](https://github.com/stjude-rust-labs/sprocket/issues/1209))
 
