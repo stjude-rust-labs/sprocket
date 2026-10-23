@@ -24,6 +24,7 @@ pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
+pub mod localize;
 pub mod lock;
 pub mod module;
 pub mod run;
@@ -141,6 +142,13 @@ pub enum Commands {
 
     /// Lints a document or a directory containing documents.
     Lint(check::LintArgs),
+
+    /// Downloads the remote outputs of a completed run to the local file
+    /// system.
+    ///
+    /// This is useful for runs on a cloud backend (e.g. TES), where the output
+    /// files remain in remote storage after the run completes.
+    Localize(localize::Args),
 
     /// Runs a task or workflow.
     Run(run::Args),

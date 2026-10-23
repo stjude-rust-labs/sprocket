@@ -1,0 +1,11 @@
+{
+  "wf.report": "s3://my-bucket/outputs/wf-20260101-000000/work/report.html",
+  "wf.local": "/data/runs/wf/attempts/0/work/local.txt",
+  "wf.bams": [
+    "s3://my-bucket/outputs/wf-20260101-000000/work/a/sample.bam",
+    "s3://my-bucket/outputs/wf-20260101-000000/work/b/sample.bam"
+  ],
+  "wf.results": {
+    "summary": "az://account/container/wf-20260101-000000/work/summary.tsv"
+  }
+}

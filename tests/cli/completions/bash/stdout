@@ -46,6 +46,9 @@ _sprocket() {
             sprocket,lint)
                 cmd="sprocket__subcmd__lint"
                 ;;
+            sprocket,localize)
+                cmd="sprocket__subcmd__localize"
+                ;;
             sprocket,run)
                 cmd="sprocket__subcmd__run"
                 ;;
@@ -457,6 +460,9 @@ _sprocket() {
             sprocket__subcmd__help,lint)
                 cmd="sprocket__subcmd__help__subcmd__lint"
                 ;;
+            sprocket__subcmd__help,localize)
+                cmd="sprocket__subcmd__help__subcmd__localize"
+                ;;
             sprocket__subcmd__help,run)
                 cmd="sprocket__subcmd__help__subcmd__run"
                 ;;
@@ -584,7 +590,7 @@ _sprocket() {
 
     case "${cmd}" in
         sprocket)
-            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version analyzer check completions config explain format inputs lint run validate dev help"
+            opts="-v -q -m -c -s -h -V --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help --version analyzer check completions config explain format inputs lint localize run validate dev help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -3746,7 +3752,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help)
-            opts="analyzer check completions config explain format inputs lint run validate dev help"
+            opts="analyzer check completions config explain format inputs lint localize run validate dev help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -4431,6 +4437,20 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        sprocket__subcmd__help__subcmd__localize)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         sprocket__subcmd__help__subcmd__run)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -4518,6 +4538,76 @@ _sprocket() {
                     ;;
                 --note)
                     COMPREPLY=($(compgen -W "BashSetSyntax CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedInputKeyword DeprecatedObject DeprecatedPlaceholder DeprecatedRuntimeKey DeprecatedRuntimeSection DescriptionLength DocCommentTabs DocMetaStrings EmptyDocComment EmptyOutputs ExceptDirectiveValid ExtraneousParameterMeta FlaggedComment HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder MissingParameterMeta MutableContainerTag NamingConvention OutputMetaOrder OutputName ParameterDescription ParameterMetaOrder ParameterizedResources RecommendedRuntimeKeys RedundantContainerArray RedundantNone RequirementsSection RuntimeSection ShellCheck ShellSplitting UnknownRuntimeKeys UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__localize)
+            opts="-d -v -q -m -c -s -h --destination --overwrite --dry-run --azure-account-name --azure-access-key --aws-access-key-id --aws-secret-access-key --aws-default-region --google-hmac-access-key --google-hmac-secret --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --destination)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -d)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --azure-account-name)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --azure-access-key)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --aws-access-key-id)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --aws-secret-access-key)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --aws-default-region)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --google-hmac-access-key)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --google-hmac-secret)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 --color)
