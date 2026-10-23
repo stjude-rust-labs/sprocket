@@ -232,7 +232,8 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                     .strip_prefix(&repo_root)
                     .unwrap_or(path)
                     .to_string_lossy(),
-                // We're only concerned with local files from the repo for Gauntlet
+                // We're only concerned with local files from the repo for
+                // Gauntlet
                 None => continue,
             };
 

@@ -382,8 +382,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         (
             self.state.evaluator.http_client(),
             // After the task has executed, use the second cancellation token
-            // This ensures that the `output` section is evaluated even if the first cancellation
-            // token has been signaled
+            // This ensures that the `output` section is evaluated even if the
+            // first cancellation token has been signaled
             if self.post_execution {
                 self.state.evaluator.cancellation().second()
             } else {
@@ -1545,7 +1545,8 @@ impl<'a> State<'a> {
                     input.local_path(),
                     input.guest_path(),
                 ) {
-                    // Input is unmapped and either local or remote and not downloaded
+                    // Input is unmapped and either local or remote and not
+                    // downloaded
                     (true, _, None) | (false, None, None) => {}
                     // Input is local and was mapped to a guest path
                     (true, _, Some(guest_path)) => {
@@ -1568,7 +1569,8 @@ impl<'a> State<'a> {
                             local_path = local_path.display()
                         );
                     }
-                    // Input is remote and was not downloaded, but mapped to a guest path
+                    // Input is remote and was not downloaded, but mapped to a
+                    // guest path
                     (false, None, Some(guest_path)) => {
                         debug!(
                             task_id,
@@ -1578,7 +1580,8 @@ impl<'a> State<'a> {
                             path = input.path(),
                         );
                     }
-                    // Input is remote and was both downloaded and mapped to a guest path
+                    // Input is remote and was both downloaded and mapped to a
+                    // guest path
                     (false, Some(local_path), Some(guest_path)) => {
                         debug!(
                             task_id,

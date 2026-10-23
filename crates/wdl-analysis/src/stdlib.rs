@@ -2330,10 +2330,11 @@ workflow test_basename {
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but the spec
-                    // allows for `String` where file/directory are accepted; an explicit
-                    // `String` overload is required as `String` may coerce to either `File` or
-                    // `Directory`, which is ambiguous.
+                    // This overload isn't explicitly specified in the spec, but
+                    // the spec allows for `String` where file/directory are
+                    // accepted; an explicit `String` overload is required as
+                    // `String` may coerce to either `File` or `Directory`,
+                    // which is ambiguous.
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
@@ -2628,8 +2629,8 @@ task file_sizes {
             .insert(
                 "size",
                 PolymorphicFunction::new(vec![
-                    // This overload isn't explicitly in the spec, but it fixes an ambiguity in 1.2
-                    // when passed a literal `None` value.
+                    // This overload isn't explicitly in the spec, but it fixes
+                    // an ambiguity in 1.2 when passed a literal `None` value.
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
@@ -2662,10 +2663,11 @@ task file_sizes {
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but the spec
-                    // allows for `String` where file/directory are accepted; an explicit
-                    // `String` overload is required as `String` may coerce to either `File` or
-                    // `Directory`, which is ambiguous.
+                    // This overload isn't explicitly specified in the spec, but
+                    // the spec allows for `String` where file/directory are
+                    // accepted; an explicit `String` overload is required as
+                    // `String` may coerce to either `File` or `Directory`,
+                    // which is ambiguous.
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)

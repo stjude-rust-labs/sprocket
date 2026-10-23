@@ -178,7 +178,8 @@ pub fn format_literal_string(
             SyntaxKind::SingleQuote | SyntaxKind::DoubleQuote => {
                 stream.push_literal_in_place_of_token(
                     child.element().as_token().expect("token"),
-                    // SAFETY: quote style is not `Preserve` (due to `continue` above)
+                    // SAFETY: quote style is not `Preserve` (due to `continue`
+                    // above)
                     config.quote_style.as_str().unwrap().to_owned(),
                 );
             }
