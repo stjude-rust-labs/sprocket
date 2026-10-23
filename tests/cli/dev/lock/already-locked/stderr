@@ -1,0 +1,8 @@
+warning: missing library registry
+   ┌─ source.wdl:17:20
+   │
+17 │         container: "library://ubuntu:sha256._IMAGE_DIGEST_"
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this will not be included in the lockfile
+   │
+   = help: registries must be known ahead of time for library images
+   = fix: add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a default under [lock.library].registry

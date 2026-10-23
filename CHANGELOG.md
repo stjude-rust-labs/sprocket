@@ -9,6 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Implemented `sprocket dev lock` to pin `task` container images
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* Added `[lock.library]` configuration section to configure
+  [Library API](https://singularityhub.github.io/library-api)-compatible image registries
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 * Added `sprocket dev module schema` subcommand to generate a [JSON schema](https://json-schema.org)
   for WDL `module.json` definitions
   ([#1295](https://github.com/stjude-rust-labs/sprocket/pull/1295)).
@@ -16,6 +21,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with recursion, symlink inclusion, and file filtering. This implements
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) and requires
   `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+
+### Changed
+
+* The `--locked` flag in `run` has been renamed to `--lock-modules`
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* `run --locked` now enforces that all `task` container images have an entry in `sprocket.lock`
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 
 ### Fixed
 

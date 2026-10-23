@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -10,6 +11,13 @@ use anyhow::Result;
 use anyhow::bail;
 use serde::Deserialize;
 use serde::Serialize;
+use toml_spanner::Arena;
+use toml_spanner::Context as TomlContext;
+use toml_spanner::Failed;
+use toml_spanner::FromToml;
+use toml_spanner::Item;
+use toml_spanner::ToToml;
+use toml_spanner::ToTomlError;
 use tracing::warn;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::v1::TASK_HINT_DISKS;
@@ -28,6 +36,9 @@ use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::TaskInputs;
 use crate::config::Config;
+use crate::images::ContainerImageOverrides;
+use crate::images::ImageDigests;
+use crate::images::ImageOverrideResolutionFailureMode;
 use crate::units::StorageUnit;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::task::DEFAULT_GPU_COUNT;
@@ -40,8 +51,8 @@ use crate::v1::validators::ensure_non_negative_i64;
 use crate::v1::validators::invalid_numeric_value_message;
 
 /// The Docker registry protocol prefix.
-const DOCKER_PROTOCOL: &str = "docker://";
-/// The Sylabs library protocol prefix.
+pub(crate) const DOCKER_PROTOCOL: &str = "docker://";
+/// The [Library API](https://singularityhub.github.io/library-api) protocol prefix.
 const LIBRARY_PROTOCOL: &str = "library://";
 /// The OCI Registry as Storage protocol prefix.
 const ORAS_PROTOCOL: &str = "oras://";
@@ -55,20 +66,118 @@ const SIF_EXTENSION: &str = "sif";
 /// acceptable.
 const WILDCARD_CONTAINER: &str = "*";
 
+/// A parsed [Library API](https://singularityhub.github.io/library-api) URI (`library://`).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LibraryApiSpec {
+    /// The registry hosting the image, if specified.
+    pub registry: Option<String>,
+    /// The entity (user) responsible for the image.
+    entity: Option<String>,
+    /// The collection that the image belongs to.
+    collection: Option<String>,
+    /// The container image name.
+    pub container: String,
+}
+
+impl LibraryApiSpec {
+    /// The entity (user) responsible for the image.
+    pub fn entity(&self) -> &str {
+        self.entity.as_deref().unwrap_or("library")
+    }
+
+    /// The collection that the image belongs to.
+    pub fn collection(&self) -> &str {
+        self.collection.as_deref().unwrap_or("default")
+    }
+}
+
+impl FromStr for LibraryApiSpec {
+    type Err = ();
+
+    fn from_str(s: &str) -> anyhow::Result<Self, Self::Err> {
+        // library://library.sylabs.io/library/default/ubuntu:latest
+        //           ----------------- ------- ------- -------------
+        //                   |            |       |          |
+        //                registry      entity collection   image
+
+        let mut parts = s.split('/').collect::<Vec<_>>();
+
+        let registry = if parts.len() > 1 && parts[0].contains('.') {
+            Some(parts.remove(0))
+        } else {
+            None
+        };
+
+        let (entity, collection, container) = match parts.len() {
+            // library://ubuntu:latest
+            1 => (None, None, parts[0]),
+            // library://entity/ubuntu:latest
+            2 => (Some(parts[0]), None, parts[1]),
+            // library://library/default/ubuntu:latest
+            3 => (Some(parts[0]), Some(parts[1]), parts[2]),
+            _ => return Err(()),
+        };
+
+        Ok(Self {
+            registry: registry.map(ToString::to_string),
+            entity: entity.map(ToString::to_string),
+            collection: collection.map(ToString::to_string),
+            container: container.to_string(),
+        })
+    }
+}
+
+impl Display for LibraryApiSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(registry) = &self.registry {
+            write!(f, "{registry}/")?;
+        }
+
+        write!(
+            f,
+            "{}/{}/{}",
+            self.entity(),
+            self.collection(),
+            self.container
+        )?;
+
+        Ok(())
+    }
+}
+
 /// Represents the source of a container image.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ImageSource {
     /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
-    /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
-    Library(String),
+    /// A [Library API](https://singularityhub.github.io/library-api) image (e.g., `library://sylabs/default/alpine`).
+    Library(LibraryApiSpec),
     /// An OCI Registry as Storage image (e.g., `oras://ghcr.io/org/image`).
     Oras(String),
     /// A local SIF file (e.g., `file:///path/to/image.sif`).
     SifFile(PathBuf),
     /// An unknown image source that could not be parsed.
     Unknown(String),
+}
+
+impl ToToml for ImageSource {
+    fn to_toml<'a>(&'a self, arena: &'a Arena) -> std::result::Result<Item<'a>, ToTomlError> {
+        let formatted = arena.alloc_str(&format!("{:#}", self));
+        formatted.to_toml(arena)
+    }
+}
+
+impl<'de> FromToml<'de> for ImageSource {
+    fn from_toml(
+        ctx: &mut TomlContext<'de>,
+        item: &Item<'de>,
+    ) -> std::result::Result<Self, Failed> {
+        let s = String::from_toml(ctx, item)?;
+        // SAFETY: `FromStr` for `ImageSource` is infallible.
+        Ok(s.parse().unwrap())
+    }
 }
 
 impl ImageSource {
@@ -88,9 +197,10 @@ impl ImageSource {
     /// Gets the display name of the image source.
     ///
     /// Returns `None` if the source is a file or an unknown source.
-    pub fn name(&self) -> Option<&str> {
+    pub fn name(&self) -> Option<Cow<'_, str>> {
         match self {
-            Self::Docker(name) | Self::Library(name) | Self::Oras(name) => Some(name),
+            Self::Library(uri) => Some(Cow::Owned(uri.to_string())),
+            Self::Docker(name) | Self::Oras(name) => Some(Cow::Borrowed(name)),
             Self::SifFile(_) | Self::Unknown(_) => None,
         }
     }
@@ -102,7 +212,9 @@ impl ImageSource {
         match self {
             ImageSource::SifFile(path) => format!("file://{}", path.display()),
             ImageSource::Unknown(unknown) => unknown.clone(),
-            _ => format!("{}://{}", self.scheme().unwrap(), self.name().unwrap()),
+            ImageSource::Docker(_) | ImageSource::Oras(_) | ImageSource::Library(_) => {
+                format!("{}://{}", self.scheme().unwrap(), self.name().unwrap())
+            }
         }
     }
 }
@@ -125,7 +237,9 @@ impl FromStr for ImageSource {
             return Ok(Self::Docker(image.to_string()));
         }
         if let Some(image) = s.strip_prefix(LIBRARY_PROTOCOL) {
-            return Ok(Self::Library(image.to_string()));
+            return LibraryApiSpec::from_str(image)
+                .map(Self::Library)
+                .or_else(|_| Ok(Self::Unknown(s.to_string())));
         }
         if let Some(image) = s.strip_prefix(ORAS_PROTOCOL) {
             return Ok(Self::Oras(image.to_string()));
@@ -155,7 +269,8 @@ impl std::fmt::Display for ImageSource {
         } else {
             // Normal format omits protocol prefix.
             match self {
-                Self::Docker(s) | Self::Library(s) | Self::Oras(s) | Self::Unknown(s) => {
+                Self::Library(s) => write!(f, "{s}"),
+                Self::Docker(s) | Self::Oras(s) | Self::Unknown(s) => {
                     write!(f, "{s}")
                 }
                 Self::SifFile(p) => write!(f, "{}", p.display()),
@@ -174,6 +289,44 @@ pub(crate) fn has_container_requirement(inputs: &TaskInputs, requirements: &Obje
     .is_some()
 }
 
+/// Resolves an image source string against the provided override map and
+/// default container.
+fn resolve_image_source(
+    s: &str,
+    overrides: &ContainerImageOverrides,
+    default: &str,
+) -> Result<ImageSource> {
+    let s = if s == WILDCARD_CONTAINER { default } else { s };
+
+    // SAFETY: `FromStr` for `ImageSource` is infallible.
+    let source: ImageSource = s.parse().unwrap();
+
+    if let Some(image_override) = overrides.get(&source) {
+        match image_override {
+            ImageDigests::OciManifest(image_override) => return Ok(image_override.clone()),
+            // See if we can find an override for the target arch...
+            ImageDigests::PerArch(arch_overrides) => {
+                if std::env::consts::ARCH == "powerpc64"
+                    && cfg!(target_endian = "little")
+                    && let Some(image_override) = arch_overrides.get("ppc64le")
+                {
+                    return Ok(image_override.clone());
+                }
+
+                if let Some(image_override) = arch_overrides.get(std::env::consts::ARCH) {
+                    return Ok(image_override.clone());
+                }
+            }
+        }
+    }
+
+    if overrides.failure_mode() == ImageOverrideResolutionFailureMode::Error {
+        bail!("no override available for container `{s}`");
+    }
+
+    Ok(source)
+}
+
 /// Gets the `container` requirement from a requirements map.
 ///
 /// Returns a list of [`ImageSource`] candidates to try in order.
@@ -182,16 +335,17 @@ pub(crate) fn has_container_requirement(inputs: &TaskInputs, requirements: &Obje
 pub(crate) fn container(
     inputs: &TaskInputs,
     requirements: &Object,
+    overrides: &ContainerImageOverrides,
     default: &str,
-) -> Vec<ImageSource> {
+) -> Result<Vec<ImageSource>> {
     let entry = find_key_value(
         &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
         |key| inputs.requirement(key).or_else(|| requirements.get(key)),
     );
 
     let Some((_, value)) = entry else {
-        // SAFETY: `FromStr` for `ImageSource` is infallible.
-        return vec![default.parse().unwrap()];
+        let default = resolve_image_source(default, overrides, default)?;
+        return Ok(vec![default]);
     };
 
     if let Some(array) = value.as_array() {
@@ -204,13 +358,9 @@ pub(crate) fn container(
                 let s = v
                     .as_string()
                     .expect("container array element should be a `String`");
-                let s = s.as_ref();
-                // SAFETY: `FromStr` for `ImageSource` is infallible.
-                if s == WILDCARD_CONTAINER { default } else { s }
-                    .parse()
-                    .unwrap()
+                resolve_image_source(s.as_ref(), overrides, default)
             })
-            .collect()
+            .collect::<Result<_, _>>()
     } else {
         // SAFETY: the WDL type checker guarantees that `container` is
         // either `String` or `Array[String]`. Since we've ruled out the
@@ -223,16 +373,7 @@ pub(crate) fn container(
             .clone()
             .into();
 
-        // SAFETY: `FromStr` for `ImageSource` is infallible.
-        vec![
-            if *s == *WILDCARD_CONTAINER {
-                default
-            } else {
-                &s
-            }
-            .parse()
-            .unwrap(),
-        ]
+        resolve_image_source(&s, overrides, default).map(|source| vec![source])
     }
 }
 
@@ -466,8 +607,8 @@ pub(crate) fn disks<'a>(
         inputs: &TaskInputs,
         disks: &mut HashMap<&'a str, DiskRequirement>,
     ) -> Result<()> {
-        let (size, mount_point) =
-            parse_disk_spec(spec).with_context(|| format!("invalid disk specification `{spec}"))?;
+        let (size, mount_point) = parse_disk_spec(spec)
+            .with_context(|| format!("invalid disk specification `{spec}`"))?;
 
         let prev = disks.insert(
             mount_point.unwrap_or(DEFAULT_DISK_MOUNT_POINT),
@@ -556,6 +697,7 @@ mod tests {
     use std::path::PathBuf;
 
     use indexmap::IndexMap;
+    use toml_spanner::Toml;
 
     use super::ImageSource;
     use super::*;
@@ -567,6 +709,67 @@ mod tests {
         let mut map = IndexMap::new();
         map.insert(key.to_string(), value);
         Object::new(map)
+    }
+
+    #[test]
+    fn test_image_source_from_toml() {
+        #[derive(Toml, PartialEq, Eq, Debug)]
+        #[toml(FromToml)]
+        struct S {
+            img: ImageSource,
+        }
+
+        let docker_bare: S = toml_spanner::from_str(r#"img = "ubuntu:22.04""#).unwrap();
+        assert_eq!(
+            docker_bare.img,
+            ImageSource::Docker("ubuntu:22.04".to_string())
+        );
+
+        let docker_protocol: S =
+            toml_spanner::from_str(r#"img = "docker://ubuntu:latest""#).unwrap();
+        assert_eq!(
+            docker_protocol.img,
+            ImageSource::Docker("ubuntu:latest".to_string())
+        );
+
+        let oras: S = toml_spanner::from_str(r#"img = "oras://ghcr.io/org/image:tag""#).unwrap();
+        assert_eq!(
+            oras.img,
+            ImageSource::Oras("ghcr.io/org/image:tag".to_string())
+        );
+
+        let library: S =
+            toml_spanner::from_str(r#"img = "library://sylabs/default/alpine:3.18""#).unwrap();
+        assert_eq!(
+            library.img,
+            ImageSource::Library(LibraryApiSpec {
+                registry: None,
+                entity: Some(String::from("sylabs")),
+                collection: Some(String::from("default")),
+                container: String::from("alpine:3.18"),
+            })
+        );
+    }
+
+    #[test]
+    fn test_image_digests_from_toml() {
+        #[derive(Toml, PartialEq, Eq, Debug)]
+        #[toml(FromToml)]
+        struct S {
+            img: ImageDigests,
+        }
+
+        let oci: S = toml_spanner::from_str(
+            r#"img = "docker://ubuntu@sha256:fd7fe639db24c4e005643921beea92bc449aac4f4d40d60cd9ad9ab6456aec01""#,
+        )
+        .unwrap();
+        assert_eq!(
+            oci.img,
+            ImageDigests::OciManifest(ImageSource::Docker(
+                "ubuntu@sha256:fd7fe639db24c4e005643921beea92bc449aac4f4d40d60cd9ad9ab6456aec01"
+                    .to_string()
+            ))
+        );
     }
 
     #[test]
@@ -612,7 +815,12 @@ mod tests {
         let source: ImageSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
         assert_eq!(
             source,
-            ImageSource::Library("sylabs/default/alpine:3.18".to_string())
+            ImageSource::Library(LibraryApiSpec {
+                registry: None,
+                entity: Some(String::from("sylabs")),
+                collection: Some(String::from("default")),
+                container: String::from("alpine:3.18"),
+            })
         );
         assert_eq!(source.to_string(), "sylabs/default/alpine:3.18");
         assert_eq!(
@@ -688,8 +896,10 @@ mod tests {
         let result = container(
             &TaskInputs::default(),
             &Object::empty(),
+            &ContainerImageOverrides::default(),
             DEFAULT_TASK_CONTAINER,
-        );
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(
             result[0],
@@ -699,7 +909,13 @@ mod tests {
 
     #[test]
     fn container_returns_custom_default_when_unset() {
-        let result = container(&TaskInputs::default(), &Object::empty(), "alpine:3.18");
+        let result = container(
+            &TaskInputs::default(),
+            &Object::empty(),
+            &ContainerImageOverrides::default(),
+            "alpine:3.18",
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], ImageSource::Docker("alpine:3.18".to_string()));
     }
@@ -713,8 +929,10 @@ mod tests {
         let result = container(
             &TaskInputs::default(),
             &requirements,
+            &ContainerImageOverrides::default(),
             DEFAULT_TASK_CONTAINER,
-        );
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], ImageSource::Docker("foo:bar".to_string()));
     }
@@ -728,8 +946,10 @@ mod tests {
         let result = container(
             &TaskInputs::default(),
             &requirements,
+            &ContainerImageOverrides::default(),
             DEFAULT_TASK_CONTAINER,
-        );
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(
             result[0],
@@ -743,7 +963,13 @@ mod tests {
             TASK_REQUIREMENT_CONTAINER,
             PrimitiveValue::new_string("*").into(),
         );
-        let result = container(&TaskInputs::default(), &requirements, "debian:12");
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            &ContainerImageOverrides::default(),
+            "debian:12",
+        )
+        .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], ImageSource::Docker("debian:12".to_string()));
     }
@@ -769,8 +995,10 @@ mod tests {
         let result = container(
             &TaskInputs::default(),
             &requirements,
+            &ContainerImageOverrides::default(),
             DEFAULT_TASK_CONTAINER,
-        );
+        )
+        .unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], ImageSource::Docker("foo:1.0".to_string()));
         assert_eq!(result[1], ImageSource::Docker("bar:2.0".to_string()));
@@ -798,8 +1026,10 @@ mod tests {
         let result = container(
             &TaskInputs::default(),
             &requirements,
+            &ContainerImageOverrides::default(),
             DEFAULT_TASK_CONTAINER,
-        );
+        )
+        .unwrap();
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], ImageSource::Docker("foo:1.0".to_string()));
         assert_eq!(
@@ -826,10 +1056,79 @@ mod tests {
             Value::Compound(crate::CompoundValue::Array(array)),
         );
 
-        let result = container(&TaskInputs::default(), &requirements, "alpine:3.18");
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            &ContainerImageOverrides::default(),
+            "alpine:3.18",
+        )
+        .unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], ImageSource::Docker("foo:1.0".to_string()));
         assert_eq!(result[1], ImageSource::Docker("alpine:3.18".to_string()));
+    }
+
+    #[test]
+    fn container_resolves_overrides_in_array() {
+        use wdl_analysis::types::ArrayType;
+
+        let elements = vec![
+            PrimitiveValue::new_string("foo:1.0").into(),
+            PrimitiveValue::new_string("bar:2.0").into(),
+        ];
+        let array = crate::Array::new_unchecked(
+            ArrayType::new(wdl_analysis::types::PrimitiveType::String),
+            elements,
+        );
+        let requirements = object_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            Value::Compound(crate::CompoundValue::Array(array)),
+        );
+
+        let overrides = ContainerImageOverrides::new([(
+            ImageSource::Docker(String::from("foo:1.0")),
+            ImageDigests::OciManifest(ImageSource::Docker("foo@sha256:1111".to_string())),
+        )]);
+
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            &overrides,
+            DEFAULT_TASK_CONTAINER,
+        )
+        .unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result[0],
+            ImageSource::Docker("foo@sha256:1111".to_string())
+        );
+        assert_eq!(result[1], ImageSource::Docker("bar:2.0".to_string()));
+    }
+
+    #[test]
+    fn container_resolves_overrides_without_docker_prefix() {
+        let requirements = object_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            PrimitiveValue::new_string("foo:1.0").into(),
+        );
+
+        let overrides = ContainerImageOverrides::new([(
+            ImageSource::Docker(String::from("foo:1.0")),
+            ImageDigests::OciManifest(ImageSource::Docker("foo@sha256:1111".to_string())),
+        )]);
+
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            &overrides,
+            DEFAULT_TASK_CONTAINER,
+        )
+        .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result[0],
+            ImageSource::Docker("foo@sha256:1111".to_string())
+        );
     }
 
     #[test]
@@ -858,10 +1157,16 @@ mod tests {
         let requirements = Object::new(requirements);
 
         assert_eq!(
-            container(&inputs, &requirements, DEFAULT_TASK_CONTAINER)
-                .first()
-                .unwrap()
-                .to_string(),
+            container(
+                &inputs,
+                &requirements,
+                &Default::default(),
+                DEFAULT_TASK_CONTAINER
+            )
+            .unwrap()
+            .first()
+            .unwrap()
+            .to_string(),
             "foo:bar"
         );
 

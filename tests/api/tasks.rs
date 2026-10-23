@@ -51,6 +51,7 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
         Mode::default(),
         true,
         db.clone(),
+        None,
     )
     .await
     .expect("failed to create run manager service");
