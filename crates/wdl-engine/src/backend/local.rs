@@ -310,7 +310,8 @@ impl TaskExecutionBackend for LocalBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
@@ -319,7 +320,8 @@ impl TaskExecutionBackend for LocalBackend {
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                 }

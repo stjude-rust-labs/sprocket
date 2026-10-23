@@ -190,9 +190,10 @@ impl Visitor for VersionVisitor {
                 SupportedVersion::V1(V1::Four) if !self.wdl_1_4_enabled => {
                     diagnostics.add(unstable_wdl_1_4(stmt.version().span()));
                 }
-                // TODO ACF 2025-10-21: This is an unfortunate consequence of using
-                // `#[non_exhaustive]` on the version enums. We should consider removing that
-                // attribute in the future to get static assurance that downstream consumers of
+                // TODO ACF 2025-10-21: This is an unfortunate consequence of
+                // using `#[non_exhaustive]` on the version enums. We should
+                // consider removing that attribute in the future to get static
+                // assurance that downstream consumers of
                 // versions comprehensively handle the possible cases.
                 SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three | V1::Four) => {}
                 other => diagnostics.add(unsupported_version(other, stmt.version().span())),

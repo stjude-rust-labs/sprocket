@@ -174,7 +174,8 @@ async fn list_local(
                     Ok(metadata) if metadata.is_file() => EntryKind::File,
                     Ok(metadata) if metadata.is_dir() => EntryKind::Directory,
                     Ok(_) => continue,
-                    // An unresolved symbolic link is broken for listing purposes.
+                    // An unresolved symbolic link is broken for listing
+                    // purposes.
                     Err(_) => EntryKind::File,
                 }
             } else if file_type.is_file() {

@@ -947,8 +947,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
         Ok(super::TaskExecutionConstraints {
             sources,
-            // TODO ACF 2025-10-13: populate more meaningful values for these based on the given
-            // Slurm partition.
+            // TODO ACF 2025-10-13: populate more meaningful values for these
+            // based on the given Slurm partition.
             //
             // sinfo -p <partition> -s --json | jq .sinfo[0].cpus
             // sinfo -p <partition> -s --json | jq .sinfo[0].memory
