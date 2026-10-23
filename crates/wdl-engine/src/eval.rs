@@ -1159,7 +1159,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::v1::requirements::SylabsLibraryUri;
+    use crate::v1::requirements::LibraryApiSpec;
 
     #[test]
     fn cancellation_slow() {
@@ -1441,7 +1441,7 @@ mod tests {
     fn constraints_snapshot_captures_the_resolved_resources() {
         let constraints = TaskExecutionConstraints {
             sources: vec![ImageSource::Library(
-                SylabsLibraryUri::from_str("example.org/tools/tool:1").unwrap(),
+                LibraryApiSpec::from_str("example.org/tools/tool:1").unwrap(),
             )],
             cpu: 4.0,
             memory: 8 * 1024 * 1024 * 1024,

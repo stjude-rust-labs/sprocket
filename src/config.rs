@@ -1193,17 +1193,17 @@ impl Default for DocSeoConfig {
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LockConfig {
-    /// Configuration for locking Sylabs cloud images.
+    /// Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.
     #[toml(default)]
     #[schemars(default)]
-    pub sylabs: SylabsLockConfig,
+    pub library: LibraryLockConfig,
 }
 
-/// Configuration for locking Sylabs cloud images.
+/// Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.
 #[derive(Default, Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
-pub struct SylabsLockConfig {
+pub struct LibraryLockConfig {
     /// The default registry to download images from.
     ///
     /// For `library://` container images that *don't* specify a registry (e.g.,
@@ -1211,7 +1211,7 @@ pub struct SylabsLockConfig {
     /// be used.
     #[toml(default)]
     #[schemars(default)]
-    pub library: Option<String>,
+    pub registry: Option<String>,
 }
 
 impl Config {

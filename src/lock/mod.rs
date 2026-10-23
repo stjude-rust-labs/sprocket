@@ -1,8 +1,8 @@
 //! Image resolution utilities for `sprocket dev lock`.
 
 pub mod file;
+pub mod library;
 pub mod oci;
-pub mod sylabs;
 
 /// The user agent for HTTP requests.
 pub(crate) const USER_AGENT: &str = concat!(

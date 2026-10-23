@@ -3281,18 +3281,18 @@
       "description": "Configuration for the `lock` subcommand.",
       "type": "object",
       "properties": {
-        "sylabs": {
-          "description": "Configuration for locking Sylabs cloud images.",
-          "$ref": "#/$defs/SylabsLockConfig"
+        "library": {
+          "description": "Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.",
+          "$ref": "#/$defs/LibraryLockConfig"
         }
       },
       "additionalProperties": false
     },
-    "SylabsLockConfig": {
-      "description": "Configuration for locking Sylabs cloud images.",
+    "LibraryLockConfig": {
+      "description": "Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.",
       "type": "object",
       "properties": {
-        "library": {
+        "registry": {
           "description": "The default registry to download images from.\n\nFor `library://` container images that *don't* specify a registry (e.g.,\n`library://sylabs/default/alpine:3.18`), this is the registry that will\nbe used.",
           "type": [
             "string",

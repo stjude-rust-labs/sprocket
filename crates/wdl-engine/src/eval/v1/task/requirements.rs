@@ -52,7 +52,7 @@ use crate::v1::validators::invalid_numeric_value_message;
 
 /// The Docker registry protocol prefix.
 pub(crate) const DOCKER_PROTOCOL: &str = "docker://";
-/// The Sylabs library protocol prefix.
+/// The [Library API](https://singularityhub.github.io/library-api) protocol prefix.
 const LIBRARY_PROTOCOL: &str = "library://";
 /// The OCI Registry as Storage protocol prefix.
 const ORAS_PROTOCOL: &str = "oras://";
@@ -66,10 +66,10 @@ const SIF_EXTENSION: &str = "sif";
 /// acceptable.
 const WILDCARD_CONTAINER: &str = "*";
 
-/// A parsed Sylabs cloud URI (`library://`).
+/// A parsed [Library API](https://singularityhub.github.io/library-api) URI (`library://`).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub struct SylabsLibraryUri {
+pub struct LibraryApiSpec {
     /// The registry hosting the image, if specified.
     pub registry: Option<String>,
     /// The entity (user) responsible for the image.
@@ -80,7 +80,7 @@ pub struct SylabsLibraryUri {
     pub container: String,
 }
 
-impl SylabsLibraryUri {
+impl LibraryApiSpec {
     /// The entity (user) responsible for the image.
     pub fn entity(&self) -> &str {
         self.entity.as_deref().unwrap_or("library")
@@ -92,7 +92,7 @@ impl SylabsLibraryUri {
     }
 }
 
-impl FromStr for SylabsLibraryUri {
+impl FromStr for LibraryApiSpec {
     type Err = ();
 
     fn from_str(s: &str) -> anyhow::Result<Self, Self::Err> {
@@ -128,7 +128,7 @@ impl FromStr for SylabsLibraryUri {
     }
 }
 
-impl Display for SylabsLibraryUri {
+impl Display for LibraryApiSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(registry) = &self.registry {
             write!(f, "{registry}/")?;
@@ -152,8 +152,8 @@ impl Display for SylabsLibraryUri {
 pub enum ImageSource {
     /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
-    /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
-    Library(SylabsLibraryUri),
+    /// A [Library API](https://singularityhub.github.io/library-api) image (e.g., `library://sylabs/default/alpine`).
+    Library(LibraryApiSpec),
     /// An OCI Registry as Storage image (e.g., `oras://ghcr.io/org/image`).
     Oras(String),
     /// A local SIF file (e.g., `file:///path/to/image.sif`).
@@ -237,7 +237,7 @@ impl FromStr for ImageSource {
             return Ok(Self::Docker(image.to_string()));
         }
         if let Some(image) = s.strip_prefix(LIBRARY_PROTOCOL) {
-            return SylabsLibraryUri::from_str(image)
+            return LibraryApiSpec::from_str(image)
                 .map(Self::Library)
                 .or_else(|_| Ok(Self::Unknown(s.to_string())));
         }
@@ -742,7 +742,7 @@ mod tests {
             toml_spanner::from_str(r#"img = "library://sylabs/default/alpine:3.18""#).unwrap();
         assert_eq!(
             library.img,
-            ImageSource::Library(SylabsLibraryUri {
+            ImageSource::Library(LibraryApiSpec {
                 registry: None,
                 entity: Some(String::from("sylabs")),
                 collection: Some(String::from("default")),
@@ -815,7 +815,7 @@ mod tests {
         let source: ImageSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
         assert_eq!(
             source,
-            ImageSource::Library(SylabsLibraryUri {
+            ImageSource::Library(LibraryApiSpec {
                 registry: None,
                 entity: Some(String::from("sylabs")),
                 collection: Some(String::from("default")),

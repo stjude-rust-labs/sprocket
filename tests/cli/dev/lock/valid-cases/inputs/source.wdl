@@ -23,11 +23,3 @@ task oras_good {
         container: "oras://ghcr.io/stjude-rust-labs/sprocket:v0.23.0"
     }
 }
-
-task singularity_good {
-    command <<<>>>
-
-    requirements {
-        container: "library://ubuntu:latest"
-    }
-}

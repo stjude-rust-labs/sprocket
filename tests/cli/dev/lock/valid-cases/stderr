@@ -1,8 +1,0 @@
-warning: missing Sylabs library registry
-   ┌─ source.wdl:31:20
-   │
-31 │         container: "library://ubuntu:latest"
-   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^ this will not be included in the lockfile
-   │
-   = help: registries must be known ahead of time for Sylabs images
-   = fix: add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a default under [lock.sylabs].registry

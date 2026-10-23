@@ -359,4 +359,4 @@ allowed_hosts = []
 allowed_transitive_hosts = ["github.com", "gitlab.com"]
 
 [lock]
-sylabs = {}
+library = {}

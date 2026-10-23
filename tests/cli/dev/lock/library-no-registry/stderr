@@ -1,0 +1,8 @@
+warning: missing library registry
+  ┌─ source.wdl:7:20
+  │
+7 │         container: "library://ubuntu:latest"
+  │                    ^^^^^^^^^^^^^^^^^^^^^^^^^ this will not be included in the lockfile
+  │
+  = help: registries must be known ahead of time for library images
+  = fix: add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a default under [lock.library].registry

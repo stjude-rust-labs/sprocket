@@ -1,4 +1,4 @@
-//! Utilities for interacting with the Sylabs cloud registry.
+//! Utilities for interacting with a [Library API](https://singularityhub.github.io/library-api)-compatible registry.
 
 use std::collections::BTreeMap;
 
@@ -8,14 +8,14 @@ use axum::http::StatusCode;
 use reqwest::Client;
 use serde::Deserialize;
 use wdl::engine::v1::requirements::ImageSource;
-use wdl::engine::v1::requirements::SylabsLibraryUri;
+use wdl::engine::v1::requirements::LibraryApiSpec;
 
 use crate::config::LockConfig;
 
-/// Determine the architecture-specific digests for a Sylabs Cloud image.
-pub async fn resolve_sylabs_image(
+/// Determine the architecture-specific digests for a [Library API](https://singularityhub.github.io/library-api) image.
+pub async fn resolve_library_image(
     client: &Client,
-    uri: &SylabsLibraryUri,
+    uri: &LibraryApiSpec,
     config: &LockConfig,
 ) -> anyhow::Result<BTreeMap<String, ImageSource>> {
     /// Mapping of Sylabs architecture variants ->
@@ -39,7 +39,11 @@ pub async fn resolve_sylabs_image(
         hash: String,
     }
 
-    let Some(registry) = uri.registry.as_deref().or(config.sylabs.library.as_deref()) else {
+    let Some(registry) = uri
+        .registry
+        .as_deref()
+        .or(config.library.registry.as_deref())
+    else {
         bail!("image `{uri}` doesn't specify a registry");
     };
 

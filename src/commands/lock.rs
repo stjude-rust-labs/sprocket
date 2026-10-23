@@ -126,19 +126,19 @@ fn unknown_source(span: Span, strict: bool) -> Diagnostic {
 }
 
 /// Create an "missing container registry" diagnostic.
-fn unknown_sylabs_registry(span: Span, strict: bool) -> Diagnostic {
+fn unknown_library_registry(span: Span, strict: bool) -> Diagnostic {
     let severity = if strict {
         Severity::Error
     } else {
         Severity::Warning
     };
 
-    Diagnostic::new(severity, "missing Sylabs library registry")
+    Diagnostic::new(severity, "missing library registry")
         .with_label("this will not be included in the lockfile", span)
-        .with_help("registries must be known ahead of time for Sylabs images")
+        .with_help("registries must be known ahead of time for library images")
         .with_fix(
             "add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a \
-             default under [lock.sylabs].registry",
+             default under [lock.library].registry",
         )
 }
 
@@ -177,8 +177,8 @@ fn task_container_images(
                         containers.push(source);
                     }
                     ImageSource::Library(ref image) => {
-                        if image.registry.is_none() && config.sylabs.library.is_none() {
-                            diagnostics.add(unknown_sylabs_registry(expr.span(), strict));
+                        if image.registry.is_none() && config.library.registry.is_none() {
+                            diagnostics.add(unknown_library_registry(expr.span(), strict));
                             return;
                         }
 
@@ -247,7 +247,7 @@ fn task_container_images(
 struct LockContext {
     /// The client for OCI-compatible registries, if necessary.
     oci_client: Option<crate::lock::oci::OciClient>,
-    /// The client for Sylabs cloud images, if necessary.
+    /// The client for [Library API](https://singularityhub.github.io/library-api) images, if necessary.
     http_client: Option<reqwest::Client>,
     /// The set of images to resolve.
     images: BTreeSet<ImageSource>,
@@ -257,11 +257,11 @@ impl LockContext {
     /// Initialize the `LockContext` with the necessary clients.
     fn init(images: BTreeSet<ImageSource>) -> anyhow::Result<Self> {
         let mut oci_expected = false;
-        let mut sylabs_expected = false;
+        let mut library_expected = false;
         for image in &images {
             match image {
                 ImageSource::Docker(_) | ImageSource::Oras(_) => oci_expected = true,
-                ImageSource::Library(_) => sylabs_expected = true,
+                ImageSource::Library(_) => library_expected = true,
                 ImageSource::SifFile(_) | ImageSource::Unknown(_) => {}
             }
         }
@@ -272,7 +272,7 @@ impl LockContext {
             None
         };
 
-        let http_client = if sylabs_expected {
+        let http_client = if library_expected {
             Some(
                 reqwest::ClientBuilder::new()
                     .user_agent(crate::lock::USER_AGENT)
@@ -329,7 +329,7 @@ impl LockContext {
                         return Err(anyhow!("image doesn't specify a tag"));
                     }
 
-                    let digests = crate::lock::sylabs::resolve_sylabs_image(
+                    let digests = crate::lock::library::resolve_library_image(
                         self.http_client.as_ref().expect("should be set"),
                         image,
                         config,
