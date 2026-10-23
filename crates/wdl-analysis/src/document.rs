@@ -878,6 +878,15 @@ pub enum Callable<'a> {
 
 impl Callable<'_> {
     /// Get the name of this callable.
+    ///
+    /// NOTE: For imported callables, this will return the aliased name. e.g.,
+    /// "bar_alias" in:
+    ///
+    /// ```wdl
+    /// import { bar as bar_alias } from "bar.wdl"
+    /// ```
+    ///
+    /// See also: [`Callable::source_name()`]
     pub fn name(&self) -> &str {
         match self {
             Callable::Workflow(w) => w.name(),
@@ -885,11 +894,94 @@ impl Callable<'_> {
         }
     }
 
+    /// Get the original name of this callable.
+    ///
+    /// For locally defined callables, the behavior is identical to
+    /// [`Self::name()`]. For imported callables, this returns the name as
+    /// defined in the source document.
+    ///
+    /// See also: [`Callable::name()`]
+    pub fn source_name(&self) -> &str {
+        match self {
+            Callable::Workflow(WorkflowRef::Imported(w)) => &w.name,
+            Callable::Task(TaskRef::Imported(w)) => &w.name,
+            _ => self.name(),
+        }
+    }
+
     /// Get the [`Span`] of the callable's name.
+    ///
+    /// For locally defined callables, this is the span in the callable's
+    /// definition. e.g., "foo" in:
+    ///
+    /// ```wdl
+    /// workflow foo {}
+    ///          ---
+    /// ```
+    ///
+    /// For imported callables, this is the span of the import statement that
+    /// brought it into scope.
+    ///
+    /// For namespace and wildcard imports, the span will be of the entire
+    /// import statement:
+    ///
+    /// ```wdl
+    /// import "foo.wdl"
+    /// ----------------
+    ///
+    /// import * from "bar.wdl"
+    /// -----------------------
+    /// ```
+    ///
+    /// For selected imports, the span will be of the name:
+    ///
+    /// ```wdl
+    /// import { foo } from "foo.wdl"
+    ///          ---
+    ///
+    /// import { bar as bar_alias } from "bar.wdl"
+    ///                 ---------
+    /// ```
     pub fn name_span(&self) -> Span {
         match self {
             Callable::Workflow(w) => w.name_span(),
             Callable::Task(t) => t.name_span(),
+        }
+    }
+
+    /// Get the defining [`Document`] of the callable, if it was imported
+    ///
+    /// NOTE: This will always return `None` for locally defined callables.
+    pub fn source_document(&self) -> Option<&Document> {
+        match self {
+            Callable::Workflow(w) => w.source_document(),
+            Callable::Task(t) => t.source_document(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable definition
+    ///
+    /// NOTE: This will always return `None` for imported callables.
+    pub fn span(&self) -> Option<Span> {
+        match self {
+            Callable::Workflow(WorkflowRef::Local(w)) => Some(w.span()),
+            Callable::Task(TaskRef::Local(t)) => Some(t.span()),
+            Callable::Workflow(WorkflowRef::Imported(_)) | Callable::Task(TaskRef::Imported(_)) => {
+                None
+            }
+        }
+    }
+
+    /// Get the scope of the callable
+    ///
+    /// NOTE: This will always return `None` for imported callables.
+    pub fn scope(&self) -> Option<ScopeRef<'_>> {
+        match self {
+            Callable::Workflow(WorkflowRef::Local(w)) => Some(w.scope()),
+            Callable::Task(TaskRef::Local(t)) => Some(t.scope()),
+            Callable::Workflow(WorkflowRef::Imported(_)) | Callable::Task(TaskRef::Imported(_)) => {
+                None
+            }
         }
     }
 
@@ -901,6 +993,14 @@ impl Callable<'_> {
     /// Whether this callable represents a task.
     pub fn is_task(&self) -> bool {
         matches!(self, Callable::Task(_))
+    }
+
+    /// Whether this callable was imported from another document.
+    pub fn is_imported(&self) -> bool {
+        matches!(
+            self,
+            Callable::Task(TaskRef::Imported(_)) | Callable::Workflow(WorkflowRef::Imported(_))
+        )
     }
 
     /// Get the inputs of the callable.
@@ -1024,7 +1124,7 @@ impl DocumentData {
             Some(Context::Namespace(*span))
         } else if let Some((_idx, _hash, task)) = cache.local_task_by_name(name) {
             Some(Context::Task(task.name_span()))
-        } else if let Some(wf) = cache.workflow().filter(|w| w.name() == name) {
+        } else if let Some((_idx, _hash, wf)) = cache.local_workflow_by_name(name) {
             Some(Context::Workflow(wf.name_span()))
         } else if let Some((_idx, _hash, s)) = cache.local_struct_by_name(name) {
             Some(Context::Struct(s.name_span()))
@@ -1230,12 +1330,16 @@ impl Document {
     }
 
     /// Gets the tasks in the document.
+    ///
+    /// NOTE: This includes both locally defined and imported tasks.
+    ///
+    /// See also: [`Self::local_tasks()`]
     pub fn tasks(&self) -> impl Iterator<Item = TaskRef<'_>> {
         self.data.cache.tasks()
     }
 
-    /// Gets the tasks in the document.
-    pub(crate) fn local_tasks(&self) -> impl Iterator<Item = &Task> {
+    /// Gets the tasks locally defined in the document.
+    pub fn local_tasks(&self) -> impl Iterator<Item = &Task> {
         self.data.cache.local_tasks().map(|(_, _, task)| task)
     }
 
@@ -1248,6 +1352,11 @@ impl Document {
     }
 
     /// Gets a task in the document by name.
+    ///
+    /// NOTE: This includes both locally defined and imported tasks.
+    ///
+    /// See also: [`Self::local_task_by_name()`],
+    /// [`Self::imported_task_by_name()`]
     pub fn task_by_name(&self, name: &str) -> Option<TaskRef<'_>> {
         self.data.cache.task_by_name(name).map(|(_hash, task)| task)
     }
@@ -1260,11 +1369,29 @@ impl Document {
         self.data.cache.imported_task_by_name(name).map(|(_, t)| t)
     }
 
-    /// Gets a workflow in the document.
+    /// Gets the workflows in the document.
     ///
-    /// Returns `None` if the document did not contain a workflow.
-    pub fn workflow(&self) -> Option<&Workflow> {
-        self.data.cache.workflow()
+    /// NOTE: This includes both locally defined and imported workflows.
+    ///
+    /// See also: [`Self::local_workflows()`]
+    pub fn workflows(&self) -> impl Iterator<Item = WorkflowRef<'_>> {
+        self.data.cache.workflows()
+    }
+
+    /// Gets the workflows locally defined in the document.
+    pub fn local_workflows(&self) -> impl Iterator<Item = &Workflow> {
+        self.data
+            .cache
+            .local_workflows()
+            .map(|(_idx, _hash, workflow)| workflow)
+    }
+
+    /// Gets a locally defined workflow by name.
+    pub fn local_workflow_by_name(&self, name: &str) -> Option<&Workflow> {
+        self.data
+            .cache
+            .local_workflow_by_name(name)
+            .map(|(_idx, _hash, workflow)| workflow)
     }
 
     /// Gets an imported workflow in the document by local name.
@@ -1279,6 +1406,11 @@ impl Document {
     }
 
     /// Gets a workflow in the document by name.
+    ///
+    /// NOTE: This includes both locally defined and imported workflows.
+    ///
+    /// See also: [`Self::local_workflow_by_name()`],
+    /// [`Self::imported_workflow_by_name()`]
     pub fn workflow_by_name(&self, name: &str) -> Option<WorkflowRef<'_>> {
         self.data.cache.workflow_by_name(name).map(|(_, w)| w)
     }
@@ -1302,7 +1434,9 @@ impl Document {
         None
     }
 
-    /// Get all callable targets in the document, including imports.
+    /// Get all callable targets in the document.
+    ///
+    /// NOTE: This includes both locally defined and imported callables.
     ///
     /// See also: [`Self::local_callables()`]
     pub fn callables(&self) -> impl Iterator<Item = Callable<'_>> {
@@ -1329,9 +1463,7 @@ impl Document {
     /// NOTE: Unlike [`Self::callable_by_name()`], this only searches callables
     /// defined in this document.
     pub fn local_callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
-        if let Some(workflow) = self.workflow()
-            && workflow.name == name
-        {
+        if let Some(workflow) = self.local_workflow_by_name(name) {
             return Some(Callable::Workflow(WorkflowRef::Local(workflow)));
         }
 
@@ -1346,10 +1478,9 @@ impl Document {
     ///
     /// See also: [`Self::callables()`]
     pub fn local_callables(&self) -> impl Iterator<Item = Callable<'_>> {
-        self.workflow()
+        self.local_workflows()
             .map(WorkflowRef::Local)
             .map(Callable::Workflow)
-            .into_iter()
             .chain(self.local_tasks().map(TaskRef::Local).map(Callable::Task))
     }
 
@@ -1525,29 +1656,24 @@ impl Document {
             }
         }
 
-        // Check to see if the position is contained in the workflow
-        if let Some(workflow) = self.data.cache.workflow()
-            && workflow.scope().span().contains(position)
-        {
-            return find_scope(&workflow.scopes, position);
-        }
-
-        // Search for a task that might contain the position
-        let task = self
+        // Search for the local workflow or task that might contain the
+        // position.
+        let scopes = self
             .data
             .cache
-            .local_tasks()
-            .filter_map(|(_idx, _hash, t)| {
-                if t.scope().span().start() <= position {
-                    Some(t)
-                } else {
-                    None
-                }
-            })
-            .max_by_key(|t| t.scope().span().start())?;
+            .local_workflows()
+            .map(|(_idx, _hash, workflow)| &workflow.scopes)
+            .chain(
+                self.data
+                    .cache
+                    .local_tasks()
+                    .map(|(_idx, _hash, task)| &task.scopes),
+            )
+            .filter(|scopes| scopes[0].span.start() <= position)
+            .max_by_key(|scopes| scopes[0].span.start())?;
 
-        if task.scope().span().contains(position) {
-            return find_scope(&task.scopes, position);
+        if scopes[0].span.contains(position) {
+            return find_scope(scopes, position);
         }
 
         None

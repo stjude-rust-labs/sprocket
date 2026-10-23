@@ -14,6 +14,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added WDL 1.4 `list` directory-listing function support from
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800), gated by `feature_flags.wdl_1_4`
   ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+* WDL 1.4 documents may define multiple workflows, and workflows in the same document may call one
+  another. Direct and transitive recursive workflow calls are rejected
+  ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
 
 #### Changed
 
@@ -28,6 +31,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Standard-library hover, completion, and signature help now use documentation appropriate for the
   document's WDL version, and signature help no longer shows overloads introduced in later versions
   ([#1006](https://github.com/stjude-rust-labs/sprocket/pull/1163)).
+
+#### Removed
+
+* Removed the singular `Document::workflow()` API. Use `Document::workflows()` or
+  `Document::local_workflows()` to iterate, and `Document::workflow_by_name()` or
+  `Document::local_workflow_by_name()` for explicit lookup.
+  ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
 
 ## 0.27.0 - 2026-10-07
 

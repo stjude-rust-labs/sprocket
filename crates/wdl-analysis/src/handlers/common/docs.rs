@@ -26,8 +26,9 @@ use wdl_ast::v1::get_param_meta;
 use crate::EnumRef;
 use crate::StructRef;
 use crate::TaskRef;
+use crate::WorkflowRef;
+use crate::document::Callable;
 use crate::document::Namespace;
-use crate::document::Workflow;
 
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
@@ -298,6 +299,17 @@ fn render_enum_doc(n: &EnumDefinition, computed_type: Option<&str>) -> String {
     s
 }
 
+/// Provides documentation for a local or scope-merged workflow.
+pub fn provide_callable_documentation(
+    callable: Callable<'_>,
+    root: &wdl_ast::Document,
+) -> Option<String> {
+    match callable {
+        Callable::Task(task) => provide_task_documentation(&task, root),
+        Callable::Workflow(wf) => provide_workflow_documentation(&wf, root),
+    }
+}
+
 /// Provides documentation for tasks which includes `inputs`, `outputs`,
 /// `metadata`, `runtime`
 pub fn provide_task_documentation(task: &TaskRef<'_>, root: &wdl_ast::Document) -> Option<String> {
@@ -325,15 +337,25 @@ pub fn provide_task_documentation(task: &TaskRef<'_>, root: &wdl_ast::Document) 
 /// Provides documentation for workflows which includes `inputs`, `outputs`,
 /// `metadata`
 pub fn provide_workflow_documentation(
-    workflow: &Workflow,
+    workflow: &WorkflowRef<'_>,
     root: &wdl_ast::Document,
 ) -> Option<String> {
-    match TextSize::try_from(workflow.name_span().start()) {
+    let (root, name_span) = match workflow {
+        WorkflowRef::Local(wf) => (root.inner().clone(), wf.name_span()),
+        WorkflowRef::Imported(wf) => {
+            let root = wf.document.root();
+            let ast = root.ast();
+            let mut workflows = ast.as_v1()?.tasks();
+            let target = workflows.find(|workflow| workflow.name().text() == wf.name())?;
+            (root.inner().clone(), target.name().span())
+        }
+    };
+
+    match TextSize::try_from(name_span.start()) {
         Ok(offset) => root
-            .inner()
             .token_at_offset(offset)
             .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(WorkflowDefinition::cast))
+            .and_then(|wf| wf.parent_ancestors().find_map(WorkflowDefinition::cast))
             .map(|n| render_workflow_doc(&n)),
         Err(_) => None,
     }

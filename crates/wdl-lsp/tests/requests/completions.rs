@@ -54,15 +54,25 @@ fn assert_not_contains(items: &[CompletionItem], unexpected_label: &str) {
     );
 }
 
-async fn setup() -> TestContext {
-    let mut ctx = TestContextBuilder::new("completions").build();
+async fn setup(v1_4: bool) -> TestContext {
+    let mut ctx = TestContextBuilder::new("completions")
+        .server_options(ServerOptions {
+            feature_flags: if v1_4 {
+                // Needed for multi-workflow files
+                FeatureFlags::default().with_wdl_1_4()
+            } else {
+                Default::default()
+            },
+            ..Default::default()
+        })
+        .build();
     ctx.initialize().await;
     ctx
 }
 
 #[tokio::test]
 async fn should_complete_top_level_keywords() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
     let response = completion_request(&mut ctx, "source.wdl", Position::new(1, 0))
         .await
         .expect("request should succeed");
@@ -111,7 +121,7 @@ async fn should_complete_top_level_keywords() {
 
 #[tokio::test]
 async fn should_complete_workflow_keywords() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
     let response = completion_request(&mut ctx, "source.wdl", Position::new(13, 0))
         .await
         .expect("request should succeed");
@@ -160,7 +170,7 @@ async fn should_complete_workflow_keywords() {
 
 #[tokio::test]
 async fn should_complete_task_keywords() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
     let response = completion_request(&mut ctx, "lib.wdl", Position::new(3, 0))
         .await
         .expect("request should succeed");
@@ -209,7 +219,7 @@ async fn should_complete_task_keywords() {
 
 #[tokio::test]
 async fn should_complete_struct_keywords() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
     let response = completion_request(&mut ctx, "source.wdl", Position::new(9, 0))
         .await
         .expect("request should succeed");
@@ -261,7 +271,7 @@ async fn should_complete_struct_keywords() {
 
 #[tokio::test]
 async fn should_complete_struct_members_access() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     // Position of cursor `String n = my_foo.`
     let response = completion_request(&mut ctx, "source.wdl", Position::new(21, 22))
@@ -278,7 +288,7 @@ async fn should_complete_struct_members_access() {
 
 #[tokio::test]
 async fn should_complete_with_partial_word() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
     // Position of cursor at `Int out = qux.n`
     let response = completion_request(&mut ctx, "partial.wdl", Position::new(13, 23))
         .await
@@ -293,9 +303,9 @@ async fn should_complete_with_partial_word() {
 
 #[tokio::test]
 async fn should_complete_namespace_members() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(true).await;
     // Position of cursor at `call lib.`
-    let response = completion_request(&mut ctx, "namespaces.wdl", Position::new(5, 13))
+    let response = completion_request(&mut ctx, "namespaces.wdl", Position::new(6, 13))
         .await
         .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
@@ -304,11 +314,23 @@ async fn should_complete_namespace_members() {
 
     assert_eq!(items.len(), 2);
     assert_contains(&items, "greet");
+
+    // Position of cursor at `call merged.`
+    let response = completion_request(&mut ctx, "namespaces.wdl", Position::new(10, 16))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_eq!(items.len(), 4);
+    assert_contains(&items, "foo");
+    assert_contains(&items, "nested_task");
 }
 
 #[tokio::test]
 async fn should_complete_scope_variables() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     // Workflow scope
     let response = completion_request(&mut ctx, "scopes.wdl", Position::new(10, 0))
@@ -375,7 +397,7 @@ async fn should_complete_scope_variables() {
 
 #[tokio::test]
 async fn should_complete_scope_variables_v1_0_stdlib() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     // Workflow scope
     let response = completion_request(&mut ctx, "scopes_v1_0.wdl", Position::new(10, 0))
@@ -416,7 +438,7 @@ async fn should_complete_scope_variables_v1_0_stdlib() {
 
 #[tokio::test]
 async fn should_complete_task_variable_members() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     // In command section
     let response = completion_request(&mut ctx, "taskvar.wdl", Position::new(4, 21))
@@ -455,7 +477,7 @@ async fn should_complete_task_variable_members() {
 
 #[tokio::test]
 async fn should_complete_nested_task_metadata_object_members() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     // Position of cursor at `String child = task.meta.nested_obj.`
     let response = completion_request(&mut ctx, "taskmeta.wdl", Position::new(19, 44))
@@ -475,7 +497,7 @@ async fn should_complete_nested_task_metadata_object_members() {
 
 #[tokio::test]
 async fn should_complete_runtime_keys() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "sections.wdl", Position::new(4, 0))
         .await
@@ -495,7 +517,7 @@ async fn should_complete_runtime_keys() {
 
 #[tokio::test]
 async fn should_complete_requirements_keys() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "sections.wdl", Position::new(8, 0))
         .await
@@ -516,7 +538,7 @@ async fn should_complete_requirements_keys() {
 
 #[tokio::test]
 async fn should_complete_task_hints_keys() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "sections.wdl", Position::new(12, 0))
         .await
@@ -531,7 +553,7 @@ async fn should_complete_task_hints_keys() {
 
 #[tokio::test]
 async fn should_complete_workflow_hints_keys() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "sections.wdl", Position::new(18, 0))
         .await
@@ -545,7 +567,7 @@ async fn should_complete_workflow_hints_keys() {
 
 #[tokio::test]
 async fn should_complete_versions() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "version.wdl", Position::new(0, 8))
         .await
@@ -561,7 +583,7 @@ async fn should_complete_versions() {
 
 #[tokio::test]
 async fn should_complete_namespaced_task_as_snippet() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "snippet_ns.wdl", Position::new(5, 8))
         .await
@@ -588,7 +610,7 @@ async fn should_complete_namespaced_task_as_snippet() {
 
 #[tokio::test]
 async fn should_complete_local_task_as_snippet() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "snippet_local.wdl", Position::new(12, 8))
         .await
@@ -615,7 +637,7 @@ async fn should_complete_local_task_as_snippet() {
 
 #[tokio::test]
 async fn should_complete_struct_literal_as_snippet() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "snippet_struct.wdl", Position::new(8, 16))
         .await
@@ -642,7 +664,7 @@ async fn should_complete_struct_literal_as_snippet() {
 
 #[tokio::test]
 async fn should_complete_enum_choices() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "snippet_enum.wdl", Position::new(9, 22))
         .await
@@ -659,7 +681,7 @@ async fn should_complete_enum_choices() {
 
 #[tokio::test]
 async fn should_complete_top_level_keyword_as_snippet() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "snippet_keyword.wdl", Position::new(0, 0))
         .await
@@ -683,7 +705,7 @@ async fn should_complete_top_level_keyword_as_snippet() {
 
 #[tokio::test]
 async fn should_not_complete_shadowed_type_names() {
-    let mut ctx = setup().await;
+    let mut ctx = setup(false).await;
 
     let response = completion_request(&mut ctx, "type_name_shadowing.wdl", Position::new(25, 0))
         .await
