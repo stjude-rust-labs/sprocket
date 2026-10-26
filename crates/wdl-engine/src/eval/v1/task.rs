@@ -2557,7 +2557,7 @@ mod tests {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
         let document = results.first().expect("should have result").document();
-        let events = Events::new(100);
+        let events = Events::default().with_engine(100);
         let mut receiver = events.subscribe_engine().unwrap();
         let evaluator = engine.create_v1_evaluator(
             events,
@@ -3593,7 +3593,7 @@ task t {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let events = Events::new(10);
+        let events = Events::default().with_crankshaft(10);
         let evaluator = engine.create_v1_evaluator(
             events.clone(),
             cancellation.clone(),

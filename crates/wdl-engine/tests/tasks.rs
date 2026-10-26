@@ -42,14 +42,13 @@ use tracing::info;
 use tracing::level_filters::LevelFilter;
 use walkdir::WalkDir;
 use wdl_analysis::Analyzer;
-use wdl_analysis::TaskRef;
+use wdl_analysis::document::TaskRef;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::ContainerImageOverrides;
 use wdl_engine::Engine;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
-use wdl_engine::Events;
 use wdl_engine::Inputs;
 
 mod common;
@@ -164,7 +163,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .context("failed to create WDL engine")?;
 
         let evaluator = engine.create_v1_evaluator(
-            Events::disabled(),
+            Events::default(),
             Default::default(),
             ContainerImageOverrides::default(),
         );

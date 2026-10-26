@@ -827,7 +827,7 @@ mod tests {
             .await
             .expect("Docker backend should initialize");
 
-        let events = Events::new(1024);
+        let events = Events::default().with_crankshaft(1024);
         let mut receiver = events
             .subscribe_crankshaft()
             .expect("Crankshaft events should be enabled");
