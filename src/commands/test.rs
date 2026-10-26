@@ -1228,7 +1228,16 @@ async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<Strin
         bail!("no {BLESSED_FILE_NAME} found");
     }
 
-    let blessed: Vec<Blessed> = serde_json::from_str(&read_to_string(&blessed_files_path)?)?;
+    let blessed: Vec<Blessed> = serde_json::from_str(
+        &read_to_string(&blessed_files_path)
+            .with_context(|| format!("reading `{path}`", path = blessed_files_path.display()))?,
+    )
+    .with_context(|| {
+        format!(
+            "parsing `{path}` as JSON",
+            path = blessed_files_path.display()
+        )
+    })?;
     let mut blessed_names: HashSet<String> = HashSet::with_capacity(blessed.len());
     for executable in &blessed {
         let path = bin_dir.join(&executable.path);
