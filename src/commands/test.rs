@@ -1192,12 +1192,8 @@ async fn bless_executables(bin_dir: &Path) -> Result<()> {
 async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<String, PathBuf>> {
     if !bin_dir.is_dir() {
         // NOTE: users may have enabled custom assertions without actually
-        // writing any, so we warn but gracefully continue without
-        // running custom executables
-        warn!(
-            "couldn't find `{}` containing custom assertion executables",
-            bin_dir.display()
-        );
+        // writing any, so we gracefully continue and rely on an error later,
+        // iff an executable is indicated that isn't found.
         return Ok(HashMap::new());
     }
 
