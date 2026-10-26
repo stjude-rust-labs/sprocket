@@ -41,10 +41,12 @@ use super::ExecuteTaskRequest;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
+use crate::ContainerImageOverrides;
 use crate::EngineEvent;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::INITIAL_EXPECTED_NAMES;
+use crate::ImageSource;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
@@ -57,13 +59,11 @@ use crate::config::Config;
 use crate::config::ContentDigestMode;
 use crate::config::TesBackendAuthConfig;
 use crate::digest::UrlDigestExt;
-use crate::images::ContainerImageOverrides;
 use crate::resubmit_task_name;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::hints;
 use crate::v1::requirements;
-use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";

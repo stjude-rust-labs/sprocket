@@ -6,6 +6,7 @@ use anyhow::anyhow;
 use wdl::analysis::Document;
 use wdl::analysis::TaskRef;
 use wdl::engine::CancellationContext;
+use wdl::engine::ContainerImageOverrides;
 use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -14,7 +15,6 @@ use wdl::engine::EvaluationResult;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
-use wdl::engine::images::ContainerImageOverrides;
 
 /// An evaluator for a WDL task or workflow.
 pub struct Evaluator<'a> {

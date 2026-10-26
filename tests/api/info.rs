@@ -21,7 +21,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
-use wdl::engine::images::ContainerImageOverrides;
+use wdl::engine::ContainerImageOverrides;
 
 /// Create a test server whose `AppState` reports the given failure mode.
 ///

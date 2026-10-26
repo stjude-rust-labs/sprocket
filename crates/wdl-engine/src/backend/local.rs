@@ -23,6 +23,7 @@ use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
@@ -36,7 +37,6 @@ use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
-use crate::images::ContainerImageOverrides;
 use crate::v1::requirements;
 
 /// Represents a local task request.

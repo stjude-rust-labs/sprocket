@@ -51,6 +51,7 @@ use tracing::trace;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -64,7 +65,6 @@ use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::images::ContainerImageOverrides;
 use crate::v1::requirements;
 
 /// The name of the file where the Apptainer command invocation will be written.

@@ -31,6 +31,7 @@ use wdl::analysis::TaskRef;
 use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
+use wdl::engine::ContainerImageOverrides;
 use wdl::engine::Engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -39,7 +40,6 @@ use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
-use wdl::engine::images::ContainerImageOverrides;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;

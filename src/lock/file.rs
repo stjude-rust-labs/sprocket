@@ -16,8 +16,8 @@ use wdl::ast::Severity;
 use wdl::ast::Span;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::engine::images::ContainerImageOverrides;
-use wdl::engine::images::ImageOverrideMap;
+use wdl::engine::ContainerImageOverrides;
+use wdl::engine::ImageOverrideMap;
 
 use crate::analysis::Source;
 use crate::commands::CommandOutput;
@@ -243,7 +243,7 @@ mod v1 {
     use toml_spanner::FromToml;
     use toml_spanner::Item;
     use toml_spanner::Toml;
-    use wdl::engine::images::ImageOverrideMap;
+    use wdl::engine::ImageOverrideMap;
 
     use crate::lock::file::LockFileVersion;
 

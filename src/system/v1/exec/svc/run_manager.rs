@@ -46,7 +46,7 @@ pub(crate) mod commands;
 
 pub use commands::*;
 use wdl::diagnostics::Mode;
-use wdl::engine::images::ContainerImageOverrides;
+use wdl::engine::ContainerImageOverrides;
 
 /// Channel capacity for events.
 ///

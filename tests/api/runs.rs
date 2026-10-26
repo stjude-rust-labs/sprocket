@@ -26,7 +26,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
-use wdl::engine::images::ContainerImageOverrides;
+use wdl::engine::ContainerImageOverrides;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]

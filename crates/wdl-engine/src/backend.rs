@@ -14,12 +14,12 @@ use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::GuestPath;
+use crate::ImageSource;
 use crate::Object;
 use crate::TaskInputs;
 use crate::Value;
 use crate::digest::DigestCalculator;
 use crate::http::Location;
-use crate::v1::requirements::ImageSource;
 
 mod apptainer;
 mod docker;
@@ -36,7 +36,7 @@ pub use lsf_apptainer::*;
 pub use slurm_apptainer::*;
 pub use tes::*;
 
-use crate::images::ContainerImageOverrides;
+use crate::ContainerImageOverrides;
 
 /// The default root guest path for inputs.
 const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";

@@ -32,10 +32,10 @@ use wdl::ast::version::V1;
 use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
+use wdl::engine::ImageDigests;
+use wdl::engine::ImageOverrideMap;
+use wdl::engine::ImageSource;
 use wdl::engine::config::DEFAULT_TASK_CONTAINER;
-use wdl::engine::images::ImageDigests;
-use wdl::engine::images::ImageOverrideMap;
-use wdl::engine::v1::requirements::ImageSource;
 
 use crate::Config;
 use crate::analysis::Analysis;

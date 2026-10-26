@@ -68,6 +68,7 @@ use super::Evaluator;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::ContainerImageOverrides;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
@@ -108,7 +109,6 @@ use crate::eval::ScopeIndex;
 use crate::eval::ScopeRef;
 use crate::eval::TaskConstraintsSnapshot;
 use crate::eval::trie::InputTrie;
-use crate::images::ContainerImageOverrides;
 use crate::path::is_broken_symlink;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
@@ -121,7 +121,7 @@ use crate::v1::expr::ExprEvaluator;
 use crate::v1::write_json_file;
 
 pub(crate) mod hints;
-pub mod requirements;
+pub(crate) mod requirements;
 
 /// The maximum number of stderr lines to display in error messages.
 const MAX_STDERR_LINES: usize = 10;
@@ -2399,6 +2399,7 @@ mod tests {
 
     use crate::CancellationContext;
     use crate::CancellationContextState;
+    use crate::ContainerImageOverrides;
     use crate::Engine;
     use crate::EngineEvent;
     use crate::EvaluationPath;
@@ -2420,7 +2421,6 @@ mod tests {
     use crate::config::LocalBackendConfig;
     use crate::eval::EvaluatedTask;
     use crate::http::tests::NotImplementedHttpClient;
-    use crate::images::ContainerImageOverrides;
     use crate::resubmit_task_name;
 
     struct ScriptedRenamingBackend {

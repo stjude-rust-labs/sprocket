@@ -1925,11 +1925,11 @@ mod tests {
 
     use super::*;
     use crate::CancellationContext;
+    use crate::ContainerImageOverrides;
     use crate::EngineEvent;
     use crate::Events;
     use crate::config::Config;
     use crate::config::FailureMode;
-    use crate::images::ContainerImageOverrides;
     use crate::v1::Engine;
 
     #[tokio::test]

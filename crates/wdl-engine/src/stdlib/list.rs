@@ -314,9 +314,9 @@ mod tests {
     use wdl_ast::SupportedVersion;
     use wdl_ast::version::V1;
 
+    use crate::ContainerImageOverrides;
     use crate::PrimitiveValue;
     use crate::Value;
-    use crate::images::ContainerImageOverrides;
     use crate::v1::tests::TestEnv;
     use crate::v1::tests::eval_v1_expr;
 

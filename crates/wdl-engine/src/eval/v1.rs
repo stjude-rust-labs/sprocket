@@ -20,7 +20,7 @@ pub(crate) use expr::*;
 use lru::LruCache;
 use regex::Regex;
 use serde::Serialize;
-pub use task::*;
+pub(crate) use task::*;
 use wdl_analysis::Document;
 use wdl_analysis::types::EnumChoiceCacheKey;
 use wdl_ast::AstToken;
@@ -30,6 +30,7 @@ use wdl_ast::version::V1;
 
 use super::CancellationContext;
 use super::Events;
+use crate::ContainerImageOverrides;
 use crate::Engine;
 use crate::EngineEvent;
 use crate::EvaluationHttpClient;
@@ -41,7 +42,6 @@ use crate::diagnostics::unknown_enum_choice;
 use crate::digest::DigestCalculator;
 use crate::eval::RetryCause;
 use crate::eval::TaskConstraintsSnapshot;
-use crate::images::ContainerImageOverrides;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.

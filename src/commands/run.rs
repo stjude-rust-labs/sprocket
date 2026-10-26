@@ -48,13 +48,13 @@ use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
+use wdl::engine::ImageOverrideResolutionFailureMode;
 use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::RetryConfig;
 use wdl::engine::config::SecretString;
-use wdl::engine::images::ImageOverrideResolutionFailureMode;
 
 use crate::Config;
 use crate::FileReloadHandle;

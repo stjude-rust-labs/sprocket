@@ -49,6 +49,7 @@ use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::ContainerImageOverrides;
 use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -60,7 +61,6 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
 use wdl::engine::config::RetryConfig;
 use wdl::engine::config::TaskResourceLimitBehavior;
-use wdl::engine::images::ContainerImageOverrides;
 
 use crate::Config;
 use crate::Stdout;

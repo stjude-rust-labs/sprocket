@@ -9,6 +9,7 @@ use tracing::info;
 use tracing::warn;
 
 use super::CancellationContext;
+use crate::ContainerImageOverrides;
 use crate::Events;
 use crate::backend::TaskExecutionBackend;
 use crate::cache::CallCache;
@@ -18,7 +19,6 @@ use crate::config::CallCachingMode;
 use crate::config::Config;
 use crate::http::DefaultHttpClient;
 use crate::http::HttpClient;
-use crate::images::ContainerImageOverrides;
 use crate::v1;
 
 /// The inner state of [`Engine`].

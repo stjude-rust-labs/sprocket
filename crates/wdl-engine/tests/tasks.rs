@@ -45,12 +45,12 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::TaskRef;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
+use wdl_engine::ContainerImageOverrides;
 use wdl_engine::Engine;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
-use wdl_engine::images::ContainerImageOverrides;
 
 mod common;
 

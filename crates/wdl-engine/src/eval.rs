@@ -40,9 +40,9 @@ use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
 use crate::http::Location;
-use crate::v1::requirements::ImageSource;
 
-pub mod images;
+mod images;
+pub use images::*;
 mod trie;
 pub mod v1;
 
@@ -1159,7 +1159,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::v1::requirements::LibraryApiSpec;
+    use crate::LibraryApiSpec;
 
     #[test]
     fn cancellation_slow() {

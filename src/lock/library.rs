@@ -7,8 +7,8 @@ use anyhow::bail;
 use axum::http::StatusCode;
 use reqwest::Client;
 use serde::Deserialize;
-use wdl::engine::v1::requirements::ImageSource;
-use wdl::engine::v1::requirements::LibraryApiSpec;
+use wdl::engine::ImageSource;
+use wdl::engine::LibraryApiSpec;
 
 use crate::config::LockConfig;
 

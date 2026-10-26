@@ -38,8 +38,10 @@ use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
 #[cfg(unix)]
 use crate::CLEANUP_TASK_NAME_PREFIX;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::INITIAL_EXPECTED_NAMES;
+use crate::ImageSource;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
@@ -50,11 +52,9 @@ use crate::backend::manager::ManagedTask;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
-use crate::images::ContainerImageOverrides;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::hints;
 use crate::v1::requirements;
-use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -442,7 +442,7 @@ fn collect_applicable_sources(sources: &[ImageSource]) -> anyhow::Result<Vec<Str
     for source in sources {
         match source {
             ImageSource::Docker(s) => {
-                let s = s.strip_prefix(requirements::DOCKER_PROTOCOL).unwrap_or(s);
+                let s = s.strip_prefix(crate::DOCKER_PROTOCOL).unwrap_or(s);
                 results.push(source.clone(), Ok(s.to_string()));
             }
             ImageSource::Library(_) | ImageSource::Oras(_) => {

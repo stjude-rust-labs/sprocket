@@ -15,7 +15,7 @@ use docker_credential::CredentialRetrievalError;
 use docker_credential::DockerCredential;
 use oci_client::Reference;
 use oci_client::secrets::RegistryAuth;
-use wdl::engine::v1::requirements::ImageSource;
+use wdl::engine::ImageSource;
 
 /// The docker auth config.
 #[derive(Debug)]
