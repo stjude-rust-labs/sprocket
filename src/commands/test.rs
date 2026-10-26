@@ -1151,8 +1151,8 @@ async fn bless_executables(bin_dir: &Path) -> Result<()> {
         let path = entry.path();
         if !is_regular_file(&path)? {
             bail!(
-                "all contents of the test `bin` directory must be regular files: `{}`",
-                path.display()
+                "test executable `{path}` cannot be a directory or symbolic link",
+                path = path.display(),
             );
         }
         let name = entry.file_name();
@@ -1209,8 +1209,8 @@ async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<Strin
         let path = entry.path();
         if !is_regular_file(&path)? {
             bail!(
-                "all contents of the test `bin` directory must be regular files: `{}`",
-                path.display()
+                "test executable `{path}` cannot be a directory or symbolic link",
+                path = path.display(),
             );
         }
         let name = entry.file_name();
@@ -1219,7 +1219,7 @@ async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<Strin
             continue;
         }
 
-        info!("found file named `{name}` for custom assertions",);
+        info!("found test executable `{name}` for custom assertions");
         found.insert(name.into(), absolute(entry.path())?);
     }
 
@@ -1251,7 +1251,7 @@ async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<Strin
             anyhow::Ok(hasher.finalize())
         })
         .await
-        .context("file digest task paniched")??;
+        .context("file digest task panicked")??;
 
         if hash.to_string() != executable.hash {
             bail!("hash mismatch for `{}`", executable.path.display());
@@ -1260,7 +1260,7 @@ async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<Strin
     }
     for f in found.keys() {
         if !blessed_names.contains(f) {
-            bail!("`{}` file has not been blessed", f);
+            bail!("test executable `{f}` has not been blessed");
         }
     }
     Ok(found)
