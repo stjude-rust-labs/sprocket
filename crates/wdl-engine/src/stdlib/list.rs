@@ -1078,7 +1078,7 @@ task list_task {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator = engine.create_v1_evaluator(
-            Events::disabled(),
+            Events::default(),
             Default::default(),
             ContainerImageOverrides::default(),
         );

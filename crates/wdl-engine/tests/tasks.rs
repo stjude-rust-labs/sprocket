@@ -49,6 +49,7 @@ use wdl_engine::ContainerImageOverrides;
 use wdl_engine::Engine;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
+use wdl_engine::Events;
 use wdl_engine::Inputs;
 
 mod common;
