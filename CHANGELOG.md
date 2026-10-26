@@ -9,6 +9,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `All` and `Any` assertions to the test framework for checking whether all or at least one element of a WDL array satisfies an assertion.
 * Added `sprocket dev module schema` subcommand to generate a [JSON schema](https://json-schema.org)
   for WDL `module.json` definitions
   ([#1295](https://github.com/stjude-rust-labs/sprocket/pull/1295)).
