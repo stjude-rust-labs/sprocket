@@ -98,9 +98,12 @@ impl LockFile {
             return None;
         }
 
-        Some(ContainerImageOverrides::new(
-            overrides.iter().map(|(k, v)| (k.clone(), v.clone())),
-        ))
+        Some(
+            overrides
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        )
     }
 }
 
@@ -124,7 +127,7 @@ impl ToToml for LockFile {
             .into_table()
             .expect("invalid ToToml impl for `LockFile`");
         let Some(mut table) = Table::try_with_capacity(1 + file_table.len(), arena) else {
-            return Err(ToTomlError::from("Table capacity exceeded maximum"));
+            return Err(ToTomlError::from("table capacity exceeded maximum"));
         };
         table.insert_unique(Key::new("version"), version_item, arena);
         for (key, val) in file_table {
@@ -176,7 +179,11 @@ impl LockFile {
                 let lock_file = match std::fs::read_to_string(&candidate) {
                     Ok(lock_file) => lock_file,
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-                    Err(e) => bail!("failed to read `{}`: {e}", candidate.display()),
+                    Err(e) => {
+                        return Err(e).with_context(|| {
+                            format!("failed to read `{path}`", path = candidate.display())
+                        });
+                    }
                 };
 
                 match toml_spanner::from_str(&lock_file) {

@@ -9,6 +9,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use anyhow::Context;
 use anyhow::ensure;
 use docker_credential::CredentialRetrievalError;
 use docker_credential::DockerCredential;
@@ -45,14 +46,19 @@ impl AuthConfig {
         let config_path = config_dir.join("config.json");
         match std::fs::read_to_string(&config_path) {
             Ok(config) => {
-                tracing::debug!("using Docker auth config: {}", config_path.display());
+                tracing::debug!("using Docker auth config `{}`", config_path.display());
                 Ok(Some(Self(config)))
             }
             Err(e) if e.kind() == ErrorKind::NotFound => {
                 tracing::trace!("no Docker auth config found");
                 Ok(None)
             }
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e).with_context(|| {
+                format!(
+                    "failed to read Docker auth config `{path}`",
+                    path = config_path.display()
+                )
+            }),
         }
     }
 }

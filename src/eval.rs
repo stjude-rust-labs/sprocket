@@ -32,7 +32,7 @@ pub struct Evaluator<'a> {
     output_dir: &'a Path,
 
     /// See [`WdlEvaluator`].image_overrides.
-    image_overrides: Option<ContainerImageOverrides>,
+    image_overrides: ContainerImageOverrides,
 }
 
 impl<'a> Evaluator<'a> {
@@ -44,7 +44,7 @@ impl<'a> Evaluator<'a> {
         base_dir: &'a EvaluationPath,
         engine: &'a Engine,
         output_dir: &'a Path,
-        image_overrides: Option<ContainerImageOverrides>,
+        image_overrides: ContainerImageOverrides,
     ) -> Self {
         Self {
             document,

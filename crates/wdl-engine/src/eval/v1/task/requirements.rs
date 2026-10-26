@@ -1,8 +1,12 @@
 //! Implementation of utility functions for reading task requirements.
 
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::ops::Range;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -67,28 +71,80 @@ const SIF_EXTENSION: &str = "sif";
 const WILDCARD_CONTAINER: &str = "*";
 
 /// A parsed [Library API](https://singularityhub.github.io/library-api) URI (`library://`).
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct LibraryApiSpec {
-    /// The registry hosting the image, if specified.
-    pub registry: Option<String>,
-    /// The entity (user) responsible for the image.
-    entity: Option<String>,
-    /// The collection that the image belongs to.
-    collection: Option<String>,
-    /// The container image name.
-    pub container: String,
+    /// The full library image spec.
+    spec: String,
+
+    /// The range in the `spec` representing the registry hosting the image.
+    registry: Option<Range<usize>>,
+    /// The range in the `spec` representing the entity (user) responsible for
+    /// the image.
+    entity: Option<Range<usize>>,
+    /// The range in the `spec` representing the collection name.
+    collection: Option<Range<usize>>,
+    /// The start of the container image name.
+    container_start: usize,
+}
+
+impl Eq for LibraryApiSpec {}
+
+impl PartialEq for LibraryApiSpec {
+    fn eq(&self, other: &Self) -> bool {
+        self.spec == other.spec
+    }
+}
+
+impl Ord for LibraryApiSpec {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.spec.cmp(&other.spec)
+    }
+}
+
+impl PartialOrd for LibraryApiSpec {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Hash for LibraryApiSpec {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.spec.hash(state);
+    }
 }
 
 impl LibraryApiSpec {
+    /// The registry hosting the image.
+    pub fn registry(&self) -> Option<&str> {
+        self.registry.clone().map(|range| &self.spec[range])
+    }
+
     /// The entity (user) responsible for the image.
     pub fn entity(&self) -> &str {
-        self.entity.as_deref().unwrap_or("library")
+        self.entity
+            .clone()
+            .map(|range| &self.spec[range])
+            .unwrap_or("library")
     }
 
     /// The collection that the image belongs to.
     pub fn collection(&self) -> &str {
-        self.collection.as_deref().unwrap_or("default")
+        self.collection
+            .clone()
+            .map(|range| &self.spec[range])
+            .unwrap_or("default")
+    }
+
+    /// The registry hosting the image.
+    pub fn container(&self) -> &str {
+        &self.spec[self.container_start..]
+    }
+
+    /// Change the container image name.
+    pub fn set_container(&mut self, container: impl AsRef<str>) {
+        self.spec
+            .replace_range(self.container_start.., container.as_ref());
     }
 }
 
@@ -96,53 +152,62 @@ impl FromStr for LibraryApiSpec {
     type Err = ();
 
     fn from_str(s: &str) -> anyhow::Result<Self, Self::Err> {
+        const SEPARATOR: char = '/';
+
+        fn segment(offset: &mut usize, s: &str) -> Range<usize> {
+            let range = *offset..*offset + s.len();
+            *offset += s.len() + SEPARATOR.len_utf8();
+
+            range
+        }
+
         // library://library.sylabs.io/library/default/ubuntu:latest
         //           ----------------- ------- ------- -------------
         //                   |            |       |          |
         //                registry      entity collection   image
 
-        let mut parts = s.split('/').collect::<Vec<_>>();
+        let mut parts = s.split(SEPARATOR).collect::<Vec<_>>();
 
+        let mut offset = 0;
         let registry = if parts.len() > 1 && parts[0].contains('.') {
-            Some(parts.remove(0))
+            Some(segment(&mut offset, parts.remove(0)))
         } else {
             None
         };
 
-        let (entity, collection, container) = match parts.len() {
+        let (entity, collection, container_start) = match parts.len() {
             // library://ubuntu:latest
-            1 => (None, None, parts[0]),
+            1 => (None, None, offset),
             // library://entity/ubuntu:latest
-            2 => (Some(parts[0]), None, parts[1]),
+            2 => {
+                let entity = segment(&mut offset, parts[0]);
+
+                (Some(entity), None, offset)
+            }
             // library://library/default/ubuntu:latest
-            3 => (Some(parts[0]), Some(parts[1]), parts[2]),
+            3 => {
+                let entity = segment(&mut offset, parts[0]);
+                let collection = segment(&mut offset, parts[1]);
+
+                (Some(entity), Some(collection), offset)
+            }
             _ => return Err(()),
         };
 
         Ok(Self {
-            registry: registry.map(ToString::to_string),
-            entity: entity.map(ToString::to_string),
-            collection: collection.map(ToString::to_string),
-            container: container.to_string(),
+            spec: s.to_string(),
+
+            registry,
+            entity,
+            collection,
+            container_start,
         })
     }
 }
 
 impl Display for LibraryApiSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(registry) = &self.registry {
-            write!(f, "{registry}/")?;
-        }
-
-        write!(
-            f,
-            "{}/{}/{}",
-            self.entity(),
-            self.collection(),
-            self.container
-        )?;
-
-        Ok(())
+        write!(f, "{}", self.spec)
     }
 }
 
@@ -197,10 +262,10 @@ impl ImageSource {
     /// Gets the display name of the image source.
     ///
     /// Returns `None` if the source is a file or an unknown source.
-    pub fn name(&self) -> Option<Cow<'_, str>> {
+    pub fn name(&self) -> Option<&str> {
         match self {
-            Self::Library(uri) => Some(Cow::Owned(uri.to_string())),
-            Self::Docker(name) | Self::Oras(name) => Some(Cow::Borrowed(name)),
+            Self::Library(spec) => Some(&spec.spec),
+            Self::Docker(name) | Self::Oras(name) => Some(name),
             Self::SifFile(_) | Self::Unknown(_) => None,
         }
     }
@@ -306,13 +371,6 @@ fn resolve_image_source(
             ImageDigests::OciManifest(image_override) => return Ok(image_override.clone()),
             // See if we can find an override for the target arch...
             ImageDigests::PerArch(arch_overrides) => {
-                if std::env::consts::ARCH == "powerpc64"
-                    && cfg!(target_endian = "little")
-                    && let Some(image_override) = arch_overrides.get("ppc64le")
-                {
-                    return Ok(image_override.clone());
-                }
-
                 if let Some(image_override) = arch_overrides.get(std::env::consts::ARCH) {
                     return Ok(image_override.clone());
                 }
@@ -321,7 +379,7 @@ fn resolve_image_source(
     }
 
     if overrides.failure_mode() == ImageOverrideResolutionFailureMode::Error {
-        bail!("no override available for container `{s}`");
+        bail!("no override available for container image `{s}`");
     }
 
     Ok(source)
@@ -740,15 +798,14 @@ mod tests {
 
         let library: S =
             toml_spanner::from_str(r#"img = "library://sylabs/default/alpine:3.18""#).unwrap();
-        assert_eq!(
-            library.img,
-            ImageSource::Library(LibraryApiSpec {
-                registry: None,
-                entity: Some(String::from("sylabs")),
-                collection: Some(String::from("default")),
-                container: String::from("alpine:3.18"),
-            })
-        );
+        let ImageSource::Library(spec) = &library.img else {
+            panic!("expected library source, found: {:?}", library.img);
+        };
+
+        assert_eq!(spec.registry(), None);
+        assert_eq!(spec.entity(), "sylabs");
+        assert_eq!(spec.collection(), "default");
+        assert_eq!(spec.container(), "alpine:3.18");
     }
 
     #[test]
@@ -812,21 +869,62 @@ mod tests {
 
     #[test]
     fn parses_library_protocol() {
-        let source: ImageSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
-        assert_eq!(
-            source,
-            ImageSource::Library(LibraryApiSpec {
-                registry: None,
-                entity: Some(String::from("sylabs")),
-                collection: Some(String::from("default")),
-                container: String::from("alpine:3.18"),
-            })
-        );
-        assert_eq!(source.to_string(), "sylabs/default/alpine:3.18");
-        assert_eq!(
-            format!("{source:#}"),
-            "library://sylabs/default/alpine:3.18"
-        );
+        for (spec, (registry, entity, collection, container)) in [
+            // Image
+            ("alpine:3.18", (None, "library", "default", "alpine:3.18")),
+            // Image and registry
+            (
+                "library.sylabs.io/alpine:3.18",
+                (
+                    Some("library.sylabs.io"),
+                    "library",
+                    "default",
+                    "alpine:3.18",
+                ),
+            ),
+            // Entity and image
+            (
+                "sylabs/alpine:3.18",
+                (None, "sylabs", "default", "alpine:3.18"),
+            ),
+            // Entity, image, and registry
+            (
+                "library.sylabs.io/sylabs/alpine:3.18",
+                (
+                    Some("library.sylabs.io"),
+                    "sylabs",
+                    "default",
+                    "alpine:3.18",
+                ),
+            ),
+            // Entity, collection, and image
+            (
+                "sylabs/collection/alpine:3.18",
+                (None, "sylabs", "collection", "alpine:3.18"),
+            ),
+            // All components
+            (
+                "library.sylabs.io/sylabs/collection/alpine:3.18",
+                (
+                    Some("library.sylabs.io"),
+                    "sylabs",
+                    "collection",
+                    "alpine:3.18",
+                ),
+            ),
+        ] {
+            let source: ImageSource = format!("library://{spec}").parse().unwrap();
+            let ImageSource::Library(parsed_spec) = &source else {
+                panic!("expected library source, found: {source:?}");
+            };
+
+            assert_eq!(parsed_spec.registry(), registry);
+            assert_eq!(parsed_spec.entity(), entity);
+            assert_eq!(parsed_spec.collection(), collection);
+            assert_eq!(parsed_spec.container(), container);
+            assert_eq!(parsed_spec.to_string(), spec);
+            assert_eq!(format!("{source:#}"), format!("library://{spec}"));
+        }
     }
 
     #[test]
@@ -1085,10 +1183,12 @@ mod tests {
             Value::Compound(crate::CompoundValue::Array(array)),
         );
 
-        let overrides = ContainerImageOverrides::new([(
+        let overrides: ContainerImageOverrides = [(
             ImageSource::Docker(String::from("foo:1.0")),
             ImageDigests::OciManifest(ImageSource::Docker("foo@sha256:1111".to_string())),
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let result = container(
             &TaskInputs::default(),
@@ -1112,10 +1212,12 @@ mod tests {
             PrimitiveValue::new_string("foo:1.0").into(),
         );
 
-        let overrides = ContainerImageOverrides::new([(
+        let overrides: ContainerImageOverrides = [(
             ImageSource::Docker(String::from("foo:1.0")),
             ImageDigests::OciManifest(ImageSource::Docker("foo@sha256:1111".to_string())),
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let result = container(
             &TaskInputs::default(),

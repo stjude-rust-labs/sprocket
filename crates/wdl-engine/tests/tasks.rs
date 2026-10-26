@@ -50,6 +50,7 @@ use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
+use wdl_engine::images::ContainerImageOverrides;
 
 mod common;
 
@@ -162,7 +163,11 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .await
             .context("failed to create WDL engine")?;
 
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            Default::default(),
+            ContainerImageOverrides::default(),
+        );
         match evaluator
             .evaluate_task(result.document(), task, inputs, dir.path())
             .await

@@ -3,3 +3,5 @@ error: unknown container source
   │
 8 │         container: "unknown://foo"
   │                    ^^^^^^^^^^^^^^^ this will not be included in the lockfile
+
+error: failing due to 1 error

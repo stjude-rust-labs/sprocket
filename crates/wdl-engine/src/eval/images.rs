@@ -70,14 +70,6 @@ pub struct ContainerImageOverrides {
 }
 
 impl ContainerImageOverrides {
-    /// Create a new `ContainerImageOverrides` with the given `overrides`.
-    pub fn new(overrides: impl IntoIterator<Item = (ImageSource, ImageDigests)>) -> Self {
-        Self {
-            failure_mode: ImageOverrideResolutionFailureMode::default(),
-            overrides: Arc::new(overrides.into_iter().collect()),
-        }
-    }
-
     /// Get the configured [`ImageOverrideResolutionFailureMode`].
     pub fn failure_mode(&self) -> ImageOverrideResolutionFailureMode {
         self.failure_mode
@@ -91,5 +83,14 @@ impl ContainerImageOverrides {
     /// Attempt to find `image` in the defined container image overrides.
     pub fn get(&self, image: &ImageSource) -> Option<&ImageDigests> {
         self.overrides.get(image)
+    }
+}
+
+impl FromIterator<(ImageSource, ImageDigests)> for ContainerImageOverrides {
+    fn from_iter<I: IntoIterator<Item = (ImageSource, ImageDigests)>>(iter: I) -> Self {
+        Self {
+            failure_mode: ImageOverrideResolutionFailureMode::default(),
+            overrides: Arc::new(iter.into_iter().collect()),
+        }
     }
 }

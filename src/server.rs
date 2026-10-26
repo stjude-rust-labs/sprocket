@@ -102,7 +102,7 @@ async fn create_server_app(
         report_mode,
         output.colorize(),
         db.clone(),
-        lock_file.as_container_overrides(),
+        lock_file.as_container_overrides().unwrap_or_default(),
     )
     .await?;
 

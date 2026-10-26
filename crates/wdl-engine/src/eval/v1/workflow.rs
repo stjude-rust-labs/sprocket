@@ -1929,6 +1929,7 @@ mod tests {
     use crate::Events;
     use crate::config::Config;
     use crate::config::FailureMode;
+    use crate::images::ContainerImageOverrides;
     use crate::v1::Engine;
 
     #[tokio::test]
@@ -2000,8 +2001,11 @@ workflow test {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
 
         // Evaluate the `test` workflow in `source.wdl` using the default local
         // backend
@@ -2130,8 +2134,11 @@ workflow test {
             .document();
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2224,8 +2231,11 @@ workflow test {
             .document();
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2317,8 +2327,11 @@ workflow foo {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
 
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
@@ -2553,7 +2566,11 @@ workflow w {
         });
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend
@@ -2653,7 +2670,11 @@ workflow w {
         });
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
         evaluator
             .evaluate_workflow(
                 results
@@ -2721,7 +2742,11 @@ workflow w {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), cancellation.clone(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            cancellation.clone(),
+            ContainerImageOverrides::default(),
+        );
 
         let mut evaluation = evaluator
             .evaluate_workflow(

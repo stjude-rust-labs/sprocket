@@ -26,6 +26,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
+use wdl::engine::images::ContainerImageOverrides;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -64,7 +65,7 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
-        None,
+        ContainerImageOverrides::default(),
     )
     .await
     .expect("failed to create run manager service");
@@ -2091,7 +2092,7 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
         Mode::default(),
         true,
         db.clone(),
-        None,
+        ContainerImageOverrides::default(),
     )
     .await
     .expect("failed to create run manager service");

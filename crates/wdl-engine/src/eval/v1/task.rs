@@ -2559,7 +2559,11 @@ mod tests {
         let document = results.first().expect("should have result").document();
         let events = Events::new(100);
         let mut receiver = events.subscribe_engine().unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
         let runs_dir = root_dir.join("runs");
         let evaluated = evaluator
             .evaluate_task(
@@ -3590,7 +3594,11 @@ task t {
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
         let events = Events::new(10);
-        let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone(), None);
+        let evaluator = engine.create_v1_evaluator(
+            events.clone(),
+            cancellation.clone(),
+            ContainerImageOverrides::default(),
+        );
 
         let document = results
             .iter()

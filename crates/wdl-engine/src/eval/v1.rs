@@ -119,7 +119,7 @@ impl Evaluator {
         engine: &Engine,
         events: Events,
         cancellation: CancellationContext,
-        image_overrides: Option<ContainerImageOverrides>,
+        image_overrides: ContainerImageOverrides,
     ) -> Self {
         let http_client = EvaluationHttpClient::new(engine, &events);
 
@@ -147,7 +147,7 @@ impl Evaluator {
                         .expect("expected a non-zero regex cache capacity"),
                 )),
                 digests,
-                image_overrides: Arc::new(image_overrides.unwrap_or_default()),
+                image_overrides: Arc::new(image_overrides),
             }
             .into(),
         )

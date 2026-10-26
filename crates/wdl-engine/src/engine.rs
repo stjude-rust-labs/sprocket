@@ -138,7 +138,7 @@ impl Engine {
         &self,
         events: Events,
         cancellation: CancellationContext,
-        image_overrides: Option<ContainerImageOverrides>,
+        image_overrides: ContainerImageOverrides,
     ) -> v1::Evaluator {
         v1::Evaluator::new(self, events, cancellation, image_overrides)
     }

@@ -5,4 +5,4 @@ warning: missing library registry
   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^ this will not be included in the lockfile
   │
   = help: registries must be known ahead of time for library images
-  = fix: add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a default under [lock.library].registry
+  = fix: add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a default under the `lock.library.registry` configuration setting

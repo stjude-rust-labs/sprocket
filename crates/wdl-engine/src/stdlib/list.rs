@@ -316,6 +316,7 @@ mod tests {
 
     use crate::PrimitiveValue;
     use crate::Value;
+    use crate::images::ContainerImageOverrides;
     use crate::v1::tests::TestEnv;
     use crate::v1::tests::eval_v1_expr;
 
@@ -1076,7 +1077,11 @@ task list_task {
         }
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            Default::default(),
+            ContainerImageOverrides::default(),
+        );
         let mut inputs = WorkflowInputs::default();
         inputs.set(
             "directory",

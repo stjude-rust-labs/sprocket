@@ -396,7 +396,7 @@ pub struct RunnableExecutor {
     /// Whether to colorize diagnostics.
     colorize: bool,
     /// See [`Evaluator`].image_overrides.
-    image_overrides: Option<ContainerImageOverrides>,
+    image_overrides: ContainerImageOverrides,
 }
 
 impl RunnableExecutor {
@@ -791,7 +791,7 @@ async fn execute_workflow_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
-    image_overrides: Option<ContainerImageOverrides>,
+    image_overrides: ContainerImageOverrides,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
@@ -858,7 +858,7 @@ async fn execute_task_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
-    image_overrides: Option<ContainerImageOverrides>,
+    image_overrides: ContainerImageOverrides,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
@@ -938,7 +938,7 @@ pub async fn execute_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
-    image_overrides: Option<ContainerImageOverrides>,
+    image_overrides: ContainerImageOverrides,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,

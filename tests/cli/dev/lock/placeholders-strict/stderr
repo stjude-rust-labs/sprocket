@@ -5,3 +5,5 @@ error: container with placeholder
    │                    ^^^^^^^^^^^^^^^^^^^^^^
    │
    = help: lock entries cannot be generated for placeholder values
+
+error: failing due to 1 error

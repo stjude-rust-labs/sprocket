@@ -1194,7 +1194,7 @@ impl Default for DocSeoConfig {
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LockConfig {
     /// Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.
-    #[toml(default)]
+    #[toml(default, style = Header)]
     #[schemars(default)]
     pub library: LibraryLockConfig,
 }

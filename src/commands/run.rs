@@ -64,6 +64,7 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+use crate::commands::lock::LOCK_FILE;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
@@ -935,9 +936,7 @@ pub async fn run(
     } else {
         let file = LockFile::locate(&source, report_mode, output)?;
         if args.locked && file.is_none() {
-            return Err(
-                anyhow!("--locked cannot be used without a `sprocket.lock` present").into(),
-            );
+            return Err(anyhow!("--locked cannot be used without a `{LOCK_FILE}` present").into());
         }
 
         file.unwrap_or_default()
@@ -1110,7 +1109,7 @@ pub async fn run(
         engine,
         events,
         cancellation.clone(),
-        image_overrides,
+        image_overrides.unwrap_or_default(),
         &target,
         inputs,
         &run_dir,

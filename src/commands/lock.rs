@@ -14,7 +14,6 @@ use colored::Colorize;
 use indicatif::ProgressStyle;
 use tracing::Level;
 use tracing::span;
-use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 use wdl::analysis::Diagnostics;
 use wdl::ast::AstNode;
@@ -138,7 +137,7 @@ fn unknown_library_registry(span: Span, strict: bool) -> Diagnostic {
         .with_help("registries must be known ahead of time for library images")
         .with_fix(
             "add a registry to the URI (e.g., library://library.sylabs.io/...) or configure a \
-             default under [lock.library].registry",
+             default under the `lock.library.registry` configuration setting",
         )
 }
 
@@ -177,12 +176,12 @@ fn task_container_images(
                         containers.push(source);
                     }
                     ImageSource::Library(ref image) => {
-                        if image.registry.is_none() && config.library.registry.is_none() {
+                        if image.registry().is_none() && config.library.registry.is_none() {
                             diagnostics.add(unknown_library_registry(expr.span(), strict));
                             return;
                         }
 
-                        if image.container.contains(":sha256.") {
+                        if image.container().contains(":sha256.") {
                             // Nothing to do, already locked
                             return;
                         }
@@ -325,7 +324,7 @@ impl LockContext {
                     map.insert(source.clone(), ImageDigests::OciManifest(locked_source));
                 }
                 ImageSource::Library(image) => {
-                    if image.container.rsplit_once(':').is_none() {
+                    if image.container().rsplit_once(':').is_none() {
                         return Err(anyhow!("image doesn't specify a tag"));
                     }
 
@@ -402,6 +401,12 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         {
             let (sources, diagnostics) =
                 task_container_images(task, doc.version().unwrap(), &config.lock, args.strict);
+            for d in diagnostics.iter() {
+                if d.severity() == Severity::Error {
+                    counts.errors += 1;
+                }
+            }
+
             emit_diagnostics(
                 &doc.path(),
                 &doc.root().text().to_string(),
@@ -423,11 +428,6 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         .resolve_digests(output.colorize, &config.lock)
         .await?;
 
-    if resolved_images.is_empty() {
-        warn!("no applicable images were found");
-        return Ok(());
-    }
-
     let lock = LockFile::new_v1(resolved_images);
     let data = toml_spanner::to_string(&lock).context("failed to serialize lock contents")?;
     write_lock_file(&output_path, data).context("failed to create lock file")?;
@@ -435,7 +435,9 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     output.completed(
         GENERATE,
         format!(
-            "container image lockfile at `{path}`",
+            "lockfile with {count} container image{plural} at `{path}`",
+            count = lock.images().len(),
+            plural = if lock.images().len() == 1 { "" } else { "s" },
             path = output_path.display()
         ),
     );

@@ -38,6 +38,7 @@ use wdl_engine::Engine;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
+use wdl_engine::images::ContainerImageOverrides;
 
 mod common;
 
@@ -122,7 +123,11 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         }
 
         let engine = Engine::new(config.engine).await?;
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default(), None);
+        let evaluator = engine.create_v1_evaluator(
+            Events::disabled(),
+            Default::default(),
+            ContainerImageOverrides::default(),
+        );
         match evaluator
             .evaluate_workflow(result.document(), inputs.clone(), &dir)
             .await

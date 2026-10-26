@@ -669,7 +669,7 @@ impl Runner {
                 task.assertions,
                 task.document,
                 task.inputs,
-                lock_file.as_container_overrides(),
+                lock_file.as_container_overrides().unwrap_or_default(),
             )
             .await;
 
@@ -834,7 +834,7 @@ impl Runner {
         assertions: Arc<Assertions>,
         document: wdl::analysis::Document,
         inputs: EngineInputs,
-        image_overrides: Option<ContainerImageOverrides>,
+        image_overrides: ContainerImageOverrides,
     ) {
         let is_workflow = matches!(inputs, EngineInputs::Workflow(_));
         let fixtures = self.fixtures.clone();
