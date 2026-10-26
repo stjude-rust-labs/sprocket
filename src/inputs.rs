@@ -12,7 +12,7 @@ use regex::Regex;
 use serde_json::Value as JsonValue;
 use url::Url;
 use wdl::analysis::Document;
-use wdl::analysis::TaskRef;
+use wdl::analysis::document::TaskRef;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Inputs as EngineInputs;
 

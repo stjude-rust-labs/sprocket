@@ -676,6 +676,8 @@ pub enum EngineEvent {
 /// Represents events that may be sent during WDL evaluation.
 ///
 /// This type is cheaply cloned.
+///
+/// By default, no event channels are enabled.
 #[derive(Debug, Clone, Default)]
 pub struct Events {
     /// The WDL engine events channel.
@@ -693,18 +695,33 @@ pub struct Events {
 }
 
 impl Events {
-    /// Constructs a new `Events` and enables subscribing to all event channels.
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            engine: Some(broadcast::Sender::new(capacity)),
-            crankshaft: Some(broadcast::Sender::new(capacity)),
-            transfer: Some(broadcast::Sender::new(capacity)),
-        }
+    /// Enables WDL engine events using the given capacity for the event
+    /// channel.
+    ///
+    /// If WDL engine events were previously enabled, the sender of the previous
+    /// event channel will be closed.
+    pub fn with_engine(mut self, capacity: usize) -> Self {
+        self.engine = Some(broadcast::Sender::new(capacity));
+        self
     }
 
-    /// Constructs a new `Events` and disable subscribing to any event channel.
-    pub fn disabled() -> Self {
-        Self::default()
+    /// Enables Crankshaft events using the given capacity for the event
+    /// channel.
+    ///
+    /// If Crankshaft events were previously enabled, the sender of the previous
+    /// event channel will be closed.
+    pub fn with_crankshaft(mut self, capacity: usize) -> Self {
+        self.crankshaft = Some(broadcast::Sender::new(capacity));
+        self
+    }
+
+    /// Enables transfer events using the given capacity for the event channel.
+    ///
+    /// If transfer events were previously enabled, the sender of the previous
+    /// event channel will be closed.
+    pub fn with_transfer(mut self, capacity: usize) -> Self {
+        self.transfer = Some(broadcast::Sender::new(capacity));
+        self
     }
 
     /// Subscribes to the WDL engine events channel.

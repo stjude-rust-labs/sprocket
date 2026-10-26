@@ -17,6 +17,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+* Replaced `Events::new` method with builders for each specific events channel
+  ([#1303](https://github.com/stjude-rust-labs/sprocket/pull/1303)).
 * The non-exhaustive `EngineEvent` enum now reports execution metrics: `TaskInitializing` carries
   the 0-based attempt number; `TaskExecuting` carries a non-exhaustive, serializable
   `TaskConstraintsSnapshot` of the resolved resource constraints, including the full container URI;

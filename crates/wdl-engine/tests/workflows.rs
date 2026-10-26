@@ -36,7 +36,6 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::Engine;
 use wdl_engine::EvaluationError;
-use wdl_engine::Events;
 use wdl_engine::Inputs;
 
 mod common;
@@ -122,7 +121,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         }
 
         let engine = Engine::new(config.engine).await?;
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
+        let evaluator = engine.create_v1_evaluator(Default::default(), Default::default());
         match evaluator
             .evaluate_workflow(result.document(), inputs.clone(), &dir)
             .await

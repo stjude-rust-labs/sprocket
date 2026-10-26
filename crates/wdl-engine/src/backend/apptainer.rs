@@ -514,7 +514,7 @@ mod tests {
             .await
             .unwrap();
 
-        let context = EvalContext::new(Events::disabled(), Default::default()).await;
+        let context = EvalContext::new(Events::default(), Default::default()).await;
         let _ = runtime
             .generate_script(
                 &ApptainerConfig::default(),
@@ -573,7 +573,7 @@ mod tests {
             .await
             .unwrap();
 
-        let context = EvalContext::new(Events::disabled(), Default::default()).await;
+        let context = EvalContext::new(Events::default(), Default::default()).await;
         let (script, _) = runtime
             .generate_script(
                 &ApptainerConfig::default(),
