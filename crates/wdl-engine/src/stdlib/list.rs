@@ -1076,7 +1076,7 @@ task list_task {
         }
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
+        let evaluator = engine.create_v1_evaluator(Events::default(), Default::default());
         let mut inputs = WorkflowInputs::default();
         inputs.set(
             "directory",
