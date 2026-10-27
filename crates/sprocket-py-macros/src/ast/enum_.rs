@@ -170,7 +170,8 @@ fn make_py_variant_attrs(
         .iter_mut()
         .map(|original_variant| {
             let mut py_variant = Variant {
-                // Don't copy over attributes, we'll add them one at a time in the `while` loop.
+                // Don't copy over attributes, we'll add them one at a time in
+                // the `while` loop.
                 attrs: Vec::with_capacity(original_variant.attrs.len()),
                 ..original_variant.clone()
             };

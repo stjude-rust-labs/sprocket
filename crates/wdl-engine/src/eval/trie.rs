@@ -81,7 +81,8 @@ impl InputTrie {
             urls: Default::default(),
             paths: Default::default(),
             inputs: Default::default(),
-            // The first id starts at 1 as 0 is considered the "virtual root" of the trie
+            // The first id starts at 1 as 0 is considered the "virtual root" of
+            // the trie
             next_id: 1,
         }
     }
@@ -260,8 +261,9 @@ impl InputTrie {
         let guest_path = guest_inputs_dir.map(|d| {
             GuestPath::new(format!(
                 "{d}{parent_id}/{last}",
-                // On Windows, `last_component` might be `Some` despite being a root due to the
-                // prefix (e.g. `C:`); instead check if the path has a parent
+                // On Windows, `last_component` might be `Some` despite being a
+                // root due to the prefix (e.g. `C:`); instead check if the path
+                // has a parent
                 last = if path.parent().is_none() {
                     ROOT_NAME
                 } else {

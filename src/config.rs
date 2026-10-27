@@ -67,7 +67,7 @@ fn default_output_directory() -> &'static str {
 }
 
 /// The name of the Sprocket configuration file.
-const CONFIG_FILENAME: &str = "sprocket.toml";
+pub(crate) const CONFIG_FILENAME: &str = "sprocket.toml";
 
 /// Returns the user-level Sprocket configuration directory, the same root
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
@@ -224,6 +224,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub modules: ModulesConfig,
+    /// Configuration for the `lock` command.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub lock: LockConfig,
 }
 
 impl Config {
@@ -1182,6 +1186,32 @@ impl Default for DocSeoConfig {
             theme_color: sentinel_doc_config_value().into(),
         }
     }
+}
+
+/// Configuration for the `lock` subcommand.
+#[derive(Default, Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct LockConfig {
+    /// Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub library: LibraryLockConfig,
+}
+
+/// Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.
+#[derive(Default, Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct LibraryLockConfig {
+    /// The default registry to download images from.
+    ///
+    /// For `library://` container images that *don't* specify a registry (e.g.,
+    /// `library://sylabs/default/alpine:3.18`), this is the registry that will
+    /// be used.
+    #[toml(default)]
+    #[schemars(default)]
+    pub registry: Option<String>,
 }
 
 impl Config {

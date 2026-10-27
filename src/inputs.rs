@@ -12,7 +12,7 @@ use regex::Regex;
 use serde_json::Value as JsonValue;
 use url::Url;
 use wdl::analysis::Document;
-use wdl::analysis::TaskRef;
+use wdl::analysis::document::TaskRef;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Inputs as EngineInputs;
 
@@ -572,10 +572,9 @@ pub async fn join_paths_for_target(
                 .context("failed to resolve input paths")?;
         }
         EngineInputs::Workflow(workflow_inputs) => {
-            let workflow = document.workflow().context("workflow not found")?;
-            if workflow.name() != target {
-                bail!("workflow `{target}` was not found");
-            }
+            let workflow = document
+                .local_workflow_by_name(target)
+                .with_context(|| format!("workflow `{target}` was not found"))?;
             workflow_inputs
                 .join_paths(document, workflow, &origin)
                 .await

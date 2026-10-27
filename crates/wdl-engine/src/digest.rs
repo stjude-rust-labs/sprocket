@@ -629,7 +629,7 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let client = EvaluationHttpClient::new(&engine, &Events::disabled());
+        let client = EvaluationHttpClient::new(&engine, &Events::default());
         DigestCalculator::new(client, 1000)
     }
 

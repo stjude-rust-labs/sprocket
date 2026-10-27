@@ -17,7 +17,7 @@ Options:
   -t, --target <NAME>
           The name of the task or workflow to run.
 
-          When no inputs are provided and `target` is not specified, the target is inferred from the document: a workflow is selected if one exists, otherwise a single task is selected. If the target remains ambiguous (e.g., multiple tasks and no workflow), an error is returned.
+          When no inputs are provided and `target` is not specified, the target is inferred from the document: a workflow is selected if exactly one exists, otherwise a single task is selected. If the target remains ambiguous (for example, the document has multiple workflows), an error is returned.
 
           If `target` is not specified but inputs are provided, all input keys (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
 
@@ -28,8 +28,15 @@ Options:
 
           Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`. On Unix systems, the latest run is symlinked at `<output_dir>/runs/<target>/_latest`.
 
-      --locked
-          Fail if `module-lock.json` is missing or out of date instead of regenerating it before evaluation
+      --locked[=<LOCK_TARGETS>...]
+          Force the execution to use existing lockfiles
+
+          Possible values:
+          - images:  Fail if a container image is missing from the `sprocket.lock`
+          - modules: Fail if `module-lock.json` is missing or out of date instead of regenerating it before evaluation
+
+      --unlocked
+          Run without locking container images to digests
 
       --index-on <INDEX_PATH>
           The index path to index the run outputs under.
@@ -73,17 +80,17 @@ Options:
 
           [env: GOOGLE_HMAC_SECRET]
 
-      --no-call-cache
-          Disables the use of the call cache for this run
-
   -v, --verbose...
           Increase logging verbosity
 
-      --disable-retries
-          Disable retries for all task evaluations for this run
+      --no-call-cache
+          Disables the use of the call cache for this run
 
   -q, --quiet...
           Decrease logging verbosity
+
+      --disable-retries
+          Disable retries for all task evaluations for this run
 
       --no-ignore
           Ignore `.sprocketignore` files while discovering WDL documents

@@ -38,8 +38,10 @@ use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
 #[cfg(unix)]
 use crate::CLEANUP_TASK_NAME_PREFIX;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::INITIAL_EXPECTED_NAMES;
+use crate::ImageSource;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
@@ -53,7 +55,6 @@ use crate::config::TaskResourceLimitBehavior;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::hints;
 use crate::v1::requirements;
-use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -440,7 +441,10 @@ fn collect_applicable_sources(sources: &[ImageSource]) -> anyhow::Result<Vec<Str
     let mut results = PullResults::default();
     for source in sources {
         match source {
-            ImageSource::Docker(s) => results.push(source.clone(), Ok(s.clone())),
+            ImageSource::Docker(s) => {
+                let s = s.strip_prefix(crate::DOCKER_PROTOCOL).unwrap_or(s);
+                results.push(source.clone(), Ok(s.to_string()));
+            }
             ImageSource::Library(_) | ImageSource::Oras(_) => {
                 let err = anyhow!(
                     "Docker backend does not support `{source:#}`; use a Docker registry image \
@@ -565,9 +569,15 @@ impl TaskExecutionBackend for DockerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {
@@ -611,7 +621,8 @@ impl TaskExecutionBackend for DockerBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
@@ -620,7 +631,8 @@ impl TaskExecutionBackend for DockerBackend {
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                 }
@@ -815,7 +827,7 @@ mod tests {
             .await
             .expect("Docker backend should initialize");
 
-        let events = Events::new(1024);
+        let events = Events::default().with_crankshaft(1024);
         let mut receiver = events
             .subscribe_crankshaft()
             .expect("Crankshaft events should be enabled");

@@ -47,6 +47,7 @@ use tracing::warn;
 
 use super::ApptainerRuntime;
 use super::TaskExecutionBackend;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -863,6 +864,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut required_cpu = requirements::cpu(inputs, requirements);
@@ -936,12 +938,17 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }
         }
 
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         Ok(super::TaskExecutionConstraints {
             sources,
-            // TODO ACF 2025-10-13: populate more meaningful values for these based on the given
-            // Slurm partition.
+            // TODO ACF 2025-10-13: populate more meaningful values for these
+            // based on the given Slurm partition.
             //
             // sinfo -p <partition> -s --json | jq .sinfo[0].cpus
             // sinfo -p <partition> -s --json | jq .sinfo[0].memory

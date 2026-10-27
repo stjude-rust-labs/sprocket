@@ -34,6 +34,7 @@ use tracing::level_filters::LevelFilter;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
+use wdl_engine::ContainerImageOverrides;
 use wdl_engine::Engine;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
@@ -89,13 +90,26 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             bail!(EvaluationError::new(result.document().clone(), diagnostic.clone()).to_string());
         }
 
-        let mut inputs = match Inputs::parse(result.document(), test.join("inputs.json"))? {
-            Some((_, Inputs::Task(_))) => {
-                bail!("`inputs.json` contains inputs for a task, not a workflow")
-            }
-            Some((_, Inputs::Workflow(inputs))) => inputs,
-            None => Default::default(),
-        };
+        let (workflow_name, mut inputs) =
+            match Inputs::parse(result.document(), test.join("inputs.json"))? {
+                Some((_, Inputs::Task(_))) => {
+                    bail!("`inputs.json` contains inputs for a task, not a workflow")
+                }
+                Some((name, Inputs::Workflow(inputs))) => (name, inputs),
+                None => {
+                    let mut workflows = result.document().local_workflows();
+                    let Some(workflow) = workflows.next() else {
+                        bail!("document does not contain a workflow");
+                    };
+                    if workflows.next().is_some() {
+                        bail!(
+                            "inputs must select a workflow when the document contains more than \
+                             one"
+                        );
+                    }
+                    (workflow.name().to_string(), Default::default())
+                }
+            };
 
         let test_dir = absolute(test).expect("failed to get absolute directory");
         let test_dir_path = test_dir.as_path().into();
@@ -104,8 +118,8 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         // directory
         let workflow = result
             .document()
-            .workflow()
-            .context("document does not contain a workflow")?;
+            .local_workflow_by_name(&workflow_name)
+            .with_context(|| format!("document does not contain workflow `{workflow_name}`"))?;
         inputs
             .join_paths(result.document(), workflow, &|_| {
                 Ok(std::slice::from_ref(&test_dir_path))
@@ -122,9 +136,13 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         }
 
         let engine = Engine::new(config.engine).await?;
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            Default::default(),
+            ContainerImageOverrides::default(),
+        );
         match evaluator
-            .evaluate_workflow(result.document(), inputs.clone(), &dir)
+            .evaluate_workflow(result.document(), &workflow_name, inputs.clone(), &dir)
             .await
         {
             Ok(outputs) => {

@@ -87,7 +87,7 @@ pub(crate) const fn default_task_shell() -> &'static str {
 }
 
 /// The default task container.
-pub(crate) const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
+pub const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
 
 /// The default task container.
 pub(crate) const fn default_task_container() -> &'static str {
@@ -2475,8 +2475,9 @@ impl LsfQueueConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("bqueues").arg(queue).output(),
         )
@@ -2698,8 +2699,9 @@ impl SlurmPartitionConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("scontrol")
                 .arg("show")
@@ -4139,7 +4141,7 @@ type = 'lsf_apptainer'
         /// The string is expected to be a valid WDL expression.
         async fn eval(context: Context, expression: &str) -> Result<bool> {
             let dir = tempdir().context("failed to create temporary directory")?;
-            let eval_context = EvalContext::new(Events::disabled(), Default::default()).await;
+            let eval_context = EvalContext::new(Events::default(), Default::default()).await;
             let condition = Condition::new(expression).expect("invalid expression");
             condition
                 .evaluate(&ExecuteTaskRequest {
