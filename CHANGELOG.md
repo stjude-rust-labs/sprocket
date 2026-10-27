@@ -33,8 +33,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-* The `--locked` flag in `run` now handles both module (`module-lock.json`) and container image (`sprocket.lock`) lockfiles.
-  To mimic the old module-only behavior, use `--locked=modules` ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* The `--locked` flag in `run` now handles both module (`module-lock.json`) and container image
+  (`sprocket.lock`) lockfiles. To mimic the old module-only behavior, use `--locked=modules`
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 * `run --locked` now enforces that all `task` container images have an entry in `sprocket.lock`
   ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 
