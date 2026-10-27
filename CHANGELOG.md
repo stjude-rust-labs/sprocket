@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `All` and `Any` assertions to the test framework for checking whether all or at least one
+  element of an output WDL array satisfies an assertion
+  ([#1318](https://github.com/stjude-rust-labs/sprocket/pull/1318)).
 * Implemented `sprocket dev lock` to pin `task` container images
   ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 * Added `[lock.library]` configuration section to configure

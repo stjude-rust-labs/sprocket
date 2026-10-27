@@ -352,6 +352,10 @@ pub enum OutputAssertion {
     First(Box<OutputAssertion>),
     /// Unpacks the last element of an `Array` and applies the inner assertion.
     Last(Box<OutputAssertion>),
+    /// Unpacks every element of an `Array` and applies the inner assertion.
+    All(Box<OutputAssertion>),
+    /// Unpacks the elements of an `Array` and applies the inner assertion.
+    Any(Box<OutputAssertion>),
     /// Does the WDL `String`, `Array`, or `Map` have this length?
     Length(usize),
     /// Unpacks the left element of a `Pair` and applies the inner assertion.
@@ -374,6 +378,8 @@ impl std::fmt::Display for OutputAssertion {
             Self::Name(_) => write!(f, "Name")?,
             Self::First(_) => write!(f, "First")?,
             Self::Last(_) => write!(f, "Last")?,
+            Self::All(_) => write!(f, "All")?,
+            Self::Any(_) => write!(f, "Any")?,
             Self::Length(_) => write!(f, "Length")?,
             Self::Left(_) => write!(f, "Left")?,
             Self::Right(_) => write!(f, "Right")?,
@@ -421,7 +427,10 @@ impl OutputAssertion {
                         Self::Length(_) | Self::Empty(_) => {
                             valid = true;
                         }
-                        Self::First(inner) | Self::Last(inner) => {
+                        Self::First(inner)
+                        | Self::Last(inner)
+                        | Self::All(inner)
+                        | Self::Any(inner) => {
                             inner.validate_type_congruence(arr_ty.element_type())?;
                             valid = true;
                         }
@@ -558,6 +567,22 @@ impl OutputAssertion {
                     bail!("can't take `{self}` of an empty `Array`")
                 };
                 inner.evaluate(last)?;
+            }
+            Self::All(inner) => {
+                let o = output.as_array().expect("type should be validated");
+                for value in o.as_slice() {
+                    inner.evaluate(value)?;
+                }
+            }
+            Self::Any(inner) => {
+                let o = output.as_array().expect("type should be validated");
+                if !o
+                    .as_slice()
+                    .iter()
+                    .any(|value| inner.evaluate(value).is_ok())
+                {
+                    bail!("no elements matched `{self}` assertion");
+                }
             }
             Self::Left(inner) => {
                 let o = output.as_pair().expect("type should be validated");
@@ -1130,6 +1155,50 @@ mod tests {
         ));
         assert!(first.evaluate(&o).is_err());
         assert!(last.evaluate(&o).is_err());
+    }
+    #[test]
+    fn evaluate_all_any() {
+        let all: FlattenedWrapper = serde_saphyr::from_str("{ All: { IntEquals: 42 } }").unwrap();
+        let any: FlattenedWrapper = serde_saphyr::from_str("{ Any: { IntEquals: 42 } }").unwrap();
+
+        let matching = EngineValue::Compound(CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![
+                    EngineValue::Primitive(PrimitiveValue::Integer(42)),
+                    EngineValue::Primitive(PrimitiveValue::Integer(42)),
+                ],
+            )
+            .unwrap(),
+        ));
+
+        assert!(all.inner.evaluate(&matching).is_ok());
+        assert!(any.inner.evaluate(&matching).is_ok());
+
+        let mixed = EngineValue::Compound(CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![
+                    EngineValue::Primitive(PrimitiveValue::Integer(42)),
+                    EngineValue::Primitive(PrimitiveValue::Integer(0)),
+                ],
+            )
+            .unwrap(),
+        ));
+
+        assert!(all.inner.evaluate(&mixed).is_err());
+        assert!(any.inner.evaluate(&mixed).is_ok());
+
+        let non_matching = EngineValue::Compound(CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![EngineValue::Primitive(PrimitiveValue::Integer(0))],
+            )
+            .unwrap(),
+        ));
+
+        assert!(all.inner.evaluate(&non_matching).is_err());
+        assert!(any.inner.evaluate(&non_matching).is_err());
     }
 
     #[test]
