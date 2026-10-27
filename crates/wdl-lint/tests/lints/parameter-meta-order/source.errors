@@ -1,30 +1,79 @@
 note[ParameterMetaOrder]: parameter metadata in workflow `parameter_meta_order_workflow` is out of order
-  ┌─ tests/lints/parameter-meta-order/source.wdl:7:5
-  │
-7 │     parameter_meta {
-  │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
-  │
-  = fix: based on the current `input` order, order the parameter metadata as:
-    first
-    second
-
-note[ParameterMetaOrder]: parameter metadata in struct `ParameterMetaOrderStruct` is out of order
-   ┌─ tests/lints/parameter-meta-order/source.wdl:19:5
+   ┌─ tests/lints/parameter-meta-order/source.wdl:8:9
    │
-19 │     parameter_meta {
-   │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+ 8 │         second: "The second input"
+   │         ^^^^^^ expected parameter metadata for `first` here, but found `second`
+ 9 │         first: "The first input"
+   │         ----- parameter metadata for `first` is defined after `second` here
+   ·
+13 │         String first
+   │                ----- input `first` is declared before `second`
    │
    = fix: based on the current `input` order, order the parameter metadata as:
+     first
+     second
+
+note[ParameterMetaOrder]: parameter metadata in struct `ParameterMetaOrderStruct` is out of order
+   ┌─ tests/lints/parameter-meta-order/source.wdl:20:9
+   │
+20 │         second: "The second field"
+   │         ^^^^^^ expected parameter metadata for `first` here, but found `second`
+21 │         first: "The first field"
+   │         ----- parameter metadata for `first` is defined after `second` here
+   ·
+24 │     String first
+   │            ----- field `first` is declared before `second`
+   │
+   = fix: based on the current `field` order, order the parameter metadata as:
      first
      second
 
 note[ParameterMetaOrder]: parameter metadata in task `parameter_meta_order_task` is out of order
-   ┌─ tests/lints/parameter-meta-order/source.wdl:29:5
+   ┌─ tests/lints/parameter-meta-order/source.wdl:30:9
    │
-29 │     parameter_meta {
-   │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+30 │         second: "The second input"
+   │         ^^^^^^ expected parameter metadata for `first` here, but found `second`
+31 │         first: "The first input"
+   │         ----- parameter metadata for `first` is defined after `second` here
+   ·
+35 │         String first
+   │                ----- input `first` is declared before `second`
    │
    = fix: based on the current `input` order, order the parameter metadata as:
      first
      second
+
+note[ParameterMetaOrder]: parameter metadata in task `more_parameters` is out of order
+   ┌─ tests/lints/parameter-meta-order/source.wdl:51:9
+   │
+51 │         third: "The third input"
+   │         ^^^^^ expected parameter metadata for `second` here, but found `third`
+52 │         second: "The second input"
+   │         ------ parameter metadata for `second` is defined after `third` here
+   ·
+57 │         String second
+   │                ------ input `second` is declared before `third`
+   │
+   = fix: based on the current `input` order, order the parameter metadata as:
+     first
+     second
+     third
+
+note[ParameterMetaOrder]: parameter metadata in task `longer_permutation` is out of order
+   ┌─ tests/lints/parameter-meta-order/source.wdl:73:9
+   │
+73 │         delta: "The fourth input"
+   │         ^^^^^ expected parameter metadata for `beta` here, but found `delta`
+74 │         beta: "The second input"
+   │         ---- parameter metadata for `beta` is defined after `delta` here
+   ·
+81 │         String beta
+   │                ---- input `beta` is declared before `delta`
+   │
+   = fix: based on the current `input` order, order the parameter metadata as:
+     alpha
+     beta
+     gamma
+     delta
+     epsilon
 
