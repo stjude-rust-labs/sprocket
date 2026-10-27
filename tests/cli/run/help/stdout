@@ -28,11 +28,12 @@ Options:
 
           Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`. On Unix systems, the latest run is symlinked at `<output_dir>/runs/<target>/_latest`.
 
-      --lock-modules
-          Fail if `module-lock.json` is missing or out of date instead of regenerating it before evaluation
+      --locked <LOCK_TARGETS>
+          Force the execution to use existing lockfiles
 
-      --locked
-          Fail if a container image is missing from the `sprocket.lock`
+          Possible values:
+          - images:  Fail if a container image is missing from the `sprocket.lock`
+          - modules: Fail if `module-lock.json` is missing or out of date instead of regenerating it before evaluation
 
       --unlocked
           Run without locking container images to digests
@@ -74,19 +75,22 @@ Options:
 
           [env: GOOGLE_HMAC_ACCESS_KEY=]
 
-  -v, --verbose...
-          Increase logging verbosity
-
       --google-hmac-secret <SECRET>
           The Google Cloud Storage HMAC secret to use; overrides configuration
 
           [env: GOOGLE_HMAC_SECRET]
 
-  -q, --quiet...
-          Decrease logging verbosity
+  -v, --verbose...
+          Increase logging verbosity
 
       --no-call-cache
           Disables the use of the call cache for this run
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --disable-retries
+          Disable retries for all task evaluations for this run
 
       --no-ignore
           Ignore `.sprocketignore` files while discovering WDL documents
@@ -100,9 +104,6 @@ Options:
           - never:  Never colorize output
 
           [default: auto]
-
-      --disable-retries
-          Disable retries for all task evaluations for this run
 
   -m, --report-mode <MODE>
           The report mode for any emitted diagnostics
