@@ -23,7 +23,7 @@ const METRICS_PAGE_SIZE: i64 = 500;
 
 /// Summary of the run a metrics report describes.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct RunMetricsRun {
+pub struct RunMetrics {
     /// Unique identifier of the run.
     pub uuid: Uuid,
     /// Name of the run.
@@ -128,7 +128,7 @@ pub struct RunMetricsTotals {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct RunMetricsResponse {
     /// Summary of the run.
-    pub run: RunMetricsRun,
+    pub run: RunMetrics,
     /// Per-call execution metrics.
     pub calls: Vec<CallMetrics>,
     /// Totals across all attempts.
@@ -147,7 +147,7 @@ fn duration_ms(start: Option<DateTime<Utc>>, end: Option<DateTime<Utc>>) -> Opti
 /// first attempt, and attempts within a call are ordered by attempt number and
 /// creation time.
 pub fn build_run_metrics(
-    run: RunMetricsRun,
+    run: RunMetrics,
     mut tasks: Vec<Task>,
     logs_for: impl Fn(&str) -> String,
 ) -> RunMetricsResponse {
@@ -172,7 +172,7 @@ pub fn build_run_metrics(
             totals.retries += 1;
         }
 
-        let call_id = task.call_id.clone().unwrap_or_else(|| task.name.clone());
+        let call_id = task.call_id.unwrap_or_else(|| task.name.clone());
         let attempt = TaskAttemptMetrics {
             logs: logs_for(&task.name),
             name: task.name,
@@ -246,7 +246,7 @@ pub async fn get_run_metrics(
         }
     }
 
-    let run = RunMetricsRun {
+    let run = RunMetrics {
         uuid: run.uuid,
         name: run.name,
         status: run.status,

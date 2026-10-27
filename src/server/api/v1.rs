@@ -67,7 +67,7 @@ pub use crate::system::v1::db::TaskStatus;
         LogSource,
         Run,
         RunMetricsResponse,
-        RunMetricsRun,
+        RunMetrics,
         RunMetricsTotals,
         RunOutputsResponse,
         RunResponse,
