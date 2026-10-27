@@ -1470,7 +1470,7 @@ mod tests {
         let snapshot = TaskConstraintsSnapshot::from(&constraints);
         assert_eq!(
             snapshot.container.as_deref(),
-            Some("library://example.org/tools/default/tool:1")
+            Some("library://example.org/tools/tool:1")
         );
         assert_eq!(snapshot.cpu, 4.0);
         assert_eq!(snapshot.memory, 8 * 1024 * 1024 * 1024);
