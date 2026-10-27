@@ -1197,6 +1197,7 @@ mod tests {
             .unwrap(),
         ));
 
+        assert!(all.inner.evaluate(&non_matching).is_err());
         assert!(any.inner.evaluate(&non_matching).is_err());
     }
 
