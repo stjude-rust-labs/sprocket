@@ -831,7 +831,7 @@ impl Runner {
         let fixtures = self.fixtures.clone();
         let engine = self.engine.clone();
         let run_dir = root.join(id.iteration_num.to_string());
-        let events = Events::new(1024);
+        let events = Events::default().with_crankshaft(1024);
         let target = id.target.clone();
         let cancellation = self.cancellation.child(FailureMode::Fast);
         let status_bar = self.status_bar.clone();

@@ -297,9 +297,10 @@ pub(crate) fn gpu(inputs: &TaskInputs, requirements: &Object, hints: &Object) ->
 
     match hint.as_integer() {
         Some(count) if count >= 1 => Some(count as u64),
-        // If the hint is zero or negative, it's not clear what the user intends. Maybe they have
-        // tried to disable GPUs by setting the count to zero, or have made a logic error. Emit a
-        // warning, and continue with no GPU request.
+        // If the hint is zero or negative, it's not clear what the user
+        // intends. Maybe they have tried to disable GPUs by setting the count
+        // to zero, or have made a logic error. Emit a warning, and continue
+        // with no GPU request.
         Some(count) => {
             warn!(
                 %count,

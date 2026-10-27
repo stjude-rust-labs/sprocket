@@ -196,7 +196,8 @@ fn resolve_hover_by_context(
         for sibling in token.siblings_with_tokens(Direction::Next) {
             let target = match sibling {
                 SyntaxElement::Node(target) => target,
-                // Also lets line comments and directives through, like `wdl-doc`
+                // Also lets line comments and directives through, like
+                // `wdl-doc`
                 SyntaxElement::Token(token)
                     if token.kind() == SyntaxKind::Comment
                         || token.kind() == SyntaxKind::Whitespace =>

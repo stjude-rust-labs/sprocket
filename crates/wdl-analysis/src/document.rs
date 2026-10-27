@@ -24,16 +24,14 @@ use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::v1::EnumDefinition;
+use wdl_ast::v1::StructDefinition;
 
-use crate::AnalysisCache;
 use crate::Diagnostics;
-use crate::EnumRef;
-use crate::StructRef;
-use crate::TaskRef;
-use crate::WorkflowRef;
 use crate::config::Config;
 use crate::diagnostics::Context;
 use crate::diagnostics::no_common_type;
+use crate::document::cache::AnalysisCache;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
@@ -41,12 +39,261 @@ use crate::types::EnumChoiceCacheKey;
 use crate::types::Optional;
 use crate::types::Type;
 
-pub mod cache;
+pub(crate) mod cache;
 pub mod v1;
 
 /// The `task` variable name available in task command sections and outputs in
 /// WDL 1.2.
 pub const TASK_VAR_NAME: &str = "task";
+
+/// An item in the current document's scope.
+#[derive(Copy, Clone, Debug)]
+pub enum MaybeImported<Local, Imported> {
+    /// The item is locally defined.
+    Local(Local),
+    /// The item was imported from another document.
+    Imported(Imported),
+}
+
+impl<L, I> MaybeImported<L, I> {
+    /// Returns true if the item was imported.
+    pub fn is_imported(&self) -> bool {
+        matches!(self, Self::Imported(_))
+    }
+
+    /// Returns the imported item.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the item was locally defined.
+    pub fn expect_imported(self) -> I {
+        match self {
+            Self::Imported(i) => i,
+            Self::Local(_) => panic!("expected an imported item"),
+        }
+    }
+
+    /// Returns the contained local item.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the item was imported.
+    pub fn expect_local(self) -> L {
+        match self {
+            Self::Local(l) => l,
+            Self::Imported(_) => panic!("expected a locally defined item"),
+        }
+    }
+}
+
+/// A reference to a workflow in the document's scope.
+pub type WorkflowRef<'a> = MaybeImported<&'a Workflow, &'a ImportedWorkflow>;
+
+impl<'a> WorkflowRef<'a> {
+    /// Gets the name of the workflow.
+    pub fn name(&self) -> &'a str {
+        match self {
+            WorkflowRef::Local(w) => w.name(),
+            WorkflowRef::Imported(i) => &i.local_name,
+        }
+    }
+
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            WorkflowRef::Local(w) => w.name_span(),
+            WorkflowRef::Imported(i) => i.span,
+        }
+    }
+
+    /// The inputs of the workflow.
+    pub fn inputs(&self) -> Arc<IndexMap<String, Input>> {
+        match self {
+            WorkflowRef::Local(w) => Arc::clone(&w.inputs),
+            WorkflowRef::Imported(i) => Arc::clone(&i.inputs),
+        }
+    }
+
+    /// The outputs of the workflow.
+    pub fn outputs(&self) -> Arc<IndexMap<String, Output>> {
+        match self {
+            WorkflowRef::Local(w) => Arc::clone(&w.outputs),
+            WorkflowRef::Imported(i) => Arc::clone(&i.outputs),
+        }
+    }
+
+    /// Gets the source of the workflow, if it was imported.
+    pub fn source(&self) -> Option<Arc<Url>> {
+        match self {
+            WorkflowRef::Local(_) => None,
+            WorkflowRef::Imported(i) => Some(i.source()),
+        }
+    }
+}
+
+/// A reference to a task in the document's scope.
+pub type TaskRef<'a> = MaybeImported<&'a Task, &'a ImportedTask>;
+impl<'a> TaskRef<'a> {
+    /// Gets the name of the task.
+    pub fn name(&self) -> &'a str {
+        match self {
+            TaskRef::Local(t) => t.name(),
+            TaskRef::Imported(i) => &i.local_name,
+        }
+    }
+
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            TaskRef::Local(t) => t.name_span(),
+            TaskRef::Imported(i) => i.span,
+        }
+    }
+
+    /// The inputs of the task.
+    pub fn inputs(&self) -> Arc<IndexMap<String, Input>> {
+        match self {
+            TaskRef::Local(t) => Arc::clone(&t.inputs),
+            TaskRef::Imported(i) => Arc::clone(&i.inputs),
+        }
+    }
+
+    /// The outputs of the task.
+    pub fn outputs(&self) -> Arc<IndexMap<String, Output>> {
+        match self {
+            TaskRef::Local(t) => Arc::clone(&t.outputs),
+            TaskRef::Imported(i) => Arc::clone(&i.outputs),
+        }
+    }
+
+    /// Gets the source of the task, if it was imported.
+    pub fn source(&self) -> Option<Arc<Url>> {
+        match self {
+            TaskRef::Local(_) => None,
+            TaskRef::Imported(i) => Some(i.source()),
+        }
+    }
+}
+
+/// A reference to a struct in the document's scope.
+pub type StructRef<'a> = MaybeImported<&'a Struct, &'a ImportedStruct>;
+impl<'a> StructRef<'a> {
+    /// Gets the name of the struct.
+    pub fn name(&self) -> &'a str {
+        match self {
+            StructRef::Local(s) => s.name(),
+            StructRef::Imported(i) => &i.local_name,
+        }
+    }
+
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            StructRef::Local(s) => s.name_span(),
+            StructRef::Imported(i) => i.span,
+        }
+    }
+
+    /// Gets the type of the struct, if it was computed.
+    pub fn ty(&self) -> Option<&'a Type> {
+        match self {
+            StructRef::Local(s) => s.ty(),
+            StructRef::Imported(i) => i.ty(),
+        }
+    }
+
+    /// Gets the source of the struct, if it was imported.
+    pub fn source(&self) -> Option<Arc<Url>> {
+        match self {
+            StructRef::Local(_) => None,
+            StructRef::Imported(i) => Some(i.source()),
+        }
+    }
+
+    /// Reconstructs the AST definition from the stored green node.
+    pub fn definition(&self) -> StructDefinition {
+        match self {
+            StructRef::Local(s) => s.definition(),
+            StructRef::Imported(i) => i.definition(),
+        }
+    }
+
+    /// Gets the offset of the struct in the source document's CST.
+    pub fn offset(&self) -> usize {
+        match self {
+            StructRef::Local(s) => s.offset(),
+            StructRef::Imported(i) => i.offset(),
+        }
+    }
+
+    /// Gets the node of the struct.
+    pub fn node(&self) -> &'a rowan::GreenNode {
+        match self {
+            StructRef::Local(s) => s.node(),
+            StructRef::Imported(i) => i.node(),
+        }
+    }
+}
+
+/// A reference to an enum in the document's scope.
+pub type EnumRef<'a> = MaybeImported<&'a Enum, &'a ImportedEnum>;
+impl<'a> EnumRef<'a> {
+    /// Gets the name of the enum.
+    pub fn name(&self) -> &'a str {
+        match self {
+            EnumRef::Local(e) => e.name(),
+            EnumRef::Imported(i) => &i.local_name,
+        }
+    }
+
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            EnumRef::Local(e) => e.name_span(),
+            EnumRef::Imported(i) => i.span,
+        }
+    }
+
+    /// Gets the type of the enum, if it was computed.
+    pub fn ty(&self) -> Option<&'a Type> {
+        match self {
+            EnumRef::Local(e) => e.ty(),
+            EnumRef::Imported(i) => i.ty(),
+        }
+    }
+
+    /// Gets the source of the enum if it was imported.
+    pub fn source(&self) -> Option<Arc<Url>> {
+        match self {
+            EnumRef::Local(_) => None,
+            EnumRef::Imported(i) => Some(i.source()),
+        }
+    }
+
+    /// Reconstructs the AST definition from the stored green node.
+    pub fn definition(&self) -> EnumDefinition {
+        match self {
+            EnumRef::Local(e) => e.definition(),
+            EnumRef::Imported(i) => i.definition(),
+        }
+    }
+
+    /// Gets the offset of the enum.
+    pub fn offset(&self) -> usize {
+        match self {
+            EnumRef::Local(e) => e.offset(),
+            EnumRef::Imported(i) => i.offset(),
+        }
+    }
+
+    /// Gets the node of the enum.
+    pub fn node(&self) -> &'a rowan::GreenNode {
+        match self {
+            EnumRef::Local(e) => e.node(),
+            EnumRef::Imported(i) => i.node(),
+        }
+    }
+}
 
 /// A successfully resolved namespace introduced by an import.
 #[derive(Debug, Clone, PartialEq)]
@@ -54,21 +301,21 @@ pub struct Namespace {
     /// The name of the namespace.
     name: String,
     /// The span of the import that introduced the namespace.
-    pub(crate) span: Span,
+    span: Span,
     /// The URI of the imported document that introduced the namespace.
     source: Arc<Url>,
     /// The namespace's document.
     document: Document,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
-    pub(crate) used: bool,
+    used: bool,
     /// Structs imported from this namespace, keyed by their local name.
     ///
     /// NOTE: While this is separated from the [`Document`], imported
     /// structs/enums are copied into the document's scope and should
     /// be treated as though they were defined in the document.
-    pub(in crate::document) imported_structs: IndexMap<String, ImportedStruct>,
+    imported_structs: IndexMap<String, ImportedStruct>,
     /// Enums imported from this namespace, keyed by their local name.
-    pub(in crate::document) imported_enums: IndexMap<String, ImportedEnum>,
+    imported_enums: IndexMap<String, ImportedEnum>,
 }
 
 impl Namespace {
@@ -99,7 +346,7 @@ pub struct Struct {
     /// The name of the struct.
     name: String,
     /// The span that introduced the struct.
-    pub(in crate::document) name_span: Span,
+    name_span: Span,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the struct
@@ -157,7 +404,7 @@ pub struct Enum {
     /// The name of the enum.
     name: String,
     /// The span that introduced the enum.
-    pub(in crate::document) name_span: Span,
+    name_span: Span,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the enum
@@ -213,7 +460,7 @@ impl Enum {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Name {
     /// The span of the name.
-    pub(in crate::document) span: Span,
+    span: Span,
     /// The type of the name.
     ty: Type,
     /// The visibility of the name outside of its defining document.
@@ -258,9 +505,9 @@ pub struct Scope {
     /// This is `None` for task and workflow scopes.
     parent: Option<ScopeIndex>,
     /// The span in the document where the names of the scope are visible.
-    pub(in crate::document) span: Span,
+    span: Span,
     /// The map of names in scope to their span and types.
-    pub(in crate::document) names: IndexMap<String, Name>,
+    names: IndexMap<String, Name>,
 }
 
 impl Scope {
@@ -547,7 +794,7 @@ pub struct Output {
     /// The type of the output.
     ty: Type,
     /// The span of the output name.
-    pub(in crate::document) name_span: Span,
+    name_span: Span,
 }
 
 impl Output {
@@ -571,21 +818,21 @@ impl Output {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Task {
     /// The span of the task name.
-    pub(in crate::document) name_span: Span,
+    name_span: Span,
     /// The name of the task.
-    pub(in crate::document) name: String,
+    name: String,
     /// The span of the task definition.
-    pub(in crate::document) span: Span,
+    span: Span,
     /// The scopes contained in the task.
     ///
     /// The first scope will always be the task's scope.
     ///
     /// The scopes will be in sorted order by span start.
-    pub(in crate::document) scopes: Vec<Scope>,
+    scopes: Vec<Scope>,
     /// The inputs of the task.
-    pub(in crate::document) inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
-    pub(in crate::document) outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl Task {
@@ -624,25 +871,25 @@ impl Task {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Workflow {
     /// The span of the workflow name.
-    pub(in crate::document) name_span: Span,
+    name_span: Span,
     /// The name of the workflow.
-    pub(in crate::document) name: String,
+    name: String,
     /// The span of the workflow definition.
-    pub(in crate::document) span: Span,
+    span: Span,
     /// The scopes contained in the workflow.
     ///
     /// The first scope will always be the workflow's scope.
     ///
     /// The scopes will be in sorted order by span start.
-    pub(in crate::document) scopes: Vec<Scope>,
+    scopes: Vec<Scope>,
     /// The inputs of the workflow.
-    pub(in crate::document) inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
-    pub(in crate::document) outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
     /// The calls made by the workflow.
-    pub(in crate::document) calls: HashMap<String, CallType>,
+    calls: HashMap<String, CallType>,
     /// Whether or not nested inputs are allowed for the workflow.
-    pub(in crate::document) allows_nested_inputs: bool,
+    allows_nested_inputs: bool,
 }
 
 impl Workflow {
@@ -691,7 +938,7 @@ impl Workflow {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportedStruct {
     /// The aliased name of the struct in the dependent document.
-    pub local_name: String,
+    local_name: String,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the struct
@@ -702,9 +949,9 @@ pub struct ImportedStruct {
     /// This is used to calculate type equivalence for imports.
     node: rowan::GreenNode,
     /// The span of the import statement that introduced this struct.
-    pub span: Span,
+    span: Span,
     /// The source document that defines the struct.
-    pub document: Document,
+    document: Document,
     /// The type of the struct.
     ///
     /// Initially this is `None` until a type check/coercion occurs.
@@ -712,6 +959,18 @@ pub struct ImportedStruct {
 }
 
 impl ImportedStruct {
+    /// Gets the local name of the struct.
+    ///
+    /// This may differ from the source documents's name due to aliasing.
+    pub fn local_name(&self) -> &str {
+        &self.local_name
+    }
+
+    /// Gets the span of the import statement that introduced the struct.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
     /// Gets the node of the struct.
     pub fn node(&self) -> &rowan::GreenNode {
         &self.node
@@ -748,7 +1007,7 @@ impl ImportedStruct {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportedEnum {
     /// The aliased name of the enum in the dependent document.
-    pub local_name: String,
+    local_name: String,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the enum
@@ -760,9 +1019,9 @@ pub struct ImportedEnum {
     /// reconstructed into an AST node to access choice expressions.
     node: rowan::GreenNode,
     /// The span of the import statement.
-    pub span: Span,
+    span: Span,
     /// The source document that defines the enum.
-    pub document: Document,
+    document: Document,
     /// The type of the enum.
     ///
     /// Initially this is `None` until a type check/coercion occurs.
@@ -770,6 +1029,16 @@ pub struct ImportedEnum {
 }
 
 impl ImportedEnum {
+    /// Gets the local name of the enum.
+    pub fn local_name(&self) -> &str {
+        &self.local_name
+    }
+
+    /// Gets the span of the import statement that introduced the enum.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
     /// Gets the node of the enum.
     pub fn node(&self) -> &rowan::GreenNode {
         &self.node
@@ -803,23 +1072,35 @@ impl ImportedEnum {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportedTask {
     /// The aliased name of the task in the dependent document.
-    pub local_name: String,
+    local_name: String,
     /// The task name in the source document.
-    pub name: String,
+    name: String,
     /// The span of the import statement that introduced this task.
-    pub span: Span,
+    span: Span,
     /// The source document that defines the task.
-    pub document: Document,
+    document: Document,
     /// The inputs of the task.
-    pub inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
-    pub outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl ImportedTask {
-    /// Gets the task name in its source document.
+    /// Gets the local name of the task.
+    ///
+    /// This may differ from the source documents's name due to aliasing.
+    pub fn local_name(&self) -> &str {
+        &self.local_name
+    }
+
+    /// Gets the task name in the source document.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Gets the span of the import statement that introduced the task.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the source document that defines the task.
@@ -828,8 +1109,18 @@ impl ImportedTask {
     }
 
     /// Gets the source URI the task came from.
-    pub(crate) fn source(&self) -> Arc<Url> {
+    pub fn source(&self) -> Arc<Url> {
         self.document.uri()
+    }
+
+    /// Gets the inputs of the task.
+    pub fn inputs(&self) -> &Arc<IndexMap<String, Input>> {
+        &self.inputs
+    }
+
+    /// Gets the inputs of the task.
+    pub fn outputs(&self) -> &Arc<IndexMap<String, Output>> {
+        &self.outputs
     }
 }
 
@@ -837,23 +1128,35 @@ impl ImportedTask {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportedWorkflow {
     /// The aliased name of the workflow in the dependent document.
-    pub local_name: String,
+    local_name: String,
     /// The workflow name in the source document.
-    pub name: String,
+    name: String,
     /// The span of the import statement.
-    pub span: Span,
+    span: Span,
     /// The source document that defines the task.
-    pub document: Document,
+    document: Document,
     /// The inputs of the workflow.
-    pub inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
-    pub outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
 }
 
 impl ImportedWorkflow {
-    /// Gets the workflow name in its source document.
+    /// Gets the local name of the workflow.
+    ///
+    /// This may differ from the source documents's name due to aliasing.
+    pub fn local_name(&self) -> &str {
+        &self.local_name
+    }
+
+    /// Gets the workflow name in the source document.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Gets the span of the import statement that introduced the workflow.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the source document that defines the workflow.
@@ -862,8 +1165,18 @@ impl ImportedWorkflow {
     }
 
     /// Gets the source URI the workflow came from.
-    pub(crate) fn source(&self) -> Arc<Url> {
+    pub fn source(&self) -> Arc<Url> {
         self.document.uri()
+    }
+
+    /// Gets the inputs of the workflow.
+    pub fn inputs(&self) -> &Arc<IndexMap<String, Input>> {
+        &self.inputs
+    }
+
+    /// Gets the inputs of the workflow.
+    pub fn outputs(&self) -> &Arc<IndexMap<String, Output>> {
+        &self.outputs
     }
 }
 

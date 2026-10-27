@@ -118,7 +118,10 @@ use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
 use crate::diagnostics::wildcard_import_conflict;
+use crate::diagnostics::workflow_conflict;
+use crate::document::EnumRef;
 use crate::document::Name;
+use crate::document::StructRef;
 use crate::document::cache::*;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
@@ -517,7 +520,8 @@ fn add_namespace(
                 let b = s.definition();
                 if !are_structs_equal(&a, &b) {
                     match prev {
-                        // Import conflicts with a struct defined in this document
+                        // Import conflicts with a struct defined in this
+                        // document
                         StructRef::Local(prev) => {
                             diagnostics.add(struct_conflicts_with_import(
                                 aliased_name,
@@ -541,12 +545,12 @@ fn add_namespace(
             }
             None => {
                 cache_item.add_struct(ImportedStruct {
-                    span,
                     local_name: aliased_name.to_string(),
+                    offset: s.offset(),
                     node: s.node().clone(),
+                    span,
                     document: imported_doc.clone(),
                     ty: s.ty().cloned(),
-                    offset: s.offset(),
                 });
             }
         }
@@ -580,7 +584,8 @@ fn add_namespace(
                 let b = e.definition();
                 if !are_enums_equal(&a, &b) {
                     match prev {
-                        // Import conflicts with an enum defined in this document
+                        // Import conflicts with an enum defined in this
+                        // document
                         EnumRef::Local(prev) => {
                             diagnostics.add(enum_conflicts_with_import(
                                 aliased_name,
@@ -710,11 +715,11 @@ fn add_wildcard_import(
             .local_structs()
             .map(|(_idx, _hash, s)| ImportedStruct {
                 local_name: s.name().to_string(),
+                offset: s.offset,
                 node: s.node.clone(),
                 span,
                 document: imported_doc.clone(),
                 ty: s.ty().cloned(),
-                offset: s.offset,
             }),
         span,
         wildcard_import_conflict,
@@ -730,11 +735,11 @@ fn add_wildcard_import(
             .local_enums()
             .map(|(_idx, _hash, e)| ImportedEnum {
                 local_name: e.name().to_string(),
+                offset: e.offset,
                 node: e.node.clone(),
                 span,
                 document: imported_doc.clone(),
                 ty: e.ty().cloned(),
-                offset: e.offset,
             }),
         span,
         wildcard_import_conflict,
@@ -873,11 +878,11 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    offset: s.item().offset,
                     node: s.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
                     ty: s.item().ty().cloned(),
-                    offset: s.item().offset,
                 };
 
                 import_structs(
@@ -892,11 +897,11 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    offset: s.offset,
                     node: s.node.clone(),
                     span: member_span,
                     document: s.document.clone(),
                     ty: s.ty().cloned(),
-                    offset: s.offset,
                 };
 
                 import_structs(
@@ -911,11 +916,11 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    offset: e.item().offset,
                     node: e.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
                     ty: e.item().ty().cloned(),
-                    offset: e.item().offset,
                 };
 
                 import_enums(
@@ -930,11 +935,11 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    offset: e.offset,
                     node: e.node.clone(),
                     span: member_span,
                     document: e.document.clone(),
                     ty: e.ty().cloned(),
-                    offset: e.offset,
                 };
 
                 import_enums(
@@ -2669,8 +2674,9 @@ fn resolve_import<'a>(
             let span = uri.span();
             let text = match uri.text() {
                 Some(text) => text,
-                // The import URI isn't valid; this is caught at validation time, so we do not
-                // emit any additional diagnostics for it here.
+                // The import URI isn't valid; this is caught at validation
+                // time, so we do not emit any additional diagnostics for it
+                // here.
                 None => return Err(None),
             };
             let label = text.text().to_string();
@@ -2744,8 +2750,8 @@ fn resolve_import<'a>(
         match imported_document.root().version_statement() {
             // The import's version statement is flat-out missing
             None => return Err(Some(import_missing_version(span))),
-            // The import has a version statement, but it's not a supported version and no fallback
-            // is configured
+            // The import has a version statement, but it's not a supported
+            // version and no fallback is configured
             Some(imported_version_stmt) => {
                 return Err(Some(incompatible_import(
                     imported_version_stmt.version().text(),

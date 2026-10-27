@@ -1035,15 +1035,18 @@ pub async fn run(
         .await
         .context("failed to create WDL evaluation engine")?;
 
+    let events_capacity = config
+        .run
+        .events_capacity
+        .try_into()
+        .context("invalid events capacity")?;
+
     // Determined here as the engine configuration is moved into evaluation
     // below.
-    let events = Events::new(
-        config
-            .run
-            .events_capacity
-            .try_into()
-            .context("invalid events capacity")?,
-    );
+    let events = Events::default()
+        .with_engine(events_capacity)
+        .with_crankshaft(events_capacity)
+        .with_transfer(events_capacity);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()

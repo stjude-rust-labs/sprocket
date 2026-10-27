@@ -2027,7 +2027,7 @@ workflow test {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::default(), CancellationContext::default());
 
         // Evaluate the `test` workflow in `source.wdl` using the default local
         // backend
@@ -2158,7 +2158,7 @@ workflow test {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::default(), CancellationContext::default());
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2431,7 +2431,7 @@ workflow test {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::default(), CancellationContext::default());
 
         let outputs_dir = root_dir.path().join("outputs");
         let outputs = evaluator
@@ -2524,7 +2524,7 @@ workflow foo {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+            engine.create_v1_evaluator(Events::default(), CancellationContext::default());
 
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
@@ -2735,7 +2735,7 @@ workflow w {
         // counter
         let state = Arc::<State>::default();
         let events_state = state.clone();
-        let events = Events::new(100);
+        let events = Events::default().with_crankshaft(100);
         let mut crankshaft_rx = events.subscribe_crankshaft().unwrap();
         let task = tokio::spawn(async move {
             loop {
@@ -2845,7 +2845,7 @@ workflow w {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 2, "expected only two results");
 
-        let events = Events::new(100);
+        let events = Events::default().with_engine(100);
         let mut engine_rx = events.subscribe_engine().unwrap();
         let ids = tokio::spawn(async move {
             let mut ids = Vec::new();
@@ -2933,7 +2933,7 @@ workflow w {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), cancellation.clone());
+        let evaluator = engine.create_v1_evaluator(Events::default(), cancellation.clone());
 
         let mut evaluation = evaluator
             .evaluate_workflow(

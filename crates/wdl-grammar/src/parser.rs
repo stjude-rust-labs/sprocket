@@ -1351,7 +1351,8 @@ mod python {
                     "Event.NodeStarted({}, {})",
                     // Equivalent to `repr(SyntaxKind)`.
                     kind.into_bound_py_any(py)?.repr()?.to_str()?,
-                    // If `forward_parent` is `Some` write the plain integer, else write "None".
+                    // If `forward_parent` is `Some` write the plain integer,
+                    // else write "None".
                     match forward_parent {
                         Some(x) => x.to_string(),
                         None => "None".to_owned(),

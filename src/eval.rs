@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use wdl::analysis::Document;
-use wdl::analysis::TaskRef;
+use wdl::analysis::document::TaskRef;
 use wdl::engine::CancellationContext;
 use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;

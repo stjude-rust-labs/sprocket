@@ -57,7 +57,8 @@ pub enum Tag {
     /// Rules associated with the performance of a document.
     Performance,
 
-    // NOTE: This **must** be the last variant. It gets special treatment in `TagSet`.
+    // NOTE: This **must** be the last variant. It gets special treatment in
+    // `TagSet`.
     /// Rules from all tags.
     All,
 }

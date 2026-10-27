@@ -1906,7 +1906,7 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-            let client = EvaluationHttpClient::new(&engine, &Events::disabled());
+            let client = EvaluationHttpClient::new(&engine, &Events::default());
 
             Self {
                 env,

@@ -18,12 +18,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   another. Direct and transitive recursive workflow calls are rejected
   ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
 
-#### Changed
+### Changed
 
+* Ensured that analysis cache types are not exposed via the public API of `wdl-analysis` and made
+  some public type fields private ([#1303](https://github.com/stjude-rust-labs/sprocket/pull/1303)).
 * `Visitor` implementations must now be `Send` so that validators can move between analysis worker
   threads ([#1175](https://github.com/stjude-rust-labs/sprocket/pull/1175)).
 
-#### Fixed
+### Fixed
 
 * `Analyzer` reuses validators again, through a pool owned by each analyzer, so that validator
   configuration is never shared between analyzers
