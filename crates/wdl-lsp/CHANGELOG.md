@@ -11,6 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Extended `textDocument/hover` to render preamble comments of import documents
   ([#1288](https://github.com/stjude-rust-labs/sprocket/pull/1288)).
+* Completion, hover, definition, reference, and call hierarchy requests support WDL 1.4
+  multi-workflow documents ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
 
 ## 0.24.0 - 2026-10-07
 
