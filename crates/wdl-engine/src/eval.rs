@@ -40,8 +40,9 @@ use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
 use crate::http::Location;
-use crate::v1::requirements::ImageSource;
 
+mod images;
+pub use images::*;
 mod trie;
 pub mod v1;
 
@@ -1172,7 +1173,10 @@ impl EvaluatedTask {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
+    use crate::LibraryApiSpec;
 
     #[test]
     fn cancellation_slow() {
@@ -1453,7 +1457,9 @@ mod tests {
     #[test]
     fn constraints_snapshot_captures_the_resolved_resources() {
         let constraints = TaskExecutionConstraints {
-            sources: vec![ImageSource::Library("example.org/tools/tool:1".to_string())],
+            sources: vec![ImageSource::Library(
+                LibraryApiSpec::from_str("example.org/tools/tool:1").unwrap(),
+            )],
             cpu: 4.0,
             memory: 8 * 1024 * 1024 * 1024,
             gpu: vec!["nvidia-tesla-t4".to_string()],

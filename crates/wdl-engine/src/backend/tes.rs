@@ -41,10 +41,12 @@ use super::ExecuteTaskRequest;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
+use crate::ContainerImageOverrides;
 use crate::EngineEvent;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::INITIAL_EXPECTED_NAMES;
+use crate::ImageSource;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
@@ -62,7 +64,6 @@ use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::hints;
 use crate::v1::requirements;
-use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -206,9 +207,15 @@ impl TaskExecutionBackend for TesBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
         for source in &sources {
             match source {
                 ImageSource::Docker(_) | ImageSource::Library(_) | ImageSource::Oras(_) => {}

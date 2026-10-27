@@ -51,6 +51,7 @@ use tracing::trace;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -773,6 +774,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut required_cpu = requirements::cpu(inputs, requirements);
@@ -842,7 +844,12 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         Ok(TaskExecutionConstraints {
             sources,

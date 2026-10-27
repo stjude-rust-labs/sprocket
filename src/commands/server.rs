@@ -138,7 +138,7 @@ async fn start(args: StartArgs, mut config: Config, output: CommandOutput) -> Co
         .into());
     }
 
-    crate::server::run(config, report_mode, output.colorize())
+    crate::server::run(config, report_mode, output)
         .await
         .map_err(Into::into)
 }

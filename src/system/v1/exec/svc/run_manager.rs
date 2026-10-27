@@ -46,6 +46,7 @@ pub(crate) mod commands;
 
 pub use commands::*;
 use wdl::diagnostics::Mode;
+use wdl::engine::ContainerImageOverrides;
 
 /// Channel capacity for Crankshaft events.
 ///
@@ -108,6 +109,10 @@ pub struct RunManagerSvc {
     report_mode: Mode,
     /// Whether to colorize diagnostics.
     colorize: bool,
+    /// See [`Evaluator`].image_overrides.
+    ///
+    /// [`Evaluator`]: wdl::engine::v1::Evaluator
+    image_overrides: ContainerImageOverrides,
 }
 
 impl RunManagerSvc {
@@ -118,6 +123,7 @@ impl RunManagerSvc {
         colorize: bool,
         db: Arc<dyn Database>,
         rx: Rx,
+        image_overrides: ContainerImageOverrides,
     ) -> Result<Self> {
         let fallback_version = config.common.wdl.fallback_version;
         let feature_flags = config.common.wdl.feature_flags;
@@ -147,6 +153,7 @@ impl RunManagerSvc {
             runs: Default::default(),
             report_mode,
             colorize,
+            image_overrides,
         })
     }
 
@@ -394,9 +401,10 @@ impl RunManagerSvc {
         report_mode: Mode,
         colorize: bool,
         db: Arc<dyn Database>,
+        image_overrides: ContainerImageOverrides,
     ) -> Result<(JoinHandle<()>, mpsc::Sender<RunManagerCmd>)> {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
-        let manager = Self::new(config, report_mode, colorize, db, rx).await?;
+        let manager = Self::new(config, report_mode, colorize, db, rx, image_overrides).await?;
         let handle = tokio::spawn(manager.run());
         Ok((handle, tx))
     }
@@ -448,6 +456,7 @@ impl RunManagerSvc {
             .maybe_index_on(index_on)
             .report_mode(self.report_mode)
             .colorize(self.colorize)
+            .image_overrides(self.image_overrides.clone())
             .build();
 
         let semaphore = self.semaphore.clone();

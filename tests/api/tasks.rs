@@ -28,6 +28,7 @@ use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 use wdl::diagnostics::Mode;
+use wdl::engine::ContainerImageOverrides;
 
 /// Create a test server with a real database and filesystem.
 async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Database>, TempDir) {
@@ -52,6 +53,7 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
         Mode::default(),
         true,
         db.clone(),
+        ContainerImageOverrides::default(),
     )
     .await
     .expect("failed to create run manager service");

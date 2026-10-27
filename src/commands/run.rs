@@ -17,6 +17,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use chrono::Utc;
 use clap::Parser;
+use clap::ValueEnum;
 use colored::Colorize as _;
 use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
@@ -48,6 +49,7 @@ use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
+use wdl::engine::ImageOverrideResolutionFailureMode;
 use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
@@ -63,9 +65,11 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+use crate::commands::lock::LOCK_FILE;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
+use crate::lock::file::LockFile;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::HeartbeatGuard;
@@ -95,6 +99,15 @@ const LATEST: &str = "_latest";
 
 /// The log file in the output directory for writing `sprocket` output to
 const LOG_FILE_NAME: &str = "output.log";
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum LockTarget {
+    /// Fail if a container image is missing from the `sprocket.lock`.
+    Images,
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before evaluation.
+    Modules,
+}
 
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
@@ -141,10 +154,13 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output_dir: Option<PathBuf>,
 
-    /// Fail if `module-lock.json` is missing or out of date instead of
-    /// regenerating it before evaluation.
-    #[clap(long)]
-    pub locked: bool,
+    /// Force the execution to use existing lockfiles.
+    #[clap(long, num_args = 0.., require_equals = true, value_delimiter = ',', default_missing_value = "images,modules", value_name = "LOCK_TARGETS")]
+    pub locked: Option<Vec<LockTarget>>,
+
+    /// Run without locking container images to digests.
+    #[clap(long, conflicts_with = "locked")]
+    pub unlocked: bool,
 
     /// The index path to index the run outputs under.
     ///
@@ -919,6 +935,23 @@ pub async fn run(
     }
 
     let report_mode = config.common.report_mode;
+
+    let lock_file = if args.unlocked {
+        LockFile::default()
+    } else {
+        let file = LockFile::locate(&source, report_mode, output)?;
+        if args
+            .locked
+            .as_ref()
+            .is_some_and(|targets| targets.contains(&LockTarget::Images))
+            && file.is_none()
+        {
+            return Err(anyhow!("--locked cannot be used without a `{LOCK_FILE}` present").into());
+        }
+
+        file.unwrap_or_default()
+    };
+
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
     }
@@ -928,7 +961,11 @@ pub async fn run(
     // the run proceeds against a consistent, reproducible tree, unless
     // `--locked` asked for the run to fail instead.
     if let Some(dir) = source.local_start_dir() {
-        let policy = if args.locked {
+        let policy = if args
+            .locked
+            .as_ref()
+            .is_some_and(|targets| targets.contains(&LockTarget::Modules))
+        {
             crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
         } else {
             crate::commands::module::auto_lock::LockfilePolicy::Regenerate
@@ -1075,6 +1112,16 @@ pub async fn run(
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
 
+    let mut image_overrides = lock_file.as_container_overrides();
+    if args
+        .locked
+        .as_ref()
+        .is_some_and(|targets| targets.contains(&LockTarget::Images))
+        && let Some(overrides) = image_overrides.as_mut()
+    {
+        overrides.set_failure_mode(ImageOverrideResolutionFailureMode::Error);
+    }
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
@@ -1082,6 +1129,7 @@ pub async fn run(
         engine,
         events,
         cancellation.clone(),
+        image_overrides.unwrap_or_default(),
         &target,
         inputs,
         &run_dir,

@@ -68,6 +68,7 @@ use super::Evaluator;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::ContainerImageOverrides;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
@@ -1228,6 +1229,7 @@ impl<'a> State<'a> {
         id: &str,
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
+        image_overrides: &ContainerImageOverrides,
         attempt: u64,
         previous_task_data: Option<Arc<TaskPostEvaluationData>>,
     ) -> EvaluationResult<EvaluatedSections> {
@@ -1299,7 +1301,7 @@ impl<'a> State<'a> {
             .evaluator
             .engine()
             .backend()
-            .constraints(inputs, &requirements, &hints)
+            .constraints(inputs, &requirements, image_overrides, &hints)
             .with_context(|| {
                 format!(
                     "failed to get constraints for task `{task}`",
@@ -1799,6 +1801,7 @@ impl Evaluator {
                     id,
                     &definition,
                     &inputs,
+                    self.image_overrides(),
                     attempt,
                     previous_task_data.clone(),
                 )
@@ -2396,6 +2399,7 @@ mod tests {
 
     use crate::CancellationContext;
     use crate::CancellationContextState;
+    use crate::ContainerImageOverrides;
     use crate::Engine;
     use crate::EngineEvent;
     use crate::EvaluationPath;
@@ -2440,6 +2444,7 @@ mod tests {
             &self,
             _inputs: &TaskInputs,
             _requirements: &Object,
+            _image_overrides: &ContainerImageOverrides,
             _hints: &Object,
         ) -> Result<TaskExecutionConstraints> {
             Ok(TaskExecutionConstraints {
@@ -2554,7 +2559,11 @@ mod tests {
         let document = results.first().expect("should have result").document();
         let events = Events::default().with_engine(100);
         let mut receiver = events.subscribe_engine().unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
         let runs_dir = root_dir.join("runs");
         let evaluated = evaluator
             .evaluate_task(
@@ -3585,7 +3594,11 @@ task t {
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
         let events = Events::default().with_crankshaft(10);
-        let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone());
+        let evaluator = engine.create_v1_evaluator(
+            events.clone(),
+            cancellation.clone(),
+            ContainerImageOverrides::default(),
+        );
 
         let document = results
             .iter()
