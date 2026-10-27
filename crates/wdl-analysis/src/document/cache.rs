@@ -11,7 +11,6 @@ use indexmap::IndexMap;
 use petgraph::prelude::DiGraphMap;
 use sha2::Digest;
 use sha2::Sha256;
-use url::Url;
 use wdl_ast::AstToken;
 use wdl_ast::TreeNode;
 use wdl_ast::v1::Ast;
@@ -23,7 +22,6 @@ use wdl_grammar::SyntaxKind;
 
 use crate::AppliedEdit;
 use crate::Diagnostics;
-use crate::Document;
 use crate::Exceptable;
 use crate::document::Enum;
 use crate::document::EnumRef;
@@ -41,6 +39,22 @@ use crate::document::Workflow;
 use crate::document::WorkflowRef;
 use crate::document::cache::hash::HashableCallable;
 use crate::document::cache::hash::HashableItem;
+
+/// The kind of an [`LocalItem`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum ItemKind {
+    /// A struct.
+    Struct,
+    /// An enum.
+    Enum,
+    /// A task.
+    Task,
+    /// A workflow.
+    Workflow,
+    /// An import.
+    Import,
+}
 
 /// The import merges its contents directly into the document's scope.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -1054,10 +1068,7 @@ impl AnalysisCache {
     }
 
     /// Inserts a workflow into the cache.
-    pub fn insert_workflow(
-        &mut self,
-        mut item: CachedItem<WithBodyHash<Workflow>>,
-    ) {
+    pub fn insert_workflow(&mut self, mut item: CachedItem<WithBodyHash<Workflow>>) {
         let hash = item.signature_hash;
         item.shift_diagnostic_offsets();
 
@@ -1161,10 +1172,7 @@ impl AnalysisCache {
 
     /// Drop items and their dependents from the cache that are not present in
     /// `current_ast` or whose body hash has changed.
-    pub fn intersect(
-        &self,
-        current_ast: &AstItems,
-    ) -> Vec<(InvalidationStrategy, SignatureHash)> {
+    pub fn intersect(&self, current_ast: &AstItems) -> Vec<(InvalidationStrategy, SignatureHash)> {
         let mut to_remove = Vec::new();
         for cache_item in self.items() {
             let signature_hash = cache_item.signature_hash();

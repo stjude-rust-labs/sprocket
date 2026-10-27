@@ -91,6 +91,8 @@ pub type WorkflowRef<'a> = MaybeImported<&'a Workflow, &'a ImportedWorkflow>;
 
 impl<'a> WorkflowRef<'a> {
     /// Gets the name of the workflow.
+    ///
+    /// See also: [`Callable::name()`]
     pub fn name(&self) -> &'a str {
         match self {
             WorkflowRef::Local(w) => w.name(),
@@ -99,10 +101,22 @@ impl<'a> WorkflowRef<'a> {
     }
 
     /// Gets the span of the name.
+    ///
+    /// See also: [`Callable::name_span()`]
     pub fn name_span(&self) -> Span {
         match self {
             WorkflowRef::Local(w) => w.name_span(),
             WorkflowRef::Imported(i) => i.span,
+        }
+    }
+
+    /// Get the defining [`Document`] of the workflow, if it was imported
+    ///
+    /// NOTE: This will always return `None` for locally defined workflows.
+    pub fn source_document(&self) -> Option<&Document> {
+        match self {
+            WorkflowRef::Local(_) => None,
+            WorkflowRef::Imported(i) => Some(i.document()),
         }
     }
 
@@ -135,6 +149,8 @@ impl<'a> WorkflowRef<'a> {
 pub type TaskRef<'a> = MaybeImported<&'a Task, &'a ImportedTask>;
 impl<'a> TaskRef<'a> {
     /// Gets the name of the task.
+    ///
+    /// See also: [`Callable::name()`]
     pub fn name(&self) -> &'a str {
         match self {
             TaskRef::Local(t) => t.name(),
@@ -143,10 +159,22 @@ impl<'a> TaskRef<'a> {
     }
 
     /// Gets the span of the name.
+    ///
+    /// See also: [`Callable::name_span()`]
     pub fn name_span(&self) -> Span {
         match self {
             TaskRef::Local(t) => t.name_span(),
             TaskRef::Imported(i) => i.span,
+        }
+    }
+
+    /// Get the defining [`Document`] of the task, if it was imported
+    ///
+    /// NOTE: This will always return `None` for locally defined tasks.
+    pub fn source_document(&self) -> Option<&Document> {
+        match self {
+            TaskRef::Local(_) => None,
+            TaskRef::Imported(i) => Some(i.document()),
         }
     }
 

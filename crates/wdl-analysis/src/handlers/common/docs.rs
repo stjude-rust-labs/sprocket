@@ -23,12 +23,12 @@ use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::format_meta_value;
 use wdl_ast::v1::get_param_meta;
 
+use crate::document::Callable;
 use crate::document::EnumRef;
+use crate::document::Namespace;
 use crate::document::StructRef;
 use crate::document::TaskRef;
 use crate::document::WorkflowRef;
-use crate::document::Callable;
-use crate::document::Namespace;
 
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
@@ -343,7 +343,7 @@ pub fn provide_workflow_documentation(
     let (root, name_span) = match workflow {
         WorkflowRef::Local(wf) => (root.inner().clone(), wf.name_span()),
         WorkflowRef::Imported(wf) => {
-            let root = wf.document.root();
+            let root = wf.document().root();
             let ast = root.ast();
             let mut workflows = ast.as_v1()?.tasks();
             let target = workflows.find(|workflow| workflow.name().text() == wf.name())?;
