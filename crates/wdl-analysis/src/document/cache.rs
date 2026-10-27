@@ -52,8 +52,6 @@ pub enum ItemKind {
     Task,
     /// A workflow.
     Workflow,
-    /// An import.
-    Import,
 }
 
 /// The import merges its contents directly into the document's scope.
