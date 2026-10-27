@@ -143,7 +143,6 @@ impl TaskMonitorSvc {
                         error!("{e:#}");
                     }
                 }
-
                 Incoming::Engine(event) => {
                     if let Err(e) = self.handle_engine_event(event).await {
                         error!("{e:#}");
