@@ -79,6 +79,40 @@ fn page_total<T>(records: &[T], total: i64, offset: Option<i64>) -> i64 {
     total.max(page_end)
 }
 
+/// Parameters for creating a task record.
+///
+/// See [`Database::create_task`].
+#[derive(Debug, Clone, Copy)]
+pub struct NewTask<'a> {
+    /// The unique name of the task's execution attempt.
+    pub name: &'a str,
+    /// The UUID of the run managing this task.
+    pub run_id: Uuid,
+    /// The starting status of the task.
+    pub status: TaskStatus,
+    /// The stable WDL call path shared by every attempt of the same call.
+    ///
+    /// `None` when the creation is driven by a backend event, which does not
+    /// carry the call id.
+    pub call_id: Option<&'a str>,
+    /// The 0-based execution attempt number within the call.
+    pub attempt: i64,
+}
+
+impl<'a> NewTask<'a> {
+    /// Creates task parameters for a task observed through a backend event,
+    /// which carries neither a call id nor an attempt number.
+    pub fn from_backend_event(name: &'a str, run_id: Uuid, status: TaskStatus) -> Self {
+        Self {
+            name,
+            run_id,
+            status,
+            call_id: None,
+            attempt: 0,
+        }
+    }
+}
+
 /// A database trait containing needed provenance operations.
 #[async_trait]
 pub trait Database: Send + Sync {
@@ -243,10 +277,28 @@ pub trait Database: Send + Sync {
     /// Create a task record in the given starting status.
     ///
     /// Creation is idempotent: if the task already exists, its current record
-    /// is returned unchanged. Engine and Crankshaft events arrive on
+    /// and status are returned unchanged, except that a `call_id` is filled in
+    /// when the existing row has none and the `attempt` number is raised to
+    /// the larger of the two. Engine and Crankshaft events arrive on
     /// independent channels with no ordering between them, so either may be
-    /// the first to observe a task.
-    async fn create_task(&self, name: &str, run_id: Uuid, status: TaskStatus) -> Result<Task>;
+    /// the first to observe a task, and only the engine's announcement carries
+    /// the call id and attempt number.
+    async fn create_task(&self, task: NewTask<'_>) -> Result<Task>;
+
+    /// Record the resolved execution constraints for a task.
+    ///
+    /// Returns `true` if a task was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a task was updated"]
+    async fn update_task_constraints(&self, name: &str, constraints: &str) -> Result<bool>;
+
+    /// Record why a task's execution attempt was retried.
+    ///
+    /// This is set on the row of the attempt that failed, which has usually
+    /// already reached a terminal status, so no status guard applies.
+    ///
+    /// Returns `true` if a task was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a task was updated"]
+    async fn update_task_retry_cause(&self, name: &str, cause: &str) -> Result<bool>;
 
     /// Advance a task to localizing its inputs.
     ///
