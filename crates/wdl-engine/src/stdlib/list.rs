@@ -1090,6 +1090,7 @@ task list_task {
         let outputs = evaluator
             .evaluate_workflow(
                 document,
+                "test",
                 inputs,
                 &env.base_dir().join("outputs").unwrap().unwrap_local(),
             )

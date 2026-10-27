@@ -284,11 +284,14 @@ pub enum SelectTargetError {
     #[error("target not found: `{0}`")]
     TargetNotFound(String),
     /// No tasks or workflows in document.
-    #[error("a target cannot be inferred because the document contains no tasks and no workflow")]
-    NoExecutableTarget,
-    /// No workflows and multiple tasks in document.
     #[error(
-        "a target cannot be inferred because the document contains multiple tasks and no workflow"
+        "a target cannot be inferred because the document contains no local tasks or workflows"
+    )]
+    NoExecutableTarget,
+    /// Multiple executable targets in document.
+    #[error(
+        "a target cannot be inferred because the document contains multiple local executable \
+         targets; specify one by name"
     )]
     TargetRequired,
 }
@@ -298,8 +301,8 @@ pub enum SelectTargetError {
 /// The priority is set as follows:
 ///
 /// 1. If target provided, find workflow or task with that name
-/// 2. If no target, use workflow if present
-/// 3. If no target and no workflow, use single task if exactly one exists
+/// 2. If no target, use the workflow if exactly one is present
+/// 3. If no target and no workflow, use the single task if exactly one exists
 /// 4. Otherwise error
 pub fn select_target(
     document: &AnalysisDocument,
@@ -308,13 +311,11 @@ pub fn select_target(
     if let Some(target) = target {
         // An explicit target name was provided, attempt to find the workflow or
         // task by name
-        if let Some(workflow) = document.workflow()
-            && workflow.name() == target
-        {
+        if document.local_workflow_by_name(target).is_some() {
             return Ok(Target::Workflow(target.to_owned()));
         }
 
-        if document.task_by_name(target).is_some() {
+        if document.local_task_by_name(target).is_some() {
             return Ok(Target::Task(target.to_owned()));
         }
 
@@ -322,17 +323,20 @@ pub fn select_target(
     } else {
         // No explicit target name was provided, infer using the rules outlined
         // above
-        if let Some(workflow) = document.workflow() {
-            // Document has a workflow, use that as the target
-            Ok(Target::Workflow(workflow.name().to_owned()))
-        } else {
-            // No workflow was found, see if there is one task
-            let tasks = document.tasks().collect::<Vec<_>>();
-            match tasks.len() {
-                0 => Err(SelectTargetError::NoExecutableTarget),
-                1 => Ok(Target::Task(tasks[0].name().to_owned())),
-                _ => Err(SelectTargetError::TargetRequired),
-            }
+        let mut workflows = document.local_workflows();
+        let workflow = workflows.next();
+        if workflows.next().is_some() {
+            return Err(SelectTargetError::TargetRequired);
+        }
+        if let Some(workflow) = workflow {
+            return Ok(Target::Workflow(workflow.name().to_owned()));
+        }
+
+        let tasks = document.local_tasks().collect::<Vec<_>>();
+        match tasks.len() {
+            0 => Err(SelectTargetError::NoExecutableTarget),
+            1 => Ok(Target::Task(tasks[0].name().to_owned())),
+            _ => Err(SelectTargetError::TargetRequired),
         }
     }
 }
@@ -791,6 +795,7 @@ async fn execute_workflow_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
+    workflow_name: &str,
     image_overrides: ContainerImageOverrides,
     inputs: Inputs,
     run_dir: &RunDirectory,
@@ -822,8 +827,8 @@ async fn execute_workflow_target(
 
     // Resolve relative paths in inputs from `base_dir`
     let workflow = document
-        .workflow()
-        .context("document does not contain a workflow")?;
+        .local_workflow_by_name(workflow_name)
+        .with_context(|| format!("document does not contain workflow `{workflow_name}`"))?;
     inputs
         .join_paths(document, workflow, &|_| Ok(std::slice::from_ref(base_dir)))
         .await
@@ -832,7 +837,7 @@ async fn execute_workflow_target(
     let evaluator = engine.create_v1_evaluator(events, cancellation, image_overrides);
 
     match evaluator
-        .evaluate_workflow(document, inputs, run_dir.root())
+        .evaluate_workflow(document, workflow_name, inputs, run_dir.root())
         .await
     {
         Ok(outputs) => Ok(Some(outputs)),
@@ -967,7 +972,7 @@ pub async fn execute_target(
                 )
                 .await
             }
-            Target::Workflow(_) => {
+            Target::Workflow(workflow_name) => {
                 execute_workflow_target(
                     db.as_ref(),
                     ctx,
@@ -975,6 +980,7 @@ pub async fn execute_target(
                     engine,
                     events,
                     cancellation,
+                    workflow_name,
                     image_overrides,
                     inputs,
                     run_dir,

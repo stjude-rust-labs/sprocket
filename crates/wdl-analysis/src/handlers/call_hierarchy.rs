@@ -187,34 +187,31 @@ fn resolve_enclosing_scope(
     offset: usize,
     lines: &LineIndex,
 ) -> Option<EnclosingScope> {
-    if let Some(workflow) = document.workflow()
-        && workflow.scope().span().contains(offset)
-    {
-        let location = location_from_span(&document.uri(), workflow.name_span(), lines).ok()?;
-        let range = location_from_span(&document.uri(), workflow.span(), lines)
-            .ok()?
-            .range;
+    for callable in document.local_callables() {
+        let Some(scope) = callable.scope() else {
+            continue;
+        };
+
+        let Some(span) = callable.span() else {
+            continue;
+        };
+
+        if !scope.span().contains(offset) {
+            continue;
+        }
+
+        let location = location_from_span(&document.uri(), callable.name_span(), lines).ok()?;
+        let range = location_from_span(&document.uri(), span, lines).ok()?.range;
         return Some(EnclosingScope {
-            kind: EnclosingScopeKind::Workflow,
-            name: workflow.name().to_string(),
+            kind: if callable.is_workflow() {
+                EnclosingScopeKind::Workflow
+            } else {
+                EnclosingScopeKind::Task
+            },
+            name: callable.name().to_string(),
             location,
             range,
         });
-    }
-
-    for task in document.local_tasks() {
-        if task.scope().span().contains(offset) {
-            let location = location_from_span(&document.uri(), task.name_span(), lines).ok()?;
-            let range = location_from_span(&document.uri(), task.span(), lines)
-                .ok()?
-                .range;
-            return Some(EnclosingScope {
-                kind: EnclosingScopeKind::Task,
-                name: task.name().to_string(),
-                location,
-                range,
-            });
-        }
     }
 
     None

@@ -29,6 +29,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   evaluator uses that override so any later retry links from the execution that actually failed; for
   example, a failed TES resubmission links `base~1` to the next evaluator attempt rather than
   linking `base` twice ([#1255](https://github.com/stjude-rust-labs/sprocket/pull/1255)).
+* `Evaluator::evaluate_workflow` now requires the defining workflow name and evaluates that workflow
+  explicitly. This breaking API change also enables WDL 1.4 workflows to call other workflows in the
+  same document ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
 
 ### Fixed
 
