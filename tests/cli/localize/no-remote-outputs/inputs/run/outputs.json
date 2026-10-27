@@ -1,0 +1,6 @@
+{
+  "wf.greeting": "/data/runs/wf/attempts/0/work/greeting.txt",
+  "wf.count": 3,
+  "wf.label": "hello",
+  "wf.local_url": "file:///data/greeting.txt"
+}

@@ -1,0 +1,4 @@
+Would localize `s3://my-bucket/outputs/wf-20260101-000000/work/report.html` to `run/localized/wf.report/report.html`
+Would localize `s3://my-bucket/outputs/wf-20260101-000000/work/a/sample.bam` to `run/localized/wf.bams/0/sample.bam`
+Would localize `s3://my-bucket/outputs/wf-20260101-000000/work/b/sample.bam` to `run/localized/wf.bams/1/sample.bam`
+Would localize `az://account/container/wf-20260101-000000/work/summary.tsv` to `run/localized/wf.results/summary/summary.tsv`

@@ -1,0 +1,99 @@
+Downloads the remote outputs of a completed run to the local file system.
+
+This is useful for runs on a cloud backend (e.g. TES), where the output files remain in remote storage after the run completes.
+
+Usage: sprocket localize [OPTIONS] <RUN>
+
+Arguments:
+  <RUN>
+          The run whose outputs should be localized.
+
+          This may be the path to a run directory (e.g. `out/runs/<target>/<timestamp>` or `out/runs/<target>/_latest`) or the path to the `outputs.json` file inside of one.
+
+          Note that `outputs.json` does not record the WDL type of each output, so any string output that is a remote storage URL (`s3://`, `az://`, `gs://`, `http://`, or `https://`) is treated as a remote file or directory.
+
+Options:
+  -d, --destination <DESTINATION>
+          The directory to download the outputs into.
+
+          Defaults to `localized` within the run directory.
+
+          Each remote output is downloaded to `<DESTINATION>/<output name>/<file or directory name>`. A localized copy of `outputs.json` that refers to the downloaded files is written to `<DESTINATION>/outputs.json`.
+
+      --overwrite
+          Overwrite files that already exist in the destination
+
+      --dry-run
+          Show what would be downloaded without downloading anything
+
+      --azure-account-name <NAME>
+          The Azure Storage account name to use
+
+          [env: AZURE_ACCOUNT_NAME=]
+
+      --azure-access-key <KEY>
+          The Azure Storage access key to use
+
+          [env: AZURE_ACCESS_KEY]
+
+      --aws-access-key-id <ID>
+          The AWS Access Key ID to use; overrides configuration
+
+          [env: AWS_ACCESS_KEY_ID=]
+
+      --aws-secret-access-key <KEY>
+          The AWS Secret Access Key to use; overrides configuration
+
+          [env: AWS_SECRET_ACCESS_KEY]
+
+      --aws-default-region <REGION>
+          The default AWS region; overrides configuration
+
+          [env: AWS_DEFAULT_REGION=]
+
+      --google-hmac-access-key <KEY>
+          The Google Cloud Storage HMAC access key to use; overrides configuration
+
+          [env: GOOGLE_HMAC_ACCESS_KEY=]
+
+      --google-hmac-secret <SECRET>
+          The Google Cloud Storage HMAC secret to use; overrides configuration
+
+          [env: GOOGLE_HMAC_SECRET]
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+
+          [default: auto]
+
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')

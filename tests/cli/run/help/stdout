@@ -76,11 +76,11 @@ Options:
       --no-call-cache
           Disables the use of the call cache for this run
 
-  -v, --verbose...
-          Increase logging verbosity
-
       --disable-retries
           Disable retries for all task evaluations for this run
+
+  -v, --verbose...
+          Increase logging verbosity
 
   -q, --quiet...
           Decrease logging verbosity

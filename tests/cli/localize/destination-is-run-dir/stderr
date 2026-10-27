@@ -1,0 +1,1 @@
+error: the destination cannot be the run directory as `outputs.json` would be overwritten
