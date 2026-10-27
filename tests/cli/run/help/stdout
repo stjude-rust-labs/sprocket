@@ -28,7 +28,7 @@ Options:
 
           Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`. On Unix systems, the latest run is symlinked at `<output_dir>/runs/<target>/_latest`.
 
-      --locked <LOCK_TARGETS>
+      --locked[=<LOCK_TARGETS>...]
           Force the execution to use existing lockfiles
 
           Possible values:

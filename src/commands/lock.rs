@@ -64,11 +64,11 @@ pub struct Args {
     #[clap(value_name = "SOURCE")]
     pub source: Option<Source>,
 
-    /// Require that all container images can produce a lockfile entry.
+    /// Require that all container images can produce a lockfile entry,
+    /// otherwise return an error.
     ///
-    /// By default, images that can't be determined (e.g., those with
-    /// placeholders), will simply be skipped. This makes them a fatal
-    /// error.
+    /// Without this option, images that can't be statically determined (e.g.,
+    /// those with placeholders) will simply be skipped.
     #[clap(long)]
     pub strict: bool,
 

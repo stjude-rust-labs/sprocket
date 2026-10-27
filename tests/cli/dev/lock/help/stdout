@@ -8,9 +8,9 @@ Arguments:
 
 Options:
       --strict
-          Require that all container images can produce a lockfile entry.
+          Require that all container images can produce a lockfile entry, otherwise return an error.
 
-          By default, images that can't be determined (e.g., those with placeholders), will simply be skipped. This makes them a fatal error.
+          Without this option, images that can't be statically determined (e.g., those with placeholders) will simply be skipped.
 
   -o, --output <DIR>
           Output directory for the lock file
