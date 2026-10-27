@@ -2209,8 +2209,11 @@ workflow second {
         .await;
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::default(), CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
 
         let outputs = evaluator
             .evaluate_workflow(
@@ -2270,8 +2273,11 @@ workflow child {
         .await;
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::default(), CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
         let mut inputs = WorkflowInputs::default();
         inputs.set("value", 41);
 
@@ -2339,8 +2345,11 @@ workflow main {
         .await;
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::default(), CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
 
         let outputs = evaluator
             .evaluate_workflow(
