@@ -66,6 +66,7 @@ use crate::commands::CommandResult;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::inputs::Invocation;
+use crate::log_stdio;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::HeartbeatGuard;
@@ -542,44 +543,6 @@ impl State {
         }
 
         self.update_collapsed_image_pull_status();
-    }
-}
-
-macro_rules! log_stdio {
-    ($lvl:ident, $buff:expr, $trgt:expr, $prefix:expr, $msg:expr) => {
-        let buff_size = 4096;
-        $buff.reserve(buff_size);
-        $buff.extend_from_slice($msg);
-        while let Some(line_end) = $buff.iter().position(|&b| b == b'\n') {
-            if line_end > buff_size {
-                tracing::$lvl!(
-                    target: $trgt,
-                    "{} {}",
-                    $prefix.magenta().bold(),
-                    format!("line too long, dropped {line_end} bytes").yellow()
-                );
-            } else {
-                let line_bytes = &$buff[..line_end];
-                let line = String::from_utf8_lossy(line_bytes);
-                tracing::$lvl!(
-                    target: $trgt,
-                    "{} {}",
-                    $prefix.magenta().bold(),
-                    line.blue()
-                );
-            }
-            $buff.drain(..=line_end);
-        }
-        if $buff.len() > buff_size {
-            tracing::$lvl!(
-                target: $trgt,
-                "{} {}",
-                $prefix.magenta().bold(),
-                format!("line too long, dropped {} bytes", $buff.len()).yellow()
-            );
-            $buff.clear();
-        }
-        $buff.shrink_to(buff_size);
     }
 }
 

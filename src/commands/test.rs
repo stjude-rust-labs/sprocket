@@ -81,6 +81,7 @@ use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
+use crate::log_stdio;
 use crate::system::v1::fs::OUTPUTS_FILE;
 use crate::system::v1::fs::RUNS_DIR;
 

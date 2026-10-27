@@ -26,7 +26,6 @@ pub mod format;
 pub mod inputs;
 pub mod lock;
 pub mod module;
-#[macro_use]
 pub mod run;
 pub mod server;
 pub mod test;

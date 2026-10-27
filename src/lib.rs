@@ -24,6 +24,7 @@ use clap::CommandFactory as _;
 use clap::Parser as _;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
+use commands::CommandResult;
 use commands::Commands;
 pub use config::ColorMode;
 pub use config::Config;
@@ -48,8 +49,6 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::config::BuilderError;
 use wdl::engine::config::BuiltConfig;
-
-use crate::commands::CommandResult;
 
 // Access to these modules is useful for integration testing and benchmarking,
 // but since this is not intended to be used as a public interface, we hide them
@@ -170,6 +169,46 @@ fn emit_config_diagnostics(
     }
 
     Ok(emitted)
+}
+
+/// Helper macro for logging STDOUT/STDERR line by line.
+#[macro_export]
+macro_rules! log_stdio {
+    ($lvl:ident, $buff:expr, $trgt:expr, $prefix:expr, $msg:expr) => {
+        let buff_size = 4096;
+        $buff.reserve(buff_size);
+        $buff.extend_from_slice($msg);
+        while let Some(line_end) = $buff.iter().position(|&b| b == b'\n') {
+            if line_end > buff_size {
+                tracing::$lvl!(
+                    target: $trgt,
+                    "{} {}",
+                    $prefix.magenta().bold(),
+                    format!("line too long, dropped {line_end} bytes").yellow()
+                );
+            } else {
+                let line_bytes = &$buff[..line_end];
+                let line = String::from_utf8_lossy(line_bytes);
+                tracing::$lvl!(
+                    target: $trgt,
+                    "{} {}",
+                    $prefix.magenta().bold(),
+                    line.blue()
+                );
+            }
+            $buff.drain(..=line_end);
+        }
+        if $buff.len() > buff_size {
+            tracing::$lvl!(
+                target: $trgt,
+                "{} {}",
+                $prefix.magenta().bold(),
+                format!("line too long, dropped {} bytes", $buff.len()).yellow()
+            );
+            $buff.clear();
+        }
+        $buff.shrink_to(buff_size);
+    }
 }
 
 /// Logic for [`sprocket_main()`].
