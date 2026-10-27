@@ -178,6 +178,9 @@ macro_rules! log_stdio {
         let buff_size = 4096;
         $buff.reserve(buff_size);
         $buff.extend_from_slice($msg);
+        if let Some(last) = $buff.last() && *last != b'\n' {
+            $buff.push(b'\n');
+        }
         while let Some(line_end) = $buff.iter().position(|&b| b == b'\n') {
             if line_end > buff_size {
                 tracing::$lvl!(
