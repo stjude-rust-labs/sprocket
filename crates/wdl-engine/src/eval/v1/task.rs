@@ -1819,19 +1819,16 @@ impl Evaluator {
             // Localize the inputs now
             state.localize_inputs(id).await?;
 
-            // Calculate the cache key on the first attempt only
-            let mut key = if attempt == 0
-                && let Some(cache) = self.engine().call_cache()
-            {
+            // Calculate the cache key
+            let mut key = if let Some(cache) = self.engine().call_cache() {
                 if hints::cacheable(&inputs, &hints, self.engine().config()) {
                     // The configured default container is only part of the
-                    // cache key when the task has no
-                    // `container` requirement of its own. When
-                    // the task does specify `container`, the requirement is
-                    // already covered by the `requirements`
-                    // digest, so including the default here
-                    // would be redundant; when it doesn't, a change to the
-                    // configured default must invalidate the cache entry.
+                    // cache key when the task has no `container` requirement of
+                    // its own. When the task does specify `container`, the
+                    // requirement is already covered by the `requirements`
+                    // digest, so including the default here would be redundant;
+                    // when it doesn't, a change to the configured default must
+                    // invalidate the cache entry.
                     let default_container =
                         if requirements::has_container_requirement(&inputs, &requirements) {
                             None
@@ -1931,8 +1928,7 @@ impl Evaluator {
                         }
 
                         // We're serving the results from the call cache; no
-                        // need to update, so set
-                        // the key to `None`
+                        // need to update, so set the key to `None`
                         key = None;
                         Some(results)
                     }
@@ -3541,6 +3537,85 @@ task test {
         assert!(
             logs_contain("the content of a file or directory input was modified"),
             "expected input to be modified"
+        );
+    }
+
+    /// Tests for caching when a task retries.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_with_retry() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    command <<<
+        echo '~{if task.attempt == 0 then "fail" else "ok"}'
+        exit ~{if task.attempt == 0 then 1 else 0}
+    >>>
+
+    requirements {
+        max_retries: 1
+    }
+    
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+
+        // Evaluate the task; it should succeed due to the retry logic
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "ok"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("retrying execution of task `test` (retry 1)"),
+            "expected task to be retried"
+        );
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        // Evaluate the source again; it should be served from the cache despite
+        // the previous retry
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert!(
+            logs_contain("ignoring call cache entry: the command of the task was modified"),
+            "expected entry to be ignored for first attempt"
+        );
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "ok"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second attempt to skip execution"
         );
     }
 
