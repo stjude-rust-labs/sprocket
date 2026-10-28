@@ -24,6 +24,7 @@ use clap::CommandFactory as _;
 use clap::Parser as _;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
+use commands::CommandResult;
 use commands::Commands;
 pub use config::ColorMode;
 pub use config::Config;
@@ -48,8 +49,6 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::config::BuilderError;
 use wdl::engine::config::BuiltConfig;
-
-use crate::commands::CommandResult;
 
 // Access to these modules is useful for integration testing and benchmarking,
 // but since this is not intended to be used as a public interface, we hide them
@@ -174,6 +173,55 @@ fn emit_config_diagnostics(
     Ok(emitted)
 }
 
+/// Takes a message and calls a callback for each line in the message.
+///
+/// Partial lines are buffered into the provided buffer.
+fn for_each_line(message: &[u8], buffer: &mut Vec<u8>, callback: impl Fn(&str)) {
+    if message.is_empty() {
+        return;
+    }
+
+    buffer.extend(message);
+
+    let buffer = buffer
+        .drain(
+            0..buffer
+                .iter()
+                .rposition(|c| *c == b'\n')
+                .map(|p| p + 1)
+                .unwrap_or(0),
+        )
+        .collect::<Vec<u8>>();
+
+    for line in String::from_utf8_lossy(&buffer).lines() {
+        callback(line);
+    }
+}
+
+/// Helper macro for logging line by line.
+#[macro_export]
+macro_rules! log_output {
+    ($level:expr, $target:expr, $prefix:expr, $line:expr) => {
+        if $line.len() > 4096 {
+            tracing::event!(
+                target: $target,
+                $level,
+                "[{prefix}] {line}",
+                prefix = $prefix.magenta().bold(),
+                line = format!("<line exceeded 4096 bytes>").yellow()
+            );
+        } else {
+            tracing::event!(
+                target: $target,
+                $level,
+                "[{prefix}] {line}",
+                prefix = $prefix.magenta().bold(),
+                line = $line.blue()
+            );
+        }
+    };
+}
+
 /// Logic for [`sprocket_main()`].
 async fn real_main() -> CommandResult<()> {
     let cli = with_large_stack(Cli::parse);
@@ -261,6 +309,9 @@ async fn real_main() -> CommandResult<()> {
         Commands::Inputs(args) => commands::inputs::inputs(args, config, output).await,
         Commands::Lint(args) => commands::check::lint(args, config, output).await,
         Commands::Run(args) => commands::run::run(args, config, output, file_handle, writer).await,
+        Commands::Test(args) => {
+            commands::test::test(args, config, output, indicatif_writers.stdout, writer).await
+        }
         Commands::Validate(args) => commands::validate::validate(args, config, output).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, output).await
@@ -273,9 +324,6 @@ async fn real_main() -> CommandResult<()> {
         }
         Commands::Dev(commands::DevCommands::Server(args)) => {
             commands::server::server(args, config, output).await
-        }
-        Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args, config, output, indicatif_writers.stdout).await
         }
     }
 }

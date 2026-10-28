@@ -69,8 +69,10 @@ use crate::commands::CommandResult;
 use crate::commands::lock::LOCK_FILE;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
+use crate::for_each_line;
 use crate::inputs::Invocation;
 use crate::lock::file::LockFile;
+use crate::log_output;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::HeartbeatGuard;
@@ -343,8 +345,6 @@ struct Task {
 }
 
 impl Task {
-    const STDERR_BUFFER_SIZE: usize = 4096;
-
     fn new(name: Arc<String>, token: CancellationToken) -> Self {
         Self {
             name,
@@ -730,46 +730,9 @@ async fn progress(
                                 continue;
                             };
 
-                            if task.stderr_buffer.capacity() == 0 {
-                                task.stderr_buffer.reserve(Task::STDERR_BUFFER_SIZE);
-                            }
-
-                            task.stderr_buffer.extend_from_slice(&message);
-                            while let Some(line_end) = task.stderr_buffer.iter().position(|&b| b == b'\n') {
-                                if line_end > Task::STDERR_BUFFER_SIZE {
-                                    tracing::warn!(
-                                        target: "task-stderr",
-                                        "{} {}",
-                                        task.name.magenta().bold(),
-                                        format!("line too long, dropped {line_end} bytes").yellow()
-                                    );
-                                } else {
-                                    let line_bytes = &task.stderr_buffer[..line_end];
-                                    let line = String::from_utf8_lossy(line_bytes);
-                                    tracing::debug!(
-                                        target: "task-stderr",
-                                        "{} {}",
-                                        task.name.magenta().bold(),
-                                        line.blue()
-                                    );
-                                }
-
-                                task.stderr_buffer.drain(..=line_end);
-                            }
-
-                            if task.stderr_buffer.len() > Task::STDERR_BUFFER_SIZE {
-                                tracing::warn!(
-                                    target: "task-stderr",
-                                    "{} {}",
-                                    task.name.magenta().bold(),
-                                    format!("line too long, dropped {} bytes", task.stderr_buffer.len()).yellow()
-                                );
-                                task.stderr_buffer.clear();
-                            }
-
-                            if task.stderr_buffer.capacity() > Task::STDERR_BUFFER_SIZE {
-                                task.stderr_buffer.shrink_to(Task::STDERR_BUFFER_SIZE);
-                            }
+                            for_each_line(&message, &mut task.stderr_buffer, |line| {
+                                log_output!(tracing::Level::DEBUG, "task-stderr", task.name, line);
+                            });
 
                             continue
                         }
@@ -780,7 +743,16 @@ async fn progress(
                         | CrankshaftEvent::TaskStderr { .. } => continue,
                     };
 
-                    if let Some(id) = removed && let Some(task) = state.tasks.remove(&id) {
+                    if let Some(id) = removed && let Some(mut task) = state.tasks.remove(&id) {
+                        if !task.stderr_buffer.is_empty() {
+                            log_output!(
+                                tracing::Level::DEBUG,
+                                "task-stderr",
+                                task.name,
+                                &String::from_utf8_lossy(&task.stderr_buffer)
+                            );
+                            task.stderr_buffer.clear();
+                        }
                         state.executing.swap_remove(&task.name);
                     }
 

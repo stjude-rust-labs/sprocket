@@ -9,6 +9,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `sprocket test` command for unit testing WDL (was `sprocket dev test`)
+  ([#1293](https://github.com/stjude-rust-labs/sprocket/pull/1293)).
+* Added "custom assertions" ability to the `test` framework for running arbitrary user code on WDL
+  outputs. This added `--enable-custom-assertions` and `--trusted` flags to the `test` command and
+  an `enable_custom_assertions` field to the `[test]` configuration table in `sprocket.toml`
+  ([#1293](https://github.com/stjude-rust-labs/sprocket/pull/1293)).
+* Added `--bin-dir` flag and `bin_dir` field to `test` command and configuration table for setting a
+  custom path for test executable discovery
+  ([#1293](https://github.com/stjude-rust-labs/sprocket/pull/1293)).
+* Added `--show-assertion-stdio` flag to `test` command for displaying the STDOUT and STDERR streams
+  of running custom executables ([#1293](https://github.com/stjude-rust-labs/sprocket/pull/1293)).
 * Added `All` and `Any` assertions to the test framework for checking whether all or at least one
   element of an output WDL array satisfies an assertion
   ([#1318](https://github.com/stjude-rust-labs/sprocket/pull/1318)).
@@ -40,9 +51,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `sprocket inputs`, `sprocket validate`, `sprocket run`, and server execution now select local
   workflows by name. WDL 1.4 documents with multiple workflows require an explicit target when one
   cannot be inferred ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
-
-### Changed
-
 * The `--locked` flag in `run` now handles both module (`module-lock.json`) and container image
   (`sprocket.lock`) lockfiles. To mimic the old module-only behavior, use `--locked=modules`
   ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
@@ -51,6 +59,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+* Task stderr streams without a terminating newline are now logged in full
+  ([#1293](https://github.com/stjude-rust-labs/sprocket/pull/1293)).
 * Relative paths for `doc` configured index pages are now resolved relative to the root workspace
   being documented ([#1304](https://github.com/stjude-rust-labs/sprocket/pull/1304)).
 

@@ -16,6 +16,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use blake3::Hasher;
 use clap::Parser;
 use colored::Colorize as _;
 use crankshaft::events::Event;
@@ -27,13 +28,16 @@ use regex::Regex;
 use serde_json::Value as JsonValue;
 use sprocket_test_types::Assertions;
 use sprocket_test_types::DocumentTests;
+use sprocket_test_types::OUTPUTS_PLACEHOLDER;
 use sprocket_test_types::OutputAssertion;
 use sprocket_test_types::TestDefinition;
 use sprocket_test_types::yaml::Spanned;
 use tokio::fs::remove_dir_all;
+use tokio::process::Command;
 use tokio::select;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
+use tokio::task::spawn_blocking;
 use tokio::time::sleep;
 use tracing::Level;
 use tracing::debug;
@@ -42,7 +46,9 @@ use tracing::info;
 use tracing::instrument::WithSubscriber;
 use tracing::span;
 use tracing::subscriber::NoSubscriber;
+use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::diagnostics::DiagnosticCounts;
@@ -63,6 +69,7 @@ use wdl::engine::config::RetryConfig;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::Config;
+use crate::FilterReloadHandle;
 use crate::Stdout;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -76,6 +83,8 @@ use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
 use crate::lock::file::LockFile;
+use crate::log_output;
+use crate::system::v1::fs::OUTPUTS_FILE;
 use crate::system::v1::fs::RUNS_DIR;
 
 /// Test definitions may appear either sibling to their source WDL, or nested
@@ -88,6 +97,11 @@ const DEFINITIONS_TEST_DIR: &str = "test";
 const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
+/// Executables for custom assertions are located at
+/// `$WORKSPACE_TEST_DIR/$BIN_DIR`
+const BIN_DIR: &str = "bin";
+/// The name of the JSON file holding information about blessed executables.
+const BLESSED_FILE_NAME: &str = "blessed_executables.json";
 /// Successful test action.
 const PASSED: Action = Action::new("Passed", "pass");
 
@@ -166,6 +180,11 @@ pub struct Args {
     /// If not specified, defaults to `<workspace>/test/fixtures`.
     #[clap(long)]
     pub fixtures_dir: Option<PathBuf>,
+    /// Directory containing executables to run for custom assertions.
+    ///
+    /// If not specified, defaults to `<workspace>/test/bin/`.
+    #[clap(long)]
+    pub bin_dir: Option<PathBuf>,
     /// Directory to execute tests in.
     ///
     /// If not specified, defaults to `<workspace>/test/runs`.
@@ -174,18 +193,36 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
+    /// Enable custom assertions.
+    ///
+    /// **Warning:** this may run arbitrary user code on the host machine!
+    #[clap(long)]
+    pub enable_custom_assertions: bool,
+    /// Disable checking whether custom assertion executables have been blessed.
+    ///
+    /// **Warning:** unblessed user scripts may expose you to
+    /// malicious executables.
+    #[clap(long)]
+    pub trusted: bool,
+    /// Show STDOUT and STDERR of running custom assertions.
+    #[clap(long)]
+    pub show_assertion_stdio: bool,
     /// Run tests without locking container images to digests.
     #[clap(long)]
     pub unlocked: bool,
+
     #[command(subcommand)]
     pub command: Option<Subcommand>,
 }
 
-/// Subcommands for `sprocket dev test`
+/// Subcommands for `sprocket test`
 #[derive(clap::Subcommand, Debug)]
 pub enum Subcommand {
     /// Print the JSON schema for Sprocket test definition YAMLs to stdout.
     Schema,
+    /// Bless executables used in custom assertions. **Warning:** only bless
+    /// executables you trust!
+    BlessExecutables,
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -266,6 +303,82 @@ fn file_matches<'a>(path: &str, regexs: &'a [Regex]) -> Result<Option<&'a str>> 
     Ok(None)
 }
 
+async fn run_custom_bins(
+    outputs: Outputs,
+    executables: &HashMap<String, PathBuf>,
+    custom: &HashMap<Spanned<String>, Vec<String>>,
+    id: &str,
+) -> Result<IterationResult> {
+    let mut futures = JoinSet::new();
+    for (bin, args) in custom {
+        let Some(bin_path) = executables.get(&bin.0.value) else {
+            bail!(
+                "executable `{bin}` is not blessed and will not be executed",
+                bin = bin.0.value,
+            );
+        };
+
+        let exec_dir = tempfile::TempDir::new()?;
+        let outputs_path = exec_dir.path().join(OUTPUTS_FILE);
+        let outputs = serde_json::to_string_pretty(&outputs)?;
+        tokio::fs::write(outputs_path, outputs).await?;
+
+        let args: Vec<String> = args
+            .iter()
+            .map(|a| {
+                if a == OUTPUTS_PLACEHOLDER {
+                    OUTPUTS_FILE.into()
+                } else {
+                    a.to_owned()
+                }
+            })
+            .collect();
+        let bin_name = bin.0.value.clone();
+        let bin_path = bin_path.clone();
+        futures.spawn(async move {
+            (
+                bin_name,
+                Command::new("bash")
+                    .arg(&bin_path)
+                    .args(args)
+                    .current_dir(exec_dir.path())
+                    .env(
+                        "TEST_BIN",
+                        bin_path
+                            .parent()
+                            .expect("binary should have parent directory"),
+                    )
+                    .output()
+                    .await,
+            )
+        });
+    }
+    while let Some(output) = futures.join_next().await {
+        let (bin, output) = output?;
+        let output = output?;
+        if !output.status.success() {
+            for line in String::from_utf8_lossy(&output.stderr).lines() {
+                log_output!(tracing::Level::WARN, "custom-assertion-stderr", bin, line);
+            }
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                log_output!(tracing::Level::WARN, "custom-assertion-stdout", bin, line);
+            }
+            return Ok(IterationResult::Fail(anyhow!(
+                "{id} custom assertion `{bin}` did not succeed"
+            )));
+        } else {
+            for line in String::from_utf8_lossy(&output.stderr).lines() {
+                log_output!(tracing::Level::DEBUG, "custom-assertion-stderr", bin, line);
+            }
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                log_output!(tracing::Level::DEBUG, "custom-assertion-stdout", bin, line);
+            }
+        }
+    }
+
+    Ok(IterationResult::Success)
+}
+
 fn evaluate_outputs(
     assertions: &HashMap<Spanned<String>, Vec<OutputAssertion>>,
     outputs: &wdl::engine::Outputs,
@@ -308,6 +421,7 @@ struct TestIteration {
 impl TestIteration {
     pub async fn evaluate(
         self,
+        executables: Option<&HashMap<String, PathBuf>>,
         clean: bool,
         quiet: bool,
         mut stdout: Stdout,
@@ -335,6 +449,16 @@ impl TestIteration {
                             .with_context(|| format!("{id} failed output assertions",))
                         {
                             Ok(IterationResult::Fail(e))
+                        } else if !assertions.custom.is_empty() {
+                            if let Some(executables) = executables {
+                                run_custom_bins(outputs, executables, &assertions.custom, &id).await
+                            } else {
+                                warn!(
+                                    "found custom assertions but running custom assertions isn't \
+                                     enabled"
+                                );
+                                Ok(IterationResult::Success)
+                            }
                         } else {
                             Ok(IterationResult::Success)
                         }
@@ -419,6 +543,16 @@ impl TestIteration {
                             Ok(IterationResult::Fail(
                                 e.context(format!("{id} failed output assertions",)),
                             ))
+                        } else if !assertions.custom.is_empty() {
+                            if let Some(executables) = executables {
+                                run_custom_bins(outputs, executables, &assertions.custom, &id).await
+                            } else {
+                                warn!(
+                                    "found custom assertions but running custom assertions isn't \
+                                     enabled"
+                                );
+                                Ok(IterationResult::Success)
+                            }
                         } else {
                             Ok(IterationResult::Success)
                         }
@@ -445,7 +579,7 @@ impl TestIteration {
                     output.write_failed(&mut stdout, &id)?;
                 }
                 Err(_) => {
-                    output.write_failed(&mut stdout, format!("{id}: unknown execution error"))?;
+                    output.write_failed(&mut stdout, format!("{id}: execution error"))?;
                 }
             }
         }
@@ -606,6 +740,7 @@ impl StatusBar {
 struct Runner {
     root: PathBuf,
     fixtures: Arc<EvaluationPath>,
+    executables: Option<HashMap<String, PathBuf>>,
     engine: Engine,
     status_bar: StatusBar,
     stdout: Stdout,
@@ -818,7 +953,13 @@ impl Runner {
             .expect("should have test results");
 
         let evaluation = test_iteration
-            .evaluate(clean, quiet, self.stdout.clone(), self.output)
+            .evaluate(
+                self.executables.as_ref(),
+                clean,
+                quiet,
+                self.stdout.clone(),
+                self.output,
+            )
             .await;
         test_results.push(evaluation);
 
@@ -973,18 +1114,166 @@ fn resolve_test_paths(
     config: &TestConfig,
     workspace: &Path,
     fixtures_dir: &Option<PathBuf>,
+    bin_dir: &Option<PathBuf>,
     run_dir: &Option<PathBuf>,
-) -> (PathBuf, PathBuf) {
+) -> (PathBuf, PathBuf, PathBuf) {
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
     let fixtures_dir = fixtures_dir
         .clone()
         .or_else(|| config.fixtures_dir.clone())
         .unwrap_or_else(|| test_dir.join(FIXTURES_DIR));
+    let bin_dir = bin_dir
+        .clone()
+        .or_else(|| config.bin_dir.clone())
+        .unwrap_or_else(|| test_dir.join(BIN_DIR));
     let run_dir = run_dir
         .clone()
         .or_else(|| config.run_dir.clone())
         .unwrap_or_else(|| test_dir.join(RUNS_DIR));
-    (fixtures_dir, run_dir.join(Uuid::new_v4().to_string()))
+    (
+        fixtures_dir,
+        bin_dir,
+        run_dir.join(Uuid::new_v4().to_string()),
+    )
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Blessed {
+    path: PathBuf,
+    hash: String,
+}
+
+fn is_regular_file(path: &Path) -> Result<bool> {
+    Ok(!path.symlink_metadata()?.is_symlink() && path.is_file())
+}
+
+async fn bless_executables(bin_dir: &Path) -> Result<()> {
+    let mut executables = Vec::new();
+    for entry in std::fs::read_dir(bin_dir)
+        .with_context(|| format!("reading `{}` directory", bin_dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if !is_regular_file(&path)? {
+            bail!(
+                "test executable `{path}` cannot be a directory or symbolic link",
+                path = path.display(),
+            );
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name == BLESSED_FILE_NAME {
+            continue;
+        }
+
+        let hash = spawn_blocking(move || {
+            let mut hasher = Hasher::new();
+            hasher
+                .update_mmap_rayon(&path)
+                .with_context(|| format!("failed to calculate digest of `{}`", path.display()))?;
+            anyhow::Ok(hasher.finalize())
+        })
+        .await
+        .context("file digest task paniched")??;
+
+        let blessed = Blessed {
+            path: entry
+                .path()
+                .strip_prefix(bin_dir)
+                .expect("entry is within bin dir")
+                .into(),
+            hash: hash.to_string(),
+        };
+        executables.push(blessed);
+    }
+    tokio::fs::write(
+        bin_dir.join(BLESSED_FILE_NAME),
+        serde_json::to_string_pretty(&executables)?,
+    )
+    .await
+    .with_context(|| format!("writing `{BLESSED_FILE_NAME}` to `{}`", bin_dir.display()))
+}
+
+async fn find_executables(bin_dir: PathBuf, trust: bool) -> Result<HashMap<String, PathBuf>> {
+    if !bin_dir.is_dir() {
+        // NOTE: users may have enabled custom assertions without actually
+        // writing any, so we gracefully continue and rely on an error later,
+        // iff an executable is indicated that isn't found.
+        return Ok(HashMap::new());
+    }
+
+    let mut found = HashMap::new();
+    for entry in std::fs::read_dir(&bin_dir)
+        .with_context(|| format!("reading `{}` directory", bin_dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if !is_regular_file(&path)? {
+            bail!(
+                "test executable `{path}` cannot be a directory or symbolic link",
+                path = path.display(),
+            );
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name == BLESSED_FILE_NAME {
+            continue;
+        }
+
+        info!("found test executable `{name}` for custom assertions");
+        found.insert(name.into(), absolute(entry.path())?);
+    }
+
+    if trust {
+        return Ok(found);
+    }
+
+    let blessed_files_path = bin_dir.join(BLESSED_FILE_NAME);
+    if !blessed_files_path.is_file() {
+        bail!("no {BLESSED_FILE_NAME} found");
+    }
+
+    let blessed: Vec<Blessed> = serde_json::from_str(
+        &read_to_string(&blessed_files_path)
+            .with_context(|| format!("reading `{path}`", path = blessed_files_path.display()))?,
+    )
+    .with_context(|| {
+        format!(
+            "parsing `{path}` as JSON",
+            path = blessed_files_path.display()
+        )
+    })?;
+    let mut blessed_names: HashSet<String> = HashSet::with_capacity(blessed.len());
+    for executable in &blessed {
+        let path = bin_dir.join(&executable.path);
+        if !path.is_file() {
+            bail!(
+                "`{}` from blessed executables not found",
+                executable.path.display()
+            );
+        }
+
+        let hash = spawn_blocking(move || {
+            let mut hasher = Hasher::new();
+            hasher
+                .update_mmap_rayon(&path)
+                .with_context(|| format!("failed to calculate digest of `{}`", path.display()))?;
+            anyhow::Ok(hasher.finalize())
+        })
+        .await
+        .context("file digest task panicked")??;
+
+        if hash.to_string() != executable.hash {
+            bail!("hash mismatch for `{}`", executable.path.display());
+        }
+        blessed_names.insert(executable.path.to_string_lossy().into());
+    }
+    for f in found.keys() {
+        if !blessed_names.contains(f) {
+            bail!("test executable `{f}` has not been blessed");
+        }
+    }
+    Ok(found)
 }
 
 async fn clean_all_run_root(run_root: &Path) -> Result<()> {
@@ -1001,6 +1290,7 @@ pub async fn test(
     mut config: Config,
     output: CommandOutput,
     stdout: Stdout,
+    filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
@@ -1010,8 +1300,22 @@ pub async fn test(
         return Ok(());
     }
 
+    if args.show_assertion_stdio {
+        filter_handle
+            .modify(|filter| {
+                let current_directives = filter.to_string();
+                *filter = EnvFilter::builder().parse_lossy(format!(
+                    "{},custom-assertion-stdout=debug,custom-assertion-stderr=debug",
+                    current_directives
+                ));
+            })
+            .context("failed to modify tracing filter")?;
+    }
+
     let report_mode = config.common.report_mode;
     let source = args.source.unwrap_or_default();
+    let enable_custom_assertions =
+        args.enable_custom_assertions || config.test.enable_custom_assertions;
     let parallelism = args.parallelism.unwrap_or(
         config
             .test
@@ -1043,6 +1347,24 @@ pub async fn test(
         })?
         .clean();
 
+    let (fixtures_dir, bin_dir, run_dir) = resolve_test_paths(
+        &config.test,
+        &workspace,
+        &args.fixtures_dir,
+        &args.bin_dir,
+        &args.run_dir,
+    );
+    let fixture_origins = EvaluationPath::from(fixtures_dir.as_path());
+
+    if matches!(args.command, Some(Subcommand::BlessExecutables)) {
+        return bless_executables(&bin_dir).await.map_err(|e| e.into());
+    }
+
+    let executables = if enable_custom_assertions {
+        Some(find_executables(bin_dir, args.trusted).await?)
+    } else {
+        None
+    };
     let lock_file = if args.unlocked {
         LockFile::default()
     } else {
@@ -1135,10 +1457,6 @@ pub async fn test(
         return Err(e.into());
     }
 
-    let (fixtures_dir, run_dir) =
-        resolve_test_paths(&config.test, &workspace, &args.fixtures_dir, &args.run_dir);
-    let fixture_origins = EvaluationPath::from(fixtures_dir.as_path());
-
     config.run.engine.task.cache = CallCachingMode::Off;
     config.run.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
@@ -1157,6 +1475,7 @@ pub async fn test(
     let runner = Runner {
         root: run_dir,
         fixtures: fixture_origins.into(),
+        executables,
         engine,
         status_bar: if args.no_status {
             StatusBar::disabled()
@@ -1256,7 +1575,11 @@ pub async fn test(
 mod tests {
     use super::*;
 
-    fn args_with_overrides(fixtures_dir: Option<PathBuf>, run_dir: Option<PathBuf>) -> Args {
+    fn args_with_overrides(
+        fixtures_dir: Option<PathBuf>,
+        bin_dir: Option<PathBuf>,
+        run_dir: Option<PathBuf>,
+    ) -> Args {
         Args {
             source: None,
             workspace: None,
@@ -1266,11 +1589,15 @@ mod tests {
             clean_all: false,
             parallelism: None,
             fixtures_dir,
+            bin_dir,
             run_dir,
             no_status: false,
             unlocked: false,
             filters: Filters::default(),
             exact: false,
+            enable_custom_assertions: false,
+            trusted: false,
+            show_assertion_stdio: false,
             command: None,
         }
     }
@@ -1278,14 +1605,20 @@ mod tests {
     #[test]
     fn resolve_test_paths_defaults_to_workspace_test_layout() {
         let workspace = PathBuf::from("/workspace");
-        let args = args_with_overrides(None, None);
+        let args = args_with_overrides(None, None, None);
         let config = TestConfig::default();
 
-        let (fixtures_dir, run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (fixtures_dir, bin_dir, run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
         let expected_run_dir = workspace.join("test").join("runs");
 
         assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
+        assert_eq!(bin_dir, workspace.join("test").join("bin"));
         assert_eq!(run_dir.parent(), Some(expected_run_dir.as_path()));
     }
 
@@ -1293,14 +1626,21 @@ mod tests {
     fn resolve_test_paths_uses_custom_fixtures_dir() {
         let workspace = PathBuf::from("/workspace");
         let custom_fixtures = PathBuf::from("/custom-fixtures");
-        let args = args_with_overrides(Some(custom_fixtures.clone()), None);
+        let args = args_with_overrides(Some(custom_fixtures.clone()), None, None);
         let config = TestConfig::default();
 
-        let (fixtures_dir, run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (fixtures_dir, bin_dir, run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
         let expected_run_dir = workspace.join("test").join("runs");
+        let expected_bin_dir = workspace.join("test").join("bin");
 
         assert_eq!(fixtures_dir, custom_fixtures);
+        assert_eq!(bin_dir, expected_bin_dir);
         assert_eq!(run_dir.parent(), Some(expected_run_dir.as_path()));
     }
 
@@ -1308,27 +1648,43 @@ mod tests {
     fn resolve_test_paths_uses_custom_run_dir() {
         let workspace = PathBuf::from("/workspace");
         let custom_run_dir = PathBuf::from("/custom-runs");
-        let args = args_with_overrides(None, Some(custom_run_dir.clone()));
+        let args = args_with_overrides(None, None, Some(custom_run_dir.clone()));
         let config = TestConfig::default();
 
-        let (fixtures_dir, run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (fixtures_dir, bin_dir, run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
 
         assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
+        assert_eq!(bin_dir, workspace.join("test").join("bin"));
         assert_eq!(run_dir.parent(), Some(custom_run_dir.as_path()));
     }
 
     #[test]
     fn resolve_test_paths_uses_unique_run_dir_per_invocation() {
         let workspace = PathBuf::from("/workspace");
-        let args = args_with_overrides(None, None);
+        let args = args_with_overrides(None, None, None);
         let config = TestConfig::default();
         let expected_parent = workspace.join("test").join("runs");
 
-        let (_, first_run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
-        let (_, second_run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (_, _, first_run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
+        let (_, _, second_run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
 
         assert_ne!(first_run_dir, second_run_dir);
         assert_eq!(first_run_dir.parent(), Some(expected_parent.as_path()));
@@ -1340,30 +1696,48 @@ mod tests {
         let workspace = PathBuf::from("/workspace");
         let custom_fixtures = PathBuf::from("/custom-fixtures");
         let custom_run_dir = PathBuf::from("/custom-runs");
-        let args = args_with_overrides(Some(custom_fixtures.clone()), Some(custom_run_dir.clone()));
+        let custom_bin_dir = PathBuf::from("/custom-bin");
+        let args = args_with_overrides(
+            Some(custom_fixtures.clone()),
+            Some(custom_bin_dir.clone()),
+            Some(custom_run_dir.clone()),
+        );
         let config = TestConfig::default();
 
-        let (fixtures_dir, run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (fixtures_dir, bin_dir, run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
 
         assert_eq!(fixtures_dir, custom_fixtures);
+        assert_eq!(bin_dir, custom_bin_dir);
         assert_eq!(run_dir.parent(), Some(custom_run_dir.as_path()));
     }
 
     #[test]
     fn resolve_test_paths_uses_config_when_cli_not_set() {
         let workspace = PathBuf::from("/workspace");
-        let args = args_with_overrides(None, None);
+        let args = args_with_overrides(None, None, None);
         let config = TestConfig {
             fixtures_dir: Some(PathBuf::from("/config-fixtures")),
+            bin_dir: Some(PathBuf::from("/config-bin")),
             run_dir: Some(PathBuf::from("/config-runs")),
             ..Default::default()
         };
 
-        let (fixtures_dir, run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (fixtures_dir, bin_dir, run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
 
         assert_eq!(fixtures_dir, PathBuf::from("/config-fixtures"));
+        assert_eq!(bin_dir, PathBuf::from("/config-bin"));
         assert_eq!(run_dir.parent(), Some(Path::new("/config-runs")));
     }
 
@@ -1372,18 +1746,26 @@ mod tests {
         let workspace = PathBuf::from("/workspace");
         let args = args_with_overrides(
             Some(PathBuf::from("/cli-fixtures")),
+            Some(PathBuf::from("/cli-bin")),
             Some(PathBuf::from("/cli-runs")),
         );
         let config = TestConfig {
             fixtures_dir: Some(PathBuf::from("/config-fixtures")),
+            bin_dir: Some(PathBuf::from("/config-bin")),
             run_dir: Some(PathBuf::from("/config-runs")),
             ..Default::default()
         };
 
-        let (fixtures_dir, run_dir) =
-            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (fixtures_dir, bin_dir, run_dir) = resolve_test_paths(
+            &config,
+            &workspace,
+            &args.fixtures_dir,
+            &args.bin_dir,
+            &args.run_dir,
+        );
 
         assert_eq!(fixtures_dir, PathBuf::from("/cli-fixtures"));
+        assert_eq!(bin_dir, PathBuf::from("/cli-bin"));
         assert_eq!(run_dir.parent(), Some(Path::new("/cli-runs")));
     }
 
@@ -1393,5 +1775,20 @@ mod tests {
         let run_root = temp_dir.path().join("missing");
 
         clean_all_run_root(&run_root).await
+    }
+
+    #[tokio::test]
+    async fn find_executables_ignores_blessed_json_when_trusted() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let exec1_path = temp_dir.path().join("exec1.sh");
+        let blessed_path = temp_dir.path().join(BLESSED_FILE_NAME);
+
+        std::fs::write(exec1_path, "").unwrap();
+        std::fs::write(blessed_path, "").unwrap();
+        let found = find_executables(temp_dir.path().to_path_buf(), true)
+            .await
+            .unwrap();
+        assert!(found.contains_key("exec1.sh"));
+        assert!(!found.contains_key(BLESSED_FILE_NAME));
     }
 }

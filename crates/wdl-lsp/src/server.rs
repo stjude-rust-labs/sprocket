@@ -401,7 +401,7 @@ pub(crate) struct ServerState<S> {
     config: ServerConfig,
     /// Level filter reload handle.
     log_handle: Option<FilterReloadHandle<S>>,
-    /// Known `sprocket dev test` YAML files.
+    /// Known `sprocket test` YAML files.
     pub(crate) test_yamls: SprocketTestCache,
 }
 
