@@ -70,6 +70,13 @@ const BINARY_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
 /// names, wall times) and should only be checked for existence.
 const EXISTENCE_ONLY_FILES: &[&str] = &["metrics.json"];
 
+/// Canonical contents for textual files whose contents are not compared.
+const EXISTENCE_ONLY_PLACEHOLDER: &str = concat!(
+    "{\n",
+    "  \"note\": \"contents are run-specific and not compared; only presence is checked\"\n",
+    "}\n",
+);
+
 /// Transient file suffixes that should be removed during `BLESS`.
 const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal"];
 
@@ -475,8 +482,9 @@ fn is_symlink(base_path: &Path, relative_path: &Path) -> bool {
 ///
 /// 1. Removes transient files (e.g., SQLite `-shm`, `-wal` files)
 /// 2. Zeroes out binary files so they exist but have no content to compare
-/// 3. Updates symlink targets to replace timestamps with `_TIMESTAMP_`
-/// 4. Renames timestamp directories to `_TIMESTAMP_`
+/// 3. Replaces textual existence-only files with a canonical placeholder
+/// 4. Updates symlink targets to replace timestamps with `_TIMESTAMP_`
+/// 5. Renames timestamp directories to `_TIMESTAMP_`
 fn normalize_expected_outputs(path: &Path) -> Result<()> {
     if !path.exists() {
         return Ok(());
@@ -495,6 +503,8 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
                 fs::remove_file(entry.path())?;
             } else if is_binary_file(entry.path()) {
                 fs::write(entry.path(), b"")?;
+            } else if is_existence_only(entry.path()) {
+                fs::write(entry.path(), EXISTENCE_ONLY_PLACEHOLDER)?;
             }
         }
     }
@@ -834,6 +844,41 @@ fn compare_test_results(
     Ok(())
 }
 
+/// Verifies that existence-only fixtures are stable across blessing while
+/// their presence remains part of recursive comparison.
+fn test_existence_only_file_normalization() -> Result<()> {
+    let expected = TempDir::new().context("failed to create expected output directory")?;
+    let actual = TempDir::new().context("failed to create actual output directory")?;
+    let expected_metrics = expected.path().join("metrics.json");
+    let actual_metrics = actual.path().join("metrics.json");
+
+    fs::write(
+        &expected_metrics,
+        r#"{"run":{"name":"random-run","wall_time_ms":123}}"#,
+    )?;
+
+    normalize_expected_outputs(expected.path())?;
+    assert_eq!(
+        fs::read_to_string(&expected_metrics)?,
+        EXISTENCE_ONLY_PLACEHOLDER
+    );
+
+    let first = fs::read(&expected_metrics)?;
+    normalize_expected_outputs(expected.path())?;
+    assert_eq!(fs::read(&expected_metrics)?, first);
+
+    fs::write(
+        &actual_metrics,
+        r#"{"run":{"name":"different-run","wall_time_ms":987}}"#,
+    )?;
+    recursive_compare(expected.path(), actual.path(), actual.path(), false)?;
+
+    fs::remove_file(&actual_metrics)?;
+    assert!(recursive_compare(expected.path(), actual.path(), actual.path(), false).is_err());
+
+    Ok(())
+}
+
 fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -844,7 +889,7 @@ fn main() {
     let test_root = Path::new("tests/cli");
     let tests = find_tests(test_root);
 
-    let trials = tests
+    let mut trials = tests
         .into_iter()
         .map(|test| {
             let name = get_test_name(&test, test_root);
@@ -852,7 +897,11 @@ fn main() {
                 run_test(&test, name).map_err(Into::into)
             })
         })
-        .collect();
+        .collect::<Vec<_>>();
+
+    trials.push(Trial::test("harness/existence-only-files", || {
+        test_existence_only_file_normalization().map_err(Into::into)
+    }));
 
     libtest_mimic::run(&args, trials).exit();
 }
