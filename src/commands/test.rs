@@ -369,6 +369,7 @@ async fn run_custom_bins(
                     bin,
                     &String::from_utf8_lossy(&buffer)
                 );
+                buffer.clear();
             }
             for_each_line(&output.stdout, &mut buffer, |line| {
                 log_output!(tracing::Level::WARN, "custom-assertion-stdout", bin, line);
@@ -380,6 +381,7 @@ async fn run_custom_bins(
                     bin,
                     &String::from_utf8_lossy(&buffer)
                 );
+                buffer.clear();
             }
             return Ok(IterationResult::Fail(anyhow!(
                 "{id} custom assertion `{bin}` did not succeed"
@@ -395,6 +397,7 @@ async fn run_custom_bins(
                     bin,
                     &String::from_utf8_lossy(&buffer)
                 );
+                buffer.clear();
             }
             for_each_line(&output.stdout, &mut buffer, |line| {
                 log_output!(tracing::Level::DEBUG, "custom-assertion-stdout", bin, line);
@@ -406,6 +409,7 @@ async fn run_custom_bins(
                     bin,
                     &String::from_utf8_lossy(&buffer)
                 );
+                buffer.clear();
             }
         }
     }

@@ -741,6 +741,7 @@ async fn progress(
                                     &String::from_utf8_lossy(&task.stderr_buffer)
                                 );
                             }
+                            task.stderr_buffer.clear();
 
                             continue
                         }
