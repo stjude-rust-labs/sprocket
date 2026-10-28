@@ -1,1 +1,1 @@
-dev lock
+-c sprocket.toml dev lock
