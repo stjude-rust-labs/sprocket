@@ -30,6 +30,7 @@ use wdl_ast::version::V1;
 
 use super::CancellationContext;
 use super::Events;
+use crate::ContainerImageOverrides;
 use crate::Engine;
 use crate::EngineEvent;
 use crate::EvaluationHttpClient;
@@ -90,6 +91,10 @@ struct EvaluatorInner {
     regex_cache: Mutex<LruCache<String, Result<Regex, regex::Error>>>,
     /// The digest calculator to use for files and directories.
     digests: DigestCalculator,
+    /// Container image overrides.
+    ///
+    /// See [`ContainerImageOverrides`].
+    image_overrides: Arc<ContainerImageOverrides>,
 }
 
 /// Represents a WDL 1.x evaluator.
@@ -110,7 +115,12 @@ pub struct Evaluator(Arc<EvaluatorInner>);
 impl Evaluator {
     /// Constructs a new evaluator with the given engine, events, and
     /// cancellation context.
-    pub(crate) fn new(engine: &Engine, events: Events, cancellation: CancellationContext) -> Self {
+    pub(crate) fn new(
+        engine: &Engine,
+        events: Events,
+        cancellation: CancellationContext,
+        image_overrides: ContainerImageOverrides,
+    ) -> Self {
         let http_client = EvaluationHttpClient::new(engine, &events);
 
         let digests = DigestCalculator::new(
@@ -137,9 +147,15 @@ impl Evaluator {
                         .expect("expected a non-zero regex cache capacity"),
                 )),
                 digests,
+                image_overrides: Arc::new(image_overrides),
             }
             .into(),
         )
+    }
+
+    /// Gets the [`ContainerImageOverrides`] associated with the evaluator.
+    fn image_overrides(&self) -> &ContainerImageOverrides {
+        &self.0.image_overrides
     }
 
     /// Gets the [`Engine`] associated with the evaluator.

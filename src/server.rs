@@ -15,7 +15,9 @@ use utoipa::OpenApi as _;
 use utoipa_swagger_ui::SwaggerUi;
 use wdl::diagnostics::Mode;
 
+use crate::analysis::Source;
 use crate::config::Config;
+use crate::lock::file::LockFile;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::svc::RunManagerSvc;
 
@@ -36,6 +38,8 @@ pub(crate) use api::v1::runs::SubmitRunRequest;
 pub(crate) use api::v1::tasks::ListTasksResponse;
 pub(crate) use api::v1::tasks::RunTaskCountsResponse;
 pub(crate) use api::v1::tasks::Task;
+
+use crate::commands::CommandOutput;
 
 /// The default channel buffer size.
 ///
@@ -72,8 +76,10 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 async fn create_server_app(
     config: Config,
     report_mode: Mode,
-    colorize: bool,
+    output: CommandOutput,
 ) -> anyhow::Result<Router> {
+    let lock_file = LockFile::locate(&Source::default(), report_mode, output)?.unwrap_or_default();
+
     let db_path = config
         .server
         .database
@@ -94,8 +100,9 @@ async fn create_server_app(
         DEFAULT_CHANNEL_BUFFER_SIZE,
         config.clone(),
         report_mode,
-        colorize,
+        output.colorize(),
         db.clone(),
+        lock_file.as_container_overrides().unwrap_or_default(),
     )
     .await?;
 
@@ -126,10 +133,10 @@ async fn create_server_app(
 pub async fn run_with_listener(
     config: Config,
     report_mode: Mode,
-    colorize: bool,
+    output: CommandOutput,
     tcp_listener: TcpListener,
 ) -> anyhow::Result<()> {
-    let app = create_server_app(config, report_mode, colorize).await?;
+    let app = create_server_app(config, report_mode, output).await?;
     axum::serve(tcp_listener, app).await?;
     Ok(())
 }
@@ -139,11 +146,11 @@ pub async fn run_with_listener(
 /// # Errors
 ///
 /// Returns an error if the server fails to start or bind to the address.
-pub async fn run(config: Config, report_mode: Mode, colorize: bool) -> anyhow::Result<()> {
+pub async fn run(config: Config, report_mode: Mode, output: CommandOutput) -> anyhow::Result<()> {
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("server listening on {}", addr);
-    run_with_listener(config, report_mode, colorize, listener).await?;
+    run_with_listener(config, report_mode, output, listener).await?;
 
     Ok(())
 }

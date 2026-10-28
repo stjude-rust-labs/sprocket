@@ -68,6 +68,7 @@ use super::Evaluator;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::ContainerImageOverrides;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
@@ -382,8 +383,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         (
             self.state.evaluator.http_client(),
             // After the task has executed, use the second cancellation token
-            // This ensures that the `output` section is evaluated even if the first cancellation
-            // token has been signaled
+            // This ensures that the `output` section is evaluated even if the
+            // first cancellation token has been signaled
             if self.post_execution {
                 self.state.evaluator.cancellation().second()
             } else {
@@ -1228,6 +1229,7 @@ impl<'a> State<'a> {
         id: &str,
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
+        image_overrides: &ContainerImageOverrides,
         attempt: u64,
         previous_task_data: Option<Arc<TaskPostEvaluationData>>,
     ) -> EvaluationResult<EvaluatedSections> {
@@ -1299,7 +1301,7 @@ impl<'a> State<'a> {
             .evaluator
             .engine()
             .backend()
-            .constraints(inputs, &requirements, &hints)
+            .constraints(inputs, &requirements, image_overrides, &hints)
             .with_context(|| {
                 format!(
                     "failed to get constraints for task `{task}`",
@@ -1545,7 +1547,8 @@ impl<'a> State<'a> {
                     input.local_path(),
                     input.guest_path(),
                 ) {
-                    // Input is unmapped and either local or remote and not downloaded
+                    // Input is unmapped and either local or remote and not
+                    // downloaded
                     (true, _, None) | (false, None, None) => {}
                     // Input is local and was mapped to a guest path
                     (true, _, Some(guest_path)) => {
@@ -1568,7 +1571,8 @@ impl<'a> State<'a> {
                             local_path = local_path.display()
                         );
                     }
-                    // Input is remote and was not downloaded, but mapped to a guest path
+                    // Input is remote and was not downloaded, but mapped to a
+                    // guest path
                     (false, None, Some(guest_path)) => {
                         debug!(
                             task_id,
@@ -1578,7 +1582,8 @@ impl<'a> State<'a> {
                             path = input.path(),
                         );
                     }
-                    // Input is remote and was both downloaded and mapped to a guest path
+                    // Input is remote and was both downloaded and mapped to a
+                    // guest path
                     (false, Some(local_path), Some(guest_path)) => {
                         debug!(
                             task_id,
@@ -1796,6 +1801,7 @@ impl Evaluator {
                     id,
                     &definition,
                     &inputs,
+                    self.image_overrides(),
                     attempt,
                     previous_task_data.clone(),
                 )
@@ -2393,6 +2399,7 @@ mod tests {
 
     use crate::CancellationContext;
     use crate::CancellationContextState;
+    use crate::ContainerImageOverrides;
     use crate::Engine;
     use crate::EngineEvent;
     use crate::EvaluationPath;
@@ -2437,6 +2444,7 @@ mod tests {
             &self,
             _inputs: &TaskInputs,
             _requirements: &Object,
+            _image_overrides: &ContainerImageOverrides,
             _hints: &Object,
         ) -> Result<TaskExecutionConstraints> {
             Ok(TaskExecutionConstraints {
@@ -2549,9 +2557,13 @@ mod tests {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
         let document = results.first().expect("should have result").document();
-        let events = Events::new(100);
+        let events = Events::default().with_engine(100);
         let mut receiver = events.subscribe_engine().unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
         let runs_dir = root_dir.join("runs");
         let evaluated = evaluator
             .evaluate_task(
@@ -3581,8 +3593,12 @@ task t {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let events = Events::new(10);
-        let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone());
+        let events = Events::default().with_crankshaft(10);
+        let evaluator = engine.create_v1_evaluator(
+            events.clone(),
+            cancellation.clone(),
+            ContainerImageOverrides::default(),
+        );
 
         let document = results
             .iter()
