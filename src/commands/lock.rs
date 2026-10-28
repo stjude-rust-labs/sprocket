@@ -35,7 +35,6 @@ use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::ImageDigests;
 use wdl::engine::ImageOverrideMap;
 use wdl::engine::ImageSource;
-use wdl::engine::config::DEFAULT_TASK_CONTAINER;
 
 use crate::Config;
 use crate::analysis::Analysis;
@@ -145,7 +144,7 @@ fn unknown_library_registry(span: Span, strict: bool) -> Diagnostic {
 fn task_container_images(
     task: TaskDefinition,
     version: SupportedVersion,
-    config: &LockConfig,
+    config: &Config,
     strict: bool,
 ) -> (Vec<ImageSource>, Diagnostics) {
     fn check_string(
@@ -213,15 +212,22 @@ fn task_container_images(
     let Some(expr) = expr else {
         // Otherwise we'll just fallback to the default.
 
-        // SAFETY: Guaranteed to be a valid container spec
-        containers.push(DEFAULT_TASK_CONTAINER.parse().unwrap());
+        // SAFETY: ImageSource::from_str is infallible
+        containers.push(config.run.engine.task.container.parse().unwrap());
         diagnostics.add(no_container(task.name().span(), version));
         return (containers, diagnostics);
     };
 
     match expr {
         Expr::Literal(LiteralExpr::String(ref s)) => {
-            check_string(&expr, s, config, &mut containers, &mut diagnostics, strict);
+            check_string(
+                &expr,
+                s,
+                &config.lock,
+                &mut containers,
+                &mut diagnostics,
+                strict,
+            );
         }
         Expr::Literal(LiteralExpr::Array(arr)) => {
             for e in arr.elements() {
@@ -229,7 +235,14 @@ fn task_container_images(
                     unreachable!("should be handled by validation");
                 };
 
-                check_string(&e, s, config, &mut containers, &mut diagnostics, strict);
+                check_string(
+                    &e,
+                    s,
+                    &config.lock,
+                    &mut containers,
+                    &mut diagnostics,
+                    strict,
+                );
             }
         }
         _ => {
@@ -400,7 +413,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
             .tasks()
         {
             let (sources, diagnostics) =
-                task_container_images(task, doc.version().unwrap(), &config.lock, args.strict);
+                task_container_images(task, doc.version().unwrap(), &config, args.strict);
             for d in diagnostics.iter() {
                 if d.severity() == Severity::Error {
                     counts.errors += 1;
