@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Security Fix
+
+* Fixed a security issue where `sprocket dev server` was failing to properly handle submitted
+  `file://` URLs, allowing attackers to access files outside of the allowed file system paths
+  ([GHSA-gvw2-6ff9-8364](https://github.com/stjude-rust-labs/sprocket/security/advisories/GHSA-gvw2-6ff9-8364)).
+
 ### Added
 
 * Added `sprocket test` command for unit testing WDL (was `sprocket dev test`)

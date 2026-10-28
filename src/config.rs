@@ -599,6 +599,65 @@ impl ToToml for MaxConcurrentRuns {
     }
 }
 
+/// Helper module for parsing `Vec<T>` from TOML.
+mod parse_string_array {
+    use toml_spanner::Context;
+    use toml_spanner::Error;
+    use toml_spanner::Failed;
+    use toml_spanner::Item;
+
+    /// Parses a list of TOML string values into a `Vec<T>` via [`FromStr`] for
+    /// each item.
+    ///
+    /// Returns [`Failed`] when the item is not an array of strings or when the
+    /// an item fails to parse.
+    ///
+    /// [`FromStr`]: std::str::FromStr
+    pub fn from_toml<'de, T>(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Vec<T>, Failed>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display,
+    {
+        let Some(list) = item.as_array() else {
+            return Err(ctx.report_expected_but_found(&"an array of strings", item));
+        };
+
+        list.iter()
+            .map(|i| match i.parse::<T>() {
+                Ok(val) => Ok(val),
+                Err(e) => Err(ctx.push_error(Error::custom(e, item.span()))),
+            })
+            .collect()
+    }
+}
+
+/// Helper module for converting `Vec<T>` to TOML.
+mod display_array {
+    use toml_spanner::Arena;
+    use toml_spanner::Array;
+    use toml_spanner::Item;
+    use toml_spanner::ToTomlError;
+
+    /// Converts a slice of values to a TOML array of strings via [`Display`].
+    ///
+    /// Each element in the array is formatted as a string that is allocated in
+    /// the arena so it lives as long as other parsed data.
+    ///
+    /// [`Display`]: std::fmt::Display
+    pub fn to_toml<'a, T>(values: &[T], arena: &'a Arena) -> Result<Item<'a>, ToTomlError>
+    where
+        T: std::fmt::Display,
+    {
+        let mut array = Array::new();
+
+        for value in values {
+            array.push(Item::string(arena.alloc_str(&value.to_string())), arena);
+        }
+
+        Ok(array.into_item())
+    }
+}
+
 /// Server configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
@@ -629,9 +688,9 @@ pub struct ServerConfig {
     #[schemars(default)]
     pub allowed_file_paths: Vec<PathBuf>,
     /// Allowed URL prefixes for URL-based workflows.
-    #[toml(default)]
+    #[toml(default, FromToml with = parse_string_array, ToToml with = display_array)]
     #[schemars(default)]
-    pub allowed_urls: Vec<String>,
+    pub allowed_urls: Vec<Url>,
     /// Maximum concurrent workflows.
     #[toml(default)]
     #[schemars(default)]
@@ -697,22 +756,24 @@ impl ServerConfig {
     ///
     /// Returns an error if any URL cannot be parsed or any path cannot be
     /// canonicalized.
-    pub fn validate(&mut self) -> anyhow::Result<()> {
+    pub fn validate(&mut self) -> Result<()> {
         // Validate max concurrent workflows is at least 1
         if let MaxConcurrentRuns::Limited(max) = self.max_concurrent_runs
             && max == 0
         {
-            anyhow::bail!("`max_concurrent_runs` must be at least 1");
+            bail!("`max_concurrent_runs` must be at least 1");
+        }
+
+        // Validate that all allowed URLs are based
+        for url in &self.allowed_urls {
+            if url.cannot_be_a_base() {
+                bail!("invalid URL in `allowed_urls`: `{url}`");
+            }
         }
 
         // Validate the orphan timeout is at least a minute
         if self.orphan_timeout_minutes == 0 {
-            anyhow::bail!("`orphan_timeout_minutes` must be at least 1");
-        }
-
-        // Validate that all allowed URLs can be parsed
-        for url in &self.allowed_urls {
-            Url::parse(url).with_context(|| format!("invalid URL in `allowed_urls`: `{}`", url))?;
+            bail!("`orphan_timeout_minutes` must be at least 1");
         }
 
         // Canonicalize file paths
@@ -729,52 +790,33 @@ impl ServerConfig {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Add file paths to allowed URLs with a file:// prefix
-        let file_urls = self
-            .allowed_file_paths
-            .iter()
-            .map(|p| {
-                Url::from_file_path(p)
-                    .map_err(|_| {
-                        anyhow::anyhow!(
-                            "failed to convert allowed file path to file:// URL: `{}`",
-                            p.display()
-                        )
-                    })
-                    .map(|u| u.to_string())
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
         // Add file URLs to allowed file paths
+        // The inverse isn't required as `file://` URLs aren't checked against the allowed URLs list.
         let file_paths = self
             .allowed_urls
             .iter()
-            .filter_map(|u| match Url::parse(u) {
-                Ok(url) => match url.scheme() == "file" {
-                    true => match url.to_file_path() {
+            .filter_map(|url| {
+                if url.scheme() == "file" {
+                    match url.to_file_path() {
                         Ok(path) => Some(Ok(path)),
-                        Err(_) => Some(Err(anyhow::anyhow!(
-                            "failed to convert allowed URL to file path: `{}`",
-                            u
+                        Err(_) => Some(Err(anyhow!(
+                            "failed to convert allowed URL to file path: `{url}`"
                         ))),
-                    },
-                    false => None,
-                },
-                Err(e) => Some(Err(anyhow::anyhow!(
-                    "failed to parse allowed URL `{}`: {e}",
-                    u
-                ))),
+                    }
+                } else {
+                    None
+                }
             })
             .collect::<Result<Vec<_>, _>>()?;
 
         self.allowed_file_paths.extend(file_paths);
-        self.allowed_urls.extend(file_urls);
 
         // Deduplicate and sort file paths
         self.allowed_file_paths.sort();
         self.allowed_file_paths.dedup();
 
-        // Deduplicate and sort URLs
+        // Remove `file://` URLs, deduplicate, and sort
+        self.allowed_urls.retain(|url| url.scheme() != "file");
         self.allowed_urls.sort();
         self.allowed_urls.dedup();
 
@@ -1532,15 +1574,14 @@ mod tests {
         let allowed = tempdir.path().join("allowed");
         std::fs::create_dir(&allowed)?;
         let file_url = Url::from_directory_path(&allowed)
-            .map_err(|_| anyhow!("failed to convert temp directory to URL"))?
-            .to_string();
+            .map_err(|_| anyhow!("failed to convert temp directory to URL"))?;
 
         let mut config = ServerConfig {
             allowed_file_paths: vec![allowed.clone(), allowed.clone()],
             allowed_urls: vec![
-                "https://example.com/workflows/".to_string(),
+                "https://example.com/workflows/".parse().unwrap(),
                 file_url.clone(),
-                "https://example.com/workflows/".to_string(),
+                "https://example.com/workflows/".parse().unwrap(),
             ],
             ..Default::default()
         };
@@ -1548,21 +1589,14 @@ mod tests {
         config.validate()?;
 
         let canonical = allowed.canonicalize()?;
-        let file_url_path = Url::parse(&file_url)
-            .map_err(|e| anyhow!("failed to parse file URL: {e}"))?
+        let file_url_path = file_url
             .to_file_path()
             .map_err(|_| anyhow!("failed to convert file URL to path"))?;
         let mut expected_file_paths = vec![canonical.clone(), file_url_path];
         expected_file_paths.sort();
         expected_file_paths.dedup();
         assert_eq!(config.allowed_file_paths, expected_file_paths);
-        let mut expected_urls = vec![
-            file_url,
-            Url::from_file_path(canonical)
-                .map_err(|_| anyhow!("failed to convert canonical path to URL"))?
-                .to_string(),
-            "https://example.com/workflows/".to_string(),
-        ];
+        let mut expected_urls = vec!["https://example.com/workflows/".parse().unwrap()];
         expected_urls.sort();
         expected_urls.dedup();
         assert_eq!(config.allowed_urls, expected_urls);
@@ -1590,7 +1624,7 @@ mod tests {
     #[test]
     fn server_validate_reports_bad_locations() {
         let mut config = ServerConfig {
-            allowed_urls: vec!["not a url".to_string()],
+            allowed_urls: vec!["data:text/plain,HelloWorld".parse().unwrap()],
             ..Default::default()
         };
         let Err(error) = config.validate() else {
@@ -1598,7 +1632,7 @@ mod tests {
         };
         assert_eq!(
             error.to_string(),
-            "invalid URL in `allowed_urls`: `not a url`"
+            "invalid URL in `allowed_urls`: `data:text/plain,HelloWorld`"
         );
 
         let mut config = ServerConfig {

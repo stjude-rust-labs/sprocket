@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Parser;
 use clap::Subcommand;
+use url::Url;
 use wdl::engine::config::BackendConfig;
 use wdl::engine::config::TesBackendAuthConfig;
 
@@ -77,7 +78,7 @@ pub struct StartArgs {
 
     /// Allowed URL prefixes for URL-based workflows.
     #[arg(long)]
-    pub allowed_urls: Vec<String>,
+    pub allowed_urls: Vec<Url>,
 
     /// Allowed CORS origins.
     #[arg(long)]

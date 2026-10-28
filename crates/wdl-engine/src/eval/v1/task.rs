@@ -231,7 +231,7 @@ fn strip_url_path_prefix(url: &Url, base: &Url) -> Option<String> {
     if url.scheme() == base.scheme()
         && url.authority() == base.authority()
         && url.host_str() == base.host_str()
-        && url.port() == base.port()
+        && url.port_or_known_default() == base.port_or_known_default()
     {
         return strip_path_prefix(url.path(), base.path())
             .map(PathBuf::into_os_string)

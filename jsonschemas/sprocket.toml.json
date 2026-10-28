@@ -2687,7 +2687,8 @@
           "description": "Allowed URL prefixes for URL-based workflows.",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
           },
           "default": []
         },

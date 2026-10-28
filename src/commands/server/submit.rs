@@ -161,6 +161,7 @@ mod tests {
     use std::io::Write;
 
     use tempfile::NamedTempFile;
+    use tempfile::TempDir;
     use tokio::net::TcpListener;
 
     use super::super::client::ServerConnectionArgs;
@@ -177,11 +178,14 @@ mod tests {
     struct ServerTestFixture {
         server_task: tokio::task::JoinHandle<anyhow::Result<()>>,
         wdl_file: NamedTempFile,
+        out_dir: TempDir,
+        config: Config,
         base_url: String,
         port: u16,
     }
 
-    async fn start_server(mut config: Config) -> anyhow::Result<ServerTestFixture> {
+    async fn start_server() -> anyhow::Result<ServerTestFixture> {
+        let mut config = Config::default();
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let wdl_file = NamedTempFile::new()?;
 
@@ -194,18 +198,14 @@ mod tests {
 
         config.server.allowed_file_paths.push(prefix);
 
-        let db_path = tempfile::NamedTempFile::new()?;
-
-        config.server.database.url = db_path
-            .path()
-            .to_str()
-            .expect("tempfile should have valid path")
-            .to_string();
+        let out_dir = tempfile::tempdir()?;
+        config.server.output_dir = out_dir.path().into();
 
         let port = listener.local_addr()?.port();
+        let server_config = config.clone();
         let server_task = tokio::task::spawn(async {
             run_with_listener(
-                config,
+                server_config,
                 Default::default(),
                 CommandOutput::new(false),
                 listener,
@@ -220,6 +220,8 @@ mod tests {
             base_url,
             port,
             wdl_file,
+            out_dir,
+            config,
             server_task,
         })
     }
@@ -244,15 +246,16 @@ command <<<>>>
         let ServerTestFixture {
             server_task,
             mut wdl_file,
+            out_dir: _out_dir,
+            config,
             base_url,
             port,
-        } = start_server(Config::default()).await?;
+        } = start_server().await?;
 
         wdl_file.write_all(EXAMPLE_WDL_FILE.as_bytes())?;
 
         let client = reqwest::Client::new();
 
-        let config = Config::default();
         submit(
             Args {
                 client_args: ServerConnectionArgs {
