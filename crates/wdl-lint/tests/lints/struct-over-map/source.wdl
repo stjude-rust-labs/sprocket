@@ -54,8 +54,6 @@ task special_cases {
 
     # Flag any `Map[String, ...]`-producing functions, since they can be coerced
     Map[String, Int] from_as_map = as_map(pairs)
-
-    # The array contains a fresh map literal, so still produce a diagnostic
     Array[Map[String, Int]] from_mixed_arr = [existing_map, {}]
 
     command <<<>>>
