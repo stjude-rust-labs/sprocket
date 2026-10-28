@@ -183,19 +183,17 @@ fn for_each_line(message: &[u8], buffer: &mut Vec<u8>, callback: impl Fn(&str)) 
 
     buffer.extend(message);
 
-    for line in String::from_utf8_lossy_owned(
-        buffer
-            .drain(
-                0..buffer
-                    .iter()
-                    .rposition(|c| *c == b'\n')
-                    .map(|p| p + 1)
-                    .unwrap_or(0),
-            )
-            .collect(),
-    )
-    .lines()
-    {
+    let buffer = buffer
+        .drain(
+            0..buffer
+                .iter()
+                .rposition(|c| *c == b'\n')
+                .map(|p| p + 1)
+                .unwrap_or(0),
+        )
+        .collect::<Vec<u8>>();
+
+    for line in String::from_utf8_lossy(&buffer).lines() {
         callback(line);
     }
 }
