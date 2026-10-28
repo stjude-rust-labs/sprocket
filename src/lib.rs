@@ -204,16 +204,16 @@ macro_rules! log_output {
     ($level:expr, $target:expr, $prefix:expr, $line:expr) => {
         if $line.len() > 4096 {
             tracing::event!(
+                target: $target,
                 $level,
-                target = $target,
                 "[{prefix}] {line}",
                 prefix = $prefix.magenta().bold(),
                 line = format!("<line exceeded 4096 bytes>").yellow()
             );
         } else {
             tracing::event!(
+                target: $target,
                 $level,
-                target = $target,
                 "[{prefix}] {line}",
                 prefix = $prefix.magenta().bold(),
                 line = $line.blue()
