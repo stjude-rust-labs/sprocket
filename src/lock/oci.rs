@@ -109,6 +109,7 @@ impl OciClient {
             return Ok(auth.clone());
         }
 
+        tracing::debug!("fetching credentials for server `{server}`");
         let credentials = match docker_credential::get_credential_from_reader(
             &mut auth_config.0.as_bytes(),
             server,
@@ -119,6 +120,28 @@ impl OciClient {
             Ok(DockerCredential::IdentityToken(token)) => Ok(RegistryAuth::Bearer(token)),
             Err(CredentialRetrievalError::ConfigNotFound)
             | Err(CredentialRetrievalError::NoCredentialConfigured) => Ok(RegistryAuth::Anonymous),
+            Err(CredentialRetrievalError::HelperFailure {
+                helper,
+                stdout,
+                stderr,
+            }) => {
+                if stdout.contains("credentials not found in native keychain") {
+                    Ok(RegistryAuth::Anonymous)
+                } else {
+                    let mut message = format!(
+                        "failed to retrieve Docker credentials for registry `{server}` \
+                         (credential helper `{helper}` failed){stdout}{stderr},"
+                    );
+                    if !stdout.is_empty() {
+                        message.push_str(&format!("\n\nstdout:\n\n{stdout}"));
+                    }
+                    if !stderr.is_empty() {
+                        message.push_str(&format!("\n\nstderr:\n\n{stderr}"));
+                    }
+
+                    Err(anyhow::Error::msg(message))
+                }
+            }
             Err(error) => Err(anyhow::anyhow!(
                 "failed to retrieve Docker credentials for registry `{server}` ({kind})",
                 kind = match error {
@@ -127,17 +150,21 @@ impl OciClient {
                     CredentialRetrievalError::MalformedHelperResponse => {
                         "helper response was malformed"
                     }
-                    CredentialRetrievalError::HelperFailure { .. } => "credential helper failed",
                     CredentialRetrievalError::CredentialDecodingError =>
                         "credential decoding failed",
                     CredentialRetrievalError::CredentialMismatchError =>
                         "credential fields disagree",
                     CredentialRetrievalError::ConfigReadError => "Docker config could not be read",
                     CredentialRetrievalError::ConfigNotFound
-                    | CredentialRetrievalError::NoCredentialConfigured => unreachable!(),
+                    | CredentialRetrievalError::NoCredentialConfigured
+                    | CredentialRetrievalError::HelperFailure { .. } => unreachable!(),
                 }
             )),
         }?;
+
+        if matches!(credentials, RegistryAuth::Anonymous) {
+            tracing::trace!("no credentials found, using anonymous auth");
+        }
 
         self.credentials
             .insert(server.to_string(), Arc::new(credentials));
