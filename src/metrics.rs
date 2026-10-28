@@ -1,11 +1,12 @@
 //! Collection of execution metrics from engine and Crankshaft events.
 //!
-//! The dev server persists metrics to its database through the task monitor;
-//! local runs have no database, so [`collect_metrics`] accumulates the same
-//! information directly from the event streams and [`MetricsCollector`]
-//! renders it into the same [`RunMetricsResponse`] shape the server's
-//! `/api/v1/runs/{id}/metrics` endpoint reports. Local runs write that
-//! response to a `metrics.json` file in the run directory.
+//! The dev server persists task metrics through its task monitor. Local runs
+//! create provenance session and run records, but do not currently persist
+//! per-attempt metrics through that path. [`collect_metrics`] therefore
+//! accumulates the same information directly from the event streams and
+//! [`MetricsCollector`] renders it into the same [`RunMetricsResponse`] shape
+//! the server's `/api/v1/runs/{id}/metrics` endpoint reports. Local runs write
+//! that response to a `metrics.json` file in the run directory.
 
 use std::collections::HashMap;
 
@@ -121,11 +122,12 @@ impl MetricsCollector {
     }
 
     /// Advances an attempt's status, keeping transitions monotonic.
-    fn advance(&mut self, name: &str, status: TaskStatus) {
+    fn advance(&mut self, name: &str, status: TaskStatus) -> &mut AttemptRecord {
         let record = self.attempt(name, None, 0, status);
         if status_rank(status) > status_rank(record.status) {
             record.status = status;
         }
+        record
     }
 
     /// Handles an engine event.
@@ -200,8 +202,7 @@ impl MetricsCollector {
             }
             CrankshaftEvent::TaskStarted { id } => {
                 if let Some(name) = self.task_names.get(&id).cloned() {
-                    self.advance(&name, TaskStatus::Running);
-                    let record = self.attempt(&name, None, 0, TaskStatus::Running);
+                    let record = self.advance(&name, TaskStatus::Running);
                     if record.started_at.is_none() {
                         record.started_at = Some(Utc::now());
                     }
