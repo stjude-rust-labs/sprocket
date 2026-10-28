@@ -733,15 +733,6 @@ async fn progress(
                             for_each_line(&message, &mut task.stderr_buffer, |line| {
                                 log_output!(tracing::Level::DEBUG, "task-stderr", task.name, line);
                             });
-                            if !task.stderr_buffer.is_empty() {
-                                log_output!(
-                                    tracing::Level::DEBUG,
-                                    "task-stderr",
-                                    task.name,
-                                    &String::from_utf8_lossy(&task.stderr_buffer)
-                                );
-                            }
-                            task.stderr_buffer.clear();
 
                             continue
                         }
@@ -752,7 +743,16 @@ async fn progress(
                         | CrankshaftEvent::TaskStderr { .. } => continue,
                     };
 
-                    if let Some(id) = removed && let Some(task) = state.tasks.remove(&id) {
+                    if let Some(id) = removed && let Some(mut task) = state.tasks.remove(&id) {
+                        if !task.stderr_buffer.is_empty() {
+                            log_output!(
+                                tracing::Level::DEBUG,
+                                "task-stderr",
+                                task.name,
+                                &String::from_utf8_lossy(&task.stderr_buffer)
+                            );
+                            task.stderr_buffer.clear();
+                        }
                         state.executing.swap_remove(&task.name);
                     }
 
