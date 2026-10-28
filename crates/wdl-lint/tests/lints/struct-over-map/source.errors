@@ -39,89 +39,89 @@ note[StructOverMap]: usage of `Map[String, Int]`
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:22:9
+   ┌─ tests/lints/struct-over-map/source.wdl:21:9
    │
-22 │         Map[String, Int] inherited = private_decl
+21 │         Map[String, Int] inherited = private_decl
    │         ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:28:24
+   ┌─ tests/lints/struct-over-map/source.wdl:27:24
    │
-28 │         Pair[Pair[Pair[Map[String, Int], Int], Int], Pair[Int, Int]] complex
+27 │         Pair[Pair[Pair[Map[String, Int], Int], Int], Pair[Int, Int]] complex
    │                        ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:31:16
+   ┌─ tests/lints/struct-over-map/source.wdl:30:16
    │
-31 │     Array[Pair[Map[String, Int], Int]] less_crazy = []
+30 │     Array[Pair[Map[String, Int], Int]] less_crazy = []
    │                ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Map[String, Int]]`
-   ┌─ tests/lints/struct-over-map/source.wdl:33:5
+   ┌─ tests/lints/struct-over-map/source.wdl:32:5
    │
-33 │     Map[String, Map[String, Int]] map_of_maps = {}
+32 │     Map[String, Map[String, Int]] map_of_maps = {}
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Map[String, Int]]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:33:17
+   ┌─ tests/lints/struct-over-map/source.wdl:32:17
    │
-33 │     Map[String, Map[String, Int]] map_of_maps = {}
+32 │     Map[String, Map[String, Int]] map_of_maps = {}
    │                 ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:40:9
+   ┌─ tests/lints/struct-over-map/source.wdl:39:9
    │
-40 │         Map[String, Int] existing_map
+39 │         Map[String, Int] existing_map
    │         ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:43:11
+   ┌─ tests/lints/struct-over-map/source.wdl:42:11
    │
-43 │     Array[Map[String, Int]] from_arr = [existing_map]
+42 │     Array[Map[String, Int]] from_arr = [existing_map]
    │           ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:44:5
+   ┌─ tests/lints/struct-over-map/source.wdl:43:5
    │
-44 │     Map[String, Int] from_index = from_arr[0]
+43 │     Map[String, Int] from_index = from_arr[0]
    │     ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:52:9
+   ┌─ tests/lints/struct-over-map/source.wdl:51:9
    │
-52 │         Map[String, Int] existing_map
+51 │         Map[String, Int] existing_map
    │         ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:56:5
+   ┌─ tests/lints/struct-over-map/source.wdl:55:5
    │
-56 │     Map[String, Int] from_as_map = as_map(pairs)
+55 │     Map[String, Int] from_as_map = as_map(pairs)
    │     ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`
 
 note[StructOverMap]: usage of `Map[String, Int]`
-   ┌─ tests/lints/struct-over-map/source.wdl:57:11
+   ┌─ tests/lints/struct-over-map/source.wdl:56:11
    │
-57 │     Array[Map[String, Int]] from_mixed_arr = [existing_map, {}]
+56 │     Array[Map[String, Int]] from_mixed_arr = [existing_map, {}]
    │           ^^^^^^^^^^^^^^^^
    │
    = help: consider using a `struct` instead of a `Map[String, Int]`

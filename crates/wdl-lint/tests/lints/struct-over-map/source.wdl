@@ -18,7 +18,6 @@ task foo {
 
     output {
         Map[String, Int] outputs = {}
-        # Should be ignored since its type is inherited from `private_decl`
         Map[String, Int] inherited = private_decl
     }
 }
