@@ -167,7 +167,7 @@ mod tests {
                 false,
             ),
             // Check for mismatched host
-            ("http://example.com/foo/bar", "http://exampl.com", false),
+            ("http://example.com/foo/bar", "http://not-example.com", false),
             // Check for mismatched port
             (
                 "http://example.com/foo/bar",
