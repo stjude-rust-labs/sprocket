@@ -393,6 +393,9 @@
             },
             "UnusedDocComments": {
               "severity": "note"
+            },
+            "StructOverMap": {
+              "severity": "off"
             }
           }
         }
@@ -792,6 +795,13 @@
           "$ref": "#/$defs/UnusedDocCommentsConfig",
           "default": {
             "severity": "note"
+          }
+        },
+        "StructOverMap": {
+          "description": "The `StructOverMap` rule.",
+          "$ref": "#/$defs/StructOverMapConfig",
+          "default": {
+            "severity": "off"
           }
         }
       },
@@ -1597,6 +1607,18 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "StructOverMapConfig": {
+      "description": "Configuration for the `StructOverMap` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "off"
         }
       },
       "additionalProperties": false
