@@ -1,3 +1,40 @@
 {
-  "note": "contents are run-specific and not compared; only presence is checked"
+  "run": {
+    "uuid": "_UUID_",
+    "name": "grottolike-yvette-d3a5a8",
+    "status": "completed",
+    "wall_time_ms": 5676
+  },
+  "calls": [
+    {
+      "call_id": "dep-print_release",
+      "name": "dep-print_release",
+      "attempts": [
+        {
+          "name": "dep-print_release-Y6FywE5hJ0SO",
+          "attempt": 0,
+          "status": "completed",
+          "exit_status": 0,
+          "wall_time_ms": 197,
+          "queued_ms": 4381,
+          "constraints": {
+            "container": "docker://ubuntu@sha256:fd7fe639db24c4e005643921beea92bc449aac4f4d40d60cd9ad9ab6456aec01",
+            "cpu": 1.0,
+            "memory": 2147483648,
+            "gpu": [],
+            "fpga": [],
+            "disks": {}
+          },
+          "retry_cause": null,
+          "logs": "dep-print_release-Y6FywE5hJ0SO"
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "attempts": 1,
+    "retries": 0,
+    "cached": 0,
+    "preempted": 0
+  }
 }

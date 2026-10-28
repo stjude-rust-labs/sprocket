@@ -1,3 +1,40 @@
 {
-  "note": "contents are run-specific and not compared; only presence is checked"
+  "run": {
+    "uuid": "_UUID_",
+    "name": "nonfloating-danyell-e751c8",
+    "status": "completed",
+    "wall_time_ms": 2197
+  },
+  "calls": [
+    {
+      "call_id": "echo_items",
+      "name": "echo_items",
+      "attempts": [
+        {
+          "name": "echo_items-Bysf7IVOHxcx",
+          "attempt": 0,
+          "status": "completed",
+          "exit_status": 0,
+          "wall_time_ms": 116,
+          "queued_ms": 1119,
+          "constraints": {
+            "container": "docker://ubuntu:latest",
+            "cpu": 1.0,
+            "memory": 2147483648,
+            "gpu": [],
+            "fpga": [],
+            "disks": {}
+          },
+          "retry_cause": null,
+          "logs": "echo_items-Bysf7IVOHxcx"
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "attempts": 1,
+    "retries": 0,
+    "cached": 0,
+    "preempted": 0
+  }
 }
