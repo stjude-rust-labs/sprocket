@@ -13,8 +13,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
-use wdl_ast::v1::Expr;
-use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::PrimitiveTypeKind;
 use wdl_ast::v1::Type;
 use wdl_ast::v1::UnboundDecl;
@@ -205,91 +203,12 @@ impl Visitor for StructOverMap {
             return;
         }
 
-        if check_expr_inherited(decl.expr()) {
-            return;
-        }
-
         lint_struct_type(
             decl.ty(),
             self.severity,
             diagnostics,
             &self.exceptable_nodes(),
         );
-    }
-}
-
-/// Whether the expression inherits its type from another declaration.
-///
-/// For example:
-///
-/// ```wdl
-/// task foo {
-///     Int age = 30
-///
-///     output {
-///         Int final_age = age
-///     }
-/// }
-/// ```
-///
-/// In this case, `final_age` is an `Int` *because* `age` is an `Int`.
-fn check_expr_inherited(expr: Expr) -> bool {
-    match expr {
-        Expr::Literal(expr) => match expr {
-            LiteralExpr::Array(arr) => {
-                let mut elements = arr.elements().peekable();
-                if elements.peek().is_none() {
-                    return false;
-                }
-
-                elements.all(check_expr_inherited)
-            }
-            LiteralExpr::Pair(expr) => {
-                let (left, right) = expr.exprs();
-                check_expr_inherited(left) && check_expr_inherited(right)
-            }
-            LiteralExpr::Map(_) => false,
-
-            // Can never produce a `Map[String, ...]` anyway
-            LiteralExpr::Boolean(_)
-            | LiteralExpr::Integer(_)
-            | LiteralExpr::Float(_)
-            | LiteralExpr::String(_)
-            | LiteralExpr::Object(_)
-            | LiteralExpr::Struct(_)
-            | LiteralExpr::None(_)
-            | LiteralExpr::Hints(_)
-            | LiteralExpr::Input(_)
-            | LiteralExpr::Output(_) => false,
-        },
-        Expr::Parenthesized(expr) => check_expr_inherited(expr.expr()),
-        Expr::If(expr) => {
-            let (_cond, then, else_) = expr.exprs();
-            check_expr_inherited(then) && check_expr_inherited(else_)
-        }
-
-        // Return values could be coerced into a struct, so still emit a diagnostic
-        Expr::Call(_) => false,
-
-        Expr::NameRef(_) | Expr::Index(_) | Expr::Access(_) => true,
-
-        // Can never produce a `Map[String, ...]` anyway
-        Expr::LogicalNot(_)
-        | Expr::Negation(_)
-        | Expr::LogicalOr(_)
-        | Expr::LogicalAnd(_)
-        | Expr::Equality(_)
-        | Expr::Inequality(_)
-        | Expr::Less(_)
-        | Expr::LessEqual(_)
-        | Expr::Greater(_)
-        | Expr::GreaterEqual(_)
-        | Expr::Addition(_)
-        | Expr::Subtraction(_)
-        | Expr::Multiplication(_)
-        | Expr::Division(_)
-        | Expr::Modulo(_)
-        | Expr::Exponentiation(_) => false,
     }
 }
 
