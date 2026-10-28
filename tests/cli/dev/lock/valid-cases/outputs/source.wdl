@@ -4,7 +4,7 @@ task docker_good {
     command <<<>>>
 
     requirements {
-        container: "ubuntu:latest"
+        container: "quay.io/lib/ubuntu:latest"
     }
 }
 
@@ -12,7 +12,7 @@ task docker_good2 {
     command <<<>>>
 
     requirements {
-        container: ["debian:bookworm", "debian:trixie"]
+        container: ["quay.io/lib/debian:bookworm", "quay.io/lib/debian:trixie"]
     }
 }
 
