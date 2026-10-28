@@ -82,7 +82,6 @@ use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
-use crate::for_each_line;
 use crate::lock::file::LockFile;
 use crate::log_output;
 use crate::system::v1::fs::OUTPUTS_FILE;
@@ -357,59 +356,22 @@ async fn run_custom_bins(
     while let Some(output) = futures.join_next().await {
         let (bin, output) = output?;
         let output = output?;
-        let mut buffer: Vec<u8> = Vec::new();
         if !output.status.success() {
-            for_each_line(&output.stderr, &mut buffer, |line| {
+            for line in String::from_utf8_lossy_owned(output.stderr).lines() {
                 log_output!(tracing::Level::WARN, "custom-assertion-stderr", bin, line);
-            });
-            if !buffer.is_empty() {
-                log_output!(
-                    tracing::Level::WARN,
-                    "custom-assertion-stderr",
-                    bin,
-                    &String::from_utf8_lossy(&buffer)
-                );
-                buffer.clear();
             }
-            for_each_line(&output.stdout, &mut buffer, |line| {
+            for line in String::from_utf8_lossy_owned(output.stdout).lines() {
                 log_output!(tracing::Level::WARN, "custom-assertion-stdout", bin, line);
-            });
-            if !buffer.is_empty() {
-                log_output!(
-                    tracing::Level::WARN,
-                    "custom-assertion-stdout",
-                    bin,
-                    &String::from_utf8_lossy(&buffer)
-                );
-                buffer.clear();
             }
             return Ok(IterationResult::Fail(anyhow!(
                 "{id} custom assertion `{bin}` did not succeed"
             )));
         } else {
-            for_each_line(&output.stderr, &mut buffer, |line| {
+            for line in String::from_utf8_lossy_owned(output.stderr).lines() {
                 log_output!(tracing::Level::DEBUG, "custom-assertion-stderr", bin, line);
-            });
-            if !buffer.is_empty() {
-                log_output!(
-                    tracing::Level::DEBUG,
-                    "custom-assertion-stderr",
-                    bin,
-                    &String::from_utf8_lossy(&buffer)
-                );
-                buffer.clear();
             }
-            for_each_line(&output.stdout, &mut buffer, |line| {
+            for line in String::from_utf8_lossy_owned(output.stdout).lines() {
                 log_output!(tracing::Level::DEBUG, "custom-assertion-stdout", bin, line);
-            });
-            if !buffer.is_empty() {
-                log_output!(
-                    tracing::Level::DEBUG,
-                    "custom-assertion-stdout",
-                    bin,
-                    &String::from_utf8_lossy(&buffer)
-                );
-                buffer.clear();
             }
         }
     }
