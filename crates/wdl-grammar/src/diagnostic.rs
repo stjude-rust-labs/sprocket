@@ -141,7 +141,6 @@ impl TryFrom<Span> for TextRange {
         module = "sprocket_bio.grammar",
         frozen,
         rename_all = "SCREAMING_SNAKE_CASE",
-        skip_from_py_object,
         eq,
         ord
     )
@@ -208,15 +207,7 @@ impl FromStr for Severity {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    pyo3::pyclass(
-        module = "sprocket_bio.grammar",
-        frozen,
-        skip_from_py_object,
-        get_all,
-        eq,
-        ord,
-        hash
-    )
+    pyo3::pyclass(module = "sprocket_bio.grammar", frozen, get_all, eq, ord, hash)
 )]
 pub struct Diagnostic {
     /// The optional rule associated with the diagnostic.
@@ -461,15 +452,7 @@ impl Diagnostic {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    pyo3::pyclass(
-        module = "sprocket_bio.grammar",
-        frozen,
-        skip_from_py_object,
-        get_all,
-        eq,
-        ord,
-        hash
-    )
+    pyo3::pyclass(module = "sprocket_bio.grammar", frozen, get_all, eq, ord, hash)
 )]
 pub struct Label {
     /// The optional message of the label (may be empty).
