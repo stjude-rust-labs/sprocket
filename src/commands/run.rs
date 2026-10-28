@@ -17,6 +17,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use chrono::Utc;
 use clap::Parser;
+use clap::ValueEnum;
 use colored::Colorize as _;
 use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
@@ -31,6 +32,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing::span;
+use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
@@ -48,6 +50,7 @@ use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
+use wdl::engine::ImageOverrideResolutionFailureMode;
 use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
@@ -63,10 +66,12 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+use crate::commands::lock::LOCK_FILE;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::for_each_line;
 use crate::inputs::Invocation;
+use crate::lock::file::LockFile;
 use crate::log_output;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
@@ -98,6 +103,15 @@ const LATEST: &str = "_latest";
 /// The log file in the output directory for writing `sprocket` output to
 const LOG_FILE_NAME: &str = "output.log";
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum LockTarget {
+    /// Fail if a container image is missing from the `sprocket.lock`.
+    Images,
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before evaluation.
+    Modules,
+}
+
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
 #[clap(disable_version_flag = true)]
@@ -119,10 +133,10 @@ pub struct Args {
     /// The name of the task or workflow to run.
     ///
     /// When no inputs are provided and `target` is not specified, the
-    /// target is inferred from the document: a workflow is selected if one
-    /// exists, otherwise a single task is selected. If the target remains
-    /// ambiguous (e.g., multiple tasks and no workflow), an error is
-    /// returned.
+    /// target is inferred from the document: a workflow is selected if exactly
+    /// one exists, otherwise a single task is selected. If the target remains
+    /// ambiguous (for example, the document has multiple workflows), an error
+    /// is returned.
     ///
     /// If `target` is not specified but inputs are provided, all input
     /// keys (from both files and key-value pairs) are expected to be
@@ -143,10 +157,13 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output_dir: Option<PathBuf>,
 
-    /// Fail if `module-lock.json` is missing or out of date instead of
-    /// regenerating it before evaluation.
-    #[clap(long)]
-    pub locked: bool,
+    /// Force the execution to use existing lockfiles.
+    #[clap(long, num_args = 0.., require_equals = true, value_delimiter = ',', default_missing_value = "images,modules", value_name = "LOCK_TARGETS")]
+    pub locked: Option<Vec<LockTarget>>,
+
+    /// Run without locking container images to digests.
+    #[clap(long, conflicts_with = "locked")]
+    pub unlocked: bool,
 
     /// The index path to index the run outputs under.
     ///
@@ -890,6 +907,23 @@ pub async fn run(
     }
 
     let report_mode = config.common.report_mode;
+
+    let lock_file = if args.unlocked {
+        LockFile::default()
+    } else {
+        let file = LockFile::locate(&source, report_mode, output)?;
+        if args
+            .locked
+            .as_ref()
+            .is_some_and(|targets| targets.contains(&LockTarget::Images))
+            && file.is_none()
+        {
+            return Err(anyhow!("--locked cannot be used without a `{LOCK_FILE}` present").into());
+        }
+
+        file.unwrap_or_default()
+    };
+
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
     }
@@ -899,7 +933,11 @@ pub async fn run(
     // the run proceeds against a consistent, reproducible tree, unless
     // `--locked` asked for the run to fail instead.
     if let Some(dir) = source.local_start_dir() {
-        let policy = if args.locked {
+        let policy = if args
+            .locked
+            .as_ref()
+            .is_some_and(|targets| targets.contains(&LockTarget::Modules))
+        {
             crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
         } else {
             crate::commands::module::auto_lock::LockfilePolicy::Regenerate
@@ -1006,15 +1044,18 @@ pub async fn run(
         .await
         .context("failed to create WDL evaluation engine")?;
 
+    let events_capacity = config
+        .run
+        .events_capacity
+        .try_into()
+        .context("invalid events capacity")?;
+
     // Determined here as the engine configuration is moved into evaluation
     // below.
-    let events = Events::new(
-        config
-            .run
-            .events_capacity
-            .try_into()
-            .context("invalid events capacity")?,
-    );
+    let events = Events::default()
+        .with_engine(events_capacity)
+        .with_crankshaft(events_capacity)
+        .with_transfer(events_capacity);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
@@ -1037,11 +1078,32 @@ pub async fn run(
         cancellation.second().clone(),
     ));
 
+    // Collect execution metrics alongside evaluation; the collector returns
+    // once evaluation completes and the event channels close.
+    let metrics_collector = tokio::spawn(crate::metrics::collect_metrics(
+        events
+            .subscribe_crankshaft()
+            .expect("should have Crankshaft events"),
+        events
+            .subscribe_engine()
+            .expect("should have engine events"),
+    ));
+
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
     // passed to `execute_target()` is not used for path resolution. We pass
     // CWD as a placeholder.
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
+
+    let mut image_overrides = lock_file.as_container_overrides();
+    if args
+        .locked
+        .as_ref()
+        .is_some_and(|targets| targets.contains(&LockTarget::Images))
+        && let Some(overrides) = image_overrides.as_mut()
+    {
+        overrides.set_failure_mode(ImageOverrideResolutionFailureMode::Error);
+    }
 
     let mut execute = Box::pin(execute_target(
         db.clone(),
@@ -1050,6 +1112,7 @@ pub async fn run(
         engine,
         events,
         cancellation.clone(),
+        image_overrides.unwrap_or_default(),
         &target,
         inputs,
         &run_dir,
@@ -1086,6 +1149,40 @@ pub async fn run(
             res = &mut execute => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
+
+                // Write the collected execution metrics to the run directory.
+                // This is best-effort: a failure to write metrics must not
+                // fail the run.
+                if let Ok(collector) = metrics_collector.await {
+                    let status = match &res {
+                        Ok(()) if cancellation.state() == CancellationContextState::NotCanceled => {
+                            crate::system::v1::db::RunStatus::Completed
+                        }
+                        Ok(()) | Err(EvaluationError::Canceled) => {
+                            crate::system::v1::db::RunStatus::Canceled
+                        }
+                        Err(_) => crate::system::v1::db::RunStatus::Failed,
+                    };
+                    let summary = crate::metrics::local_run_summary(
+                        ctx.run_id,
+                        &ctx.run_generated_name,
+                        status,
+                        ctx.started_at,
+                    );
+                    let response = collector.into_response(summary);
+                    let metrics_file = run_dir.root().join("metrics.json");
+                    match serde_json::to_string_pretty(&response) {
+                        Ok(json) => {
+                            if let Err(e) = std::fs::write(&metrics_file, json) {
+                                warn!(
+                                    "failed to write metrics file `{path}`: {e:#}",
+                                    path = metrics_file.display()
+                                );
+                            }
+                        }
+                        Err(e) => warn!("failed to serialize run metrics: {e:#}"),
+                    }
+                }
 
                 return match res {
                     Ok(()) => {
@@ -1174,7 +1271,7 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
             })?;
         }
         (Target::Workflow(workflow), Inputs::Workflow(inputs)) => {
-            let Some(workflow) = document.workflow() else {
+            let Some(workflow) = document.local_workflow_by_name(workflow) else {
                 bail!("workflow '{workflow}' not found in document");
             };
 

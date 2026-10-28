@@ -68,6 +68,7 @@ use super::Evaluator;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::ContainerImageOverrides;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
@@ -1228,6 +1229,7 @@ impl<'a> State<'a> {
         id: &str,
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
+        image_overrides: &ContainerImageOverrides,
         attempt: u64,
         previous_task_data: Option<Arc<TaskPostEvaluationData>>,
     ) -> EvaluationResult<EvaluatedSections> {
@@ -1299,7 +1301,7 @@ impl<'a> State<'a> {
             .evaluator
             .engine()
             .backend()
-            .constraints(inputs, &requirements, &hints)
+            .constraints(inputs, &requirements, image_overrides, &hints)
             .with_context(|| {
                 format!(
                     "failed to get constraints for task `{task}`",
@@ -1799,6 +1801,7 @@ impl Evaluator {
                     id,
                     &definition,
                     &inputs,
+                    self.image_overrides(),
                     attempt,
                     previous_task_data.clone(),
                 )
@@ -1819,19 +1822,16 @@ impl Evaluator {
             // Localize the inputs now
             state.localize_inputs(id).await?;
 
-            // Calculate the cache key on the first attempt only
-            let mut key = if attempt == 0
-                && let Some(cache) = self.engine().call_cache()
-            {
+            // Calculate the cache key
+            let mut key = if let Some(cache) = self.engine().call_cache() {
                 if hints::cacheable(&inputs, &hints, self.engine().config()) {
                     // The configured default container is only part of the
-                    // cache key when the task has no
-                    // `container` requirement of its own. When
-                    // the task does specify `container`, the requirement is
-                    // already covered by the `requirements`
-                    // digest, so including the default here
-                    // would be redundant; when it doesn't, a change to the
-                    // configured default must invalidate the cache entry.
+                    // cache key when the task has no `container` requirement of
+                    // its own. When the task does specify `container`, the
+                    // requirement is already covered by the `requirements`
+                    // digest, so including the default here would be redundant;
+                    // when it doesn't, a change to the configured default must
+                    // invalidate the cache entry.
                     let default_container =
                         if requirements::has_container_requirement(&inputs, &requirements) {
                             None
@@ -1931,8 +1931,7 @@ impl Evaluator {
                         }
 
                         // We're serving the results from the call cache; no
-                        // need to update, so set
-                        // the key to `None`
+                        // need to update, so set the key to `None`
                         key = None;
                         Some(results)
                     }
@@ -2396,6 +2395,7 @@ mod tests {
 
     use crate::CancellationContext;
     use crate::CancellationContextState;
+    use crate::ContainerImageOverrides;
     use crate::Engine;
     use crate::EngineEvent;
     use crate::EvaluationPath;
@@ -2440,6 +2440,7 @@ mod tests {
             &self,
             _inputs: &TaskInputs,
             _requirements: &Object,
+            _image_overrides: &ContainerImageOverrides,
             _hints: &Object,
         ) -> Result<TaskExecutionConstraints> {
             Ok(TaskExecutionConstraints {
@@ -2552,9 +2553,13 @@ mod tests {
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
         let document = results.first().expect("should have result").document();
-        let events = Events::new(100);
+        let events = Events::default().with_engine(100);
         let mut receiver = events.subscribe_engine().unwrap();
-        let evaluator = engine.create_v1_evaluator(events, CancellationContext::default());
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
         let runs_dir = root_dir.join("runs");
         let evaluated = evaluator
             .evaluate_task(
@@ -3544,6 +3549,85 @@ task test {
         );
     }
 
+    /// Tests for caching when a task retries.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_with_retry() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    command <<<
+        echo '~{if task.attempt == 0 then "fail" else "ok"}'
+        exit ~{if task.attempt == 0 then 1 else 0}
+    >>>
+
+    requirements {
+        max_retries: 1
+    }
+    
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+
+        // Evaluate the task; it should succeed due to the retry logic
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "ok"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("retrying execution of task `test` (retry 1)"),
+            "expected task to be retried"
+        );
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        // Evaluate the source again; it should be served from the cache despite
+        // the previous retry
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert!(
+            logs_contain("ignoring call cache entry: the command of the task was modified"),
+            "expected entry to be ignored for first attempt"
+        );
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "ok"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second attempt to skip execution"
+        );
+    }
+
     #[tokio::test]
     async fn first_cancel_completes_task() {
         let root_dir = TempDir::new().expect("failed to create temporary directory");
@@ -3584,8 +3668,12 @@ task t {
 
         let engine = Engine::new(Config::local()).await.unwrap();
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let events = Events::new(10);
-        let evaluator = engine.create_v1_evaluator(events.clone(), cancellation.clone());
+        let events = Events::default().with_crankshaft(10);
+        let evaluator = engine.create_v1_evaluator(
+            events.clone(),
+            cancellation.clone(),
+            ContainerImageOverrides::default(),
+        );
 
         let document = results
             .iter()

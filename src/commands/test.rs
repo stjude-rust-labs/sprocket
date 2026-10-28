@@ -55,6 +55,7 @@ use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::ContainerImageOverrides;
 use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -82,6 +83,7 @@ use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
 use crate::for_each_line;
+use crate::lock::file::LockFile;
 use crate::log_output;
 use crate::system::v1::fs::OUTPUTS_FILE;
 use crate::system::v1::fs::RUNS_DIR;
@@ -206,6 +208,9 @@ pub struct Args {
     /// Show STDOUT and STDERR of running custom assertions.
     #[clap(long)]
     pub show_assertion_stdio: bool,
+    /// Run tests without locking container images to digests.
+    #[clap(long)]
+    pub unlocked: bool,
 
     #[command(subcommand)]
     pub command: Option<Subcommand>,
@@ -792,6 +797,7 @@ impl Runner {
         clean: bool,
         quiet: bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
+        lock_file: LockFile,
     ) -> Result<FullResults> {
         let mut all_results = FullResults::new();
         let mut tasks = Vec::new();
@@ -832,6 +838,7 @@ impl Runner {
                 task.assertions,
                 task.document,
                 task.inputs,
+                lock_file.as_container_overrides().unwrap_or_default(),
             )
             .await;
 
@@ -993,6 +1000,7 @@ impl Runner {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn spawn_future(
         &self,
         futures: &mut JoinSet<TestIteration>,
@@ -1001,12 +1009,13 @@ impl Runner {
         assertions: Arc<Assertions>,
         document: wdl::analysis::Document,
         inputs: EngineInputs,
+        image_overrides: ContainerImageOverrides,
     ) {
         let is_workflow = matches!(inputs, EngineInputs::Workflow(_));
         let fixtures = self.fixtures.clone();
         let engine = self.engine.clone();
         let run_dir = root.join(id.iteration_num.to_string());
-        let events = Events::new(1024);
+        let events = Events::default().with_crankshaft(1024);
         let target = id.target.clone();
         let cancellation = self.cancellation.child(FailureMode::Fast);
         let status_bar = self.status_bar.clone();
@@ -1018,7 +1027,7 @@ impl Runner {
                 let cancellation_clone = cancellation.clone();
                 let mut task = Box::pin(async move {
                     let evaluator =
-                        Evaluator::new(&document, &target, inputs, &fixtures, &engine, &run_dir_clone);
+                        Evaluator::new(&document, &target, inputs, &fixtures, &engine, &run_dir_clone, image_overrides);
 
                     if is_workflow {
                         RunResult::Workflow(evaluator.run(events, cancellation_clone).await)
@@ -1390,6 +1399,11 @@ pub async fn test(
     } else {
         None
     };
+    let lock_file = if args.unlocked {
+        LockFile::default()
+    } else {
+        LockFile::locate(&source, report_mode, output)?.unwrap_or_default()
+    };
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
@@ -1529,6 +1543,7 @@ pub async fn test(
         !args.no_clean,
         args.no_status,
         &mut errors,
+        lock_file,
     ));
 
     loop {
@@ -1611,6 +1626,7 @@ mod tests {
             bin_dir,
             run_dir,
             no_status: false,
+            unlocked: false,
             filters: Filters::default(),
             exact: false,
             enable_custom_assertions: false,

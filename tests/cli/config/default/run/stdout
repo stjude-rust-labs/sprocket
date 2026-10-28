@@ -191,6 +191,9 @@ keywords = ["TODO"]
 [check.rules.UnusedDocComments]
 severity = "note"
 
+[check.rules.StructOverMap]
+severity = "off"
+
 [analyzer]
 lint = false
 
@@ -360,3 +363,7 @@ denied_hosts = [
 ]
 allowed_hosts = []
 allowed_transitive_hosts = ["github.com", "gitlab.com"]
+
+[lock]
+
+[lock.library]

@@ -204,7 +204,13 @@ mod tests {
 
         let port = listener.local_addr()?.port();
         let server_task = tokio::task::spawn(async {
-            run_with_listener(config, Default::default(), false, listener).await?;
+            run_with_listener(
+                config,
+                Default::default(),
+                CommandOutput::new(false),
+                listener,
+            )
+            .await?;
             anyhow::Result::<()>::Ok(())
         });
 

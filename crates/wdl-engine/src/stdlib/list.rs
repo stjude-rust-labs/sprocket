@@ -314,6 +314,7 @@ mod tests {
     use wdl_ast::SupportedVersion;
     use wdl_ast::version::V1;
 
+    use crate::ContainerImageOverrides;
     use crate::PrimitiveValue;
     use crate::Value;
     use crate::v1::tests::TestEnv;
@@ -1076,7 +1077,11 @@ task list_task {
         }
 
         let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            Default::default(),
+            ContainerImageOverrides::default(),
+        );
         let mut inputs = WorkflowInputs::default();
         inputs.set(
             "directory",
@@ -1085,6 +1090,7 @@ task list_task {
         let outputs = evaluator
             .evaluate_workflow(
                 document,
+                "test",
                 inputs,
                 &env.base_dir().join("outputs").unwrap().unwrap_local(),
             )

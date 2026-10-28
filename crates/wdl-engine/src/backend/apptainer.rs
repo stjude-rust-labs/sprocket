@@ -26,12 +26,12 @@ use tokio_retry2::strategy::ExponentialBackoff;
 use tracing::debug;
 use tracing::warn;
 
+use crate::ImageSource;
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::PullResults;
 use crate::config::ApptainerConfig;
 use crate::lock::LockedFile;
-use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -514,7 +514,7 @@ mod tests {
             .await
             .unwrap();
 
-        let context = EvalContext::new(Events::disabled(), Default::default()).await;
+        let context = EvalContext::new(Events::default(), Default::default()).await;
         let _ = runtime
             .generate_script(
                 &ApptainerConfig::default(),
@@ -573,7 +573,7 @@ mod tests {
             .await
             .unwrap();
 
-        let context = EvalContext::new(Events::disabled(), Default::default()).await;
+        let context = EvalContext::new(Events::default(), Default::default()).await;
         let (script, _) = runtime
             .generate_script(
                 &ApptainerConfig::default(),

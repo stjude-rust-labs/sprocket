@@ -228,6 +228,32 @@
           "additionalProperties": false
         },
         {
+          "description": "Unpacks every element of an `Array` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "All": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "All"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Unpacks the elements of an `Array` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "Any": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "Any"
+          ],
+          "additionalProperties": false
+        },
+        {
           "description": "Does the WDL `String`, `Array`, or `Map` have this length?",
           "type": "object",
           "properties": {

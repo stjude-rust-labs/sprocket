@@ -9,6 +9,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `All` and `Any` assertions to the test framework for checking whether all or at least one
+  element of an output WDL array satisfies an assertion
+  ([#1318](https://github.com/stjude-rust-labs/sprocket/pull/1318)).
+* Implemented `sprocket dev lock` to pin `task` container images
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* Added `[lock.library]` configuration section to configure
+  [Library API](https://singularityhub.github.io/library-api)-compatible image registries
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 * Added `sprocket dev module schema` subcommand to generate a [JSON schema](https://json-schema.org)
   for WDL `module.json` definitions
   ([#1295](https://github.com/stjude-rust-labs/sprocket/pull/1295)).
@@ -16,6 +24,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with recursion, symlink inclusion, and file filtering. This implements
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) and requires
   `feature_flags.wdl_1_4 = true` ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+* `dev server` now records each task execution attempt's WDL call ID, 0-based attempt number,
+  resolved execution constraints, and retry cause. Task API responses expose the same fields
+  ([#1256](https://github.com/stjude-rust-labs/sprocket/pull/1256)).
+* Added `GET /api/v1/runs/{id}/metrics`, which reports task attempts grouped by fully qualified WDL
+  call path with a short display name
+  ([#1257](https://github.com/stjude-rust-labs/sprocket/pull/1257)).
+* `sprocket dev server metrics <RUN>` renders execution metrics, with `--json` for the raw response
+  and `--call` for filtering. Local `sprocket run` executions write the same structure to
+  `metrics.json` beside `outputs.json`
+  ([#1258](https://github.com/stjude-rust-labs/sprocket/pull/1258)).
+
+### Changed
+
+* `sprocket inputs`, `sprocket validate`, `sprocket run`, and server execution now select local
+  workflows by name. WDL 1.4 documents with multiple workflows require an explicit target when one
+  cannot be inferred ([openwdl/wdl#798](https://github.com/openwdl/wdl/pull/798)).
+
+### Changed
+
+* The `--locked` flag in `run` now handles both module (`module-lock.json`) and container image
+  (`sprocket.lock`) lockfiles. To mimic the old module-only behavior, use `--locked=modules`
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
+* `run --locked` now enforces that all `task` container images have an entry in `sprocket.lock`
+  ([#1267](https://github.com/stjude-rust-labs/sprocket/pull/1267)).
 
 ### Fixed
 
@@ -922,7 +954,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--name` option if passed a WDL document containing a single task and no workflow
   ([#121](https://github.com/stjude-rust-labs/sprocket/pull/121)).
 * The `sprocket run` command now correctly includes the workflow/task name prefix in the output
-  ([#131](github.com/stjude-rust-labs/sprocket/pull/131)).
+  ([#131](https://github.com/stjude-rust-labs/sprocket/pull/131)).
 
 ### Added
 

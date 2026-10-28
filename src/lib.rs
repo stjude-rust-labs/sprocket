@@ -60,6 +60,8 @@ pub mod commands;
 mod config;
 mod eval;
 mod inputs;
+pub mod lock;
+mod metrics;
 pub mod server;
 pub mod system;
 

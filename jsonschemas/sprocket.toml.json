@@ -43,6 +43,10 @@
     "modules": {
       "description": "Configuration for the module system (`[modules]` section).",
       "$ref": "#/$defs/ModulesConfig"
+    },
+    "lock": {
+      "description": "Configuration for the `lock` command.",
+      "$ref": "#/$defs/LockConfig"
     }
   },
   "additionalProperties": false,
@@ -389,6 +393,9 @@
             },
             "UnusedDocComments": {
               "severity": "note"
+            },
+            "StructOverMap": {
+              "severity": "off"
             }
           }
         }
@@ -788,6 +795,13 @@
           "$ref": "#/$defs/UnusedDocCommentsConfig",
           "default": {
             "severity": "note"
+          }
+        },
+        "StructOverMap": {
+          "description": "The `StructOverMap` rule.",
+          "$ref": "#/$defs/StructOverMapConfig",
+          "default": {
+            "severity": "off"
           }
         }
       },
@@ -1593,6 +1607,18 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "StructOverMapConfig": {
+      "description": "Configuration for the `StructOverMap` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -3284,6 +3310,32 @@
           "const": "confirm"
         }
       ]
+    },
+    "LockConfig": {
+      "description": "Configuration for the `lock` subcommand.",
+      "type": "object",
+      "properties": {
+        "library": {
+          "description": "Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.",
+          "$ref": "#/$defs/LibraryLockConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LibraryLockConfig": {
+      "description": "Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.",
+      "type": "object",
+      "properties": {
+        "registry": {
+          "description": "The default registry to download images from.\n\nFor `library://` container images that *don't* specify a registry (e.g.,\n`library://sylabs/default/alpine:3.18`), this is the registry that will\nbe used.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

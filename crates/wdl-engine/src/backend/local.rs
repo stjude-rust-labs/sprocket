@@ -23,6 +23,7 @@ use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
@@ -264,6 +265,7 @@ impl TaskExecutionBackend for LocalBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        _: &ContainerImageOverrides,
         _: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut cpu = requirements::cpu(inputs, requirements);

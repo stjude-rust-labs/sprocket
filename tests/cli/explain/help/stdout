@@ -116,6 +116,7 @@ Available rules:
   - RuntimeSection
   - ShellCheck
   - ShellSplitting
+  - StructOverMap
   - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall

@@ -66,6 +66,7 @@ use super::Struct;
 use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
+use super::WorkflowRef;
 use crate::Diagnostics;
 use crate::Exceptable;
 use crate::MisleadingDeclarationOrderRule;
@@ -118,8 +119,9 @@ use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
 use crate::diagnostics::wildcard_import_conflict;
-use crate::diagnostics::workflow_conflict;
+use crate::document::EnumRef;
 use crate::document::Name;
+use crate::document::StructRef;
 use crate::document::cache::*;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
@@ -208,15 +210,16 @@ pub(crate) fn populate_document(
             .flatten(),
     );
 
-    let ast_items = AstItems::new(ast);
+    let mut ast_items = AstItems::new(ast);
+    ast_items.resolve_imports(|import| {
+        resolve_import(graph, import, index)
+            .ok()
+            .and_then(|(_, cache)| cache.map(|c| c.exports_hash()))
+    });
 
     let mut cache = AnalysisCache::default();
     if let Some(existing_cache) = existing_cache {
-        let to_remove = existing_cache.intersect(&ast_items, |import| {
-            resolve_import(graph, import, index)
-                .ok()
-                .and_then(|(_, cache)| cache.map(|c| c.exports_hash()))
-        });
+        let to_remove = existing_cache.intersect(&ast_items);
 
         if edits.is_empty() && to_remove.is_empty() && ast_items.len() == existing_cache.len() {
             tracing::trace!(
@@ -276,8 +279,9 @@ pub(crate) fn populate_document(
         populate_types(&mut cache, document);
     }
 
-    // Second pass: tasks and workflows
-    let mut workflow_to_populate = None;
+    // Second pass: tasks and workflow signatures. Keep the source order so
+    // name conflicts continue to retain the first declaration.
+    let mut workflows_to_populate = Vec::new();
     for (signature_hash, body_hash, item) in &dirty_items {
         match item {
             DocumentItem::Task(task) => {
@@ -295,15 +299,16 @@ pub(crate) fn populate_document(
                 if let Some(wf_diagnostics) =
                     add_workflow(&mut cache, document, *signature_hash, body_hash, ast_wf)
                 {
-                    workflow_to_populate =
-                        Some((wf_diagnostics, *signature_hash, body_hash, ast_wf));
+                    workflows_to_populate.push((wf_diagnostics, *signature_hash, ast_wf));
                 }
             }
             DocumentItem::Import(_) | DocumentItem::Struct(_) | DocumentItem::Enum(_) => continue,
         }
     }
 
-    if let Some((wf_diagnostics, signature_hash, _body_hash, ast_wf)) = workflow_to_populate {
+    // Third pass: populate every accepted workflow body after all signatures
+    // are available for forward calls.
+    for (wf_diagnostics, signature_hash, ast_wf) in workflows_to_populate {
         populate_workflow(
             &mut cache,
             wf_diagnostics,
@@ -343,6 +348,7 @@ pub(crate) fn populate_document(
     // Fold all item diagnostics together
     document.analysis_diagnostics.extend(cache.diagnostics());
 
+    cache.set_scope(&ast_items);
     document.cache = Arc::new(cache);
 }
 
@@ -539,12 +545,12 @@ fn add_namespace(
             }
             None => {
                 cache_item.add_struct(ImportedStruct {
-                    span,
                     local_name: aliased_name.to_string(),
+                    offset: s.offset(),
                     node: s.node().clone(),
+                    span,
                     document: imported_doc.clone(),
                     ty: s.ty().cloned(),
-                    offset: s.offset(),
                 });
             }
         }
@@ -709,11 +715,11 @@ fn add_wildcard_import(
             .local_structs()
             .map(|(_idx, _hash, s)| ImportedStruct {
                 local_name: s.name().to_string(),
+                offset: s.offset,
                 node: s.node.clone(),
                 span,
                 document: imported_doc.clone(),
                 ty: s.ty().cloned(),
-                offset: s.offset,
             }),
         span,
         wildcard_import_conflict,
@@ -729,11 +735,11 @@ fn add_wildcard_import(
             .local_enums()
             .map(|(_idx, _hash, e)| ImportedEnum {
                 local_name: e.name().to_string(),
+                offset: e.offset,
                 node: e.node.clone(),
                 span,
                 document: imported_doc.clone(),
                 ty: e.ty().cloned(),
-                offset: e.offset,
             }),
         span,
         wildcard_import_conflict,
@@ -776,9 +782,8 @@ fn add_wildcard_import(
     for (name, source_doc, inputs, outputs) in imported_doc
         .data
         .cache
-        .workflow()
-        .map(|w| (w.name.as_str(), imported_doc.clone(), &w.inputs, &w.outputs))
-        .into_iter()
+        .local_workflows()
+        .map(|(_idx, _hash, w)| (w.name.as_str(), imported_doc.clone(), &w.inputs, &w.outputs))
         .chain(
             imported_doc
                 .data
@@ -873,11 +878,11 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    offset: s.item().offset,
                     node: s.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
                     ty: s.item().ty().cloned(),
-                    offset: s.item().offset,
                 };
 
                 import_structs(
@@ -892,11 +897,11 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    offset: s.offset,
                     node: s.node.clone(),
                     span: member_span,
                     document: s.document.clone(),
                     ty: s.ty().cloned(),
-                    offset: s.offset,
                 };
 
                 import_structs(
@@ -911,11 +916,11 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    offset: e.item().offset,
                     node: e.item().node.clone(),
                     span: member_span,
                     document: imported_doc.clone(),
                     ty: e.item().ty().cloned(),
-                    offset: e.item().offset,
                 };
 
                 import_enums(
@@ -930,11 +935,11 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    offset: e.offset,
                     node: e.node.clone(),
                     span: member_span,
                     document: e.document.clone(),
                     ty: e.ty().cloned(),
-                    offset: e.offset,
                 };
 
                 import_enums(
@@ -1141,10 +1146,7 @@ fn import_tasks(
 ///
 /// 1. Same underlying declaration re-imported (diamond pattern) is silently
 ///    deduplicated; no diagnostic is emitted.
-/// 2. A distinct workflow already occupies local scope; only one workflow may
-///    be in scope at a time, so the import is rejected and `workflow_conflict`
-///    is emitted.
-/// 3. The local name collides with a task or other callable; the `conflict`
+/// 2. The local name collides with a task or other callable; the `conflict`
 ///    callback is called (preserving the import-form-specific diagnostic).
 fn insert_imported_workflow(
     cache: &AnalysisCache,
@@ -1160,19 +1162,6 @@ fn insert_imported_workflow(
         && existing.source() == entry.source()
         && existing.name == entry.name
     {
-        return;
-    }
-
-    // Only one distinct workflow may occupy local scope at a time.
-    if let Some((_hash, existing)) = cache.imported_workflows().find(|(_hash, existing)| {
-        existing.source() != entry.source() || existing.name != entry.name
-    }) {
-        diagnostics.add(workflow_conflict(
-            &entry.name,
-            conflict_span,
-            existing.name(),
-            existing.span,
-        ));
         return;
     }
 
@@ -1887,22 +1876,13 @@ fn add_workflow(
         name.text()
     );
 
-    if let Some(prev) = cache.workflow() {
+    let version = document.version.expect("document should have a version");
+    if version < SupportedVersion::V1(V1::Four)
+        && let Some((_idx, _hash, prev)) = cache.local_workflows().next()
+    {
         document
             .analysis_diagnostics
             .add(duplicate_workflow(&name, prev.name_span));
-        return None;
-    }
-
-    // An imported workflow already occupies local scope; reject this
-    // definition.
-    if let Some((_hash, imported)) = cache.imported_workflows().next() {
-        document.analysis_diagnostics.add(workflow_conflict(
-            name.text(),
-            name.span(),
-            &imported.name,
-            imported.span,
-        ));
         return None;
     }
 
@@ -1927,14 +1907,33 @@ fn add_workflow(
         return None;
     }
 
-    let diagnostics = document.analysis_diagnostics.child();
+    let mut diagnostics = document.analysis_diagnostics.child();
+    let inputs = match workflow.input() {
+        Some(section) => create_input_type_map(
+            cache,
+            &mut diagnostics,
+            section.declarations(),
+            Some(signature_hash),
+        ),
+        None => Default::default(),
+    };
+    let outputs = match workflow.output() {
+        Some(section) => create_output_type_map(
+            cache,
+            &mut diagnostics,
+            section.declarations().map(Decl::Bound),
+            Some(signature_hash),
+        ),
+        None => Default::default(),
+    };
+
     let workflow_item = Workflow {
         name_span: name.span(),
         name: name.text().to_string(),
         span: workflow.span(),
         scopes: Default::default(),
-        inputs: Default::default(),
-        outputs: Default::default(),
+        inputs,
+        outputs,
         calls: Default::default(),
         allows_nested_inputs: document
             .version
@@ -1943,7 +1942,7 @@ fn add_workflow(
     };
 
     let offset = workflow.span().start();
-    cache.set_workflow(CachedItem::new(
+    cache.insert_workflow(CachedItem::new(
         signature_hash,
         offset,
         WithBodyHash {
@@ -1965,31 +1964,15 @@ fn populate_workflow(
     workflow_def: &WorkflowDefinition,
     signature_hash: SignatureHash,
 ) {
-    let workflow_name = workflow_def.name().text().to_string();
     let allows_nested_inputs = document
         .version
         .map(|v| workflow_def.allows_nested_inputs(v))
         .unwrap_or(false);
 
-    // Populate type maps for the workflow's inputs and outputs
-    let inputs = match workflow_def.input() {
-        Some(section) => create_input_type_map(
-            cache,
-            &mut diagnostics,
-            section.declarations(),
-            Some(signature_hash),
-        ),
-        None => Default::default(),
-    };
-    let outputs = match workflow_def.output() {
-        Some(section) => create_output_type_map(
-            cache,
-            &mut diagnostics,
-            section.declarations().map(Decl::Bound),
-            Some(signature_hash),
-        ),
-        None => Default::default(),
-    };
+    let (inputs, outputs) = cache
+        .local_workflow_by_name(workflow_def.name().text())
+        .map(|(_idx, _hash, workflow)| (workflow.inputs.clone(), workflow.outputs.clone()))
+        .expect("workflow signature should exist in cache");
 
     // Keep a map of scopes from syntax node that introduced the scope to the
     // scope index
@@ -2157,7 +2140,6 @@ fn populate_workflow(
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &statement,
-                    &workflow_name,
                     &mut calls,
                     allows_nested_inputs,
                     graph
@@ -2263,7 +2245,7 @@ fn populate_workflow(
 
     // Finally, populate the workflow
     let workflow = cache
-        .workflow_item_mut()
+        .workflow_item_mut(&signature_hash)
         .expect("workflow should exist in cache");
     workflow.item_mut().item.scopes = scopes;
     workflow.item_mut().item.inputs = inputs;
@@ -2400,7 +2382,6 @@ fn add_call_statement(
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
     statement: &CallStatement,
-    workflow_name: &str,
     calls: &mut HashMap<String, CallType>,
     allows_nested_inputs: bool,
     is_used: bool,
@@ -2419,14 +2400,7 @@ fn add_call_statement(
         .map(|a| a.name())
         .unwrap_or_else(|| target_name.clone());
 
-    let ty = match resolve_call_type(
-        cache,
-        diagnostics,
-        document,
-        workflow_name,
-        statement,
-        dependent,
-    ) {
+    let ty = match resolve_call_type(cache, diagnostics, document, statement, dependent) {
         Some(call_ty) => {
             // Type check the call inputs
             let mut seen = HashSet::new();
@@ -2533,7 +2507,6 @@ fn resolve_call_type(
     cache: &mut AnalysisCache,
     diagnostics: &mut Diagnostics,
     document: &mut DocumentData,
-    workflow_name: &str,
     statement: &CallStatement,
     dependent: SignatureHash,
 ) -> Option<CallType> {
@@ -2578,10 +2551,6 @@ fn resolve_call_type(
     let name = name.expect("should have name");
     let has_namespace = namespace.is_some();
     let namespace_span = namespace.map(|ns| ns.span());
-    if !has_namespace && name.text() == workflow_name {
-        diagnostics.add(recursive_workflow_call(name.text(), name.span()));
-        return None;
-    }
 
     // A locally failed selected import short-circuits before any lookup,
     // but only for an unqualified call against the local document.
@@ -2592,33 +2561,30 @@ fn resolve_call_type(
         return None;
     }
 
-    let (kind, inputs, outputs, local_dep) = match target_cache.task_by_name(name.text()) {
-        Some((_hash, task)) => {
-            let local_dep = if !has_namespace {
-                match cache.item_by_name(name.text()) {
-                    Some(Item::Local(item)) => Some(item.signature_hash()),
-                    _ => None,
-                }
-            } else {
-                local_dep
-            };
-            (CallKind::Task, task.inputs(), task.outputs(), local_dep)
+    let (kind, inputs, outputs, local_dep, recursive) = match target_cache.task_by_name(name.text())
+    {
+        Some((hash, task)) => {
+            let local_dep = if has_namespace { local_dep } else { Some(hash) };
+            (
+                CallKind::Task,
+                task.inputs(),
+                task.outputs(),
+                local_dep,
+                false,
+            )
         }
-        _ => match target_cache.workflow() {
-            Some(workflow) if workflow.name == name.text() => {
-                let local_dep = if !has_namespace {
-                    match cache.item_by_name(name.text()) {
-                        Some(Item::Local(item)) => Some(item.signature_hash()),
-                        _ => None,
-                    }
-                } else {
-                    local_dep
-                };
+        _ => match target_cache.workflow_by_name(name.text()) {
+            Some((hash, workflow)) => {
+                let local_dep = if has_namespace { local_dep } else { Some(hash) };
+                let recursive = !has_namespace
+                    && matches!(workflow, WorkflowRef::Local(_))
+                    && cache.has_workflow_dependency_path(hash, dependent);
                 (
                     CallKind::Workflow,
-                    workflow.inputs.clone(),
-                    workflow.outputs.clone(),
+                    workflow.inputs(),
+                    workflow.outputs(),
                     local_dep,
+                    recursive,
                 )
             }
             _ if !has_namespace => {
@@ -2630,6 +2596,7 @@ fn resolve_call_type(
                         imported.inputs.clone(),
                         imported.outputs.clone(),
                         Some(hash),
+                        false,
                     )
                 } else if let Some((hash, imported)) = cache.imported_workflow_by_name(name.text())
                 {
@@ -2638,6 +2605,7 @@ fn resolve_call_type(
                         imported.inputs.clone(),
                         imported.outputs.clone(),
                         Some(hash),
+                        false,
                     )
                 } else {
                     diagnostics.add(unknown_task_or_workflow(None, name.text(), name.span()));
@@ -2657,6 +2625,11 @@ fn resolve_call_type(
 
     if let Some(dependency) = local_dep {
         cache.add_dependency(dependent, dependency);
+    }
+
+    if recursive {
+        diagnostics.add(recursive_workflow_call(name.text(), name.span()));
+        return None;
     }
 
     let specified = Arc::new(

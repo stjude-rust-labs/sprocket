@@ -50,11 +50,10 @@ use crate::handlers::TypeEvalContext;
 use crate::handlers::common::comments_to_string;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
+use crate::handlers::common::provide_callable_documentation;
 use crate::handlers::common::provide_enum_documentation;
 use crate::handlers::common::provide_namespace_documentation;
 use crate::handlers::common::provide_struct_documentation;
-use crate::handlers::common::provide_task_documentation;
-use crate::handlers::common::provide_workflow_documentation;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
@@ -334,15 +333,8 @@ fn resolve_hover_by_context(
                 document
             };
 
-            if let Some(task) = target_doc.task_by_name(callee_name.text()) {
-                return Ok(provide_task_documentation(&task, &target_doc.root()));
-            }
-
-            if let Some(workflow) = target_doc
-                .workflow()
-                .filter(|w| w.name() == callee_name.text())
-            {
-                return Ok(provide_workflow_documentation(workflow, &target_doc.root()));
+            if let Some(c) = target_doc.callable_by_name(callee_name.text()) {
+                return Ok(provide_callable_documentation(c, &target_doc.root()));
             }
         }
         SyntaxKind::AccessExprNode => {
@@ -577,11 +569,8 @@ fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<
     if let Some(e) = document.enum_by_name(token.text()) {
         return Ok(provide_enum_documentation(&e, &document.root()));
     }
-    if let Some(t) = document.task_by_name(token.text()) {
-        return Ok(provide_task_documentation(&t, &document.root()));
-    }
-    if let Some(w) = document.workflow().filter(|w| w.name() == token.text()) {
-        return Ok(provide_workflow_documentation(w, &document.root()));
+    if let Some(c) = document.callable_by_name(token.text()) {
+        return Ok(provide_callable_documentation(c, &document.root()));
     }
     Ok(None)
 }
