@@ -6,5 +6,3 @@ note: no container specified
   │
   = help: tasks should specify a container image, otherwise the engine's default will be used
   = fix: consider adding a `requirements.container` field
-
-error: failed to retrieve Docker credentials for registry `index.docker.io` (credential helper failed)
