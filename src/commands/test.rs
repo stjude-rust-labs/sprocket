@@ -357,20 +357,20 @@ async fn run_custom_bins(
         let (bin, output) = output?;
         let output = output?;
         if !output.status.success() {
-            for line in String::from_utf8_lossy_owned(output.stderr).lines() {
+            for line in String::from_utf8_lossy(&output.stderr).lines() {
                 log_output!(tracing::Level::WARN, "custom-assertion-stderr", bin, line);
             }
-            for line in String::from_utf8_lossy_owned(output.stdout).lines() {
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
                 log_output!(tracing::Level::WARN, "custom-assertion-stdout", bin, line);
             }
             return Ok(IterationResult::Fail(anyhow!(
                 "{id} custom assertion `{bin}` did not succeed"
             )));
         } else {
-            for line in String::from_utf8_lossy_owned(output.stderr).lines() {
+            for line in String::from_utf8_lossy(&output.stderr).lines() {
                 log_output!(tracing::Level::DEBUG, "custom-assertion-stderr", bin, line);
             }
-            for line in String::from_utf8_lossy_owned(output.stdout).lines() {
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
                 log_output!(tracing::Level::DEBUG, "custom-assertion-stdout", bin, line);
             }
         }
