@@ -171,47 +171,55 @@ fn emit_config_diagnostics(
     Ok(emitted)
 }
 
-/// Helper macro for logging STDOUT/STDERR line by line.
-#[macro_export]
-macro_rules! log_stdio {
-    ($lvl:ident, $buff:expr, $trgt:expr, $prefix:expr, $msg:expr) => {
-        let buff_size = 4096;
-        $buff.reserve(buff_size);
-        $buff.extend_from_slice($msg);
-        if let Some(last) = $buff.last() && *last != b'\n' {
-            $buff.push(b'\n');
-        }
-        while let Some(line_end) = $buff.iter().position(|&b| b == b'\n') {
-            if line_end > buff_size {
-                tracing::$lvl!(
-                    target: $trgt,
-                    "{} {}",
-                    $prefix.magenta().bold(),
-                    format!("line too long, dropped {line_end} bytes").yellow()
-                );
-            } else {
-                let line_bytes = &$buff[..line_end];
-                let line = String::from_utf8_lossy(line_bytes);
-                tracing::$lvl!(
-                    target: $trgt,
-                    "{} {}",
-                    $prefix.magenta().bold(),
-                    line.blue()
-                );
-            }
-            $buff.drain(..=line_end);
-        }
-        if $buff.len() > buff_size {
-            tracing::$lvl!(
-                target: $trgt,
-                "{} {}",
-                $prefix.magenta().bold(),
-                format!("line too long, dropped {} bytes", $buff.len()).yellow()
-            );
-            $buff.clear();
-        }
-        $buff.shrink_to(buff_size);
+/// Takes a message and calls a callback for each line in the message.
+///
+/// Partial lines are buffered into the provided buffer.
+fn for_each_line(message: &[u8], buffer: &mut Vec<u8>, callback: impl Fn(&str)) {
+    if message.is_empty() {
+        return;
     }
+
+    buffer.extend(message);
+
+    for line in String::from_utf8_lossy_owned(
+        buffer
+            .drain(
+                0..buffer
+                    .iter()
+                    .rposition(|c| *c == b'\n')
+                    .map(|p| p + 1)
+                    .unwrap_or(0),
+            )
+            .collect(),
+    )
+    .lines()
+    {
+        callback(line);
+    }
+}
+
+/// Helper macro for logging line by line.
+#[macro_export]
+macro_rules! log_output {
+    ($level:expr, $target:expr, $prefix:expr, $line:expr) => {
+        if $line.len() > 4096 {
+            tracing::event!(
+                $level,
+                target = $target,
+                "[{prefix}] {line}",
+                prefix = $prefix.magenta().bold(),
+                line = format!("<line exceeded 4096 bytes>").yellow()
+            );
+        } else {
+            tracing::event!(
+                $level,
+                target = $target,
+                "[{prefix}] {line}",
+                prefix = $prefix.magenta().bold(),
+                line = $line.blue()
+            );
+        }
+    };
 }
 
 /// Logic for [`sprocket_main()`].

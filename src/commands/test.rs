@@ -81,7 +81,8 @@ use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
-use crate::log_stdio;
+use crate::for_each_line;
+use crate::log_output;
 use crate::system::v1::fs::OUTPUTS_FILE;
 use crate::system::v1::fs::RUNS_DIR;
 
@@ -353,26 +354,54 @@ async fn run_custom_bins(
         let output = output?;
         let mut buffer: Vec<u8> = Vec::new();
         if !output.status.success() {
-            log_stdio!(warn, buffer, "custom-assertion-stderr", bin, &output.stderr);
-            log_stdio!(warn, buffer, "custom-assertion-stdout", bin, &output.stdout);
+            for_each_line(&output.stderr, &mut buffer, |line| {
+                log_output!(tracing::Level::WARN, "custom-assertion-stderr", bin, line);
+            });
+            if !buffer.is_empty() {
+                log_output!(
+                    tracing::Level::WARN,
+                    "custom-assertion-stderr",
+                    bin,
+                    &String::from_utf8_lossy(&buffer)
+                );
+            }
+            for_each_line(&output.stdout, &mut buffer, |line| {
+                log_output!(tracing::Level::WARN, "custom-assertion-stdout", bin, line);
+            });
+            if !buffer.is_empty() {
+                log_output!(
+                    tracing::Level::WARN,
+                    "custom-assertion-stdout",
+                    bin,
+                    &String::from_utf8_lossy(&buffer)
+                );
+            }
             return Ok(IterationResult::Fail(anyhow!(
                 "{id} custom assertion `{bin}` did not succeed"
             )));
         } else {
-            log_stdio!(
-                debug,
-                buffer,
-                "custom-assertion-stderr",
-                bin,
-                &output.stderr
-            );
-            log_stdio!(
-                debug,
-                buffer,
-                "custom-assertion-stdout",
-                bin,
-                &output.stdout
-            );
+            for_each_line(&output.stderr, &mut buffer, |line| {
+                log_output!(tracing::Level::DEBUG, "custom-assertion-stderr", bin, line);
+            });
+            if !buffer.is_empty() {
+                log_output!(
+                    tracing::Level::DEBUG,
+                    "custom-assertion-stderr",
+                    bin,
+                    &String::from_utf8_lossy(&buffer)
+                );
+            }
+            for_each_line(&output.stdout, &mut buffer, |line| {
+                log_output!(tracing::Level::DEBUG, "custom-assertion-stdout", bin, line);
+            });
+            if !buffer.is_empty() {
+                log_output!(
+                    tracing::Level::DEBUG,
+                    "custom-assertion-stdout",
+                    bin,
+                    &String::from_utf8_lossy(&buffer)
+                );
+            }
         }
     }
 

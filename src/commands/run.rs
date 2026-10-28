@@ -65,8 +65,9 @@ use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
+use crate::for_each_line;
 use crate::inputs::Invocation;
-use crate::log_stdio;
+use crate::log_output;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::HeartbeatGuard;
@@ -712,7 +713,17 @@ async fn progress(
                                 continue;
                             };
 
-                            log_stdio!(debug, task.stderr_buffer, "task-stderr", task.name, &message);
+                            for_each_line(&message, &mut task.stderr_buffer, |line| {
+                                log_output!(tracing::Level::DEBUG, "task-stderr", task.name, line);
+                            });
+                            if !task.stderr_buffer.is_empty() {
+                                log_output!(
+                                    tracing::Level::DEBUG,
+                                    "task-stderr",
+                                    task.name,
+                                    &String::from_utf8_lossy(&task.stderr_buffer)
+                                );
+                            }
 
                             continue
                         }
