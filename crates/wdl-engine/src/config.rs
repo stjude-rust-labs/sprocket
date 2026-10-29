@@ -896,6 +896,12 @@ pub struct S3StorageConfig {
     /// Defaults to `us-east-1`.
     pub region: Option<String>,
 
+    /// The custom endpoint URL to use for S3.
+    ///
+    /// Uses the default AWS endpoints when `None`.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub endpoint: Option<Url>,
+
     /// The AWS S3 storage authentication configuration.
     #[toml(style = Header)]
     pub auth: Option<S3StorageAuthConfig>,

@@ -4475,7 +4475,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__run)
-            opts="-t -o -v -q -m -c -s -h --target --output-dir --locked --unlocked --index-on --azure-account-name --azure-access-key --aws-access-key-id --aws-secret-access-key --aws-default-region --google-hmac-access-key --google-hmac-secret --no-call-cache --disable-retries --show-task-stderr --suffix --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help"
+            opts="-t -o -v -q -m -c -s -h --target --output-dir --locked --unlocked --index-on --azure-account-name --azure-access-key --aws-access-key-id --aws-secret-access-key --aws-default-region --aws-endpoint-url --google-hmac-access-key --google-hmac-secret --no-call-cache --disable-retries --show-task-stderr --suffix --verbose --quiet --no-ignore --color --report-mode --config --skip-config-search --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -4522,6 +4522,10 @@ _sprocket() {
                     return 0
                     ;;
                 --aws-default-region)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --aws-endpoint-url)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

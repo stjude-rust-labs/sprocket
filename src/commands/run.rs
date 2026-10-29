@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::env;
 use std::fmt::Write as _;
 use std::fs;
 use std::fs::File;
@@ -36,6 +37,7 @@ use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
+use url::Url;
 use wdl::analysis::Document;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
@@ -210,6 +212,10 @@ pub struct Args {
     #[clap(long, env, value_name = "REGION")]
     pub aws_default_region: Option<String>,
 
+    /// The AWS endpoint URL; overrides configuration.
+    #[clap(long, value_name = "URL")]
+    pub aws_endpoint_url: Option<Url>,
+
     /// The Google Cloud Storage HMAC access key to use; overrides
     /// configuration.
     #[clap(long, env, value_name = "KEY", requires = "google_hmac_secret")]
@@ -271,6 +277,11 @@ impl Args {
         // Apply the AWS default region to the engine config
         if let Some(region) = &self.aws_default_region {
             config.storage.s3.region = Some(region.clone());
+        }
+
+        // Apply the S3 endpoint URL to the engine config
+        if let Some(endpoint) = &self.aws_endpoint_url {
+            config.storage.s3.endpoint = Some(endpoint.clone());
         }
 
         // Apply the AWS auth to the engine config
@@ -885,7 +896,7 @@ pub fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
 
 /// The main function for the `run` subcommand.
 pub async fn run(
-    args: Args,
+    mut args: Args,
     mut config: Config,
     output: CommandOutput,
     handle: FileReloadHandle,
@@ -928,6 +939,27 @@ pub async fn run(
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
     }
+
+    // Respect the AWS SDK environment variables for endpoint
+    // Order of precedence is: CLI option, AWS_ENDPOINT_URL_S3, AWS_ENDPOINT_URL
+    args.aws_endpoint_url = args.aws_endpoint_url.take().or(
+        if !env::var("AWS_IGNORE_CONFIGURED_ENDPOINT_URLS")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+        {
+            env::var("AWS_ENDPOINT_URL_S3")
+                .ok()
+                .or_else(|| env::var("AWS_ENDPOINT_URL").ok())
+                .map(|s| {
+                    s.parse()
+                        .with_context(|| format!("invalid endpoint URL `{s}`"))
+                })
+                .transpose()?
+        } else {
+            None
+        },
+    );
+
     args.apply_engine_config(&mut config.run.engine);
 
     // Bring a stale or missing module lockfile up to date before executing so

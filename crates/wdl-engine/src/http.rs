@@ -184,7 +184,8 @@ impl DefaultHttpClient {
                 )
             })
             .unwrap_or_default()
-            .with_maybe_region(config.storage.s3.region.clone());
+            .with_maybe_region(config.storage.s3.region.clone())
+            .with_maybe_endpoint(config.storage.s3.endpoint.clone())?;
 
         let google_config = config
             .storage
