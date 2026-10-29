@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.25.0 - 2026-10-29
+
 ### Added
 
 * Extended `textDocument/hover` to render preamble comments of import documents

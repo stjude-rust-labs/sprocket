@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.30.0 - 2026-10-29
+
 ### Added
 
 * New lint rule `StructOverMap` to detect usage of `Map[String, ...]` types, encouraging the use of

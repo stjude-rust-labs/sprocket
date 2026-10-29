@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.20.0 - 2026-10-29
+
 ### Added
 
 * Added `storage.s3.endpoint` configuration setting for allowing custom S3 endpoints other than AWS
