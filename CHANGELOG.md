@@ -15,6 +15,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `--aws-endpoint-url` CLI option to `sprocket run` for specifying custom S3 endpoints for a
+  specific run ([#1335](https://github.com/stjude-rust-labs/sprocket/pull/1335)).
+* Added `run.storage.s3.endpoint` and `server.storage.s3.endpoint` configuration settings to
+  `sprocket.toml` for allowing custom S3 endpoints other than AWS
+  ([#1335](https://github.com/stjude-rust-labs/sprocket/pull/1335)).
 * Added `sprocket test` command for unit testing WDL (was `sprocket dev test`)
   ([#1293](https://github.com/stjude-rust-labs/sprocket/pull/1293)).
 * Added "custom assertions" ability to the `test` framework for running arbitrary user code on WDL

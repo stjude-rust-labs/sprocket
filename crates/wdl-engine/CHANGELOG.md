@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `storage.s3.endpoint` configuration setting for allowing custom S3 endpoints other than AWS
+  ([#1335](https://github.com/stjude-rust-labs/sprocket/pull/1335)).
 * Added the WDL 1.4 `list` function from
   [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800), returning a pair of file and
   directory arrays with optional recursion, symlink inclusion, and basename glob filtering. WDL 1.4
