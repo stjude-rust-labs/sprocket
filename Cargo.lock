@@ -721,8 +721,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 [[package]]
 name = "cloud-copy"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe46cf0f6fc73bc6f76189a75e49ea7fa092df5290a4350cf05f6aa82119f18c"
+source = "git+https://github.com/stjude-rust-labs/cloud-copy#2fde54ef3b92a63cfcb1db97a6833f0627026662"
 dependencies = [
  "anyhow",
  "base64 0.23.1",

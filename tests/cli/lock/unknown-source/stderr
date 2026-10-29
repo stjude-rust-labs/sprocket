@@ -7,5 +7,5 @@ warning: unknown container source
 warning: unknown container source
    ┌─ source.wdl:17:21
    │
-17 │         container: ["unknown://foo", "python:3"]
+17 │         container: ["unknown://foo", "quay.io/biocontainers/python:3"]
    │                     ^^^^^^^^^^^^^^^ this will not be included in the lockfile

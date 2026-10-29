@@ -14,6 +14,6 @@ task partial_array {
 
     requirements {
         # But a single unknown image shouldn't invalidate the entire array
-        container: ["unknown://foo", "python:3"]
+        container: ["unknown://foo", "quay.io/biocontainers/python:3"]
     }
 }

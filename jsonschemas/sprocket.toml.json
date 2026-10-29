@@ -2556,6 +2556,14 @@
             "null"
           ]
         },
+        "endpoint": {
+          "description": "The custom endpoint URL to use for S3.\n\nUses the default AWS endpoints when `None`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
         "auth": {
           "description": "The AWS S3 storage authentication configuration.",
           "anyOf": [
