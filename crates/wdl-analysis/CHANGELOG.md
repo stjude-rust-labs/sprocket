@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.28.0 - 2026-10-29
+
 ### Added
 
 * `DeprecatedInputKeyword` rule to flag call statements with unnecessary `input` keywords
