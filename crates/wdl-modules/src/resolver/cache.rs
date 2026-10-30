@@ -5,10 +5,8 @@ use std::path::PathBuf;
 
 use sha2::Digest;
 use sha2::Sha256;
-use thiserror::Error;
 use url::Url;
 
-use crate::hash::ContentHash;
 use crate::lockfile::GitCommit;
 
 /// The cache layout key for a `(repository, commit)` pair.
@@ -37,8 +35,8 @@ enum PrefixKey {
         /// human-readable prefix.
         repo_with_suffix: String,
     },
-    /// `_opaque/<sha256(url)>` for URLs that don't fit the structured
-    /// shape (IP-only hosts, deeply nested groups, etc.).
+    /// `_opaque/<sha256(url)>` for URLs without a host or with fewer than
+    /// two path segments.
     GitOpaque {
         /// Lowercase hex SHA-256 digest of the canonical URL.
         digest_hex: String,
@@ -114,71 +112,8 @@ fn hash_url(url: &Url) -> String {
     hex::encode(bytes)
 }
 
-/// Removes the cache leaf at `path`. No-op if the leaf does not exist.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "will be called by the resolver once cache management is wired up"
-    )
-)]
-pub(crate) fn evict(path: &Path) -> std::io::Result<()> {
-    match std::fs::remove_dir_all(path) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e),
-    }
-}
-
-/// Re-hashes a cached module folder and compares against the expected
-/// content hash.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "will be called by the resolver once cache management is wired up"
-    )
-)]
-pub(crate) fn verify_integrity(leaf: &Path, expected: &ContentHash) -> Result<(), IntegrityError> {
-    let observed =
-        crate::hash::hash_directory(leaf).map_err(|source| IntegrityError::Hash { source })?;
-    if observed != *expected {
-        return Err(IntegrityError::Mismatch {
-            expected: *expected,
-            observed,
-        });
-    }
-    Ok(())
-}
-
-/// An error produced by [`verify_integrity`].
-#[derive(Debug, Error)]
-pub(crate) enum IntegrityError {
-    /// The cached module's content hash does not match the expected
-    /// digest.
-    #[error("content hash mismatch: expected `{expected}`, observed `{observed}`")]
-    Mismatch {
-        /// The hash recorded in the lockfile.
-        expected: ContentHash,
-        /// The hash observed in the cache.
-        observed: ContentHash,
-    },
-
-    /// Re-hashing the cache leaf failed.
-    #[error(transparent)]
-    Hash {
-        /// The underlying hashing error.
-        #[from]
-        source: crate::hash::HashError,
-    },
-}
-
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
-    use tempfile::tempdir;
-
     use super::*;
 
     fn commit() -> GitCommit {
@@ -242,45 +177,5 @@ mod tests {
             k_long.relative_path(),
             "nested repository URLs must produce distinct cache keys"
         );
-    }
-
-    #[test]
-    fn evict_removes_leaf() {
-        let dir = tempdir().unwrap();
-        let leaf = dir.path().join("leaf");
-        fs::create_dir_all(&leaf).unwrap();
-        fs::write(leaf.join("file"), b"x").unwrap();
-        evict(&leaf).unwrap();
-        assert!(!leaf.exists());
-    }
-
-    #[test]
-    fn evict_is_noop_when_missing() {
-        let dir = tempdir().unwrap();
-        evict(&dir.path().join("never-existed")).unwrap();
-    }
-
-    #[test]
-    fn verify_integrity_passes_on_match() {
-        let dir = tempdir().unwrap();
-        let leaf = dir.path().join("leaf");
-        fs::create_dir_all(&leaf).unwrap();
-        fs::write(leaf.join("a.wdl"), b"hello").unwrap();
-        let hash = crate::hash::hash_directory(&leaf).unwrap();
-        verify_integrity(&leaf, &hash).unwrap();
-    }
-
-    #[test]
-    fn verify_integrity_fails_on_mismatch() {
-        let dir = tempdir().unwrap();
-        let leaf = dir.path().join("leaf");
-        fs::create_dir_all(&leaf).unwrap();
-        fs::write(leaf.join("a.wdl"), b"hello").unwrap();
-        let bad: ContentHash =
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-                .parse()
-                .unwrap();
-        let err = verify_integrity(&leaf, &bad).unwrap_err();
-        assert!(matches!(err, IntegrityError::Mismatch { .. }));
     }
 }
