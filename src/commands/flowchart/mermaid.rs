@@ -432,7 +432,8 @@ impl MermaidCtx {
                 }
             }
 
-            // SAFETY: declarations are filtered out before this method is called.
+            // SAFETY: declarations are filtered out before this method is
+            // called.
             WorkflowStatement::Declaration(_) => unreachable!(),
         }
     }
@@ -544,7 +545,7 @@ fn resolve_workflow(doc: &Document, ns: &str, name: &str) -> Option<WorkflowDefi
 /// Attempts to find a workflow by name in a document's AST.
 fn resolve_workflow_local(doc: &Document, name: &str) -> Option<WorkflowDefinition> {
     // Only expand if the analysis confirms it is a workflow (not a task).
-    doc.workflow().filter(|w| w.name() == name)?;
+    doc.local_workflow_by_name(name)?;
 
     // SAFETY: the analysis confirmed a workflow exists in this document, so
     // the AST must be V1; a non-V1 AST cannot produce a workflow entry.
