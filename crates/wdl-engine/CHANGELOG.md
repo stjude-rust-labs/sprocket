@@ -18,6 +18,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory arrays with optional recursion, symlink inclusion, and basename glob filtering. WDL 1.4
   documents accept a broken symbolic link as a `File` value when it is evaluated, because `list`
   returns broken links as files ([#1198](https://github.com/stjude-rust-labs/sprocket/pull/1198)).
+* Added the `backends.<name>.resource_usage_interval` Docker configuration option for sampling task
+  memory and CPU usage ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+* The LSF and Slurm backends report task resource utilization through Crankshaft's cumulative
+  `TaskResourceUsage` event. LSF sources measurements from `bjobs`; Slurm uses `sacct`
+  ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
 
 ### Changed
 
