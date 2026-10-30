@@ -174,9 +174,8 @@ struct Rendered {
     exits: Vec<Exit>,
 }
 
-/// The root and exit points emitted for a statement block.
+/// The exit points emitted for a statement block.
 struct Block {
-    roots: Vec<String>,
     exits: Vec<Exit>,
 }
 
@@ -257,23 +256,57 @@ impl MermaidCtx {
             .collect();
 
         Block {
-            roots: keys
-                .iter()
-                .filter(|key| {
-                    self.dependencies
-                        .get(*key)
-                        .into_iter()
-                        .flatten()
-                        .all(|dependency| !keys.contains(dependency))
-                })
-                .filter_map(|key| self.emitted.get(key).map(|rendered| rendered.entry.clone()))
-                .collect(),
             exits: keys
                 .difference(&depended_on)
                 .filter_map(|key| self.emitted.get(key))
                 .flat_map(|rendered| rendered.exits.clone())
                 .collect(),
         }
+    }
+
+    /// Emits a sequence of statements within a conditional clause.
+    ///
+    /// Returns the exits of the final statement, or an exit
+    /// from `entry_id` with `edge_label` when the clause contains no visible
+    /// statements.
+    fn emit_clause_statements(
+        &mut self,
+        stmts: &[WorkflowStatement],
+        doc: &Document,
+        out: &mut String,
+        indent: &str,
+        entry_id: &str,
+        edge_label: &str,
+    ) -> Vec<Exit> {
+        let statements: Vec<_> = stmts
+            .iter()
+            .filter(|s| !matches!(s, WorkflowStatement::Declaration(_)))
+            .collect();
+
+        if statements.is_empty() {
+            return vec![Exit::labeled(entry_id.to_owned(), edge_label)];
+        }
+
+        let mut exits = Vec::<Exit>::new();
+        for (i, statement) in statements.iter().enumerate() {
+            let rendered = self.emit_statement(statement, doc, out, indent);
+            if i == 0 {
+                emit_edge(out, indent, entry_id, &rendered.entry, Some(edge_label));
+            } else {
+                for exit in exits {
+                    emit_edge(
+                        out,
+                        indent,
+                        &exit.id,
+                        &rendered.entry,
+                        exit.label.as_deref(),
+                    );
+                }
+            }
+            exits = rendered.exits;
+        }
+
+        exits
     }
 
     /// Emits a single statement into `out` and returns its exit points.
@@ -393,15 +426,15 @@ impl MermaidCtx {
                         };
 
                         let body: Vec<_> = clause.statements().collect();
-                        let block = self.emit_statements(&body, doc, out, indent);
-                        for root in block.roots {
-                            emit_edge(out, indent, &diamond_id, &root, Some(&edge_label));
-                        }
-                        if block.exits.is_empty() {
-                            exits.push(Exit::labeled(diamond_id.clone(), edge_label));
-                        } else {
-                            exits.extend(block.exits);
-                        }
+                        let clause_exits = self.emit_clause_statements(
+                            &body,
+                            doc,
+                            out,
+                            indent,
+                            &diamond_id,
+                            &edge_label,
+                        );
+                        exits.extend(clause_exits);
                     }
 
                     // Without an `else`, the diamond is also an exit via the
@@ -429,14 +462,8 @@ impl MermaidCtx {
                         .first()
                         .map(|c| c.statements().collect())
                         .unwrap_or_default();
-                    let block = self.emit_statements(&body, doc, out, indent);
-                    for root in block.roots {
-                        emit_edge(out, indent, &diamond_id, &root, Some("yes"));
-                    }
-                    let mut exits = block.exits;
-                    if exits.is_empty() {
-                        exits.push(Exit::labeled(diamond_id.clone(), "yes"));
-                    }
+                    let mut exits =
+                        self.emit_clause_statements(&body, doc, out, indent, &diamond_id, "yes");
 
                     // The "no" path skips the body entirely.
                     exits.push(Exit::labeled(diamond_id.clone(), "no"));
@@ -935,5 +962,55 @@ workflow test {
         for _ in 0..16 {
             assert_eq!(render(source, Some(0)).await, expected);
         }
+    }
+
+    #[tokio::test]
+    async fn renders_conditional_statements_in_series() {
+        let source = r#"
+version 1.0
+
+task noop {
+    command <<< echo noop >>>
+}
+
+workflow test {
+    if (true) {
+        call noop as first
+        call noop as second
+    } else {
+        call noop as third
+    }
+}
+"#;
+        let diagram = render(source, Some(0)).await;
+
+        // The if branch enters `first`, which continues in series to `second`.
+        assert!(diagram.contains("n0 -->|\"if true\"| n1"));
+        assert!(diagram.contains("n1 --> n2"));
+        // The else branch enters `third`.
+        assert!(diagram.contains("n0 -->|\"else\"| n3"));
+    }
+
+    #[tokio::test]
+    async fn renders_single_clause_conditional_statements_in_series() {
+        let source = r#"
+version 1.0
+
+task noop {
+    command <<< echo noop >>>
+}
+
+workflow test {
+    if (true) {
+        call noop as first
+        call noop as second
+    }
+}
+"#;
+        let diagram = render(source, Some(0)).await;
+
+        // The yes branch enters `first`, which continues in series to `second`.
+        assert!(diagram.contains("n0 -->|\"yes\"| n1"));
+        assert!(diagram.contains("n1 --> n2"));
     }
 }
