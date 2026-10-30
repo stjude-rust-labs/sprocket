@@ -59,6 +59,8 @@ pub(crate) use cache_store::CacheLocation;
 pub(crate) use cache_store::initialize_cache_root;
 pub(crate) use cache_store::remove_cache_leaves;
 pub(crate) use cache_store::remove_cache_root;
+pub(crate) use checkout::MaterializeMode;
+pub(crate) use checkout::Materialized;
 pub(crate) use checkout::TreeLimits;
 pub(crate) use checkout::ensure_materialized;
 pub(crate) use creds::CredentialMode;
