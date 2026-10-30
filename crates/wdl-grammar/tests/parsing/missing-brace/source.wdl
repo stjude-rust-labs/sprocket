@@ -15,3 +15,19 @@ task bar {
     input {
     output {
 }
+
+task baz {
+    meta {
+        foo: {
+            bar: {}
+}
+
+task qux {
+    hints {
+        inputs: {
+            foo: {
+                bar: {
+                    baz: {
+                        qux: {
+                            quux: {
+}
