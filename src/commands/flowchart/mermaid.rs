@@ -24,8 +24,8 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 
 use crate::Config;
-use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::analysis::analyze_singular_source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 
@@ -33,6 +33,10 @@ use crate::commands::CommandResult;
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
+    /// The name of the workflow to render.
+    #[clap(short, long, value_name = "WORKFLOW")]
+    pub workflow: Option<String>,
+
     /// The path or URL to a `WDL` document containing the workflow.
     #[clap(value_name = "SOURCE")]
     pub source: Source,
@@ -52,28 +56,18 @@ pub struct Args {
 
 /// Runs the `dev flowchart mermaid` subcommand.
 pub async fn mermaid(args: Args, config: &Config, colorize: bool) -> CommandResult<()> {
-    if let Source::Directory(_) = args.source {
-        return Err(
-            anyhow!("directory sources are not supported for the `flowchart` command").into(),
-        );
-    }
-
     let report_mode = args.report_mode.unwrap_or_default();
-
-    let results = Analysis::default()
-        .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version.into())
-        .run(report_mode, colorize)
-        .await
-        .map_err(CommandError::from)?;
-
-    // SAFETY: we added `args.source` as the only source above.
-    let document = results
-        .filter(&[&args.source])
-        .next()
-        .unwrap()
-        .document()
-        .clone();
+    let document = analyze_singular_source(
+        &args.source,
+        config.common.wdl.fallback_version.into(),
+        config.modules.clone(),
+        config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
+        report_mode,
+        colorize,
+    )
+    .await
+    .map_err(CommandError::from)?;
 
     let errors: Vec<_> = document
         .diagnostics()
@@ -88,15 +82,31 @@ pub async fn mermaid(args: Args, config: &Config, colorize: bool) -> CommandResu
         return Err(anyhow!("source contains analysis errors").into());
     }
 
+    let local_workflows = document.local_workflows().count();
+    if local_workflows == 0 {
+        return Err(anyhow!("document does not contain any workflows").into());
+    } else if config.common.wdl.feature_flags.wdl_1_4()
+        && local_workflows > 1
+        && args.workflow.is_none()
+    {
+        return Err(anyhow!(
+            "document contains multiple workflows, specify one by name with `--workflow`"
+        )
+        .into());
+    }
+
     let ast_doc = document.root();
     let Ast::V1(v1) = ast_doc.ast() else {
         return Err(anyhow!("document does not use a supported WDL v1 version").into());
     };
 
-    let workflow = v1
-        .workflows()
-        .next()
-        .ok_or_else(|| anyhow!("document does not contain any workflows"))?;
+    let workflow = match args.workflow {
+        Some(wf) => v1
+            .workflows()
+            .find(|w| w.name().text() == wf)
+            .ok_or_else(|| anyhow!("document does not contain a workflow named `{wf}`"))?,
+        None => v1.workflows().next().expect("length verified before"),
+    };
 
     let diagram = render_mermaid(&workflow, &document, args.depth);
     println!("{diagram}");
@@ -647,6 +657,7 @@ fn escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analysis::Analysis;
 
     async fn render(source: &str, depth: Option<usize>) -> String {
         // SAFETY: the operating system can create a temporary directory for the
