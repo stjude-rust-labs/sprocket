@@ -31,6 +31,8 @@ use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumChoice;
+use wdl_ast::v1::ImportSource;
+use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::MetadataObject;
@@ -48,10 +50,10 @@ use crate::handlers::TypeEvalContext;
 use crate::handlers::common::comments_to_string;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
+use crate::handlers::common::provide_callable_documentation;
 use crate::handlers::common::provide_enum_documentation;
+use crate::handlers::common::provide_namespace_documentation;
 use crate::handlers::common::provide_struct_documentation;
-use crate::handlers::common::provide_task_documentation;
-use crate::handlers::common::provide_workflow_documentation;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
@@ -66,6 +68,7 @@ use crate::types::v1::ExprTypeEvaluator;
 /// hover information.
 ///
 /// Provides hover information by:
+///
 /// 1. Attempting to resolve the symbol based on its CST context.
 /// 2. Looking up the symbol in the current scope.
 /// 3. Checking for global definitions (tasks, workflows and structs) across the
@@ -94,7 +97,12 @@ pub fn hover(
     let offset = position_to_offset(&lines, position, encoding)?;
     let hovered_token = root
         .token_at_offset(offset)
-        .find(|t| t.kind() == SyntaxKind::Ident || t.kind() == SyntaxKind::Comment)
+        .find(|t| {
+            matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::Comment)
+                || (t.kind() == SyntaxKind::LiteralStringText
+                    && t.parent_ancestors()
+                        .any(|ancestor| ancestor.kind() == SyntaxKind::ImportStatementNode))
+        })
         .ok_or_else(|| anyhow!("no hoverable token found at offset"))?;
 
     let parent_node = hovered_token.parent().expect("token has no parent");
@@ -188,7 +196,8 @@ fn resolve_hover_by_context(
         for sibling in token.siblings_with_tokens(Direction::Next) {
             let target = match sibling {
                 SyntaxElement::Node(target) => target,
-                // Also lets line comments and directives through, like `wdl-doc`
+                // Also lets line comments and directives through, like
+                // `wdl-doc`
                 SyntaxElement::Token(token)
                     if token.kind() == SyntaxKind::Comment
                         || token.kind() == SyntaxKind::Whitespace =>
@@ -221,6 +230,27 @@ fn resolve_hover_by_context(
     }
 
     match parent_node.kind() {
+        SyntaxKind::ImportStatementNode => {
+            let import = ImportStatement::cast(parent_node.clone()).unwrap();
+
+            let Some((ns_name, _)) = import.namespace() else {
+                return Ok(None);
+            };
+
+            // Hovering the explicit namespace
+            if !import
+                .explicit_namespace()
+                .is_some_and(|ns| ns.span() == token.span())
+            {
+                return Ok(None);
+            }
+
+            let Some(ns) = document.namespace(&ns_name) else {
+                return Ok(None);
+            };
+
+            return Ok(provide_namespace_documentation(ns));
+        }
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
                 let root = if let Some(source) = s.source() {
@@ -278,14 +308,11 @@ fn resolve_hover_by_context(
                     if token.span() == name.span() {
                         (Some(ns), name)
                     } else if token.span() == ns.span() {
-                        if let Some(ns) = document.namespace(token.text()) {
-                            return Ok(Some(format!(
-                                "```wdl\n(import) {}\n```\nImports from `{}`",
-                                token.text(),
-                                ns.source()
-                            )));
-                        }
-                        return Ok(None);
+                        let Some(ns) = document.namespace(token.text()) else {
+                            return Ok(None);
+                        };
+
+                        return Ok(provide_namespace_documentation(ns));
                     } else {
                         return Ok(None);
                     }
@@ -306,15 +333,8 @@ fn resolve_hover_by_context(
                 document
             };
 
-            if let Some(task) = target_doc.task_by_name(callee_name.text()) {
-                return Ok(provide_task_documentation(&task, &target_doc.root()));
-            }
-
-            if let Some(workflow) = target_doc
-                .workflow()
-                .filter(|w| w.name() == callee_name.text())
-            {
-                return Ok(provide_workflow_documentation(workflow, &target_doc.root()));
+            if let Some(c) = target_doc.callable_by_name(callee_name.text()) {
+                return Ok(provide_callable_documentation(c, &target_doc.root()));
             }
         }
         SyntaxKind::AccessExprNode => {
@@ -507,6 +527,31 @@ fn resolve_hover_by_context(
                 }
             }
         }
+        SyntaxKind::LiteralStringNode => {
+            let Some(parent) = parent_node.parent() else {
+                return Ok(None);
+            };
+
+            // Hovering the import source string
+            let Some(import) = ImportStatement::cast(parent) else {
+                return Ok(None);
+            };
+
+            let Some((ns_name, _)) = import.namespace() else {
+                return Ok(None);
+            };
+
+            if !matches!(import.source(), ImportSource::Uri(source) if token.span().within(source.span()))
+            {
+                return Ok(None);
+            }
+
+            let Some(ns) = document.namespace(&ns_name) else {
+                return Ok(None);
+            };
+
+            return Ok(provide_namespace_documentation(ns));
+        }
         _ => debug!("hover is not implemented for {:?}", parent_node.kind()),
     }
 
@@ -515,17 +560,17 @@ fn resolve_hover_by_context(
 
 /// Finds hover information for a globally defined symbol within a [`Document`].
 fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<Option<String>> {
+    if let Some(ns) = document.namespace(token.text()) {
+        return Ok(provide_namespace_documentation(ns));
+    }
     if let Some(s) = document.struct_by_name(token.text()) {
         return Ok(provide_struct_documentation(&s, &document.root()));
     }
     if let Some(e) = document.enum_by_name(token.text()) {
         return Ok(provide_enum_documentation(&e, &document.root()));
     }
-    if let Some(t) = document.task_by_name(token.text()) {
-        return Ok(provide_task_documentation(&t, &document.root()));
-    }
-    if let Some(w) = document.workflow().filter(|w| w.name() == token.text()) {
-        return Ok(provide_workflow_documentation(w, &document.root()));
+    if let Some(c) = document.callable_by_name(token.text()) {
+        return Ok(provide_callable_documentation(c, &document.root()));
     }
     Ok(None)
 }
@@ -568,12 +613,7 @@ fn get_function_hover_content(
                 .collect::<Vec<_>>()
                 .join("\n---\n");
 
-            let docs = p
-                .signatures()
-                .iter()
-                .find(|s| s.minimum_version() <= v)
-                .and_then(|s| s.definition())
-                .unwrap_or("");
+            let docs = p.definition(v).unwrap_or("");
             (detail, docs)
         }
     };

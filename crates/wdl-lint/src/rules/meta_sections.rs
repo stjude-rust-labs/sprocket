@@ -12,6 +12,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Documented;
 use wdl_ast::Ident;
+use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -22,6 +23,7 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -68,38 +70,83 @@ impl fmt::Display for Context {
 const ID: &str = "MetaSections";
 
 /// Creates a "missing section" diagnostic.
-fn missing_section(name: Ident, section: Section, context: Context) -> Diagnostic {
-    Diagnostic::note(format!(
-        "{context} `{name}` is missing a `{section}` section",
-        name = name.text(),
-    ))
-    .with_rule(ID)
-    .with_label(
-        format!("this {context} is missing a `{section}` section"),
-        name.span(),
+fn missing_section(
+    severity: Severity,
+    name: Ident,
+    section: Section,
+    context: Context,
+    suggest_doc_comments: bool,
+) -> Diagnostic {
+    let (missing, fix) = match (suggest_doc_comments, section) {
+        (true, Section::Meta) => ("a doc comment", "add a doc comment describing the struct"),
+        (true, Section::ParameterMeta) => (
+            "a doc comment for every field of the struct",
+            "add a descriptive doc comment to each field of the struct",
+        ),
+        (false, Section::Meta) => ("a `meta` section", "add the missing section"),
+        (false, Section::ParameterMeta) => {
+            ("a `parameter_meta` section", "add the missing section")
+        }
+    };
+    Diagnostic::new(
+        severity,
+        format!(
+            "{context} `{name}` is missing {missing}",
+            name = name.text(),
+        ),
     )
-    .with_fix("add the missing section")
+    .with_rule(ID)
+    .with_label(format!("this {context} is missing {missing}"), name.span())
+    .with_fix(fix)
 }
 
 /// Creates a "missing sections" diagnostic.
-fn missing_sections(name: Ident, context: Context) -> Diagnostic {
-    Diagnostic::note(format!(
-        "{context} `{name}` is missing both `meta` and `parameter_meta` sections",
-        name = name.text(),
-    ))
-    .with_rule(ID)
-    .with_label(
-        format!("this {context} is missing both `meta` and `parameter_meta` sections"),
-        name.span(),
+fn missing_sections(
+    severity: Severity,
+    name: Ident,
+    context: Context,
+    suggest_doc_comments: bool,
+) -> Diagnostic {
+    let (missing, fix) = if suggest_doc_comments {
+        (
+            "a doc comment for the struct and each of the struct's fields",
+            "add a descriptive doc comment to the struct and to each of the struct's fields",
+        )
+    } else {
+        (
+            "both `meta` and `parameter_meta` sections",
+            "add both the `meta` and `parameter_meta` sections",
+        )
+    };
+    Diagnostic::new(
+        severity,
+        format!(
+            "{context} `{name}` is missing {missing}",
+            name = name.text(),
+        ),
     )
-    .with_fix("add both the `meta` and `parameter_meta` sections")
+    .with_rule(ID)
+    .with_label(format!("this {context} is missing {missing}"), name.span())
+    .with_fix(fix)
 }
 
 /// A lint rule for missing meta and parameter_meta sections.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct MetaSectionsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The version of the WDL document being linted.
     version: Option<SupportedVersion>,
+}
+
+impl MetaSectionsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.meta_sections.diagnostic_severity(),
+            version: Default::default(),
+        }
+    }
 }
 
 impl Rule for MetaSectionsRule {
@@ -108,14 +155,16 @@ impl Rule for MetaSectionsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections, \
-         or supplementary doc comments."
+        "Ensures that tasks, workflows, and structs have the required `meta` and `parameter_meta` \
+         sections, or supplementary doc comments."
     }
 
     fn explanation(&self) -> &'static str {
-        "It is important that WDL code is well-documented. Every task and workflow should be \
-         documented with both a meta and parameter_meta section, or doc comments. Tasks without an \
-         `input` section are permitted to skip the `parameter_meta` section."
+        "It is important that WDL code is well-documented. Every task, workflow and struct should \
+         be documented with both a meta and parameter_meta section, or doc comments. Tasks without \
+         an `input` section are permitted to skip the `parameter_meta` section. WDL 1.0/1.1 \
+         structs don't support the `meta` or `parameter_meta` sections but require doc comments \
+         instead."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -177,7 +226,7 @@ task say_hello {
     fn related_rules(&self) -> &'static [&'static str] {
         &[
             "MetaDescription",
-            "ParameterMetaMatched",
+            "MissingParameterMeta",
             "OutputSection",
             "RequirementsSection",
             "RuntimeSection",
@@ -208,26 +257,39 @@ impl MetaSectionsRule {
                 .any(|d| d.doc_comments().is_some_and(|c| !c.is_empty()))
         });
 
+        let suggest_doc_comments = context == Context::Struct
+            && self.version.expect("should have version") < SupportedVersion::V1(V1::Two);
+
         let needs_meta = meta.is_none() && !self_documented;
-        let needs_parameter_meta = (inputs_present && !inputs_documented
-            || context == Context::Struct)
-            && parameter_meta.is_none();
+        let needs_parameter_meta = inputs_present && !inputs_documented && parameter_meta.is_none();
 
         if needs_meta && needs_parameter_meta {
             diagnostics.exceptable_add(
-                missing_sections(name, context),
+                missing_sections(self.severity, name, context, suggest_doc_comments),
                 node.inner(),
                 &self.exceptable_nodes(),
             );
         } else if needs_meta {
             diagnostics.exceptable_add(
-                missing_section(name, Section::Meta, context),
+                missing_section(
+                    self.severity,
+                    name,
+                    Section::Meta,
+                    context,
+                    suggest_doc_comments,
+                ),
                 node.inner(),
                 &self.exceptable_nodes(),
             );
         } else if needs_parameter_meta {
             diagnostics.exceptable_add(
-                missing_section(name, Section::ParameterMeta, context),
+                missing_section(
+                    self.severity,
+                    name,
+                    Section::ParameterMeta,
+                    context,
+                    suggest_doc_comments,
+                ),
                 node.inner(),
                 &self.exceptable_nodes(),
             );
@@ -237,7 +299,7 @@ impl MetaSectionsRule {
 
 impl Visitor for MetaSectionsRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        self.version = Default::default();
     }
 
     fn document(
@@ -305,11 +367,6 @@ impl Visitor for MetaSectionsRule {
         def: &wdl_ast::v1::StructDefinition,
     ) {
         if reason == VisitReason::Exit {
-            return;
-        }
-
-        // Only check struct definitions for WDL >=1.2
-        if self.version.expect("should have version") < SupportedVersion::V1(V1::Two) {
             return;
         }
 

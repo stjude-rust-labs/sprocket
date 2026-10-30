@@ -9,6 +9,7 @@ use tracing::info;
 use tracing::warn;
 
 use super::CancellationContext;
+use crate::ContainerImageOverrides;
 use crate::Events;
 use crate::backend::TaskExecutionBackend;
 use crate::cache::CallCache;
@@ -61,6 +62,31 @@ impl Engine {
     where
         T: HttpClient + 'static,
     {
+        Self::new_with_http_client_and_backend(config, client, None).await
+    }
+
+    /// Constructs a new engine with the provided HTTP client and task backend.
+    #[cfg(test)]
+    pub(crate) async fn new_with_backend<T>(
+        config: Config,
+        client: T,
+        backend: Box<dyn TaskExecutionBackend>,
+    ) -> Result<Self>
+    where
+        T: HttpClient + 'static,
+    {
+        Self::new_with_http_client_and_backend(config, client, Some(backend)).await
+    }
+
+    /// Constructs a new engine with an optional task backend override.
+    async fn new_with_http_client_and_backend<T>(
+        config: Config,
+        client: T,
+        backend: Option<Box<dyn TaskExecutionBackend>>,
+    ) -> Result<Self>
+    where
+        T: HttpClient + 'static,
+    {
         config
             .validate()
             .await
@@ -68,9 +94,12 @@ impl Engine {
 
         let config = Arc::new(config);
 
-        let backend = Self::create_backend(config.clone())
-            .await
-            .context("failed to create task execution backend")?;
+        let backend = match backend {
+            Some(backend) => backend,
+            None => Self::create_backend(config.clone())
+                .await
+                .context("failed to create task execution backend")?,
+        };
 
         let call_cache = match config.task.cache {
             CallCachingMode::Off => {
@@ -109,8 +138,9 @@ impl Engine {
         &self,
         events: Events,
         cancellation: CancellationContext,
+        image_overrides: ContainerImageOverrides,
     ) -> v1::Evaluator {
-        v1::Evaluator::new(self, events, cancellation)
+        v1::Evaluator::new(self, events, cancellation, image_overrides)
     }
 
     /// Gets the configuration associated with the engine.

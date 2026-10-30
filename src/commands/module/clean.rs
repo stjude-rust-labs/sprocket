@@ -12,9 +12,9 @@ use super::project::discover;
 use super::project::require_lockfile;
 use super::project::trace_project;
 use super::resolver::ResolverEnvironment;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
 const CLEAN: Action = Action::new("Cleaned", "clean");

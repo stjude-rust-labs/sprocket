@@ -164,6 +164,7 @@
             cargo-sort
             cargo-msrv
             taplo
+            rumdl
 
             # Runtime dependency: sprocket invokes `shellcheck` for WDL
             # command-section linting and several tests assume it on PATH.

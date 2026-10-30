@@ -51,6 +51,7 @@ use tracing::trace;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -773,6 +774,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut required_cpu = requirements::cpu(inputs, requirements);
@@ -842,7 +844,12 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         Ok(TaskExecutionConstraints {
             sources,
@@ -1027,6 +1034,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 };
 
                 Ok(Some(TaskExecutionResult {
+                    execution_name_override: None,
                     image: Some(image),
                     exit_code: exit_code as i32,
                     work_dir: EvaluationPath::from_local_path(work_dir),
@@ -1075,7 +1083,7 @@ mod tests {
     fn monitor_continues_after_bjobs_error() {
         let mut state = MonitorState::new();
         let (completed_tx, mut completed_rx) = oneshot::channel();
-        state.add_job(42, 0, &Events::disabled(), completed_tx);
+        state.add_job(42, 0, &Events::default(), completed_tx);
         let state = Mutex::new(state);
 
         Monitor::handle_query_result(

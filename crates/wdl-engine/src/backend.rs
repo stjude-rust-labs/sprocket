@@ -14,12 +14,12 @@ use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::GuestPath;
+use crate::ImageSource;
 use crate::Object;
 use crate::TaskInputs;
 use crate::Value;
 use crate::digest::DigestCalculator;
 use crate::http::Location;
-use crate::v1::requirements::ImageSource;
 
 mod apptainer;
 mod docker;
@@ -35,6 +35,8 @@ pub use local::*;
 pub use lsf_apptainer::*;
 pub use slurm_apptainer::*;
 pub use tes::*;
+
+use crate::ContainerImageOverrides;
 
 /// The default root guest path for inputs.
 const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
@@ -306,6 +308,11 @@ impl<'a> ExecuteTaskRequest<'a> {
 /// Represents the result of a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionResult {
+    /// The final execution-name override when the backend ran the process
+    /// under a name other than [`ExecuteTaskRequest::name`].
+    ///
+    /// A value of `None` means the backend used the requested name unchanged.
+    pub execution_name_override: Option<String>,
     /// The container image source that was actually used for execution.
     ///
     /// If `None`, the task was not executed in a container.
@@ -337,6 +344,7 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints>;
 

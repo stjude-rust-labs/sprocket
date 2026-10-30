@@ -72,14 +72,15 @@ Options:
 
 Available rules:
   - BashSetSyntax
-  - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
   - ContainerUri
   - DeclarationName
   - DenyGlobStar
+  - DeprecatedInputKeyword
   - DeprecatedObject
   - DeprecatedPlaceholder
+  - DeprecatedRuntimeKey
   - DeprecatedRuntimeSection
   - DescriptionLength
   - DocCommentTabs
@@ -87,7 +88,8 @@ Available rules:
   - EmptyDocComment
   - EmptyOutputs
   - ExceptDirectiveValid
-  - ExpectedRuntimeKeys
+  - ExtraneousParameterMeta
+  - FlaggedComment
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
@@ -99,16 +101,23 @@ Available rules:
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder
+  - MissingParameterMeta
+  - MutableContainerTag
+  - NamingConvention
+  - OutputMetaOrder
   - OutputName
   - ParameterDescription
-  - ParameterMetaMatched
-  - PascalCase
+  - ParameterMetaOrder
+  - ParameterizedResources
+  - RecommendedRuntimeKeys
+  - RedundantContainerArray
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
   - ShellCheck
-  - SnakeCase
-  - TodoComment
+  - ShellSplitting
+  - StructOverMap
+  - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration
@@ -128,6 +137,5 @@ Available tags:
   - Performance
   - Portability
   - Sorting
-  - Spacing
   - SprocketCompatibility
   - Style

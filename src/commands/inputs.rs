@@ -21,9 +21,9 @@ use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
 
 use crate::Config;
-use crate::analysis::Analysis;
 use crate::analysis::Source;
-use crate::commands::CommandError;
+use crate::analysis::analyze_singular_source;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
 /// Arguments for the `inputs` subcommand.
@@ -46,7 +46,7 @@ pub struct Args {
     #[arg(long, conflicts_with = "show_non_literals")]
     pub hide_defaults: bool,
 
-    /// Generate inputs for all tasks called in the workflow.  
+    /// Generate inputs for all tasks called in the workflow.
     #[arg(long)]
     pub nested_inputs: bool,
 
@@ -425,17 +425,16 @@ impl InputProcessor {
                         }
                     }
                     CallKind::Workflow => {
-                        // An imported subworkflow.
-                        let name = call.name();
+                        let (document, name) = resolve_workflow_call(document, call)?;
                         let specified = call.specified();
 
-                        let document = document
-                            .namespace(
-                                call.namespace()
-                                    .expect("subworkflows will always have a namespace"),
-                            )
-                            .expect("referenced namespace should be present")
-                            .document();
+                        let analysis_wf =
+                            document.local_workflow_by_name(name).with_context(|| {
+                                format!(
+                                    "workflow `{name}` was not found in document `{document}`",
+                                    document = document.uri()
+                                )
+                            })?;
 
                         let ast = document
                             .root()
@@ -449,14 +448,15 @@ impl InputProcessor {
                         let workflow = ast
                             .workflows()
                             .find(|workflow| workflow.name().text() == name)
-                            .expect("referenced workflow to be present");
+                            .with_context(|| {
+                                format!(
+                                    "workflow `{name}` was not found in the AST for document \
+                                     `{document}`",
+                                    document = document.uri()
+                                )
+                            })?;
 
-                        self.workflow(
-                            namespace.clone(),
-                            document,
-                            document.workflow().expect("workflow to be present"),
-                            &workflow,
-                        )?;
+                        self.workflow(namespace.clone(), document, analysis_wf, &workflow)?;
 
                         // Any inputs specified by the workflow itself cannot be
                         // overridden.
@@ -473,30 +473,43 @@ impl InputProcessor {
     }
 }
 
+/// Resolves a workflow call to its defining document and name.
+fn resolve_workflow_call<'a>(
+    document: &'a Document,
+    call: &'a wdl::analysis::types::CallType,
+) -> Result<(&'a Document, &'a str)> {
+    let base = match call.namespace() {
+        Some(namespace) => document
+            .namespace(namespace)
+            .with_context(|| format!("namespace `{namespace}` was not found"))?
+            .document(),
+        None => document,
+    };
+
+    Ok(base
+        .imported_workflow_by_name(call.name())
+        .map(|workflow| (workflow.document(), workflow.name()))
+        .unwrap_or((base, call.name())))
+}
+
 /// Displays the input schema for a WDL document.
-pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let report_mode = config.common.report_mode;
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
 
-    let results = Analysis::default()
-        .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version.into())
-        .modules_config(config.modules.clone())
-        .feature_flags(config.common.wdl.feature_flags)
-        .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
-        .await
-        .map_err(CommandError::from)?;
-
-    let document = results
-        .filter(&[&source])
-        .next()
-        // SAFETY: the root source was added to the analysis above.
-        .unwrap()
-        .document();
+    let document = analyze_singular_source(
+        &source,
+        config.common.wdl.fallback_version.into(),
+        config.modules,
+        config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
+        report_mode,
+        output.colorize(),
+    )
+    .await?;
 
     let mut processor = InputProcessor::new(
         args.nested_inputs,
@@ -517,7 +530,10 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
     if let Some(target) = args.target {
         let namespace = Key::new(target.to_owned());
 
-        match (document.task_by_name(&target), document.workflow()) {
+        match (
+            document.local_task_by_name(&target),
+            document.local_workflow_by_name(&target),
+        ) {
             (Some(_), _) => {
                 let task = ast
                     .tasks()
@@ -529,14 +545,6 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
                 processor.task(namespace, &task, &Default::default());
             }
             (None, Some(analysis_wf)) => {
-                if analysis_wf.name() != target {
-                    return Err(anyhow!(
-                        "no task or workflow with name `{target}` was found in document `{path}`",
-                        path = document.path()
-                    )
-                    .into());
-                }
-
                 if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
                     return Err(anyhow!("workflow `{target}` does not allow nested inputs").into());
                 }
@@ -548,7 +556,7 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
                     // be found, so this should always unwrap.
                     .unwrap();
 
-                processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
+                processor.workflow(namespace, &document, analysis_wf, &ast_wf)?;
             }
             (None, None) => {
                 return Err(anyhow!(
@@ -558,49 +566,62 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
                 .into());
             }
         }
-    } else if let Some(analysis_wf) = document.workflow() {
-        let name = analysis_wf.name().to_owned();
-
-        if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
-            return Err(anyhow!("workflow `{name}` does not allow nested inputs").into());
+    } else {
+        let mut workflows = document.local_workflows();
+        let analysis_wf = workflows.next();
+        if workflows.next().is_some() {
+            return Err(anyhow!(
+                "document `{path}` contains more than one workflow: use the `--target` option to \
+                 refer to a specific workflow by name",
+                path = document.path()
+            )
+            .into());
         }
 
-        let namespace = Key::new(name.clone());
+        if let Some(analysis_wf) = analysis_wf {
+            let name = analysis_wf.name().to_owned();
 
-        let ast_wf = ast
-            .workflows()
-            .find(|workflow| workflow.name().text() == name)
-            // SAFETY: we just checked that a workflow with this name should
-            // be found, so this should always unwrap.
-            .unwrap();
+            if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
+                return Err(anyhow!("workflow `{name}` does not allow nested inputs").into());
+            }
 
-        processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
-    } else {
-        let mut tasks = document.tasks();
-        let first = tasks.next();
-        if tasks.next().is_some() {
-            return Err(anyhow!(
-                "document `{path}` contains more than one task: use the `--target` option to \
-                 refer to a specific task by name",
-                path = document.path()
-            )
-            .into());
-        } else if let Some(task) = first {
-            let namespace = Key::new(task.name().to_string());
+            let namespace = Key::new(name.clone());
 
-            let task = ast
-                .tasks()
-                .find(|t| t.name().text() == task.name())
-                // SAFETY: the task should be present, so this should always unwrap.
+            let ast_wf = ast
+                .workflows()
+                .find(|workflow| workflow.name().text() == name)
+                // SAFETY: we just checked that a workflow with this name should
+                // be found, so this should always unwrap.
                 .unwrap();
 
-            processor.task(namespace, &task, &Default::default());
+            processor.workflow(namespace, &document, analysis_wf, &ast_wf)?;
         } else {
-            return Err(anyhow!(
-                "document `{path}` contains no workflow or task",
-                path = document.path()
-            )
-            .into());
+            let mut tasks = document.local_tasks();
+            let first = tasks.next();
+            if tasks.next().is_some() {
+                return Err(anyhow!(
+                    "document `{path}` contains more than one task: use the `--target` option to \
+                     refer to a specific task by name",
+                    path = document.path()
+                )
+                .into());
+            } else if let Some(task) = first {
+                let namespace = Key::new(task.name().to_string());
+
+                let task = ast
+                    .tasks()
+                    .find(|t| t.name().text() == task.name())
+                    // SAFETY: the task should be present, so this should always unwrap.
+                    .unwrap();
+
+                processor.task(namespace, &task, &Default::default());
+            } else {
+                return Err(anyhow!(
+                    "document `{path}` contains no workflow or task",
+                    path = document.path()
+                )
+                .into());
+            }
         }
     }
 
@@ -608,10 +629,10 @@ pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult
 
     if args.yaml {
         let yaml = serde_yaml_ng::to_string(&inputs).context("failed to serialize inputs")?;
-        println!("{yaml}");
+        output.payload(yaml);
     } else {
         let json = serde_json::to_string_pretty(&inputs).context("failed to serialize inputs")?;
-        println!("{json}");
+        output.payload(json);
     }
 
     Ok(())

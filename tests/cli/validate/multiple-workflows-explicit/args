@@ -1,0 +1,1 @@
+-c sprocket.toml validate source.wdl --target second

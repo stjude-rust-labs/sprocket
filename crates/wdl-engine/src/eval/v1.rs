@@ -25,9 +25,12 @@ use wdl_analysis::Document;
 use wdl_analysis::types::EnumChoiceCacheKey;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::SupportedVersion;
+use wdl_ast::version::V1;
 
 use super::CancellationContext;
 use super::Events;
+use crate::ContainerImageOverrides;
 use crate::Engine;
 use crate::EngineEvent;
 use crate::EvaluationHttpClient;
@@ -37,6 +40,8 @@ use crate::Value;
 use crate::diagnostics::unknown_enum;
 use crate::diagnostics::unknown_enum_choice;
 use crate::digest::DigestCalculator;
+use crate::eval::RetryCause;
+use crate::eval::TaskConstraintsSnapshot;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.
@@ -53,6 +58,14 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
         .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
     serde_json::to_writer_pretty(BufWriter::new(file), value)
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))
+}
+
+/// Determines if a document's `File` values may be broken symbolic links.
+///
+/// WDL 1.4 `list` returns broken symbolic links as files, so they must remain
+/// valid after they are bound to declarations.
+fn allows_broken_symlinks(document: &Document) -> bool {
+    document.version() >= Some(SupportedVersion::V1(V1::Four))
 }
 
 /// The inner state of [`Evaluator`].
@@ -78,6 +91,10 @@ struct EvaluatorInner {
     regex_cache: Mutex<LruCache<String, Result<Regex, regex::Error>>>,
     /// The digest calculator to use for files and directories.
     digests: DigestCalculator,
+    /// Container image overrides.
+    ///
+    /// See [`ContainerImageOverrides`].
+    image_overrides: Arc<ContainerImageOverrides>,
 }
 
 /// Represents a WDL 1.x evaluator.
@@ -98,7 +115,12 @@ pub struct Evaluator(Arc<EvaluatorInner>);
 impl Evaluator {
     /// Constructs a new evaluator with the given engine, events, and
     /// cancellation context.
-    pub(crate) fn new(engine: &Engine, events: Events, cancellation: CancellationContext) -> Self {
+    pub(crate) fn new(
+        engine: &Engine,
+        events: Events,
+        cancellation: CancellationContext,
+        image_overrides: ContainerImageOverrides,
+    ) -> Self {
         let http_client = EvaluationHttpClient::new(engine, &events);
 
         let digests = DigestCalculator::new(
@@ -125,9 +147,15 @@ impl Evaluator {
                         .expect("expected a non-zero regex cache capacity"),
                 )),
                 digests,
+                image_overrides: Arc::new(image_overrides),
             }
             .into(),
         )
+    }
+
+    /// Gets the [`ContainerImageOverrides`] associated with the evaluator.
+    fn image_overrides(&self) -> &ContainerImageOverrides {
+        &self.0.image_overrides
     }
 
     /// Gets the [`Engine`] associated with the evaluator.
@@ -173,11 +201,12 @@ impl Evaluator {
     }
 
     /// Notifies that a task has started evaluating an execution attempt.
-    fn notify_task_initializing(&self, id: &str, name: &str) {
+    fn notify_task_initializing(&self, id: &str, name: &str, attempt: u64) {
         if let Some(sender) = &self.0.events.engine {
             let _ = sender.send(EngineEvent::TaskInitializing {
                 id: id.to_string(),
                 name: name.to_string(),
+                attempt,
             });
         }
     }
@@ -187,6 +216,28 @@ impl Evaluator {
         if let Some(sender) = &self.0.events.engine {
             let _ = sender.send(EngineEvent::TaskLocalizing {
                 name: name.to_string(),
+            });
+        }
+    }
+
+    /// Notifies that a task execution attempt is being submitted to the
+    /// backend.
+    fn notify_task_executing(&self, name: &str, constraints: TaskConstraintsSnapshot) {
+        if let Some(sender) = &self.0.events.engine {
+            let _ = sender.send(EngineEvent::TaskExecuting {
+                name: name.to_string(),
+                constraints,
+            });
+        }
+    }
+
+    /// Notifies that a task execution attempt failed and is being retried.
+    fn notify_task_retrying(&self, prior_name: &str, next_name: &str, cause: RetryCause) {
+        if let Some(sender) = &self.0.events.engine {
+            let _ = sender.send(EngineEvent::TaskRetrying {
+                prior_name: prior_name.to_string(),
+                next_name: next_name.to_string(),
+                cause,
             });
         }
     }

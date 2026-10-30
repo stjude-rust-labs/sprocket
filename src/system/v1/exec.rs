@@ -27,9 +27,11 @@ use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::analysis::Document as AnalysisDocument;
 use wdl::analysis::FeatureFlags;
+use wdl::analysis::document::TaskRef;
 use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
+use wdl::engine::ContainerImageOverrides;
 use wdl::engine::Engine;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -282,11 +284,14 @@ pub enum SelectTargetError {
     #[error("target not found: `{0}`")]
     TargetNotFound(String),
     /// No tasks or workflows in document.
-    #[error("a target cannot be inferred because the document contains no tasks and no workflow")]
-    NoExecutableTarget,
-    /// No workflows and multiple tasks in document.
     #[error(
-        "a target cannot be inferred because the document contains multiple tasks and no workflow"
+        "a target cannot be inferred because the document contains no local tasks or workflows"
+    )]
+    NoExecutableTarget,
+    /// Multiple executable targets in document.
+    #[error(
+        "a target cannot be inferred because the document contains multiple local executable \
+         targets; specify one by name"
     )]
     TargetRequired,
 }
@@ -296,8 +301,8 @@ pub enum SelectTargetError {
 /// The priority is set as follows:
 ///
 /// 1. If target provided, find workflow or task with that name
-/// 2. If no target, use workflow if present
-/// 3. If no target and no workflow, use single task if exactly one exists
+/// 2. If no target, use the workflow if exactly one is present
+/// 3. If no target and no workflow, use the single task if exactly one exists
 /// 4. Otherwise error
 pub fn select_target(
     document: &AnalysisDocument,
@@ -306,13 +311,11 @@ pub fn select_target(
     if let Some(target) = target {
         // An explicit target name was provided, attempt to find the workflow or
         // task by name
-        if let Some(workflow) = document.workflow()
-            && workflow.name() == target
-        {
+        if document.local_workflow_by_name(target).is_some() {
             return Ok(Target::Workflow(target.to_owned()));
         }
 
-        if document.task_by_name(target).is_some() {
+        if document.local_task_by_name(target).is_some() {
             return Ok(Target::Task(target.to_owned()));
         }
 
@@ -320,17 +323,20 @@ pub fn select_target(
     } else {
         // No explicit target name was provided, infer using the rules outlined
         // above
-        if let Some(workflow) = document.workflow() {
-            // Document has a workflow, use that as the target
-            Ok(Target::Workflow(workflow.name().to_owned()))
-        } else {
-            // No workflow was found, see if there is one task
-            let tasks = document.tasks().collect::<Vec<_>>();
-            match tasks.len() {
-                0 => Err(SelectTargetError::NoExecutableTarget),
-                1 => Ok(Target::Task(tasks[0].name().to_owned())),
-                _ => Err(SelectTargetError::TargetRequired),
-            }
+        let mut workflows = document.local_workflows();
+        let workflow = workflows.next();
+        if workflows.next().is_some() {
+            return Err(SelectTargetError::TargetRequired);
+        }
+        if let Some(workflow) = workflow {
+            return Ok(Target::Workflow(workflow.name().to_owned()));
+        }
+
+        let tasks = document.local_tasks().collect::<Vec<_>>();
+        match tasks.len() {
+            0 => Err(SelectTargetError::NoExecutableTarget),
+            1 => Ok(Target::Task(tasks[0].name().to_owned())),
+            _ => Err(SelectTargetError::TargetRequired),
         }
     }
 }
@@ -393,6 +399,8 @@ pub struct RunnableExecutor {
     report_mode: Mode,
     /// Whether to colorize diagnostics.
     colorize: bool,
+    /// See [`Evaluator`].image_overrides.
+    image_overrides: ContainerImageOverrides,
 }
 
 impl RunnableExecutor {
@@ -600,6 +608,7 @@ impl RunnableExecutor {
             self.engine,
             self.events,
             self.cancellation,
+            self.image_overrides,
             &resolved_target,
             inputs,
             &run_dir,
@@ -786,6 +795,8 @@ async fn execute_workflow_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
+    workflow_name: &str,
+    image_overrides: ContainerImageOverrides,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
@@ -816,17 +827,17 @@ async fn execute_workflow_target(
 
     // Resolve relative paths in inputs from `base_dir`
     let workflow = document
-        .workflow()
-        .context("document does not contain a workflow")?;
+        .local_workflow_by_name(workflow_name)
+        .with_context(|| format!("document does not contain workflow `{workflow_name}`"))?;
     inputs
-        .join_paths(workflow, |_| Ok(std::slice::from_ref(base_dir)))
+        .join_paths(document, workflow, &|_| Ok(std::slice::from_ref(base_dir)))
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = engine.create_v1_evaluator(events, cancellation);
+    let evaluator = engine.create_v1_evaluator(events, cancellation, image_overrides);
 
     match evaluator
-        .evaluate_workflow(document, inputs, run_dir.root())
+        .evaluate_workflow(document, workflow_name, inputs, run_dir.root())
         .await
     {
         Ok(outputs) => Ok(Some(outputs)),
@@ -852,6 +863,7 @@ async fn execute_task_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
+    image_overrides: ContainerImageOverrides,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
@@ -879,11 +891,13 @@ async fn execute_task_target(
 
     // Resolve relative paths in inputs from `base_dir`
     inputs
-        .join_paths(task, |_| Ok(std::slice::from_ref(base_dir)))
+        .join_paths(TaskRef::Local(task), &|_| {
+            Ok(std::slice::from_ref(base_dir))
+        })
         .await
         .context("failed to resolve input paths")?;
 
-    let evaluator = engine.create_v1_evaluator(events, cancellation);
+    let evaluator = engine.create_v1_evaluator(events, cancellation, image_overrides);
     let evaluated_task = match evaluator
         .evaluate_task(document, task, inputs, run_dir.root())
         .await
@@ -904,22 +918,23 @@ async fn execute_task_target(
 ///
 /// # Arguments
 ///
-/// - `db` is a reference to the database and is used to update various aspects
+/// * `db` - A reference to the database and is used to update various aspects
 ///   of the database as execution proceeds.
-/// - `ctx` is the context of the run created for this execution (run UUID, run
+/// * `ctx` - The context of the run created for this execution (run UUID, run
 ///   name, start time, etc).
-/// - `document` is the analysis document containing the task or workflow to
+/// * `document` - The analysis document containing the task or workflow to
 ///   execute.
-/// - `config` is the WDL engine configuration to use during evaluation.
-/// - `cancellation` is the cancellation context for this run.
-/// - `events` is the events system for progress reporting.
-/// - `target` is the target we are attempting to execute.
-/// - `inputs` is the unparsed version of the inputs as JSON.
-/// - `run_dir` is the run directory to output the results to.
-/// - `base_dir` is the directory from which relative paths in inputs should be
+/// * `config` - The WDL engine configuration to use during evaluation.
+/// * `cancellation` - The cancellation context for this run.
+/// * `events` - The events system for progress reporting.
+/// * `image_overrides` - Container image overrides, see [`ImageOverrideMap`].
+/// * `target` - The target we are attempting to execute.
+/// * `inputs` - The unparsed version of the inputs as JSON.
+/// * `run_dir` - The run directory to output the results to.
+/// * `base_dir` - The directory from which relative paths in inputs should be
 ///   resolved. For the server, this is typically the server's working
 ///   directory. For the CLI, paths should already be absolute.
-/// - `index_on` is the index path to index the run outputs under, if provided.
+/// * `index_on` - The index path to index the run outputs under, if provided.
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_target(
     db: Arc<dyn Database>,
@@ -928,6 +943,7 @@ pub async fn execute_target(
     engine: Engine,
     events: Events,
     cancellation: CancellationContext,
+    image_overrides: ContainerImageOverrides,
     target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
@@ -948,6 +964,7 @@ pub async fn execute_target(
                     engine,
                     events,
                     cancellation.clone(),
+                    image_overrides,
                     target,
                     inputs,
                     run_dir,
@@ -955,7 +972,7 @@ pub async fn execute_target(
                 )
                 .await
             }
-            Target::Workflow(_) => {
+            Target::Workflow(workflow_name) => {
                 execute_workflow_target(
                     db.as_ref(),
                     ctx,
@@ -963,6 +980,8 @@ pub async fn execute_target(
                     engine,
                     events,
                     cancellation,
+                    workflow_name,
+                    image_overrides,
                     inputs,
                     run_dir,
                     base_dir,

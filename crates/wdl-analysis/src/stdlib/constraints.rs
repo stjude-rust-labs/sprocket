@@ -29,7 +29,7 @@ pub struct SizeableConstraint;
 
 impl Constraint for SizeableConstraint {
     fn description(&self) -> &'static str {
-        "any compound type that recursively contains a `File` or `Directory`"
+        "any compound type that recursively contains a file system path"
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
@@ -65,7 +65,8 @@ impl Constraint for SizeableConstraint {
                     // runtime constraint
                     true
                 }
-                // Treat unions as sizable as they can only be checked at runtime
+                // Treat unions as sizable as they can only be checked at
+                // runtime
                 Type::Union | Type::None => true,
                 Type::Hidden(_) | Type::Call(_) | Type::TypeNameRef(_) => false,
             }
@@ -144,7 +145,8 @@ impl Constraint for JsonSerializableConstraint {
         /// Determines if the given type is JSON serializable.
         fn type_is_serializable(ty: &Type) -> bool {
             match ty {
-                // Treat objects and unions as sizable as they can only be checked at runtime
+                // Treat objects and unions as sizable as they can only be
+                // checked at runtime
                 Type::Primitive(..)
                 | Type::Object
                 | Type::OptionalObject

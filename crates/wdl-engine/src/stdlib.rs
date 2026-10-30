@@ -45,6 +45,7 @@ mod glob;
 mod join_paths;
 mod keys;
 mod length;
+mod list;
 mod matches;
 mod max;
 mod min;
@@ -391,6 +392,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             func!(join_paths),
             func!(glob),
             func!(size),
+            func!(list),
             func!(stdout),
             func!(stderr),
             func!(read_string),

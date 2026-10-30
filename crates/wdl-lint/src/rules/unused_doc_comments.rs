@@ -8,11 +8,13 @@ use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::CommentKind;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::TreeToken;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -21,14 +23,27 @@ use crate::TagSet;
 const ID: &str = "UnusedDocComments";
 
 /// Creates a diagnostic for a misplaced doc comment.
-fn unused_doc_comment_diagnostic(comment_span: Span, target_span: Option<Span>) -> Diagnostic {
-    let diagnostic = Diagnostic::note("unused doc comment")
+fn unused_doc_comment_diagnostic(
+    severity: Severity,
+    comment_span: Span,
+    target_span: Option<Span>,
+    valid_target: bool,
+    floating: bool,
+) -> Diagnostic {
+    let mut diagnostic = Diagnostic::new(severity, "unused doc comment")
         .with_rule(ID)
-        .with_highlight(comment_span)
-        .with_fix(
+        .with_highlight(comment_span);
+
+    if valid_target {
+        assert!(floating);
+        diagnostic =
+            diagnostic.with_help("doc comments must be attached to the item to be recognized");
+    } else {
+        diagnostic = diagnostic.with_fix(
             "if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this \
              comment so it documents the intended item",
         );
+    }
 
     if let Some(target_span) = target_span {
         diagnostic.with_label(
@@ -42,8 +57,10 @@ fn unused_doc_comment_diagnostic(comment_span: Span, target_span: Option<Span>) 
 
 /// Detects whether a doc comment has been placed atop a Node that we do not
 /// generate documentation for.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct UnusedDocCommentsRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
     /// The number of comment tokens to skip.
     ///
     /// This is used when consolidating multiple comments into a single
@@ -70,6 +87,9 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
     SyntaxKind::BoundDeclNode,
 ];
 
+/// [`SyntaxKind`]s that are allowed to have floating doc comments.
+const VALID_SYNTAX_KINDS_FOR_FLOATING_COMMENTS: &[SyntaxKind] = &[SyntaxKind::VersionStatementNode];
+
 /// Determines whether the SyntaxNodeOrToken is a valid target for a doc
 /// comment.
 fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
@@ -89,14 +109,43 @@ fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
     VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS.contains(&kind)
 }
 
+/// The element targeted by a doc comment.
+struct DocCommentTarget {
+    /// The target element.
+    element: SyntaxElement,
+    /// Whether the comment is detached from the target.
+    floating: bool,
+}
+
 /// Finds the first non-trivia [`SyntaxElement`] in the comment's siblings
 /// to determine what this doc comment is targeting.
-fn search_siblings_for_doc_comment_target(comment: &Comment) -> Option<SyntaxElement> {
+fn search_siblings_for_doc_comment_target(comment: &Comment) -> Option<DocCommentTarget> {
     let mut next = comment.inner().next_sibling_or_token();
+    let mut floating = false;
     while let Some(sibling) = next {
         next = sibling.next_sibling_or_token();
-        if !sibling.kind().is_trivia() {
-            return Some(sibling);
+        match &sibling {
+            SyntaxElement::Node(_) => {
+                return Some(DocCommentTarget {
+                    element: sibling,
+                    floating,
+                });
+            }
+            SyntaxElement::Token(t) => match t.kind() {
+                SyntaxKind::Whitespace => {
+                    let lines = t.text().chars().filter(|c| *c == '\n').count();
+                    if !floating {
+                        floating = lines > 1;
+                    }
+                }
+                SyntaxKind::Comment => {}
+                _ => {
+                    return Some(DocCommentTarget {
+                        element: sibling,
+                        floating,
+                    });
+                }
+            },
         }
     }
     None
@@ -132,45 +181,92 @@ fn get_span_of_first_token_for_syntax_element(element: &SyntaxElement) -> Span {
 }
 
 impl UnusedDocCommentsRule {
+    /// Collects all doc comments in the block containing `comment`.
+    ///
+    /// Returns the span of the entire comment block.
+    fn collect_consecutive_doc_comments(&mut self, comment: &Comment) -> Span {
+        let mut next = comment.inner().next_sibling_or_token();
+        let mut span_end = comment.span().end();
+        while let Some(sibling) = next {
+            next = sibling.next_sibling_or_token();
+            if sibling.kind() == SyntaxKind::Whitespace {
+                let lines = sibling
+                    .as_token()
+                    .unwrap()
+                    .text()
+                    .chars()
+                    .filter(|c| *c == '\n')
+                    .count();
+                if lines > 1 {
+                    break;
+                }
+                continue;
+            }
+            if let Some(continued_comment) =
+                sibling.as_token().and_then(|t| Comment::cast(t.clone()))
+            {
+                self.skip_count += 1;
+                span_end = continued_comment.span().end();
+                continue;
+            }
+            break;
+        }
+
+        Span::new(comment.span().start(), span_end - comment.span().start())
+    }
+
     /// Produces an unused doc comment diagnostic for the doc comment block
     /// starting at `comment`. Updates `skip_count` along the way.
     fn lint_next_doc_comment_block(
         &mut self,
         diagnostics: &mut Diagnostics,
         comment: &Comment,
-        target_span: Option<Span>,
+        target: Option<DocCommentTarget>,
     ) {
-        let mut next = comment.inner().next_sibling_or_token();
-        let mut span_end = comment.span().end();
-        while let Some(sibling) = next {
-            next = sibling.next_sibling_or_token();
+        let (mut target_span, floating) = target
+            .as_ref()
+            .map(|target| {
+                (
+                    Some(get_span_of_first_token_for_syntax_element(&target.element)),
+                    target.floating,
+                )
+            })
+            .unwrap_or((None, false));
+        let valid_target = target
+            .as_ref()
+            .is_some_and(|t| valid_target_for_doc_comment(&t.element));
+        let valid_floater = target
+            .as_ref()
+            .is_some_and(|t| VALID_SYNTAX_KINDS_FOR_FLOATING_COMMENTS.contains(&t.element.kind()));
 
-            if sibling.kind() == SyntaxKind::Whitespace {
-                continue;
-            }
-
-            if let Some(continued_comment) =
-                sibling.as_token().and_then(|t| Comment::cast(t.clone()))
-                && continued_comment.kind() == CommentKind::Documentation
-            {
-                self.skip_count += 1;
-                span_end = continued_comment.span().end();
-                continue;
-            } else {
-                diagnostics.add(unused_doc_comment_diagnostic(
-                    Span::new(comment.span().start(), span_end - comment.span().start()),
-                    target_span,
-                ));
-                return;
-            }
+        let block_span = self.collect_consecutive_doc_comments(comment);
+        if valid_target && (!floating || valid_floater) {
+            return; // Valid doc comment
         }
 
-        // If the doc comment block extends to the end of the token stream,
-        // we won't add a diagnostic above. Add one here.
+        // Floaters targeting nodes that don't allow floaters should be linted
+        // separately, without targeting the node below them.
+        if floating && !valid_floater {
+            target_span = None;
+        }
+
         diagnostics.add(unused_doc_comment_diagnostic(
-            Span::new(comment.span().start(), span_end - comment.span().start()),
+            self.severity,
+            block_span,
             target_span,
+            valid_target,
+            floating,
         ));
+    }
+}
+
+impl UnusedDocCommentsRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.unused_doc_comments.diagnostic_severity(),
+            skip_count: Default::default(),
+        }
     }
 }
 
@@ -180,7 +276,8 @@ impl Rule for UnusedDocCommentsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Reports doc comments that are attached to WDL items that don't support them."
+        "Reports doc comments that are either floating or attached to WDL items that don't support \
+         them."
     }
 
     fn explanation(&self) -> &'static str {
@@ -196,7 +293,11 @@ impl Rule for UnusedDocCommentsRule {
         - Fields in Input Sections
         - Fields in Output Sections
         - Enum Definitions
-        - Enum Choices"
+        - Enum Choices
+
+        Additionally, outside the preamble, doc comments must immediately precede the item they \
+         intend to document with no blank lines between, otherwise they are considered \
+         \"floating\"."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -274,24 +375,16 @@ impl Visitor for UnusedDocCommentsRule {
             && let Some(target) = find_inline_doc_comment_target(comment)
         {
             diagnostics.add(unused_doc_comment_diagnostic(
+                self.severity,
                 comment.span(),
                 Some(get_span_of_first_token_for_syntax_element(&target)),
+                false,
+                false,
             ));
             return;
         }
 
         let target = search_siblings_for_doc_comment_target(comment);
-        if target
-            .as_ref()
-            .is_none_or(|t| !valid_target_for_doc_comment(t))
-        {
-            self.lint_next_doc_comment_block(
-                diagnostics,
-                comment,
-                target
-                    .as_ref()
-                    .map(get_span_of_first_token_for_syntax_element),
-            );
-        }
+        self.lint_next_doc_comment_block(diagnostics, comment, target);
     }
 }

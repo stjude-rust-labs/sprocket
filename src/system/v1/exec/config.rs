@@ -22,6 +22,10 @@ pub enum ConfigError {
     /// Failed to canonicalize file path.
     #[error("failed to canonicalize path `{0}`")]
     FailedToCanonicalize(PathBuf),
+
+    /// The `file://` schemed URL is invalid.
+    #[error("invalid file URL `{0}`")]
+    InvalidFileUrl(Url),
 }
 
 /// Result type for configuration operations.

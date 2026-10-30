@@ -66,6 +66,7 @@ use wdl_grammar::parser::ParserToken;
 use crate::Document;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
+use crate::document::Callable;
 use crate::document::ScopeRef;
 use crate::document::TASK_VAR_NAME;
 use crate::graph::DocumentGraph;
@@ -74,10 +75,9 @@ use crate::handlers::TypeEvalContext;
 use crate::handlers::common::make_md_docs;
 use crate::handlers::common::position;
 use crate::handlers::common::position_to_offset;
+use crate::handlers::common::provide_callable_documentation;
 use crate::handlers::common::provide_enum_documentation;
 use crate::handlers::common::provide_struct_documentation;
-use crate::handlers::common::provide_task_documentation;
-use crate::handlers::common::provide_workflow_documentation;
 use crate::handlers::snippets;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
@@ -98,6 +98,7 @@ use crate::types::v1::task_requirement_types;
 /// are filtered by any partial word already typed at the cursor position.
 ///
 /// Provides context-aware suggestions by:
+///
 /// 1. Determining if the cursor is in a member access context (i.e. after a `.`
 ///    dot)
 /// 2. Walking up the CST to find the appropriate completion context
@@ -202,7 +203,7 @@ pub fn completion(
                     add_struct_completions(document, scope, &mut items);
                     add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, &mut items);
+                    add_callable_completions(document, true, &mut items);
                     break;
                 }
                 SyntaxKind::ScatterStatementNode | SyntaxKind::ConditionalStatementNode => {
@@ -215,7 +216,7 @@ pub fn completion(
                     add_struct_completions(document, scope, &mut items);
                     add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, &mut items);
+                    add_callable_completions(document, true, &mut items);
                     break;
                 }
 
@@ -342,53 +343,7 @@ fn add_member_access_completions(
         && token.kind() == SyntaxKind::Ident
         && let Some(ns) = document.namespace(token.text())
     {
-        let ns_root = ns.document().root();
-        let ns_doc_version = document.version();
-        for task in ns.document().tasks() {
-            items.push(CompletionItem {
-                label: task.name().to_string(),
-                kind: Some(CompletionItemKind::FUNCTION),
-                detail: Some(format!("task {}", task.name())),
-                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
-                ..Default::default()
-            });
-
-            let snippet = build_call_snippet(task.name(), &task.inputs(), ns_doc_version);
-            items.push(CompletionItem {
-                label: format!("{} {{...}}", task.name()),
-                kind: Some(CompletionItemKind::SNIPPET),
-                detail: Some(format!("call task {} with required inputs", task.name())),
-                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
-                insert_text_format: Some(InsertTextFormat::SNIPPET),
-                insert_text: Some(snippet),
-                filter_text: Some(task.name().to_string()),
-                ..Default::default()
-            })
-        }
-
-        if let Some(workflow) = ns.document().workflow() {
-            let name = workflow.name();
-            items.push(CompletionItem {
-                label: name.to_string(),
-                kind: Some(CompletionItemKind::FUNCTION),
-                detail: Some(format!("workflow {}", name)),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
-                    .and_then(make_md_docs),
-                ..Default::default()
-            });
-            let snippet = build_call_snippet(name, workflow.inputs(), ns_doc_version);
-            items.push(CompletionItem {
-                label: format!("{} {{...}}", name),
-                kind: Some(CompletionItemKind::SNIPPET),
-                detail: Some(format!("call workflow {} with required inputs", name)),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
-                    .and_then(make_md_docs),
-                insert_text_format: Some(InsertTextFormat::SNIPPET),
-                insert_text: Some(snippet),
-                ..Default::default()
-            });
-        }
-
+        add_callable_completions(ns.document(), false, items);
         return Ok(());
     }
 
@@ -633,105 +588,64 @@ fn add_member_access_completions(
 /// Adds completions for callable items available in the current document.
 ///
 /// Includes both local and imported tasks and workflows.
-fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>) {
-    let root_node = document.root();
-    let version = document.version();
+fn add_callable_completions(
+    document: &Document,
+    prefix_namespaces: bool,
+    items: &mut Vec<CompletionItem>,
+) {
+    fn inner<F>(mut label: F, document: &Document, items: &mut Vec<CompletionItem>)
+    where
+        F: FnMut(Callable<'_>) -> String,
+    {
+        let version = document.version();
 
-    for task in document.tasks() {
-        let name = task.name();
-        items.push(CompletionItem {
-            label: name.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
-            detail: Some(format!("task {}", name)),
-            documentation: provide_task_documentation(&task, &root_node).and_then(make_md_docs),
-            ..Default::default()
-        });
+        for callable in document.callables() {
+            let ty = match callable {
+                Callable::Task(_) => "task",
+                Callable::Workflow(_) => "workflow",
+            };
 
-        let snippet = build_call_snippet(name, &task.inputs(), version);
-        items.push(CompletionItem {
-            label: format!("{} {{...}}", name),
-            kind: Some(CompletionItemKind::SNIPPET),
-            detail: Some(format!("call task {} with required inputs", name)),
-            documentation: provide_task_documentation(&task, &root_node).and_then(make_md_docs),
-            insert_text_format: Some(InsertTextFormat::SNIPPET),
-            insert_text: Some(snippet),
-            ..Default::default()
-        });
+            let label = label(callable);
+
+            items.push(CompletionItem {
+                label: label.clone(),
+                kind: Some(CompletionItemKind::FUNCTION),
+                detail: Some(ty.to_string()),
+                documentation: provide_callable_documentation(callable, &document.root())
+                    .and_then(make_md_docs),
+                ..Default::default()
+            });
+
+            let snippet = build_call_snippet(&label, &callable.inputs(), version);
+            items.push(CompletionItem {
+                label: format!("{label} {{...}}"),
+                kind: Some(CompletionItemKind::SNIPPET),
+                detail: Some(format!("call {ty} {label} with required inputs")),
+                documentation: provide_callable_documentation(callable, &document.root())
+                    .and_then(make_md_docs),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
+                insert_text: Some(snippet),
+                ..Default::default()
+            });
+        }
     }
-    if let Some(workflow) = document.workflow() {
-        let name = workflow.name();
-        items.push(CompletionItem {
-            label: name.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
-            detail: Some(format!("workflow {}", name)),
-            documentation: provide_workflow_documentation(workflow, &root_node)
-                .and_then(make_md_docs),
-            ..Default::default()
-        });
 
-        let snippet = build_call_snippet(name, workflow.inputs(), version);
-        items.push(CompletionItem {
-            label: format!("{} {{...}}", name),
-            kind: Some(CompletionItemKind::SNIPPET),
-            detail: Some(format!("call task {} with required_inputs", name)),
-            documentation: provide_workflow_documentation(workflow, &root_node)
-                .and_then(make_md_docs),
-            insert_text_format: Some(InsertTextFormat::SNIPPET),
-            insert_text: Some(snippet),
-            ..Default::default()
-        });
-    }
+    inner(|callable| callable.name().to_string(), document, items);
 
     for ns in document.namespaces() {
-        let ns_root = ns.document().root();
-
-        for task in ns.document().tasks() {
-            let name = task.name();
-            let label = format!("{}.{name}", ns.name());
-            items.push(CompletionItem {
-                label: label.clone(),
-                kind: Some(CompletionItemKind::FUNCTION),
-                detail: Some("task".to_string()),
-                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
-                ..Default::default()
-            });
-
-            let snippet = build_call_snippet(&label, &task.inputs(), version);
-            items.push(CompletionItem {
-                label: format!("{} {{...}}", label),
-                kind: Some(CompletionItemKind::SNIPPET),
-                detail: Some(format!("call task {} with required inputs", label)),
-                documentation: provide_task_documentation(&task, &ns_root).and_then(make_md_docs),
-                insert_text_format: Some(InsertTextFormat::SNIPPET),
-                insert_text: Some(snippet),
-                ..Default::default()
-            });
-        }
-        if let Some(workflow) = ns.document().workflow() {
-            let name = workflow.name();
-            let label = format!("{}.{name}", ns.name());
-
-            items.push(CompletionItem {
-                label: label.clone(),
-                kind: Some(CompletionItemKind::FUNCTION),
-                detail: Some("workflow".to_string()),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
-                    .and_then(make_md_docs),
-                ..Default::default()
-            });
-
-            let snippet = build_call_snippet(&label, workflow.inputs(), version);
-            items.push(CompletionItem {
-                label: format!("{} {{...}}", label),
-                kind: Some(CompletionItemKind::SNIPPET),
-                detail: Some(format!("call workflow {} with required inputs", label)),
-                documentation: provide_workflow_documentation(workflow, &ns_root)
-                    .and_then(make_md_docs),
-                insert_text_format: Some(InsertTextFormat::SNIPPET),
-                insert_text: Some(snippet),
-                ..Default::default()
-            });
-        }
+        inner(
+            |callable| {
+                if prefix_namespaces {
+                    format!("{}.{}", ns.name(), callable.name())
+                } else {
+                    // Namespaces are at most one level. Any imports *within* a
+                    // namespace are merged into the namespace.
+                    callable.name().to_string()
+                }
+            },
+            ns.document(),
+            items,
+        );
     }
 }
 
@@ -792,16 +706,16 @@ fn add_stdlib_completions(version: Option<SupportedVersion>, items: &mut Vec<Com
                 })
             }
             Function::Polymorphic(p) => {
+                let docs = p.definition(v).and_then(|d| make_md_docs(d.to_string()));
                 for sig in p.signatures().iter().filter(|s| s.minimum_version() <= v) {
                     let params = TypeParameters::new(sig.type_parameters());
                     let detail = Some(format!("{name}{}", sig.display(&params)));
-                    let docs = sig.definition().and_then(|d| make_md_docs(d.to_string()));
                     let snippet = build_function_snippet(name, sig);
                     items.push(CompletionItem {
                         label: name.to_string(),
                         kind: Some(CompletionItemKind::FUNCTION),
                         detail,
-                        documentation: docs,
+                        documentation: docs.clone(),
                         insert_text_format: Some(InsertTextFormat::SNIPPET),
                         insert_text: Some(snippet),
                         ..Default::default()

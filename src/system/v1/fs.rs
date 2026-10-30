@@ -23,7 +23,7 @@ const INDEX_DIR: &str = "index";
 const INPUTS_FILE: &str = "inputs.json";
 
 /// Output file name.
-const OUTPUTS_FILE: &str = "outputs.json";
+pub(crate) const OUTPUTS_FILE: &str = "outputs.json";
 
 /// Root directory for all workflow outputs and indices.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,0 +1,1 @@
+test -f loose -qq --no-status

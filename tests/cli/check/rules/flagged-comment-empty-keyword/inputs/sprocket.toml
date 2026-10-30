@@ -1,0 +1,3 @@
+[check.rules.FlaggedComment]
+severity = "note"
+keywords = ["TODO", ""]

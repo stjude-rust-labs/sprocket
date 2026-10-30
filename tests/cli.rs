@@ -6,21 +6,23 @@
 //! These directories can be arbitrarily nested to group similar tests together.
 //!
 //! Each test can contain the following files (but all are optional):
-//!   * `args` - entrypoint of each test; contains the arguments to pass to
-//!     `sprocket` (without "sprocket").
-//!   * `inputs` - a directory containing the starting files that the test will
-//!     run with. The contents of this directory are copied to a temp directory
-//!     and the temporary directory used as the command's working directory.
-//!   * `outputs` - a directory containing the expected ending files that the
-//!     temp directory will contain. If a test does not need to verify the
-//!     resulting directory contents, it may omit an `outputs` directory.
-//!   * `stdout` - the expected stdout from the task.
-//!   * `stderr` - the expected stderr from the task.
-//!   * `exit_code` - the expected exit code from the task.
+//!
+//! * `args` - entrypoint of each test; contains the arguments to pass to
+//!   `sprocket` (without "sprocket").
+//! * `inputs` - a directory containing the starting files that the test will
+//!   run with. The contents of this directory are copied to a temp directory
+//!   and the temporary directory used as the command's working directory.
+//! * `outputs` - a directory containing the expected ending files that the temp
+//!   directory will contain. If a test does not need to verify the resulting
+//!   directory contents, it may omit an `outputs` directory.
+//! * `stdout` - the expected stdout from the task.
+//! * `stderr` - the expected stderr from the task.
+//! * `exit_code` - the expected exit code from the task.
 //!
 //! The expected files may be automatically generated or updated by setting the
 //! `BLESS` environment variable when running this test.
 
+use std::collections::HashMap;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -56,8 +58,24 @@ static UUID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 static WINDOWS_DRIVE_PATH_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"`([A-Za-z]:(?:[\\/]+[^\s\\/`]+)+[\\/]*)`"#).unwrap());
 
+/// Backtick-quoted paths starting with `_TEMP_DIR_` in human-readable
+/// diagnostics.
+static TEMP_DIR_PATH_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"`(_TEMP_DIR_(?:[\\/]+[^\s\\/`]+)*[\\/]*)`"#).unwrap());
+
 /// Binary file extensions that should only be checked for existence.
 const BINARY_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
+
+/// File names whose contents are inherently run-specific (e.g. random run
+/// names, wall times) and should only be checked for existence.
+const EXISTENCE_ONLY_FILES: &[&str] = &["metrics.json"];
+
+/// Canonical contents for textual files whose contents are not compared.
+const EXISTENCE_ONLY_PLACEHOLDER: &str = concat!(
+    "{\n",
+    "  \"note\": \"contents are run-specific and not compared; only presence is checked\"\n",
+    "}\n",
+);
 
 /// Transient file suffixes that should be removed during `BLESS`.
 const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal"];
@@ -112,22 +130,10 @@ fn run_test(test_path: &Path, test_name: String) -> Result<()> {
     let command_output = run_sprocket(test_path, working_test_directory.path())
         .context("failed to run sprocket command")?;
 
-    // Canonicalize the temp directory path before using it for output
-    // normalization/comparison. On macOS, `/var` is a symlink to
-    // `/private/var`, so the path returned by `TempDir::new()` (e.g.
-    // `/var/folders/...`) differs from the path the OS actually reports
-    // back in subprocess output (e.g. `/private/var/folders/...`).
-    // Canonicalizing here ensures the literal string replace in
-    // `normalize_string` matches what the test binary actually prints.
-    let canonical_working_directory = working_test_directory
-        .path()
-        .canonicalize()
-        .context("failed to canonicalize working test directory")?;
-
     compare_test_results(
         test_path,
         &test_name,
-        &canonical_working_directory,
+        working_test_directory.path(),
         &command_output,
     )
 }
@@ -200,6 +206,41 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let mut command = Command::new(sprocket_exe);
     let config_root = TempDir::new().context("failed to create isolated config root")?;
 
+    let env_path = test_path.join("env");
+
+    let mut custom_envs = HashMap::new();
+    if env_path.exists() {
+        let env_string = fs::read_to_string(&env_path)
+            .with_context(|| format!("failed to read env at path {env_path:?}"))?;
+
+        for env in env_string
+            .lines()
+            .map(str::trim)
+            .filter(|s| !s.is_empty() && !s.starts_with('#'))
+        {
+            let Some((var, value)) = env.split_once('=') else {
+                bail!("invalid env var `{env}` in path {env_path:?}")
+            };
+
+            custom_envs.insert(
+                var.to_string(),
+                shellexpand::full_with_context(
+                    value,
+                    || dirs::home_dir()?.into_os_string().into_string().ok(),
+                    |var| {
+                        if var == "CARGO_MANIFEST_DIR" {
+                            // Used by the nested-input-expansion test
+                            return Ok(Some(String::from(env!("CARGO_MANIFEST_DIR"))));
+                        }
+
+                        env::var(var).map(Some)
+                    },
+                )?
+                .to_string(),
+            );
+        }
+    }
+
     let env_config = resolve_env_config(test_path)?;
     if let Some(env_config) = env_config.as_ref() {
         // If an overridden config has been specified via environment variables,
@@ -212,6 +253,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let result = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .envs(custom_envs)
         .env("SPROCKET_CONFIG_ROOT", config_root.path())
         .env("RUST_LOG", "none")
         .env_remove("RUST_BACKTRACE")
@@ -287,16 +329,8 @@ fn normalize_windows_drive_path(path: &str) -> String {
 }
 
 /// Normalizes a string for OS platform differences and dynamic content.
-fn normalize_string(input: &str, temp_dir: &Path) -> String {
-    // Replace native, JSON-escaped, and slash-normalized forms of the temporary
-    // directory without rewriting unrelated backslashes or URL delimiters.
-    let temp_dir = temp_dir.to_string_lossy();
-    let escaped_temp_dir = temp_dir.replace('\\', "\\\\");
-    let slash_temp_dir = temp_dir.replace('\\', "/");
-    let mut s = input
-        .replace(escaped_temp_dir.as_str(), "_TEMP_DIR_")
-        .replace(slash_temp_dir.as_str(), "_TEMP_DIR_")
-        .replace(temp_dir.as_ref(), "_TEMP_DIR_")
+fn normalize_string(input: &str, temp_dir: &Path, normalize_container_images: bool) -> String {
+    let mut s = normalize_temp_dir(input, temp_dir)
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
         .replace("sprocket.exe", "sprocket");
@@ -326,9 +360,75 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
         format!("`{path}`")
     });
 
+    // Same as above, except for paths that were already normalized
+    let s = TEMP_DIR_PATH_PATTERN.replace_all(&s, |captures: &regex::Captures<'_>| {
+        let path = captures[1].replace('\\', "/");
+        format!("`{path}`")
+    });
+
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
+    let s = if normalize_container_images {
+        normalize_image_digests(&s)
+    } else {
+        // Not all tests should have their images normalized. The `run` tests
+        // need their lockfiles untouched.
+        s.to_string()
+    };
+
     trim_trailing_whitespace(&s)
+}
+
+/// Replace native, JSON-escaped, slash-normalized, and canonical forms of the
+/// temporary directory.
+fn normalize_temp_dir(s: &str, temp_dir: &Path) -> String {
+    let canonical_path = temp_dir
+        .canonicalize()
+        .expect("failed to get canonical path");
+
+    let mut s = s.to_string();
+
+    // The order here is significant.
+    //
+    // On macOS, `/var` is a symlink to `/private/var`, so the path returned by
+    // `TempDir::new()` (e.g. `/var/folders/...`) differs from the path the OS
+    // actually reports back in subprocess output (e.g.
+    // `/private/var/folders/...`).
+    for path in [&canonical_path, temp_dir] {
+        let path_str = path.to_string_lossy();
+        let escaped_path_str = path_str.replace('\\', "\\\\");
+        let slash_path_str = path_str.replace('\\', "/");
+
+        s = s
+            .replace(escaped_path_str.as_str(), "_TEMP_DIR_")
+            .replace(slash_path_str.as_str(), "_TEMP_DIR_")
+            .replace(path_str.as_ref(), "_TEMP_DIR_");
+
+        // Strip UNC prefixes
+        if let Some(stripped_str) = path_str.strip_prefix(r"\\?\") {
+            let escaped_stripped = stripped_str.replace('\\', "\\\\");
+            let slash_stripped = stripped_str.replace('\\', "/");
+
+            s = s
+                .replace(escaped_stripped.as_str(), "_TEMP_DIR_")
+                .replace(slash_stripped.as_str(), "_TEMP_DIR_")
+                .replace(stripped_str, "_TEMP_DIR_");
+        }
+    }
+
+    s
+}
+
+/// Replaces the mutable tags in the `dev lock` tests to placeholders.
+fn normalize_image_digests(s: &str) -> String {
+    static OCI_IMAGE_PATTERN: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(.*?)://(.*?):(.*?)@sha256:[A-Za-z0-9]{64}").unwrap());
+    static SYLABS_IMAGE_PATTERN: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"library://(.*?):sha256.[A-Za-z0-9]{64}").unwrap());
+    let s = OCI_IMAGE_PATTERN.replace_all(s, "$1://$2:$3@sha256:_IMAGE_DIGEST_");
+    let s = SYLABS_IMAGE_PATTERN.replace_all(&s, "library://$1:sha256._IMAGE_DIGEST_");
+
+    s.to_string()
 }
 
 /// Removes trailing horizontal whitespace and excess blank lines.
@@ -362,6 +462,14 @@ fn is_binary_file(path: &Path) -> bool {
         .is_some_and(|ext| BINARY_EXTENSIONS.contains(&ext))
 }
 
+/// Returns true if the path's contents are inherently run-specific and should
+/// only be checked for existence.
+fn is_existence_only(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| EXISTENCE_ONLY_FILES.contains(&name))
+}
+
 /// Returns true if the path is a symlink.
 fn is_symlink(base_path: &Path, relative_path: &Path) -> bool {
     let full_path = base_path.join(relative_path);
@@ -374,8 +482,9 @@ fn is_symlink(base_path: &Path, relative_path: &Path) -> bool {
 ///
 /// 1. Removes transient files (e.g., SQLite `-shm`, `-wal` files)
 /// 2. Zeroes out binary files so they exist but have no content to compare
-/// 3. Updates symlink targets to replace timestamps with `_TIMESTAMP_`
-/// 4. Renames timestamp directories to `_TIMESTAMP_`
+/// 3. Replaces textual existence-only files with a canonical placeholder
+/// 4. Updates symlink targets to replace timestamps with `_TIMESTAMP_`
+/// 5. Renames timestamp directories to `_TIMESTAMP_`
 fn normalize_expected_outputs(path: &Path) -> Result<()> {
     if !path.exists() {
         return Ok(());
@@ -394,6 +503,8 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
                 fs::remove_file(entry.path())?;
             } else if is_binary_file(entry.path()) {
                 fs::write(entry.path(), b"")?;
+            } else if is_existence_only(entry.path()) {
+                fs::write(entry.path(), EXISTENCE_ONLY_PLACEHOLDER)?;
             }
         }
     }
@@ -455,7 +566,11 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
 /// directory path into an output file, blessing would store that one-run
 /// absolute path and every future comparison would fail. This function rewrites
 /// any such occurrences with `_TEMP_DIR_`.
-fn normalize_output_files(outputs_dir: &Path, temp_dir: &Path) -> Result<()> {
+fn normalize_output_files(
+    outputs_dir: &Path,
+    temp_dir: &Path,
+    normalize_container_images: bool,
+) -> Result<()> {
     for entry in WalkDir::new(outputs_dir)
         .follow_links(false)
         .into_iter()
@@ -467,7 +582,7 @@ fn normalize_output_files(outputs_dir: &Path, temp_dir: &Path) -> Result<()> {
             continue;
         }
         if let Ok(contents) = fs::read_to_string(path) {
-            let normalized = normalize_string(&contents, temp_dir);
+            let normalized = normalize_string(&contents, temp_dir, normalize_container_images);
             if normalized != contents {
                 fs::write(path, normalized)
                     .with_context(|| format!("failed to normalize output file {path:?}"))?;
@@ -478,12 +593,17 @@ fn normalize_output_files(outputs_dir: &Path, temp_dir: &Path) -> Result<()> {
 }
 
 /// Compares the contents in the expected file with the actual test results.
-fn compare_results(expected_path: &Path, actual: &str, temp_dir: &Path) -> Result<()> {
+fn compare_results(
+    expected_path: &Path,
+    actual: &str,
+    temp_dir: &Path,
+    normalize_container_images: bool,
+) -> Result<()> {
     let expected = fs::read_to_string(expected_path)
         .with_context(|| format!("failed to read result file {expected_path:?}"))?;
 
-    let expected = normalize_string(&expected, temp_dir);
-    let actual = normalize_string(actual, temp_dir);
+    let expected = normalize_string(&expected, temp_dir, normalize_container_images);
+    let actual = normalize_string(actual, temp_dir, normalize_container_images);
     if expected != actual {
         bail!(
             "result from `{}` is not as expected:\nafter normalization:\n{}",
@@ -496,10 +616,15 @@ fn compare_results(expected_path: &Path, actual: &str, temp_dir: &Path) -> Resul
 }
 
 /// Compares the contents of two text files.
-fn compare_files(expected_path: &Path, actual_path: &Path, temp_dir: &Path) -> Result<()> {
+fn compare_files(
+    expected_path: &Path,
+    actual_path: &Path,
+    temp_dir: &Path,
+    normalize_container_images: bool,
+) -> Result<()> {
     let actual = fs::read_to_string(actual_path)
         .with_context(|| format!("failed to read actual file {actual_path:?}"))?;
-    compare_results(expected_path, &actual, temp_dir)
+    compare_results(expected_path, &actual, temp_dir, normalize_container_images)
 }
 
 /// Builds a list of entry paths in a directory relative to the directory's
@@ -546,7 +671,12 @@ fn build_relative_path_list(path: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
 /// Paths are normalized before comparison so that dynamic components like
 /// timestamps match their `_TIMESTAMP_` placeholders in expected outputs.
 /// Binary files (e.g., `.db`) are only checked for existence, not content.
-fn recursive_compare(expected_path: &Path, actual_path: &Path, temp_dir: &Path) -> Result<()> {
+fn recursive_compare(
+    expected_path: &Path,
+    actual_path: &Path,
+    temp_dir: &Path,
+    normalize_container_images: bool,
+) -> Result<()> {
     use std::collections::HashMap;
     use std::collections::HashSet;
 
@@ -582,13 +712,21 @@ __UNEXPECTED_FILES_FOUND__
     let failed_comparisons = expected_list
         .iter()
         .filter(|(normalized, expected_original)| {
-            !is_binary_file(normalized) && !is_symlink(expected_path, expected_original)
+            !is_binary_file(normalized)
+                && !is_existence_only(normalized)
+                && !is_symlink(expected_path, expected_original)
         })
         .filter_map(|(normalized, expected_original)| {
             let expected_full_path = expected_path.join(expected_original);
             let actual_original = actual_map.get(normalized).expect("path should exist");
             let actual_full_path = actual_path.join(actual_original);
-            compare_files(&expected_full_path, &actual_full_path, temp_dir).err()
+            compare_files(
+                &expected_full_path,
+                &actual_full_path,
+                temp_dir,
+                normalize_container_images,
+            )
+            .err()
         })
         .collect::<Vec<_>>();
 
@@ -617,15 +755,28 @@ fn compare_test_results(
     let expected_exit_code_file = test_path.join("exit_code");
     let expects_outputs = expected_output_dir.is_dir();
 
+    // `dev lock` tests need their container image digests normalized, but
+    // lockfiles in `run` tests should be untouched.
+    let test_name_normalized = test_name.replace('\\', "/");
+    let normalize_container_images = !test_name_normalized.starts_with("run/");
+
     if env::var_os("BLESS").is_some() {
         fs::write(
             &expected_stderr_file,
-            normalize_string(&command_output.stderr, working_test_directory),
+            normalize_string(
+                &command_output.stderr,
+                working_test_directory,
+                normalize_container_images,
+            ),
         )
         .context("failed to write stderr output")?;
         fs::write(
             &expected_stdout_file,
-            normalize_string(&command_output.stdout, working_test_directory),
+            normalize_string(
+                &command_output.stdout,
+                working_test_directory,
+                normalize_container_images,
+            ),
         )
         .context("failed to write stdout output")?;
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
@@ -647,19 +798,25 @@ fn compare_test_results(
             // file contents verbatim, so any file that captured the
             // temp path will embed a one-run absolute
             // path that future comparisons will never match.
-            normalize_output_files(&expected_output_dir, working_test_directory)
-                .context("failed to normalize output file contents")?;
+            normalize_output_files(
+                &expected_output_dir,
+                working_test_directory,
+                normalize_container_images,
+            )
+            .context("failed to normalize output file contents")?;
         }
     }
     compare_results(
         &expected_stderr_file,
         &command_output.stderr,
         working_test_directory,
+        normalize_container_images,
     )?;
     compare_results(
         &expected_stdout_file,
         &command_output.stdout,
         working_test_directory,
+        normalize_container_images,
     )?;
 
     if expects_outputs {
@@ -667,6 +824,7 @@ fn compare_test_results(
             &expected_output_dir,
             working_test_directory,
             working_test_directory,
+            normalize_container_images,
         )?;
     }
 
@@ -681,7 +839,43 @@ fn compare_test_results(
         &expected_exit_code_file,
         &command_output.exit_code.to_string(),
         working_test_directory,
+        normalize_container_images,
     )?;
+    Ok(())
+}
+
+/// Verifies that existence-only fixtures are stable across blessing while
+/// their presence remains part of recursive comparison.
+fn test_existence_only_file_normalization() -> Result<()> {
+    let expected = TempDir::new().context("failed to create expected output directory")?;
+    let actual = TempDir::new().context("failed to create actual output directory")?;
+    let expected_metrics = expected.path().join("metrics.json");
+    let actual_metrics = actual.path().join("metrics.json");
+
+    fs::write(
+        &expected_metrics,
+        r#"{"run":{"name":"random-run","wall_time_ms":123}}"#,
+    )?;
+
+    normalize_expected_outputs(expected.path())?;
+    assert_eq!(
+        fs::read_to_string(&expected_metrics)?,
+        EXISTENCE_ONLY_PLACEHOLDER
+    );
+
+    let first = fs::read(&expected_metrics)?;
+    normalize_expected_outputs(expected.path())?;
+    assert_eq!(fs::read(&expected_metrics)?, first);
+
+    fs::write(
+        &actual_metrics,
+        r#"{"run":{"name":"different-run","wall_time_ms":987}}"#,
+    )?;
+    recursive_compare(expected.path(), actual.path(), actual.path(), false)?;
+
+    fs::remove_file(&actual_metrics)?;
+    assert!(recursive_compare(expected.path(), actual.path(), actual.path(), false).is_err());
+
     Ok(())
 }
 
@@ -695,7 +889,7 @@ fn main() {
     let test_root = Path::new("tests/cli");
     let tests = find_tests(test_root);
 
-    let trials = tests
+    let mut trials = tests
         .into_iter()
         .map(|test| {
             let name = get_test_name(&test, test_root);
@@ -703,7 +897,11 @@ fn main() {
                 run_test(&test, name).map_err(Into::into)
             })
         })
-        .collect();
+        .collect::<Vec<_>>();
+
+    trials.push(Trial::test("harness/existence-only-files", || {
+        test_existence_only_file_normalization().map_err(Into::into)
+    }));
 
     libtest_mimic::run(&args, trials).exit();
 }

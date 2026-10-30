@@ -1,0 +1,1 @@
+run -qq source.wdl --locked -t to_be_locked

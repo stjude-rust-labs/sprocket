@@ -20,7 +20,7 @@ const FUNCTION_NAME: &str = "write_json";
 
 /// Writes a JSON file with the serialized form of a WDL value.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_json
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_json>
 fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::File));
@@ -70,8 +70,8 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(value: X) -> File where `X`: any JSON-serializable type",
-                // The `write_json` callback does not need to be async as `serde-json` doesn't
-                // support async writers
+                // The `write_json` callback does not need to be async as
+                // `serde-json` doesn't support async writers
                 Callback::Sync(write_json),
             )]
         },
