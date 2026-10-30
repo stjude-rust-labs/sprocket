@@ -52,6 +52,12 @@ pub struct Args {
 
 /// Runs the `dev flowchart mermaid` subcommand.
 pub async fn mermaid(args: Args, config: &Config, colorize: bool) -> CommandResult<()> {
+    if let Source::Directory(_) = args.source {
+        return Err(
+            anyhow!("directory sources are not supported for the `flowchart` command").into(),
+        );
+    }
+
     let report_mode = args.report_mode.unwrap_or_default();
 
     let results = Analysis::default()
