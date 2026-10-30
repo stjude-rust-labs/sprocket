@@ -22,6 +22,7 @@ pub mod completions;
 pub mod config;
 pub mod doc;
 pub mod explain;
+pub mod flowchart;
 pub mod format;
 pub mod inputs;
 pub mod lock;
@@ -169,6 +170,9 @@ pub enum Commands {
 pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),
+    /// Renders a WDL workflow as a diagram.
+    #[command(subcommand)]
+    Flowchart(flowchart::Args),
     /// Generates a container image lock file.
     Lock(lock::Args),
     /// Create and manage WDL modules.
