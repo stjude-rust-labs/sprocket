@@ -1,3 +1,17 @@
+warning[MixedDocSources]: task `test_task` has multiple documentation sources
+   ┌─ tests/lints/unused-doc-comments/source.wdl:32:6
+   │
+30 │ ## This doc comment should be allowed
+   │ ------------------------------------- this comment...
+31 │ #@ except: RequirementsSection
+32 │ task test_task {
+   │      ^^^^^^^^^
+33 │     meta {
+34 │         description: "Show doc comments on bad placement of elements"
+   │         ----------- ...overwrites this meta key
+   │
+   = fix: remove one of the documentation sources
+
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:37:5
    │  
@@ -38,6 +52,20 @@ note[UnusedDocComments]: unused doc comment
    │ ╰──────────────────────────────────────────────^
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
+
+warning[MixedDocSources]: workflow `test_workflow` has multiple documentation sources
+   ┌─ tests/lints/unused-doc-comments/source.wdl:73:10
+   │
+68 │ ## While it's not what we want people to do, I should be able to
+   │ ---------------------------------------------------------------- this comment...
+   ·
+73 │ workflow test_workflow {
+   │          ^^^^^^^^^^^^^
+   ·
+76 │         description: "Show doc comments on bad placement of elements"
+   │         ----------- ...overwrites this meta key
+   │
+   = fix: remove one of the documentation sources
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:74:5

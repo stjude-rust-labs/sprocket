@@ -1,0 +1,93 @@
+warning[MixedDocSources]: task `bad1` has multiple documentation sources
+    ┌─ tests/lints/mixed-doc-sources/source.wdl:120:6
+    │
+119 │ ## Documented with comments
+    │ --------------------------- this comment...
+120 │ task bad1 {
+    │      ^^^^
+121 │     meta {
+122 │         description: "and a meta section?!"
+    │         ----------- ...overwrites this meta key
+    │
+    = fix: remove one of the documentation sources
+
+warning[MixedDocSources]: task `bad2` has multiple documentation sources
+    ┌─ tests/lints/mixed-doc-sources/source.wdl:129:6
+    │
+128 │ ## Documented with comments...
+    │ ------------------------------ this comment...
+129 │ task bad2 {
+    │      ^^^^
+130 │     meta {
+131 │         help: "..that extend into the meta section"
+    │         ---- ...overwrites this meta key
+    │
+    = fix: remove one of the documentation sources
+
+warning[MixedDocSources]: input `x` has multiple documentation sources
+    ┌─ tests/lints/mixed-doc-sources/source.wdl:140:16
+    │
+139 │         ## Input documented with comments
+    │         --------------------------------- this comment...
+140 │         String x
+    │                ^
+    ·
+144 │         x: "and a meta section?!"
+    │         ------------------------- ...overwrites this meta key
+    │
+    = fix: remove one of the documentation sources
+
+warning[MixedDocSources]: output `x` has multiple documentation sources
+    ┌─ tests/lints/mixed-doc-sources/source.wdl:161:16
+    │
+153 │             x: "Output documented with meta"
+    │             -------------------------------- ...overwrites this meta key
+    ·
+160 │         ## And a doc comment!
+    │         --------------------- this comment...
+161 │         String x = ""
+    │                ^
+    │
+    = fix: remove one of the documentation sources
+
+warning[MixedDocSources]: task `bad5` has multiple documentation sources
+    ┌─ tests/lints/mixed-doc-sources/source.wdl:166:6
+    │
+165 │ ## Documented with comments
+    │ --------------------------- this comment...
+166 │ task bad5 {
+    │      ^^^^
+167 │     meta {
+168 │         description: "and description"
+    │         ----------- ...overwrites this meta key
+169 │         help: "and help..."
+    │         ---- ...overwrites this meta key
+    │
+    = fix: remove one of the documentation sources
+
+warning[MixedDocSources]: input `x` has multiple documentation sources
+    ┌─ tests/lints/mixed-doc-sources/source.wdl:178:16
+    │
+177 │         ## Input documented with comments
+    │         --------------------------------- this comment...
+178 │         String x
+    │                ^
+    ·
+183 │             description: "documented in object"
+    │             ----------------------------------- ...overwrites this meta key
+    │
+    = fix: remove one of the documentation sources
+
+warning[MixedDocSources]: field `x` has multiple documentation sources
+    ┌─ tests/lints/mixed-doc-sources/source.wdl:192:12
+    │
+191 │     ## Field documented with comments
+    │     --------------------------------- this comment...
+192 │     String x
+    │            ^
+    ·
+195 │         x: "and a parameter_meta section?!"
+    │         ----------------------------------- ...overwrites this meta key
+    │
+    = fix: remove one of the documentation sources
+

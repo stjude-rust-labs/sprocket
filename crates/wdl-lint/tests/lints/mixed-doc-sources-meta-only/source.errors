@@ -1,0 +1,36 @@
+warning[MixedDocSources]: task `bad1` is documented with doc comments
+   ┌─ tests/lints/mixed-doc-sources-meta-only/source.wdl:62:6
+   │
+62 │ task bad1 {
+   │      ^^^^
+   │
+   = help: this workspace is configured to only allow `meta` sections
+   = fix: split the doc comment into the `meta.description`/`meta.help` fields
+
+warning[MixedDocSources]: input `x` is documented with doc comments
+   ┌─ tests/lints/mixed-doc-sources-meta-only/source.wdl:69:16
+   │
+69 │         String x
+   │                ^
+   │
+   = help: this workspace is configured to only allow metadata sections
+   = fix: split the doc comment into the `parameter_meta.x.description`/`parameter_meta.x.help` fields
+
+warning[MixedDocSources]: output `x` is documented with doc comments
+   ┌─ tests/lints/mixed-doc-sources-meta-only/source.wdl:80:16
+   │
+80 │         String x = ""
+   │                ^
+   │
+   = help: this workspace is configured to only allow metadata sections
+   = fix: split the doc comment into the `meta.outputs.x.description`/`meta.outputs.x.help` fields
+
+warning[MixedDocSources]: field `x` is documented with doc comments
+   ┌─ tests/lints/mixed-doc-sources-meta-only/source.wdl:86:12
+   │
+86 │     String x
+   │            ^
+   │
+   = help: this workspace is configured to only allow metadata sections
+   = fix: split the doc comment into the `parameter_meta.x.description`/`parameter_meta.x.help` fields
+
