@@ -1,5 +1,8 @@
 //! Tests for diagnostic baseline filtering in the LSP.
 
+use async_lsp::lsp_types::Diagnostic;
+use async_lsp::lsp_types::DiagnosticTag;
+use async_lsp::lsp_types::NumberOrString;
 use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use async_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
 use wdl_lint::Baseline;
@@ -9,8 +12,8 @@ use wdl_lsp::UserOptions;
 
 use crate::common::TestContextBuilder;
 
-/// Extracts all diagnostic rule codes from a workspace diagnostic report.
-fn diagnostic_codes(report: &WorkspaceDiagnosticReportResult) -> Vec<String> {
+/// Extracts all diagnostics from a workspace diagnostic report.
+fn diagnostics(report: &WorkspaceDiagnosticReportResult) -> Vec<Diagnostic> {
     let WorkspaceDiagnosticReportResult::Report(report) = report else {
         return Vec::new();
     };
@@ -24,6 +27,13 @@ fn diagnostic_codes(report: &WorkspaceDiagnosticReportResult) -> Vec<String> {
             }
             WorkspaceDocumentDiagnosticReport::Unchanged(_) => Vec::new(),
         })
+        .collect()
+}
+
+/// Extracts all diagnostic rule codes from a workspace diagnostic report.
+fn diagnostic_codes(report: &WorkspaceDiagnosticReportResult) -> Vec<String> {
+    diagnostics(report)
+        .into_iter()
         .filter_map(|d| match d.code {
             Some(async_lsp::lsp_types::NumberOrString::String(s)) => Some(s),
             _ => None,
@@ -51,7 +61,8 @@ async fn baseline_suppresses_matching_diagnostics() {
 
             server_options.baseline = Some(baseline);
         });
-    let (_, report) = ctx.initialize().await;
+    ctx.initialize().await;
+    let report = ctx.workspace_diagnostic().await;
     let codes = diagnostic_codes(&report);
 
     assert!(
@@ -79,7 +90,8 @@ async fn no_baseline_reports_all_diagnostics() {
             ..Default::default()
         })
         .build();
-    let (_, report) = ctx.initialize().await;
+    ctx.initialize().await;
+    let report = ctx.workspace_diagnostic().await;
     let codes = diagnostic_codes(&report);
 
     assert!(
@@ -117,7 +129,8 @@ async fn baseline_still_suppresses_after_repeated_pulls() {
             server_options.baseline = Some(baseline);
         });
 
-    let (_, first) = ctx.initialize().await;
+    ctx.initialize().await;
+    let first = ctx.workspace_diagnostic().await;
     let codes = diagnostic_codes(&first);
     assert!(
         !codes.contains(&"InputName".to_string()),
@@ -140,4 +153,58 @@ async fn baseline_still_suppresses_after_repeated_pulls() {
             "`UnusedInput` should still be suppressed on pull {pull}; got: {codes:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn diagnostic_tags_are_emitted() {
+    let mut ctx = TestContextBuilder::new("tagged-diagnostics")
+        .user_options(UserOptions {
+            lint: LintOptions {
+                enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .build();
+
+    ctx.initialize().await;
+    let report = ctx.workspace_diagnostic().await;
+
+    let mut found_unused = false;
+    let mut found_deprecated = false;
+    for diagnostic in diagnostics(&report) {
+        let Some(NumberOrString::String(id)) = diagnostic.code else {
+            continue;
+        };
+
+        match &*id {
+            "UnusedInput" => {
+                if diagnostic
+                    .tags
+                    .is_none_or(|tags| !tags.contains(&DiagnosticTag::UNNECESSARY))
+                {
+                    panic!("expected `UnusedInput` to be tagged with `unnecessary`")
+                }
+
+                found_unused = true;
+            }
+            "DeprecatedRuntimeSection" => {
+                if diagnostic
+                    .tags
+                    .is_none_or(|tags| !tags.contains(&DiagnosticTag::DEPRECATED))
+                {
+                    panic!("expected `DeprecatedRuntimeSection` to be tagged with `deprecated`")
+                }
+
+                found_deprecated = true;
+            }
+            _ => {}
+        }
+    }
+
+    assert!(found_unused, "expected `UnusedInput` diagnostic");
+    assert!(
+        found_deprecated,
+        "expected `DeprecatedRuntimeSection` diagnostic"
+    );
 }

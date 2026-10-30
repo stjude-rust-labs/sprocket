@@ -21,6 +21,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
+use wdl::engine::ContainerImageOverrides;
 
 /// Create a test server whose `AppState` reports the given failure mode.
 ///
@@ -51,7 +52,8 @@ async fn create_test_server(
         },
         Mode::default(),
         true,
-        db,
+        db.clone(),
+        ContainerImageOverrides::default(),
     )
     .await
     .expect("failed to spawn run manager service");
@@ -66,6 +68,7 @@ async fn create_test_server(
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db)
         .failure_mode(failure_mode)
         .output_dir(output_dir.clone())
         .build();

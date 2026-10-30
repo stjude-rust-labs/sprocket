@@ -15,10 +15,10 @@ use uuid::Uuid;
 
 use super::AppState;
 use super::LogSource;
+use super::Pagination;
 use super::TaskStatus;
 use super::error::Error;
-use super::send_command;
-use crate::system::v1::exec::svc::RunManagerCmd;
+use crate::system::v1::db;
 use crate::system::v1::exec::svc::run_manager::commands;
 
 /// Query parameters for listing tasks.
@@ -30,7 +30,7 @@ pub struct ListTasksQueryParams {
     /// Filter by status.
     #[serde(default)]
     pub status: Option<TaskStatus>,
-    /// Number of results to return (default: `100`).
+    /// Number of results to return (default: `100`, maximum: `1000`).
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
@@ -47,7 +47,7 @@ pub struct ListRunTasksQueryParams {
     /// Filter by status.
     #[serde(default)]
     pub status: Option<TaskStatus>,
-    /// Number of results to return (default: `100`).
+    /// Number of results to return (default: `100`, maximum: `1000`).
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
@@ -62,7 +62,7 @@ pub struct ListTaskLogsQueryParams {
     /// Filter by log source (stdout or stderr).
     #[serde(default)]
     pub source: Option<LogSource>,
-    /// Number of results to return (default: `100`).
+    /// Number of results to return (default: `100`, maximum: `1000`).
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
@@ -84,6 +84,26 @@ pub struct Task {
     pub exit_status: Option<i32>,
     /// Error message if task failed.
     pub error: Option<String>,
+    /// The stable WDL call path shared by every attempt of the same call.
+    ///
+    /// `null` for tasks recorded before attempt attribution or observed only
+    /// through backend events.
+    pub call_id: Option<String>,
+    /// The 0-based execution attempt number within the call.
+    pub attempt: i64,
+    /// The resolved execution constraints for this attempt (container, cpu,
+    /// memory, gpu, fpga, disks).
+    ///
+    /// `null` when the attempt never reached a backend (e.g. served from the
+    /// call cache).
+    #[schema(value_type = Option<Object>)]
+    pub constraints: Option<serde_json::Value>,
+    /// Why this attempt was retried.
+    ///
+    /// Set on the attempt that failed; `null` when the attempt was not
+    /// retried.
+    #[schema(value_type = Option<Object>)]
+    pub retry_cause: Option<serde_json::Value>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.
@@ -100,11 +120,23 @@ impl From<crate::system::v1::db::Task> for Task {
             status: task.status,
             exit_status: task.exit_status,
             error: task.error,
+            call_id: task.call_id,
+            attempt: task.attempt,
+            constraints: parse_json_column(task.constraints),
+            retry_cause: parse_json_column(task.retry_cause),
             created_at: task.created_at,
             started_at: task.started_at,
             completed_at: task.completed_at,
         }
     }
+}
+
+/// Parses a JSON-encoded database column for an API response.
+///
+/// A value that fails to parse is surfaced as a JSON string rather than being
+/// silently dropped, so malformed rows remain visible to clients.
+fn parse_json_column(value: Option<String>) -> Option<serde_json::Value> {
+    value.map(|v| serde_json::from_str(&v).unwrap_or(serde_json::Value::String(v)))
 }
 
 /// The response for a "list tasks" query.
@@ -154,6 +186,12 @@ pub struct RunTaskCountsResponse {
 
 impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
     fn from(response: commands::RunTaskCountsResponse) -> Self {
+        response.counts.into()
+    }
+}
+
+impl From<Vec<(TaskStatus, i64)>> for RunTaskCountsResponse {
+    fn from(response: Vec<(TaskStatus, i64)>) -> Self {
         let mut counts = Self {
             initializing: 0,
             localizing: 0,
@@ -168,7 +206,7 @@ impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
             total: 0,
         };
 
-        for (status, count) in response.counts {
+        for (status, count) in response {
             match status {
                 TaskStatus::Initializing => counts.initializing = count,
                 TaskStatus::Localizing => counts.localizing = count,
@@ -198,9 +236,13 @@ pub struct GetTaskResponse {
 
 impl From<commands::GetTaskResponse> for GetTaskResponse {
     fn from(response: commands::GetTaskResponse) -> Self {
-        Self {
-            task: response.task.into(),
-        }
+        response.task.into()
+    }
+}
+
+impl From<db::Task> for GetTaskResponse {
+    fn from(task: db::Task) -> Self {
+        Self { task: task.into() }
     }
 }
 
@@ -265,27 +307,22 @@ pub async fn list_tasks(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
+    let pagination = Pagination::new(query.limit, query.next_token.as_deref())?;
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
-        run_id: query.run_uuid,
-        status: query.status,
-        limit: Some(limit),
-        offset: Some(offset),
-        rx,
-    })
-    .await?;
-
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
-    } else {
-        None
-    };
+    let page = state
+        .database()
+        .read_tasks(
+            query.run_uuid,
+            query.status,
+            Some(pagination.limit),
+            Some(pagination.offset),
+        )
+        .await?;
+    let next_token = pagination.next_token(page.total);
 
     Ok(Json(ListTasksResponse {
-        tasks: response.tasks.into_iter().map(Into::into).collect(),
-        total: response.total,
+        tasks: page.records.into_iter().map(Into::into).collect(),
+        total: page.total,
         next_token,
     }))
 }
@@ -315,27 +352,22 @@ pub async fn list_run_tasks(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
+    let pagination = Pagination::new(query.limit, query.next_token.as_deref())?;
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
-        run_id: Some(id),
-        status: query.status,
-        limit: Some(limit),
-        offset: Some(offset),
-        rx,
-    })
-    .await?;
-
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
-    } else {
-        None
-    };
+    let page = state
+        .database()
+        .read_tasks(
+            Some(id),
+            query.status,
+            Some(pagination.limit),
+            Some(pagination.offset),
+        )
+        .await?;
+    let next_token = pagination.next_token(page.total);
 
     Ok(Json(ListTasksResponse {
-        tasks: response.tasks.into_iter().map(Into::into).collect(),
-        total: response.total,
+        tasks: page.records.into_iter().map(Into::into).collect(),
+        total: page.total,
         next_token,
     }))
 }
@@ -359,12 +391,9 @@ pub async fn get_run_task_counts(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<RunTaskCountsResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| {
-        RunManagerCmd::CountRunTasksByStatus { run_id: id, rx }
-    })
-    .await?;
+    let counts = state.database().read_run_task_counts(id).await?;
 
-    Ok(Json(response.into()))
+    Ok(Json(counts.into()))
 }
 
 /// Get a specific task by name.
@@ -384,13 +413,8 @@ pub async fn get_task(
     State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> Result<Json<GetTaskResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTask {
-        name,
-        rx,
-    })
-    .await?;
-
-    Ok(Json(response.into()))
+    let task = state.database().read_task(&name).await?;
+    Ok(Json(task.into()))
 }
 
 /// Get logs for a specific task.
@@ -419,27 +443,22 @@ pub async fn get_task_logs(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
+    let pagination = Pagination::new(query.limit, query.next_token.as_deref())?;
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTaskLogs {
-        name,
-        stream: query.source,
-        limit: Some(limit),
-        offset: Some(offset),
-        rx,
-    })
-    .await?;
-
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
-    } else {
-        None
-    };
+    let page = state
+        .database()
+        .read_task_logs(
+            &name,
+            query.source,
+            Some(pagination.limit),
+            Some(pagination.offset),
+        )
+        .await?;
+    let next_token = pagination.next_token(page.total);
 
     Ok(Json(ListTaskLogsResponse {
-        logs: response.logs.into_iter().map(Into::into).collect(),
-        total: response.total,
+        logs: page.records.into_iter().map(Into::into).collect(),
+        total: page.total,
         next_token,
     }))
 }
@@ -451,10 +470,11 @@ mod tests {
     use super::*;
     use crate::server::ServerFailureMode;
 
-    fn app_state() -> AppState {
+    async fn app_state() -> AppState {
         let (run_manager_tx, _run_manager_rx) = mpsc::channel(1);
         AppState::builder()
             .run_manager_tx(run_manager_tx)
+            .database(crate::server::api::test_database().await)
             .failure_mode(ServerFailureMode::Slow)
             .output_dir(String::new())
             .build()
@@ -468,6 +488,10 @@ mod tests {
             status: TaskStatus::Completed,
             exit_status: Some(0),
             error: None,
+            call_id: None,
+            attempt: 0,
+            constraints: None,
+            retry_cause: None,
             created_at: now,
             started_at: Some(now),
             completed_at: Some(now),
@@ -483,7 +507,7 @@ mod tests {
             next_token: Some("bad-token".to_string()),
         };
 
-        let error = list_tasks(State(app_state()), Ok(Query(query)))
+        let error = list_tasks(State(app_state().await), Ok(Query(query)))
             .await
             .unwrap_err();
         assert!(
@@ -500,7 +524,7 @@ mod tests {
         };
 
         let error = get_task_logs(
-            State(app_state()),
+            State(app_state().await),
             Path("task-name".to_string()),
             Ok(Query(query)),
         )

@@ -25,8 +25,9 @@ use tempfile::TempDir;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
+use url::Url;
 use wdl::diagnostics::Mode;
-use wdl::engine::config::LocalBackendConfig;
+use wdl::engine::ContainerImageOverrides;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -34,7 +35,7 @@ async fn create_test_server(
     pool: sqlx::SqlitePool,
     max_concurrent_runs: Option<usize>,
     engine: Option<wdl::engine::Config>,
-    allowed_urls: Option<Vec<String>>,
+    allowed_urls: Option<Vec<Url>>,
 ) -> (axum::Router, Arc<dyn Database>, TempDir) {
     let temp = TempDir::new().unwrap();
 
@@ -65,6 +66,7 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
+        ContainerImageOverrides::default(),
     )
     .await
     .expect("failed to create run manager service");
@@ -79,6 +81,7 @@ async fn create_test_server(
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
+        .database(db.clone())
         .failure_mode(ServerFailureMode::Slow)
         .output_dir(output_dir)
         .build();
@@ -2090,6 +2093,7 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
         Mode::default(),
         true,
         db.clone(),
+        ContainerImageOverrides::default(),
     )
     .await
     .expect("failed to create run manager service");
@@ -2306,10 +2310,7 @@ async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
     use tokio::io::AsyncReadExt as _;
     use tokio::io::AsyncWriteExt as _;
 
-    let mut engine = wdl::engine::Config::default();
-    engine
-        .backends
-        .insert("default".into(), LocalBackendConfig::default().into());
+    let engine = wdl::engine::Config::local();
 
     /// The advertised size of the input the origin never finishes sending.
     const INPUT_SIZE: usize = 1024 * 1024;
@@ -2357,7 +2358,7 @@ async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server()
         .pool(pool)
         .engine(engine)
-        .allowed_urls(vec![format!("http://127.0.0.1:{port}/")])
+        .allowed_urls(vec![format!("http://127.0.0.1:{port}/").parse().unwrap()])
         .call()
         .await;
 

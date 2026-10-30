@@ -14,50 +14,21 @@ use wdl::ast::AstNode;
 use wdl::ast::Node;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
-use wdl::format::Indent;
-use wdl::format::MaxLineLength;
-use wdl::format::NewlineStyle;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::analysis::analyze_singular_source;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE", global = true)]
-    pub report_mode: Option<Mode>,
-
-    /// Use tabs for indentation (default is spaces).
-    #[arg(short = 't', long, global = true)]
-    pub with_tabs: bool,
-
-    /// The number of spaces to use for indentation levels (default is 4).
-    #[arg(
-        short,
-        long,
-        value_name = "SIZE",
-        conflicts_with = "with_tabs",
-        global = true
-    )]
-    pub indentation_size: Option<usize>,
-
-    /// The maximum line length (default is 90, valid range is 60–240). `none`
-    /// means do not use a maximum line length.
-    #[arg(long, value_name = "LENGTH", global = true)]
-    pub max_line_length: Option<String>,
-
-    /// The newline style to use.
-    #[arg(long, value_name = "STYLE", global = true, value_parser = ["auto", "unix", "windows"])]
-    pub newline_style: Option<NewlineStyle>,
-
     /// Subcommand for the `format` command.
     #[command(subcommand)]
     pub command: FormatSubcommand,
@@ -119,43 +90,14 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+pub async fn format(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let report_mode = config.common.report_mode;
     let fallback_version = config.common.wdl.fallback_version.into();
     let feature_flags = config.common.wdl.feature_flags;
     let modules_config = config.modules.clone();
     let ignore_filename = config.common.ignore_filename();
 
-    let indent = if args.with_tabs || args.indentation_size.is_some() {
-        Indent::try_new(args.with_tabs, args.indentation_size)
-            .context("failed to create indentation configuration")?
-    } else {
-        config.format.indent
-    };
-
-    let max_line_length = if let Some(max) = args.max_line_length {
-        let max = match max.as_str() {
-            "none" => None,
-            _ => Some(
-                max.parse::<usize>()
-                    .context("`--max-line-length` must be an integer")?,
-            ),
-        };
-        MaxLineLength::try_new(max).context("failed to create max line length configuration")?
-    } else {
-        config.format.max_line_length
-    };
-
-    let newline_style = args.newline_style.unwrap_or(config.format.newline_style);
-
-    let config = FormatConfig::default()
-        .indent(indent)
-        .max_line_length(max_line_length)
-        .sort_inputs(config.format.sort_inputs)
-        .sort_imports(config.format.sort_imports)
-        .trailing_commas(config.format.trailing_commas)
-        .newline_style(newline_style);
-    let formatter = Formatter::new(config);
+    let formatter = Formatter::new(config.format);
 
     let mut errors = 0;
     match args.command {
@@ -171,7 +113,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
                 .ignore_filename(ignore_filename.clone())
-                .run(report_mode, colorize)
+                .run(report_mode, output.colorize())
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
@@ -181,80 +123,71 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
 
                 if let Some(err) = result.error() {
                     errors += 1;
-                    warn!("error analyzing `{}`: {}", result.document().path(), err);
+                    warn!("error parsing `{}`: {}", result.document().path(), err);
                     continue;
                 }
 
-                let (source, formatted) =
-                    match format_document(&formatter, result.document(), report_mode, colorize) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            errors += 1;
-                            warn!(
-                                "skipping format check for `{}`: {e}",
-                                result.document().path()
-                            );
-                            continue;
-                        }
-                    };
+                let (source, formatted) = match format_document(
+                    &formatter,
+                    result.document(),
+                    report_mode,
+                    output.colorize(),
+                ) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        errors += 1;
+                        warn!(
+                            "skipping format check for `{}`: {e}",
+                            result.document().path()
+                        );
+                        continue;
+                    }
+                };
                 if formatted != source {
                     warn!("difference in `{}`", result.document().path());
-                    if colorize {
-                        eprint!(
-                            "{}",
-                            pretty_assertions::StrComparison::new(&source, &formatted)
-                        );
+                    let newline_only = {
+                        let formatted_lines = formatted.lines();
+                        let source_lines = source.lines();
+
+                        formatted_lines.zip(source_lines).all(|(f, s)| f == s)
+                    };
+                    if newline_only {
+                        output.stderr("incorrect newline style");
+                    } else if output.colorize() {
+                        output.stderr(pretty_assertions::StrComparison::new(&source, &formatted));
                     } else {
                         let diff = similar::TextDiff::from_lines(&source, &formatted);
-                        eprint!("{}", diff.unified_diff().header("input", "formatted"));
+                        output.stderr(diff.unified_diff().header("input", "formatted"));
                     }
                     errors += 1;
                 } else {
-                    println!("`{}` is formatted correctly", result.document().path())
+                    output.current(format!(
+                        "`{}` is formatted correctly",
+                        result.document().path()
+                    ));
                 }
             }
         }
         FormatSubcommand::View(s) => {
             let source = s.source;
-            match &source {
-                Source::File(_) | Source::Url(_) => {}
-                Source::Directory(p) => {
-                    return Err(anyhow!(
-                        "the `format view` command does not support formatting directory `{path}`",
-                        path = p.display()
-                    )
-                    .into());
-                }
-            };
 
-            let results = Analysis::default()
-                .add_source(source.clone())
-                .fallback_version(fallback_version)
-                .modules_config(modules_config.clone())
-                .feature_flags(feature_flags)
-                .ignore_filename(ignore_filename.clone())
-                .run(report_mode, colorize)
-                .await
-                .map_err(CommandError::from)?;
-            let result = results.filter(&[&source]).next().unwrap();
-
-            if let Some(err) = result.error() {
-                return Err(anyhow!(
-                    "error analyzing `{path}`: {err:#}",
-                    path = result.document().path()
-                )
-                .into());
-            }
+            let document = analyze_singular_source(
+                &source,
+                fallback_version,
+                modules_config,
+                feature_flags,
+                ignore_filename,
+                report_mode,
+                output.colorize(),
+            )
+            .await?;
 
             let (_source, formatted) =
-                format_document(&formatter, result.document(), report_mode, colorize)
+                format_document(&formatter, &document, report_mode, output.colorize())
                     .with_context(|| {
-                        format!(
-                            "could not view document `{path}`",
-                            path = result.document().path()
-                        )
+                        format!("could not view document `{path}`", path = document.path())
                     })?;
-            print!("{}", formatted);
+            output.payload(formatted);
         }
         FormatSubcommand::Overwrite(s) => {
             let mut sources = s.sources;
@@ -268,7 +201,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
                 .ignore_filename(ignore_filename.clone())
-                .run(report_mode, colorize)
+                .run(report_mode, output.colorize())
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
@@ -279,24 +212,28 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 if let Some(err) = result.error() {
                     errors += 1;
                     warn!(
-                        "error analyzing `{path}`: {err:#}",
+                        "error parsing `{path}`: {err:#}",
                         path = result.document().path()
                     );
                     continue;
                 }
 
-                let (_source, formatted) =
-                    match format_document(&formatter, result.document(), report_mode, colorize) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            errors += 1;
-                            warn!(
-                                "not overwriting document `{path}` due to error: {e:#}",
-                                path = result.document().path()
-                            );
-                            continue;
-                        }
-                    };
+                let (_source, formatted) = match format_document(
+                    &formatter,
+                    result.document(),
+                    report_mode,
+                    output.colorize(),
+                ) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        errors += 1;
+                        warn!(
+                            "not overwriting document `{path}` due to error: {e:#}",
+                            path = result.document().path()
+                        );
+                        continue;
+                    }
+                };
 
                 fs::write(result.document().uri().to_file_path().unwrap(), formatted)
                     .with_context(|| {

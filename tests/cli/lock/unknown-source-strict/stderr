@@ -1,0 +1,7 @@
+error: unknown container source
+  ┌─ source.wdl:8:20
+  │
+8 │         container: "unknown://foo"
+  │                    ^^^^^^^^^^^^^^^ this will not be included in the lockfile
+
+error: failing due to 1 error

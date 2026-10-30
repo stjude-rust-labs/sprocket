@@ -5,6 +5,7 @@ use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use semver::VersionReq;
 use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
@@ -15,8 +16,9 @@ use thiserror::Error;
 #[error("`{0}` is not a valid semantic version requirement")]
 pub struct VersionRequirementError(String);
 
-/// A version requirement, parsed by [`semver::VersionReq`].
-#[derive(Clone, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
+/// A SemVer version requirement.
+#[derive(Clone, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr, JsonSchema)]
+#[schemars(with = "String")]
 pub struct VersionRequirement(VersionReq);
 
 impl VersionRequirement {

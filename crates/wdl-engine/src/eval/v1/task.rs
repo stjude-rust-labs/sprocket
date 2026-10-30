@@ -10,6 +10,7 @@ use std::io::BufRead;
 use std::mem;
 use std::path::Component;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
 
@@ -24,6 +25,7 @@ use path_clean::clean;
 use petgraph::algo::toposort;
 use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
@@ -63,18 +65,18 @@ use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use super::Evaluator;
-use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::ContainerImageOverrides;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::EvaluationResult;
-use crate::Events;
 use crate::GuestPath;
 use crate::HiddenValue;
 use crate::HostPath;
@@ -88,6 +90,7 @@ use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
 use crate::TypeNameRefValue;
 use crate::Value;
+use crate::backend;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
@@ -98,13 +101,15 @@ use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
-use crate::diagnostics::unknown_enum;
+use crate::digest::DigestCalculator;
 use crate::eval::EvaluatedTask;
+use crate::eval::RetryCause;
 use crate::eval::Scope;
 use crate::eval::ScopeIndex;
 use crate::eval::ScopeRef;
+use crate::eval::TaskConstraintsSnapshot;
 use crate::eval::trie::InputTrie;
-use crate::http::Transferer;
+use crate::path::is_broken_symlink;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
 use crate::stdlib::download_file;
@@ -113,7 +118,6 @@ use crate::units::convert_unit_string;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
-use crate::v1::resolve_enum_choice_value;
 use crate::v1::write_json_file;
 
 pub(crate) mod hints;
@@ -185,7 +189,7 @@ fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) ->
 /// The returned remainder is always cleaned.
 ///
 /// Returns `None` if the given path is not prefixed with the given base path.
-fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<String> {
+fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<PathBuf> {
     let remainder = clean(path.as_ref().strip_prefix(base.as_ref()).ok()?);
 
     // If the cleaned remainder starts with a parent directory reference,
@@ -194,7 +198,28 @@ fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<S
         return None;
     }
 
-    remainder.into_os_string().into_string().ok()
+    Some(remainder)
+}
+
+/// Utility function for normalizing [`Path`]s to use unix-style separators.
+///
+/// Returns `None` is the path is not UTF-8.
+fn unix_path(path: impl AsRef<Path>) -> Option<String> {
+    let mut components = path.as_ref().components();
+    let Some(first) = components.next() else {
+        return Some(String::new());
+    };
+
+    let path = first.as_os_str().to_str()?.to_string();
+    components
+        .map(|c| c.as_os_str().to_str())
+        // Guest paths always use `/`; join components rather than
+        // replacing `\`, which a Unix file name may contain
+        .fold_options(path, |mut acc, component| {
+            acc.push('/');
+            acc.push_str(component);
+            acc
+        })
 }
 
 /// Utility function for stripping the path prefix of a URL given a base URL.
@@ -206,9 +231,11 @@ fn strip_url_path_prefix(url: &Url, base: &Url) -> Option<String> {
     if url.scheme() == base.scheme()
         && url.authority() == base.authority()
         && url.host_str() == base.host_str()
-        && url.port() == base.port()
+        && url.port_or_known_default() == base.port_or_known_default()
     {
-        return strip_path_prefix(url.path(), base.path());
+        return strip_path_prefix(url.path(), base.path())
+            .map(PathBuf::into_os_string)
+            .and_then(|s| s.into_string().ok());
     }
 
     None
@@ -236,6 +263,11 @@ struct TaskEvaluationContext<'a, 'b> {
     ///
     /// This is `true` when evaluating hints sections.
     task: bool,
+    /// Whether or not evaluation is occurring _after_ the task has executed.
+    ///
+    /// After the task has executed, we want cancellable operations to use the
+    /// second cancellation token and not the first.
+    post_execution: bool,
 }
 
 impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
@@ -248,6 +280,7 @@ impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
             stdout: None,
             stderr: None,
             task: false,
+            post_execution: false,
         }
     }
 
@@ -274,6 +307,12 @@ impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
     /// This is used in evaluating hints sections.
     pub fn with_task(mut self) -> Self {
         self.task = true;
+        self
+    }
+
+    /// Marks the evaluation as occurring _after_ the the task has executed.
+    pub fn with_post_execution(mut self) -> Self {
+        self.post_execution = true;
         self
     }
 }
@@ -311,31 +350,9 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
-        let cache_key = self
-            .state
-            .document
-            .get_choice_cache_key(enum_name, choice_name)
-            .ok_or_else(|| unknown_enum(enum_name))?;
-
-        let cache = self.state.evaluator.choice_cache.lock().unwrap();
-        if let Some(cached_value) = cache.get(&cache_key) {
-            return Ok(cached_value.clone());
-        }
-
-        drop(cache);
-
-        let r#enum = self
-            .state
-            .document
-            .enum_by_name(enum_name)
-            .ok_or(unknown_enum(enum_name))?;
-        let value = resolve_enum_choice_value(r#enum, choice_name)?;
-
-        let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
-        cache.insert(cache_key, value.clone());
-        drop(cache);
-
-        Ok(value)
+        self.state
+            .evaluator
+            .enum_choice_value(self.state.document, enum_name, choice_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -362,16 +379,18 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         }
     }
 
-    fn transferer(&self) -> &dyn Transferer {
-        self.state.evaluator.engine.transferer()
-    }
-
-    fn events(&self) -> &Events {
-        &self.state.evaluator.events
-    }
-
-    fn cancellation(&self) -> &CancellationContext {
-        &self.state.evaluator.cancellation
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+        (
+            self.state.evaluator.http_client(),
+            // After the task has executed, use the second cancellation token
+            // This ensures that the `output` section is evaluated even if the
+            // first cancellation token has been signaled
+            if self.post_execution {
+                self.state.evaluator.cancellation().second()
+            } else {
+                self.state.evaluator.cancellation().first()
+            },
+        )
     }
 
     fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
@@ -386,6 +405,10 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         self.state
             .insert_backend_input(ContentKind::TempFile, path, true)?;
         Ok(())
+    }
+
+    fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
+        self.state.evaluator.compile_regex(pattern)
     }
 }
 
@@ -469,7 +492,7 @@ impl<'a> State<'a> {
         ];
 
         let backend_inputs =
-            if let Some(guest_inputs_dir) = evaluator.engine.backend().guest_inputs_dir() {
+            if let Some(guest_inputs_dir) = evaluator.engine().backend().guest_inputs_dir() {
                 InputTrie::new_with_guest_dir(guest_inputs_dir)
             } else {
                 InputTrie::new()
@@ -509,12 +532,20 @@ impl<'a> State<'a> {
     ///
     /// This method also ensures that a `File` or `Directory` paths exist for
     /// WDL 1.2+.
+    ///
+    /// For WDL 1.4+, a `File` that is a broken symbolic link is not added as a
+    /// backend input because it has no content to mount. If an existing
+    /// directory input contains the link, the link maps to its path within
+    /// that directory; otherwise, it maps to a reserved guest path where
+    /// nothing is mounted.
     async fn add_backend_inputs(
         &mut self,
         is_optional: bool,
         value: &mut Value,
         cacheable: bool,
     ) -> Result<()> {
+        let allow_broken_symlinks = super::allows_broken_symlinks(self.document);
+
         // For WDL 1.2 documents, start by ensuring paths exist.
         // This will replace any non-existent optional paths with `None`
         if self
@@ -526,8 +557,12 @@ impl<'a> State<'a> {
             *value = value
                 .resolve_paths(
                     is_optional,
+                    allow_broken_symlinks,
                     self.base_dir.as_local(),
-                    Some(self.evaluator.engine.transferer()),
+                    Some((
+                        self.evaluator.http_client(),
+                        self.evaluator.cancellation().first(),
+                    )),
                     &|path| Ok(path.clone()),
                 )
                 .await?;
@@ -536,6 +571,26 @@ impl<'a> State<'a> {
         // Add inputs to the backend
         let mut urls = Vec::new();
         value.visit_paths(&mut |is_file, path| {
+            // A broken symbolic link has no content to localize or mount, so
+            // map it without adding a backend input
+            if is_file && allow_broken_symlinks {
+                let joined = self.base_dir.join(path.as_str())?;
+                if let Some(local) = joined.as_local()
+                    && is_broken_symlink(local)
+                {
+                    let guest_path = match self.guest_path_in_directory_input(local) {
+                        Some(guest_path) => Some(guest_path),
+                        None => self.backend_inputs.reserve_guest_path(local)?,
+                    };
+
+                    if let Some(guest_path) = guest_path {
+                        self.path_map.insert(path.clone(), guest_path);
+                    }
+
+                    return Ok(());
+                }
+            }
+
             // Insert a backend input for the path
             if let Some(index) = self.insert_backend_input(
                 if is_file {
@@ -549,7 +604,7 @@ impl<'a> State<'a> {
                 // Check to see if there's no guest path for a remote URL that
                 // needs to be localized; if so, we must
                 // localize it now
-                if self.evaluator.engine.backend().needs_local_inputs()
+                if self.evaluator.engine().backend().needs_local_inputs()
                     && self.backend_inputs.as_slice()[index].guest_path().is_none()
                     && is_supported_url(path.as_str())
                     && !is_file_url(path.as_str())
@@ -568,18 +623,15 @@ impl<'a> State<'a> {
         // Download any necessary files
         let mut downloads = JoinSet::new();
         for (url, index) in urls {
-            let engine = self.evaluator.engine.clone();
-            let events = self.evaluator.events.clone();
-            let cancellation = self.evaluator.cancellation.clone();
+            let client = self.evaluator.http_client().clone();
+            let token = self.evaluator.cancellation().first().clone();
             downloads.spawn(async move {
-                engine
-                    .transferer()
+                client
                     .download(
                         &url.as_str()
                             .parse()
                             .with_context(|| format!("invalid URL `{url}`"))?,
-                        &events,
-                        &cancellation,
+                        &token,
                     )
                     .await
                     .with_context(|| anyhow!("failed to localize `{url}`"))
@@ -652,7 +704,10 @@ impl<'a> State<'a> {
             for (host, guest) in self.path_map.iter() {
                 // Check to see if the provided guest path is prefixed by this
                 // entry
-                if let Some(remainder) = strip_path_prefix(path, guest) {
+                if let Some(remainder) = strip_path_prefix(path, guest)
+                    .map(PathBuf::into_os_string)
+                    .and_then(|s| s.into_string().ok())
+                {
                     // If the host is a URL, parse it and join it with the
                     // remainder
                     if is_supported_url(host.as_str()) {
@@ -680,6 +735,36 @@ impl<'a> State<'a> {
         })
     }
 
+    /// Gets the guest path of a local path within the most specific directory
+    /// input that contains it.
+    ///
+    /// Unlike `guest_path`, this compares against the resolved paths of the
+    /// inputs, so it also matches inputs specified as relative paths or `file`
+    /// URLs.
+    ///
+    /// Returns `None` if no directory input with a guest path contains the
+    /// path.
+    fn guest_path_in_directory_input(&self, path: &Path) -> Option<GuestPath> {
+        let (_, guest_path, remainder) = self
+            .backend_inputs
+            .as_slice()
+            .iter()
+            .filter(|input| input.kind() == ContentKind::Directory)
+            .filter_map(|input| {
+                let directory = input.path().as_local()?;
+                let remainder = strip_path_prefix(path, directory)?;
+                Some((
+                    directory.components().count(),
+                    input.guest_path()?,
+                    remainder,
+                ))
+            })
+            .max_by_key(|(len, ..)| *len)?;
+
+        let remainder = unix_path(remainder)?;
+        Some(GuestPath::new(format!("{guest_path}/{remainder}")))
+    }
+
     /// Gets a guest path representation of a host path.
     ///
     /// Returns `None` if there is no guest path representation of the host
@@ -705,12 +790,11 @@ impl<'a> State<'a> {
 
                 match (&path_url, &host_url) {
                     (None, None) => {
-                        if let Some(remainder) = strip_path_prefix(path, host) {
+                        if let Some(remainder) = strip_path_prefix(path, host)
+                            && let Some(remainder) = unix_path(remainder)
+                        {
                             // Note: guest paths are always Unix-style paths
-                            return Some(GuestPath::new(format!(
-                                "{guest}/{remainder}",
-                                remainder = remainder.replace('\\', "/")
-                            )));
+                            return Some(GuestPath::new(format!("{guest}/{remainder}",)));
                         }
                     }
                     (Some(path_url), Some(host_url)) => {
@@ -750,7 +834,7 @@ impl<'a> State<'a> {
                     debug!(
                         task_id = id,
                         task_name = self.task.name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression"
                     );
@@ -767,7 +851,7 @@ impl<'a> State<'a> {
                     debug!(
                         task_id = id,
                         task_name = self.task.name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression"
                     );
@@ -796,9 +880,8 @@ impl<'a> State<'a> {
             decl_ty.is_optional(),
             &mut value,
             self.evaluator
-                .engine
+                .engine()
                 .call_cache()
-                .as_ref()
                 .map(|c| !c.is_input_excluded(name.text()))
                 .unwrap_or(true),
         )
@@ -837,7 +920,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             decl_name = name.text(),
             "evaluating private declaration",
         );
@@ -890,7 +973,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating runtimes section",
         );
 
@@ -970,7 +1053,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating requirements",
         );
 
@@ -1030,7 +1113,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating hints section",
         );
 
@@ -1077,7 +1160,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "evaluating command section",
         );
 
@@ -1136,15 +1219,17 @@ impl<'a> State<'a> {
     /// Evaluates sections prior to executing the task.
     ///
     /// This method evaluates the following sections:
-    ///   * runtime
-    ///   * requirements
-    ///   * hints
-    ///   * command
+    ///
+    /// * runtime
+    /// * requirements
+    /// * hints
+    /// * command
     async fn evaluate_sections(
         &mut self,
         id: &str,
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
+        image_overrides: &ContainerImageOverrides,
         attempt: u64,
         previous_task_data: Option<Arc<TaskPostEvaluationData>>,
     ) -> EvaluationResult<EvaluatedSections> {
@@ -1214,9 +1299,9 @@ impl<'a> State<'a> {
         // Get the execution constraints
         let constraints = self
             .evaluator
-            .engine
+            .engine()
             .backend()
-            .constraints(inputs, &requirements, &hints)
+            .constraints(inputs, &requirements, image_overrides, &hints)
             .with_context(|| {
                 format!(
                     "failed to get constraints for task `{task}`",
@@ -1229,7 +1314,7 @@ impl<'a> State<'a> {
         // command/output sections are evaluated.
         if version >= Some(SupportedVersion::V1(V1::Two)) {
             let max_retries =
-                requirements::max_retries(inputs, &requirements, self.evaluator.engine.config())?;
+                requirements::max_retries(inputs, &requirements, self.evaluator.engine().config())?;
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -1294,7 +1379,7 @@ impl<'a> State<'a> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             output_name = name.text(),
             "evaluating output",
         );
@@ -1305,7 +1390,8 @@ impl<'a> State<'a> {
             TaskEvaluationContext::new(self, TASK_SCOPE_INDEX)
                 .with_work_dir(&evaluated.result.work_dir)
                 .with_stdout(&evaluated.result.stdout)
-                .with_stderr(&evaluated.result.stderr),
+                .with_stderr(&evaluated.result.stderr)
+                .with_post_execution(),
         );
 
         let expr = decl.expr().expect("outputs should have expressions");
@@ -1318,8 +1404,12 @@ impl<'a> State<'a> {
         value = value
             .resolve_paths(
                 ty.is_optional(),
+                super::allows_broken_symlinks(self.document),
                 self.base_dir.as_local(),
-                Some(self.evaluator.engine.transferer()),
+                Some((
+                    self.evaluator.http_client(),
+                    self.evaluator.cancellation().second(),
+                )),
                 &|path| {
                     // To be a valid output, the output must be one of the
                     // following:
@@ -1351,7 +1441,13 @@ impl<'a> State<'a> {
                     let joined = evaluated.result.work_dir.join(path.as_str())?;
 
                     // If the backend doesn't use containers, allow the path
-                    if self.evaluator.engine.backend().guest_inputs_dir().is_none() {
+                    if self
+                        .evaluator
+                        .engine()
+                        .backend()
+                        .guest_inputs_dir()
+                        .is_none()
+                    {
                         return Ok(HostPath::new(String::try_from(joined)?));
                     }
 
@@ -1399,7 +1495,7 @@ impl<'a> State<'a> {
     /// Localizes inputs for execution.
     async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<()> {
         // If the backend needs local inputs, download them now
-        if self.evaluator.engine.backend().needs_local_inputs() {
+        if self.evaluator.engine().backend().needs_local_inputs() {
             let mut downloads = JoinSet::new();
 
             // Download any necessary files
@@ -1409,14 +1505,12 @@ impl<'a> State<'a> {
                 }
 
                 if let Some(url) = input.path().as_remote() {
-                    let engine = self.evaluator.engine.clone();
                     let url = url.clone();
-                    let events = self.evaluator.events.clone();
-                    let cancellation = self.evaluator.cancellation.clone();
+                    let client = self.evaluator.http_client().clone();
+                    let token = self.evaluator.cancellation().first().clone();
                     downloads.spawn(async move {
-                        engine
-                            .transferer()
-                            .download(&url, &events, &cancellation)
+                        client
+                            .download(&url, &token)
                             .await
                             .map(|l| (idx, l))
                             .with_context(|| anyhow!("failed to localize `{url}`"))
@@ -1453,14 +1547,15 @@ impl<'a> State<'a> {
                     input.local_path(),
                     input.guest_path(),
                 ) {
-                    // Input is unmapped and either local or remote and not downloaded
+                    // Input is unmapped and either local or remote and not
+                    // downloaded
                     (true, _, None) | (false, None, None) => {}
                     // Input is local and was mapped to a guest path
                     (true, _, Some(guest_path)) => {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` mapped to `{guest_path}`",
                             path = input.path(),
                         );
@@ -1470,28 +1565,30 @@ impl<'a> State<'a> {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` downloaded to `{local_path}`",
                             path = input.path(),
                             local_path = local_path.display()
                         );
                     }
-                    // Input is remote and was not downloaded, but mapped to a guest path
+                    // Input is remote and was not downloaded, but mapped to a
+                    // guest path
                     (false, None, Some(guest_path)) => {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` mapped to `{guest_path}`",
                             path = input.path(),
                         );
                     }
-                    // Input is remote and was both downloaded and mapped to a guest path
+                    // Input is remote and was both downloaded and mapped to a
+                    // guest path
                     (false, Some(local_path), Some(guest_path)) => {
                         debug!(
                             task_id,
                             task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             "task input `{path}` downloaded to `{local_path}` and mapped to \
                              `{guest_path}`",
                             path = input.path(),
@@ -1503,6 +1600,31 @@ impl<'a> State<'a> {
         }
 
         Ok(())
+    }
+}
+
+/// Represents task evaluation context provided to the task execution backend.
+struct BackendTaskEvaluationContext<'a>(&'a Evaluator);
+
+impl backend::TaskEvaluationContext for BackendTaskEvaluationContext<'_> {
+    fn http_client(&self) -> &EvaluationHttpClient {
+        self.0.http_client()
+    }
+
+    fn events(&self) -> &crate::Events {
+        self.0.events()
+    }
+
+    fn cancellation(&self) -> &crate::CancellationContext {
+        self.0.cancellation()
+    }
+
+    fn digests(&self) -> &DigestCalculator {
+        self.0.digests()
+    }
+
+    fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
+        self.0.compile_regex(pattern)
     }
 }
 
@@ -1531,8 +1653,8 @@ impl Evaluator {
             .perform_task_evaluation(document, task, inputs, eval_root_dir.as_ref(), task.name())
             .await;
 
-        if self.cancellation.user_canceled()
-            && self.cancellation.state() == CancellationContextState::Canceling
+        if self.cancellation().user_canceled()
+            && self.cancellation().state() == CancellationContextState::Canceling
         {
             return Err(EvaluationError::Canceled);
         }
@@ -1594,7 +1716,7 @@ impl Evaluator {
         debug!(
             task_id = id,
             task_name = task.name(),
-            document = document.uri().as_str(),
+            document = %document.uri(),
             "evaluating task"
         );
 
@@ -1621,7 +1743,7 @@ impl Evaluator {
         // begins, so that even localization performed while evaluating
         // inputs and declarations is attributable to the task.
         let mut state = State::new(self, document, task, &temp_dir, self.generate_task_name(id))?;
-        self.notify_task_initializing(id, &state.task_name);
+        self.notify_task_initializing(id, &state.task_name, 0);
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
         while current < nodes.len() {
@@ -1659,14 +1781,14 @@ impl Evaluator {
         let mut attempt = 0;
         let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
         let mut evaluated = loop {
-            if self.cancellation.state() != CancellationContextState::NotCanceled {
+            if self.cancellation().state() != CancellationContextState::NotCanceled {
                 return Err(EvaluationError::Canceled);
             }
 
-            // Each attempt is a distinct execution with its own name.
+            // Each attempt is a distinct execution with its own name; the name
+            // for a retry attempt was minted when the retry was announced.
             if attempt > 0 {
-                state.task_name = self.generate_task_name(id);
-                self.notify_task_initializing(id, &state.task_name);
+                self.notify_task_initializing(id, &state.task_name, attempt);
             }
 
             let EvaluatedSections {
@@ -1679,6 +1801,7 @@ impl Evaluator {
                     id,
                     &definition,
                     &inputs,
+                    self.image_overrides(),
                     attempt,
                     previous_task_data.clone(),
                 )
@@ -1687,7 +1810,7 @@ impl Evaluator {
             // Get the maximum number of retries, either from the task's
             // requirements or from configuration
             let max_retries =
-                requirements::max_retries(&inputs, &requirements, self.engine.config())?;
+                requirements::max_retries(&inputs, &requirements, self.engine().config())?;
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1699,45 +1822,45 @@ impl Evaluator {
             // Localize the inputs now
             state.localize_inputs(id).await?;
 
-            // Calculate the cache key on the first attempt only
-            let mut key = if attempt == 0
-                && let Some(cache) = self.engine.call_cache()
-            {
-                if hints::cacheable(&inputs, &hints, self.engine.config()) {
+            // Calculate the cache key
+            let mut key = if let Some(cache) = self.engine().call_cache() {
+                if hints::cacheable(&inputs, &hints, self.engine().config()) {
                     // The configured default container is only part of the
-                    // cache key when the task has no
-                    // `container` requirement of its own. When
-                    // the task does specify `container`, the requirement is
-                    // already covered by the `requirements`
-                    // digest, so including the default here
-                    // would be redundant; when it doesn't, a change to the
-                    // configured default must invalidate the cache entry.
+                    // cache key when the task has no `container` requirement of
+                    // its own. When the task does specify `container`, the
+                    // requirement is already covered by the `requirements`
+                    // digest, so including the default here would be redundant;
+                    // when it doesn't, a change to the configured default must
+                    // invalidate the cache entry.
                     let default_container =
                         if requirements::has_container_requirement(&inputs, &requirements) {
                             None
                         } else {
-                            Some(self.engine.config().task.container.as_str())
+                            Some(self.engine().config().task.container.as_str())
                         };
                     let request = KeyRequest {
-                        document_uri: state.document.uri().as_ref(),
-                        backend: self.engine.backend().name(),
+                        document_uri: &state.document.uri(),
+                        backend: self.engine().backend().name(),
                         task_name: task.name(),
                         inputs: &state.inputs,
                         command: &command,
                         default_container,
-                        shell: &self.engine.config().task.shell,
+                        shell: &self.engine().config().task.shell,
                         requirements: &requirements,
                         hints: &hints,
-                        guest_inputs_dir: self.engine.backend().guest_inputs_dir(),
+                        guest_inputs_dir: self.engine().backend().guest_inputs_dir(),
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
-                    match cache.key(self.engine.transferer(), &request).await {
+                    match cache
+                        .key(&request, self.digests(), self.cancellation().first())
+                        .await
+                    {
                         Ok(key) => {
                             debug!(
                                 task_id = id,
                                 task_name = state.task.name(),
-                                document = state.document.uri().as_str(),
+                                document = %state.document.uri(),
                                 "task cache key is `{key}`"
                             );
                             Some(key)
@@ -1746,7 +1869,7 @@ impl Evaluator {
                             warn!(
                                 task_id = id,
                                 task_name = state.task.name(),
-                                document = state.document.uri().as_str(),
+                                document = %state.document.uri(),
                                 "call caching disabled due to cache key calculation failure: {e:#}"
                             );
                             None
@@ -1754,20 +1877,20 @@ impl Evaluator {
                     }
                 } else {
                     // Task wasn't cacheable, explain why.
-                    match self.engine.config().task.cache {
+                    match self.engine().config().task.cache {
                         CallCachingMode::Off => {
                             unreachable!("cache was used despite not being enabled")
                         }
                         CallCachingMode::On => debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "task is not cacheable due to `cacheable` hint being set to `false`"
                         ),
                         CallCachingMode::Explicit => debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "task is not cacheable due to `cacheable` hint not being explicitly \
                              set to `true`"
                         ),
@@ -1783,24 +1906,24 @@ impl Evaluator {
             cached = false;
             let result = if let Some(cache_key) = &key {
                 match self
-                    .engine
+                    .engine()
                     .call_cache()
                     .expect("should have cache")
-                    .get(self.engine.transferer(), cache_key)
+                    .get(cache_key, self.digests(), self.cancellation().first())
                     .await
                 {
                     Ok(Some(results)) => {
                         info!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "task execution was skipped due to previous result being present in \
                              the call cache"
                         );
 
                         // Notify that we've reused a cached execution result.
                         cached = true;
-                        if let Some(sender) = self.events.engine() {
+                        if let Some(sender) = self.events().engine() {
                             let _ = sender.send(EngineEvent::ReusedCachedExecutionResult {
                                 id: id.to_string(),
                                 name: state.task_name.clone(),
@@ -1808,8 +1931,7 @@ impl Evaluator {
                         }
 
                         // We're serving the results from the call cache; no
-                        // need to update, so set
-                        // the key to `None`
+                        // need to update, so set the key to `None`
                         key = None;
                         Some(results)
                     }
@@ -1817,7 +1939,7 @@ impl Evaluator {
                         debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "call cache miss for key `{cache_key}`"
                         );
                         None
@@ -1826,7 +1948,7 @@ impl Evaluator {
                         info!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "ignoring call cache entry: {e:#}"
                         );
                         None
@@ -1843,11 +1965,18 @@ impl Evaluator {
                     attempt_dir.push("attempts");
                     attempt_dir.push(attempt.to_string());
 
+                    // Notify that the attempt is being submitted for
+                    // execution, along with its resolved constraints.
+                    self.notify_task_executing(
+                        &state.task_name,
+                        TaskConstraintsSnapshot::from(&constraints),
+                    );
+
                     match self
-                        .engine
+                        .engine()
                         .backend()
                         .execute(&ExecuteTaskRequest {
-                            engine: &self.engine,
+                            context: &BackendTaskEvaluationContext(self),
                             name: &state.task_name,
                             command: &command,
                             inputs: &inputs,
@@ -1859,8 +1988,6 @@ impl Evaluator {
                             base_dir: &state.base_dir,
                             attempt_dir: &attempt_dir,
                             temp_dir: &temp_dir,
-                            events: &self.events,
-                            cancellation: &self.cancellation,
                         })
                         .await
                     {
@@ -1913,6 +2040,24 @@ impl Evaluator {
                     previous_task_data = Some(task.data().clone());
                 }
 
+                // Mint the next attempt's name now so that the retry
+                // announcement can link the failed attempt to its successor;
+                // the `TaskInitializing` event at the top of the loop
+                // announces the new attempt under this name.
+                let prior_name = result
+                    .execution_name_override
+                    .as_deref()
+                    .unwrap_or(&state.task_name);
+                let next_name = self.generate_task_name(id);
+                self.notify_task_retrying(
+                    prior_name,
+                    &next_name,
+                    RetryCause::UnacceptableExitCode {
+                        code: result.exit_code,
+                    },
+                );
+                state.task_name = next_name;
+
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
                     name = state.task.name()
@@ -1933,17 +2078,17 @@ impl Evaluator {
             // Task execution succeeded; update the cache entry if we have a key
             if let Some(key) = key {
                 match self
-                    .engine
+                    .engine()
                     .call_cache()
                     .expect("should have cache")
-                    .put(self.engine.transferer(), key, &result)
+                    .put(key, &result, self.digests(), self.cancellation().second())
                     .await
                 {
                     Ok(key) => {
                         debug!(
                             task_id = id,
                             task_name = state.task.name(),
-                            document = state.document.uri().as_str(),
+                            document = %state.document.uri(),
                             "updated call cache entry for key `{key}`"
                         );
                     }
@@ -1961,17 +2106,10 @@ impl Evaluator {
             break EvaluatedTask::new(cached, result, None);
         };
 
-        // Evaluate the remaining inputs (unused), private decls, and outputs if
-        // the task executed successfully
+        // Evaluate the outputs if the task executed successfully
         if !evaluated.failed() {
             for index in &nodes[current..] {
                 match &graph[*index] {
-                    TaskGraphNode::Decl(decl) => {
-                        state
-                            .evaluate_decl(id, decl)
-                            .await
-                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                    }
                     TaskGraphNode::Output(decl) => {
                         state
                             .evaluate_output(id, decl, &evaluated)
@@ -1979,9 +2117,7 @@ impl Evaluator {
                             .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                     }
                     _ => {
-                        unreachable!(
-                            "only declarations and outputs should be evaluated after the command"
-                        )
+                        unreachable!("only outputs should be evaluated after the command")
                     }
                 }
             }
@@ -2037,7 +2173,7 @@ impl Evaluator {
     /// tree, otherwise an error is returned.
     fn remap_links(&self, state: &State<'_>, work_dir: &EvaluationPath) -> Result<()> {
         // Don't remap links for backends that don't use guest paths
-        if self.engine.backend().guest_inputs_dir().is_none() {
+        if self.engine().backend().guest_inputs_dir().is_none() {
             return Ok(());
         }
 
@@ -2069,12 +2205,14 @@ impl Evaluator {
                 continue;
             }
 
-            // Find a known guest path that starts the given guest path
-            // If there isn't one, it's an error
+            // Find the most specific known guest path that starts the given
+            // guest path, as a broken link input may be mapped within a
+            // directory input; if there isn't one, it's an error
             let Some(guest) = state
                 .path_map
                 .right_values()
-                .find(|p| symlink_guest_path.starts_with(p))
+                .filter(|p| symlink_guest_path.starts_with(p))
+                .max_by_key(|p| p.as_ref().components().count())
             else {
                 bail!(
                     "`{path}` links to guest path `{link_path}` but it is not to a task input or \
@@ -2089,34 +2227,35 @@ impl Evaluator {
 
             // Check for a host path that is a URL and use the localized path
             // instead
-            let base_host_path =
-                if self.engine.backend().needs_local_inputs() && is_supported_url(host.as_str()) {
-                    state
-                        .backend_inputs
-                        .as_slice()
-                        .iter()
-                        .find_map(|i| {
-                            let url = i.path().as_remote()?.as_str();
-                            let host = host.as_str();
+            let base_host_path = if self.engine().backend().needs_local_inputs()
+                && is_supported_url(host.as_str())
+            {
+                state
+                    .backend_inputs
+                    .as_slice()
+                    .iter()
+                    .find_map(|i| {
+                        let url = i.path().as_remote()?.as_str();
+                        let host = host.as_str();
 
-                            // Normalize any trailing slash
-                            if url.strip_suffix('/').unwrap_or(url)
-                                == host.strip_suffix('/').unwrap_or(host)
-                            {
-                                Some(i.local_path()?)
-                            } else {
-                                None
-                            }
-                        })
-                        .with_context(|| {
-                            format!(
-                                "cannot remap symbolic link for guest path `{guest}` because a \
-                                 localized path for URL `{host}` was not found"
-                            )
-                        })?
-                } else {
-                    host.as_ref()
-                };
+                        // Normalize any trailing slash
+                        if url.strip_suffix('/').unwrap_or(url)
+                            == host.strip_suffix('/').unwrap_or(host)
+                        {
+                            Some(i.local_path()?)
+                        } else {
+                            None
+                        }
+                    })
+                    .with_context(|| {
+                        format!(
+                            "cannot remap symbolic link for guest path `{guest}` because a \
+                             localized path for URL `{host}` was not found"
+                        )
+                    })?
+            } else {
+                host.as_ref()
+            };
 
             // Translate the guest path to the corresponding host path
             let symlink_host_path: Cow<'_, Path> = if let Ok(stripped) =
@@ -2186,11 +2325,10 @@ impl Evaluator {
         // Read the last `MAX_STDERR_LINES` number of lines from stderr
         // If there's a problem reading stderr, don't output it
         let stderr = download_file(
-            self.engine.transferer(),
+            self.http_client(),
             &result.work_dir,
-            &self.events,
-            &self.cancellation,
             result.stderr.as_file().unwrap(),
+            self.cancellation().second(),
         )
         .await
         .ok()
@@ -2239,23 +2377,134 @@ impl Evaluator {
 mod tests {
     use std::fs;
     use std::path::Path;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
 
+    use anyhow::Result;
+    use crankshaft::events::Event;
+    use futures::FutureExt;
+    use futures::future::BoxFuture;
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
     use tempfile::tempdir;
     use tracing_test::traced_test;
     use wdl_analysis::Analyzer;
     use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
+    use wdl_analysis::FeatureFlags;
 
     use crate::CancellationContext;
+    use crate::CancellationContextState;
+    use crate::ContainerImageOverrides;
     use crate::Engine;
+    use crate::EngineEvent;
+    use crate::EvaluationPath;
     use crate::Events;
+    use crate::Object;
+    #[cfg(unix)]
+    use crate::Outputs;
+    use crate::PrimitiveValue;
+    use crate::RetryCause;
     use crate::TaskInputs;
+    use crate::backend::ExecuteTaskRequest;
+    use crate::backend::TaskExecutionBackend;
+    use crate::backend::TaskExecutionConstraints;
+    use crate::backend::TaskExecutionResult;
     use crate::config::CallCachingMode;
     use crate::config::Config;
     use crate::config::DockerBackendConfig;
-    use crate::digest::test::clear_digest_cache;
+    use crate::config::FailureMode;
+    use crate::config::LocalBackendConfig;
     use crate::eval::EvaluatedTask;
+    use crate::http::tests::NotImplementedHttpClient;
+    use crate::resubmit_task_name;
+
+    struct ScriptedRenamingBackend {
+        executions: AtomicUsize,
+    }
+
+    impl ScriptedRenamingBackend {
+        fn new() -> Self {
+            Self {
+                executions: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl TaskExecutionBackend for ScriptedRenamingBackend {
+        fn name(&self) -> &'static str {
+            "scripted-renaming"
+        }
+
+        fn constraints(
+            &self,
+            _inputs: &TaskInputs,
+            _requirements: &Object,
+            _image_overrides: &ContainerImageOverrides,
+            _hints: &Object,
+        ) -> Result<TaskExecutionConstraints> {
+            Ok(TaskExecutionConstraints {
+                sources: Vec::new(),
+                cpu: 1.0,
+                memory: 1024 * 1024,
+                gpu: Vec::new(),
+                fpga: Vec::new(),
+                disks: Default::default(),
+            })
+        }
+
+        fn execute<'a>(
+            &'a self,
+            request: &'a ExecuteTaskRequest<'a>,
+        ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
+            async move {
+                let execution = self.executions.fetch_add(1, Ordering::SeqCst);
+                let work_dir = request.work_dir();
+                let stdout = request.stdout_path();
+                let stderr = request.stderr_path();
+                fs::create_dir_all(&work_dir)?;
+                fs::write(&stdout, "")?;
+                fs::write(&stderr, "")?;
+
+                let (execution_name_override, exit_code) = if execution == 0 {
+                    let next_name = resubmit_task_name(request.name, 1);
+                    if let Some(sender) = request.context.events().engine() {
+                        let _ = sender.send(EngineEvent::TaskRetrying {
+                            prior_name: request.name.to_string(),
+                            next_name: next_name.clone(),
+                            cause: RetryCause::Preempted,
+                        });
+                    }
+
+                    (Some(next_name), 1)
+                } else {
+                    (None, 0)
+                };
+
+                Ok(Some(TaskExecutionResult {
+                    execution_name_override,
+                    image: None,
+                    exit_code,
+                    work_dir: EvaluationPath::from_local_path(work_dir),
+                    stdout: PrimitiveValue::new_file(
+                        stdout
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                    .into(),
+                    stderr: PrimitiveValue::new_file(
+                        stderr
+                            .into_os_string()
+                            .into_string()
+                            .expect("path should be UTF-8"),
+                    )
+                    .into(),
+                }))
+            }
+            .boxed()
+        }
+    }
 
     /// Creates a configuration for testing with the given mode and root test
     /// directory.
@@ -2269,13 +2518,29 @@ mod tests {
         config
     }
 
-    /// Helper for evaluating a simple task with the given call cache mode.
-    async fn evaluate_task(config: Config, root_dir: &Path, source: &str) -> EvaluatedTask {
+    /// Evaluates a simple task and collects its engine events.
+    async fn evaluate_task_with_events(
+        config: Config,
+        root_dir: &Path,
+        source: &str,
+    ) -> (EvaluatedTask, Vec<EngineEvent>) {
+        let engine = Engine::new(config).await.unwrap();
+        evaluate_task_with_engine(engine, root_dir, source).await
+    }
+
+    /// Evaluates a simple task with the given engine and collects its events.
+    async fn evaluate_task_with_engine(
+        engine: Engine,
+        root_dir: &Path,
+        source: &str,
+    ) -> (EvaluatedTask, Vec<EngineEvent>) {
         fs::write(root_dir.join("source.wdl"), source).expect("failed to write WDL source file");
 
         // Analyze the source file
         let analyzer = Analyzer::new(
-            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            AnalysisConfig::default()
+                .with_diagnostics_config(DiagnosticsConfig::except_all())
+                .with_feature_flags(FeatureFlags::default().with_wdl_1_4()),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2287,21 +2552,239 @@ mod tests {
             .await
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
-
         let document = results.first().expect("should have result").document();
-        let engine = Engine::new(config).await.unwrap();
-        let evaluator =
-            engine.create_v1_evaluator(Events::disabled(), CancellationContext::default());
+        let events = Events::default().with_engine(100);
+        let mut receiver = events.subscribe_engine().unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
         let runs_dir = root_dir.join("runs");
-        evaluator
+        let evaluated = evaluator
             .evaluate_task(
                 document,
-                document.task_by_name("test").expect("should have task"),
+                document
+                    .local_task_by_name("test")
+                    .expect("should have task"),
                 TaskInputs::default(),
                 &runs_dir,
             )
             .await
-            .unwrap()
+            .unwrap();
+
+        let mut received = Vec::new();
+        while let Ok(event) = receiver.try_recv() {
+            received.push(event);
+        }
+
+        (evaluated, received)
+    }
+
+    /// Helper for evaluating a simple task with the given call cache mode.
+    async fn evaluate_task(config: Config, root_dir: &Path, source: &str) -> EvaluatedTask {
+        evaluate_task_with_events(config, root_dir, source).await.0
+    }
+
+    #[tokio::test]
+    async fn retry_events_link_each_execution_attempt_in_order() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    command <<<exit 1>>>
+
+    requirements {
+        max_retries: 1
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let mut config = Config::default();
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let (evaluated, events) = evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(evaluated.failed());
+        assert_eq!(evaluated.exit_code(), 1);
+
+        let relevant = events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    EngineEvent::TaskInitializing { .. }
+                        | EngineEvent::TaskExecuting { .. }
+                        | EngineEvent::TaskRetrying { .. }
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let [
+            EngineEvent::TaskInitializing {
+                name: first_attempt,
+                attempt: 0,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: first_execution,
+                ..
+            },
+            EngineEvent::TaskRetrying {
+                prior_name,
+                next_name,
+                cause,
+            },
+            EngineEvent::TaskInitializing {
+                name: second_attempt,
+                attempt: 1,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: second_execution,
+                ..
+            },
+        ] = relevant.as_slice()
+        else {
+            panic!("unexpected execution event sequence");
+        };
+
+        assert_eq!(first_attempt, first_execution);
+        assert_eq!(first_attempt, prior_name);
+        assert_eq!(second_attempt, next_name);
+        assert_eq!(second_attempt, second_execution);
+        assert_ne!(first_attempt, second_attempt);
+        assert_eq!(*cause, RetryCause::UnacceptableExitCode { code: 1 });
+    }
+
+    #[tokio::test]
+    async fn renamed_execution_is_the_predecessor_of_an_evaluator_retry() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    command <<<exit 1>>>
+
+    requirements {
+        max_retries: 1
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let engine = Engine::new_with_backend(
+            Config::local(),
+            NotImplementedHttpClient,
+            Box::new(ScriptedRenamingBackend::new()),
+        )
+        .await
+        .unwrap();
+
+        let (evaluated, events) = evaluate_task_with_engine(engine, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.failed());
+        assert_eq!(evaluated.exit_code(), 0);
+
+        let relevant = events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    EngineEvent::TaskInitializing { .. }
+                        | EngineEvent::TaskExecuting { .. }
+                        | EngineEvent::TaskRetrying { .. }
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let [
+            EngineEvent::TaskInitializing {
+                name: base,
+                attempt: 0,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: base_execution,
+                ..
+            },
+            EngineEvent::TaskRetrying {
+                prior_name: preempted,
+                next_name: resubmitted,
+                cause: RetryCause::Preempted,
+            },
+            EngineEvent::TaskRetrying {
+                prior_name: unacceptable,
+                next_name: fresh,
+                cause: RetryCause::UnacceptableExitCode { code: 1 },
+            },
+            EngineEvent::TaskInitializing {
+                name: fresh_initializing,
+                attempt: 1,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: fresh_execution,
+                ..
+            },
+        ] = relevant.as_slice()
+        else {
+            panic!("unexpected execution event sequence");
+        };
+
+        assert_eq!(base, base_execution);
+        assert_eq!(base, preempted);
+        assert_eq!(resubmitted, &resubmit_task_name(base, 1));
+        assert_eq!(resubmitted, unacceptable);
+        assert_eq!(fresh, fresh_initializing);
+        assert_eq!(fresh, fresh_execution);
+        assert_ne!(fresh, base);
+        assert_ne!(fresh, resubmitted);
+    }
+
+    #[tokio::test]
+    async fn cached_execution_does_not_emit_task_executing() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    command <<<echo "cached">>>
+
+    output {
+        String out = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let mut config = Config::default();
+        config.task.cache = CallCachingMode::On;
+        config.task.cache_dir = root_dir.path().join("cache").to_string_lossy().into();
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+
+        let (first, _) = evaluate_task_with_events(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!first.cached());
+
+        let (second, second_events) =
+            evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(second.cached());
+        assert!(
+            second_events
+                .iter()
+                .any(|event| matches!(event, EngineEvent::TaskInitializing { .. }))
+        );
+        assert!(
+            second_events
+                .iter()
+                .any(|event| matches!(event, EngineEvent::ReusedCachedExecutionResult { .. }))
+        );
+        assert!(
+            !second_events
+                .iter()
+                .any(|event| matches!(event, EngineEvent::TaskExecuting { .. }))
+        );
     }
 
     /// Tests task evaluation when call caching is disabled.
@@ -2607,7 +3090,7 @@ task test {
     }
 
     /// Tests that calls to `write_lines` is cacheable.
-    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_write_lines() {
@@ -2674,7 +3157,7 @@ task test {
     }
 
     /// Tests that calls to `write_lines` with no reference in the command is
-    /// cacheable. See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// cacheable. See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_unreferenced_write_lines() {
@@ -2740,7 +3223,7 @@ task test {
     }
 
     /// Tests that swapped calls to `write_lines` invalidates a cache entry.
-    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_swapped_write_lines() {
@@ -2837,7 +3320,7 @@ task test {
     }
 
     /// Tests that excluded input files do not impact the cache.
-    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    /// See: <https://github.com/stjude-rust-labs/sprocket/issues/877>
     #[tokio::test]
     #[traced_test]
     async fn cache_excluded_input_file() {
@@ -2950,7 +3433,7 @@ task test {
         // Change the not excluded file; this should invalidate the entry and
         // rerun the task with the previously modified excluded input
         fs::write(root_dir.path().join("not.txt"), "modified!").unwrap();
-        clear_digest_cache();
+
         let evaluated = evaluate_task(config, root_dir.path(), MODIFIED_SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
@@ -3044,7 +3527,6 @@ task test {
 
         // Modify the input file
         fs::write(root_dir.path().join("foo.txt"), "modified!").unwrap();
-        clear_digest_cache();
 
         // The cache entry should be invalidated because `not_excluded` was
         // ultimately modified
@@ -3064,6 +3546,347 @@ task test {
         assert!(
             logs_contain("the content of a file or directory input was modified"),
             "expected input to be modified"
+        );
+    }
+
+    /// Tests for caching when a task retries.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_with_retry() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    command <<<
+        echo '~{if task.attempt == 0 then "fail" else "ok"}'
+        exit ~{if task.attempt == 0 then 1 else 0}
+    >>>
+
+    requirements {
+        max_retries: 1
+    }
+    
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+
+        // Evaluate the task; it should succeed due to the retry logic
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "ok"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("retrying execution of task `test` (retry 1)"),
+            "expected task to be retried"
+        );
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        // Evaluate the source again; it should be served from the cache despite
+        // the previous retry
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert!(
+            logs_contain("ignoring call cache entry: the command of the task was modified"),
+            "expected entry to be ignored for first attempt"
+        );
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "ok"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second attempt to skip execution"
+        );
+    }
+
+    #[tokio::test]
+    async fn first_cancel_completes_task() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let source_path = root_dir.path().join("source.wdl");
+        fs::write(
+            &source_path,
+            r#"
+version 1.1
+
+task t {
+  command <<<sleep 5>>>
+
+  output {
+    # Ensure a HTTP fetch isn't canceled either
+    String s = read_string("https://httpbin.io/status/200")
+    # Ensure a remote file existence check isn't canceled either
+    File f = "https://httpbin.io/status/200"
+  }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        // Analyze the source files
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let cancellation = CancellationContext::new(FailureMode::Slow);
+        let events = Events::default().with_crankshaft(10);
+        let evaluator = engine.create_v1_evaluator(
+            events.clone(),
+            cancellation.clone(),
+            ContainerImageOverrides::default(),
+        );
+
+        let document = results
+            .iter()
+            .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+            .expect("should have result")
+            .document();
+
+        let mut evaluation = evaluator
+            .evaluate_task(
+                document,
+                document.local_task_by_name("t").unwrap(),
+                TaskInputs::default(),
+                root_dir.path(),
+            )
+            .boxed();
+
+        let mut crankshaft = events.subscribe_crankshaft().unwrap();
+
+        loop {
+            tokio::select! {
+                e = crankshaft.recv() => {
+                    match e {
+                        Ok(Event::TaskStarted { .. }) => {
+                            // Cancel once; the task should still run to completion
+                            assert_eq!(cancellation.cancel(), CancellationContextState::Waiting);
+                        }
+                        _ => continue,
+                    }
+                },
+                res = &mut evaluation => {
+                    match res {
+                        Ok(task) => {
+                            assert!(!task.failed());
+                            assert!(root_dir.path().join("outputs.json").exists());
+                            break;
+                        }
+                        Err(e) => panic!("expected evaluation to be canceled: {e}", e = e.to_string()),
+                    }
+                }
+            }
+        }
+    }
+
+    /// Gets the paths of an `Array[File]` output.
+    #[cfg(unix)]
+    fn file_paths(outputs: &Outputs, name: &str) -> Vec<String> {
+        outputs
+            .get(name)
+            .expect("should have output")
+            .as_array()
+            .expect("should be an array")
+            .as_slice()
+            .iter()
+            .map(|v| v.as_file().expect("should be a file").as_str().to_string())
+            .collect()
+    }
+
+    /// Tests that listed broken symbolic links are not mounted as inputs, but
+    /// remain visible through the mounted directory that contains them.
+    #[cfg(unix)]
+    #[tokio::test]
+    #[traced_test]
+    async fn list_broken_symlink() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    input {
+        Directory directory = "DIRECTORY"
+    }
+
+    Array[File] files = list(directory).left
+
+    command <<<
+        for file in ~{sep(" ", squote(files))}; do
+            if [ -L "$file" ]; then
+                echo "link $(basename "$file")"
+                ln -s "$file" "link-$(basename "$file")"
+            elif [ -f "$file" ]; then
+                echo "file $(basename "$file")"
+            else
+                echo "missing $(basename "$file")"
+            fi
+        done
+    >>>
+
+    output {
+        Array[File] listed = files
+        File relinked = "link-broken"
+    }
+}
+"#;
+
+        let data_dir = tempdir().expect("failed to create temporary directory");
+        fs::write(data_dir.path().join("a.txt"), "a").unwrap();
+        std::os::unix::fs::symlink("missing", data_dir.path().join("broken")).unwrap();
+        // On Unix, a backslash is part of a file name rather than a separator
+        std::os::unix::fs::symlink("missing", data_dir.path().join("back\\slash")).unwrap();
+
+        // Each root directory is a sibling of the data directory, so the data
+        // directory can also be specified relative to the document
+        let name = data_dir.path().file_name().unwrap().to_str().unwrap();
+        for directory in [
+            data_dir.path().to_str().unwrap().to_string(),
+            format!("../{name}"),
+            url::Url::from_directory_path(data_dir.path())
+                .unwrap()
+                .to_string(),
+        ] {
+            let root_dir = tempdir().expect("failed to create temporary directory");
+            let config = create_config(CallCachingMode::On, root_dir.path());
+            let source = SOURCE.replace("DIRECTORY", &directory);
+            let evaluated = evaluate_task(config, root_dir.path(), &source).await;
+            assert_eq!(evaluated.exit_code(), 0);
+            assert_eq!(
+                fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str()).unwrap(),
+                "file a.txt\nlink back\\slash\nlink broken\n",
+                "unexpected stdout for directory `{directory}`"
+            );
+
+            let outputs = evaluated.into_outputs().expect("task should succeed");
+            assert_eq!(
+                file_paths(&outputs, "listed"),
+                ["a.txt", "back\\slash", "broken"].map(|n| data_dir
+                    .path()
+                    .join(n)
+                    .to_str()
+                    .unwrap()
+                    .to_string()),
+                "unexpected outputs for directory `{directory}`"
+            );
+
+            // A link to a listed broken link is remapped to its host path
+            let relinked = outputs
+                .get("relinked")
+                .expect("should have output")
+                .as_file()
+                .expect("should be a file");
+            assert_eq!(
+                fs::read_link(relinked.as_str()).unwrap(),
+                data_dir.path().join("broken"),
+                "unexpected link target for directory `{directory}`"
+            );
+        }
+
+        assert!(
+            logs_contain("task cache key is"),
+            "expected the cache key to be calculated"
+        );
+    }
+
+    /// Tests that a listed broken symbolic link outside of any directory input
+    /// maps next to its siblings, where nothing is mounted.
+    #[cfg(unix)]
+    #[tokio::test]
+    #[traced_test]
+    async fn list_broken_symlink_outside_directory_input() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    Array[File] files = list("DIRECTORY").left
+
+    command <<<
+        for file in ~{sep(" ", squote(files))}; do
+            if [ -L "$file" ]; then
+                echo "link $file"
+            elif [ -f "$file" ]; then
+                echo "file $file"
+            else
+                echo "missing $file"
+            fi
+        done
+    >>>
+
+    output {
+        Array[File] listed = files
+    }
+}
+"#;
+
+        let data_dir = tempdir().expect("failed to create temporary directory");
+        fs::write(data_dir.path().join("a.txt"), "a").unwrap();
+        std::os::unix::fs::symlink("missing", data_dir.path().join("broken")).unwrap();
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+        let source = SOURCE.replace("DIRECTORY", data_dir.path().to_str().unwrap());
+        let evaluated = evaluate_task(config, root_dir.path(), &source).await;
+        assert_eq!(evaluated.exit_code(), 0);
+
+        let stdout = fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str()).unwrap();
+        let (guest_dir, _) = stdout
+            .strip_prefix("file ")
+            .and_then(|s| s.split_once("/a.txt\n"))
+            .expect("should have the mounted file");
+        assert!(
+            guest_dir.starts_with("/mnt/task/inputs/"),
+            "unexpected guest directory `{guest_dir}`"
+        );
+        assert_eq!(
+            stdout,
+            format!("file {guest_dir}/a.txt\nmissing {guest_dir}/broken\n")
+        );
+
+        let outputs = evaluated.into_outputs().expect("task should succeed");
+        assert_eq!(
+            file_paths(&outputs, "listed"),
+            ["a.txt", "broken"].map(|n| data_dir.path().join(n).to_str().unwrap().to_string())
+        );
+        assert!(
+            logs_contain("task cache key is"),
+            "expected the cache key to be calculated"
         );
     }
 }

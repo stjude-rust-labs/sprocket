@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs, BashSetSyntax
+#@ except: EmptyOutputs, BashSetSyntax, RuntimeSection
 
 version 1.0
 
@@ -8,14 +8,14 @@ task test {
     input {}
 
     command <<<>>>
-
-    output {}
-
-    #@ except: ExpectedRuntimeKeys
-    runtime {}
 }
 
-# This should not have diagnostics for <= 1.2
+## This doc comment suppresses the lint
+task documented {
+    command <<<>>>
+}
+
+# This struct should have diagnostics for missing doc comments
 struct Test {
     String x
 }

@@ -108,7 +108,7 @@ impl ToToml for MaxLineLength {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
 
     use super::*;

@@ -51,6 +51,7 @@ use tracing::trace;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -552,7 +553,7 @@ impl Monitor {
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");
-        state.add_job(job_id, crankshaft_id, request.events, tx);
+        state.add_job(job_id, crankshaft_id, request.context.events(), tx);
         drop(state);
 
         Ok(SubmittedJob {
@@ -773,6 +774,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut required_cpu = requirements::cpu(inputs, requirements);
@@ -842,7 +844,12 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         Ok(TaskExecutionConstraints {
             sources,
@@ -872,7 +879,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             // cancellation context
             let task_token = CancellationToken::new();
             send_event!(
-                request.events.crankshaft(),
+                request.context.events().crankshaft(),
                 CrankshaftEvent::TaskCreated {
                     id: crankshaft_id,
                     name: name.clone(),
@@ -931,7 +938,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                     .await?
                 else {
                     send_event!(
-                        request.events.crankshaft(),
+                        request.context.events().crankshaft(),
                         CrankshaftEvent::TaskCanceled {
                             id: crankshaft_id,
                         },
@@ -973,14 +980,14 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
                 let cancelled = async {
                     send_event!(
-                        request.events.crankshaft(),
+                        request.context.events().crankshaft(),
                         CrankshaftEvent::TaskCanceled { id: crankshaft_id },
                     );
 
                     self.kill_job(job_id).await
                 };
 
-                let token = request.cancellation.second();
+                let token = request.context.cancellation().second();
                 let exit_code = tokio::select! {
                     _ = task_token.cancelled() => {
                         if let Err(e) = cancelled.await {
@@ -1011,7 +1018,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                             let status = ExitStatus::from_raw(exit_code as u32);
 
                             send_event!(
-                                request.events.crankshaft(),
+                                request.context.events().crankshaft(),
                                 CrankshaftEvent::TaskCompleted {
                                     id: crankshaft_id,
                                     exit_statuses: NonEmpty::new(status),
@@ -1027,6 +1034,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 };
 
                 Ok(Some(TaskExecutionResult {
+                    execution_name_override: None,
                     image: Some(image),
                     exit_code: exit_code as i32,
                     work_dir: EvaluationPath::from_local_path(work_dir),
@@ -1050,7 +1058,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             let result = run.await;
             if let Err(e) = &result {
                 send_event!(
-                    request.events.crankshaft(),
+                    request.context.events().crankshaft(),
                     CrankshaftEvent::TaskFailed {
                         id: crankshaft_id,
                         message: e.to_string(),
@@ -1075,7 +1083,7 @@ mod tests {
     fn monitor_continues_after_bjobs_error() {
         let mut state = MonitorState::new();
         let (completed_tx, mut completed_rx) = oneshot::channel();
-        state.add_job(42, 0, &Events::disabled(), completed_tx);
+        state.add_job(42, 0, &Events::default(), completed_tx);
         let state = Mutex::new(state);
 
         Monitor::handle_query_result(

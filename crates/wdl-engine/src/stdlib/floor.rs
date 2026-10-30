@@ -11,7 +11,7 @@ use crate::Value;
 
 /// Rounds a floating point number down to the next lower integer.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#floor
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#floor>
 fn floor(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));
@@ -35,12 +35,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn floor() {

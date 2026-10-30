@@ -12,7 +12,7 @@ use crate::Value;
 /// Tests whether the given array contains at least one occurrence of the given
 /// value.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-contains>
 fn contains(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
@@ -44,11 +44,11 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn contains() {

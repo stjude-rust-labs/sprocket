@@ -21,7 +21,7 @@ use crate::is_supported_url;
 /// file name. If the file name does not end with the specified suffix then it
 /// is ignored.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename>
 fn basename(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     fn remove_suffix<'a>(context: CallContext<'_>, base: &'a str) -> &'a str {
         if context.arguments.len() == 2 {
@@ -85,12 +85,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn basename() {

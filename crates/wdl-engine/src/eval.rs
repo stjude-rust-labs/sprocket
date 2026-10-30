@@ -1,18 +1,26 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::fmt;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 
 use anyhow::Result;
+use cloud_copy::ContentDigest;
 use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
+use regex::Regex;
+use serde::Deserialize;
+use serde::Serialize;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
+use url::Url;
 use wdl_analysis::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::types::Type;
@@ -20,16 +28,21 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 
+use crate::Cache;
+use crate::Engine;
 use crate::EvaluationPath;
 use crate::GuestPath;
 use crate::HostPath;
 use crate::Object;
 use crate::Outputs;
 use crate::Value;
+use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
-use crate::http::Transferer;
+use crate::http::Location;
 
+mod images;
+pub use images::*;
 mod trie;
 pub mod v1;
 
@@ -135,6 +148,9 @@ impl CancellationContextState {
 /// Represents context for cancelling workflow or task evaluation.
 ///
 /// Uses a default failure mode of [`Slow`](FailureMode::Slow).
+///
+/// This type is cheaply cloned and all clones reference the same cancellation
+/// state.
 #[derive(Debug, Clone)]
 pub struct CancellationContext {
     /// The failure mode for the cancellation context.
@@ -143,7 +159,7 @@ pub struct CancellationContext {
     state: Arc<AtomicU8>,
     /// The parent context, consulted read-only when folding the effective
     /// state. `None` for a root context created by [`new`](Self::new).
-    parent: Option<Arc<CancellationContext>>,
+    parent: Option<Arc<Self>>,
     /// The cancellation token that is canceled upon the first cancellation.
     first: CancellationToken,
     /// The cancellation token that is canceled upon the second cancellation
@@ -257,8 +273,8 @@ impl CancellationContext {
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn first(&self) -> CancellationToken {
-        self.first.clone()
+    pub fn first(&self) -> &CancellationToken {
+        &self.first
     }
 
     /// Gets the cancellation token that is canceled upon the second
@@ -271,8 +287,8 @@ impl CancellationContext {
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn second(&self) -> CancellationToken {
-        self.second.clone()
+    pub fn second(&self) -> &CancellationToken {
+        &self.second
     }
 
     /// Determines if the user initiated the cancellation, considering any
@@ -325,6 +341,151 @@ impl Default for CancellationContext {
     }
 }
 
+/// The inner state of [`EvaluationHttpClient`].
+struct EvaluationHttpClientInner {
+    /// The engine associated with evaluation.
+    engine: Engine,
+    /// The evaluator associated with the client.
+    events: Option<broadcast::Sender<TransferEvent>>,
+    /// The cache for calls to the `download` method.
+    downloads: Cache<Url, Location>,
+    /// The cache for calls to the `upload` method.
+    uploads: Cache<Url, ()>,
+    /// The cache for calls to the `size` method.
+    sizes: Cache<Url, Option<u64>>,
+    /// The cache for calls to the `walk` method.
+    walks: Cache<Url, Arc<[String]>>,
+    /// The cache for calls to the `exists` method.
+    exists: Cache<Url, bool>,
+    /// The cache for calls to the `digests` method.
+    digests: Cache<Url, Option<Arc<ContentDigest>>>,
+}
+
+/// A HTTP client implementation used for evaluation.
+///
+/// This type wraps an inner [`HttpClient`] and provides transfer events from a
+/// related [`Engine`].
+///
+/// Successful calls to this type's methods will be cached for the evaluation.
+///
+/// This type is cheaply cloned.
+#[derive(Clone)]
+pub(crate) struct EvaluationHttpClient(Arc<EvaluationHttpClientInner>);
+
+impl EvaluationHttpClient {
+    /// Constructs a new HTTP evaluation client.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided configuration specifies a zero for response cache
+    /// capacity.
+    pub fn new(engine: &Engine, events: &Events) -> Self {
+        let capacity = NonZeroUsize::new(engine.config().http.response_cache_capacity as usize)
+            .expect("the cache capacity cannot be zero");
+
+        Self(
+            EvaluationHttpClientInner {
+                engine: engine.clone(),
+                events: events.transfer().cloned(),
+                downloads: Cache::new(capacity),
+                uploads: Cache::new(capacity),
+                sizes: Cache::new(capacity),
+                walks: Cache::new(capacity),
+                exists: Cache::new(capacity),
+                digests: Cache::new(capacity),
+            }
+            .into(),
+        )
+    }
+
+    /// Downloads a file or directory to a temporary path.
+    pub async fn download(&self, source: &Url, token: &CancellationToken) -> Result<Location> {
+        self.0
+            .engine
+            .http_client()
+            .download(source, self.0.events.clone(), token, &self.0.downloads)
+            .await
+    }
+
+    /// Uploads a local file or directory to a cloud storage URL.
+    ///
+    /// The destination URL is expected to be content-addressed (meaning
+    /// specific to the content being uploaded).
+    pub async fn upload(
+        &self,
+        source: &Path,
+        destination: &Url,
+        token: &CancellationToken,
+    ) -> Result<()> {
+        self.0
+            .engine
+            .http_client()
+            .upload(
+                source,
+                destination,
+                self.0.events.clone(),
+                token,
+                &self.0.uploads,
+            )
+            .await
+    }
+
+    /// Gets the size of a resource at a given URL.
+    ///
+    /// Returns `Ok(Some(_))` if the size is known.
+    ///
+    /// Returns `Ok(None)` if the URL is valid but the size cannot be
+    /// determined.
+    pub async fn size(&self, url: &Url, token: &CancellationToken) -> Result<Option<u64>> {
+        self.0
+            .engine
+            .http_client()
+            .size(url, token, &self.0.sizes)
+            .await
+    }
+
+    /// Walks a given storage URL as if it were a directory.
+    ///
+    /// Returns a list of relative paths from the given URL that are in
+    /// lexicographical order.
+    ///
+    /// If the given storage URL is not a directory, an empty list is returned.
+    pub async fn walk(&self, url: &Url, token: &CancellationToken) -> Result<Arc<[String]>> {
+        self.0
+            .engine
+            .http_client()
+            .walk(url, token, &self.0.walks)
+            .await
+    }
+
+    /// Determines if the given URL exists.
+    ///
+    /// Returns `Ok(true)` if a HEAD request returns success or if a walk of the
+    /// URL returns at least one contained URL.
+    pub async fn exists(&self, url: &Url, token: &CancellationToken) -> Result<bool> {
+        self.0
+            .engine
+            .http_client()
+            .exists(url, token, &self.0.exists)
+            .await
+    }
+
+    /// Gets the content digest of the resource identified by the given URL.
+    ///
+    /// Returns `Ok(None)` if the resource has no associated content digest.
+    pub async fn digest(
+        &self,
+        url: &Url,
+        token: &CancellationToken,
+    ) -> Result<Option<Arc<ContentDigest>>> {
+        self.0
+            .engine
+            .http_client()
+            .digest(url, token, &self.0.digests)
+            .await
+    }
+}
+
 /// The prefix of the name given to a task a backend runs on its own behalf
 /// rather than on behalf of a WDL task.
 ///
@@ -335,12 +496,114 @@ impl Default for CancellationContext {
 /// since the engine never announces one through [`EngineEvent`].
 ///
 /// The prefix contains a `.`, which a name minted for a WDL task can never
-/// contain: those names are a WDL call path, whose segments are WDL
+/// contain: those names are a WDL call path relative to the root workflow,
+/// whose levels are joined by `--` and whose segments within a level are WDL
 /// identifiers joined by `-`, followed by a `-` and an alphanumeric suffix.
 pub const CLEANUP_TASK_NAME_PREFIX: &str = "cleanup.";
 
+/// The separator a backend uses when it derives a name for a resubmission of a
+/// task it runs on the user's behalf.
+///
+/// A backend may retry an execution attempt on its own — the TES backend
+/// resubmits a preempted task, for example — without the evaluator minting a
+/// new attempt name. Each such resubmission is announced through
+/// [`EngineEvent::TaskRetrying`] and executes under a derived name of the form
+/// `{name}{RESUBMIT_NAME_SEPARATOR}{n}`, where `{name}` is the
+/// evaluator-minted attempt name and `{n}` is the 1-based resubmission
+/// ordinal.
+///
+/// The separator can never appear in an evaluator-minted name: those names are
+/// a WDL call path, whose levels are joined by `--` and whose segments within
+/// a level are WDL identifiers joined by `-`, followed by a `-` and an
+/// alphanumeric suffix.
+pub const RESUBMIT_NAME_SEPARATOR: char = '~';
+
+/// Derives the name for a backend-local resubmission of a task execution.
+///
+/// See [`RESUBMIT_NAME_SEPARATOR`] for the naming convention.
+pub fn resubmit_task_name(name: &str, resubmission: u64) -> String {
+    // Derive from the original attempt name so repeated resubmissions do not
+    // accumulate separators.
+    let base = name
+        .split(RESUBMIT_NAME_SEPARATOR)
+        .next()
+        .expect("split always yields at least one element");
+    format!("{base}{RESUBMIT_NAME_SEPARATOR}{resubmission}")
+}
+
+/// The cause of a task execution attempt being retried.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum RetryCause {
+    /// The attempt exited with a code that the task's `return_codes`
+    /// requirement does not accept.
+    UnacceptableExitCode {
+        /// The exit code of the failed attempt.
+        code: i32,
+    },
+    /// The attempt was preempted by the execution environment.
+    Preempted,
+}
+
+impl fmt::Display for RetryCause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnacceptableExitCode { code } => {
+                write!(f, "unacceptable exit code {code}")
+            }
+            Self::Preempted => write!(f, "preempted"),
+        }
+    }
+}
+
+/// A serializable snapshot of the resolved execution constraints for a task
+/// execution attempt.
+///
+/// This mirrors the resource-related fields of the backend's
+/// `TaskExecutionConstraints` at the moment the attempt is submitted for
+/// execution.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct TaskConstraintsSnapshot {
+    /// The full URI of the primary container image the task requested.
+    ///
+    /// This is the first (highest priority) container candidate; `None` when
+    /// the task runs directly on the host.
+    pub container: Option<String>,
+    /// The allocated number of CPUs.
+    pub cpu: f64,
+    /// The allocated memory, in bytes.
+    pub memory: u64,
+    /// One specification per allocated GPU (execution engine-specific).
+    pub gpu: Vec<String>,
+    /// One specification per allocated FPGA (execution engine-specific).
+    pub fpga: Vec<String>,
+    /// A map of disk mount points to the initial amount of disk space
+    /// allocated, in bytes.
+    pub disks: BTreeMap<String, i64>,
+}
+
+impl From<&TaskExecutionConstraints> for TaskConstraintsSnapshot {
+    fn from(constraints: &TaskExecutionConstraints) -> Self {
+        Self {
+            container: constraints.sources.first().map(ImageSource::uri),
+            cpu: constraints.cpu,
+            memory: constraints.memory,
+            gpu: constraints.gpu.clone(),
+            fpga: constraints.fpga.clone(),
+            disks: constraints
+                .disks
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect(),
+        }
+    }
+}
+
 /// Represents an event from the WDL evaluation engine.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum EngineEvent {
     /// A task has started evaluation of an execution attempt.
     ///
@@ -355,6 +618,8 @@ pub enum EngineEvent {
         /// [`CrankshaftEvent::TaskCreated`] when the attempt reaches the
         /// backend.
         name: String,
+        /// The 0-based number of this execution attempt.
+        attempt: u64,
     },
     /// A task has started localizing its inputs.
     ///
@@ -365,6 +630,32 @@ pub enum EngineEvent {
     TaskLocalizing {
         /// The unique name of the task for this attempt.
         name: String,
+    },
+    /// A task execution attempt is being submitted to the execution backend.
+    ///
+    /// Carries the resolved execution constraints for the attempt. This event
+    /// is not emitted when the attempt's result is served from the call
+    /// cache.
+    TaskExecuting {
+        /// The unique name of the task for this attempt.
+        name: String,
+        /// The resolved execution constraints for this attempt.
+        constraints: TaskConstraintsSnapshot,
+    },
+    /// A task execution attempt failed and is being retried.
+    ///
+    /// A retry from the evaluator mints a new attempt name, which is
+    /// announced by the [`EngineEvent::TaskInitializing`] event that follows
+    /// this one. A backend-local resubmission (see
+    /// [`RESUBMIT_NAME_SEPARATOR`]) executes under the derived `next_name`
+    /// without a fresh `TaskInitializing`.
+    TaskRetrying {
+        /// The name of the attempt that failed.
+        prior_name: String,
+        /// The name of the attempt about to be made.
+        next_name: String,
+        /// The cause of the retry.
+        cause: RetryCause,
     },
     /// A cached task execution result was reused due to a call cache hit.
     ReusedCachedExecutionResult {
@@ -386,6 +677,8 @@ pub enum EngineEvent {
 /// Represents events that may be sent during WDL evaluation.
 ///
 /// This type is cheaply cloned.
+///
+/// By default, no event channels are enabled.
 #[derive(Debug, Clone, Default)]
 pub struct Events {
     /// The WDL engine events channel.
@@ -403,18 +696,33 @@ pub struct Events {
 }
 
 impl Events {
-    /// Constructs a new `Events` and enables subscribing to all event channels.
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            engine: Some(broadcast::Sender::new(capacity)),
-            crankshaft: Some(broadcast::Sender::new(capacity)),
-            transfer: Some(broadcast::Sender::new(capacity)),
-        }
+    /// Enables WDL engine events using the given capacity for the event
+    /// channel.
+    ///
+    /// If WDL engine events were previously enabled, the sender of the previous
+    /// event channel will be closed.
+    pub fn with_engine(mut self, capacity: usize) -> Self {
+        self.engine = Some(broadcast::Sender::new(capacity));
+        self
     }
 
-    /// Constructs a new `Events` and disable subscribing to any event channel.
-    pub fn disabled() -> Self {
-        Self::default()
+    /// Enables Crankshaft events using the given capacity for the event
+    /// channel.
+    ///
+    /// If Crankshaft events were previously enabled, the sender of the previous
+    /// event channel will be closed.
+    pub fn with_crankshaft(mut self, capacity: usize) -> Self {
+        self.crankshaft = Some(broadcast::Sender::new(capacity));
+        self
+    }
+
+    /// Enables transfer events using the given capacity for the event channel.
+    ///
+    /// If transfer events were previously enabled, the sender of the previous
+    /// event channel will be closed.
+    pub fn with_transfer(mut self, capacity: usize) -> Self {
+        self.transfer = Some(broadcast::Sender::new(capacity));
+        self
     }
 
     /// Subscribes to the WDL engine events channel.
@@ -606,14 +914,8 @@ pub(crate) trait EvaluationContext: Send + Sync {
         None
     }
 
-    /// Gets the transferer to use for evaluating expressions.
-    fn transferer(&self) -> &dyn Transferer;
-
-    /// Gets the evaluation events.
-    fn events(&self) -> &Events;
-
-    /// Gets the cancellation context for evaluation.
-    fn cancellation(&self) -> &CancellationContext;
+    /// Gets the client and cancellation token for HTTP operations.
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken);
 
     /// Gets a guest path representation of a host path.
     ///
@@ -652,6 +954,9 @@ pub(crate) trait EvaluationContext: Send + Sync {
         let _ = (object, name);
         None
     }
+
+    /// Compiles a regular expression.
+    fn compile_regex(&self, pattern: &str) -> Result<Regex, regex::Error>;
 }
 
 /// Represents an index of a scope in a collection of scopes.
@@ -867,8 +1172,11 @@ impl EvaluatedTask {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
+    use std::str::FromStr;
+
     use super::*;
+    use crate::LibraryApiSpec;
 
     #[test]
     fn cancellation_slow() {
@@ -1110,5 +1418,70 @@ mod test {
         assert!(!parent.user_canceled());
         assert_eq!(b.state(), CancellationContextState::NotCanceled);
         assert!(!b.user_canceled());
+    }
+
+    #[test]
+    fn resubmit_names_derive_from_the_original_attempt_name() {
+        assert_eq!(resubmit_task_name("wf-task-abc123", 1), "wf-task-abc123~1");
+        assert_eq!(resubmit_task_name("wf-task-abc123", 2), "wf-task-abc123~2");
+
+        // Deriving from an already-derived name must not stack separators.
+        assert_eq!(
+            resubmit_task_name("wf-task-abc123~1", 2),
+            "wf-task-abc123~2"
+        );
+    }
+
+    #[test]
+    fn retry_causes_serialize_with_a_kind_tag() {
+        let cause = RetryCause::UnacceptableExitCode { code: 137 };
+        let json = serde_json::to_value(cause).expect("cause should serialize");
+        assert_eq!(
+            json,
+            serde_json::json!({ "kind": "unacceptable_exit_code", "code": 137 })
+        );
+        assert_eq!(cause.to_string(), "unacceptable exit code 137");
+
+        let cause = RetryCause::Preempted;
+        let json = serde_json::to_value(cause).expect("cause should serialize");
+        assert_eq!(json, serde_json::json!({ "kind": "preempted" }));
+        assert_eq!(cause.to_string(), "preempted");
+
+        let parsed: RetryCause = serde_json::from_value(
+            serde_json::json!({ "kind": "unacceptable_exit_code", "code": 1 }),
+        )
+        .expect("cause should deserialize");
+        assert_eq!(parsed, RetryCause::UnacceptableExitCode { code: 1 });
+    }
+
+    #[test]
+    fn constraints_snapshot_captures_the_resolved_resources() {
+        let constraints = TaskExecutionConstraints {
+            sources: vec![ImageSource::Library(
+                LibraryApiSpec::from_str("example.org/tools/tool:1").unwrap(),
+            )],
+            cpu: 4.0,
+            memory: 8 * 1024 * 1024 * 1024,
+            gpu: vec!["nvidia-tesla-t4".to_string()],
+            fpga: Vec::new(),
+            disks: [("/".to_string(), 10i64)].into_iter().collect(),
+        };
+
+        let snapshot = TaskConstraintsSnapshot::from(&constraints);
+        assert_eq!(
+            snapshot.container.as_deref(),
+            Some("library://example.org/tools/tool:1")
+        );
+        assert_eq!(snapshot.cpu, 4.0);
+        assert_eq!(snapshot.memory, 8 * 1024 * 1024 * 1024);
+        assert_eq!(snapshot.gpu, ["nvidia-tesla-t4"]);
+        assert!(snapshot.fpga.is_empty());
+        assert_eq!(snapshot.disks.get("/"), Some(&10));
+
+        // The snapshot round-trips through JSON.
+        let json = serde_json::to_string(&snapshot).expect("snapshot should serialize");
+        let parsed: TaskConstraintsSnapshot =
+            serde_json::from_str(&json).expect("snapshot should deserialize");
+        assert_eq!(parsed, snapshot);
     }
 }

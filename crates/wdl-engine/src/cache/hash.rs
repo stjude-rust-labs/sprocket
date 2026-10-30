@@ -367,7 +367,7 @@ impl Hashable for OutputValue {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use blake3::Hash;
     use cloud_copy::ContentDigest;
     use indexmap::IndexMap;

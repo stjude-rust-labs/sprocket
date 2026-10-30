@@ -23,10 +23,12 @@ use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::format_meta_value;
 use wdl_ast::v1::get_param_meta;
 
-use crate::document::Enum;
-use crate::document::Struct;
-use crate::document::Task;
-use crate::document::Workflow;
+use crate::document::Callable;
+use crate::document::EnumRef;
+use crate::document::Namespace;
+use crate::document::StructRef;
+use crate::document::TaskRef;
+use crate::document::WorkflowRef;
 
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
@@ -297,12 +299,33 @@ fn render_enum_doc(n: &EnumDefinition, computed_type: Option<&str>) -> String {
     s
 }
 
+/// Provides documentation for a local or scope-merged workflow.
+pub fn provide_callable_documentation(
+    callable: Callable<'_>,
+    root: &wdl_ast::Document,
+) -> Option<String> {
+    match callable {
+        Callable::Task(task) => provide_task_documentation(&task, root),
+        Callable::Workflow(wf) => provide_workflow_documentation(&wf, root),
+    }
+}
+
 /// Provides documentation for tasks which includes `inputs`, `outputs`,
 /// `metadata`, `runtime`
-pub fn provide_task_documentation(task: &Task, root: &wdl_ast::Document) -> Option<String> {
-    match TextSize::try_from(task.name_span().start()) {
+pub fn provide_task_documentation(task: &TaskRef<'_>, root: &wdl_ast::Document) -> Option<String> {
+    let (root, name_span) = match task {
+        TaskRef::Local(t) => (root.inner().clone(), t.name_span()),
+        TaskRef::Imported(t) => {
+            let root = t.document().root();
+            let ast = root.ast();
+            let mut tasks = ast.as_v1()?.tasks();
+            let target = tasks.find(|task| task.name().text() == t.name())?;
+            (root.inner().clone(), target.name().span())
+        }
+    };
+
+    match TextSize::try_from(name_span.start()) {
         Ok(offset) => root
-            .inner()
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(TaskDefinition::cast))
@@ -314,51 +337,73 @@ pub fn provide_task_documentation(task: &Task, root: &wdl_ast::Document) -> Opti
 /// Provides documentation for workflows which includes `inputs`, `outputs`,
 /// `metadata`
 pub fn provide_workflow_documentation(
-    workflow: &Workflow,
+    workflow: &WorkflowRef<'_>,
     root: &wdl_ast::Document,
 ) -> Option<String> {
-    match TextSize::try_from(workflow.name_span().start()) {
+    let (root, name_span) = match workflow {
+        WorkflowRef::Local(wf) => (root.inner().clone(), wf.name_span()),
+        WorkflowRef::Imported(wf) => {
+            let root = wf.document().root();
+            let ast = root.ast();
+            let mut workflows = ast.as_v1()?.tasks();
+            let target = workflows.find(|workflow| workflow.name().text() == wf.name())?;
+            (root.inner().clone(), target.name().span())
+        }
+    };
+
+    match TextSize::try_from(name_span.start()) {
         Ok(offset) => root
-            .inner()
             .token_at_offset(offset)
             .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(WorkflowDefinition::cast))
+            .and_then(|wf| wf.parent_ancestors().find_map(WorkflowDefinition::cast))
             .map(|n| render_workflow_doc(&n)),
         Err(_) => None,
     }
 }
 
+/// Provides documentation for namespaces.
+pub fn provide_namespace_documentation(namespace: &Namespace) -> Option<String> {
+    let import_doc = namespace.document();
+
+    let mut s = format!(
+        "```wdl\n(import) {}\n```\nImports from `{}`",
+        namespace.name(),
+        namespace.source()
+    );
+
+    if let Some(desc) = comments_to_string(import_doc.root().doc_comments().unwrap_or_default()) {
+        let _ = write!(&mut s, "\n\n---\n{desc}\n");
+    }
+
+    Some(s)
+}
+
 /// Provides documentation for structs.
 pub fn provide_struct_documentation(
-    struct_info: &Struct,
+    struct_info: &StructRef<'_>,
     root: &wdl_ast::Document,
 ) -> Option<String> {
-    match TextSize::try_from(struct_info.name_span().start()) {
-        Ok(offset) => root
-            .inner()
-            .token_at_offset(offset)
-            .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(StructDefinition::cast))
-            .map(|n| render_struct_doc(&n)),
-        Err(_) => None,
-    }
+    let ast = root.ast();
+    let target = ast
+        .as_v1()?
+        .structs()
+        .find(|s| s.name().text() == struct_info.name())?;
+    Some(render_struct_doc(&target))
 }
 
 /// Provides documentation for enums.
-pub fn provide_enum_documentation(enum_info: &Enum, root: &wdl_ast::Document) -> Option<String> {
-    match TextSize::try_from(enum_info.name_span().start()) {
-        Ok(offset) => root
-            .inner()
-            .token_at_offset(offset)
-            .left_biased()
-            .and_then(|t| t.parent_ancestors().find_map(EnumDefinition::cast))
-            .map(|n| {
-                let computed_type = enum_info
-                    .ty()
-                    .and_then(|ty| ty.as_enum())
-                    .map(|enum_ty| enum_ty.inner_value_type().to_string());
-                render_enum_doc(&n, computed_type.as_deref())
-            }),
-        Err(_) => None,
-    }
+pub fn provide_enum_documentation(
+    enum_info: &EnumRef<'_>,
+    root: &wdl_ast::Document,
+) -> Option<String> {
+    let ast = root.ast();
+    let target = ast
+        .as_v1()?
+        .enums()
+        .find(|e| e.name().text() == enum_info.name())?;
+    let computed_type = enum_info
+        .ty()
+        .and_then(|ty| ty.as_enum())
+        .map(|enum_ty| enum_ty.inner_value_type().to_string());
+    Some(render_enum_doc(&target, computed_type.as_deref()))
 }

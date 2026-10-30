@@ -1,1 +1,0 @@
-dev test -t say_hello -f overlap --exact -qq --no-status

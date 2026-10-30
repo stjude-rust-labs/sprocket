@@ -89,6 +89,16 @@
       ]
     },
     {
+      "description": "Do not update lsp-types",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "lsp-types"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Group all Python updates into one PR",
       "matchManagers": [
         "pep621"

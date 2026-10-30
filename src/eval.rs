@@ -4,7 +4,9 @@ use std::path::Path;
 
 use anyhow::anyhow;
 use wdl::analysis::Document;
+use wdl::analysis::document::TaskRef;
 use wdl::engine::CancellationContext;
+use wdl::engine::ContainerImageOverrides;
 use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -28,6 +30,9 @@ pub struct Evaluator<'a> {
     engine: &'a Engine,
     /// The output directory.
     output_dir: &'a Path,
+
+    /// See [`WdlEvaluator`].image_overrides.
+    image_overrides: ContainerImageOverrides,
 }
 
 impl<'a> Evaluator<'a> {
@@ -39,6 +44,7 @@ impl<'a> Evaluator<'a> {
         base_dir: &'a EvaluationPath,
         engine: &'a Engine,
         output_dir: &'a Path,
+        image_overrides: ContainerImageOverrides,
     ) -> Self {
         Self {
             document,
@@ -47,6 +53,7 @@ impl<'a> Evaluator<'a> {
             base_dir,
             engine,
             output_dir,
+            image_overrides,
         }
     }
 
@@ -72,7 +79,7 @@ impl<'a> Evaluator<'a> {
             );
         }
         let mut inputs = self.inputs.unwrap_task_inputs();
-        let task = self.document.task_by_name(self.name).ok_or_else(|| {
+        let task = self.document.local_task_by_name(self.name).ok_or_else(|| {
             anyhow!(
                 "document does not contain a task named `{name}`",
                 name = self.name
@@ -82,11 +89,13 @@ impl<'a> Evaluator<'a> {
         // Ensure all the paths specified in the inputs are relative to
         // their respective origin paths.
         inputs
-            .join_paths(task, |_| Ok(std::slice::from_ref(self.base_dir)))
+            .join_paths(TaskRef::Local(task), &|_| {
+                Ok(std::slice::from_ref(self.base_dir))
+            })
             .await?;
 
         self.engine
-            .create_v1_evaluator(events, cancellation)
+            .create_v1_evaluator(events, cancellation, self.image_overrides)
             .evaluate_task(self.document, task, inputs, self.output_dir)
             .await
     }
@@ -103,27 +112,27 @@ impl<'a> Evaluator<'a> {
                 .await
                 .and_then(EvaluatedTask::into_outputs),
             Inputs::Workflow(mut inputs) => {
-                let workflow = self
-                    .document
-                    .workflow()
-                    .ok_or_else(|| anyhow!("document does not contain a workflow"))?;
-
-                if workflow.name() != self.name {
-                    return Err(EvaluationError::Other(anyhow!(
-                        "document does not contain a workflow named `{name}`",
-                        name = self.name
-                    )));
-                }
+                let workflow =
+                    self.document
+                        .local_workflow_by_name(self.name)
+                        .ok_or_else(|| {
+                            EvaluationError::Other(anyhow!(
+                                "document does not contain a workflow named `{name}`",
+                                name = self.name
+                            ))
+                        })?;
 
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
                 inputs
-                    .join_paths(workflow, |_| Ok(std::slice::from_ref(self.base_dir)))
+                    .join_paths(self.document, workflow, &|_| {
+                        Ok(std::slice::from_ref(self.base_dir))
+                    })
                     .await?;
 
                 self.engine
-                    .create_v1_evaluator(events, cancellation)
-                    .evaluate_workflow(self.document, inputs, self.output_dir)
+                    .create_v1_evaluator(events, cancellation, self.image_overrides)
+                    .evaluate_workflow(self.document, workflow.name(), inputs, self.output_dir)
                     .await
             }
         }

@@ -25,6 +25,11 @@ use crate::yaml::Spanned;
 use crate::yaml::SpannedField;
 use crate::yaml::spanned_fields;
 
+/// The placeholder expected in each custom assertion argument string.
+///
+/// This value will be replaced with the path to the WDL output JSON.
+pub const OUTPUTS_PLACEHOLDER: &str = "$OUTPUTS";
+
 /// Type mismatch for a field value.
 fn invalid_type(expected: &str, field: &Spanned<String>, value: &Value) -> Diagnostic {
     let found = match value {
@@ -38,7 +43,7 @@ fn invalid_type(expected: &str, field: &Spanned<String>, value: &Value) -> Diagn
 
     Diagnostic::error("invalid type")
         .with_help(format!(
-            "`{}` must be a `{expected}`, found `{found:?}`",
+            "`{}` must be a `{expected}`, found `{found}`",
             field.0.value
         ))
         .with_highlight(convert_yaml_span(field.0.defined.span()))
@@ -103,10 +108,13 @@ pub struct Assertions {
     /// Assertions about WDL outputs.
     #[schemars(default)]
     pub outputs: HashMap<Spanned<String>, Vec<OutputAssertion>>,
-    /// A custom command to execute.
-    // TODO(Ari): implement this assertion.
-    #[allow(unused)]
-    pub custom: Option<String>,
+    /// A custom command to execute. The key is the binary name and the value is
+    /// the arguments to pass.
+    ///
+    /// The arguments array _must_ contain the literal `$OUTPUTS` to denote
+    /// where the path to the WDL output JSON will be inserted.
+    #[schemars(default)]
+    pub custom: HashMap<Spanned<String>, Vec<String>>,
 }
 
 spanned_fields! {
@@ -117,7 +125,7 @@ spanned_fields! {
         pub stdout: Option<SpannedField<MaybeSequence<Value>>>,
         pub stderr: Option<SpannedField<MaybeSequence<Value>>>,
         pub outputs: Option<SpannedField<MaybeMap<Value>>>,
-        pub custom: Option<SpannedField<Value>>,
+        pub custom: Option<SpannedField<MaybeMap<MaybeSequence<Value>>>>,
     }
 }
 
@@ -200,14 +208,52 @@ impl Assertions {
             .stderr
             .and_then(|f| Self::parse_stdio(f, &mut diagnostics));
 
-        let mut custom = None;
+        let mut custom_bins = HashMap::new();
         if let Some(raw_custom) = raw.custom {
             match raw_custom.value {
-                Value::String(custom_val) => {
-                    custom = Some(custom_val);
+                MaybeMap::Map(bins) => {
+                    for (bin, raw_args) in bins {
+                        let mut parsed_args = Vec::new();
+                        let mut found_placeholder = false;
+                        match raw_args.0.value {
+                            MaybeSequence::Seq(args) => {
+                                for raw_arg in args {
+                                    let arg = match raw_arg.0.value {
+                                        Value::String(a) => a,
+                                        v => {
+                                            diagnostics.add(invalid_type("string", &bin, &v));
+                                            continue;
+                                        }
+                                    };
+                                    if arg == OUTPUTS_PLACEHOLDER {
+                                        found_placeholder = true;
+                                    }
+                                    parsed_args.push(arg);
+                                }
+                                if !found_placeholder {
+                                    diagnostics.add(
+                                        Diagnostic::error("missing `$OUTPUTS` placeholder")
+                                            .with_help(
+                                                "the array must contain an `$OUTPUTS` placeholder",
+                                            )
+                                            .with_highlight(convert_yaml_span(
+                                                raw_args.0.defined.span(),
+                                            )),
+                                    )
+                                }
+                            }
+                            MaybeSequence::Other(other) => {
+                                diagnostics.add(invalid_type("array", &bin, &other));
+                            }
+                        }
+
+                        if found_placeholder {
+                            custom_bins.insert(bin, parsed_args);
+                        }
+                    }
                 }
-                other => {
-                    diagnostics.add(invalid_type("string", &raw_custom.key, &other));
+                MaybeMap::Other(other) => {
+                    diagnostics.add(invalid_type("map", &raw_custom.key, &other));
                 }
             }
         }
@@ -240,7 +286,7 @@ impl Assertions {
                 stdout,
                 stderr,
                 outputs,
-                custom,
+                custom: custom_bins,
             })
         } else {
             Err(diagnostics)
@@ -307,7 +353,8 @@ impl Assertions {
         }
 
         for (output, assertions) in outputs {
-            let Some(ty) = target.outputs().get(&output.0.value).map(|o| o.ty()) else {
+            let target_outputs = target.outputs();
+            let Some(ty) = target_outputs.get(&output.0.value).map(|o| o.ty()) else {
                 diagnostics.add(missing_output(&output.0.value, output.0.defined.span()));
                 continue;
             };
@@ -351,6 +398,10 @@ pub enum OutputAssertion {
     First(Box<OutputAssertion>),
     /// Unpacks the last element of an `Array` and applies the inner assertion.
     Last(Box<OutputAssertion>),
+    /// Unpacks every element of an `Array` and applies the inner assertion.
+    All(Box<OutputAssertion>),
+    /// Unpacks the elements of an `Array` and applies the inner assertion.
+    Any(Box<OutputAssertion>),
     /// Does the WDL `String`, `Array`, or `Map` have this length?
     Length(usize),
     /// Unpacks the left element of a `Pair` and applies the inner assertion.
@@ -373,6 +424,8 @@ impl std::fmt::Display for OutputAssertion {
             Self::Name(_) => write!(f, "Name")?,
             Self::First(_) => write!(f, "First")?,
             Self::Last(_) => write!(f, "Last")?,
+            Self::All(_) => write!(f, "All")?,
+            Self::Any(_) => write!(f, "Any")?,
             Self::Length(_) => write!(f, "Length")?,
             Self::Left(_) => write!(f, "Left")?,
             Self::Right(_) => write!(f, "Right")?,
@@ -420,7 +473,10 @@ impl OutputAssertion {
                         Self::Length(_) | Self::Empty(_) => {
                             valid = true;
                         }
-                        Self::First(inner) | Self::Last(inner) => {
+                        Self::First(inner)
+                        | Self::Last(inner)
+                        | Self::All(inner)
+                        | Self::Any(inner) => {
                             inner.validate_type_congruence(arr_ty.element_type())?;
                             valid = true;
                         }
@@ -558,6 +614,22 @@ impl OutputAssertion {
                 };
                 inner.evaluate(last)?;
             }
+            Self::All(inner) => {
+                let o = output.as_array().expect("type should be validated");
+                for value in o.as_slice() {
+                    inner.evaluate(value)?;
+                }
+            }
+            Self::Any(inner) => {
+                let o = output.as_array().expect("type should be validated");
+                if !o
+                    .as_slice()
+                    .iter()
+                    .any(|value| inner.evaluate(value).is_ok())
+                {
+                    bail!("no elements matched `{self}` assertion");
+                }
+            }
             Self::Left(inner) => {
                 let o = output.as_pair().expect("type should be validated");
                 inner.evaluate(o.left())?;
@@ -613,7 +685,7 @@ mod tests {
     /// changes which syntax is expected from nested externally tagged enums.
     /// Without `FlattenedWrapper`, `serde_yaml_ng` would expect
     /// OutputAssertions to be defined with YAML tag syntax instead of the map
-    /// syntax used in these tests. See https://github.com/acatton/serde-yaml-ng/issues/14
+    /// syntax used in these tests. See <https://github.com/acatton/serde-yaml-ng/issues/14>
     #[derive(Debug, serde::Deserialize)]
     struct FlattenedWrapper {
         #[serde(flatten)]
@@ -1129,6 +1201,50 @@ mod tests {
         ));
         assert!(first.evaluate(&o).is_err());
         assert!(last.evaluate(&o).is_err());
+    }
+    #[test]
+    fn evaluate_all_any() {
+        let all: FlattenedWrapper = serde_saphyr::from_str("{ All: { IntEquals: 42 } }").unwrap();
+        let any: FlattenedWrapper = serde_saphyr::from_str("{ Any: { IntEquals: 42 } }").unwrap();
+
+        let matching = EngineValue::Compound(CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![
+                    EngineValue::Primitive(PrimitiveValue::Integer(42)),
+                    EngineValue::Primitive(PrimitiveValue::Integer(42)),
+                ],
+            )
+            .unwrap(),
+        ));
+
+        assert!(all.inner.evaluate(&matching).is_ok());
+        assert!(any.inner.evaluate(&matching).is_ok());
+
+        let mixed = EngineValue::Compound(CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![
+                    EngineValue::Primitive(PrimitiveValue::Integer(42)),
+                    EngineValue::Primitive(PrimitiveValue::Integer(0)),
+                ],
+            )
+            .unwrap(),
+        ));
+
+        assert!(all.inner.evaluate(&mixed).is_err());
+        assert!(any.inner.evaluate(&mixed).is_ok());
+
+        let non_matching = EngineValue::Compound(CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![EngineValue::Primitive(PrimitiveValue::Integer(0))],
+            )
+            .unwrap(),
+        ));
+
+        assert!(all.inner.evaluate(&non_matching).is_err());
+        assert!(any.inner.evaluate(&non_matching).is_err());
     }
 
     #[test]

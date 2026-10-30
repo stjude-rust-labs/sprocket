@@ -49,6 +49,13 @@ Options:
 
           [default: auto]
 
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
   -c, --config <CONFIG>
           Path to the configuration file
 
@@ -65,23 +72,24 @@ Options:
 
 Available rules:
   - BashSetSyntax
-  - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
   - ContainerUri
   - DeclarationName
   - DenyGlobStar
+  - DeprecatedInputKeyword
   - DeprecatedObject
   - DeprecatedPlaceholder
+  - DeprecatedRuntimeKey
   - DeprecatedRuntimeSection
   - DescriptionLength
   - DocCommentTabs
   - DocMetaStrings
-  - DoubleQuotes
   - EmptyDocComment
   - EmptyOutputs
   - ExceptDirectiveValid
-  - ExpectedRuntimeKeys
+  - ExtraneousParameterMeta
+  - FlaggedComment
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
@@ -93,17 +101,23 @@ Available rules:
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder
+  - MissingParameterMeta
+  - MutableContainerTag
+  - NamingConvention
+  - OutputMetaOrder
   - OutputName
   - ParameterDescription
-  - ParameterMetaMatched
-  - PascalCase
+  - ParameterMetaOrder
+  - ParameterizedResources
+  - RecommendedRuntimeKeys
+  - RedundantContainerArray
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
-  - SectionOrdering
   - ShellCheck
-  - SnakeCase
-  - TodoComment
+  - ShellSplitting
+  - StructOverMap
+  - UnknownRuntimeKeys
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration
@@ -123,6 +137,5 @@ Available tags:
   - Performance
   - Portability
   - Sorting
-  - Spacing
   - SprocketCompatibility
   - Style

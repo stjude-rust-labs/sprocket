@@ -1,0 +1,7 @@
+error: task execution failed for task `likes_to_fail`: process terminated with exit code 1: see `_TEMP_DIR_/out/runs/likes_to_fail/_TIMESTAMP_/attempts/0/stdout` and `_TEMP_DIR_/out/runs/likes_to_fail/_TIMESTAMP_/attempts/0/stderr` for task output
+  ┌─ source.wdl:3:6
+  │
+3 │ task likes_to_fail {
+  │      ^^^^^^^^^^^^^ this task failed to execute
+
+error: aborting due to evaluation error

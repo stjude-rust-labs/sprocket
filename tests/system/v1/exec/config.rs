@@ -3,11 +3,12 @@
 use anyhow::Result;
 use sprocket::ServerConfig;
 use tempfile::TempDir;
+use url::Url;
 
 fn make_config(
     output_directory: std::path::PathBuf,
     allowed_file_paths: Vec<std::path::PathBuf>,
-    allowed_urls: Vec<String>,
+    allowed_urls: Vec<Url>,
     max_concurrent_runs: Option<usize>,
 ) -> ServerConfig {
     ServerConfig {
@@ -112,8 +113,8 @@ fn validate_deduplicates_urls() {
         "./out".into(),
         vec![],
         vec![
-            "https://example.com/".to_string(),
-            "https://example.com/".to_string(),
+            "https://example.com/".parse().unwrap(),
+            "https://example.com/".parse().unwrap(),
         ],
         None,
     );
@@ -130,9 +131,9 @@ fn validate_sorts_urls() {
         "./out".into(),
         vec![],
         vec![
-            "https://zzz.com/".to_string(),
-            "https://aaa.com/".to_string(),
-            "https://mmm.com/".to_string(),
+            "https://zzz.com/".parse().unwrap(),
+            "https://aaa.com/".parse().unwrap(),
+            "https://mmm.com/".parse().unwrap(),
         ],
         None,
     );
@@ -141,9 +142,9 @@ fn validate_sorts_urls() {
 
     // Should be sorted
     assert_eq!(config.allowed_urls.len(), 3);
-    assert_eq!(config.allowed_urls[0], "https://aaa.com/");
-    assert_eq!(config.allowed_urls[1], "https://mmm.com/");
-    assert_eq!(config.allowed_urls[2], "https://zzz.com/");
+    assert_eq!(config.allowed_urls[0].as_str(), "https://aaa.com/");
+    assert_eq!(config.allowed_urls[1].as_str(), "https://mmm.com/");
+    assert_eq!(config.allowed_urls[2].as_str(), "https://zzz.com/");
 }
 
 #[test]
@@ -153,26 +154,11 @@ fn default_output_directory_is_out() {
 }
 
 #[test]
-fn validate_rejects_invalid_url_no_scheme() {
-    let mut config = make_config(
-        "./out".into(),
-        vec![],
-        vec!["example.com".to_string()],
-        None,
-    );
-
-    let result = config.validate();
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("invalid URL"));
-}
-
-#[test]
 fn validate_rejects_invalid_url_malformed() {
     let mut config = make_config(
         "./out".into(),
         vec![],
-        vec!["https://[invalid".to_string()],
+        vec!["data:text/plain,Hello?World".parse().unwrap()],
         None,
     );
 
@@ -221,25 +207,6 @@ fn validate_with_empty_allowed_urls() -> Result<()> {
     assert!(result.is_ok());
 
     Ok(())
-}
-
-#[test]
-fn validate_preserves_url_case_sensitivity() {
-    let mut config = make_config(
-        "./out".into(),
-        vec![],
-        vec![
-            "https://Example.com/".to_string(),
-            "https://example.com/".to_string(),
-        ],
-        None,
-    );
-
-    config.validate().unwrap();
-
-    // Both should be kept (URLs are case-sensitive in host part for
-    // deduplication)
-    assert_eq!(config.allowed_urls.len(), 2);
 }
 
 #[test]

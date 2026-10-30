@@ -42,7 +42,7 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 
 mod analyzer;
-pub mod config;
+mod config;
 pub mod diagnostics;
 pub mod document;
 pub mod eval;
@@ -57,9 +57,7 @@ mod validation;
 mod visitor;
 
 pub use analyzer::*;
-pub use config::Config;
-pub use config::DiagnosticsConfig;
-pub use config::FeatureFlags;
+pub use config::*;
 pub use document::Document;
 pub use rules::*;
 pub use validation::*;
@@ -102,6 +100,6 @@ impl Exceptable for SyntaxNode {
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
-        self.rule_exceptions().iter().any(|e| e.name == id)
+        self.rule_exceptions().iter().any(|e| &*e.name == id)
     }
 }

@@ -26,6 +26,8 @@ use crate::Document;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::document::Callable;
+use crate::document::TaskRef;
+use crate::document::WorkflowRef;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::common::find_identifier_token_at_offset;
@@ -44,7 +46,7 @@ trait CallableExt {
         &self,
         analysis_doc: &Document,
         lines: &LineIndex,
-    ) -> Result<CallHierarchyItem>;
+    ) -> Result<Option<CallHierarchyItem>>;
 }
 
 impl CallableExt for Callable<'_> {
@@ -59,21 +61,27 @@ impl CallableExt for Callable<'_> {
         &self,
         analysis_doc: &Document,
         lines: &LineIndex,
-    ) -> Result<CallHierarchyItem> {
-        let range = location_from_span(analysis_doc.uri(), self.span(), lines)?.range;
-        let selection_range =
-            location_from_span(analysis_doc.uri(), self.name_span(), lines)?.range;
+    ) -> Result<Option<CallHierarchyItem>> {
+        let span = match self {
+            Callable::Workflow(WorkflowRef::Local(wf)) => wf.span(),
+            Callable::Task(TaskRef::Local(t)) => t.span(),
+            _ => return Ok(None),
+        };
 
-        Ok(CallHierarchyItem {
+        let range = location_from_span(&analysis_doc.uri(), span, lines)?.range;
+        let selection_range =
+            location_from_span(&analysis_doc.uri(), self.name_span(), lines)?.range;
+
+        Ok(Some(CallHierarchyItem {
             name: self.name().to_string(),
             kind: self.symbol_kind(),
             tags: None,
             detail: None,
-            uri: (**analysis_doc.uri()).clone(),
+            uri: (*analysis_doc.uri()).clone(),
             range,
             selection_range,
             data: None,
-        })
+        }))
     }
 }
 
@@ -105,7 +113,7 @@ fn find_callable_at_position<'a>(
         return Ok(None);
     };
 
-    let Some(definition) = goto_definition(graph, analysis_doc.uri(), position, encoding)? else {
+    let Some(definition) = goto_definition(graph, &analysis_doc.uri(), position, encoding)? else {
         return Ok(None);
     };
 
@@ -145,9 +153,10 @@ pub fn call_hierarchy(
         return Ok(None);
     };
 
-    Ok(Some(vec![
-        callable.as_call_hierarchy_item(&analysis_doc, &lines)?,
-    ]))
+    match callable.as_call_hierarchy_item(&analysis_doc, &lines)? {
+        Some(item) => Ok(Some(vec![item])),
+        None => Ok(None),
+    }
 }
 
 /// The enclosing scope of a reference site.
@@ -178,34 +187,31 @@ fn resolve_enclosing_scope(
     offset: usize,
     lines: &LineIndex,
 ) -> Option<EnclosingScope> {
-    if let Some(workflow) = document.workflow()
-        && workflow.scope().span().contains(offset)
-    {
-        let location = location_from_span(document.uri(), workflow.name_span(), lines).ok()?;
-        let range = location_from_span(document.uri(), workflow.span(), lines)
-            .ok()?
-            .range;
+    for callable in document.local_callables() {
+        let Some(scope) = callable.scope() else {
+            continue;
+        };
+
+        let Some(span) = callable.span() else {
+            continue;
+        };
+
+        if !scope.span().contains(offset) {
+            continue;
+        }
+
+        let location = location_from_span(&document.uri(), callable.name_span(), lines).ok()?;
+        let range = location_from_span(&document.uri(), span, lines).ok()?.range;
         return Some(EnclosingScope {
-            kind: EnclosingScopeKind::Workflow,
-            name: workflow.name().to_string(),
+            kind: if callable.is_workflow() {
+                EnclosingScopeKind::Workflow
+            } else {
+                EnclosingScopeKind::Task
+            },
+            name: callable.name().to_string(),
             location,
             range,
         });
-    }
-
-    for task in document.tasks() {
-        if task.scope().span().contains(offset) {
-            let location = location_from_span(document.uri(), task.name_span(), lines).ok()?;
-            let range = location_from_span(document.uri(), task.span(), lines)
-                .ok()?
-                .range;
-            return Some(EnclosingScope {
-                kind: EnclosingScopeKind::Task,
-                name: task.name().to_string(),
-                location,
-                range,
-            });
-        }
     }
 
     None
@@ -270,7 +276,7 @@ pub fn incoming_calls(
                 continue;
             };
 
-            if scope.name == target_name && scope.location.uri == **analysis_doc.uri() {
+            if scope.name == target_name && scope.location.uri == *analysis_doc.uri() {
                 continue;
             }
 
@@ -327,7 +333,7 @@ pub fn outgoing_calls(
         return Ok(None);
     };
 
-    let Callable::Workflow(workflow) = callable else {
+    let Callable::Workflow(WorkflowRef::Local(workflow)) = callable else {
         return Ok(Some(Vec::new()));
     };
 
@@ -345,7 +351,7 @@ pub fn outgoing_calls(
         };
 
         let source_index = graph
-            .get_index(to_doc.uri())
+            .get_index(&to_doc.uri())
             .ok_or_else(|| anyhow!("document `{uri}` not found in graph", uri = to_doc.uri()))?;
 
         let source_node = graph.get(source_index);
@@ -357,21 +363,21 @@ pub fn outgoing_calls(
         let Some(from_span) = scope.lookup(ident).map(|s| s.span()) else {
             continue;
         };
-        let from_range = location_from_span(from_doc.uri(), from_span, &from_doc_lines)?.range;
+        let from_range = location_from_span(&from_doc.uri(), from_span, &from_doc_lines)?.range;
 
         let Some(callable) = to_doc.callable_by_name(call.name()) else {
             continue;
         };
 
-        match calls.entry(((**to_doc.uri()).clone(), call.name().to_string())) {
+        match calls.entry(((*to_doc.uri()).clone(), call.name().to_string())) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().1.push(from_range);
             }
             Entry::Vacant(entry) => {
-                entry.insert((
-                    callable.as_call_hierarchy_item(to_doc, &lines)?,
-                    vec![from_range],
-                ));
+                let Some(item) = callable.as_call_hierarchy_item(to_doc, &lines)? else {
+                    continue;
+                };
+                entry.insert((item, vec![from_range]));
             }
         }
     }

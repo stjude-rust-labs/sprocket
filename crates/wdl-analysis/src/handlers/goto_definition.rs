@@ -34,6 +34,8 @@ use wdl_ast::v1;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::document::Document;
+use crate::document::EnumRef;
+use crate::document::StructRef;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
@@ -86,14 +88,7 @@ pub fn goto_definition(
     let parent_node = token.parent().expect("identifier has not parent");
 
     // Context based resolution
-    if let Some(location) = resolve_by_context(
-        &parent_node,
-        &token,
-        analysis_doc,
-        document_uri,
-        &lines,
-        graph,
-    )? {
+    if let Some(location) = resolve_by_context(&parent_node, &token, analysis_doc, &lines, graph)? {
         return Ok(Some(location));
     }
 
@@ -121,8 +116,7 @@ pub fn goto_definition(
                     target.inner(),
                     callee_name.inner(),
                     analysis_doc,
-                    document_uri,
-                    &lines,
+                    lines,
                     graph,
                 );
             }
@@ -144,49 +138,49 @@ fn resolve_by_context(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    document_uri: &Url,
     lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
-            resolve_type_reference(analysis_doc, token, document_uri, lines, graph)
+            resolve_type_reference(analysis_doc, token, lines, graph)
         }
 
         SyntaxKind::CallTargetNode => {
-            resolve_call_target(parent_node, token, analysis_doc, document_uri, lines, graph)
+            resolve_call_target(parent_node, token, analysis_doc, lines.clone(), graph)
         }
         SyntaxKind::ImportStatementNode => {
-            resolve_import_namespace(parent_node, token, document_uri, lines)
+            resolve_import_namespace(parent_node, token, &analysis_doc.uri(), lines)
+        }
+        SyntaxKind::ImportAliasNode => {
+            resolve_import_alias_target(parent_node, token, &analysis_doc.uri(), lines)
         }
 
         SyntaxKind::AccessExprNode => {
-            resolve_access_expression(parent_node, token, analysis_doc, document_uri, lines, graph)
+            resolve_access_expression(parent_node, token, analysis_doc, lines, graph)
         }
 
-        SyntaxKind::UnboundDeclNode => {
-            resolve_decl_definition::<v1::UnboundDecl>(parent_node, token, document_uri, lines)
-        }
+        SyntaxKind::UnboundDeclNode => resolve_decl_definition::<v1::UnboundDecl>(
+            parent_node,
+            token,
+            &analysis_doc.uri(),
+            lines,
+        ),
 
         SyntaxKind::BoundDeclNode => {
-            resolve_decl_definition::<v1::BoundDecl>(parent_node, token, document_uri, lines)
+            resolve_decl_definition::<v1::BoundDecl>(parent_node, token, &analysis_doc.uri(), lines)
         }
 
         SyntaxKind::EnumChoiceNode => {
-            resolve_enum_choice_definition(parent_node, token, document_uri, lines)
+            resolve_enum_choice_definition(parent_node, token, &analysis_doc.uri(), lines)
         }
 
-        SyntaxKind::LiteralStructItemNode => resolve_struct_literal_item(
-            parent_node,
-            token,
-            analysis_doc,
-            document_uri,
-            lines,
-            graph,
-        ),
+        SyntaxKind::LiteralStructItemNode => {
+            resolve_struct_literal_item(parent_node, token, analysis_doc, lines, graph)
+        }
 
         SyntaxKind::CallInputItemNode => {
-            resolve_call_input_item(parent_node, token, analysis_doc, document_uri, lines, graph)
+            resolve_call_input_item(parent_node, token, analysis_doc, lines, graph)
         }
 
         // This case is handled by scope resolution.
@@ -202,90 +196,96 @@ fn resolve_by_context(
 fn resolve_type_reference(
     analysis_doc: &Document,
     token: &SyntaxToken,
-    document_uri: &Url,
     lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
     let ident_text = token.text();
 
     if let Some(enum_info) = analysis_doc.enum_by_name(ident_text) {
-        let Some(source) = enum_info.source() else {
-            // Handle enum defined in local document.
-            return Ok(Some(location_from_span(
-                document_uri,
-                enum_info.name_span(),
-                lines,
-            )?));
-        };
-
-        let is_aliased_import = enum_info
-            .ty()
-            .and_then(|t| t.as_enum())
-            .map(|st| st.name() != ident_text)
-            .unwrap_or(false);
-
-        if is_aliased_import {
-            // Returns the location where alias import was defined.
-            return Ok(Some(location_from_span(
-                document_uri,
-                enum_info.name_span(),
-                lines,
-            )?));
-        } else {
-            // Return the location in the imported file.
-            if let Some(ctx) = get_imported_doc_context(source, graph)
-                && let Some(original_enum) = ctx.doc.enum_by_name(ident_text)
-            {
+        match enum_info {
+            EnumRef::Local(e) => {
                 return Ok(Some(location_from_span(
-                    ctx.uri,
-                    original_enum.name_span(),
-                    ctx.lines,
+                    &analysis_doc.uri(),
+                    e.name_span(),
+                    lines,
                 )?));
+            }
+            EnumRef::Imported(e) => {
+                let source = e.source();
+
+                let is_aliased_import = enum_info
+                    .ty()
+                    .and_then(|t| t.as_enum())
+                    .map(|st| st.name() != ident_text)
+                    .unwrap_or(false);
+
+                if is_aliased_import {
+                    // Returns the location where alias import was defined.
+                    return Ok(Some(location_from_span(
+                        &analysis_doc.uri(),
+                        enum_info.name_span(),
+                        lines,
+                    )?));
+                } else {
+                    // Return the location in the imported file.
+                    if let Some(ctx) = get_imported_doc_context(&source, graph)
+                        && let Some(original_enum) = ctx.doc.enum_by_name(ident_text)
+                    {
+                        return Ok(Some(location_from_span(
+                            ctx.uri,
+                            original_enum.name_span(),
+                            ctx.lines,
+                        )?));
+                    }
+                }
             }
         }
     }
 
     if let Some(struct_info) = analysis_doc.struct_by_name(ident_text) {
-        let Some(source) = struct_info.source() else {
-            // Handle struct defined in local document.
-            return Ok(Some(location_from_span(
-                document_uri,
-                struct_info.name_span(),
-                lines,
-            )?));
-        };
-
-        let is_aliased_import = struct_info
-            .ty()
-            .and_then(|t| t.as_struct())
-            .map(|st| st.name().as_str() != ident_text)
-            .unwrap_or(false);
-
-        if is_aliased_import {
-            // Returns the location where alias import was defined.
-            return Ok(Some(location_from_span(
-                document_uri,
-                struct_info.name_span(),
-                lines,
-            )?));
-        } else {
-            // Return the location in the imported file.
-            if let Some(ctx) = get_imported_doc_context(source, graph)
-                && let Some(original_struct) = ctx.doc.struct_by_name(ident_text)
-            {
+        match struct_info {
+            StructRef::Local(s) => {
                 return Ok(Some(location_from_span(
-                    ctx.uri,
-                    original_struct.name_span(),
-                    ctx.lines,
+                    &analysis_doc.uri(),
+                    s.name_span(),
+                    lines,
                 )?));
+            }
+            StructRef::Imported(s) => {
+                let source = s.source();
+                let is_aliased_import = struct_info
+                    .ty()
+                    .and_then(|t| t.as_struct())
+                    .map(|st| st.name().as_str() != ident_text)
+                    .unwrap_or(false);
+
+                if is_aliased_import {
+                    // Returns the location where alias import was defined.
+                    return Ok(Some(location_from_span(
+                        &analysis_doc.uri(),
+                        struct_info.name_span(),
+                        lines,
+                    )?));
+                } else {
+                    // Return the location in the imported file.
+                    if let Some(ctx) = get_imported_doc_context(&source, graph)
+                        && let Some(original_struct) = ctx.doc.struct_by_name(ident_text)
+                    {
+                        return Ok(Some(location_from_span(
+                            ctx.uri,
+                            original_struct.name_span(),
+                            ctx.lines,
+                        )?));
+                    }
+                }
             }
         }
     }
 
     // Fallback search in case the struct is not in the current document's
     // analysis map
-    for (_, ns) in analysis_doc.namespaces() {
-        let node = graph.get(graph.get_index(ns.source()).unwrap());
+    for ns in analysis_doc.namespaces() {
+        let node = graph.get(graph.get_index(&ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
         };
@@ -296,7 +296,7 @@ fn resolve_type_reference(
 
         let imported_lines = node.parse_state().lines().unwrap();
         return Ok(Some(location_from_span(
-            ns.source(),
+            &ns.source(),
             struct_info.name_span(),
             imported_lines,
         )?));
@@ -317,8 +317,7 @@ fn resolve_call_target(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    document_uri: &Url,
-    lines: &Arc<LineIndex>,
+    mut lines: Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
     let target = wdl_ast::v1::CallTarget::cast(parent_node.clone()).unwrap();
@@ -327,113 +326,71 @@ fn resolve_call_target(
         .last()
         .is_some_and(|n| n.span() == token.span());
 
-    if is_callee_name_clicked {
-        let callee_name_str = token.text();
-
-        // NOTE: Namespaced (foo.bar)
-        if target_names.len() == 2 {
-            let namespaced_name_str = target_names.first().unwrap().text();
-            let Some(ns_info) = analysis_doc.namespace(namespaced_name_str) else {
-                return Ok(None);
-            };
-
-            let node = graph.get(graph.get_index(ns_info.source()).unwrap());
-            let Some(imported_doc) = node.document() else {
-                return Ok(None);
-            };
-            let imported_lines = node.parse_state().lines().unwrap();
-
-            if let Some(task_def) = imported_doc.task_by_name(callee_name_str) {
-                return Ok(Some(location_from_span(
-                    ns_info.source(),
-                    task_def.name_span(),
-                    imported_lines,
-                )?));
-            }
-
-            if let Some(wf_def) = imported_doc
-                .workflow()
-                .filter(|w| w.name() == callee_name_str)
-            {
-                return Ok(Some(location_from_span(
-                    ns_info.source(),
-                    wf_def.name_span(),
-                    imported_lines,
-                )?));
-            }
-        } else if target_names.len() == 1 {
-            // NOTE: Local calls
-            if let Some(task_def) = analysis_doc.task_by_name(callee_name_str) {
-                return Ok(Some(location_from_span(
-                    document_uri,
-                    task_def.name_span(),
-                    lines,
-                )?));
-            }
-
-            if let Some(wf_def) = analysis_doc
-                .workflow()
-                .filter(|w| w.name() == callee_name_str)
-            {
-                return Ok(Some(location_from_span(
-                    document_uri,
-                    wf_def.name_span(),
-                    lines,
-                )?));
-            }
-
-            if let Some(imported_task) = analysis_doc.imported_task_by_name(callee_name_str) {
-                let Some(index) = graph.get_index(imported_task.source()) else {
-                    return Ok(None);
-                };
-                let node = graph.get(index);
-                let Some(imported_doc) = node.document() else {
-                    return Ok(None);
-                };
-                let Some(task_def) = imported_doc.task_by_name(imported_task.name()) else {
-                    return Ok(None);
-                };
-                return Ok(Some(location_from_span(
-                    imported_task.source(),
-                    task_def.name_span(),
-                    node.parse_state().lines().unwrap(),
-                )?));
-            }
-
-            if let Some(imported_workflow) = analysis_doc.imported_workflow_by_name(callee_name_str)
-            {
-                let Some(index) = graph.get_index(imported_workflow.source()) else {
-                    return Ok(None);
-                };
-                let node = graph.get(index);
-                let Some(imported_doc) = node.document() else {
-                    return Ok(None);
-                };
-                let Some(workflow_def) = imported_doc
-                    .workflow()
-                    .filter(|workflow| workflow.name() == imported_workflow.name())
-                else {
-                    return Ok(None);
-                };
-                return Ok(Some(location_from_span(
-                    imported_workflow.source(),
-                    workflow_def.name_span(),
-                    node.parse_state().lines().unwrap(),
-                )?));
-            }
-        } else {
-            // More than 2 names (e.g. foo.bar.baz) - invalid expression.
-            return Ok(None);
+    if !is_callee_name_clicked {
+        if let Some(ns_info) = analysis_doc.namespace(token.text()) {
+            return Ok(Some(location_from_span(
+                &analysis_doc.uri(),
+                ns_info.span(),
+                &lines,
+            )?));
         }
-    } else if let Some(ns_info) = analysis_doc.namespace(token.text()) {
-        return Ok(Some(location_from_span(
-            document_uri,
-            ns_info.span(),
-            lines,
-        )?));
+
+        return Ok(None);
     }
 
-    Ok(None)
+    if target_names.len() > 2 {
+        // More than 2 names (e.g. foo.bar.baz) - invalid expression.
+        return Ok(None);
+    }
+
+    let callee_name_str = token.text();
+
+    let target_doc = if target_names.len() == 2 {
+        // NOTE: Namespaced (foo.bar)
+        let namespaced_name_str = target_names.first().unwrap().text();
+        let Some(ns_info) = analysis_doc.namespace(namespaced_name_str) else {
+            return Ok(None);
+        };
+
+        let node = graph.get(graph.get_index(&ns_info.source()).unwrap());
+        let Some(imported_doc) = node.document() else {
+            return Ok(None);
+        };
+
+        lines = node.parse_state().lines().cloned().unwrap();
+
+        imported_doc
+    } else {
+        // NOTE: Local calls
+        analysis_doc
+    };
+
+    let Some(callable) = target_doc.callable_by_name(callee_name_str) else {
+        return Ok(None);
+    };
+
+    let mut source_uri = target_doc.uri();
+    let mut name_span = callable.name_span();
+
+    // Re-exported definition, need to find the actual source...
+    if callable.is_imported() {
+        let Some(source_doc) = callable.source_document() else {
+            return Ok(None);
+        };
+
+        let Some(source_callable) = source_doc.local_callable_by_name(callable.source_name())
+        else {
+            return Ok(None);
+        };
+
+        let node = graph.get(graph.get_index(&source_doc.uri()).unwrap());
+
+        source_uri = source_doc.uri();
+        name_span = source_callable.name_span();
+        lines = node.parse_state().lines().cloned().unwrap();
+    }
+
+    Ok(Some(location_from_span(&source_uri, name_span, &lines)?))
 }
 
 /// Resolves import namespace identifier to their definition locations.
@@ -456,6 +413,25 @@ fn resolve_import_namespace(
     Ok(None)
 }
 
+/// Resolves the target name of an import alias (e.g. `Human` in
+/// `alias Person as Human`) to itself.
+///
+/// The source name of the alias is resolved through global resolution.
+fn resolve_import_alias_target(
+    parent_node: &SyntaxNode,
+    token: &SyntaxToken,
+    document_uri: &Url,
+    lines: &Arc<LineIndex>,
+) -> Result<Option<Location>> {
+    if let Some(alias) = wdl_ast::v1::ImportAlias::cast(parent_node.clone())
+        && alias.names().1.span() == token.span()
+    {
+        return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
+    }
+
+    Ok(None)
+}
+
 /// Searches for global definitions(structs, tasks, workflows) in the
 /// current document and all imported namespaces.
 fn resolve_global_identifier(
@@ -471,11 +447,11 @@ fn resolve_global_identifier(
         return Ok(Some(location));
     }
 
-    for (_, ns) in analysis_doc.namespaces() {
+    for ns in analysis_doc.namespaces() {
         // SAFETY: we know `get_index` will return `Some` as `ns.source` comes
         // from `analysis_doc.namespaces` which only contains namespaces
         // for documents that are guaranteed to be present in the graph.
-        let node = graph.get(graph.get_index(ns.source()).unwrap());
+        let node = graph.get(graph.get_index(&ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
         };
@@ -502,7 +478,8 @@ fn resolve_global_identifier(
 /// Evaluates the target expression's type and resolves member access to the
 /// appropriate definition location.
 ///
-/// # Supports:
+/// # Supports
+///
 /// - Struct member access (`person.name`)
 /// - Enum member access (`Person.name`)
 /// - Call output access (`call_result.output`)
@@ -512,7 +489,6 @@ fn resolve_access_expression(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    document_uri: &Url,
     lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
@@ -538,15 +514,15 @@ fn resolve_access_expression(
             let member_name = access_ident.text();
             if analysis_doc
                 .enums()
-                .any(|(_, e)| e.source() == Some(ns.source()) && e.name() == member_name)
+                .any(|e| e.source() == Some(ns.source()) && e.name() == member_name)
             {
-                let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
+                let imported_node = graph.get(graph.get_index(&ns.source()).unwrap());
                 let imported_lines = imported_node.parse_state().lines().unwrap();
                 let imported_doc = imported_node.document().unwrap();
 
                 if let Some(original_enum) = imported_doc.enum_by_name(member_name) {
                     return Ok(Some(location_from_span(
-                        ns.source(),
+                        &ns.source(),
                         original_enum.name_span(),
                         imported_lines,
                     )?));
@@ -569,23 +545,20 @@ fn resolve_access_expression(
         let original_struct_name = struct_ty.name().as_str();
 
         // Check for struct definition in imported namespaces.
-        for (_, ns) in analysis_doc.namespaces() {
+        for ns in analysis_doc.namespaces() {
             // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which
             // only contains namespaces for documents that are guaranteed to be
             // present in the graph.
-            let node = graph.get(graph.get_index(ns.source()).unwrap());
+            let node = graph.get(graph.get_index(&ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
                 continue;
             };
 
-            let Some(original_struct) = imported_doc.struct_by_name(original_struct_name) else {
-                continue;
-            };
-
-            // Only process structs defined in this namespace, not ones it
-            // re-imported from elsewhere.
-            if original_struct.source().is_some() {
+            let Some(original_struct) = imported_doc.local_struct_by_name(original_struct_name)
+            else {
+                // Only process structs defined in this namespace, not ones it
+                // re-imported from elsewhere.
                 continue;
             };
 
@@ -607,7 +580,11 @@ fn resolve_access_expression(
                     member_span.start() + original_struct.offset(),
                     member_span.len(),
                 );
-                return Ok(Some(location_from_span(ns.source(), span, imported_lines)?));
+                return Ok(Some(location_from_span(
+                    &ns.source(),
+                    span,
+                    imported_lines,
+                )?));
             }
         }
 
@@ -621,25 +598,25 @@ fn resolve_access_expression(
                 )
             })?;
 
-        let (uri, def_lines) = match struct_def.source() {
+        let (uri, def_lines) = match struct_def {
             // The struct was imported, so its definition lives in the source
             // document the import resolved to.
-            Some(source) => {
+            StructRef::Imported(s) => {
+                let source = s.source();
+
                 // SAFETY: `source` is the URI the import resolved to, which is
                 // guaranteed to be present in the graph.
-                let imported_node = graph.get(graph.get_index(source).unwrap());
+                let imported_node = graph.get(graph.get_index(&source).unwrap());
 
                 // SAFETY: we successfully resolved the node above; it is in
                 // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
-                (source.as_ref(), lines)
+                (source, lines)
             }
-            None => (document_uri, lines),
+            StructRef::Local(_) => (analysis_doc.uri(), lines),
         };
 
-        let struct_node =
-            v1::StructDefinition::cast(SyntaxNode::new_root(struct_def.node().clone()))
-                .expect("should cast to struct definition");
+        let struct_node = struct_def.definition();
 
         let Some(member) = struct_node
             .members()
@@ -651,7 +628,7 @@ fn resolve_access_expression(
         let member_span = member.name().span();
         let span = Span::new(member_span.start() + struct_def.offset(), member_span.len());
         // Returns found struct member definition location.
-        return Ok(Some(location_from_span(uri, span, def_lines)?));
+        return Ok(Some(location_from_span(&uri, span, def_lines)?));
     }
 
     if let Type::TypeNameRef(ty) = target_type {
@@ -666,23 +643,19 @@ fn resolve_access_expression(
         let original_enum_name = enum_ty.name();
 
         // Check for enum definition in imported namespaces.
-        for (_, ns) in analysis_doc.namespaces() {
+        for ns in analysis_doc.namespaces() {
             // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which
             // only contains namespaces for documents that are guaranteed to be
             // present in the graph.
-            let node = graph.get(graph.get_index(ns.source()).unwrap());
+            let node = graph.get(graph.get_index(&ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
                 continue;
             };
 
-            let Some(original_enum) = imported_doc.enum_by_name(original_enum_name) else {
-                continue;
-            };
-
-            // Only process enums defined in this namespace, not ones it
-            // re-imported from elsewhere.
-            if original_enum.source().is_some() {
+            let Some(original_enum) = imported_doc.local_enum_by_name(original_enum_name) else {
+                // Only process enums defined in this namespace, not ones it
+                // re-imported from elsewhere.
                 continue;
             };
 
@@ -704,7 +677,11 @@ fn resolve_access_expression(
                     choice_span.start() + original_enum.offset(),
                     choice_span.len(),
                 );
-                return Ok(Some(location_from_span(ns.source(), span, imported_lines)?));
+                return Ok(Some(location_from_span(
+                    &ns.source(),
+                    span,
+                    imported_lines,
+                )?));
             }
         }
 
@@ -716,24 +693,25 @@ fn resolve_access_expression(
             )
         })?;
 
-        let (uri, def_lines) = match enum_def.source() {
+        let (uri, def_lines) = match enum_def {
             // The enum was imported, so its definition lives in the source
             // document the import resolved to.
-            Some(source) => {
+            EnumRef::Imported(e) => {
+                let source = e.source();
+
                 // SAFETY: `source` is the URI the import resolved to, which is
                 // guaranteed to be present in the graph.
-                let imported_node = graph.get(graph.get_index(source).unwrap());
+                let imported_node = graph.get(graph.get_index(&source).unwrap());
 
                 // SAFETY: we successfully resolved the node above; it is in
                 // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
-                (source.as_ref(), lines)
+                (source, lines)
             }
-            None => (document_uri, lines),
+            EnumRef::Local(_) => (analysis_doc.uri(), lines),
         };
 
-        let enum_node = v1::EnumDefinition::cast(SyntaxNode::new_root(enum_def.node().clone()))
-            .expect("should cast to enum definition");
+        let enum_node = enum_def.definition();
 
         let Some(choice) = enum_node
             .choices()
@@ -745,7 +723,7 @@ fn resolve_access_expression(
         let choice_span = choice.name().span();
         let span = Span::new(choice_span.start() + enum_def.offset(), choice_span.len());
         // Returns found enum choice definition location.
-        return Ok(Some(location_from_span(uri, span, def_lines)?));
+        return Ok(Some(location_from_span(&uri, span, def_lines)?));
     }
 
     if let Some(call_ty) = target_type.as_call() {
@@ -762,19 +740,19 @@ fn resolve_access_expression(
 
                 // SAFETY: `ns.source` comes from a valid namespace entry which
                 // guarantees the document is present in the graph.
-                let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
+                let imported_node = graph.get(graph.get_index(&ns.source()).unwrap());
 
                 // SAFETY: we successfully resolved the node above; it is in
                 // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
-                (ns.source().as_ref(), lines)
+                (ns.source(), lines)
             }
-            None => (document_uri, lines),
+            None => (analysis_doc.uri(), lines),
         };
 
         // Returns found call output definition location.
         return Ok(Some(location_from_span(
-            uri,
+            &uri,
             output.name_span(),
             callee_lines,
         )?));
@@ -789,20 +767,22 @@ fn resolve_access_expression(
             )
         })?;
 
-        let (uri, def_lines) = match enum_def.source() {
+        let (uri, def_lines) = match enum_def {
             // The enum was imported, so its definition lives in the source
             // document the import resolved to.
-            Some(source) => {
+            EnumRef::Imported(e) => {
+                let source = e.source();
+
                 // SAFETY: `source` is the URI the import resolved to, which is
                 // guaranteed to be present in the graph.
-                let imported_node = graph.get(graph.get_index(source).unwrap());
+                let imported_node = graph.get(graph.get_index(&source).unwrap());
 
                 // SAFETY: we successfully resolved the node above; it is in
                 // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
-                (source.as_ref(), lines)
+                (source, lines)
             }
-            None => (document_uri, lines),
+            EnumRef::Local(_) => (analysis_doc.uri(), lines),
         };
 
         let enum_node = enum_def.definition();
@@ -817,7 +797,7 @@ fn resolve_access_expression(
         let choice_span = choice.name().span();
         let span = Span::new(choice_span.start() + enum_def.offset(), choice_span.len());
         // Returns found enum choice definition location.
-        return Ok(Some(location_from_span(uri, span, def_lines)?));
+        return Ok(Some(location_from_span(&uri, span, def_lines)?));
     }
 
     Ok(None)
@@ -865,7 +845,6 @@ fn resolve_struct_literal_item(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    document_uri: &Url,
     lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
@@ -891,23 +870,23 @@ fn resolve_struct_literal_item(
     let struct_name = literal_struct.name();
 
     if let Some(struct_info) = analysis_doc.struct_by_name(struct_name.text()) {
-        let (uri, def_lines) = match struct_info.source() {
-            Some(source) => {
+        let (uri, def_lines) = match struct_info {
+            StructRef::Imported(e) => {
+                let source = e.source();
+
                 // SAFETY: `source` is the URI the import resolved to, which is
                 // guaranteed to be present in the graph.
-                let imported_node = graph.get(graph.get_index(source).unwrap());
+                let imported_node = graph.get(graph.get_index(&source).unwrap());
 
                 // SAFETY: we successfully resolved the node above; it is in
                 // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
-                (source.as_ref(), lines)
+                (source, lines)
             }
-            None => (document_uri, lines),
+            StructRef::Local(_) => (analysis_doc.uri(), lines),
         };
 
-        let node =
-            wdl_ast::v1::StructDefinition::cast(SyntaxNode::new_root(struct_info.node().clone()))
-                .expect("should cast to struct definition");
+        let node = struct_info.definition();
 
         if let Some(member) = node.members().find(|m| m.name().text() == name.text()) {
             let member_span = member.name().span();
@@ -915,7 +894,7 @@ fn resolve_struct_literal_item(
                 member_span.start() + struct_info.offset(),
                 member_span.len(),
             );
-            return Ok(Some(location_from_span(uri, span, def_lines)?));
+            return Ok(Some(location_from_span(&uri, span, def_lines)?));
         }
     }
 
@@ -925,18 +904,19 @@ fn resolve_struct_literal_item(
 /// Resolves call input item identifiers.
 ///
 /// For call input items like `i = 3` or `i = i * 2`:
+///
 /// - The left-hand side identifier should resolve to the target task/workflow's
 ///   input parameter
 /// - The right-hand side expressions should be resolved through normal scope
 ///   resolution
 ///
 /// For shorthand syntax like `{ i }`:
+///
 /// - The identifier should be resolved through scope resolution
 fn resolve_call_input_item(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    document_uri: &Url,
     lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
@@ -985,7 +965,7 @@ fn resolve_call_input_item(
 
                 // SAFETY: `ns.source` comes from a valid namespace entry which
                 // guarantees the document is present in the graph.
-                let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let node = graph.get(graph.get_index(&ns.source()).unwrap());
                 let Some(imported_doc) = node.document() else {
                     return Ok(None);
                 };
@@ -998,7 +978,7 @@ fn resolve_call_input_item(
                     imported_doc,
                     target_name.text(),
                     token,
-                    ns.source(),
+                    &ns.source(),
                     imported_lines,
                 );
             } else {
@@ -1007,7 +987,7 @@ fn resolve_call_input_item(
                     analysis_doc,
                     target_name.text(),
                     token,
-                    document_uri,
+                    &analysis_doc.uri(),
                     lines,
                 );
             }
@@ -1025,23 +1005,20 @@ fn find_target_input_parameter(
     uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    if let Some(task) = doc.task_by_name(target_name)
-        && task.inputs().contains_key(token.text())
-    {
-        let scope = task.scope();
-        if let Some(ident) = scope.lookup(token.text()) {
-            return Ok(Some(location_from_span(uri, ident.span(), lines)?));
-        }
+    let Some(callable) = doc.local_callable_by_name(target_name) else {
+        return Ok(None);
+    };
+
+    if !callable.inputs().contains_key(token.text()) {
+        return Ok(None);
     }
 
-    if let Some(workflow) = doc.workflow()
-        && workflow.name() == target_name
-        && workflow.inputs().contains_key(token.text())
-    {
-        let scope = workflow.scope();
-        if let Some(ident) = scope.lookup(token.text()) {
-            return Ok(Some(location_from_span(uri, ident.span(), lines)?));
-        }
+    let Some(scope) = callable.scope() else {
+        return Ok(None);
+    };
+
+    if let Some(ident) = scope.lookup(token.text()) {
+        return Ok(Some(location_from_span(uri, ident.span(), lines)?));
     }
 
     Ok(None)
@@ -1054,31 +1031,28 @@ fn find_global_definition_in_doc(
     document_uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    if let Some(s) = analysis_doc.struct_by_name(ident_text) {
+    if let Some(s) = analysis_doc.local_struct_by_name(ident_text) {
         return Ok(Some(location_from_span(
             document_uri,
             s.name_span(),
             lines,
         )?));
     }
-    if let Some(e) = analysis_doc.enum_by_name(ident_text) {
+    if let Some(e) = analysis_doc.local_enum_by_name(ident_text) {
         return Ok(Some(location_from_span(
             document_uri,
             e.name_span(),
             lines,
         )?));
     }
-    if let Some(t) = analysis_doc.task_by_name(ident_text) {
+    if let Some(t) = analysis_doc.local_task_by_name(ident_text) {
         return Ok(Some(location_from_span(
             document_uri,
             t.name_span(),
             lines,
         )?));
     }
-    if let Some(w) = analysis_doc
-        .workflow()
-        .filter(|w_def| w_def.name() == ident_text)
-    {
+    if let Some(w) = analysis_doc.local_workflow_by_name(ident_text) {
         return Ok(Some(location_from_span(
             document_uri,
             w.name_span(),

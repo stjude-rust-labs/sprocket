@@ -1,20 +1,27 @@
 # Rules
 
-This table documents all implemented `wdl` analysis rules implemented on the 
-`main` branch of the `stjude-rust-labs/sprocket` repository. Note that the 
-information may be out of sync with released packages.
+This table documents all implemented `wdl` analysis rules implemented on the `main` branch of the
+`stjude-rust-labs/sprocket` repository. Note that the information may be out of sync with released
+packages.
+
+Each rule can be configured in its own `[check.rules.<RULE>]` table of `sprocket.toml` with a
+`severity` of `off`, `note`, or `warning`.
 
 ## Analysis Rules
 
-| Name                       | Description                                                                                                |
-|:---------------------------|:-----------------------------------------------------------------------------------------------------------|
-| CommandSectionIndentation  | Ensures consistent indentation (no mixed spaces/tabs) within command sections.                             |
-| ExceptDirectiveValid       | Ensures `except` directives are placed correctly to have the intended effect.                              |
-| KnownRules                 | Ensures only known rules are used in `except` directives.                                                  |
-| MeaninglessLintDirective   | Warns if an `#@ except:` comment doesn't actually suppress any lints.                                      |
-| MisleadingDeclarationOrder | Warns if task variable declarations appear after a `command` section.                                      |
-| UnnecessaryFunctionCall    | Ensures that function calls are necessary.                                                                 |
-| UnusedCall                 | Ensures that outputs of a call statement are used in the declaring workflow.                               |
-| UnusedDeclaration          | Ensures that private declarations in tasks or workspaces are used within the declaring task or workspace.  |
-| UnusedImport               | Ensures that import namespaces are used in the importing document.                                         |
-| UnusedInput                | Ensures that task or workspace inputs are used within the declaring task or workspace.                     |
+| Name                       | Description                                                                                               |
+| :------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| CommandSectionIndentation  | Ensures consistent indentation (no mixed spaces/tabs) within command sections.                            |
+| CallInputKeyword           | Ensures that the `input:` keyword is not used in call statements when WDL version is 1.2 or later.        |
+| DeprecatedObject           | Ensures that the deprecated `Object` types are not used.                                                  |
+| DeprecatedPlaceholder      | Ensures that deprecated expression placeholder options are not used.                                      |
+| DeprecatedRuntimeSection   | Ensures that deprecated `runtime` sections are not used in WDL v1.2 and later.                            |
+| ExceptDirectiveValid       | Ensures `except` directives are placed correctly to have the intended effect.                             |
+| KnownRules                 | Ensures only known rules are used in `except` directives.                                                 |
+| MeaninglessLintDirective   | Warns if an `#@ except:` comment doesn't actually suppress any lints.                                     |
+| MisleadingDeclarationOrder | Warns if task variable declarations appear after a `command` section.                                     |
+| UnnecessaryFunctionCall    | Ensures that function calls are necessary.                                                                |
+| UnusedCall                 | Ensures that outputs of a call statement are used in the declaring workflow.                              |
+| UnusedDeclaration          | Ensures that private declarations in tasks or workspaces are used within the declaring task or workspace. |
+| UnusedImport               | Ensures that import namespaces are used in the importing document.                                        |
+| UnusedInput                | Ensures that task or workspace inputs are used within the declaring task or workspace.                    |

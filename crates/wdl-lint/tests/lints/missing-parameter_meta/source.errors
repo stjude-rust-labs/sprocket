@@ -1,8 +1,16 @@
 note[MetaSections]: workflow `test` is missing a `parameter_meta` section
-  ┌─ tests/lints/missing-parameter_meta/source.wdl:3:10
+  ┌─ tests/lints/missing-parameter_meta/source.wdl:5:10
   │
-3 │ workflow test {
+5 │ workflow test {
   │          ^^^^ this workflow is missing a `parameter_meta` section
   │
   = fix: add the missing section
+
+note[MetaSections]: struct `Test` is missing a doc comment for the struct and each of the struct's fields
+   ┌─ tests/lints/missing-parameter_meta/source.wdl:23:8
+   │
+23 │ struct Test {
+   │        ^^^^ this struct is missing a doc comment for the struct and each of the struct's fields
+   │
+   = fix: add a descriptive doc comment to the struct and to each of the struct's fields
 

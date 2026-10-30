@@ -1,0 +1,13 @@
+say_hello:
+  - name: custom assertions
+    inputs:
+      $group:
+        one:
+          - foo
+        two:
+          - bar
+      three:
+        - doesn't matter
+    assertions:
+      custom:
+        entrypoint.sh: [ "$OUTPUTS", "say_hello" ]

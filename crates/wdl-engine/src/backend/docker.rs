@@ -38,8 +38,10 @@ use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
 #[cfg(unix)]
 use crate::CLEANUP_TASK_NAME_PREFIX;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::INITIAL_EXPECTED_NAMES;
+use crate::ImageSource;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
@@ -53,7 +55,6 @@ use crate::config::TaskResourceLimitBehavior;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::hints;
 use crate::v1::requirements;
-use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -306,8 +307,8 @@ impl ManagedTask for DockerTask<'_> {
             .backend
             .run(
                 task,
-                self.request.events.crankshaft().cloned(),
-                self.request.cancellation.second(),
+                self.request.context.events().crankshaft().cloned(),
+                self.request.context.cancellation().second().clone(),
             )?
             .await
         {
@@ -320,6 +321,7 @@ impl ManagedTask for DockerTask<'_> {
         let result = results.into_iter().next().unwrap();
 
         Ok(Some(TaskExecutionResult {
+            execution_name_override: None,
             image: result.image.map(ImageSource::Docker),
             exit_code: result.status.code().expect("should have exit code"),
             work_dir: EvaluationPath::from_local_path(work_dir),
@@ -349,11 +351,24 @@ impl ManagedTask for DockerTask<'_> {
 ///
 /// This runs after a Docker task whatever the outcome of that task was.
 #[cfg(unix)]
-async fn chown_work_dir(backend: &docker::Backend, name: &str, work_dir: &Path) -> Result<()> {
+async fn chown_work_dir(
+    backend: &docker::Backend,
+    name: &str,
+    work_dir: &Path,
+    rootless: bool,
+) -> Result<()> {
     assert!(work_dir.is_absolute(), "work directory should be absolute");
 
-    // SAFETY: `geteuid` and `getegid` are always safe to call and cannot fail.
-    let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
+    let (uid, gid) = if rootless {
+        // 0:0 in a rootless context maps back to the host user's UID/GID:
+        // https://docs.docker.com/engine/security/rootless/uid-gid-mapping/
+        (0, 0)
+    } else {
+        // SAFETY: `geteuid` and `getegid` are always safe to call and cannot
+        // fail.
+        unsafe { (libc::geteuid(), libc::getegid()) }
+    };
+
     let ownership = format!("{uid}:{gid}");
 
     let task = Task::builder()
@@ -426,7 +441,10 @@ fn collect_applicable_sources(sources: &[ImageSource]) -> anyhow::Result<Vec<Str
     let mut results = PullResults::default();
     for source in sources {
         match source {
-            ImageSource::Docker(s) => results.push(source.clone(), Ok(s.clone())),
+            ImageSource::Docker(s) => {
+                let s = s.strip_prefix(crate::DOCKER_PROTOCOL).unwrap_or(s);
+                results.push(source.clone(), Ok(s.to_string()));
+            }
             ImageSource::Library(_) | ImageSource::Oras(_) => {
                 let err = anyhow!(
                     "Docker backend does not support `{source:#}`; use a Docker registry image \
@@ -473,6 +491,9 @@ pub struct DockerBackend {
     max_cpu: f64,
     /// The maximum memory for any of one node.
     max_memory: u64,
+    /// Whether the Docker daemon is running in rootless mode.
+    #[cfg(unix)]
+    rootless: bool,
     /// The task manager for the backend.
     manager: TaskManager,
 }
@@ -504,6 +525,14 @@ impl DockerBackend {
         .await
         .context("failed to initialize Docker backend")?;
 
+        #[cfg(unix)]
+        let rootless = {
+            let client_info = backend.client().info().await?;
+            client_info
+                .security_options
+                .is_some_and(|options| options.iter().any(|opt| *opt == "name=rootless"))
+        };
+
         let resources = *backend.resources();
         let cpu = resources.cpu() as f64;
         let max_cpu = resources.max_cpu() as f64;
@@ -524,6 +553,8 @@ impl DockerBackend {
             inner: Arc::new(backend),
             max_cpu,
             max_memory,
+            #[cfg(unix)]
+            rootless,
             manager,
         })
     }
@@ -538,9 +569,15 @@ impl TaskExecutionBackend for DockerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {
@@ -584,7 +621,8 @@ impl TaskExecutionBackend for DockerBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
@@ -593,7 +631,8 @@ impl TaskExecutionBackend for DockerBackend {
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                 }
@@ -663,17 +702,21 @@ impl TaskExecutionBackend for DockerBackend {
             // which abandons a task that has to wait for resources
             // once evaluation has been canceled.
             #[cfg(unix)]
-            {
+            'cleanup: {
                 let work_dir = request.work_dir();
-                if work_dir.exists() {
-                    let name = format!(
-                        "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
-                        name = request.name
-                    );
+                if !work_dir.exists() {
+                    break 'cleanup;
+                }
 
-                    if let Err(e) = chown_work_dir(self.inner.as_ref(), &name, &work_dir).await {
-                        tracing::error!("Docker backend cleanup failed: {e:#}");
-                    }
+                let name = format!(
+                    "{CLEANUP_TASK_NAME_PREFIX}chown-{name}",
+                    name = request.name
+                );
+
+                if let Err(e) =
+                    chown_work_dir(self.inner.as_ref(), &name, &work_dir, self.rootless).await
+                {
+                    tracing::error!("Docker backend cleanup failed: {e:#}");
                 }
             }
 
@@ -766,8 +809,8 @@ mod tests {
         use indexmap::IndexMap;
 
         use crate::CancellationContext;
-        use crate::Engine;
         use crate::Events;
+        use crate::backend::tests::EvalContext;
         use crate::config::FailureMode;
 
         let root = TempDir::new().unwrap();
@@ -780,14 +823,11 @@ mod tests {
         // `alpine` has no `bash`
         config.task.shell = "/bin/sh".to_string();
 
-        let engine = Engine::new(config.clone())
-            .await
-            .expect("engine should initialize");
         let backend = DockerBackend::new(Arc::new(config))
             .await
             .expect("Docker backend should initialize");
 
-        let events = Events::new(1024);
+        let events = Events::default().with_crankshaft(1024);
         let mut receiver = events
             .subscribe_crankshaft()
             .expect("Crankshaft events should be enabled");
@@ -807,8 +847,9 @@ mod tests {
             disks: Default::default(),
         };
 
+        let context = EvalContext::new(events.clone(), cancellation.clone()).await;
         let request = ExecuteTaskRequest {
-            engine: &engine,
+            context: &context,
             name: "cleanup-after-cancellation-0",
             command: "mkdir -p testdir && echo hello > testdir/hello.txt && sleep 60",
             inputs: &inputs,
@@ -820,8 +861,6 @@ mod tests {
             base_dir: &base_dir,
             attempt_dir: &attempt_dir,
             temp_dir: &temp_dir,
-            events: &events,
-            cancellation: &cancellation,
         };
 
         let work_dir = request.work_dir();
@@ -904,7 +943,8 @@ mod tests {
                 | CrankshaftEvent::TaskStderr { id, .. }
                 | CrankshaftEvent::ImagePullStarted { id, .. }
                 | CrankshaftEvent::ImagePullFailed { id, .. }
-                | CrankshaftEvent::ImagePullFinished { id, .. } => *id,
+                | CrankshaftEvent::ImagePullFinished { id, .. }
+                | CrankshaftEvent::TaskResourceUsage { id, .. } => *id,
             };
 
             assert_eq!(

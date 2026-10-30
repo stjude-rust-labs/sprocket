@@ -1,7 +1,7 @@
 ## This is a test of having no shellcheck lints
 
-#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands
-#@ except: MetaDescription, ParameterMetaMatched
+#@ except: BashSetSyntax, EmptyOutputs, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, HereDocCommands
+#@ except: MetaDescription, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder
 
 version 1.1
 
@@ -99,6 +99,54 @@ task test4 {
         # shellcheck disable=SC2086
         echo $unquoted_var
     }
+
+    output {}
+
+    runtime {}
+}
+
+task nested_quoted_placeholders {
+    meta {}
+
+    parameter_meta {}
+
+    input {
+        Array[String] contigs
+        Boolean output_fastq
+        File? read_two_fastq
+        String prefix
+    }
+
+    command <<<
+        somecommand ~{if output_fastq
+            then "-o '" + if defined(read_two_fastq)
+                then "~{prefix}.R1.fastq.gz'"
+                else "~{prefix}.fastq.gz'"
+            else ""}
+
+        somecommand ~{if length(contigs) > 0
+            then "--ctg_name='~{sep(",", contigs)}'"
+            else ""}
+    >>>
+
+    output {}
+
+    runtime {}
+}
+
+task apostrophe_in_double_quotes {
+    meta {}
+
+    parameter_meta {}
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "it doesn't matter"
+        echo '~{name}'
+    >>>
 
     output {}
 

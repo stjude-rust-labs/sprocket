@@ -9,11 +9,13 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -25,19 +27,33 @@ const ID: &str = "DescriptionLength";
 const DESCRIPTION_MAX_LENGTH: usize = 140;
 
 /// Creates a description too long diagnostic.
-fn description_too_long(span: Span) -> Diagnostic {
-    Diagnostic::note("this description will be clipped in Sprocket documentation")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix(format!(
-            "shorten this string so it is less than or equal to {DESCRIPTION_MAX_LENGTH} \
-             characters"
-        ))
+fn description_too_long(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        "this description will be clipped in Sprocket documentation",
+    )
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix(format!(
+        "shorten this string so it is less than or equal to {DESCRIPTION_MAX_LENGTH} characters"
+    ))
 }
 
 /// Detects a malformed lint directive.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct DescriptionLengthRule;
+#[derive(Debug, Clone, Copy)]
+pub struct DescriptionLengthRule {
+    /// The severity of the rule's diagnostics.
+    severity: Severity,
+}
+
+impl DescriptionLengthRule {
+    /// Creates a new instance of the rule.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            severity: config.description_length.diagnostic_severity(),
+        }
+    }
+}
 
 impl Rule for DescriptionLengthRule {
     fn id(&self) -> &'static str {
@@ -103,9 +119,7 @@ workflow example {
 }
 
 impl Visitor for DescriptionLengthRule {
-    fn reset(&mut self) {
-        *self = Self
-    }
+    fn reset(&mut self) {}
 
     fn metadata_section(
         &mut self,
@@ -130,7 +144,7 @@ impl Visitor for DescriptionLengthRule {
 
             if text.len() > DESCRIPTION_MAX_LENGTH {
                 diagnostics.exceptable_add(
-                    description_too_long(description_item.name().span()),
+                    description_too_long(self.severity, description_item.name().span()),
                     description_item.inner(),
                     &self.exceptable_nodes(),
                 );
@@ -153,7 +167,7 @@ impl Visitor for DescriptionLengthRule {
 
                     if text.len() > DESCRIPTION_MAX_LENGTH {
                         diagnostics.exceptable_add(
-                            description_too_long(output.name().span()),
+                            description_too_long(self.severity, output.name().span()),
                             output.inner(),
                             &self.exceptable_nodes(),
                         );
@@ -172,7 +186,7 @@ impl Visitor for DescriptionLengthRule {
 
                     if text.len() > DESCRIPTION_MAX_LENGTH {
                         diagnostics.exceptable_add(
-                            description_too_long(description_item.name().span()),
+                            description_too_long(self.severity, description_item.name().span()),
                             description_item.inner(),
                             &self.exceptable_nodes(),
                         );
@@ -203,7 +217,7 @@ impl Visitor for DescriptionLengthRule {
 
                 if text.len() > DESCRIPTION_MAX_LENGTH {
                     diagnostics.exceptable_add(
-                        description_too_long(param.name().span()),
+                        description_too_long(self.severity, param.name().span()),
                         param.inner(),
                         &self.exceptable_nodes(),
                     );
@@ -222,7 +236,7 @@ impl Visitor for DescriptionLengthRule {
 
                 if text.len() > DESCRIPTION_MAX_LENGTH {
                     diagnostics.exceptable_add(
-                        description_too_long(description_item.name().span()),
+                        description_too_long(self.severity, description_item.name().span()),
                         description_item.inner(),
                         &self.exceptable_nodes(),
                     );

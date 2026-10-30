@@ -201,7 +201,7 @@ async fn run_test(test: &Path) -> Result<()> {
                         .validate(
                             document,
                             document
-                                .task_by_name(&name)
+                                .local_task_by_name(&name)
                                 .expect("task should be present"),
                             None,
                         )
@@ -212,7 +212,9 @@ async fn run_test(test: &Path) -> Result<()> {
                     }
                 }
                 Inputs::Workflow(inputs) => {
-                    let workflow = document.workflow().expect("workflow should be present");
+                    let workflow = document
+                        .local_workflow_by_name(&name)
+                        .expect("workflow should be present");
                     match inputs.validate(document, workflow, None).with_context(|| {
                         format!(
                             "failed to validate the inputs to workflow `{workflow}`",

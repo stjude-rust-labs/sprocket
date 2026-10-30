@@ -23,6 +23,7 @@ use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
+use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
@@ -124,7 +125,7 @@ impl ManagedTask for LocalTask<'_> {
 
             // Notify that the process has spawned
             send_event!(
-                self.request.events.crankshaft(),
+                self.request.context.events().crankshaft(),
                 CrankshaftEvent::TaskStarted { id }
             );
 
@@ -158,7 +159,7 @@ impl ManagedTask for LocalTask<'_> {
         // Send the created event
         let task_token = CancellationToken::new();
         send_event!(
-            self.request.events.crankshaft(),
+            self.request.context.events().crankshaft(),
             CrankshaftEvent::TaskCreated {
                 id,
                 name: self.name.clone(),
@@ -167,27 +168,28 @@ impl ManagedTask for LocalTask<'_> {
             }
         );
 
-        let token = self.request.cancellation.second();
+        let token = self.request.context.cancellation().second();
 
         select! {
             // Poll the cancellation tokens before the child future
             biased;
             _ = task_token.cancelled() => {
-                send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCanceled { id });
+                send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskCanceled { id });
                 Ok(None)
             }
             _ = token.cancelled() => {
-                send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCanceled { id });
+                send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskCanceled { id });
                 Ok(None)
             }
             result = run => {
                 match result {
                     Ok(status) => {
-                        send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
+                        send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
 
                         let exit_code = status.code().expect("process should have exited");
                         info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
                         Ok(Some(TaskExecutionResult {
+                            execution_name_override: None,
                             image: None,
                             exit_code,
                             work_dir: EvaluationPath::from_local_path(work_dir),
@@ -196,7 +198,7 @@ impl ManagedTask for LocalTask<'_> {
                         }))
                     }
                     Err(e) => {
-                        send_event!(self.request.events.crankshaft(), CrankshaftEvent::TaskFailed { id, message: format!("{e:#}") });
+                        send_event!(self.request.context.events().crankshaft(), CrankshaftEvent::TaskFailed { id, message: format!("{e:#}") });
                         Err(e)
                     }
                 }
@@ -263,6 +265,7 @@ impl TaskExecutionBackend for LocalBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        _: &ContainerImageOverrides,
         _: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut cpu = requirements::cpu(inputs, requirements);
@@ -307,7 +310,8 @@ impl TaskExecutionBackend for LocalBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
@@ -316,7 +320,8 @@ impl TaskExecutionBackend for LocalBackend {
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
                         "task requires at least {memory} GiB of memory{env_specific}",
-                        // Display the error in GiB, as it is the most common unit for memory
+                        // Display the error in GiB, as it is the most common
+                        // unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                 }

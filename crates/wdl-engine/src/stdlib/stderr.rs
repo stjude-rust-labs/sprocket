@@ -16,7 +16,7 @@ const FUNCTION_NAME: &str = "stderr";
 /// Returns the value of the executed command's standard error (stderr) as a
 /// File
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#stderr
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#stderr>
 fn stderr(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.is_empty());
     debug_assert!(context.return_type_eq(PrimitiveType::File));
@@ -43,14 +43,14 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
     use crate::PrimitiveValue;
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
-    use crate::v1::test::eval_v1_expr_with_stdio;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
+    use crate::v1::tests::eval_v1_expr_with_stdio;
 
     #[tokio::test]
     async fn stderr() {

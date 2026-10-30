@@ -61,7 +61,7 @@ pub fn code_lens(graph: &DocumentGraph, document_uri: &Url) -> Result<Option<Vec
     };
 
     let mut lenses = Vec::new();
-    for target in analysis_doc.callables() {
+    for target in analysis_doc.local_callables() {
         if target.inputs().values().any(|i| i.required()) {
             continue;
         }

@@ -1,18 +1,13 @@
-#@ except: BashSetSyntax
+#@ except: BashSetSyntax, DeprecatedRuntimeSection, RequirementsSection, EmptyOutputs, MetaSections
 
 ## This is a test for a missing description in a `meta` section.
 
 version 1.3
 
-#@ except: DeprecatedRuntimeSection, RequirementsSection, EmptyOutputs
 task foo {
     meta {}
 
     command <<<>>>
-
-    output {}
-
-    runtime {}
 }
 
 workflow bar {
@@ -24,9 +19,20 @@ workflow bar {
 struct Baz {
     meta {}
 
-    parameter_meta {
-        x: "foo"
-    }
+    String x
+}
+
+
+## This doc comment counts as a description
+task foo2 {
+    meta {}
+
+    command <<<>>>
+}
+
+## Same here
+struct Baz2 {
+    meta {}
 
     String x
 }

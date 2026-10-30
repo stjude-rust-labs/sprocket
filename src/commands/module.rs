@@ -2,7 +2,7 @@
 
 use clap::Subcommand;
 
-use crate::commands::output::CommandOutput;
+use crate::commands::CommandOutput;
 use crate::config::Config;
 
 pub mod add;
@@ -16,6 +16,7 @@ mod project;
 mod relock;
 pub mod remove;
 mod resolver;
+mod schema;
 pub mod sign;
 mod signer_policy;
 pub mod tree;
@@ -56,6 +57,8 @@ pub enum ModuleCommands {
     Cache(clean::CacheCommands),
     /// Sign the module, writing `module.sig`.
     Sign(sign::Args),
+    /// Print the JSON schema for module definitions to stdout.
+    Schema,
     /// Manage the user trust store.
     #[command(subcommand)]
     Trust(trust::TrustCommands),
@@ -80,6 +83,7 @@ pub async fn run(
         ModuleCommands::Fetch(args) => fetch::fetch(args, config, output).await,
         ModuleCommands::Cache(args) => clean::cache(args, config, output).await,
         ModuleCommands::Sign(args) => sign::sign(args, output).await,
+        ModuleCommands::Schema => schema::schema(output),
         ModuleCommands::Trust(args) => trust::trust(args, output).await,
     }
 }

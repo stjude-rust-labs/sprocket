@@ -3,10 +3,10 @@ Rules with the tag `Clarity`:
   - DeclarationName
   - DenyGlobStar
   - DocCommentTabs
-  - DoubleQuotes
   - EmptyDocComment
   - HereDocCommands
   - ImportPlacement
   - MetaSections
-  - PascalCase
-  - SnakeCase
+  - MutableContainerTag
+  - NamingConvention
+  - RedundantContainerArray

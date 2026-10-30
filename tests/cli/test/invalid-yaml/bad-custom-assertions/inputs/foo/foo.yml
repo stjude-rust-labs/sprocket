@@ -1,0 +1,16 @@
+say_hello:
+  - name: custom assertions
+    inputs:
+      $group:
+        one:
+          - foo
+        two:
+          - bar
+      three:
+        - doesn't matter
+    assertions:
+      custom:
+        valid: [ "$OUTPUTS", "something else" ]
+        valid_single: [ "$OUTPUTS" ]
+        invalid: [ "no output placeholder", "with multiple args" ]
+        invalid_type: "string instead of array"

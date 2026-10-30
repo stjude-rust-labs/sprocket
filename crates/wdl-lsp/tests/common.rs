@@ -5,9 +5,10 @@
 //! message format and Content-Length headers (similar to LSP over stdio).
 //!
 //! The protocol works by:
+//!
 //! - Encoding JSON-RPC messages with a simple format
 //!
-//!  `Content-Length: <size>\r\n\r\n<payload>`
+//!   `Content-Length: <size>\r\n\r\n<payload>`
 //!
 //! - Using in-memory streams to simulate client-server communication
 
@@ -27,6 +28,7 @@ use async_lsp::lsp_types;
 use async_lsp::lsp_types::ClientCapabilities;
 use async_lsp::lsp_types::InitializeParams;
 use async_lsp::lsp_types::InitializedParams;
+use async_lsp::lsp_types::TextDocumentItem;
 use async_lsp::lsp_types::WorkspaceDiagnosticParams;
 use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use async_lsp::lsp_types::WorkspaceFolder;
@@ -228,6 +230,7 @@ where
     }
 }
 
+#[allow(unused)]
 impl TestContext {
     /// Creates a file URI for a path within the temporary workspace.
     pub fn doc_uri(&self, path: &str) -> Url {
@@ -244,11 +247,19 @@ impl TestContext {
         Url::from_file_path(self.workspace.path()).unwrap()
     }
 
-    /// Performs the LSP initialization handshake and returns the initial
-    /// workspace diagnostic report alongside the initialization result.
-    pub async fn initialize(
-        &mut self,
-    ) -> (lsp_types::InitializeResult, WorkspaceDiagnosticReportResult) {
+    /// Create a [`TextDocumentItem`] for the file within the temporary
+    /// workspace.
+    pub fn text_document(&self, path: &str, language: &str) -> TextDocumentItem {
+        TextDocumentItem {
+            uri: self.doc_uri(path),
+            language_id: String::from(language),
+            version: 0,
+            text: fs::read_to_string(self.doc_path(path)).unwrap(),
+        }
+    }
+
+    /// Performs the LSP initialization handshake and returns the result.
+    pub async fn initialize(&mut self) -> lsp_types::InitializeResult {
         let workspace_url = self.workspace_uri();
         let capabilities = ClientCapabilities {
             text_document: Some(lsp_types::TextDocumentClientCapabilities {
@@ -300,8 +311,7 @@ impl TestContext {
         self.notify::<lsp_types::notification::Initialized>(InitializedParams {})
             .expect("notification should succeed");
 
-        let diagnostics = self.workspace_diagnostic().await;
-        (result, diagnostics)
+        result
     }
 
     /// Issues a fresh `workspace/diagnostic` pull with no previous result IDs.

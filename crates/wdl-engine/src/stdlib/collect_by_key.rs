@@ -25,7 +25,7 @@ use crate::Value;
 /// The order of the elements in the Map values is the same as their order of
 /// occurrence in the input Array.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#collect_by_key
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#collect_by_key>
 fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
 
@@ -83,12 +83,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn collect_by_key() {

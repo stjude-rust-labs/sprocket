@@ -8,7 +8,6 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
-use super::regex_cache::get_or_compile_regex;
 use crate::Array;
 use crate::PrimitiveValue;
 use crate::Value;
@@ -21,7 +20,7 @@ const FUNCTION_NAME: &str = "split";
 /// splits the input string on the provided delimiter and stores the results in
 /// a `Array[String]`.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.3/SPEC.md#split
+/// <https://github.com/openwdl/wdl/blob/wdl-1.3/SPEC.md#split>
 fn split(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type().clone()));
@@ -33,7 +32,8 @@ fn split(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
-    let regex = get_or_compile_regex(delimiter.as_str())
+    let regex = context
+        .compile_regex(delimiter.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
 
     let elements = regex
@@ -56,12 +56,12 @@ pub const fn descriptor() -> Function {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::v1::test::TestEnv;
-    use crate::v1::test::eval_v1_expr;
+    use crate::v1::tests::TestEnv;
+    use crate::v1::tests::eval_v1_expr;
 
     #[tokio::test]
     async fn split() {

@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::env;
 use std::fmt::Write as _;
 use std::fs;
 use std::fs::File;
@@ -17,6 +18,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use chrono::Utc;
 use clap::Parser;
+use clap::ValueEnum;
 use colored::Colorize as _;
 use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
@@ -31,13 +33,14 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing::span;
+use tracing::warn;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
+use url::Url;
 use wdl::analysis::Document;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::diagnostics::emit_diagnostics_with_backtrace;
 use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
@@ -49,10 +52,12 @@ use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
+use wdl::engine::ImageOverrideResolutionFailureMode;
 use wdl::engine::Inputs;
 use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
+use wdl::engine::config::RetryConfig;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
@@ -61,10 +66,15 @@ use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+use crate::commands::lock::LOCK_FILE;
 use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
+use crate::for_each_line;
 use crate::inputs::Invocation;
+use crate::lock::file::LockFile;
+use crate::log_output;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::HeartbeatGuard;
@@ -95,6 +105,15 @@ const LATEST: &str = "_latest";
 /// The log file in the output directory for writing `sprocket` output to
 const LOG_FILE_NAME: &str = "output.log";
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum LockTarget {
+    /// Fail if a container image is missing from the `sprocket.lock`.
+    Images,
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before evaluation.
+    Modules,
+}
+
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
 #[clap(disable_version_flag = true)]
@@ -116,10 +135,10 @@ pub struct Args {
     /// The name of the task or workflow to run.
     ///
     /// When no inputs are provided and `target` is not specified, the
-    /// target is inferred from the document: a workflow is selected if one
-    /// exists, otherwise a single task is selected. If the target remains
-    /// ambiguous (e.g., multiple tasks and no workflow), an error is
-    /// returned.
+    /// target is inferred from the document: a workflow is selected if exactly
+    /// one exists, otherwise a single task is selected. If the target remains
+    /// ambiguous (for example, the document has multiple workflows), an error
+    /// is returned.
     ///
     /// If `target` is not specified but inputs are provided, all input
     /// keys (from both files and key-value pairs) are expected to be
@@ -140,10 +159,13 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output_dir: Option<PathBuf>,
 
-    /// Fail if `module-lock.json` is missing or out of date instead of
-    /// regenerating it before evaluation.
-    #[clap(long)]
-    pub locked: bool,
+    /// Force the execution to use existing lockfiles.
+    #[clap(long, num_args = 0.., require_equals = true, value_delimiter = ',', default_missing_value = "images,modules", value_name = "LOCK_TARGETS")]
+    pub locked: Option<Vec<LockTarget>>,
+
+    /// Run without locking container images to digests.
+    #[clap(long, conflicts_with = "locked")]
+    pub unlocked: bool,
 
     /// The index path to index the run outputs under.
     ///
@@ -157,10 +179,6 @@ pub struct Args {
     /// "project/$name"`).
     #[clap(long, value_name = "INDEX_PATH")]
     pub index_on: Option<IndexPath>,
-
-    /// The report mode.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
 
     /// The Azure Storage account name to use.
     #[clap(long, env, value_name = "NAME", requires = "azure_access_key")]
@@ -194,6 +212,10 @@ pub struct Args {
     #[clap(long, env, value_name = "REGION")]
     pub aws_default_region: Option<String>,
 
+    /// The AWS endpoint URL; overrides configuration.
+    #[clap(long, value_name = "URL")]
+    pub aws_endpoint_url: Option<Url>,
+
     /// The Google Cloud Storage HMAC access key to use; overrides
     /// configuration.
     #[clap(long, env, value_name = "KEY", requires = "google_hmac_secret")]
@@ -212,6 +234,10 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// Disable retries for all task evaluations for this run.
+    #[clap(long)]
+    pub disable_retries: bool,
 
     /// Show task stderr during execution.
     ///
@@ -251,6 +277,11 @@ impl Args {
         // Apply the AWS default region to the engine config
         if let Some(region) = &self.aws_default_region {
             config.storage.s3.region = Some(region.clone());
+        }
+
+        // Apply the S3 endpoint URL to the engine config
+        if let Some(endpoint) = &self.aws_endpoint_url {
+            config.storage.s3.endpoint = Some(endpoint.clone());
         }
 
         // Apply the AWS auth to the engine config
@@ -325,8 +356,6 @@ struct Task {
 }
 
 impl Task {
-    const STDERR_BUFFER_SIZE: usize = 4096;
-
     fn new(name: Arc<String>, token: CancellationToken) -> Self {
         Self {
             name,
@@ -712,56 +741,29 @@ async fn progress(
                                 continue;
                             };
 
-                            if task.stderr_buffer.capacity() == 0 {
-                                task.stderr_buffer.reserve(Task::STDERR_BUFFER_SIZE);
-                            }
-
-                            task.stderr_buffer.extend_from_slice(&message);
-                            while let Some(line_end) = task.stderr_buffer.iter().position(|&b| b == b'\n') {
-                                if line_end > Task::STDERR_BUFFER_SIZE {
-                                    tracing::warn!(
-                                        target: "task-stderr",
-                                        "{} {}",
-                                        task.name.magenta().bold(),
-                                        format!("line too long, dropped {line_end} bytes").yellow()
-                                    );
-                                } else {
-                                    let line_bytes = &task.stderr_buffer[..line_end];
-                                    let line = String::from_utf8_lossy(line_bytes);
-                                    tracing::debug!(
-                                        target: "task-stderr",
-                                        "{} {}",
-                                        task.name.magenta().bold(),
-                                        line.blue()
-                                    );
-                                }
-
-                                task.stderr_buffer.drain(..=line_end);
-                            }
-
-                            if task.stderr_buffer.len() > Task::STDERR_BUFFER_SIZE {
-                                tracing::warn!(
-                                    target: "task-stderr",
-                                    "{} {}",
-                                    task.name.magenta().bold(),
-                                    format!("line too long, dropped {} bytes", task.stderr_buffer.len()).yellow()
-                                );
-                                task.stderr_buffer.clear();
-                            }
-
-                            if task.stderr_buffer.capacity() > Task::STDERR_BUFFER_SIZE {
-                                task.stderr_buffer.shrink_to(Task::STDERR_BUFFER_SIZE);
-                            }
+                            for_each_line(&message, &mut task.stderr_buffer, |line| {
+                                log_output!(tracing::Level::DEBUG, "task-stderr", task.name, line);
+                            });
 
                             continue
                         }
+                        CrankshaftEvent::TaskResourceUsage { .. } |
                         CrankshaftEvent::TaskContainerCreated { .. }
                         | CrankshaftEvent::TaskContainerExited { .. }
                         | CrankshaftEvent::TaskStdout { .. }
                         | CrankshaftEvent::TaskStderr { .. } => continue,
                     };
 
-                    if let Some(id) = removed && let Some(task) = state.tasks.remove(&id) {
+                    if let Some(id) = removed && let Some(mut task) = state.tasks.remove(&id) {
+                        if !task.stderr_buffer.is_empty() {
+                            log_output!(
+                                tracing::Level::DEBUG,
+                                "task-stderr",
+                                task.name,
+                                &String::from_utf8_lossy(&task.stderr_buffer)
+                            );
+                            task.stderr_buffer.clear();
+                        }
                         state.executing.swap_remove(&task.name);
                     }
 
@@ -783,6 +785,16 @@ async fn progress(
                         EngineEvent::TaskLocalizing { name } => {
                             state.enter_preparation(name, Preparation::Localizing);
                         }
+                        EngineEvent::TaskExecuting { .. } => {
+                            // Submission to the backend is reported by the
+                            // Crankshaft `TaskCreated` event; the constraints
+                            // this event carries are not displayed here.
+                        }
+                        EngineEvent::TaskRetrying { prior_name, .. } => {
+                            // The failed attempt is finished; the retry is
+                            // announced separately and re-enters preparation.
+                            state.depart(&Arc::new(prior_name));
+                        }
                         EngineEvent::ReusedCachedExecutionResult { name, .. } => {
                             state.depart(&Arc::new(name));
                             state.cached += 1;
@@ -797,6 +809,7 @@ async fn progress(
                                 state.canceled += 1;
                             }
                         }
+                        _ => {}
                     };
 
                     progress_bar.pb_set_message(&message(&mut state));
@@ -883,9 +896,9 @@ pub fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
 
 /// The main function for the `run` subcommand.
 pub async fn run(
-    args: Args,
+    mut args: Args,
     mut config: Config,
-    colorize: bool,
+    output: CommandOutput,
     handle: FileReloadHandle,
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
@@ -893,6 +906,7 @@ pub async fn run(
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
+    assert!(source.is_singular());
 
     if args.show_task_stderr {
         filter_handle
@@ -904,17 +918,59 @@ pub async fn run(
             .context("failed to modify tracing filter")?;
     }
 
-    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let report_mode = config.common.report_mode;
+
+    let lock_file = if args.unlocked {
+        LockFile::default()
+    } else {
+        let file = LockFile::locate(&source, report_mode, output)?;
+        if args
+            .locked
+            .as_ref()
+            .is_some_and(|targets| targets.contains(&LockTarget::Images))
+            && file.is_none()
+        {
+            return Err(anyhow!("--locked cannot be used without a `{LOCK_FILE}` present").into());
+        }
+
+        file.unwrap_or_default()
+    };
+
     if let Some(output_dir) = &args.output_dir {
         config.run.output_dir.clone_from(output_dir);
     }
+
+    // Respect the AWS SDK environment variables for endpoint
+    // Order of precedence is: CLI option, AWS_ENDPOINT_URL_S3, AWS_ENDPOINT_URL
+    args.aws_endpoint_url = args.aws_endpoint_url.take().or(
+        if !env::var("AWS_IGNORE_CONFIGURED_ENDPOINT_URLS")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+        {
+            env::var("AWS_ENDPOINT_URL_S3")
+                .ok()
+                .or_else(|| env::var("AWS_ENDPOINT_URL").ok())
+                .map(|s| {
+                    s.parse()
+                        .with_context(|| format!("invalid endpoint URL `{s}`"))
+                })
+                .transpose()?
+        } else {
+            None
+        },
+    );
+
     args.apply_engine_config(&mut config.run.engine);
 
     // Bring a stale or missing module lockfile up to date before executing so
     // the run proceeds against a consistent, reproducible tree, unless
     // `--locked` asked for the run to fail instead.
     if let Some(dir) = source.local_start_dir() {
-        let policy = if args.locked {
+        let policy = if args
+            .locked
+            .as_ref()
+            .is_some_and(|targets| targets.contains(&LockTarget::Modules))
+        {
             crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
         } else {
             crate::commands::module::auto_lock::LockfilePolicy::Regenerate
@@ -933,7 +989,7 @@ pub async fn run(
         .init({
             let progress_bar = progress_bar.clone();
 
-            let template = if colorize {
+            let template = if output.colorize() {
                 "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
             } else {
                 "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
@@ -944,34 +1000,31 @@ pub async fn run(
                 progress_bar.pb_set_style(&style);
             })
         })
-        .progress({
+        .progress(move |kind, completed, total| {
             let progress_bar = progress_bar.clone();
-            move |kind, completed, total| {
-                let progress_bar = progress_bar.clone();
-                async move {
-                    if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
-                        return;
-                    }
-
-                    if completed == 0 {
-                        progress_bar.pb_start();
-                        progress_bar.pb_set_length(total.try_into().unwrap());
-                        progress_bar.pb_set_message(&format!("{kind}"));
-                    }
-
-                    progress_bar.pb_set_position(completed.try_into().unwrap());
+            async move {
+                if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
+                    return;
                 }
-                .boxed()
+
+                if completed == 0 {
+                    progress_bar.pb_start();
+                    progress_bar.pb_set_length(total.try_into().unwrap());
+                    progress_bar.pb_set_message(&format!("{kind}"));
+                }
+
+                progress_bar.pb_set_position(completed.try_into().unwrap());
             }
+            .boxed()
         })
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .ignore_filename(config.common.ignore_filename())
-        .run(report_mode, colorize)
+        .run(report_mode, output.colorize())
         .await
         .map_err(CommandError::from)?;
 
-    // Emits diagnostics for all analyzed documents
+    // Emit all diagnostics for all analyzed documents, but only track `Error`s
     let mut errors = 0;
     for result in results.as_slice() {
         let mut diagnostics = result.document().diagnostics().peekable();
@@ -988,7 +1041,7 @@ pub async fn run(
                 &source,
                 result.document().diagnostics(),
                 report_mode,
-                colorize,
+                output.colorize(),
             )
             .context("failed to emit diagnostics")?;
         }
@@ -1002,6 +1055,10 @@ pub async fn run(
         .into());
     }
 
+    // NOTE: earlier we asserted `source.is_singular()` so the below filter will
+    // only return one Document.
+    //
+    // SAFETY: input source was added to the analysis so must be in the results.
     let document = results.filter(&[&source]).next().unwrap().document();
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
@@ -1010,28 +1067,40 @@ pub async fn run(
     let (ctx, run_dir, db, _heartbeat) =
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
+    if args.disable_retries {
+        config.run.engine.task.retries = RetryConfig::Disabled;
+    }
+
+    let uses_docker = uses_docker_backend(&config.run.engine);
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
+
+    let events_capacity = config
+        .run
+        .events_capacity
+        .try_into()
+        .context("invalid events capacity")?;
+
     // Determined here as the engine configuration is moved into evaluation
     // below.
-    let uses_docker = uses_docker_backend(&config.run.engine);
-    let events = Events::new(
-        config
-            .run
-            .events_capacity
-            .try_into()
-            .context("invalid events capacity")?,
-    );
+    let events = Events::default()
+        .with_engine(events_capacity)
+        .with_crankshaft(events_capacity)
+        .with_transfer(events_capacity);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        colorize,
-        cancellation.first(),
+        output.colorize(),
+        cancellation.second().clone(),
     ));
+
     let crankshaft_progress = tokio::spawn(progress(
-        progress_bar,
+        tracing::span!(Level::WARN, "progress"),
         args.show_task_stderr,
-        colorize,
+        output.colorize(),
         target.clone(),
         events
             .subscribe_crankshaft()
@@ -1039,7 +1108,18 @@ pub async fn run(
         events
             .subscribe_engine()
             .expect("should have engine events"),
-        cancellation.first(),
+        cancellation.second().clone(),
+    ));
+
+    // Collect execution metrics alongside evaluation; the collector returns
+    // once evaluation completes and the event channels close.
+    let metrics_collector = tokio::spawn(crate::metrics::collect_metrics(
+        events
+            .subscribe_crankshaft()
+            .expect("should have Crankshaft events"),
+        events
+            .subscribe_engine()
+            .expect("should have engine events"),
     ));
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
@@ -1048,9 +1128,15 @@ pub async fn run(
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
 
-    let engine = Engine::new(config.run.engine)
-        .await
-        .context("failed to create WDL evaluation engine")?;
+    let mut image_overrides = lock_file.as_container_overrides();
+    if args
+        .locked
+        .as_ref()
+        .is_some_and(|targets| targets.contains(&LockTarget::Images))
+        && let Some(overrides) = image_overrides.as_mut()
+    {
+        overrides.set_failure_mode(ImageOverrideResolutionFailureMode::Error);
+    }
 
     let mut execute = Box::pin(execute_target(
         db.clone(),
@@ -1059,6 +1145,7 @@ pub async fn run(
         engine,
         events,
         cancellation.clone(),
+        image_overrides.unwrap_or_default(),
         &target,
         inputs,
         &run_dir,
@@ -1096,6 +1183,40 @@ pub async fn run(
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
 
+                // Write the collected execution metrics to the run directory.
+                // This is best-effort: a failure to write metrics must not
+                // fail the run.
+                if let Ok(collector) = metrics_collector.await {
+                    let status = match &res {
+                        Ok(()) if cancellation.state() == CancellationContextState::NotCanceled => {
+                            crate::system::v1::db::RunStatus::Completed
+                        }
+                        Ok(()) | Err(EvaluationError::Canceled) => {
+                            crate::system::v1::db::RunStatus::Canceled
+                        }
+                        Err(_) => crate::system::v1::db::RunStatus::Failed,
+                    };
+                    let summary = crate::metrics::local_run_summary(
+                        ctx.run_id,
+                        &ctx.run_generated_name,
+                        status,
+                        ctx.started_at,
+                    );
+                    let response = collector.into_response(summary);
+                    let metrics_file = run_dir.root().join("metrics.json");
+                    match serde_json::to_string_pretty(&response) {
+                        Ok(json) => {
+                            if let Err(e) = std::fs::write(&metrics_file, json) {
+                                warn!(
+                                    "failed to write metrics file `{path}`: {e:#}",
+                                    path = metrics_file.display()
+                                );
+                            }
+                        }
+                        Err(e) => warn!("failed to serialize run metrics: {e:#}"),
+                    }
+                }
+
                 return match res {
                     Ok(()) => {
                         // Check if execution was canceled
@@ -1108,8 +1229,11 @@ pub async fn run(
                         if outputs_file.exists() {
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
-                            println!("{outputs_json}");
-                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
+                            output.payload(outputs_json);
+                            output.stderr(format!(
+                                "outputs were also written to `{path}`",
+                                path = outputs_file.display()
+                            ));
                         }
                         Ok(())
                     }
@@ -1124,7 +1248,7 @@ pub async fn run(
                             &[e.diagnostic],
                             &e.backtrace,
                             report_mode,
-                            colorize
+                            output.colorize()
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
                     }
@@ -1168,7 +1292,7 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
 
     match (&*target, &inputs) {
         (Target::Task(task), Inputs::Task(inputs)) => {
-            let Some(task) = document.task_by_name(task) else {
+            let Some(task) = document.local_task_by_name(task) else {
                 bail!("task '{task}' not found in document");
             };
 
@@ -1180,7 +1304,7 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
             })?;
         }
         (Target::Workflow(workflow), Inputs::Workflow(inputs)) => {
-            let Some(workflow) = document.workflow() else {
+            let Some(workflow) = document.local_workflow_by_name(workflow) else {
                 bail!("workflow '{workflow}' not found in document");
             };
 
@@ -1305,7 +1429,7 @@ mod tests {
 
     use super::*;
 
-    /// Regression test for https://github.com/stjude-rust-labs/sprocket/issues/1051.
+    /// Regression test for <https://github.com/stjude-rust-labs/sprocket/issues/1051>.
     ///
     /// Reproduces the reported repro: a workflow input (`wf.name`) plus a
     /// `requirements` override on a nested call

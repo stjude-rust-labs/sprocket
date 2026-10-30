@@ -1,0 +1,3 @@
+[check.rules.NamingConvention]
+severity = "note"
+allowed_names = ["AllowedName"]

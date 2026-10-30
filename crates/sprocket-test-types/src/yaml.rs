@@ -1,12 +1,16 @@
 //! Generic YAML parsing utilities for Sprocket test definitions.
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::marker::PhantomData;
+use std::ops::Deref;
 
 use indexmap::IndexMap;
 use schemars::JsonSchema;
+use schemars::Schema;
+use schemars::SchemaGenerator;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde_json::Number;
@@ -105,10 +109,30 @@ pub struct SpannedField<T> {
 
 /// Wrapper around [`serde_saphyr::Spanned`] that provides extra trait
 /// implementations.
-#[derive(Debug, Clone, JsonSchema)]
+#[derive(Debug, Clone)]
 #[repr(transparent)]
-#[schemars(with = "T")]
 pub struct Spanned<T>(pub serde_saphyr::Spanned<T>);
+
+impl<T> schemars::JsonSchema for Spanned<T>
+where
+    T: schemars::JsonSchema,
+{
+    fn inline_schema() -> bool {
+        <T as schemars::JsonSchema>::inline_schema()
+    }
+
+    fn schema_name() -> Cow<'static, str> {
+        <T as schemars::JsonSchema>::schema_name()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        <T as schemars::JsonSchema>::schema_id()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        <T as schemars::JsonSchema>::json_schema(generator)
+    }
+}
 
 impl<T> PartialEq for Spanned<T>
 where
@@ -145,6 +169,14 @@ where
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.value.hash(state);
+    }
+}
+
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.value
     }
 }
 

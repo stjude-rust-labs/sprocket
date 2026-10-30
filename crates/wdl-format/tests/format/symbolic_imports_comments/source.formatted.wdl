@@ -10,3 +10,6 @@ import {
     # explanation for Bar
     Bar as Baz,  # also explains Bar
 } from openwdl/widgets
+
+workflow empty {
+}

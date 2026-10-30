@@ -23,6 +23,7 @@ use rowan::GreenNode;
 use schemars::JsonSchema;
 use secrecy::ExposeSecret;
 use tokio::process::Command;
+use tokio_util::sync::CancellationToken;
 use toml_spanner::Arena;
 use toml_spanner::ErrorKind;
 use toml_spanner::Failed;
@@ -53,15 +54,15 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
 use wdl_ast::lexer::Lexer;
 use wdl_ast::v1::Expr;
+use wdl_grammar::Severity;
 use wdl_grammar::SyntaxKind;
 use wdl_grammar::construct_tree;
 use wdl_grammar::grammar::v1;
 use wdl_grammar::grammar::v1::Parser;
 
-use crate::CancellationContext;
 use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
-use crate::Events;
 use crate::NoneValue;
 use crate::Object;
 use crate::SYSTEM;
@@ -69,7 +70,6 @@ use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::convert_unit_string;
 use crate::diagnostics::unknown_enum_choice;
-use crate::http::Transferer;
 use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
@@ -110,11 +110,31 @@ const fn cache_dir_sentinel() -> &'static str {
     "system"
 }
 
+/// The default for runtime digest cache capacity.
+const fn default_digest_cache_capacity() -> u32 {
+    1000
+}
+
+/// The default for runtime choice cache capacity.
+const fn default_choice_cache_capacity() -> u32 {
+    1000
+}
+
+/// The default for runtime regex cache capacity.
+const fn default_regex_cache_capacity() -> u32 {
+    1000
+}
+
 /// The default for HTTP retries.
 ///
 /// Same default as defined in `cloud_copy`
 const fn default_http_retries() -> u32 {
     5
+}
+
+/// The default for evaluation HTTP response cache capacity.
+const fn default_http_response_cache_capacity() -> u32 {
+    1000
 }
 
 /// The default Apptainer executable name.
@@ -239,9 +259,8 @@ impl SecretString {
     ///
     /// By default, a [`SecretString`] is unredacted; when redacted, the string
     /// is replaced with `<REDACTED>` when serialized.
-    pub fn redact(mut self) -> Self {
+    pub fn redact(&mut self) {
         self.redacted = true;
-        self
     }
 
     /// Gets the inner [`secrecy::SecretString`].
@@ -385,7 +404,7 @@ mod index_map {
 ///
 /// </div>
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(
     rename = "WdlEngineConfig",
     rename_all = "snake_case",
@@ -454,6 +473,43 @@ pub struct Config {
     #[toml(default, rename = "fail")]
     #[schemars(default, rename = "fail")]
     pub failure_mode: FailureMode,
+    /// The capacity for runtime digest caches.
+    ///
+    /// The file and directory digests calculated during evaluation are stored
+    /// in LRU caches with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_digest_cache_capacity())]
+    #[schemars(default = "default_digest_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub digest_cache_capacity: u32,
+    /// The capacity for the runtime enum choice cache.
+    ///
+    /// The values created for enums during evaluation are stored in an LRU
+    /// cache with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_choice_cache_capacity())]
+    #[schemars(default = "default_choice_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub choice_cache_capacity: u32,
+    /// The capacity for the runtime compiled regular expression cache.
+    ///
+    /// When a WDL stdlib function that takes a regular expression is called, a
+    /// newly seen regular expression is compiled and stored in an LRU cache
+    /// with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_regex_cache_capacity())]
+    #[schemars(default = "default_regex_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub regex_cache_capacity: u32,
 }
 
 impl Default for Config {
@@ -468,6 +524,9 @@ impl Default for Config {
             suppress_env_specific_output: Default::default(),
             experimental_features_enabled: Default::default(),
             failure_mode: Default::default(),
+            digest_cache_capacity: default_digest_cache_capacity(),
+            choice_cache_capacity: default_choice_cache_capacity(),
+            regex_cache_capacity: default_regex_cache_capacity(),
         }
     }
 }
@@ -511,30 +570,40 @@ impl Config {
             bail!("`suppress_env_specific_output` requires enabling experimental features");
         }
 
+        if self.digest_cache_capacity == 0 {
+            bail!("configuration value `digest_cache_capacity` cannot be zero");
+        }
+
+        if self.choice_cache_capacity == 0 {
+            bail!("configuration value `choice_cache_capacity` cannot be zero");
+        }
+
+        if self.regex_cache_capacity == 0 {
+            bail!("configuration value `regex_cache_capacity` cannot be zero");
+        }
+
         Ok(())
     }
 
     /// Redacts the secrets contained in the configuration.
     ///
     /// By default, secrets are redacted for serialization.
-    pub fn redact(mut self) -> Self {
+    pub fn redact(&mut self) {
         for backend in self.backends.values_mut() {
-            *backend = std::mem::take(backend).redact();
+            backend.redact();
         }
 
-        if let Some(auth) = self.storage.azure.auth.take() {
-            self.storage.azure.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.azure.auth.as_mut() {
+            auth.redact();
         }
 
-        if let Some(auth) = self.storage.s3.auth.take() {
-            self.storage.s3.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.s3.auth.as_mut() {
+            auth.redact();
         }
 
-        if let Some(auth) = self.storage.google.auth.take() {
-            self.storage.google.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.google.auth.as_mut() {
+            auth.redact();
         }
-
-        self
     }
 
     /// Gets the backend configuration.
@@ -614,7 +683,7 @@ impl ToToml for Parallelism {
 
 /// Represents HTTP configuration.
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct HttpConfig {
     /// The HTTP download cache location.
@@ -640,6 +709,21 @@ pub struct HttpConfig {
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default, with = "String")]
     pub hash_algorithm: cloud_copy::HashAlgorithm,
+    /// The capacity for the in-memory HTTP response cache.
+    ///
+    /// Each HTTP operation performed in evaluation gets its own LRU response
+    /// cache with this capacity.
+    ///
+    /// The capacity cannot be zero.
+    ///
+    /// Note: this capacity affects only in-memory caches; it does not affect
+    /// the download cache.
+    ///
+    /// Defaults to `1000`.
+    #[toml(default = default_http_response_cache_capacity())]
+    #[schemars(default = "default_http_response_cache_capacity")]
+    #[schemars(range(min = 1))]
+    pub response_cache_capacity: u32,
 }
 
 impl Default for HttpConfig {
@@ -649,6 +733,7 @@ impl Default for HttpConfig {
             retries: default_http_retries(),
             parallelism: Default::default(),
             hash_algorithm: Default::default(),
+            response_cache_capacity: default_http_response_cache_capacity(),
         }
     }
 }
@@ -661,6 +746,11 @@ impl HttpConfig {
         {
             bail!("configuration value `http.parallelism` cannot be zero");
         }
+
+        if self.response_cache_capacity == 0 {
+            bail!("configuration value `http.response_cache_capacity` cannot be zero");
+        }
+
         Ok(())
     }
 
@@ -683,7 +773,7 @@ impl HttpConfig {
 
 /// Represents storage configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct StorageConfig {
     /// Azure Blob Storage configuration.
@@ -712,7 +802,7 @@ impl StorageConfig {
 
 /// Represents authentication information for Azure Blob Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageAuthConfig {
     /// The Azure Storage account name to use.
@@ -737,15 +827,14 @@ impl AzureStorageAuthConfig {
 
     /// Redacts the secrets contained in the Azure Blob Storage storage
     /// authentication configuration.
-    pub fn redact(mut self) -> Self {
-        self.access_key = self.access_key.redact();
-        self
+    pub fn redact(&mut self) {
+        self.access_key.redact();
     }
 }
 
 /// Represents configuration for Azure Blob Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageConfig {
     /// The Azure Blob Storage authentication configuration.
@@ -766,7 +855,7 @@ impl AzureStorageConfig {
 
 /// Represents authentication information for AWS S3 storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageAuthConfig {
     /// The AWS Access Key ID to use.
@@ -791,15 +880,14 @@ impl S3StorageAuthConfig {
 
     /// Redacts the secrets contained in the AWS S3 storage authentication
     /// configuration.
-    pub fn redact(mut self) -> Self {
-        self.secret_access_key = self.secret_access_key.redact();
-        self
+    pub fn redact(&mut self) {
+        self.secret_access_key.redact();
     }
 }
 
 /// Represents configuration for AWS S3 storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageConfig {
     /// The default region to use for S3-schemed URLs (e.g.
@@ -807,6 +895,12 @@ pub struct S3StorageConfig {
     ///
     /// Defaults to `us-east-1`.
     pub region: Option<String>,
+
+    /// The custom endpoint URL to use for S3.
+    ///
+    /// Uses the default AWS endpoints when `None`.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub endpoint: Option<Url>,
 
     /// The AWS S3 storage authentication configuration.
     #[toml(style = Header)]
@@ -826,7 +920,7 @@ impl S3StorageConfig {
 
 /// Represents authentication information for Google Cloud Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageAuthConfig {
     /// The HMAC Access Key to use.
@@ -851,15 +945,14 @@ impl GoogleStorageAuthConfig {
 
     /// Redacts the secrets contained in the Google Cloud Storage authentication
     /// configuration.
-    pub fn redact(mut self) -> Self {
-        self.secret = self.secret.redact();
-        self
+    pub fn redact(&mut self) {
+        self.secret.redact();
     }
 }
 
 /// Represents configuration for Google Cloud Storage.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageConfig {
     /// The Google Cloud Storage authentication configuration.
@@ -880,7 +973,7 @@ impl GoogleStorageConfig {
 
 /// Represents workflow evaluation configuration.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WorkflowConfig {
     /// Scatter statement evaluation configuration.
@@ -899,7 +992,7 @@ impl WorkflowConfig {
 
 /// Represents scatter statement evaluation configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ScatterConfig {
     /// The number of scatter array elements to process concurrently.
@@ -1104,17 +1197,64 @@ impl ToToml for Retries {
     }
 }
 
+/// The maximum number of retries to attempt if a task fails.
+#[derive(Copy, Clone, Debug, Toml, PartialEq, Eq)]
+#[toml(Toml, untagged, from = Retries)]
+pub enum RetryConfig {
+    /// Disable retries entirely, including any retries specified in task
+    /// requirements.
+    Disabled,
+    /// Set a default maximum number of retries.
+    ///
+    /// A task's `max_retries` requirement will override this value.
+    Enabled(Retries),
+}
+
+impl RetryConfig {
+    /// Whether retries are disabled.
+    pub fn is_disabled(self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self::Enabled(Retries::default())
+    }
+}
+
+impl From<u64> for RetryConfig {
+    fn from(value: u64) -> Self {
+        Self::Enabled(value.into())
+    }
+}
+
+impl From<RetryConfig> for u64 {
+    fn from(value: RetryConfig) -> Self {
+        match value {
+            RetryConfig::Enabled(retries) => retries.into(),
+            RetryConfig::Disabled => 0,
+        }
+    }
+}
+
+impl From<Retries> for RetryConfig {
+    fn from(value: Retries) -> Self {
+        Self::Enabled(value)
+    }
+}
+
 /// Represents task evaluation configuration.
 #[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
     /// A task's `max_retries` requirement will override this value.
     #[toml(default)]
-    #[schemars(default)]
-    pub retries: Retries,
+    #[schemars(default, with = "Retries")]
+    pub retries: RetryConfig,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
     #[toml(default = String::from(default_task_container()))]
@@ -1215,7 +1355,7 @@ impl Default for TaskConfig {
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
-        if let Retries::Use(value) = self.retries
+        if let RetryConfig::Enabled(Retries::Use(value)) = self.retries
             && value >= MAX_RETRIES
         {
             bail!("configuration value `task.retries` cannot exceed {MAX_RETRIES}");
@@ -1376,15 +1516,15 @@ impl BackendConfig {
     }
 
     /// Redacts the secrets contained in the backend configuration.
-    pub fn redact(self) -> Self {
+    pub fn redact(&mut self) {
         match self {
             Self::Local { .. }
             | Self::Docker { .. }
             | Self::LsfApptainer { .. }
-            | Self::SlurmApptainer { .. } => self,
-            Self::Tes { config } => Self::Tes {
-                config: config.redact(),
-            },
+            | Self::SlurmApptainer { .. } => {}
+            Self::Tes { config } => {
+                config.redact();
+            }
         }
     }
 }
@@ -1426,7 +1566,7 @@ impl From<SlurmApptainerBackendConfig> for BackendConfig {
 /// directly without the use of a container; only use this backend on trusted
 /// WDL. </div>
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LocalBackendConfig {
     /// Set the number of CPUs available for task execution.
@@ -1491,7 +1631,7 @@ fn default_docker_cleanup() -> bool {
 
 /// Represents configuration for the Docker backend.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DockerBackendConfig {
     /// Whether or not to remove a task's container after the task completes.
@@ -1518,14 +1658,14 @@ impl Default for DockerBackendConfig {
 }
 
 /// Represents HTTP basic authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BasicAuthConfig {
     /// The HTTP basic authentication username.
     pub username: String,
     /// The HTTP basic authentication password.
-    pub password: SecretString,
+    pub password: Option<SecretString>,
 }
 
 impl BasicAuthConfig {
@@ -1535,15 +1675,16 @@ impl BasicAuthConfig {
     }
 
     /// Redacts the secrets contained in the HTTP basic auth configuration.
-    pub fn redact(mut self) -> Self {
-        self.password = self.password.redact();
-        self
+    pub fn redact(&mut self) {
+        if let Some(password) = &mut self.password {
+            password.redact();
+        }
     }
 }
 
 /// Represents HTTP bearer token authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BearerAuthConfig {
     /// The HTTP bearer authentication token.
@@ -1557,9 +1698,82 @@ impl BearerAuthConfig {
     }
 
     /// Redacts the secrets contained in the HTTP bearer auth configuration.
-    pub fn redact(mut self) -> Self {
-        self.token = self.token.redact();
-        self
+    pub fn redact(&mut self) {
+        self.token.redact();
+    }
+}
+
+/// The default value for the `require_refresh` field in [`OAuthConfig`].
+fn default_require_refresh() -> bool {
+    false
+}
+
+/// Represents OAuth authentication configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct OAuthConfig {
+    /// The OAuth application's client identifier.
+    pub client_id: String,
+    /// The OAuth application's client secret.
+    pub client_secret: Option<SecretString>,
+    /// The OAuth audience.
+    ///
+    /// When `None`, defaults to the base URI of the TES server.
+    pub audience: Option<String>,
+    /// The URL for OAuth authorization requests.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub authorization: Url,
+    /// The URL for OAuth token requests.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub token: Url,
+    /// The desired scopes for OAuth.
+    #[toml(default)]
+    #[schemars(default)]
+    pub scopes: Vec<String>,
+    /// Whether or not to require a refresh token.
+    ///
+    /// If `true` and the OAuth authorization does not return a refresh token,
+    /// an error will be returned when the TES backend is created.
+    ///
+    /// If `false` and the OAuth authorization does not return a refresh token,
+    /// a device reauthorization will occur.
+    ///
+    /// Defaults to `false`.
+    #[toml(default = default_require_refresh())]
+    #[schemars(default = "default_require_refresh")]
+    pub require_refresh: bool,
+}
+
+impl OAuthConfig {
+    /// Validates the OAuth configuration.
+    pub fn validate(&self, insecure: bool) -> Result<()> {
+        if !insecure {
+            if self.authorization.scheme() != "https" {
+                bail!(
+                    "TES backend OAuth configuration value `authorization` has invalid value \
+                     `{url}`: URL must use a HTTPS scheme",
+                    url = self.authorization
+                );
+            }
+
+            if self.token.scheme() != "https" {
+                bail!(
+                    "TES backend OAuth configuration value `token` has invalid value `{url}`: URL \
+                     must use a HTTPS scheme",
+                    url = self.token
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Redacts the secrets contained in the OAuth configuration.
+    pub fn redact(&mut self) {
+        if let Some(secret) = &mut self.client_secret {
+            secret.redacted = true;
+        }
     }
 }
 
@@ -1582,27 +1796,40 @@ pub enum TesBackendAuthConfig {
         #[schemars(default, flatten)]
         config: BearerAuthConfig,
     },
+    /// Use OAuth authentication for the TES backend.
+    #[toml(rename = "oauth")]
+    #[schemars(rename = "oauth")]
+    OAuth {
+        /// The inner OAuth configuration.
+        #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
+        config: Box<OAuthConfig>,
+    },
 }
 
 impl TesBackendAuthConfig {
     /// Validates the TES backend authentication configuration.
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self, insecure: bool) -> Result<()> {
         match self {
             Self::Basic { config } => config.validate(),
             Self::Bearer { config } => config.validate(),
+            Self::OAuth { config } => config.validate(insecure),
         }
     }
 
     /// Redacts the secrets contained in the TES backend authentication
     /// configuration.
-    pub fn redact(self) -> Self {
+    pub fn redact(&mut self) {
         match self {
-            Self::Basic { config } => Self::Basic {
-                config: config.redact(),
-            },
-            Self::Bearer { config } => Self::Bearer {
-                config: config.redact(),
-            },
+            Self::Basic { config } => {
+                config.redact();
+            }
+            Self::Bearer { config } => {
+                config.redact();
+            }
+            Self::OAuth { config } => {
+                config.redact();
+            }
         }
     }
 }
@@ -1620,13 +1847,13 @@ impl From<BearerAuthConfig> for TesBackendAuthConfig {
 }
 
 /// Represents configuration for the Task Execution Service (TES) backend.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TesBackendConfig {
     /// The URL of the Task Execution Service.
-    #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub url: Option<Url>,
+    #[toml(FromToml with = parse_string, ToToml with = display, alias = "url")]
+    pub service: Url,
 
     /// The authentication configuration for the TES backend.
     #[toml(style = Header)]
@@ -1634,15 +1861,15 @@ pub struct TesBackendConfig {
 
     /// The root cloud storage URL for storing inputs.
     #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub inputs: Option<Url>,
+    pub inputs: Url,
 
     /// The root cloud storage URL for storing outputs.
     #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub outputs: Option<Url>,
+    pub outputs: Url,
 
     /// The polling interval, in seconds, for checking task status.
     ///
-    /// Defaults to 1 second.
+    /// Defaults to 30 seconds.
     pub interval: Option<u64>,
 
     /// The number of retries after encountering an error communicating with the
@@ -1667,20 +1894,20 @@ pub struct TesBackendConfig {
 impl TesBackendConfig {
     /// Validates the TES backend configuration.
     pub fn validate(&self) -> Result<()> {
-        match &self.url {
-            Some(url) => {
-                if !self.insecure && url.scheme() != "https" {
-                    bail!(
-                        "TES backend configuration value `url` has invalid value `{url}`: URL \
-                         must use a HTTPS scheme"
-                    );
-                }
+        match self.service.scheme() {
+            "https" => {}
+            "http" if self.insecure => {}
+            _ => {
+                bail!(
+                    "TES backend configuration value `service` has invalid value `{url}`: URL \
+                     must use a HTTPS scheme",
+                    url = self.service
+                );
             }
-            None => bail!("TES backend configuration value `url` is required"),
         }
 
         if let Some(auth) = &self.auth {
-            auth.validate()?;
+            auth.validate(self.insecure)?;
         }
 
         if let Some(max_concurrency) = self.max_concurrency
@@ -1689,60 +1916,52 @@ impl TesBackendConfig {
             bail!("TES backend configuration value `max_concurrency` cannot be zero");
         }
 
-        match &self.inputs {
-            Some(url) => {
-                if !is_supported_url(url.as_str()) {
-                    bail!(
-                        "TES backend storage configuration value `inputs` has invalid value \
-                         `{url}`: URL scheme is not supported"
-                    );
-                }
-
-                if !url.path().ends_with('/') {
-                    bail!(
-                        "TES backend storage configuration value `inputs` has invalid value \
-                         `{url}`: URL path must end with a slash"
-                    );
-                }
-            }
-            None => bail!("TES backend configuration value `inputs` is required"),
+        if !is_supported_url(self.inputs.as_str()) {
+            bail!(
+                "TES backend storage configuration value `inputs` has invalid value `{url}`: URL \
+                 scheme is not supported",
+                url = self.inputs
+            );
         }
 
-        match &self.outputs {
-            Some(url) => {
-                if !is_supported_url(url.as_str()) {
-                    bail!(
-                        "TES backend storage configuration value `outputs` has invalid value \
-                         `{url}`: URL scheme is not supported"
-                    );
-                }
+        if !self.inputs.path().ends_with('/') {
+            bail!(
+                "TES backend storage configuration value `inputs` has invalid value `{url}`: URL \
+                 path must end with a slash",
+                url = self.inputs
+            );
+        }
 
-                if !url.path().ends_with('/') {
-                    bail!(
-                        "TES backend storage configuration value `outputs` has invalid value \
-                         `{url}`: URL path must end with a slash"
-                    );
-                }
-            }
-            None => bail!("TES backend storage configuration value `outputs` is required"),
+        if !is_supported_url(self.outputs.as_str()) {
+            bail!(
+                "TES backend storage configuration value `outputs` has invalid value `{url}`: URL \
+                 scheme is not supported",
+                url = self.outputs
+            );
+        }
+
+        if !self.outputs.path().ends_with('/') {
+            bail!(
+                "TES backend storage configuration value `outputs` has invalid value `{url}`: URL \
+                 path must end with a slash",
+                url = self.outputs
+            );
         }
 
         Ok(())
     }
 
     /// Redacts the secrets contained in the TES backend configuration.
-    pub fn redact(mut self) -> Self {
-        if let Some(auth) = self.auth.take() {
-            self.auth = Some(auth.redact());
+    pub fn redact(&mut self) {
+        if let Some(auth) = &mut self.auth {
+            auth.redact();
         }
-
-        self
     }
 }
 
 /// Configuration for the Apptainer container runtime.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
     /// Path to the Apptainer (or Singularity) executable.
@@ -1916,7 +2135,7 @@ impl Condition {
 
                 Ok(Self {
                     raw,
-                    expr: expr.inner().green().into_owned(),
+                    expr: expr.inner().green().to_owned(),
                 })
             }
             Err((marker, diagnostic)) => {
@@ -1978,16 +2197,11 @@ impl Condition {
                 self.0.temp_dir
             }
 
-            fn transferer(&self) -> &dyn Transferer {
-                self.0.engine.transferer()
-            }
-
-            fn events(&self) -> &Events {
-                self.0.events
-            }
-
-            fn cancellation(&self) -> &CancellationContext {
-                self.0.cancellation
+            fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+                (
+                    self.0.context.http_client(),
+                    self.0.context.cancellation().first(),
+                )
             }
 
             fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
@@ -2009,6 +2223,10 @@ impl Condition {
                         .cloned()
                         .unwrap_or_else(|| NoneValue::untyped().into()),
                 )
+            }
+
+            fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
+                self.0.context.compile_regex(pattern)
             }
         }
 
@@ -2143,7 +2361,7 @@ impl<'de> FromToml<'de> for Condition {
 /// Conditional arguments are passed to the program responsible for queuing a
 /// task when the associated conditional expression evaluates to `true`.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ConditionalArgs {
     /// The condition for including the arguments.
@@ -2172,7 +2390,7 @@ impl ConditionalArgs {
 ///
 /// These arguments are passed to the executable responsible for queuing a task.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AdditionalArgs {
     /// The additional arguments to pass to the backend program.
@@ -2231,7 +2449,7 @@ mod byte_size {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
@@ -2263,8 +2481,9 @@ impl LsfQueueConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("bqueues").arg(queue).output(),
         )
@@ -2292,7 +2511,7 @@ impl LsfQueueConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
@@ -2448,7 +2667,7 @@ impl LsfApptainerBackendConfig {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmPartitionConfig {
     /// The name of the partition; this is the string passed to `sbatch
@@ -2486,8 +2705,9 @@ impl SlurmPartitionConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("scontrol")
                 .arg("show")
@@ -2521,7 +2741,7 @@ impl SlurmPartitionConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
@@ -2711,6 +2931,20 @@ impl fmt::Display for BuilderErrorDisplay<'_> {
     }
 }
 
+/// Helper for displaying unknown key errors.
+struct UnknownKeyErrorDisplay<'a>(&'a toml_spanner::Error);
+
+impl fmt::Display for UnknownKeyErrorDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown configuration field")?;
+        if let Some(path) = self.0.path() {
+            write!(f, " `{path}`")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Represents an error encountered while building a configuration.
 #[derive(Debug, thiserror::Error)]
 pub enum BuilderError {
@@ -2749,6 +2983,19 @@ pub enum BuilderError {
         #[source]
         error: toml_spanner::FromTomlError,
     },
+    /// Encountered an unknown field key.
+    #[error("{}", UnknownKeyErrorDisplay(.error))]
+    UnknownKey {
+        /// The path to the file.
+        ///
+        /// This is `None` when the source was a string.
+        path: Option<PathBuf>,
+        /// The TOML source that was parsed.
+        source: String,
+        /// The error that was encountered.
+        #[source]
+        error: toml_spanner::Error,
+    },
     /// Failed to merge configuration.
     #[error(transparent)]
     Merge(#[from] BuilderMergeError),
@@ -2775,9 +3022,13 @@ impl BuilderError {
                     }
                     | BuilderError::Deserialize {
                         path: Some(path), ..
+                    }
+                    | BuilderError::UnknownKey {
+                        path: Some(path), ..
                     } => path.display().fmt(f),
                     BuilderError::Parse { path: None, .. }
-                    | BuilderError::Deserialize { path: None, .. } => write!(f, "<string>"),
+                    | BuilderError::Deserialize { path: None, .. }
+                    | BuilderError::UnknownKey { path: None, .. } => write!(f, "<string>"),
                     BuilderError::Merge(_) => write!(f, "<merged>"),
                 }
             }
@@ -2792,9 +3043,9 @@ impl BuilderError {
     /// deserializing TOML.
     pub fn toml_error(&self) -> Option<&toml_spanner::Error> {
         match &self {
-            Self::Parse { error, .. } | Self::Merge(BuilderMergeError::Parse { error, .. }) => {
-                Some(error)
-            }
+            Self::Parse { error, .. }
+            | Self::UnknownKey { error, .. }
+            | Self::Merge(BuilderMergeError::Parse { error, .. }) => Some(error),
             Self::Deserialize { error, .. }
             | Self::Merge(BuilderMergeError::Deserialize { error, .. }) => error.errors.first(),
             _ => None,
@@ -2809,15 +3060,24 @@ impl BuilderError {
         match &self {
             Self::Parse { source, .. }
             | Self::Deserialize { source, .. }
+            | Self::UnknownKey { source, .. }
             | Self::Merge(BuilderMergeError::Parse { source, .. })
             | Self::Merge(BuilderMergeError::Deserialize { source, .. }) => Some(source),
             _ => None,
         }
     }
 
+    /// Get the [`Severity`] of the error.
+    pub fn severity(&self) -> Severity {
+        match &self {
+            Self::UnknownKey { .. } => Severity::Warning,
+            _ => Severity::Error,
+        }
+    }
+
     /// Converts the error into a [`Diagnostic`].
     pub fn to_diagnostic(&self) -> Diagnostic {
-        let mut diagnostic = Diagnostic::error(self.to_string());
+        let mut diagnostic = Diagnostic::error(self.to_string()).with_severity(self.severity());
 
         if let Some(e) = self.toml_error() {
             for (span, text) in [e.primary_label(), e.secondary_label()]
@@ -2867,6 +3127,17 @@ enum Source {
     String(String),
 }
 
+/// A parsed configuration.
+///
+/// See [`ConfigBuilder::try_build()`].
+#[derive(Debug)]
+pub struct BuiltConfig<T> {
+    /// The parsed config type.
+    pub config: T,
+    /// Warnings produced during the config parsing.
+    pub warnings: Vec<BuilderError>,
+}
+
 /// Implements a configuration builder.
 ///
 /// The builder supports merging multiple TOML configuration files together.
@@ -2905,7 +3176,9 @@ impl<T> ConfigBuilder<T> {
     ///
     /// Each configuration file is merged with the previous one in the order
     /// they were added to the builder.
-    pub fn try_build(self) -> Result<T, BuilderError>
+    ///
+    /// On success, this returns the parsed config and any warnings produced.
+    pub fn try_build(self) -> Result<BuiltConfig<T>, BuilderError>
     where
         T: ToToml + for<'de> FromToml<'de>,
     {
@@ -2940,18 +3213,42 @@ impl<T> ConfigBuilder<T> {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Merge the documents as TOML tables
+        let mut warnings = Vec::new();
         let mut merged_table: Table<'_> = Table::new();
         for (index, mut document) in documents.into_iter().enumerate() {
             // Start by deserializing the document to ensure it is a valid
             // standalone configuration
-            document.to::<T>().map_err(|e| {
-                let (path, source) = &sources[index];
-                BuilderError::Deserialize {
+
+            let (path, source) = &sources[index];
+            let (_, mut error) =
+                document
+                    .to_allowing_errors::<T>()
+                    .map_err(|error| BuilderError::Deserialize {
+                        path: path.clone(),
+                        source: source.clone(),
+                        error,
+                    })?;
+
+            warnings.extend(
+                error
+                    .errors
+                    .extract_if(.., |e| matches!(e.kind(), ErrorKind::UnexpectedKey { .. }))
+                    .map(|error| BuilderError::UnknownKey {
+                        path: path.clone(),
+                        source: source.clone(),
+                        error,
+                    }),
+            );
+
+            // Catch anything else just in case. Though realistically, there
+            // should only ever be `UnexpectedKey` errors.
+            if !error.errors.is_empty() {
+                return Err(BuilderError::Deserialize {
                     path: path.clone(),
                     source: source.clone(),
-                    error: e,
-                }
-            })?;
+                    error,
+                });
+            }
 
             // Merge the tables
             Self::merge_tables(document.into_table(), &mut merged_table, &arena);
@@ -2963,17 +3260,24 @@ impl<T> ConfigBuilder<T> {
         let source =
             toml_spanner::to_string(&merged_table).map_err(BuilderMergeError::Serialize)?;
 
+        let mut merged_doc =
+            toml_spanner::parse(&source, &arena).map_err(|e| BuilderMergeError::Parse {
+                source: source.clone(),
+                error: e,
+            })?;
+
         // Deserialize the merged contents back to the underlying config type
-        Ok(toml_spanner::parse(&source, &arena)
-            .map_err(|e| BuilderMergeError::Parse {
+        let (parsed, _) = merged_doc.to_allowing_errors::<T>().map_err(|error| {
+            BuilderMergeError::Deserialize {
                 source: source.clone(),
-                error: e,
-            })?
-            .to()
-            .map_err(|e| BuilderMergeError::Deserialize {
-                source: source.clone(),
-                error: e,
-            })?)
+                error,
+            }
+        })?;
+
+        Ok(BuiltConfig {
+            config: parsed,
+            warnings,
+        })
     }
 
     /// Merges the `src` table with the `dest` table.
@@ -3018,7 +3322,7 @@ impl<T> ConfigBuilder<T> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::HashMap;
     use std::io::Write;
 
@@ -3026,19 +3330,16 @@ mod test {
     use codespan_reporting::term::DisplayStyle;
     use codespan_reporting::term::emit_into_string;
     use codespan_reporting::term::{self};
-    use futures::future::BoxFuture;
     use pretty_assertions::assert_eq;
     use tempfile::TempPath;
     use tempfile::tempdir;
 
     use super::*;
-    use crate::CancellationContext;
-    use crate::Engine;
     use crate::Events;
     use crate::ONE_GIBIBYTE;
     use crate::TaskInputs;
     use crate::backend::TaskExecutionConstraints;
-    use crate::http::Location;
+    use crate::backend::tests::EvalContext;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_MEMORY;
@@ -3079,26 +3380,38 @@ mod test {
                 (
                     "first".to_string(),
                     TesBackendConfig {
+                        service: "https://example.com".parse().unwrap(),
+                        inputs: "https://example.com/inputs/".parse().unwrap(),
+                        outputs: "https://example.com/outputs/".parse().unwrap(),
                         auth: Some(TesBackendAuthConfig::Basic {
                             config: BasicAuthConfig {
                                 username: "foo".into(),
-                                password: "secret".into(),
+                                password: Some("secret".into()),
                             },
                         }),
-                        ..Default::default()
+                        insecure: false,
+                        interval: None,
+                        retries: None,
+                        max_concurrency: None,
                     }
                     .into(),
                 ),
                 (
                     "second".to_string(),
                     TesBackendConfig {
+                        service: "https://example.com".parse().unwrap(),
+                        inputs: "https://example.com/inputs/".parse().unwrap(),
+                        outputs: "https://example.com/outputs".parse().unwrap(),
                         auth: Some(
                             BearerAuthConfig {
                                 token: "secret".into(),
                             }
                             .into(),
                         ),
-                        ..Default::default()
+                        insecure: false,
+                        interval: None,
+                        retries: None,
+                        max_concurrency: None,
                     }
                     .into(),
                 ),
@@ -3148,6 +3461,36 @@ mod test {
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "configuration value `workflow.scatter.concurrency` cannot be zero"
+        );
+
+        // Test invalid digest cache capacity
+        let config = Config {
+            digest_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `digest_cache_capacity` cannot be zero"
+        );
+
+        // Test invalid choice cache capacity
+        let config = Config {
+            choice_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `choice_cache_capacity` cannot be zero"
+        );
+
+        // Test invalid regex cache capacity
+        let config = Config {
+            regex_cache_capacity: 0,
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `regex_cache_capacity` cannot be zero"
         );
 
         // Test invalid backend name
@@ -3276,24 +3619,19 @@ mod test {
                 )
         );
 
-        // Test missing TES URL
-        let config = Config {
-            backends: [("default".to_string(), TesBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        assert_eq!(
-            config.validate().await.unwrap_err().to_string(),
-            "TES backend configuration value `url` is required"
-        );
-
         // Test TES invalid max concurrency
         let config = Config {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("https://example.com".parse().unwrap()),
+                    service: "https://example.com".parse().unwrap(),
+                    inputs: "https://example.com/inputs/".parse().unwrap(),
+                    outputs: "https://example.com/outputs/".parse().unwrap(),
+                    insecure: false,
+                    auth: None,
+                    interval: None,
+                    retries: None,
                     max_concurrency: Some(0),
-                    ..Default::default()
                 }
                 .into(),
             )]
@@ -3310,10 +3648,14 @@ mod test {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
-                    ..Default::default()
+                    service: "http://example.com".parse().unwrap(),
+                    inputs: "http://example.com/inputs/".parse().unwrap(),
+                    outputs: "http://example.com/outputs/".parse().unwrap(),
+                    insecure: false,
+                    auth: None,
+                    interval: None,
+                    retries: None,
+                    max_concurrency: None,
                 }
                 .into(),
             )]
@@ -3322,8 +3664,8 @@ mod test {
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
-            "TES backend configuration value `url` has invalid value `http://example.com/`: URL \
-             must use a HTTPS scheme"
+            "TES backend configuration value `service` has invalid value `http://example.com/`: \
+             URL must use a HTTPS scheme"
         );
 
         // Allow insecure URL
@@ -3331,11 +3673,14 @@ mod test {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
+                    service: "http://example.com".parse().unwrap(),
+                    inputs: "http://example.com".parse().unwrap(),
+                    outputs: "http://example.com".parse().unwrap(),
                     insecure: true,
-                    ..Default::default()
+                    auth: None,
+                    interval: None,
+                    retries: None,
+                    max_concurrency: None,
                 }
                 .into(),
             )]
@@ -3365,6 +3710,14 @@ mod test {
         let mut config = Config::default();
         config.http.parallelism = Parallelism::default();
         assert!(config.validate().await.is_ok(), "should pass for default");
+
+        // Test invalid HTTP response cache capacity
+        let mut config = Config::default();
+        config.http.response_cache_capacity = 0;
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `http.response_cache_capacity` cannot be zero"
+        );
 
         // Test invalid LSF job name prefix
         #[cfg(unix)]
@@ -3399,7 +3752,8 @@ mod test {
 
     #[test]
     fn it_builds_with_no_sources() {
-        let config = Config::builder().try_build().expect("should build");
+        let BuiltConfig { config, warnings } = Config::builder().try_build().expect("should build");
+        assert!(warnings.is_empty());
         assert_eq!(config, Config::default(), "should be equal");
     }
 
@@ -3407,10 +3761,11 @@ mod test {
     fn it_builds_with_one_source() {
         let path = create_temp_file("backend = 'foo'");
 
-        let config = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&path)
             .try_build()
             .expect("should build");
+        assert!(warnings.is_empty());
         assert_eq!(
             config,
             Config {
@@ -3510,6 +3865,9 @@ excluded_cache_inputs = ['6', '7', '8']
 
 [backends.baz]
 type = 'tes'
+url = "https://example.com"
+inputs = "https://example.com/inputs/"
+outputs = "https://example.com/outputs/"
 "#,
         );
 
@@ -3523,7 +3881,7 @@ excluded_cache_inputs = ['9', '10']
 type = 'lsf_apptainer'
 "#;
 
-        let config = Config::builder()
+        let BuiltConfig { config, warnings } = Config::builder()
             .with_file_source(&first)
             .with_file_source(&second)
             .with_file_source(&third)
@@ -3531,6 +3889,7 @@ type = 'lsf_apptainer'
             .try_build()
             .expect("should build");
 
+        assert!(warnings.is_empty());
         assert_eq!(
             config,
             Config {
@@ -3553,7 +3912,20 @@ type = 'lsf_apptainer'
                 backends: IndexMap::from_iter([
                     ("foo".to_string(), LocalBackendConfig::default().into()),
                     ("bar".to_string(), DockerBackendConfig::default().into()),
-                    ("baz".to_string(), TesBackendConfig::default().into()),
+                    (
+                        "baz".to_string(),
+                        TesBackendConfig {
+                            service: "https://example.com".parse().unwrap(),
+                            inputs: "https://example.com/inputs/".parse().unwrap(),
+                            outputs: "https://example.com/outputs/".parse().unwrap(),
+                            insecure: false,
+                            auth: None,
+                            interval: None,
+                            retries: None,
+                            max_concurrency: None,
+                        }
+                        .into()
+                    ),
                     (
                         "qux".to_string(),
                         LsfApptainerBackendConfig::default().into()
@@ -3770,57 +4142,16 @@ type = 'lsf_apptainer'
             }
         }
 
-        struct Transferer;
-
-        impl crate::http::Transferer for Transferer {
-            fn download<'a>(
-                &'a self,
-                _: &'a Url,
-                _: &'a Events,
-                _: &'a CancellationContext,
-            ) -> BoxFuture<'a, Result<Location>> {
-                unimplemented!()
-            }
-
-            fn upload<'a>(
-                &'a self,
-                _: &'a Path,
-                _: &'a Url,
-                _: &'a Events,
-                _: &'a CancellationContext,
-            ) -> BoxFuture<'a, Result<()>> {
-                unimplemented!()
-            }
-
-            fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
-                unimplemented!()
-            }
-
-            fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
-                unimplemented!()
-            }
-
-            fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
-                unimplemented!()
-            }
-
-            fn digest<'a>(
-                &'a self,
-                _: &'a Url,
-            ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
-                unimplemented!()
-            }
-        }
-
         /// Helper for evaluating `Condition` from a WDL expression string.
         ///
         /// The string is expected to be a valid WDL expression.
         async fn eval(context: Context, expression: &str) -> Result<bool> {
             let dir = tempdir().context("failed to create temporary directory")?;
+            let eval_context = EvalContext::new(Events::default(), Default::default()).await;
             let condition = Condition::new(expression).expect("invalid expression");
             condition
                 .evaluate(&ExecuteTaskRequest {
-                    engine: &Engine::new_with_transferer(Config::local(), Transferer).await?,
+                    context: &eval_context,
                     name: "test",
                     command: "",
                     inputs: &context.inputs,
@@ -3847,8 +4178,6 @@ type = 'lsf_apptainer'
                     base_dir: &EvaluationPath::from_local_path(dir.path().into()),
                     attempt_dir: &dir.path().join("0"),
                     temp_dir: &dir.path().join("tmp"),
-                    events: &Events::disabled(),
-                    cancellation: &CancellationContext::default(),
                 })
                 .await
         }
