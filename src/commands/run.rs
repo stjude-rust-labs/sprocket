@@ -92,6 +92,8 @@ use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
+mod help;
+
 /// The delay in showing the progress bar.
 ///
 /// This is to prevent the progress bar from flashing on the screen for
@@ -116,14 +118,14 @@ pub enum LockTarget {
 
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
-#[clap(disable_version_flag = true)]
+#[clap(disable_version_flag = true, disable_help_flag = true)]
 pub struct Args {
     /// The WDL source file to run.
     ///
     /// The source file may be specified by either a local file path, a URL, or
     /// a WDL module directory containing a `module.json`.
-    #[clap(value_name = "SOURCE")]
-    pub source: Source,
+    #[clap(value_name = "SOURCE", required_unless_present = "help")]
+    pub source: Option<Source>,
 
     /// The inputs for the task or workflow.
     ///
@@ -257,6 +259,18 @@ pub struct Args {
     // See `show_task_stderr` for why an explicit `display_order` is set.
     #[clap(long, value_name = "SUFFIX", display_order = 101)]
     pub suffix: Option<String>,
+
+    /// Print help information.
+    // See `show_task_stderr` for why an explicit `display_order` is set.
+    #[arg(
+        short = 'h',
+        long = "help",
+        action = clap::ArgAction::SetTrue,
+        help = "Print help",
+        long_help = "Print help (see a summary with '-h')",
+        display_order = 102
+    )]
+    pub help: bool,
 }
 
 impl Args {
@@ -902,9 +916,16 @@ pub async fn run(
     handle: FileReloadHandle,
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
-    let source = match args.source {
-        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
-        ref other => other.clone(),
+    if args.help {
+        return help::display_help(&args, config.common.wdl.fallback_version.into(), output);
+    }
+
+    let source = match args.source.as_ref() {
+        Some(Source::Directory(dir)) => crate::analysis::resolve_module_entrypoint(dir)?,
+        Some(other) => other.clone(),
+        // The source is required by Clap unless `--help` is given, which is
+        // handled above.
+        None => unreachable!("the source is required unless `--help` is given"),
     };
     assert!(source.is_singular());
 

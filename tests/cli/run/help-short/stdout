@@ -1,0 +1,38 @@
+Runs a task or workflow
+
+Usage: sprocket run [OPTIONS] <SOURCE> [INPUTS]...
+
+Arguments:
+  <SOURCE>     The WDL source file to run
+  [INPUTS]...  The inputs for the task or workflow
+
+Options:
+  -t, --target <NAME>                 The name of the task or workflow to run
+  -o, --output-dir <OUTPUT_DIR>       The output directory; defaults to `./out`
+      --locked[=<LOCK_TARGETS>...]    Force the execution to use existing lockfiles [possible values: images, modules]
+      --unlocked                      Run without locking container images to digests
+      --index-on <INDEX_PATH>         The index path to index the run outputs under
+      --azure-account-name <NAME>     The Azure Storage account name to use [env: AZURE_ACCOUNT_NAME=]
+      --azure-access-key <KEY>        The Azure Storage access key to use [env: AZURE_ACCESS_KEY]
+      --aws-access-key-id <ID>        The AWS Access Key ID to use; overrides configuration [env: AWS_ACCESS_KEY_ID=]
+      --aws-secret-access-key <KEY>   The AWS Secret Access Key to use; overrides configuration [env: AWS_SECRET_ACCESS_KEY]
+      --aws-default-region <REGION>   The default AWS region; overrides configuration [env: AWS_DEFAULT_REGION=]
+      --aws-endpoint-url <URL>        The AWS endpoint URL; overrides configuration
+      --google-hmac-access-key <KEY>  The Google Cloud Storage HMAC access key to use; overrides configuration [env: GOOGLE_HMAC_ACCESS_KEY=]
+      --google-hmac-secret <SECRET>   The Google Cloud Storage HMAC secret to use; overrides configuration [env: GOOGLE_HMAC_SECRET]
+  -v, --verbose...                    Increase logging verbosity
+      --no-call-cache                 Disables the use of the call cache for this run
+  -q, --quiet...                      Decrease logging verbosity
+      --disable-retries               Disable retries for all task evaluations for this run
+      --no-ignore                     Ignore `.sprocketignore` files while discovering WDL documents
+      --color <COLOR>                 Controls output colorization [default: auto] [possible values: auto, always, never]
+  -m, --report-mode <MODE>            The report mode for any emitted diagnostics [possible values: full, one-line]
+  -c, --config <CONFIG>               Path to the configuration file
+  -s, --skip-config-search            Skip searching for and loading configuration files
+      --show-task-stderr              Show task stderr during execution
+      --suffix <SUFFIX>               Optional suffix to append to the run directory name
+  -h, --help                          Print help
+
+Workflow Inputs (my_wf):
+  my_wf.sample_id= String  (required)  ## Sample identifier
+  my_wf.threads=   Int = 4
