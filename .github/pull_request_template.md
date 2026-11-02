@@ -17,9 +17,12 @@ For all contributors:
 - [ ] You have added an entry in the CHANGELOG (when appropriate).
 - [ ] You have updated the README or other documentation to account for these changes (when
       appropriate).
-- [ ] You have made a PR to the `next` branch in the
-      [sprocket.bio repository](https://github.com/stjude-rust-labs/sprocket.bio) (when
-      appropriate).
+- [ ] You have logged a tracking issue on the
+      [sprocket.bio repository](https://github.com/stjude-rust-labs/sprocket.bio), ensuring docs
+      stay current with all user facing changes (when appropriate).
+- [ ] You have logged a tracking issue on the
+      [sprocket-action repository](https://github.com/stjude-rust-labs/sprocket-action), ensuring
+      the action stays current with all API changes (when appropriate).
 
 For PRs containing lint rule changes:
 
