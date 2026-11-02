@@ -858,6 +858,8 @@ pub struct TestConfig {
     /// Whether to enable arbitrary code execution for custom test assertions.
     ///
     /// **Warning:** this may run arbitrary user code on the host machine!
+    #[toml(default)]
+    #[schemars(default)]
     pub enable_custom_assertions: bool,
 }
 
