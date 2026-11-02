@@ -1,5 +1,8 @@
 //! Implementation of the `dev flowchart mermaid` subcommand.
 
+#[cfg(test)]
+mod tests;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Write as _;
@@ -34,11 +37,11 @@ use crate::commands::CommandResult;
 #[command(author, version, about)]
 pub struct Args {
     /// The name of the workflow to render.
-    #[clap(short, long, value_name = "WORKFLOW")]
+    #[arg(short, long, value_name = "WORKFLOW")]
     pub workflow: Option<String>,
 
     /// The path or URL to a `WDL` document containing the workflow.
-    #[clap(value_name = "SOURCE")]
+    #[arg(value_name = "SOURCE")]
     pub source: Source,
 
     /// The maximum recursion depth when expanding called workflows.
@@ -46,7 +49,7 @@ pub struct Args {
     /// Defaults to unlimited. Pass `0` to disable expansion entirely (all
     /// called workflows render as plain nodes). Pass `1` to expand only direct
     /// callees, `2` for their callees, and so on.
-    #[clap(long, value_name = "DEPTH")]
+    #[arg(long, value_name = "DEPTH")]
     pub depth: Option<usize>,
 
     /// The report mode for diagnostics.
@@ -85,10 +88,7 @@ pub async fn mermaid(args: Args, config: &Config, colorize: bool) -> CommandResu
     let local_workflows = document.local_workflows().count();
     if local_workflows == 0 {
         return Err(anyhow!("document does not contain any workflows").into());
-    } else if config.common.wdl.feature_flags.wdl_1_4()
-        && local_workflows > 1
-        && args.workflow.is_none()
-    {
+    } else if local_workflows > 1 && args.workflow.is_none() {
         return Err(anyhow!(
             "document contains multiple workflows, specify one by name with `--workflow`"
         )
@@ -174,9 +174,14 @@ struct Rendered {
     exits: Vec<Exit>,
 }
 
-/// The exit points emitted for a statement block.
-struct Block {
-    exits: Vec<Exit>,
+impl Rendered {
+    /// Creates a rendered node for a leaf statement.
+    fn node(id: String) -> Self {
+        Self {
+            entry: id.clone(),
+            exits: vec![Exit::unlabeled(id)],
+        }
+    }
 }
 
 /// Counter-based context for generating unique `Mermaid` node IDs.
@@ -195,12 +200,64 @@ struct MermaidCtx {
     emitted: HashMap<SyntaxNode, Rendered>,
 }
 
+/// A subgraph within the diagram.
+struct SubGraph {
+    /// The ID of the subgraph.
+    group_id: String,
+    /// The exit points emitted for the subgraph.
+    exits: Vec<Exit>,
+}
+
+/// Labels for a conditional clause edge and optional subgraph.
+#[derive(Copy, Clone)]
+struct ClauseLabels<'a> {
+    /// The label for the edge from the decision diamond.
+    edge: &'a str,
+    /// The label for the subgraph container.
+    subgraph: &'a str,
+}
+
+impl<'a> ClauseLabels<'a> {
+    /// Creates labels where edge and subgraph share the same name.
+    fn same(label: &'a str) -> Self {
+        Self {
+            edge: label,
+            subgraph: label,
+        }
+    }
+
+    /// Creates labels with distinct edge and subgraph names.
+    fn distinct(edge: &'a str, subgraph: &'a str) -> Self {
+        Self { edge, subgraph }
+    }
+}
+
 impl MermaidCtx {
     /// Returns a fresh unique node ID.
     fn next_id(&mut self) -> String {
         let id = format!("n{}", self.counter);
         self.counter += 1;
         id
+    }
+
+    /// Emits a subgraph with the given `label` containing the given
+    /// sequence of workflow statements.
+    fn emit_subgraph(
+        &mut self,
+        label: &str,
+        stmts: &[WorkflowStatement],
+        doc: &Document,
+        out: &mut String,
+        indent: &str,
+    ) -> SubGraph {
+        let group_id = self.next_id();
+        // SAFETY: `write!` on `String` never fails.
+        writeln!(out, "{indent}subgraph {group_id}[\"{label}\"]").unwrap();
+        let exits = self.emit_statements(stmts, doc, out, &format!("{indent}{INDENT}"));
+        // SAFETY: `write!` on `String` never fails.
+        writeln!(out, "{indent}end").unwrap();
+
+        SubGraph { group_id, exits }
     }
 
     /// Emits a sequence of statements and their dependency edges into `out`.
@@ -210,7 +267,7 @@ impl MermaidCtx {
         doc: &Document,
         out: &mut String,
         indent: &str,
-    ) -> Block {
+    ) -> Vec<Exit> {
         let statements: Vec<_> = stmts
             .iter()
             .filter_map(|statement| statement_key(statement).map(|key| (key, statement)))
@@ -222,6 +279,8 @@ impl MermaidCtx {
             self.emitted.insert(key.clone(), rendered);
         }
 
+        let mut depended_on = IndexSet::new();
+
         // The evaluation graph lifts cross-scope references to the enclosing
         // statements, so the only dependencies outside this block are the
         // block's own ancestors; those are represented by the parent instead.
@@ -229,10 +288,15 @@ impl MermaidCtx {
             let Some(rendered) = self.emitted.get(target) else {
                 continue;
             };
-            for dependency in self.dependencies.get(target).into_iter().flatten() {
-                if !keys.contains(dependency) {
-                    continue;
-                }
+            let deps_in_keys: Vec<_> = self
+                .dependencies
+                .get(target)
+                .into_iter()
+                .flatten()
+                .filter(|dep| keys.contains(*dep))
+                .collect();
+
+            for dependency in deps_in_keys {
                 let Some(source) = self.emitted.get(dependency) else {
                     continue;
                 };
@@ -245,68 +309,66 @@ impl MermaidCtx {
                         exit.label.as_deref(),
                     );
                 }
+                depended_on.insert(dependency.clone());
             }
         }
 
-        let depended_on: IndexSet<_> = keys
-            .iter()
-            .flat_map(|key| self.dependencies.get(key).into_iter().flatten())
-            .filter(|dependency| keys.contains(*dependency))
-            .cloned()
-            .collect();
-
-        Block {
-            exits: keys
-                .difference(&depended_on)
-                .filter_map(|key| self.emitted.get(key))
-                .flat_map(|rendered| rendered.exits.clone())
-                .collect(),
-        }
+        keys.difference(&depended_on)
+            .filter_map(|key| self.emitted.get(key))
+            .flat_map(|rendered| rendered.exits.clone())
+            .collect()
     }
 
-    /// Emits a sequence of statements within a conditional clause.
+    /// Emits the statements within a conditional clause.
     ///
-    /// Returns the exits of the final statement, or an exit
-    /// from `entry_id` with `edge_label` when the clause contains no visible
-    /// statements.
-    fn emit_clause_statements(
+    /// For clauses with:
+    ///
+    /// * No statements, this returns an exit from `diamond_id` with the edge
+    ///   label.
+    /// * A single statement, the statement is emitted and connected from
+    ///   `diamond_id` with the edge label.
+    /// * Multiple visible statements, they are emitted in a subgraph.
+    fn emit_conditional_clause(
         &mut self,
+        diamond_id: &str,
+        labels: ClauseLabels<'_>,
         stmts: &[WorkflowStatement],
         doc: &Document,
         out: &mut String,
         indent: &str,
-        entry_id: &str,
-        edge_label: &str,
     ) -> Vec<Exit> {
         let statements: Vec<_> = stmts
             .iter()
             .filter(|s| !matches!(s, WorkflowStatement::Declaration(_)))
             .collect();
 
-        if statements.is_empty() {
-            return vec![Exit::labeled(entry_id.to_owned(), edge_label)];
-        }
-
-        let mut exits = Vec::<Exit>::new();
-        for (i, statement) in statements.iter().enumerate() {
-            let rendered = self.emit_statement(statement, doc, out, indent);
-            if i == 0 {
-                emit_edge(out, indent, entry_id, &rendered.entry, Some(edge_label));
-            } else {
-                for exit in exits {
-                    emit_edge(
-                        out,
-                        indent,
-                        &exit.id,
-                        &rendered.entry,
-                        exit.label.as_deref(),
-                    );
+        match statements.len() {
+            0 => vec![Exit::labeled(diamond_id.to_owned(), labels.edge)],
+            1 => {
+                let stmt = statements[0];
+                let rendered = self.emit_statement(stmt, doc, out, indent);
+                if let Some(key) = statement_key(stmt) {
+                    self.emitted.insert(key, rendered.clone());
+                }
+                emit_edge(out, indent, diamond_id, &rendered.entry, Some(labels.edge));
+                rendered.exits
+            }
+            _ => {
+                let subgraph = self.emit_subgraph(labels.subgraph, stmts, doc, out, indent);
+                emit_edge(
+                    out,
+                    indent,
+                    diamond_id,
+                    &subgraph.group_id,
+                    Some(labels.edge),
+                );
+                if subgraph.exits.is_empty() {
+                    vec![Exit::unlabeled(subgraph.group_id)]
+                } else {
+                    subgraph.exits
                 }
             }
-            exits = rendered.exits;
         }
-
-        exits
     }
 
     /// Emits a single statement into `out` and returns its exit points.
@@ -331,31 +393,23 @@ impl MermaidCtx {
                         names.last().unwrap().clone()
                     });
 
-                // If there are two name components, the first is a namespace.
-                // Try to resolve it to a workflow so we can expand inline.
-                if let Some(wf_def) = names
-                    .first()
-                    .zip(names.get(1))
-                    .and_then(|(ns, task)| resolve_workflow(doc, ns, task))
-                {
-                    // SAFETY: `resolve_workflow` succeeded above, which
-                    // requires `names` to have at least one
-                    // element (the namespace component), and the namespace
-                    // to exist in the document.
-                    let callee = doc.namespace(names.first().unwrap()).unwrap().document();
+                let callee_doc_and_wf = match names.as_slice() {
+                    [ns, callable] => doc.namespace(ns).and_then(|n| {
+                        resolve_workflow_local(n.document(), callable).map(|wf| (n.document(), wf))
+                    }),
+                    [callable] => resolve_workflow_local(doc, callable).map(|wf| (doc, wf)),
+                    _ => None,
+                };
+
+                if let Some((callee_doc, wf_def)) = callee_doc_and_wf {
                     return self.emit_workflow_call(
                         &label,
                         &target_str,
                         &wf_def,
-                        callee,
+                        callee_doc,
                         out,
                         indent,
                     );
-                }
-
-                // Single-name call — resolve against the current document.
-                if let Some(wf_def) = resolve_workflow_local(doc, &target_str) {
-                    return self.emit_workflow_call(&label, &target_str, &wf_def, doc, out, indent);
                 }
 
                 // Task (leaf) node.
@@ -365,7 +419,6 @@ impl MermaidCtx {
             WorkflowStatement::Scatter(scatter) => {
                 let var = scatter.variable().text().to_owned();
                 let procs_id = self.next_id();
-                let group_id = self.next_id();
 
                 // SAFETY: `write!` on `String` never fails.
                 writeln!(
@@ -374,23 +427,18 @@ impl MermaidCtx {
                 )
                 .unwrap();
 
-                // SAFETY: `write!` on `String` never fails.
-                writeln!(out, "{indent}subgraph {group_id}[\"scatter ({var})\"]").unwrap();
-
                 let body: Vec<_> = scatter.statements().collect();
-                let block = self.emit_statements(&body, doc, out, &format!("{indent}{INDENT}"));
+                let subgraph =
+                    self.emit_subgraph(&format!("scatter ({var})"), &body, doc, out, indent);
 
-                // SAFETY: `write!` on `String` never fails.
-                writeln!(out, "{indent}end").unwrap();
-
-                emit_edge(out, indent, &procs_id, &group_id, None);
+                emit_edge(out, indent, &procs_id, &subgraph.group_id, None);
 
                 Rendered {
                     entry: procs_id,
-                    exits: if block.exits.is_empty() {
-                        vec![Exit::unlabeled(group_id)]
+                    exits: if subgraph.exits.is_empty() {
+                        vec![Exit::unlabeled(subgraph.group_id)]
                     } else {
-                        block.exits
+                        subgraph.exits
                     },
                 }
             }
@@ -426,13 +474,13 @@ impl MermaidCtx {
                         };
 
                         let body: Vec<_> = clause.statements().collect();
-                        let clause_exits = self.emit_clause_statements(
+                        let clause_exits = self.emit_conditional_clause(
+                            &diamond_id,
+                            ClauseLabels::same(&edge_label),
                             &body,
                             doc,
                             out,
                             indent,
-                            &diamond_id,
-                            &edge_label,
                         );
                         exits.extend(clause_exits);
                     }
@@ -462,8 +510,14 @@ impl MermaidCtx {
                         .first()
                         .map(|c| c.statements().collect())
                         .unwrap_or_default();
-                    let mut exits =
-                        self.emit_clause_statements(&body, doc, out, indent, &diamond_id, "yes");
+                    let mut exits = self.emit_conditional_clause(
+                        &diamond_id,
+                        ClauseLabels::distinct("yes", "then"),
+                        &body,
+                        doc,
+                        out,
+                        indent,
+                    );
 
                     // The "no" path skips the body entirely.
                     exits.push(Exit::labeled(diamond_id.clone(), "no"));
@@ -499,10 +553,7 @@ impl MermaidCtx {
             writeln!(out, "{indent}{node_id}[\"{label}<br/><i>{target}</i>\"]").unwrap();
         }
 
-        Rendered {
-            entry: node_id.clone(),
-            exits: vec![Exit::unlabeled(node_id)],
-        }
+        Rendered::node(node_id)
     }
 
     /// Emits a called workflow as an expanded `subgraph`, then recursively
@@ -534,32 +585,25 @@ impl MermaidCtx {
 
         self.current_depth += 1;
 
-        let group_id = self.next_id();
         let subgraph_label = if target == label {
             label.to_owned()
         } else {
             format!("{label} ({target})")
         };
 
-        // SAFETY: `write!` on `String` never fails.
-        writeln!(out, "{indent}subgraph {group_id}[\"{subgraph_label}\"]").unwrap();
-
         let body: Vec<_> = wf_def.statements().collect();
         self.dependencies
             .extend(build_dependencies(wf_def, callee_doc));
-        let block = self.emit_statements(&body, callee_doc, out, &format!("{indent}{INDENT}"));
-
-        // SAFETY: `write!` on `String` never fails.
-        writeln!(out, "{indent}end").unwrap();
+        let subgraph = self.emit_subgraph(&subgraph_label, &body, callee_doc, out, indent);
 
         self.current_depth -= 1;
 
         Rendered {
-            entry: group_id.clone(),
-            exits: if block.exits.is_empty() {
-                vec![Exit::unlabeled(group_id)]
+            entry: subgraph.group_id.clone(),
+            exits: if subgraph.exits.is_empty() {
+                vec![Exit::unlabeled(subgraph.group_id)]
             } else {
-                block.exits
+                subgraph.exits
             },
         }
     }
@@ -576,13 +620,6 @@ fn emit_edge(out: &mut String, indent: &str, from: &str, to: &str, label: Option
     } else {
         writeln!(out, "{indent}{from} --> {to}").unwrap();
     }
-}
-
-/// Attempts to resolve a two-part call target (`ns.name`) to a workflow AST
-/// node in the analysis document's namespaces.
-fn resolve_workflow(doc: &Document, ns: &str, name: &str) -> Option<WorkflowDefinition> {
-    let ns_document = doc.namespace(ns)?.document();
-    resolve_workflow_local(ns_document, name)
 }
 
 /// Attempts to find a workflow by name in a document's AST.
@@ -679,338 +716,4 @@ fn escape(s: &str) -> String {
         .replace('"', "#quot;")
         .replace('<', "#lt;")
         .replace('>', "#gt;")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::analysis::Analysis;
-
-    async fn render(source: &str, depth: Option<usize>) -> String {
-        // SAFETY: the operating system can create a temporary directory for the
-        // test.
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("test.wdl");
-        // SAFETY: the temporary directory exists and is writable for the test.
-        std::fs::write(&path, source).unwrap();
-        // SAFETY: `path` identifies the WDL file created above.
-        let source: Source = path.to_string_lossy().parse().unwrap();
-        let results = Analysis::default()
-            .add_source(source.clone())
-            .run(Mode::default(), false)
-            .await
-            // SAFETY: the local test document and its imports are valid.
-            .unwrap();
-        let document = results
-            .filter(&[&source])
-            .next()
-            // SAFETY: the test source was added to this analysis.
-            .unwrap()
-            .document()
-            .clone();
-        let workflow = document
-            .root()
-            .ast()
-            .into_v1()
-            // SAFETY: each test source declares a supported WDL version.
-            .unwrap()
-            .workflows()
-            .next()
-            // SAFETY: each test source declares one workflow.
-            .unwrap();
-
-        render_mermaid(&workflow, &document, depth)
-    }
-
-    async fn render_with_child(root: &str, child: &str, depth: Option<usize>) -> String {
-        render_with_child_in(tempfile::tempdir().unwrap(), root, child, depth).await
-    }
-
-    async fn render_with_child_in(
-        directory: tempfile::TempDir,
-        root: &str,
-        child: &str,
-        depth: Option<usize>,
-    ) -> String {
-        let path = directory.path().join("test.wdl");
-        std::fs::write(&path, root).unwrap();
-        std::fs::write(directory.path().join("child.wdl"), child).unwrap();
-        let source: Source = path.to_string_lossy().parse().unwrap();
-        let results = Analysis::default()
-            .add_source(source.clone())
-            .run(Mode::default(), false)
-            .await
-            .unwrap();
-        let document = results
-            .filter(&[&source])
-            .next()
-            .unwrap()
-            .document()
-            .clone();
-        let workflow = document
-            .root()
-            .ast()
-            .into_v1()
-            .unwrap()
-            .workflows()
-            .next()
-            .unwrap();
-        render_mermaid(&workflow, &document, depth)
-    }
-
-    #[test]
-    fn escapes_mermaid_label_entities() {
-        assert_eq!(
-            escape("~{bam} & < > \" #quot;"),
-            "~{bam} #amp; #lt; #gt; #quot; #35;quot;"
-        );
-        assert_eq!(escape("a &&\n        b"), "a #amp;#amp; b");
-    }
-
-    #[tokio::test]
-    async fn expands_workflows_below_the_depth_cap() {
-        let root = "version 1.0\nimport \"child.wdl\" as child\nworkflow root { scatter (item in \
-                    [1]) { call child.child } }";
-        let child =
-            "version 1.0\ntask noop { command <<< echo noop >>> }\nworkflow child { call noop }";
-
-        let capped = render_with_child(root, child, Some(0)).await;
-
-        assert!(capped.contains("n2[\"child<br/><i>child.child</i>\"]"));
-        assert!(!capped.contains("subgraph n2[\"child (child.child)\"]"));
-        assert!(
-            render_with_child(root, child, Some(1))
-                .await
-                .contains("subgraph n2[\"child (child.child)\"]")
-        );
-    }
-
-    #[tokio::test]
-    async fn renders_calls_from_their_dependencies() {
-        let source = r#"
-version 1.0
-
-task produce {
-    command <<<
-        echo value
-    >>>
-
-    output {
-        String value = stdout()
-    }
-}
-
-task consume {
-    input {
-        String value
-    }
-
-    command <<<
-        echo ~{value}
-    >>>
-}
-
-workflow test {
-    call produce
-    call consume as left { input: value = produce.value }
-    call consume as right { input: value = produce.value }
-}
-"#;
-
-        let diagram = render(source, Some(0)).await;
-
-        assert!(diagram.contains("n0 --> n1"));
-        assert!(diagram.contains("n0 --> n2"));
-        assert!(!diagram.contains("n1 --> n2"));
-    }
-
-    #[tokio::test]
-    async fn preserves_both_paths_through_declaration_only_conditionals() {
-        let diagram = render(
-            r#"
-version 1.0
-
-task consume {
-    input { String value }
-    command <<< echo ~{value} >>>
-}
-
-workflow test {
-    input { Boolean enabled }
-    if (enabled) {
-        String selected = "yes"
-    }
-    call consume { input: value = select_first([selected, "no"]) }
-}
-"#,
-            Some(0),
-        )
-        .await;
-
-        assert!(diagram.contains("n0 -->|\"yes\"| n1"));
-        assert!(diagram.contains("n0 -->|\"no\"| n1"));
-    }
-
-    #[tokio::test]
-    async fn preserves_fallthrough_from_multi_clause_conditionals() {
-        let diagram = render(
-            r#"
-version 1.3
-
-task consume {
-    input { String value }
-    command <<< echo ~{value} >>>
-}
-
-workflow test {
-    input { String mode }
-    if (mode == "a") {
-        String selected = "a"
-    } else if (mode == "b") {
-        String selected = "b"
-    }
-    call consume { input: value = select_first([selected, "none"]) }
-}
-"#,
-            Some(0),
-        )
-        .await;
-
-        assert!(diagram.contains("n0 -->|\"no\"| n1"));
-    }
-
-    #[tokio::test]
-    async fn quotes_edge_labels_containing_pipes() {
-        let diagram = render(
-            r#"
-version 1.3
-
-task noop {
-    command <<< echo noop >>>
-}
-
-workflow test {
-    input {
-        Boolean a
-        Boolean b
-    }
-    if (a ||
-        b) {
-        call noop as first
-    } else {
-        call noop as second
-    }
-}
-"#,
-            Some(0),
-        )
-        .await;
-
-        assert!(diagram.contains("n0 -->|\"if a || b\"| n1"));
-        assert!(diagram.contains("n0 -->|\"else\"| n2"));
-    }
-
-    #[tokio::test]
-    async fn depth_limited_calls_do_not_block_later_expansion() {
-        let root = "version 1.0\nimport \"child.wdl\" as child\nimport \"middle.wdl\" as \
-                    middle\nworkflow root { call middle.middle call child.child }";
-        let middle =
-            "version 1.0\nimport \"child.wdl\" as child\nworkflow middle { call child.child }";
-        let child =
-            "version 1.0\ntask noop { command <<< echo noop >>> }\nworkflow child { call noop }";
-
-        let directory = tempfile::tempdir().unwrap();
-        std::fs::write(directory.path().join("middle.wdl"), middle).unwrap();
-        let diagram = render_with_child_in(directory, root, child, Some(1)).await;
-
-        // `middle` expands but its nested `child` call is depth-limited, so the
-        // top-level `child` call must still expand.
-        assert!(diagram.contains("subgraph n0[\"middle (middle.middle)\"]"));
-        assert!(diagram.contains("n1[\"child<br/><i>child.child</i>\"]"));
-        assert!(diagram.contains("subgraph n2[\"child (child.child)\"]"));
-    }
-
-    #[tokio::test]
-    async fn renders_deterministically() {
-        let source = r#"
-version 1.0
-
-task produce {
-    command <<< echo value >>>
-    output { String value = stdout() }
-}
-
-task combine {
-    input {
-        String left
-        String right
-    }
-    command <<< echo ~{left} ~{right} >>>
-}
-
-workflow test {
-    call produce as left
-    call produce as right
-    call combine { input:
-        left = left.value,
-        right = right.value,
-    }
-}
-"#;
-        let expected = render(source, Some(0)).await;
-
-        for _ in 0..16 {
-            assert_eq!(render(source, Some(0)).await, expected);
-        }
-    }
-
-    #[tokio::test]
-    async fn renders_conditional_statements_in_series() {
-        let source = r#"
-version 1.0
-
-task noop {
-    command <<< echo noop >>>
-}
-
-workflow test {
-    if (true) {
-        call noop as first
-        call noop as second
-    } else {
-        call noop as third
-    }
-}
-"#;
-        let diagram = render(source, Some(0)).await;
-
-        // The if branch enters `first`, which continues in series to `second`.
-        assert!(diagram.contains("n0 -->|\"if true\"| n1"));
-        assert!(diagram.contains("n1 --> n2"));
-        // The else branch enters `third`.
-        assert!(diagram.contains("n0 -->|\"else\"| n3"));
-    }
-
-    #[tokio::test]
-    async fn renders_single_clause_conditional_statements_in_series() {
-        let source = r#"
-version 1.0
-
-task noop {
-    command <<< echo noop >>>
-}
-
-workflow test {
-    if (true) {
-        call noop as first
-        call noop as second
-    }
-}
-"#;
-        let diagram = render(source, Some(0)).await;
-
-        // The yes branch enters `first`, which continues in series to `second`.
-        assert!(diagram.contains("n0 -->|\"yes\"| n1"));
-        assert!(diagram.contains("n1 --> n2"));
-    }
 }
