@@ -2855,14 +2855,14 @@
         },
         "enable_custom_assertions": {
           "description": "Whether to enable arbitrary code execution for custom test assertions.\n\n**Warning:** this may run arbitrary user code on the host machine!",
-          "type": "boolean"
+          "type": "boolean",
+          "default": false
         }
       },
       "additionalProperties": false,
       "required": [
         "parallelism",
-        "throttle",
-        "enable_custom_assertions"
+        "throttle"
       ]
     },
     "DocConfig": {

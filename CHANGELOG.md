@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+* `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
+  config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
+
 ## 0.33.0 - 2026-10-29
 
 ### Security Fix
