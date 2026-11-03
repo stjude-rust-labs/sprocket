@@ -133,7 +133,7 @@ severity = "note"
 
 [check.rules.MixedDocSources]
 severity = "warning"
-doc_source_adherence = "consistent"
+doc_source_adherence = "conflicting"
 
 [check.rules.MutableContainerTag]
 severity = "note"
