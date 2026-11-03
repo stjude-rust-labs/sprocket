@@ -63,10 +63,10 @@ pub enum DocSourceAdherence {
     /// The workspace should only use `meta`/`parameter_meta` sections. Any doc
     /// comments will be unconditionally flagged.
     Meta,
-    /// The workspace can use doc comments _or_ `meta`/`parameter_meta`. Any
+    /// An item can use doc comments _or_ `meta`/`parameter_meta`. Any
     /// case of a doc comment overwriting a meta value will be flagged.
     #[default]
-    Consistent,
+    Conflicting,
 }
 
 /// The metadata section where a parameter may be documented.
@@ -726,7 +726,7 @@ impl Visitor for MixedDocSourcesRule {
                     );
                 }
             }
-            DocSourceAdherence::Consistent => {
+            DocSourceAdherence::Conflicting => {
                 if let Some(top_level_comment) = item_doc_comment(&parent) {
                     let field_spans: Vec<Span> =
                         [description, help].into_iter().flatten().collect();
@@ -818,7 +818,7 @@ impl Visitor for MixedDocSourcesRule {
                         &self.exceptable_nodes(),
                     );
                 }
-                DocSourceAdherence::Consistent => {
+                DocSourceAdherence::Conflicting => {
                     if let Some(decl) = input_by_name(&parent, item_name.text())
                         && let Some(comment) = decl_doc_comment(&decl)
                     {

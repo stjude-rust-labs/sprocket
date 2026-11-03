@@ -438,7 +438,7 @@ define_rules_config! {
             severity = RuleSeverity::Warning;
             /// Options:
             ///
-            /// * `consistent` - The workspace can use doc comments _or_ `meta`/`parameter_meta`. Any case of a doc comment
+            /// * `conflicting` - An item can use doc comments _or_ `meta`/`parameter_meta`. Any case of a doc comment
             ///   overwriting a meta value will be flagged.
             /// * `comments` - Only doc comments are allowed in the workspace. Any documentation in `meta`/`parameter_meta`
             ///   sections will be flagged.
@@ -451,7 +451,7 @@ define_rules_config! {
             /// [check.rules.MixedDocSources]
             /// doc_source_adherence = "comments"
             /// ```
-            doc_source_adherence: DocSourceAdherence = DocSourceAdherence::Consistent;
+            doc_source_adherence: DocSourceAdherence = DocSourceAdherence::Conflicting;
         }
         "MutableContainerTag" => mutable_container_tag: MutableContainerTagConfig {
             severity = RuleSeverity::Note;
