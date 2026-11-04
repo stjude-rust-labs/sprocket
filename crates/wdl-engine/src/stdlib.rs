@@ -38,6 +38,7 @@ mod contains;
 mod contains_key;
 mod cross;
 mod defined;
+mod exists;
 mod find;
 mod flatten;
 mod floor;
@@ -390,6 +391,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             func!(split),
             func!(basename),
             func!(join_paths),
+            func!(exists),
             func!(glob),
             func!(size),
             func!(list),

@@ -2485,6 +2485,60 @@ task join_paths {
             .is_none()
     );
 
+    // https://github.com/openwdl/wdl/pull/780
+    assert!(
+        functions
+            .insert(
+                "exists",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Four))
+                        .parameter("path", PrimitiveType::String, "The path whose existence is checked.")
+                        .ret(PrimitiveType::Boolean)
+                        .definition(
+                            r#"
+Determines whether a path refers to an existing `File` or `Directory`. The path is resolved according to the context-dependent rules for [relative and absolute paths](#relative-and-absolute-paths), including resolving symbolic links to their final targets.
+
+Unlike creating a non-optional `File` or `Directory` value, `exists` returns `false` only if the path does not exist. It returns `true` if the path refers to an existing file or directory. If the path exists but cannot be validated for any other reason, such as insufficient permissions or a localization failure, an error is raised rather than `false`.
+
+An implementation is only required to support paths local to the execution environment, but may support other resource identifiers in the same contexts where it supports them for `File` and `Directory` values. An implementation is not required to localize a remote resource solely to determine whether it exists, but it must raise an error if it cannot determine whether the resource exists and is accessible.
+
+The result only describes the path when `exists` is evaluated. It does not guarantee that the path remains available to a later expression.
+
+**Parameters**
+
+1. `String`: The path whose existence is checked.
+
+**Returns**: `true` if the path refers to an existing file or directory, or `false` if the path does not exist.
+
+Example: test_exists_task.wdl
+
+```wdl
+version 1.4
+
+task test_exists {
+  command <<<
+    printf "first\nsecond\n" > labels.txt
+    mkdir results
+  >>>
+
+  output {
+    Boolean file_exists = exists("labels.txt")
+    Boolean directory_exists = exists("results")
+    Boolean missing_exists = exists("missing.txt")
+    Array[String] labels = if exists("labels.txt") then read_lines("labels.txt") else []
+  }
+}
+```
+"#
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
     assert!(
         functions
@@ -5617,6 +5671,7 @@ mod tests {
                 "join_paths(base: Directory, relative: String) -> String",
                 "join_paths(base: Directory, relative: Array[String]+) -> String",
                 "join_paths(paths: Array[String]+) -> String",
+                "exists(path: String) -> Boolean",
                 "glob(pattern: String) -> Array[File]",
                 "size(value: None, <unit: String>) -> Float",
                 "size(value: File?, <unit: String>) -> Float",

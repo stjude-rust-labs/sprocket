@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the WDL 1.4 `exists` function signature from
+  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`.
+
 ## 0.28.0 - 2026-10-29
 
 ### Added

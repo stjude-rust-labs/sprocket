@@ -1864,11 +1864,29 @@ pub(crate) mod tests {
 
         fn exists<'a>(
             &'a self,
-            _: &'a Url,
-            _: &'a CancellationToken,
-            _: &'a Cache<Url, bool>,
+            url: &'a Url,
+            token: &'a CancellationToken,
+            cache: &'a Cache<Url, bool>,
         ) -> BoxFuture<'a, Result<bool>> {
-            unimplemented!()
+            async move {
+                assert_eq!(url.authority(), "example.com");
+                // Use the cache like the default client so tests observe
+                // caching
+                cache
+                    .get_by_ref(url, token, async || {
+                        if url.path().starts_with("/error") {
+                            anyhow::bail!("failed to determine existence of `{url}`");
+                        }
+
+                        Ok(self
+                            .0
+                            .join(url.path().strip_prefix('/').unwrap_or(url.path()))
+                            .exists())
+                    })
+                    .await?
+                    .ok_or_else(|| anyhow::anyhow!("operation was cancelled"))
+            }
+            .boxed()
         }
 
         fn digest<'a>(
@@ -1916,6 +1934,11 @@ pub(crate) mod tests {
                 stdout: None,
                 stderr: None,
             }
+        }
+
+        /// Gets the HTTP client used by the evaluation context.
+        pub fn http_client(&self) -> &EvaluationHttpClient {
+            &self.client
         }
 
         /// Sets the stdout to use for the evaluation context.
@@ -2036,7 +2059,7 @@ pub(crate) mod tests {
         .await
     }
 
-    async fn eval_v1_expr_with_context(
+    pub async fn eval_v1_expr_with_context(
         context: TestEvaluationContext<'_>,
         source: &str,
     ) -> Result<Value, Diagnostic> {
