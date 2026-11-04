@@ -2297,32 +2297,11 @@ workflow child {
         );
     }
 
-    /// Evaluates a WDL 1.4 workflow with no inputs.
-    async fn evaluate_wdl_1_4_workflow(source: &str, name: &str) -> anyhow::Result<crate::Outputs> {
-        let root_dir = TempDir::new().expect("failed to create temporary directory");
-        let document = analyze_wdl_1_4(&root_dir, source).await;
-
-        let engine = Engine::new(Config::local()).await.unwrap();
-        let evaluator = engine.create_v1_evaluator(
-            Events::default(),
-            CancellationContext::default(),
-            ContainerImageOverrides::default(),
-        );
-
-        evaluator
-            .evaluate_workflow(
-                &document,
-                name,
-                WorkflowInputs::default(),
-                root_dir.path().join("outputs"),
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!(e.to_string()))
-    }
-
     #[tokio::test]
     async fn it_evaluates_the_unwrap_operator() {
-        let outputs = evaluate_wdl_1_4_workflow(
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
             r#"
 version 1.4
 
@@ -2337,10 +2316,26 @@ workflow test_unwrap {
     }
 }
 "#,
-            "test_unwrap",
         )
-        .await
-        .expect("failed to evaluate workflow");
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "test_unwrap",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
 
         let get = |name: &str| {
             outputs
@@ -2356,7 +2351,9 @@ workflow test_unwrap {
 
     #[tokio::test]
     async fn it_fails_to_unwrap_none() {
-        let error = evaluate_wdl_1_4_workflow(
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
             r#"
 version 1.4
 
@@ -2369,20 +2366,38 @@ workflow unwrap_none_fail {
     }
 }
 "#,
-            "unwrap_none_fail",
         )
-        .await
-        .expect_err("workflow should fail");
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let error = evaluator
+            .evaluate_workflow(
+                &document,
+                "unwrap_none_fail",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect_err("workflow should fail");
 
         assert!(
-            error.to_string().contains("cannot unwrap a `None` value"),
+            error.contains("cannot unwrap a `None` value"),
             "unexpected error: {error}"
         );
     }
 
     #[tokio::test]
     async fn it_evaluates_an_unwrap_of_none_in_a_placeholder_to_empty() {
-        let outputs = evaluate_wdl_1_4_workflow(
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
             r#"
 version 1.4
 
@@ -2399,10 +2414,26 @@ workflow unwrap_placeholder {
     }
 }
 "#,
-            "unwrap_placeholder",
         )
-        .await
-        .expect("failed to evaluate workflow");
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "unwrap_placeholder",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
 
         let get = |name: &str| {
             outputs
