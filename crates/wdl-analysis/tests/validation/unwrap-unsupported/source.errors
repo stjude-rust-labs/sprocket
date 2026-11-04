@@ -1,0 +1,12 @@
+error: use of the unwrap operator requires WDL version 1.4
+  ┌─ tests/validation/unwrap-unsupported/source.wdl:7:14
+  │
+7 │     Int a = x!
+  │              ^
+
+error: use of the unwrap operator requires WDL version 1.4
+  ┌─ tests/validation/unwrap-unsupported/source.wdl:8:18
+  │
+8 │     Boolean b = x! == 1
+  │                  ^
+

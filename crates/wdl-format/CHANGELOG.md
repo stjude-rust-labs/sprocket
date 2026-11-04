@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added formatting of the WDL 1.4 postfix unwrap operator (`x!`) from
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777).
+
 ## 0.22.1 - 2026-10-29
 
 ## 0.22.0 - 2026-10-07

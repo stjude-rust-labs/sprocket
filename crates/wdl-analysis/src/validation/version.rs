@@ -6,6 +6,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1;
+use wdl_ast::v1::Exclamation;
 use wdl_ast::v1::Exponentiation;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::HintsKeyword;
@@ -113,6 +114,11 @@ fn symbolic_path_requires_wdl_1_4(span: Span) -> Diagnostic {
 fn from_selection_requires_wdl_1_4(span: Span) -> Diagnostic {
     Diagnostic::error("use of a `from` selection clause requires WDL version 1.4")
         .with_highlight(span)
+}
+
+/// Creates an "unwrap operator requirement" diagnostic.
+fn unwrap_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of the unwrap operator requires WDL version 1.4").with_highlight(span)
 }
 
 /// Tracks the state of a deprecated version feature flag.
@@ -303,6 +309,13 @@ impl Visitor for VersionVisitor {
                 Expr::Exponentiation(e) if version < SupportedVersion::V1(V1::Two) => {
                     diagnostics.add(exponentiation_requirement(
                         e.token::<Exponentiation<_>>()
+                            .expect("should have operator")
+                            .span(),
+                    ));
+                }
+                Expr::Unwrap(e) if version < SupportedVersion::V1(V1::Four) => {
+                    diagnostics.add(unwrap_requirement(
+                        e.token::<Exclamation<_>>()
                             .expect("should have operator")
                             .span(),
                     ));

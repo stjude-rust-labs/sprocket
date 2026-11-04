@@ -1,0 +1,12 @@
+warning[UnusedDeclaration]: unused declaration `a`
+  ┌─ tests/validation/unwrap-supported/source.wdl:7:9
+  │
+7 │     Int a = x!
+  │         ^
+
+warning[UnusedDeclaration]: unused declaration `b`
+  ┌─ tests/validation/unwrap-supported/source.wdl:8:13
+  │
+8 │     Boolean b = x! == 1
+  │             ^
+

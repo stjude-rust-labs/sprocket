@@ -295,6 +295,8 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     TypeRef(TypeRef<N>),
     /// An unbound declaration.
     UnboundDecl(UnboundDecl<N>),
+    /// An unwrap expression.
+    UnwrapExpr(UnwrapExpr<N>),
     /// A version statement.
     VersionStatement(VersionStatement<N>),
     /// A workflow definition.
@@ -403,6 +405,7 @@ ast_element_impl!(
         true_false_option(): PlaceholderTrueFalseOptionNode => TrueFalseOption => TrueFalseOption,
         type_ref(): TypeRefNode => TypeRef => TypeRef,
         unbound_decl(): UnboundDeclNode => UnboundDecl => UnboundDecl,
+        unwrap_expr(): UnwrapExprNode => UnwrapExpr => UnwrapExpr,
         version_statement(): VersionStatementNode => VersionStatement => VersionStatement,
         workflow_definition(): WorkflowDefinitionNode => WorkflowDefinition => WorkflowDefinition,
         workflow_hints_array(): WorkflowHintsArrayNode => WorkflowHintsArray => WorkflowHintsArray,

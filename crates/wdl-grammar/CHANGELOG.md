@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added parsing of the WDL 1.4 postfix unwrap operator (`x!`) as `SyntaxKind::UnwrapExprNode`
+  from [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777).
+
 ### Fixed
 
 * Fixed recovery when using the `null` keyword as an identifier

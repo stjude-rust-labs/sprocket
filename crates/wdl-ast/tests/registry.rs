@@ -215,6 +215,7 @@ static REGISTRY: LazyLock<HashMap<&'static str, Box<[SyntaxKind]>>> = LazyLock::
         v1::TypeRef::register(),
         v1::UnboundDecl::register(),
         v1::Unknown::register(),
+        v1::UnwrapExpr::register(),
         v1::VersionKeyword::register(),
         v1::WorkflowDefinition::register(),
         v1::WorkflowHintsItem::register(),
