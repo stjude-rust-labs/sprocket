@@ -72,6 +72,7 @@ use crate::EvaluationError;
 use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::EvaluationResult;
+use crate::HostPath;
 use crate::Inputs;
 use crate::Outputs;
 use crate::TypeNameRefValue;
@@ -83,6 +84,7 @@ use crate::diagnostics::runtime_type_mismatch;
 use crate::eval::Scope;
 use crate::eval::ScopeIndex;
 use crate::eval::ScopeRef;
+use crate::path;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
 use crate::v1::Evaluator;
@@ -142,6 +144,11 @@ struct WorkflowEvaluationContext<'a, 'b> {
     scope: ScopeRef<'b>,
     /// The cancellation token to use for HTTP operations.
     token: &'a CancellationToken,
+    /// The document used to look up enum choice values.
+    ///
+    /// This is the workflow's document except when coercing call inputs, in
+    /// which case it is the document of the call target.
+    enum_document: &'a Document,
 }
 
 impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
@@ -151,7 +158,14 @@ impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
             state,
             scope,
             token,
+            enum_document: &state.document,
         }
+    }
+
+    /// Sets the document used to look up enum choice values.
+    fn with_enum_document(mut self, document: &'a Document) -> Self {
+        self.enum_document = document;
+        self
     }
 }
 
@@ -195,7 +209,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
         self.state
             .evaluator
-            .enum_choice_value(&self.state.document, enum_name, choice_name)
+            .enum_choice_value(self.enum_document, enum_name, choice_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -208,6 +222,15 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
 
     fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
         (self.state.evaluator.http_client(), self.token)
+    }
+
+    fn resolve_path(&self, path: &str) -> Option<HostPath> {
+        if path.is_empty() || path::is_supported_url(path) || Path::new(path).is_absolute() {
+            return None;
+        }
+
+        let joined = self.state.base_dir.join(path).ok()?;
+        String::try_from(joined).ok().map(HostPath::new)
     }
 
     fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
@@ -1642,8 +1665,13 @@ impl State {
             };
 
         // Evaluate the inputs
+        let call_ty = self
+            .workflow
+            .calls()
+            .get(alias.text())
+            .expect("should have call");
         let scatter_index = self
-            .evaluate_call_inputs(stmt, scope, &mut inputs)
+            .evaluate_call_inputs(stmt, scope, call_ty, document, &mut inputs)
             .await
             .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
 
@@ -1691,14 +1719,9 @@ impl State {
             })?
             .with_name(alias.text());
 
-        let ty = self
-            .workflow
-            .calls()
-            .get(alias.text())
-            .expect("should have call");
         self.scopes.write().await.get_mut(scope).insert(
             alias.text(),
-            Value::Call(CallValue::new_unchecked(ty.clone(), Arc::new(outputs))),
+            Value::Call(CallValue::new_unchecked(call_ty.clone(), Arc::new(outputs))),
         );
 
         Ok(())
@@ -1724,6 +1747,11 @@ impl State {
 
     /// Evaluates the call inputs of a call statement.
     ///
+    /// Each input value is coerced to the call target's input type in the
+    /// context of this workflow so that any relative paths are resolved
+    /// against this workflow's document rather than the call target's
+    /// document.
+    ///
     /// Returns the scatter index for the provided scope.
     ///
     /// This takes a read lock on the scopes.
@@ -1731,12 +1759,14 @@ impl State {
         &self,
         stmt: &CallStatement<SyntaxNode>,
         scope: ScopeIndex,
+        call_ty: &CallType,
+        target_document: &Document,
         inputs: &mut Inputs,
     ) -> Result<String, Diagnostic> {
         let scopes = self.scopes.read().await;
         for input in stmt.inputs() {
             let name = input.name();
-            let value = match input.expr() {
+            let mut value = match input.expr() {
                 Some(expr) => {
                     let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
                         self,
@@ -1752,6 +1782,24 @@ impl State {
                     .cloned()
                     .ok_or_else(|| unknown_name(name.text(), name.span()))?,
             };
+
+            // Coerce the input to the target's expected type in the caller's
+            // context so that any relative paths resolve against this
+            // workflow's document rather than the call target's document.
+            // If coercion fails (e.g. `None` triggering a default or a runtime
+            // type mismatch), pass the original value through for the call
+            // target to handle.
+            if let Some(ty) = call_ty.inputs().get(name.text()).map(|i| i.ty()) {
+                let context = WorkflowEvaluationContext::new(
+                    self,
+                    scopes.reference(scope),
+                    self.http_cancellation_token(),
+                )
+                .with_enum_document(target_document);
+                if let Ok(coerced) = value.coerce(Some(&context), ty) {
+                    value = coerced;
+                }
+            }
 
             let prev = inputs.set(input.name().text(), value);
             assert!(

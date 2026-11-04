@@ -1005,6 +1005,19 @@ pub(crate) trait EvaluationContext: Send + Sync {
         None
     }
 
+    /// Resolves a relative path in the evaluation context.
+    ///
+    /// Returns `Some` when the context resolves relative paths eagerly (for
+    /// example, workflows resolve relative paths against the containing
+    /// document's directory).
+    ///
+    /// Returns `None` if relative paths should remain relative or if the given
+    /// path is not relative.
+    fn resolve_path(&self, path: &str) -> Option<HostPath> {
+        let _ = path;
+        None
+    }
+
     /// Notifies the context that a temporary file was created as a result of a
     /// call to a stdlib function.
     ///

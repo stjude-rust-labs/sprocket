@@ -22,6 +22,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+* Implemented the workflow `File` evaluation context from
+  [`openwdl/wdl#788`](https://github.com/openwdl/wdl/pull/788) for all WDL versions. A relative
+  `File` or `Directory` path in a workflow is now resolved, at the point of coercion, against the
+  directory of the document that contains the expression. Call inputs are coerced in the calling
+  workflow, so an imported task or workflow receives paths relative to the caller's document and not
+  to its own document. A workflow `File` therefore interpolates as its resolved path. A workflow
+  output may now be a document-relative path
+  ([#1428](https://github.com/stjude-rust-labs/sprocket/pull/1428)).
 * Documented and tested that task `File` outputs that share a parent directory remain in the same
   storage directory, as required by [`openwdl/wdl#796`](https://github.com/openwdl/wdl/pull/796).
   Backends that store the task working directory elsewhere, such as TES, must store it as a whole.
@@ -33,6 +41,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+* Fixed the parent of a remote document URL losing its trailing slash. The bug caused relative paths
+  to resolve against the wrong directory
+  ([#1428](https://github.com/stjude-rust-labs/sprocket/pull/1428)).
 * Failed coercions of enum choice values, `if` expression branches, array and map literal elements,
   and object or struct members to `Map` keys now produce errors instead of panics
   ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).

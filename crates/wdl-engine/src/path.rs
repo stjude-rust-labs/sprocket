@@ -184,8 +184,10 @@ impl EvaluationPath {
                     return None;
                 }
 
+                // Keep the trailing slash so that joining relative paths
+                // resolves within the parent directory
                 if let Ok(mut segments) = url.path_segments_mut() {
-                    segments.pop_if_empty().pop();
+                    segments.pop_if_empty().pop().push("");
                 }
 
                 Some(Self(EvaluationPathKind::Remote(url)))
@@ -456,5 +458,31 @@ mod tests {
                 .as_str(),
             "gs://foo/bar/baz/quux"
         );
+    }
+
+    #[test]
+    fn test_evaluation_path_parent_of() {
+        let p = EvaluationPath::parent_of("https://example.com/foo/bar/main.wdl")
+            .expect("should have parent");
+        assert_eq!(p.to_string(), "https://example.com/foo/bar/");
+        assert_eq!(
+            p.join("data/x.txt").expect("should join").to_string(),
+            "https://example.com/foo/bar/data/x.txt"
+        );
+
+        let p =
+            EvaluationPath::parent_of("https://example.com/main.wdl").expect("should have parent");
+        assert_eq!(p.to_string(), "https://example.com/");
+
+        assert!(EvaluationPath::parent_of("https://example.com/").is_none());
+
+        #[cfg(unix)]
+        {
+            let p = EvaluationPath::parent_of("/foo/bar/main.wdl").expect("should have parent");
+            assert_eq!(
+                p.join("data/x.txt").expect("should join").to_string(),
+                "/foo/bar/data/x.txt"
+            );
+        }
     }
 }
