@@ -1,133 +1,55 @@
-warning[UnusedDeclaration]: unused declaration `fifteen`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:24:9
-   │
-24 │     Int fifteen = maybe_five! + 10
-   │         ^^^^^^^
-
-warning[UnusedDeclaration]: unused declaration `neg`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:25:9
-   │
-25 │     Int neg = -maybe_five!
-   │         ^^^
-
-warning[UnusedDeclaration]: unused declaration `first`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:26:9
-   │
-26 │     Int first = maybes[0]!
-   │         ^^^^^
-
-warning[UnusedDeclaration]: unused declaration `amount`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:27:9
-   │
-27 │     Int amount = person.income!.amount
-   │         ^^^^^^
-
-warning[UnusedDeclaration]: unused declaration `first_or`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:28:9
-   │
-28 │     Int first_or = select_first([maybes[1]])!
-   │         ^^^^^^^^
-
 error: type mismatch: expected unwrap operand to be an optional type, but found type `Int`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:28:20
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:34:15
    │
-28 │     Int first_or = select_first([maybes[1]])!
-   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Int`
-   │
-   = fix: remove the unwrap operator `!` as the value is never `None`
-
-warning[UnusedDeclaration]: unused declaration `eq`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:29:13
-   │
-29 │     Boolean eq = maybe_five! == 5
-   │             ^^
-
-warning[UnusedDeclaration]: unused declaration `greeting`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:30:12
-   │
-30 │     String greeting = "~{'hello ' + name!}"
-   │            ^^^^^^^^
-
-warning[UnusedDeclaration]: unused declaration `bad`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:33:9
-   │
-33 │     Int bad = five!
-   │         ^^^
-
-error: type mismatch: expected unwrap operand to be an optional type, but found type `Int`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:33:15
-   │
-33 │     Int bad = five!
+34 │     Int bad = five!
    │               ^^^^ this is type `Int`
    │
    = fix: remove the unwrap operator `!` as the value is never `None`
 
-warning[UnusedDeclaration]: unused declaration `bad_string`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:34:12
-   │
-34 │     String bad_string = "hello"!
-   │            ^^^^^^^^^^
-
 error: type mismatch: expected unwrap operand to be an optional type, but found type `String`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:34:25
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:35:25
    │
-34 │     String bad_string = "hello"!
+35 │     String bad_string = "hello"!
    │                         ^^^^^^^ this is type `String`
    │
    = fix: remove the unwrap operator `!` as the value is never `None`
 
-warning[UnusedDeclaration]: unused declaration `bad_double`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:35:9
-   │
-35 │     Int bad_double = maybe_five!!
-   │         ^^^^^^^^^^
-
 error: type mismatch: expected unwrap operand to be an optional type, but found type `Int`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:35:22
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:36:22
    │
-35 │     Int bad_double = maybe_five!!
+36 │     Int bad_double = maybe_five!!
    │                      ^^^^^^^^^^^ this is type `Int`
    │
    = fix: remove the unwrap operator `!` as the value is never `None`
 
-warning[UnusedDeclaration]: unused declaration `bad_member`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:36:12
+error: type mismatch: expected unwrap operand to be an optional type, but found type `Int`
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:37:20
    │
-36 │     Income bad_member = person.income!.amount!
-   │            ^^^^^^^^^^
+37 │     Int first_or = select_first([maybes[1]])!
+   │                    ^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Int`
+   │
+   = fix: remove the unwrap operator `!` as the value is never `None`
 
 error: type mismatch: expected unwrap operand to be an optional type, but found type `Int`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:36:25
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:38:25
    │
-36 │     Income bad_member = person.income!.amount!
+38 │     Income bad_member = person.income!.amount!
    │                         ^^^^^^^^^^^^^^^^^^^^^ this is type `Int`
    │
    = fix: remove the unwrap operator `!` as the value is never `None`
 
 error: type mismatch: expected an instance of struct `Income`, but found type `Int`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:36:25
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:38:25
    │
-36 │     Income bad_member = person.income!.amount!
+38 │     Income bad_member = person.income!.amount!
    │            ----------   ^^^^^^^^^^^^^^^^^^^^^^ this is type `Int`
    │            │
    │            this expects an instance of struct `Income`
 
-warning[UnusedDeclaration]: unused declaration `none`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:39:10
-   │
-39 │     Int? none = None!
-   │          ^^^^
-
-warning[UnusedDeclaration]: unused declaration `wrong`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:42:12
-   │
-42 │     String wrong = maybe_five!
-   │            ^^^^^
-
 error: type mismatch: expected type `String`, but found type `Int`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:42:20
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:44:20
    │
-42 │     String wrong = maybe_five!
+44 │     String wrong = maybe_five!
    │            -----   ^^^^^^^^^^^ this is type `Int`
    │            │
    │            this expects type `String`
