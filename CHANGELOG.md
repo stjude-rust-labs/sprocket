@@ -20,6 +20,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#797`](https://github.com/openwdl/wdl/pull/797)
   ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
 
+### Changed
+
+* Relative `File` and `Directory` paths in workflows now resolve against the directory of the
+  document that contains the expression, as described in
+  [`openwdl/wdl#788`](https://github.com/openwdl/wdl/pull/788). Paths passed to an imported task or
+  workflow are no longer resolved against the imported document
+  ([#1428](https://github.com/stjude-rust-labs/sprocket/pull/1428)).
+
 ## 0.34.1 - 2026-11-18
 
 ### Security Fix

@@ -7,6 +7,7 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
+use crate::Coercible as _;
 use crate::Value;
 
 /// Tests whether the given array contains at least one occurrence of the given
@@ -22,12 +23,20 @@ fn contains(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .as_array()
         .expect("argument should be an array");
 
-    let item = &context.arguments[1].value;
+    let array_ty = array.ty();
+    let element_type = array_ty
+        .as_array()
+        .expect("type should be an array")
+        .element_type();
+    let item = context.arguments[1]
+        .value
+        .coerce(Some(context.inner()), element_type)
+        .unwrap_or_else(|_| context.arguments[1].value.clone());
 
     Ok(array
         .as_slice()
         .iter()
-        .any(|e| Value::equals(e, item).unwrap_or(false))
+        .any(|e| Value::equals(e, &item).unwrap_or(false))
         .into())
 }
 
