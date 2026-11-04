@@ -572,7 +572,8 @@ pub(crate) fn visit<V: Visitor>(
             | SyntaxKind::ModuloExprNode
             | SyntaxKind::CallExprNode
             | SyntaxKind::IndexExprNode
-            | SyntaxKind::AccessExprNode) => {
+            | SyntaxKind::AccessExprNode
+            | SyntaxKind::UnwrapExprNode) => {
                 unreachable!("`{k:?}` should be handled by `Expr::can_cast`")
             }
             SyntaxKind::PlaceholderNode => visitor.placeholder(

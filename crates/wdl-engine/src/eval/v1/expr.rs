@@ -92,6 +92,7 @@ use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedStringPart;
+use wdl_ast::v1::UnwrapExpr;
 use wdl_ast::version::V1;
 use wdl_grammar::SyntaxKind;
 
@@ -122,6 +123,8 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
+use crate::diagnostics::unwrap_requirement;
+use crate::diagnostics::unwrapped_none;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -285,6 +288,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Expr::Call(expr) => self.evaluate_call_expr(expr).await,
                 Expr::Index(expr) => self.evaluate_index_expr(expr).await,
                 Expr::Access(expr) => self.evaluate_access_expr(expr).await,
+                Expr::Unwrap(expr) => {
+                    if self.context.version() < SupportedVersion::V1(V1::Four) {
+                        return Err(unwrap_requirement(expr.span()));
+                    }
+                    self.evaluate_unwrap_expr(expr).await
+                }
             }?;
 
             self.evaluated_none |= self.placeholders > 0 && value.is_none();
@@ -983,6 +992,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 self.diagnostics
                     .exceptable_add(diagnostic, element, exceptable_nodes);
             }
+
+            fn resolves_value_types(&self) -> bool {
+                true
+            }
         }
 
         let (cond_expr, true_expr, false_expr) = expr.exprs();
@@ -1059,6 +1072,20 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             .map_err(|_| logical_not_mismatch(&value.ty(), operand.span()))?
             .unwrap_boolean())
         .into())
+    }
+
+    /// Evaluates an unwrap expression.
+    async fn evaluate_unwrap_expr(
+        &mut self,
+        expr: &UnwrapExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
+        let operand = expr.operand();
+        let value = self.evaluate_expr(&operand).await?;
+        if value.is_none() {
+            return Err(unwrapped_none(operand.span()));
+        }
+
+        Ok(value)
     }
 
     /// Evaluates a negation expression.
@@ -2574,6 +2601,82 @@ pub(crate) mod tests {
 
         let value = eval_v1_expr(&env, V1::Zero, r#"!false"#).await.unwrap();
         assert!(value.unwrap_boolean());
+    }
+
+    #[tokio::test]
+    async fn unwrap_expr() {
+        let mut env = TestEnv::default();
+        env.insert_name("maybe_five", 5);
+        env.insert_name("none", Value::new_none(Type::None));
+        env.insert_name("salutation", PrimitiveValue::new_string("hello"));
+        env.insert_name("name1", Value::new_none(Type::None));
+        env.insert_name("name2", PrimitiveValue::new_string("Fred"));
+
+        let value = eval_v1_expr(&env, V1::Four, "maybe_five!").await.unwrap();
+        assert_eq!(value.unwrap_integer(), 5);
+
+        let value = eval_v1_expr(&env, V1::Four, "maybe_five! + 10")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), 15);
+
+        let value = eval_v1_expr(&env, V1::Four, "-maybe_five!").await.unwrap();
+        assert_eq!(value.unwrap_integer(), -5);
+
+        let value = eval_v1_expr(&env, V1::Four, "[1, None][0]!").await.unwrap();
+        assert_eq!(value.unwrap_integer(), 1);
+
+        let value = eval_v1_expr(&env, V1::Four, "maybe_five! == 5")
+            .await
+            .unwrap();
+        assert!(value.unwrap_boolean());
+
+        let diagnostic = eval_v1_expr(&env, V1::Four, "none!").await.unwrap_err();
+        assert_eq!(diagnostic.message(), "cannot unwrap a `None` value");
+
+        let diagnostic = eval_v1_expr(&env, V1::Four, "[1, None][1]!")
+            .await
+            .unwrap_err();
+        assert_eq!(diagnostic.message(), "cannot unwrap a `None` value");
+
+        let value = eval_v1_expr(
+            &env,
+            V1::Four,
+            r#""~{salutation + ' ' + name1! + ' '}nice to meet you!""#,
+        )
+        .await
+        .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "nice to meet you!");
+
+        let value = eval_v1_expr(
+            &env,
+            V1::Four,
+            r#""~{salutation + ' ' + name2! + ', '}nice to meet you!""#,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            value.unwrap_string().as_str(),
+            "hello Fred, nice to meet you!"
+        );
+
+        let value = eval_v1_expr(&env, V1::Four, "if false then maybe_five! else 0")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), 0);
+
+        let value = eval_v1_expr(&env, V1::Four, "if true then 0 else maybe_five!")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), 0);
+
+        let diagnostic = eval_v1_expr(&env, V1::Three, "maybe_five!")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "use of the unwrap operator requires WDL version 1.4"
+        );
     }
 
     #[tokio::test]
