@@ -1,5 +1,7 @@
 ## This is a test of type checking the unwrap operator
 
+#@ except: UnusedDeclaration
+
 version 1.4
 
 struct Income {
@@ -25,7 +27,6 @@ workflow test {
     Int neg = -maybe_five!
     Int first = maybes[0]!
     Int amount = person.income!.amount
-    Int first_or = select_first([maybes[1]])!
     Boolean eq = maybe_five! == 5
     String greeting = "~{'hello ' + name!}"
 
@@ -33,6 +34,7 @@ workflow test {
     Int bad = five!
     String bad_string = "hello"!
     Int bad_double = maybe_five!!
+    Int first_or = select_first([maybes[1]])!
     Income bad_member = person.income!.amount!
 
     # Unwrapping `None` is allowed by the type checker
