@@ -42,6 +42,7 @@ use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TypeRef;
+use wdl_ast::v1::ValidationBlock;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 use wdl_grammar::SyntaxKind;
@@ -118,6 +119,8 @@ use crate::diagnostics::unused_call;
 use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
+use crate::diagnostics::validation_condition_mismatch;
+use crate::diagnostics::validation_message_mismatch;
 use crate::diagnostics::wildcard_import_conflict;
 use crate::document::EnumRef;
 use crate::document::Name;
@@ -1802,6 +1805,39 @@ fn add_task(
                     evaluator.evaluate_hints_item(&item.name(), &item.expr())
                 }
             }
+            TaskGraphNode::InputValidation(block) => {
+                type_check_validation_block(
+                    cache,
+                    &mut diagnostics,
+                    config,
+                    document,
+                    ScopeRef::new(&task.scopes, ScopeIndex(0)),
+                    &block,
+                );
+            }
+            TaskGraphNode::OutputValidation(block) => {
+                let scope_index = *output_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document.version,
+                        &mut task.scopes,
+                        &name,
+                        definition
+                            .output()
+                            .expect("should have output section")
+                            .braced_scope_span(false)
+                            .expect("should have braced scope span"),
+                        HiddenType::TaskPostEvaluation,
+                    )
+                });
+                type_check_validation_block(
+                    cache,
+                    &mut diagnostics,
+                    config,
+                    document,
+                    ScopeRef::new(&task.scopes, scope_index),
+                    &block,
+                );
+            }
         }
     }
 
@@ -1818,6 +1854,50 @@ fn add_task(
         },
         diagnostics,
     ));
+}
+
+/// Type checks the clauses of a validation block.
+///
+/// Each clause's condition must be coercible to `Boolean` and each clause's
+/// message must be coercible to `String`.
+fn type_check_validation_block(
+    cache: &mut AnalysisCache,
+    diagnostics: &mut Diagnostics,
+    config: &Config,
+    document: &mut DocumentData,
+    scope: ScopeRef<'_>,
+    block: &ValidationBlock,
+) {
+    for clause in block.clauses() {
+        // Note: a clause that failed to parse may be missing expressions
+        let mut exprs = Expr::children(clause.inner());
+        let condition = exprs.next();
+        let message = exprs.next();
+
+        let mut context =
+            EvaluationContext::new(cache, diagnostics, document, scope, config.clone());
+        let mut evaluator = ExprTypeEvaluator::new(&mut context);
+        let condition = condition.map(|expr| {
+            let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
+            (ty, expr.span())
+        });
+        let message = message.map(|expr| {
+            let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
+            (ty, expr.span())
+        });
+
+        if let Some((ty, span)) = condition
+            && !ty.is_coercible_to(&PrimitiveType::Boolean.into())
+        {
+            diagnostics.add(validation_condition_mismatch(&ty, span));
+        }
+
+        if let Some((ty, span)) = message
+            && !ty.is_coercible_to(&PrimitiveType::String.into())
+        {
+            diagnostics.add(validation_message_mismatch(&ty, span));
+        }
+    }
 }
 
 /// Adds a declaration to a scope.
@@ -2236,6 +2316,39 @@ fn populate_workflow(
                         visibility: *visibility,
                     });
                 }
+            }
+            WorkflowGraphNode::InputValidation(block) => {
+                type_check_validation_block(
+                    cache,
+                    &mut diagnostics,
+                    config,
+                    document,
+                    ScopeRef::new(&scopes, ScopeIndex(0)),
+                    &block,
+                );
+            }
+            WorkflowGraphNode::OutputValidation(block) => {
+                let scope_index = *output_scope.get_or_insert_with(|| {
+                    add_scope(
+                        &mut scopes,
+                        Scope::new(
+                            Some(ScopeIndex(0)),
+                            workflow_def
+                                .output()
+                                .expect("should have output section")
+                                .braced_scope_span(false)
+                                .expect("should have braced scope span"),
+                        ),
+                    )
+                });
+                type_check_validation_block(
+                    cache,
+                    &mut diagnostics,
+                    config,
+                    document,
+                    ScopeRef::new(&scopes, scope_index),
+                    &block,
+                );
             }
         }
     }

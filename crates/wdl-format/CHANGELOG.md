@@ -12,6 +12,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added formatting of the WDL 1.4 postfix unwrap operator (`x!`) from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777)
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Formatting for WDL 1.4 `validation` blocks in `input` and `output` sections from
+  [`openwdl/wdl#778`](https://github.com/openwdl/wdl/pull/778). Each clause is written on its own
+  line, and a blank line separates the block from adjacent declarations. Input sorting never moves
+  declarations across a validation block
+  ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ## 0.22.2 - 2026-11-18
 

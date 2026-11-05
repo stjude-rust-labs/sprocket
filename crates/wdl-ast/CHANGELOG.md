@@ -12,6 +12,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added `Expr::Unwrap` and `UnwrapExpr` for the WDL 1.4 postfix unwrap operator (`x!`) from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777)
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Added the `ValidationBlock` and `ValidationClause` AST nodes, the `ValidationKeyword` token, and
+  `InputSection::validation()` and `OutputSection::validation()` for WDL 1.4 input and output
+  validation blocks from [`openwdl/wdl#778`](https://github.com/openwdl/wdl/pull/778)
+  ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ## 0.27.3 - 2026-11-18
 

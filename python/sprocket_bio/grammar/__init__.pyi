@@ -118,6 +118,7 @@ class SyntaxKind:
     TASK_KEYWORD: SyntaxKind
     THEN_KEYWORD: SyntaxKind
     TRUE_KEYWORD: SyntaxKind
+    VALIDATION_KEYWORD: SyntaxKind
     VERSION_KEYWORD: SyntaxKind
     WORKFLOW_KEYWORD: SyntaxKind
     DIRECTORY_TYPE_KEYWORD: SyntaxKind
@@ -170,6 +171,8 @@ class SyntaxKind:
     BOUND_DECL_NODE: SyntaxKind
     INPUT_SECTION_NODE: SyntaxKind
     OUTPUT_SECTION_NODE: SyntaxKind
+    VALIDATION_BLOCK_NODE: SyntaxKind
+    VALIDATION_CLAUSE_NODE: SyntaxKind
     COMMAND_SECTION_NODE: SyntaxKind
     REQUIREMENTS_SECTION_NODE: SyntaxKind
     REQUIREMENTS_ITEM_NODE: SyntaxKind

@@ -297,6 +297,10 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     UnboundDecl(UnboundDecl<N>),
     /// An unwrap expression.
     UnwrapExpr(UnwrapExpr<N>),
+    /// A validation block within an input or output section.
+    ValidationBlock(ValidationBlock<N>),
+    /// A clause within a validation block.
+    ValidationClause(ValidationClause<N>),
     /// A version statement.
     VersionStatement(VersionStatement<N>),
     /// A workflow definition.
@@ -406,6 +410,8 @@ ast_element_impl!(
         type_ref(): TypeRefNode => TypeRef => TypeRef,
         unbound_decl(): UnboundDeclNode => UnboundDecl => UnboundDecl,
         unwrap_expr(): UnwrapExprNode => UnwrapExpr => UnwrapExpr,
+        validation_block(): ValidationBlockNode => ValidationBlock => ValidationBlock,
+        validation_clause(): ValidationClauseNode => ValidationClause => ValidationClause,
         version_statement(): VersionStatementNode => VersionStatement => VersionStatement,
         workflow_definition(): WorkflowDefinitionNode => WorkflowDefinition => WorkflowDefinition,
         workflow_hints_array(): WorkflowHintsArrayNode => WorkflowHintsArray => WorkflowHintsArray,
@@ -571,6 +577,8 @@ pub enum Token<T: TreeToken = SyntaxToken> {
     ThenKeyword(ThenKeyword<T>),
     /// The `true` keyword.
     TrueKeyword(TrueKeyword<T>),
+    /// The `validation` keyword.
+    ValidationKeyword(ValidationKeyword<T>),
     /// A version.
     Version(Version<T>),
     /// The `version` keyword.
@@ -661,6 +669,7 @@ ast_element_impl!(
         task_keyword(): TaskKeyword => TaskKeyword => TaskKeyword,
         then_keyword(): ThenKeyword => ThenKeyword => ThenKeyword,
         true_keyword(): TrueKeyword => TrueKeyword => TrueKeyword,
+        validation_keyword(): ValidationKeyword => ValidationKeyword => ValidationKeyword,
         version_keyword(): VersionKeyword => VersionKeyword => VersionKeyword,
         version(): Version => Version => Version,
         whitespace(): Whitespace => Whitespace => Whitespace,

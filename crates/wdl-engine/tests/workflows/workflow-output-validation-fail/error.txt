@@ -1,0 +1,6 @@
+error: output validation failed for workflow `workflow_output_validation_fail`:
+  - Result must be positive
+   ┌─ tests/workflows/workflow-output-validation-fail/source.wdl:12:7
+   │
+12 │       result > 0: "Result must be positive",
+   │       ^^^^^^^^^^ this condition evaluated to `false`

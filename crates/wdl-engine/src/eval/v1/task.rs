@@ -23,6 +23,8 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use path_clean::clean;
 use petgraph::algo::toposort;
+use petgraph::graph::DiGraph;
+use petgraph::graph::NodeIndex;
 use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
@@ -62,9 +64,11 @@ use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
+use wdl_ast::v1::ValidationBlock;
 use wdl_ast::version::V1;
 
 use super::Evaluator;
+use super::validation::evaluate_validation;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
@@ -455,6 +459,14 @@ struct EvaluatedSections {
     constraints: TaskExecutionConstraints,
 }
 
+/// Represents a failure to evaluate the outputs of a task.
+enum OutputsFailure {
+    /// An output declaration failed to evaluate.
+    Output(Diagnostic),
+    /// The output validation block failed.
+    Validation(Diagnostic),
+}
+
 /// Represents task evaluation state.
 struct State<'a> {
     /// The top-level evaluator.
@@ -496,6 +508,16 @@ struct State<'a> {
     backend_inputs: InputTrie,
     /// A bi-map of host paths and guest paths.
     path_map: BiHashMap<HostPath, GuestPath>,
+    /// Whether or not the first execution attempt has been announced with a
+    /// `TaskInitializing` event.
+    ///
+    /// When a task has an input validation block, the announcement is
+    /// deferred until the inputs have been successfully validated so that a
+    /// task failing input validation is never associated with an attempt.
+    initialized: bool,
+    /// Whether or not a `TaskLocalizing` event was deferred because inputs
+    /// were localized before the first attempt was announced.
+    localizing_pending: bool,
 }
 
 impl<'a> State<'a> {
@@ -549,7 +571,23 @@ impl<'a> State<'a> {
             inputs: Default::default(),
             backend_inputs,
             path_map: Default::default(),
+            initialized: false,
+            localizing_pending: false,
         })
+    }
+
+    /// Announces the first execution attempt of the task.
+    ///
+    /// Any `TaskLocalizing` event deferred while evaluating inputs prior to
+    /// the announcement is emitted after the `TaskInitializing` event.
+    fn notify_initialized(&mut self, id: &str) {
+        self.evaluator
+            .notify_task_initializing(id, &self.task_name, 0);
+        self.initialized = true;
+
+        if mem::take(&mut self.localizing_pending) {
+            self.evaluator.notify_task_localizing(&self.task_name);
+        }
     }
 
     /// Adds backend inputs to the state for any `File` or `Directory` values
@@ -672,8 +710,14 @@ impl<'a> State<'a> {
 
         // Notify that the task is transferring inputs; this path localizes
         // eagerly during input and declaration evaluation, before the
-        // task's sections are evaluated.
-        self.evaluator.notify_task_localizing(&self.task_name);
+        // task's sections are evaluated. If the first attempt has not yet
+        // been announced (i.e. the task's inputs are pending validation),
+        // the notification is deferred until the announcement.
+        if self.initialized {
+            self.evaluator.notify_task_localizing(&self.task_name);
+        } else {
+            self.localizing_pending = true;
+        }
 
         // Wait for the downloads to complete
         while let Some(result) = downloads.join_next().await {
@@ -1523,6 +1567,83 @@ impl<'a> State<'a> {
         Ok(())
     }
 
+    /// Evaluates the task's input validation block.
+    async fn evaluate_input_validation(
+        &mut self,
+        id: &str,
+        block: &ValidationBlock<SyntaxNode>,
+    ) -> Result<(), Diagnostic> {
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = %self.document.uri(),
+            "evaluating input validation",
+        );
+
+        let name = self.task.name().to_string();
+        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
+        evaluate_validation(&mut evaluator, block, Io::Input, true, &name).await
+    }
+
+    /// Evaluates the task's output validation block.
+    async fn evaluate_output_validation(
+        &mut self,
+        id: &str,
+        block: &ValidationBlock<SyntaxNode>,
+        evaluated: &EvaluatedTask,
+    ) -> Result<(), Diagnostic> {
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = %self.document.uri(),
+            "evaluating output validation",
+        );
+
+        let name = self.task.name().to_string();
+        let mut evaluator = ExprEvaluator::new(
+            TaskEvaluationContext::new(self, TASK_SCOPE_INDEX)
+                .with_work_dir(&evaluated.result.work_dir)
+                .with_stdout(&evaluated.result.stdout)
+                .with_stderr(&evaluated.result.stderr)
+                .with_post_execution(),
+        );
+        evaluate_validation(&mut evaluator, block, Io::Output, true, &name).await
+    }
+
+    /// Evaluates the outputs and output validation of the task for an
+    /// execution attempt.
+    ///
+    /// The given nodes are the remaining nodes of the task's evaluation graph
+    /// in topological order, which are expected to be only outputs and the
+    /// output validation block.
+    async fn evaluate_outputs(
+        &mut self,
+        id: &str,
+        graph: &DiGraph<TaskGraphNode<SyntaxNode>, bool>,
+        nodes: &[NodeIndex],
+        evaluated: &EvaluatedTask,
+    ) -> Result<(), OutputsFailure> {
+        for index in nodes {
+            match &graph[*index] {
+                TaskGraphNode::Output(decl) => {
+                    self.evaluate_output(id, decl, evaluated)
+                        .await
+                        .map_err(OutputsFailure::Output)?;
+                }
+                TaskGraphNode::OutputValidation(block) => {
+                    self.evaluate_output_validation(id, block, evaluated)
+                        .await
+                        .map_err(OutputsFailure::Validation)?;
+                }
+                _ => {
+                    unreachable!("only outputs should be evaluated after the command")
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Localizes inputs for execution.
     async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<()> {
         // If the backend needs local inputs, download them now
@@ -1774,11 +1895,42 @@ impl Evaluator {
         // begins, so that even localization performed while evaluating
         // inputs and declarations is attributable to the task.
         let mut state = State::new(self, document, task, &temp_dir, self.generate_task_name(id))?;
-        self.notify_task_initializing(id, &state.task_name, 0);
+
+        // If the task has an input validation block, the announcement of the
+        // first attempt is deferred until the inputs have been validated; a
+        // task that fails input validation never makes an execution attempt
+        let mut input_validation = graph.node_weights().find_map(|n| match n {
+            TaskGraphNode::InputValidation(block) => Some(block.clone()),
+            _ => None,
+        });
+
+        if input_validation.is_none() {
+            state.notify_initialized(id);
+        }
+
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
         while current < nodes.len() {
-            match &graph[nodes[current]] {
+            let node = &graph[nodes[current]];
+
+            // The input validation block is evaluated after the inputs and
+            // before the first node that is not an input; every node that is
+            // not an input depends on the input validation block, so this
+            // preserves the evaluation order of the graph while ensuring that
+            // inputs not referenced by the block are also evaluated first
+            if !matches!(
+                node,
+                TaskGraphNode::Input(_) | TaskGraphNode::InputValidation(_)
+            ) && let Some(block) = input_validation.take()
+            {
+                state
+                    .evaluate_input_validation(id, &block)
+                    .await
+                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                state.notify_initialized(id);
+            }
+
+            match node {
                 TaskGraphNode::Input(decl) => {
                     state
                         .evaluate_input(id, decl, &inputs)
@@ -1791,9 +1943,12 @@ impl Evaluator {
                         .await
                         .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
-                TaskGraphNode::Output(_) => {
-                    // Stop at the first output
+                TaskGraphNode::Output(_) | TaskGraphNode::OutputValidation(_) => {
+                    // Stop at the first output (or output validation)
                     break;
+                }
+                TaskGraphNode::InputValidation(_) => {
+                    // Evaluated before the first node that is not an input
                 }
                 TaskGraphNode::Command(_)
                 | TaskGraphNode::Runtime(_)
@@ -1807,10 +1962,23 @@ impl Evaluator {
             current += 1;
         }
 
+        // Evaluate the input validation if every node was an input
+        if let Some(block) = input_validation.take() {
+            state
+                .evaluate_input_validation(id, &block)
+                .await
+                .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+            state.notify_initialized(id);
+        }
+
         // Execute the task in a retry loop
         let mut cached;
         let mut attempt = 0;
         let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
+        // Whether or not to bypass the call cache lookup; this is set when a
+        // result from the call cache fails output validation so that the
+        // next attempt is executed
+        let mut bypass_cache = false;
         let mut evaluated = loop {
             if self.cancellation().state() != CancellationContextState::NotCanceled {
                 return Err(EvaluationError::Canceled);
@@ -1935,7 +2103,9 @@ impl Evaluator {
 
             // Lookup the results from the cache
             cached = false;
-            let result = if let Some(cache_key) = &key {
+            let result = if let Some(cache_key) = &key
+                && !bypass_cache
+            {
                 match self
                     .engine()
                     .call_cache()
@@ -2088,36 +2258,15 @@ impl Evaluator {
                     break EvaluatedTask::new(cached, result, Some(error));
                 }
 
-                attempt += 1;
-
-                if let Some(task) = state.scopes[TASK_SCOPE_INDEX.0].names.get(TASK_VAR_NAME) {
-                    // SAFETY: task variable should always be TaskPostEvaluation
-                    // at this point
-                    let task = task.as_task_post_evaluation().unwrap();
-                    previous_task_data = Some(task.data().clone());
-                }
-
-                // Mint the next attempt's name now so that the retry
-                // announcement can link the failed attempt to its successor;
-                // the `TaskInitializing` event at the top of the loop
-                // announces the new attempt under this name.
-                let prior_name = result
-                    .execution_name_override
-                    .as_deref()
-                    .unwrap_or(&state.task_name);
-                let next_name = self.generate_task_name(id);
-                self.notify_task_retrying(
-                    prior_name,
-                    &next_name,
+                self.transition_to_retry(
+                    &mut state,
+                    id,
+                    &result,
                     RetryCause::UnacceptableExitCode {
                         code: result.exit_code,
                     },
-                );
-                state.task_name = next_name;
-
-                info!(
-                    "retrying execution of task `{name}` (retry {attempt})",
-                    name = state.task.name()
+                    &mut attempt,
+                    &mut previous_task_data,
                 );
                 continue;
             }
@@ -2132,13 +2281,28 @@ impl Evaluator {
                 ));
             }
 
-            // Task execution succeeded; update the cache entry if we have a key
-            if let Some(key) = key {
+            // Evaluate the outputs and output validation for the attempt
+            let evaluated = EvaluatedTask::new(cached, result, None);
+            let outcome = state
+                .evaluate_outputs(id, &graph, &nodes[current..], &evaluated)
+                .await;
+
+            // Update the cache entry if we have a key and the result didn't
+            // fail output validation; a result that failed output validation
+            // must never be cached
+            if let Some(key) = key
+                && !matches!(outcome, Err(OutputsFailure::Validation(_)))
+            {
                 match self
                     .engine()
                     .call_cache()
                     .expect("should have cache")
-                    .put(key, &result, self.digests(), self.cancellation().second())
+                    .put(
+                        key,
+                        &evaluated.result,
+                        self.digests(),
+                        self.cancellation().second(),
+                    )
                     .await
                 {
                     Ok(key) => {
@@ -2159,26 +2323,55 @@ impl Evaluator {
                 }
             }
 
-            // Task execution succeeded, break out of the retry loop
-            break EvaluatedTask::new(cached, result, None);
-        };
+            match outcome {
+                Ok(()) => {
+                    // Task execution succeeded, break out of the retry loop
+                    break evaluated;
+                }
+                Err(OutputsFailure::Output(diagnostic)) => {
+                    // Output evaluation errors are not retried
+                    return Err(EvaluationError::new(state.document.clone(), diagnostic));
+                }
+                Err(OutputsFailure::Validation(diagnostic)) => {
+                    // Too many retries, fail with the validation error
+                    if attempt >= max_retries {
+                        return Err(EvaluationError::new(state.document.clone(), diagnostic));
+                    }
 
-        // Evaluate the outputs if the task executed successfully
-        if !evaluated.failed() {
-            for index in &nodes[current..] {
-                match &graph[*index] {
-                    TaskGraphNode::Output(decl) => {
-                        state
-                            .evaluate_output(id, decl, &evaluated)
-                            .await
-                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                    info!(
+                        task_id = id,
+                        task_name = state.task.name(),
+                        document = %state.document.uri(),
+                        "{message}",
+                        message = diagnostic.message()
+                    );
+
+                    // A cached result that failed output validation would
+                    // fail again if served from the cache, so execute the
+                    // task for any subsequent attempt
+                    if evaluated.cached {
+                        bypass_cache = true;
                     }
-                    _ => {
-                        unreachable!("only outputs should be evaluated after the command")
-                    }
+
+                    // Recreate the output scope for the next attempt; note
+                    // that the scope must remain linked to the root scope
+                    state.scopes[OUTPUT_SCOPE_INDEX.0] = Scope::new(ROOT_SCOPE_INDEX);
+
+                    self.transition_to_retry(
+                        &mut state,
+                        id,
+                        &evaluated.result,
+                        RetryCause::OutputValidationFailed,
+                        &mut attempt,
+                        &mut previous_task_data,
+                    );
+                    continue;
                 }
             }
+        };
 
+        // Expose the outputs if the task executed successfully
+        if !evaluated.failed() {
             // Take the output scope and return it in declaration sort order
             let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
             if let Some(section) = definition.output() {
@@ -2198,6 +2391,48 @@ impl Evaluator {
         }
 
         Ok(evaluated)
+    }
+
+    /// Transitions the task's evaluation state to the next execution attempt.
+    ///
+    /// This snapshots the `task` variable of the failed attempt for use as
+    /// `task.previous`, mints the name of the next attempt, and notifies that
+    /// the task is being retried.
+    #[allow(clippy::too_many_arguments)]
+    fn transition_to_retry(
+        &self,
+        state: &mut State<'_>,
+        id: &str,
+        result: &TaskExecutionResult,
+        cause: RetryCause,
+        attempt: &mut u64,
+        previous_task_data: &mut Option<Arc<TaskPostEvaluationData>>,
+    ) {
+        *attempt += 1;
+
+        if let Some(task) = state.scopes[TASK_SCOPE_INDEX.0].names.get(TASK_VAR_NAME) {
+            // SAFETY: task variable should always be TaskPostEvaluation
+            // at this point
+            let task = task.as_task_post_evaluation().unwrap();
+            *previous_task_data = Some(task.data().clone());
+        }
+
+        // Mint the next attempt's name now so that the retry
+        // announcement can link the failed attempt to its successor;
+        // the `TaskInitializing` event at the top of the retry loop
+        // announces the new attempt under this name.
+        let prior_name = result
+            .execution_name_override
+            .as_deref()
+            .unwrap_or(&state.task_name);
+        let next_name = self.generate_task_name(id);
+        self.notify_task_retrying(prior_name, &next_name, cause);
+        state.task_name = next_name;
+
+        info!(
+            "retrying execution of task `{name}` (retry {attempt})",
+            name = state.task.name()
+        );
     }
 
     /// Determines if the task failed based on its requirements and exit code.
@@ -2456,6 +2691,7 @@ mod tests {
     use crate::Engine;
     use crate::EngineEvent;
     use crate::EvaluationPath;
+    use crate::EvaluationResult;
     use crate::Events;
     use crate::Object;
     #[cfg(unix)]
@@ -2592,6 +2828,28 @@ mod tests {
         root_dir: &Path,
         source: &str,
     ) -> (EvaluatedTask, Vec<EngineEvent>) {
+        let (evaluated, events) = try_evaluate_task_with_engine(engine, root_dir, source).await;
+        (evaluated.unwrap(), events)
+    }
+
+    /// Evaluates a simple task that may fail evaluation and collects its
+    /// events.
+    async fn try_evaluate_task_with_events(
+        config: Config,
+        root_dir: &Path,
+        source: &str,
+    ) -> (EvaluationResult<EvaluatedTask>, Vec<EngineEvent>) {
+        let engine = Engine::new(config).await.unwrap();
+        try_evaluate_task_with_engine(engine, root_dir, source).await
+    }
+
+    /// Evaluates a simple task that may fail evaluation with the given engine
+    /// and collects its events.
+    async fn try_evaluate_task_with_engine(
+        engine: Engine,
+        root_dir: &Path,
+        source: &str,
+    ) -> (EvaluationResult<EvaluatedTask>, Vec<EngineEvent>) {
         fs::write(root_dir.join("source.wdl"), source).expect("failed to write WDL source file");
 
         // Analyze the source file
@@ -2628,8 +2886,7 @@ mod tests {
                 TaskInputs::default(),
                 &runs_dir,
             )
-            .await
-            .unwrap();
+            .await;
 
         let mut received = Vec::new();
         while let Ok(event) = receiver.try_recv() {
@@ -2889,6 +3146,397 @@ task test {
             !second_events
                 .iter()
                 .any(|event| matches!(event, EngineEvent::TaskExecuting { .. }))
+        );
+    }
+
+    /// Creates a configuration using the local backend.
+    fn local_config(root_dir: &Path, mode: CallCachingMode) -> Config {
+        let mut config = Config::default();
+        config.task.cache = mode;
+        config.task.cache_dir = root_dir.join("cache");
+        config
+            .backends
+            .insert("default".into(), LocalBackendConfig::default().into());
+        config
+    }
+
+    /// Filters the given events to those relevant to execution attempts.
+    fn attempt_events(events: &[EngineEvent]) -> Vec<&EngineEvent> {
+        events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    EngineEvent::TaskInitializing { .. }
+                        | EngineEvent::TaskLocalizing { .. }
+                        | EngineEvent::TaskExecuting { .. }
+                        | EngineEvent::TaskRetrying { .. }
+                        | EngineEvent::ReusedCachedExecutionResult { .. }
+                )
+            })
+            .collect()
+    }
+
+    /// Gets the evaluation error message of the given result.
+    fn error_message(result: EvaluationResult<EvaluatedTask>) -> String {
+        match result {
+            Ok(_) => panic!("expected task evaluation to fail"),
+            Err(crate::EvaluationError::Source(e)) => e.diagnostic.message().to_string(),
+            Err(e) => panic!("unexpected evaluation error: {e}", e = e.to_string()),
+        }
+    }
+
+    #[tokio::test]
+    async fn input_validation_failure_makes_no_attempt() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    input {
+        Int minimum = 5
+        Int value = 1
+
+        validation {
+            value >= minimum: "value ~{value} must be at least ~{minimum}",
+            false: "always fails",
+        }
+    }
+
+    Int quotient = 1 / 0
+
+    command <<<touch ran>>>
+
+    requirements {
+        max_retries: 3
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (result, events) = try_evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert_eq!(
+            error_message(result),
+            "input validation failed for task `test`:\n  - value 1 must be at least 5\n  - always \
+             fails"
+        );
+
+        // No attempt should have been announced, localized, or executed
+        assert!(
+            attempt_events(&events).is_empty(),
+            "unexpected attempt events: {events:?}"
+        );
+        assert!(!root_dir.path().join("runs").join("attempts").exists());
+    }
+
+    #[tokio::test]
+    async fn input_validation_success_announces_attempt_before_execution() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    input {
+        Int value = 1
+
+        validation {
+            value > 0: "value must be positive",
+        }
+    }
+
+    command <<<echo ~{value}>>>
+
+    output {
+        Int out = read_int(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (evaluated, events) = evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.failed());
+        assert_eq!(evaluated.outputs.get("out").unwrap().as_integer(), Some(1));
+
+        let [
+            EngineEvent::TaskInitializing {
+                name: initializing,
+                attempt: 0,
+                ..
+            },
+            EngineEvent::TaskExecuting {
+                name: executing, ..
+            },
+        ] = attempt_events(&events).as_slice()
+        else {
+            panic!("unexpected execution event sequence: {events:?}");
+        };
+        assert_eq!(initializing, executing);
+    }
+
+    #[tokio::test]
+    async fn output_validation_failure_is_retried() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    input {
+        Int expected = 1
+    }
+
+    command <<<echo "attempt ~{task.attempt}">>>
+
+    requirements {
+        max_retries: 3
+    }
+
+    output {
+        Int attempt = task.attempt
+        Int expected_attempt = expected
+        Float? previous_cpu = task.previous.cpu
+        String out = read_string(stdout())
+
+        validation {
+            attempt == expected_attempt: "attempt ~{attempt} is not attempt ~{expected}",
+            attempt == 0 || defined(previous_cpu): "the previous attempt should be available",
+        }
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (evaluated, events) = evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.failed());
+        assert!(!evaluated.cached());
+
+        let outputs = evaluated.outputs.iter().map(|(n, _)| n).collect::<Vec<_>>();
+        assert_eq!(
+            outputs,
+            ["attempt", "expected_attempt", "previous_cpu", "out"]
+        );
+        assert_eq!(
+            evaluated.outputs.get("attempt").unwrap().as_integer(),
+            Some(1)
+        );
+        assert_eq!(
+            evaluated
+                .outputs
+                .get("expected_attempt")
+                .unwrap()
+                .as_integer(),
+            Some(1)
+        );
+        assert!(!evaluated.outputs.get("previous_cpu").unwrap().is_none());
+        assert_eq!(
+            evaluated
+                .outputs
+                .get("out")
+                .unwrap()
+                .as_string()
+                .unwrap()
+                .as_str(),
+            "attempt 1"
+        );
+
+        let [
+            EngineEvent::TaskInitializing {
+                name: first,
+                attempt: 0,
+                ..
+            },
+            EngineEvent::TaskExecuting { .. },
+            EngineEvent::TaskRetrying {
+                prior_name,
+                next_name,
+                cause: RetryCause::OutputValidationFailed,
+            },
+            EngineEvent::TaskInitializing {
+                name: second,
+                attempt: 1,
+                ..
+            },
+            EngineEvent::TaskExecuting { .. },
+        ] = attempt_events(&events).as_slice()
+        else {
+            panic!("unexpected execution event sequence: {events:?}");
+        };
+        assert_eq!(first, prior_name);
+        assert_eq!(second, next_name);
+    }
+
+    #[tokio::test]
+    async fn output_validation_retries_exhausted() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    command <<<echo "attempt ~{task.attempt}">>>
+
+    requirements {
+        max_retries: 1
+    }
+
+    output {
+        String out = read_string(stdout())
+
+        validation {
+            false: "~{out} failed",
+        }
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (result, events) = try_evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert_eq!(
+            error_message(result),
+            "output validation failed for task `test`:\n  - attempt 1 failed"
+        );
+
+        let events = attempt_events(&events);
+        let executions = events
+            .iter()
+            .filter(|e| matches!(e, EngineEvent::TaskExecuting { .. }))
+            .count();
+        assert_eq!(executions, 2, "unexpected events: {events:?}");
+        let retries = events
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    EngineEvent::TaskRetrying {
+                        cause: RetryCause::OutputValidationFailed,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(retries, 1, "unexpected events: {events:?}");
+    }
+
+    #[tokio::test]
+    async fn output_validation_failure_is_not_cached() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    command <<<echo "hello">>>
+
+    output {
+        String out = read_string(stdout())
+
+        validation {
+            out == "goodbye": "unexpected output `~{out}`",
+        }
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::On);
+        for _ in 0..2 {
+            let (result, events) =
+                try_evaluate_task_with_events(config.clone(), root_dir.path(), SOURCE).await;
+            assert_eq!(
+                error_message(result),
+                "output validation failed for task `test`:\n  - unexpected output `hello`"
+            );
+
+            // Every run should execute the task as the failing result was
+            // never cached
+            let events = attempt_events(&events);
+            assert!(
+                matches!(
+                    events.as_slice(),
+                    [
+                        EngineEvent::TaskInitializing { attempt: 0, .. },
+                        EngineEvent::TaskExecuting { .. },
+                    ]
+                ),
+                "unexpected events: {events:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn cached_result_failing_output_validation_is_reexecuted() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    command <<<echo "hello">>>
+
+    requirements {
+        max_retries: 1
+    }
+
+    output {
+        String out = read_string(stdout())
+
+        validation {
+            task.attempt > 0: "the first attempt always fails validation",
+        }
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::On);
+
+        // The first run fails validation on the first attempt (which is not
+        // cached) and the second attempt is executed and cached
+        let (evaluated, events) =
+            evaluate_task_with_events(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        let events = attempt_events(&events);
+        assert!(
+            matches!(
+                events.as_slice(),
+                [
+                    EngineEvent::TaskInitializing { attempt: 0, .. },
+                    EngineEvent::TaskExecuting { .. },
+                    EngineEvent::TaskRetrying {
+                        cause: RetryCause::OutputValidationFailed,
+                        ..
+                    },
+                    EngineEvent::TaskInitializing { attempt: 1, .. },
+                    EngineEvent::TaskExecuting { .. },
+                ]
+            ),
+            "unexpected events: {events:?}"
+        );
+
+        // The second run uses the cached result for the first attempt, which
+        // fails validation; the second attempt must bypass the call cache
+        let (evaluated, events) = evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(
+            evaluated
+                .outputs
+                .get("out")
+                .unwrap()
+                .as_string()
+                .unwrap()
+                .as_str(),
+            "hello"
+        );
+        let events = attempt_events(&events);
+        assert!(
+            matches!(
+                events.as_slice(),
+                [
+                    EngineEvent::TaskInitializing { attempt: 0, .. },
+                    EngineEvent::ReusedCachedExecutionResult { .. },
+                    EngineEvent::TaskRetrying {
+                        cause: RetryCause::OutputValidationFailed,
+                        ..
+                    },
+                    EngineEvent::TaskInitializing { attempt: 1, .. },
+                    EngineEvent::TaskExecuting { .. },
+                ]
+            ),
+            "unexpected events: {events:?}"
         );
     }
 

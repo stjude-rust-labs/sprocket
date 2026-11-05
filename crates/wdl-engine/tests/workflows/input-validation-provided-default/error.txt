@@ -1,0 +1,6 @@
+error: input validation failed for workflow `test`:
+  - value 1 must be at least 5
+  ┌─ tests/workflows/input-validation-provided-default/source.wdl:9:7
+  │
+9 │       value >= minimum: "value ~{value} must be at least ~{minimum}",
+  │       ^^^^^^^^^^^^^^^^ this condition evaluated to `false`

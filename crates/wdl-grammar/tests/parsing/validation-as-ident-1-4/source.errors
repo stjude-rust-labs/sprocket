@@ -1,0 +1,30 @@
+error: expected struct name, but found `validation` keyword
+  ┌─ tests/parsing/validation-as-ident-1-4/source.wdl:5:8
+  │
+5 │ struct validation {
+  │        ^^^^^^^^^^ unexpected `validation` keyword
+
+error: expected input name, but found `validation` keyword
+   ┌─ tests/parsing/validation-as-ident-1-4/source.wdl:11:16
+   │
+11 │         String validation = "ok"
+   │                ^^^^^^^^^^ unexpected `validation` keyword
+
+error: expected type name, but found `validation` keyword
+   ┌─ tests/parsing/validation-as-ident-1-4/source.wdl:12:9
+   │
+12 │         validation v = v
+   │         ^^^^^^^^^^ unexpected `validation` keyword
+
+error: expected type name, but found `validation` keyword
+   ┌─ tests/parsing/validation-as-ident-1-4/source.wdl:18:9
+   │
+18 │         validation out = v
+   │         ^^^^^^^^^^ unexpected `validation` keyword
+
+error: expected scatter variable name, but found `validation` keyword
+   ┌─ tests/parsing/validation-as-ident-1-4/source.wdl:27:14
+   │
+27 │     scatter (validation in items) {
+   │              ^^^^^^^^^^ unexpected `validation` keyword
+

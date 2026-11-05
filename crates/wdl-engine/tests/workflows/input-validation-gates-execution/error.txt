@@ -1,0 +1,6 @@
+error: input validation failed for workflow `test`:
+  - the input validation gate is closed
+   ┌─ tests/workflows/input-validation-gates-execution/source.wdl:14:7
+   │
+14 │       false: "the input validation gate is closed",
+   │       ^^^^^ this condition evaluated to `false`

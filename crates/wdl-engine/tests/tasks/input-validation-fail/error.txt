@@ -1,0 +1,9 @@
+error: input validation failed for task `test`:
+  - value 1 must be at least 5
+  - value must not be 1
+   ┌─ tests/tasks/input-validation-fail/source.wdl:9:7
+   │
+ 9 │       value >= minimum: "value ~{value} must be at least ~{minimum}",
+   │       ^^^^^^^^^^^^^^^^ this condition evaluated to `false`
+10 │       value != 1: "value must not be 1",
+   │       ---------- this condition evaluated to `false`

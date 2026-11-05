@@ -1,0 +1,400 @@
+RootNode@0..1117
+  Comment@0..79 "## This is a test of  ..."
+  Whitespace@79..81 "\n\n"
+  VersionStatementNode@81..92
+    VersionKeyword@81..88 "version"
+    Whitespace@88..89 " "
+    Version@89..92 "1.3"
+  Whitespace@92..94 "\n\n"
+  StructDefinitionNode@94..129
+    StructKeyword@94..100 "struct"
+    Whitespace@100..101 " "
+    Ident@101..111 "validation"
+    Whitespace@111..112 " "
+    OpenBrace@112..113 "{"
+    Whitespace@113..118 "\n    "
+    UnboundDeclNode@118..127
+      PrimitiveTypeNode@118..121
+        IntTypeKeyword@118..121 "Int"
+      Whitespace@121..122 " "
+      Ident@122..127 "value"
+    Whitespace@127..128 "\n"
+    CloseBrace@128..129 "}"
+  Whitespace@129..131 "\n\n"
+  StructDefinitionNode@131..272
+    StructKeyword@131..137 "struct"
+    Whitespace@137..138 " "
+    Ident@138..145 "Wrapper"
+    Whitespace@145..146 " "
+    OpenBrace@146..147 "{"
+    Whitespace@147..152 "\n    "
+    UnboundDeclNode@152..168
+      TypeRefNode@152..162
+        Ident@152..162 "validation"
+      Whitespace@162..163 " "
+      Ident@163..168 "inner"
+    Whitespace@168..173 "\n    "
+    UnboundDeclNode@173..195
+      ArrayTypeNode@173..190
+        ArrayTypeKeyword@173..178 "Array"
+        OpenBracket@178..179 "["
+        TypeRefNode@179..189
+          Ident@179..189 "validation"
+        CloseBracket@189..190 "]"
+      Whitespace@190..191 " "
+      Ident@191..195 "many"
+    Whitespace@195..200 "\n    "
+    UnboundDeclNode@200..231
+      MapTypeNode@200..223
+        MapTypeKeyword@200..203 "Map"
+        OpenBracket@203..204 "["
+        PrimitiveTypeNode@204..210
+          StringTypeKeyword@204..210 "String"
+        Comma@210..211 ","
+        Whitespace@211..212 " "
+        TypeRefNode@212..222
+          Ident@212..222 "validation"
+        CloseBracket@222..223 "]"
+      Whitespace@223..224 " "
+      Ident@224..231 "by_name"
+    Whitespace@231..236 "\n    "
+    UnboundDeclNode@236..270
+      PairTypeNode@236..265
+        PairTypeKeyword@236..240 "Pair"
+        OpenBracket@240..241 "["
+        TypeRefNode@241..251
+          Ident@241..251 "validation"
+        Comma@251..252 ","
+        Whitespace@252..253 " "
+        TypeRefNode@253..264
+          Ident@253..263 "validation"
+          QuestionMark@263..264 "?"
+        CloseBracket@264..265 "]"
+      Whitespace@265..266 " "
+      Ident@266..270 "pair"
+    Whitespace@270..271 "\n"
+    CloseBrace@271..272 "}"
+  Whitespace@272..274 "\n\n"
+  TaskDefinitionNode@274..651
+    TaskKeyword@274..278 "task"
+    Whitespace@278..279 " "
+    Ident@279..286 "example"
+    Whitespace@286..287 " "
+    OpenBrace@287..288 "{"
+    Whitespace@288..293 "\n    "
+    InputSectionNode@293..450
+      InputKeyword@293..298 "input"
+      Whitespace@298..299 " "
+      OpenBrace@299..300 "{"
+      Whitespace@300..309 "\n        "
+      BoundDeclNode@309..333
+        PrimitiveTypeNode@309..315
+          StringTypeKeyword@309..315 "String"
+        Whitespace@315..316 " "
+        Ident@316..326 "validation"
+        Whitespace@326..327 " "
+        Assignment@327..328 "="
+        Whitespace@328..329 " "
+        LiteralStringNode@329..333
+          DoubleQuote@329..330 "\""
+          LiteralStringText@330..332 "ok"
+          DoubleQuote@332..333 "\""
+      Whitespace@333..342 "\n        "
+      BoundDeclNode@342..380
+        TypeRefNode@342..352
+          Ident@342..352 "validation"
+        Whitespace@352..353 " "
+        Ident@353..354 "v"
+        Whitespace@354..355 " "
+        Assignment@355..356 "="
+        Whitespace@356..357 " "
+        LiteralStructNode@357..380
+          Ident@357..367 "validation"
+          Whitespace@367..368 " "
+          OpenBrace@368..369 "{"
+          Whitespace@369..370 " "
+          LiteralStructItemNode@370..378
+            Ident@370..375 "value"
+            Colon@375..376 ":"
+            Whitespace@376..377 " "
+            LiteralIntegerNode@377..378
+              Integer@377..378 "1"
+          Whitespace@378..379 " "
+          CloseBrace@379..380 "}"
+      Whitespace@380..389 "\n        "
+      UnboundDeclNode@389..406
+        TypeRefNode@389..400
+          Ident@389..399 "validation"
+          QuestionMark@399..400 "?"
+        Whitespace@400..401 " "
+        Ident@401..406 "maybe"
+      Whitespace@406..415 "\n        "
+      BoundDeclNode@415..444
+        EnvKeyword@415..418 "env"
+        Whitespace@418..419 " "
+        PrimitiveTypeNode@419..425
+          StringTypeKeyword@419..425 "String"
+        Whitespace@425..426 " "
+        Ident@426..431 "other"
+        Whitespace@431..432 " "
+        Assignment@432..433 "="
+        Whitespace@433..434 " "
+        NameRefExprNode@434..444
+          Ident@434..444 "validation"
+      Whitespace@444..449 "\n    "
+      CloseBrace@449..450 "}"
+    Whitespace@450..456 "\n\n    "
+    CommandSectionNode@456..502
+      CommandKeyword@456..463 "command"
+      Whitespace@463..464 " "
+      OpenHeredoc@464..467 "<<<"
+      LiteralCommandText@467..481 "\n        echo "
+      PlaceholderNode@481..494
+        PlaceholderOpen@481..483 "~{"
+        NameRefExprNode@483..493
+          Ident@483..493 "validation"
+        CloseBrace@493..494 "}"
+      LiteralCommandText@494..499 "\n    "
+      CloseHeredoc@499..502 ">>>"
+    Whitespace@502..508 "\n\n    "
+    BoundDeclNode@508..552
+      TypeRefNode@508..518
+        Ident@508..518 "validation"
+      Whitespace@518..519 " "
+      Ident@519..526 "private"
+      Whitespace@526..527 " "
+      Assignment@527..528 "="
+      Whitespace@528..529 " "
+      LiteralStructNode@529..552
+        Ident@529..539 "validation"
+        Whitespace@539..540 " "
+        OpenBrace@540..541 "{"
+        Whitespace@541..542 " "
+        LiteralStructItemNode@542..550
+          Ident@542..547 "value"
+          Colon@547..548 ":"
+          Whitespace@548..549 " "
+          LiteralIntegerNode@549..550
+            Integer@549..550 "2"
+        Whitespace@550..551 " "
+        CloseBrace@551..552 "}"
+    Whitespace@552..558 "\n\n    "
+    OutputSectionNode@558..649
+      OutputKeyword@558..564 "output"
+      Whitespace@564..565 " "
+      OpenBrace@565..566 "{"
+      Whitespace@566..575 "\n        "
+      BoundDeclNode@575..599
+        TypeRefNode@575..585
+          Ident@575..585 "validation"
+        Whitespace@585..586 " "
+        Ident@586..589 "out"
+        Whitespace@589..590 " "
+        Assignment@590..591 "="
+        Whitespace@591..592 " "
+        NameRefExprNode@592..599
+          Ident@592..599 "private"
+      Whitespace@599..608 "\n        "
+      BoundDeclNode@608..643
+        PrimitiveTypeNode@608..614
+          StringTypeKeyword@608..614 "String"
+        Whitespace@614..615 " "
+        Ident@615..630 "validation_text"
+        Whitespace@630..631 " "
+        Assignment@631..632 "="
+        Whitespace@632..633 " "
+        NameRefExprNode@633..643
+          Ident@633..643 "validation"
+      Whitespace@643..648 "\n    "
+      CloseBrace@648..649 "}"
+    Whitespace@649..650 "\n"
+    CloseBrace@650..651 "}"
+  Whitespace@651..653 "\n\n"
+  WorkflowDefinitionNode@653..1116
+    WorkflowKeyword@653..661 "workflow"
+    Whitespace@661..662 " "
+    Ident@662..666 "test"
+    Whitespace@666..667 " "
+    OpenBrace@667..668 "{"
+    Whitespace@668..673 "\n    "
+    InputSectionNode@673..723
+      InputKeyword@673..678 "input"
+      Whitespace@678..679 " "
+      OpenBrace@679..680 "{"
+      Whitespace@680..689 "\n        "
+      BoundDeclNode@689..717
+        ArrayTypeNode@689..706
+          ArrayTypeKeyword@689..694 "Array"
+          OpenBracket@694..695 "["
+          TypeRefNode@695..705
+            Ident@695..705 "validation"
+          CloseBracket@705..706 "]"
+        Whitespace@706..707 " "
+        Ident@707..712 "items"
+        Whitespace@712..713 " "
+        Assignment@713..714 "="
+        Whitespace@714..715 " "
+        LiteralArrayNode@715..717
+          OpenBracket@715..716 "["
+          CloseBracket@716..717 "]"
+      Whitespace@717..722 "\n    "
+      CloseBrace@722..723 "}"
+    Whitespace@723..729 "\n\n    "
+    ScatterStatementNode@729..840
+      ScatterKeyword@729..736 "scatter"
+      Whitespace@736..737 " "
+      OpenParen@737..738 "("
+      Ident@738..748 "validation"
+      Whitespace@748..749 " "
+      InKeyword@749..751 "in"
+      Whitespace@751..752 " "
+      NameRefExprNode@752..757
+        Ident@752..757 "items"
+      CloseParen@757..758 ")"
+      Whitespace@758..759 " "
+      OpenBrace@759..760 "{"
+      Whitespace@760..769 "\n        "
+      BoundDeclNode@769..797
+        PrimitiveTypeNode@769..772
+          IntTypeKeyword@769..772 "Int"
+        Whitespace@772..773 " "
+        Ident@773..778 "value"
+        Whitespace@778..779 " "
+        Assignment@779..780 "="
+        Whitespace@780..781 " "
+        AccessExprNode@781..797
+          NameRefExprNode@781..791
+            Ident@781..791 "validation"
+          Dot@791..792 "."
+          Ident@792..797 "value"
+      Whitespace@797..806 "\n        "
+      BoundDeclNode@806..834
+        TypeRefNode@806..816
+          Ident@806..816 "validation"
+        Whitespace@816..817 " "
+        Ident@817..821 "copy"
+        Whitespace@821..822 " "
+        Assignment@822..823 "="
+        Whitespace@823..824 " "
+        NameRefExprNode@824..834
+          Ident@824..834 "validation"
+      Whitespace@834..839 "\n    "
+      CloseBrace@839..840 "}"
+    Whitespace@840..846 "\n\n    "
+    ConditionalStatementNode@846..915
+      ConditionalStatementClauseNode@846..915
+        IfKeyword@846..848 "if"
+        Whitespace@848..849 " "
+        OpenParen@849..850 "("
+        LiteralBooleanNode@850..854
+          TrueKeyword@850..854 "true"
+        CloseParen@854..855 ")"
+        Whitespace@855..856 " "
+        OpenBrace@856..857 "{"
+        Whitespace@857..866 "\n        "
+        BoundDeclNode@866..909
+          TypeRefNode@866..876
+            Ident@866..876 "validation"
+          Whitespace@876..877 " "
+          Ident@877..883 "nested"
+          Whitespace@883..884 " "
+          Assignment@884..885 "="
+          Whitespace@885..886 " "
+          LiteralStructNode@886..909
+            Ident@886..896 "validation"
+            Whitespace@896..897 " "
+            OpenBrace@897..898 "{"
+            Whitespace@898..899 " "
+            LiteralStructItemNode@899..907
+              Ident@899..904 "value"
+              Colon@904..905 ":"
+              Whitespace@905..906 " "
+              LiteralIntegerNode@906..907
+                Integer@906..907 "3"
+            Whitespace@907..908 " "
+            CloseBrace@908..909 "}"
+        Whitespace@909..914 "\n    "
+        CloseBrace@914..915 "}"
+    Whitespace@915..921 "\n\n    "
+    BoundDeclNode@921..962
+      TypeRefNode@921..931
+        Ident@921..931 "validation"
+      Whitespace@931..932 " "
+      Ident@932..936 "decl"
+      Whitespace@936..937 " "
+      Assignment@937..938 "="
+      Whitespace@938..939 " "
+      LiteralStructNode@939..962
+        Ident@939..949 "validation"
+        Whitespace@949..950 " "
+        OpenBrace@950..951 "{"
+        Whitespace@951..952 " "
+        LiteralStructItemNode@952..960
+          Ident@952..957 "value"
+          Colon@957..958 ":"
+          Whitespace@958..959 " "
+          LiteralIntegerNode@959..960
+            Integer@959..960 "4"
+        Whitespace@960..961 " "
+        CloseBrace@961..962 "}"
+    Whitespace@962..968 "\n\n    "
+    CallStatementNode@968..1021
+      CallKeyword@968..972 "call"
+      Whitespace@972..973 " "
+      CallTargetNode@973..980
+        Ident@973..980 "example"
+      Whitespace@980..981 " "
+      CallAliasNode@981..999
+        AsKeyword@981..983 "as"
+        Whitespace@983..984 " "
+        Ident@984..999 "validation_call"
+      Whitespace@999..1000 " "
+      OpenBrace@1000..1001 "{"
+      Whitespace@1001..1002 " "
+      CallInputItemNode@1002..1019
+        Ident@1002..1012 "validation"
+        Whitespace@1012..1013 " "
+        Assignment@1013..1014 "="
+        Whitespace@1014..1015 " "
+        LiteralStringNode@1015..1019
+          DoubleQuote@1015..1016 "\""
+          LiteralStringText@1016..1018 "hi"
+          DoubleQuote@1018..1019 "\""
+      Whitespace@1019..1020 " "
+      CloseBrace@1020..1021 "}"
+    Whitespace@1021..1027 "\n\n    "
+    OutputSectionNode@1027..1114
+      OutputKeyword@1027..1033 "output"
+      Whitespace@1033..1034 " "
+      OpenBrace@1034..1035 "{"
+      Whitespace@1035..1044 "\n        "
+      BoundDeclNode@1044..1075
+        ArrayTypeNode@1044..1061
+          ArrayTypeKeyword@1044..1049 "Array"
+          OpenBracket@1049..1050 "["
+          TypeRefNode@1050..1060
+            Ident@1050..1060 "validation"
+          CloseBracket@1060..1061 "]"
+        Whitespace@1061..1062 " "
+        Ident@1062..1068 "copies"
+        Whitespace@1068..1069 " "
+        Assignment@1069..1070 "="
+        Whitespace@1070..1071 " "
+        NameRefExprNode@1071..1075
+          Ident@1071..1075 "copy"
+      Whitespace@1075..1084 "\n        "
+      BoundDeclNode@1084..1108
+        TypeRefNode@1084..1094
+          Ident@1084..1094 "validation"
+        Whitespace@1094..1095 " "
+        Ident@1095..1101 "result"
+        Whitespace@1101..1102 " "
+        Assignment@1102..1103 "="
+        Whitespace@1103..1104 " "
+        NameRefExprNode@1104..1108
+          Ident@1104..1108 "decl"
+      Whitespace@1108..1113 "\n    "
+      CloseBrace@1113..1114 "}"
+    Whitespace@1114..1115 "\n"
+    CloseBrace@1115..1116 "}"
+  Whitespace@1116..1117 "\n"

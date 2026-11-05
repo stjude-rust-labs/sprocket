@@ -1,0 +1,99 @@
+error: input validation cannot reference declaration `private`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:16:13
+   │
+16 │             private > 0: "cannot reference a private declaration",
+   │             ^^^^^^^ `private` is not a declaration in the input section
+   ·
+25 │     Int private = 1
+   │         ------- the declaration is defined here
+   │
+   = help: input validation clauses may only reference declarations in the input section
+
+error: input validation cannot reference input `b` as it depends on declaration `private`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:17:13
+   │
+ 9 │         Int b = private
+   │                 ------- declaration `private` is referenced here
+   ·
+17 │             b > 0: "cannot reference an input that depends on a private declaration",
+   │             ^ `b` depends on a name that is not an input
+   │
+   = help: the default expressions of inputs referenced by input validation clauses may only reference other inputs
+
+error: input validation cannot reference input `c` as it depends on declaration `private`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:18:13
+   │
+ 9 │         Int b = private
+   │                 ------- declaration `private` is referenced here
+   ·
+18 │             c > 0: "cannot reference an input that transitively depends on a private declaration",
+   │             ^ `c` depends on a name that is not an input
+   │
+   = help: the default expressions of inputs referenced by input validation clauses may only reference other inputs
+
+error: unknown name `unknown`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:20:13
+   │
+20 │             unknown > 0: "unknown name",
+   │             ^^^^^^^
+
+error: unknown name `out`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:21:13
+   │
+21 │             out > 0: "outputs are not in scope",
+   │             ^^^
+
+error: input validation cannot reference declaration `private`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:45:13
+   │
+45 │             private != "": "cannot reference a private declaration",
+   │             ^^^^^^^ `private` is not a declaration in the input section
+   ·
+54 │     String private = "foo"
+   │            ------- the declaration is defined here
+   │
+   = help: input validation clauses may only reference declarations in the input section
+
+error: input validation cannot reference call `t`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:46:13
+   │
+46 │             t.out > 0: "cannot reference a call output",
+   │             ^ `t` is not a declaration in the input section
+   ·
+56 │     call t { a }
+   │          - the call is defined here
+   │
+   = help: input validation clauses may only reference declarations in the input section
+
+error: input validation cannot reference input `b` as it depends on call `t`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:47:13
+   │
+38 │         Int b = t.out
+   │                 - call `t` is referenced here
+   ·
+47 │             b > 0: "cannot reference an input that depends on a call output",
+   │             ^ `b` depends on a name that is not an input
+   │
+   = help: the default expressions of inputs referenced by input validation clauses may only reference other inputs
+
+error: input validation cannot reference input `c` as it depends on call `t`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:48:13
+   │
+38 │         Int b = t.out
+   │                 - call `t` is referenced here
+   ·
+48 │             c > 0: "cannot reference an input that transitively depends on a call output",
+   │             ^ `c` depends on a name that is not an input
+   │
+   = help: the default expressions of inputs referenced by input validation clauses may only reference other inputs
+
+error: input validation cannot reference input `s` as it depends on declaration `private`
+   ┌─ tests/analysis/validation-blocks-input-restriction/source.wdl:49:13
+   │
+42 │         String s = private
+   │                    ------- declaration `private` is referenced here
+   ·
+49 │             s != "": "cannot reference an input that depends on a private declaration",
+   │             ^ `s` depends on a name that is not an input
+   │
+   = help: the default expressions of inputs referenced by input validation clauses may only reference other inputs

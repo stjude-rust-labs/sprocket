@@ -768,3 +768,48 @@ async fn should_complete_select_imported_task() {
 
     assert_contains(&items, "add");
 }
+
+#[tokio::test]
+async fn should_complete_validation_keyword() {
+    let mut ctx = setup(true).await;
+
+    // Directly within the input section
+    let response = completion_request(&mut ctx, "validation.wdl", Position::new(5, 8))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_contains(&items, "validation");
+
+    // Within an existing validation block
+    let response = completion_request(&mut ctx, "validation.wdl", Position::new(14, 12))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_not_contains(&items, "validation");
+
+    // `task` variable members within an output validation block
+    let response = completion_request(&mut ctx, "validation.wdl", Position::new(14, 29))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_contains(&items, "return_code");
+
+    // Not supported prior to WDL 1.4
+    let response = completion_request(&mut ctx, "validation_v1_3.wdl", Position::new(5, 8))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_not_contains(&items, "validation");
+}

@@ -286,28 +286,56 @@ pub fn format_input_section(
     stream.increment_indent();
     stream.end_line();
 
+    let mut groups = Vec::new();
     let mut inputs = Vec::new();
     let mut close_brace = None;
 
     for child in children {
         match child.element().kind() {
             SyntaxKind::BoundDeclNode | SyntaxKind::UnboundDeclNode => inputs.push(child),
+            SyntaxKind::ValidationBlockNode => {
+                if !inputs.is_empty() {
+                    groups.push(SectionGroup::Declarations(std::mem::take(&mut inputs)));
+                }
+                groups.push(SectionGroup::Validation(child));
+            }
             SyntaxKind::CloseBrace => close_brace = Some(child),
             _ => panic!("unexpected input section child"),
         }
     }
 
-    if config.sort_inputs {
-        inputs.sort_by(|a, b| {
-            let a_decl =
-                wdl_ast::v1::Decl::cast(a.element().as_node().unwrap().inner().clone()).unwrap();
-            let b_decl =
-                wdl_ast::v1::Decl::cast(b.element().as_node().unwrap().inner().clone()).unwrap();
-            sort::compare_decl(&a_decl, &b_decl)
-        });
+    if !inputs.is_empty() {
+        groups.push(SectionGroup::Declarations(inputs));
     }
-    for input in inputs {
-        (&input).write(stream, config);
+
+    for (i, group) in groups.iter_mut().enumerate() {
+        if i > 0 {
+            stream.blank_line();
+        }
+
+        match group {
+            SectionGroup::Declarations(inputs) => {
+                if config.sort_inputs {
+                    inputs.sort_by(|a, b| {
+                        let a_decl =
+                            wdl_ast::v1::Decl::cast(a.element().as_node().unwrap().inner().clone())
+                                .unwrap();
+                        let b_decl =
+                            wdl_ast::v1::Decl::cast(b.element().as_node().unwrap().inner().clone())
+                                .unwrap();
+                        sort::compare_decl(&a_decl, &b_decl)
+                    });
+                }
+
+                for input in inputs.iter() {
+                    input.write(stream, config);
+                }
+            }
+            SectionGroup::Validation(block) => {
+                (&*block).write(stream, config);
+                stream.end_line();
+            }
+        }
     }
 
     stream.decrement_indent();
@@ -340,16 +368,111 @@ pub fn format_output_section(
     stream.increment_indent();
     stream.end_line();
 
+    let mut prev = None;
     for child in children {
-        if child.element().kind() == SyntaxKind::CloseBrace {
-            stream.decrement_indent();
-            stream.end_line();
-        } else {
-            assert_eq!(child.element().kind(), SyntaxKind::BoundDeclNode);
+        let kind = child.element().kind();
+        match kind {
+            SyntaxKind::CloseBrace => {
+                stream.decrement_indent();
+                stream.end_line();
+            }
+            SyntaxKind::BoundDeclNode | SyntaxKind::ValidationBlockNode => {
+                // Separate a validation block from any adjacent items
+                if prev.is_some()
+                    && (kind == SyntaxKind::ValidationBlockNode
+                        || prev == Some(SyntaxKind::ValidationBlockNode))
+                {
+                    stream.blank_line();
+                }
+            }
+            _ => panic!("unexpected output section child"),
         }
         (&child).write(stream, config);
         stream.end_line();
+        prev = Some(kind);
     }
+}
+
+/// A group of items within an input section.
+enum SectionGroup<'a> {
+    /// A contiguous run of declarations.
+    Declarations(Vec<&'a FormatElement>),
+    /// A validation block.
+    Validation(&'a FormatElement),
+}
+
+/// Formats a [`ValidationBlock`](wdl_ast::v1::ValidationBlock).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// validation block.
+pub fn format_validation_block(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    let mut children = element.children().expect("validation block children");
+
+    let keyword = children.next().expect("validation block keyword");
+    assert_eq!(keyword.element().kind(), SyntaxKind::ValidationKeyword);
+    (&keyword).write(stream, config);
+    stream.end_word();
+
+    let open_brace = children.next().expect("validation block open brace");
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
+    (&open_brace).write(stream, config);
+    stream.increment_indent();
+    stream.end_line();
+
+    let mut clauses = Vec::new();
+    let mut commas = Vec::new();
+    let mut close_brace = None;
+
+    for child in children {
+        match child.element().kind() {
+            SyntaxKind::ValidationClauseNode => clauses.push(child),
+            SyntaxKind::Comma => commas.push(child),
+            SyntaxKind::CloseBrace => close_brace = Some(child),
+            kind => unreachable!("unexpected validation block child: {kind:?}"),
+        }
+    }
+
+    write_comma_separated_items(clauses, commas, stream, config);
+
+    stream.decrement_indent();
+    stream.end_line();
+    (&close_brace.expect("validation block close brace")).write(stream, config);
+}
+
+/// Formats a [`ValidationClause`](wdl_ast::v1::ValidationClause).
+///
+/// # Panics
+///
+/// This will panic if the provided `element` is not a valid WDL v1.x
+/// validation clause.
+pub fn format_validation_clause(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    let mut children = element.children().expect("validation clause children");
+
+    let condition = children.next().expect("validation clause condition");
+    (&condition).write(stream, config);
+
+    let colon = children.next().expect("validation clause colon");
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
+    (&colon).write(stream, config);
+    stream.end_word();
+
+    let message = children.next().expect("validation clause message");
+    (&message).write(stream, config);
+
+    assert!(
+        children.next().is_none(),
+        "unexpected validation clause child"
+    );
 }
 
 /// Formats a [`LiteralInputItem`](wdl_ast::v1::LiteralInputItem).

@@ -45,6 +45,7 @@ use crate::v1::CommandKeyword;
 use crate::v1::MetaKeyword;
 use crate::v1::ParameterMetaKeyword;
 use crate::v1::RequirementsKeyword;
+use crate::v1::ValidationKeyword;
 
 pub mod common;
 pub mod requirements;
@@ -986,6 +987,14 @@ impl<N: TreeNode> InputSection<N> {
         Decl::children(&self.0)
     }
 
+    /// Gets the validation block of the input section.
+    ///
+    /// If the section contains more than one validation block, the first is
+    /// returned.
+    pub fn validation(&self) -> Option<ValidationBlock<N>> {
+        self.child()
+    }
+
     /// Gets the parent of the input section.
     pub fn parent(&self) -> SectionParent<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
@@ -1022,6 +1031,14 @@ impl<N: TreeNode> OutputSection<N> {
         self.children()
     }
 
+    /// Gets the validation block of the output section.
+    ///
+    /// If the section contains more than one validation block, the first is
+    /// returned.
+    pub fn validation(&self) -> Option<ValidationBlock<N>> {
+        self.child()
+    }
+
     /// Gets the parent of the output section.
     pub fn parent(&self) -> SectionParent<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
@@ -1037,6 +1054,86 @@ impl<N: TreeNode> AstNode<N> for OutputSection<N> {
     fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
             SyntaxKind::OutputSectionNode => Some(Self(inner)),
+            _ => None,
+        }
+    }
+
+    fn inner(&self) -> &N {
+        &self.0
+    }
+}
+
+/// Represents a validation block in an input or output section.
+///
+/// A validation block was introduced in WDL 1.4.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
+pub struct ValidationBlock<N: TreeNode = SyntaxNode>(N);
+
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
+impl<N: TreeNode> ValidationBlock<N> {
+    /// Gets the `validation` keyword of the validation block.
+    pub fn keyword(&self) -> ValidationKeyword<N::Token> {
+        self.token()
+            .expect("validation block should have a keyword")
+    }
+
+    /// Gets the clauses of the validation block.
+    pub fn clauses(&self) -> impl Iterator<Item = ValidationClause<N>> + use<'_, N> {
+        self.children()
+    }
+}
+
+impl<N: TreeNode> AstNode<N> for ValidationBlock<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::ValidationBlockNode
+    }
+
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::ValidationBlockNode => Some(Self(inner)),
+            _ => None,
+        }
+    }
+
+    fn inner(&self) -> &N {
+        &self.0
+    }
+}
+
+/// Represents a clause in a validation block.
+///
+/// A clause consists of a condition expression and a message expression
+/// separated by a colon.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
+pub struct ValidationClause<N: TreeNode = SyntaxNode>(N);
+
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
+impl<N: TreeNode> ValidationClause<N> {
+    /// Gets the condition expression of the validation clause.
+    pub fn condition(&self) -> Expr<N> {
+        Expr::children(&self.0)
+            .next()
+            .expect("validation clause should have a condition expression")
+    }
+
+    /// Gets the message expression of the validation clause.
+    pub fn message(&self) -> Expr<N> {
+        Expr::children(&self.0)
+            .nth(1)
+            .expect("validation clause should have a message expression")
+    }
+}
+
+impl<N: TreeNode> AstNode<N> for ValidationClause<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::ValidationClauseNode
+    }
+
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::ValidationClauseNode => Some(Self(inner)),
             _ => None,
         }
     }
@@ -2634,5 +2731,97 @@ task test {
             _ => panic!("expected text"),
         };
         assert_eq!(text, "echo \"hello\"");
+    }
+
+    #[test]
+    fn validation_blocks() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.4
+
+task test {
+    input {
+        String name
+        Int age
+
+        validation {
+            length(name) > 0: "name must not be empty",
+            age >= 0: "age must not be negative",
+        }
+    }
+
+    command <<<>>>
+
+    output {
+        String out = name
+
+        validation {
+            out != "": "out must not be empty"
+        }
+    }
+}
+
+task no_validation {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String out = name
+    }
+}
+"#,
+            None,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 2);
+
+        let input = tasks[0].input().expect("should have an input section");
+        assert_eq!(input.declarations().count(), 2);
+        let validation = input.validation().expect("should have a validation block");
+        assert_eq!(validation.keyword().text(), "validation");
+        let clauses: Vec<_> = validation.clauses().collect();
+        assert_eq!(clauses.len(), 2);
+        assert_eq!(
+            clauses[0].condition().inner().to_string(),
+            "length(name) > 0"
+        );
+        assert_eq!(
+            clauses[0].message().inner().to_string(),
+            "\"name must not be empty\""
+        );
+        assert_eq!(clauses[1].condition().inner().to_string(), "age >= 0");
+        assert_eq!(
+            clauses[1].message().inner().to_string(),
+            "\"age must not be negative\""
+        );
+
+        let output = tasks[0].output().expect("should have an output section");
+        assert_eq!(output.declarations().count(), 1);
+        let validation = output.validation().expect("should have a validation block");
+        let clauses: Vec<_> = validation.clauses().collect();
+        assert_eq!(clauses.len(), 1);
+        assert_eq!(clauses[0].condition().inner().to_string(), "out != \"\"");
+
+        assert!(
+            tasks[1]
+                .input()
+                .expect("should have an input section")
+                .validation()
+                .is_none()
+        );
+        assert!(
+            tasks[1]
+                .output()
+                .expect("should have an output section")
+                .validation()
+                .is_none()
+        );
     }
 }

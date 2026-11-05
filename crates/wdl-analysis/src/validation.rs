@@ -521,6 +521,28 @@ impl Visitor for Validator {
         }
     }
 
+    fn validation_block(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        block: &v1::ValidationBlock,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.validation_block(diagnostics, reason, block);
+        }
+    }
+
+    fn validation_clause(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        clause: &v1::ValidationClause,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.validation_clause(diagnostics, reason, clause);
+        }
+    }
+
     fn command_section(
         &mut self,
         diagnostics: &mut Diagnostics,

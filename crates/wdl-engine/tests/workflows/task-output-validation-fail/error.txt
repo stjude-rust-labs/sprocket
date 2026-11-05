@@ -1,0 +1,11 @@
+error: output validation failed for task `empty_report`:
+  - Report must not be empty
+   ┌─ tests/workflows/task-output-validation-fail/source.wdl:12:7
+   │
+12 │       size(report) > 0: "Report must not be empty",
+   │       ^^^^^^^^^^^^^^^^ this condition evaluated to `false`
+   │
+   ┌─ tests/workflows/task-output-validation-fail/source.wdl:18:3
+   │
+18 │   call empty_report
+   │   ---- called from this location

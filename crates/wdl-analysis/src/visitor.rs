@@ -59,6 +59,8 @@ use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::v1::UnboundDecl;
+use wdl_ast::v1::ValidationBlock;
+use wdl_ast::v1::ValidationClause;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::WorkflowHintsSection;
 
@@ -197,6 +199,24 @@ pub trait Visitor: Send {
         diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &OutputSection,
+    ) {
+    }
+
+    /// Visits a validation block node in an input or output section.
+    fn validation_block(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        block: &ValidationBlock,
+    ) {
+    }
+
+    /// Visits a validation clause node in a validation block.
+    fn validation_clause(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        clause: &ValidationClause,
     ) {
     }
 
@@ -454,6 +474,16 @@ pub(crate) fn visit<V: Visitor>(
                 diagnostics,
                 reason,
                 &OutputSection::cast(element.into_node().unwrap()).expect("should cast"),
+            ),
+            SyntaxKind::ValidationBlockNode => visitor.validation_block(
+                diagnostics,
+                reason,
+                &ValidationBlock::cast(element.into_node().unwrap()).expect("should cast"),
+            ),
+            SyntaxKind::ValidationClauseNode => visitor.validation_clause(
+                diagnostics,
+                reason,
+                &ValidationClause::cast(element.into_node().unwrap()).expect("should cast"),
             ),
             SyntaxKind::CommandSectionNode => visitor.command_section(
                 diagnostics,
