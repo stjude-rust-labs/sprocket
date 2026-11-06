@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.27.2 - 2026-11-06
+
 ### Fixed
 
 * Fixed recovery when using the `null` keyword as an identifier

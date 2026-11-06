@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.34.0 - 2026-11-06
+
 ### Added
 
 * Execution metrics include backend-reported peak and average memory and cumulative CPU time when
