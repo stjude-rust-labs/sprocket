@@ -30,6 +30,10 @@ extensions = [
 ]
 nitpicky = True
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+suppress_warnings = [
+    # MyST / Sphinx don't understand Rustdoc intra-doc links, so we ignore them.
+    "myst.xref_missing",
+]
 
 # Options for HTML output
 
