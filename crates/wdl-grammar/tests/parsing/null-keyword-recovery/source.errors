@@ -1,0 +1,14 @@
+error: expected `,`, but found `:`
+  ┌─ tests/parsing/null-keyword-recovery/source.wdl:7:18
+  │
+7 │         something: null
+  │                 -^ unexpected `:`
+  │                 │ 
+  │                 consider adding a `,` after this
+
+error: expected call input key, but found `null` keyword
+  ┌─ tests/parsing/null-keyword-recovery/source.wdl:7:20
+  │
+7 │         something: null
+  │                    ^^^^ unexpected `null` keyword
+
