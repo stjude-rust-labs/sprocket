@@ -1973,6 +1973,16 @@
               "description": "Whether or not to remove a task's container after the task completes.\n\nDefaults to `true`.",
               "type": "boolean",
               "default": true
+            },
+            "resource_usage_interval": {
+              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nEach task's peak and average memory and cumulative CPU time\nare sampled from the Docker daemon at this interval and reported in\nthe run's metrics.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0,
+              "default": 1
             }
           },
           "required": [

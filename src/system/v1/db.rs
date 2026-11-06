@@ -300,6 +300,16 @@ pub trait Database: Send + Sync {
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_retry_cause(&self, name: &str, cause: &str) -> Result<bool>;
 
+    /// Record the resource utilization observed for a task.
+    ///
+    /// This is recorded at the attempt's termination, which races the
+    /// completion event on the other channel, so the row is usually already
+    /// in a terminal status and no status guard applies.
+    ///
+    /// Returns `true` if a task was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a task was updated"]
+    async fn update_task_utilization(&self, name: &str, utilization: &str) -> Result<bool>;
+
     /// Advance a task to localizing its inputs.
     ///
     /// Returns `true` if a task was updated, `false` if it was not found or

@@ -321,6 +321,13 @@ pub struct Task {
     /// Set on the row of the attempt that failed; `None` when the attempt was
     /// not retried.
     pub retry_cause: Option<String>,
+    /// JSON snapshot of the resource utilization observed for this attempt.
+    ///
+    /// Reported by LSF and Slurm, and by local Docker containers when
+    /// `backends.<name>.resource_usage_interval` is set to a nonzero value.
+    /// Sampling is not supported for Docker Swarm services. `None` when no
+    /// measurements have been reported.
+    pub utilization: Option<String>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.

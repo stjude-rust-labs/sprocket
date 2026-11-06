@@ -234,14 +234,17 @@ excluded_cache_inputs = []
 [run.backends.first]
 type = "docker"
 cleanup = true
+resource_usage_interval = 1
 
 [run.backends.second]
 type = "docker"
 cleanup = true
+resource_usage_interval = 1
 
 [run.backends.default]
 type = "docker"
 cleanup = true
+resource_usage_interval = 1
 
 [run.storage]
 

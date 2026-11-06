@@ -68,6 +68,25 @@ pub async fn metrics(args: Args, config: Config, output: CommandOutput) -> Comma
     Ok(())
 }
 
+/// Formats a byte count for display, choosing the largest unit (B, KiB,
+/// MiB, or GiB) for which the value is at least 1.
+fn format_bytes(bytes: u64) -> String {
+    const KIB: f64 = 1024.0;
+    const MIB: f64 = KIB * 1024.0;
+    const GIB: f64 = MIB * 1024.0;
+
+    let bytes_f = bytes as f64;
+    if bytes_f < KIB {
+        format!("{bytes} B")
+    } else if bytes_f < MIB {
+        format!("{:.1} KiB", bytes_f / KIB)
+    } else if bytes_f < GIB {
+        format!("{:.1} MiB", bytes_f / MIB)
+    } else {
+        format!("{:.1} GiB", bytes_f / GIB)
+    }
+}
+
 /// Formats a millisecond duration for display.
 fn format_ms(ms: Option<i64>) -> String {
     match ms {
@@ -94,11 +113,8 @@ fn format_constraints(constraints: Option<&serde_json::Value>) -> String {
     if let Some(cpu) = constraints.get("cpu").and_then(|v| v.as_f64()) {
         parts.push(format!("{cpu} cpu"));
     }
-    if let Some(memory) = constraints.get("memory").and_then(|v| v.as_i64()) {
-        parts.push(format!(
-            "{:.1} GiB",
-            memory as f64 / (1024.0 * 1024.0 * 1024.0)
-        ));
+    if let Some(memory) = constraints.get("memory").and_then(|v| v.as_u64()) {
+        parts.push(format_bytes(memory));
     }
     if let Some(gpu) = constraints.get("gpu").and_then(|v| v.as_array())
         && !gpu.is_empty()
@@ -130,6 +146,24 @@ fn format_retry_cause(cause: &serde_json::Value) -> String {
     }
 }
 
+/// Formats an attempt's observed resource utilization for display.
+///
+/// Reports peak resident memory and total CPU time; the full detail is
+/// available in `--json` mode.
+fn format_utilization(utilization: Option<&serde_json::Value>) -> Option<String> {
+    let utilization = utilization?;
+
+    let mut parts = Vec::new();
+    if let Some(max_memory) = utilization.get("max_memory").and_then(|v| v.as_u64()) {
+        parts.push(format!("peak {}", format_bytes(max_memory)));
+    }
+    if let Some(cpu_time_ms) = utilization.get("cpu_time_ms").and_then(|v| v.as_i64()) {
+        parts.push(format!("cpu {}", format_ms(Some(cpu_time_ms))));
+    }
+
+    (!parts.is_empty()).then(|| parts.join(", "))
+}
+
 /// Renders one attempt line.
 fn attempt_line(attempt: &TaskAttemptMetrics, colorize: bool) -> String {
     let status = attempt.status.to_string();
@@ -151,6 +185,11 @@ fn attempt_line(attempt: &TaskAttemptMetrics, colorize: bool) -> String {
         && exit_status != 0
     {
         line.push_str(&format!("  exit {exit_status}"));
+    }
+
+    if let Some(utilization) = format_utilization(attempt.utilization.as_ref()) {
+        line.push_str("  ");
+        line.push_str(&utilization);
     }
 
     if let Some(cause) = &attempt.retry_cause {
@@ -186,6 +225,7 @@ fn call_section(call: &CallMetrics, colorize: bool) -> String {
     } else {
         String::new()
     };
+
     let attempts = call.attempts.len();
     out.push_str(&format!(
         "  {header} {qualifier}({attempts} attempt{s})\n",
@@ -280,6 +320,7 @@ mod tests {
                                 "kind": "unacceptable_exit_code",
                                 "code": 137,
                             })),
+                            utilization: None,
                             logs: "/api/v1/tasks/wf-align-x1/logs".to_string(),
                         },
                         TaskAttemptMetrics {
@@ -291,10 +332,17 @@ mod tests {
                             queued_ms: Some(150),
                             constraints: None,
                             retry_cause: None,
+                            utilization: Some(serde_json::json!({
+                                "max_memory": 12025908428i64,
+                                "avg_memory": 8589934592i64,
+                                "cpu_time_ms": 324_000,
+                            })),
                             logs: "/api/v1/tasks/wf-align-x2/logs".to_string(),
                         },
                     ],
                 },
+                // A call made inside a subworkflow: its identifier carries a
+                // call path and displays under its short name.
                 CallMetrics {
                     call_id: "sub--wf-align".to_string(),
                     name: "wf-align".to_string(),
@@ -307,6 +355,7 @@ mod tests {
                         queued_ms: Some(100),
                         constraints: None,
                         retry_cause: None,
+                        utilization: None,
                         logs: "/api/v1/tasks/sub--wf-align-x1/logs".to_string(),
                     }],
                 },
@@ -346,15 +395,60 @@ mod tests {
     }
 
     #[test]
+    fn memory_displays_choose_units_by_magnitude() {
+        for (bytes, expected) in [
+            (512, "512 B"),
+            (0, "0 B"),
+            (1024, "1.0 KiB"),
+            (1_048_576, "1.0 MiB"),
+            (20_000_000, "19.1 MiB"),
+            (1_073_741_824, "1.0 GiB"),
+        ] {
+            assert_eq!(
+                (
+                    format_constraints(Some(&serde_json::json!({ "memory": bytes }))),
+                    format_utilization(Some(&serde_json::json!({ "max_memory": bytes }))),
+                ),
+                (expected.to_string(), Some(format!("peak {expected}"))),
+                "memory: {bytes} bytes",
+            );
+        }
+    }
+
+    #[test]
+    fn utilization_summarizes_peak_memory_and_cpu_time() {
+        assert_eq!(format_utilization(None), None);
+        assert_eq!(
+            format_utilization(Some(&serde_json::json!({
+                "max_memory": 12025908428i64,
+                "avg_memory": 8589934592i64,
+                "cpu_time_ms": 324_000,
+            }))),
+            Some("peak 11.2 GiB, cpu 5m24s".to_string())
+        );
+        // A snapshot with only CPU time reports just that.
+        assert_eq!(
+            format_utilization(Some(&serde_json::json!({ "cpu_time_ms": 500 }))),
+            Some("cpu 500ms".to_string())
+        );
+        // An empty object yields nothing.
+        assert_eq!(format_utilization(Some(&serde_json::json!({}))), None);
+    }
+
+    #[test]
     fn report_includes_run_calls_attempts_and_totals() {
         let report = render_metrics(&body(), false);
         assert!(report.contains("Run `happy-dolphin-42`"));
         assert!(report.contains("completed, wall 1m23s"));
+        // A top-level call displays its identifier without a qualifier.
         assert!(report.contains("wf-align (2 attempts)"));
         assert!(report.contains("#0"));
         assert!(report.contains("exit 137"));
         assert!(report.contains("retried: unacceptable exit code 137"));
         assert!(report.contains("#1"));
+        assert!(report.contains("peak 11.2 GiB, cpu 5m24s"));
+        // A call inside a subworkflow displays its short name with the full
+        // identifier as a qualifier.
         assert!(report.contains("wf-align (sub--wf-align) (1 attempt)"));
         assert!(report.contains("3 attempts total: 1 retried, 0 cached, 0 preempted"));
     }

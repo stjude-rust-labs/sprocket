@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the `backends.<name>.resource_usage_interval` Docker configuration option for sampling task
+  memory and CPU usage. Local containers are sampled every second by default; set the interval to
+  `0` to disable sampling. Docker Swarm sampling is unsupported
+  ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+* The LSF and Slurm backends report task resource utilization through Crankshaft's cumulative
+  `TaskResourceUsage` event. LSF sources measurements from `bjobs`; Slurm uses `sacct`
+  ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+
 ## 0.20.0 - 2026-10-29
 
 ### Added
