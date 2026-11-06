@@ -56,6 +56,7 @@ use crate::queue::CallHierarchyRequest;
 use crate::queue::CodeLensRequest;
 use crate::queue::CompletionRequest;
 use crate::queue::DeleteRequest;
+pub use crate::queue::DocumentRename;
 use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
 use crate::queue::FoldingRangeRequest;
@@ -67,6 +68,7 @@ use crate::queue::InlayHintsRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::OutgoingCallsRequest;
+use crate::queue::RenameDocumentRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
@@ -651,9 +653,14 @@ where
     ///
     /// Returns an error if the document could not be added.
     pub async fn add_document(&self, uri: Url) -> Result<()> {
-        let mut documents = IndexSet::new();
-        documents.insert(uri);
+        self.add_documents(IndexSet::from_iter([uri])).await
+    }
 
+    /// Adds a set of documents to the analyzer. Documents can be a local file
+    /// or a URL.
+    ///
+    /// Returns an error if the document could not be added.
+    pub async fn add_documents(&self, documents: IndexSet<Url>) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::Add(AddRequest {
@@ -1207,6 +1214,36 @@ where
         rx.await.map_err(|_| {
             anyhow!(
                 "failed to receive semantic tokens response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
+    /// Performs a document rename
+    ///
+    /// If necessary, this renames the document path in all import statements
+    pub async fn rename_documents(
+        &self,
+        context: Context,
+        documents: Vec<DocumentRename>,
+    ) -> Result<Option<WorkspaceEdit>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::RenameDocument(RenameDocumentRequest {
+                documents,
+                completed: tx,
+                context,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send rename document request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive rename document response from analysis queue because the \
                  channel has closed"
             )
         })

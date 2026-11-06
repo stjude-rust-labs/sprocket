@@ -24,6 +24,7 @@ lsp-types = { workspace = true }
 parking_lot = { workspace = true }
 paste = { workspace = true }
 path-clean = { workspace = true }
+pathdiff = { workspace = true }
 petgraph = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }

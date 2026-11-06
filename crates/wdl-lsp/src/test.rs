@@ -53,25 +53,40 @@ impl SprocketTestCache {
             bail!("unsupported uri: {uri}");
         };
 
-        Ok(self
-            .documents
-            .lock()
-            .await
-            .entry(uri)
-            .or_insert_with(|| {
-                Arc::new(SprocketTestYaml {
-                    lines: LineIndex::new(&content),
-                    source: content,
-                    path,
-                    document: None,
-                })
-            })
-            .clone())
+        let mut docs = self.documents.lock().await;
+        let test_yaml = Arc::new(SprocketTestYaml {
+            lines: LineIndex::new(&content),
+            source: content,
+            path,
+            document: None,
+        });
+        docs.insert(uri, test_yaml.clone());
+        Ok(test_yaml)
     }
 
     /// Drop a [`SprocketTestYaml`] from the cache.
+    ///
+    /// If `uri` is a directory, all cached test documents within that directory
+    /// are dropped.
     pub async fn close(&self, uri: &Url) {
-        self.documents.lock().await.remove(uri);
+        let mut documents = self.documents.lock().await;
+
+        let Ok(path) = uri.to_file_path() else {
+            documents.remove(uri);
+            return;
+        };
+
+        documents.retain(|doc_uri, _| {
+            if doc_uri == uri {
+                return false;
+            }
+            if let Ok(doc_path) = doc_uri.to_file_path()
+                && doc_path.starts_with(&path)
+            {
+                return false;
+            }
+            true
+        });
     }
 
     /// Apply a change to a [`SprocketTestYaml`].

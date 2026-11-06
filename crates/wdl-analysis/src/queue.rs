@@ -153,6 +153,8 @@ pub enum Request<Context> {
     Rename(RenameRequest<Context>),
     /// A request to get semantic tokens for a document.
     SemanticTokens(SemanticTokenRequest<Context>),
+    /// A request to rename a document.
+    RenameDocument(RenameDocumentRequest<Context>),
     /// A request to get symbols for a document.
     DocumentSymbol(DocumentSymbolRequest),
     /// A request to get symbols for the workspace.
@@ -347,6 +349,25 @@ pub struct SemanticTokenRequest<Context> {
     pub document: Url,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<SemanticTokensResult>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
+}
+
+/// A document to rename.
+#[derive(Debug)]
+pub struct DocumentRename {
+    /// The original document URI to rename.
+    pub document: Url,
+    /// The new URI for the document.
+    pub new_uri: Url,
+}
+
+/// Represents a request to rename a document
+pub struct RenameDocumentRequest<Context> {
+    /// The documents to rename.
+    pub documents: Vec<DocumentRename>,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<WorkspaceEdit>>,
     /// The context to provide to the progress callback.
     pub context: Context,
 }
@@ -1055,6 +1076,36 @@ where
                         }
                         Err(err) => {
                             error!("semantic tokens request failed: {err:?}");
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+
+                Request::RenameDocument(RenameDocumentRequest {
+                    documents,
+                    completed,
+                    context,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request to rename documents");
+
+                    if !self.ensure_analyzed(None, context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
+                    let graph = self.graph.read();
+                    match handlers::rename_documents(&graph, documents) {
+                        Ok(result) => {
+                            debug!(
+                                "rename document request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!("rename document request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
