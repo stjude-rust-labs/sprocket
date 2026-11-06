@@ -14,6 +14,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
   unsupported ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
 
+### Changed
+
+* Execution database writes batch task updates and combine related run updates to reduce commits.
+  SQLite uses `PERSIST` journaling, disables memory-mapped I/O, and limits the pool to five
+  connections. Task updates normally flush every 250 milliseconds or after 256 buffered writes;
+  database delays can extend the wait
+  ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+* Task resource utilization updates merge reported fields into the stored JSON snapshot instead of
+  replacing it ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+
 ### Fixed
 
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required

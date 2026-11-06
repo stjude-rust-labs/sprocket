@@ -596,6 +596,19 @@ impl RunnableExecutor {
                     .db
                     .fail_run(self.run_id, &format!("{e:#}"), Utc::now())
                     .await;
+
+                // Drain and flush the monitor before removing the run.
+                monitor_shutdown.cancel();
+                match task_monitor.await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => {
+                        tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+                    }
+                    Err(e) => {
+                        tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+                    }
+                }
+
                 self.runs.lock().await.remove(&self.run_id);
                 return;
             }
@@ -630,8 +643,14 @@ impl RunnableExecutor {
         // never reached a terminal status before the run is considered
         // finished.
         monitor_shutdown.cancel();
-        if let Err(e) = task_monitor.await {
-            tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+        match task_monitor.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+            }
+            Err(e) => {
+                tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
+            }
         }
 
         self.runs.lock().await.remove(&self.run_id);
@@ -744,9 +763,8 @@ async fn set_run_success(
     fs::write(&outputs_file, serde_json::to_string_pretty(&outputs_json)?)
         .context("failed to write outputs file")?;
 
-    // Update outputs in database
+    // Store outputs with the final status to avoid a separate commit.
     let outputs_str = serde_json::to_string(&outputs_json)?;
-    db.update_run_outputs(ctx.run_id, &outputs_str).await?;
 
     // Create the index entries if index_on was provided
     if let Some(index_on) = index_on {
@@ -770,7 +788,12 @@ async fn set_run_success(
         }
     }
 
-    db.complete_run(ctx.run_id, Utc::now()).await?;
+    // Retry lock errors so temporary contention does not fail a successful run.
+    let completed_at = Utc::now();
+    crate::system::v1::db::retry_on_lock(|| {
+        db.complete_run_with_outputs(ctx.run_id, completed_at, &outputs_str)
+    })
+    .await?;
 
     info!(
         "run `{}` ({}) completed successfully",
@@ -817,7 +840,7 @@ async fn execute_workflow_target(
     // Ensure the inputs are for a workflow
     if inputs.as_workflow_inputs().is_none() {
         let error = "inputs are for a task, not a workflow";
-        db.fail_run(ctx.run_id, error, Utc::now())
+        crate::system::v1::db::retry_on_lock(|| db.fail_run(ctx.run_id, error, Utc::now()))
             .await
             .context("failed to update database")?;
         return Err(anyhow!(error).into());
@@ -881,7 +904,7 @@ async fn execute_task_target(
     // Ensure the inputs are for a task
     if inputs.as_task_inputs().is_none() {
         let error = "inputs are for a workflow, not a task";
-        db.fail_run(ctx.run_id, error, Utc::now())
+        crate::system::v1::db::retry_on_lock(|| db.fail_run(ctx.run_id, error, Utc::now()))
             .await
             .context("failed to update database")?;
         return Err(anyhow!(error).into());
@@ -950,10 +973,11 @@ pub async fn execute_target(
     base_dir: &EvaluationPath,
     index_on: Option<&IndexPath>,
 ) -> Result<(), EvaluationError> {
-    db.start_run(ctx.run_id, ctx.started_at)
+    let cancellation_status = cancellation.clone();
+    // Retry lock errors so temporary contention does not prevent execution.
+    crate::system::v1::db::retry_on_lock(|| db.start_run(ctx.run_id, ctx.started_at))
         .await
         .map_err(anyhow::Error::from)?;
-    let cancellation_status = cancellation.clone();
     let result: Result<Option<Outputs>, EvaluationError> = async {
         match target {
             Target::Task(_) => {

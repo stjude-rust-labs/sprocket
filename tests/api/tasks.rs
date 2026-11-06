@@ -801,6 +801,7 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         status: TaskStatus::Initializing,
         call_id: Some("wf-a"),
         attempt: 0,
+        created_at: Utc::now(),
     })
     .await
     .unwrap();
@@ -821,6 +822,7 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         status: TaskStatus::Initializing,
         call_id: Some("wf-a"),
         attempt: 1,
+        created_at: Utc::now(),
     })
     .await
     .unwrap();
@@ -842,6 +844,7 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         status: TaskStatus::Initializing,
         call_id: Some("wf-b"),
         attempt: 0,
+        created_at: Utc::now(),
     })
     .await
     .unwrap();

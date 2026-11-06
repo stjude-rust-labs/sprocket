@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::future::Future;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -12,6 +14,8 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::error::TryRecvError;
+use tokio::time::Interval;
+use tokio::time::MissedTickBehavior;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 use uuid::Uuid;
@@ -20,10 +24,17 @@ use wdl::engine::EngineEvent;
 
 use crate::system::v1::db::Database;
 use crate::system::v1::db::LogSource;
-use crate::system::v1::db::NewTask;
 use crate::system::v1::db::TaskStatus;
+use crate::system::v1::db::TaskWrite;
+use crate::system::v1::db::retry_on_lock;
 
-/// In-memory record of a task's call id and attempt number.
+/// Target interval between flushes. Database delays can extend the wait.
+const FLUSH_INTERVAL: Duration = Duration::from_millis(250);
+
+/// Buffered write count that triggers a flush.
+const MAX_BUFFERED_WRITES: usize = 256;
+
+/// Cached retry metadata, available before task creation is flushed.
 #[derive(Debug, Clone, Default)]
 struct TaskMeta {
     /// The stable WDL call path shared by every attempt of the same call.
@@ -44,22 +55,20 @@ enum Incoming {
     CrankshaftClosed,
     /// The engine channel closed.
     EngineClosed,
+    /// The periodic flush tick elapsed.
+    Tick,
     /// The monitor was asked to shut down.
     Shutdown,
 }
 
-/// A task monitoring service.
+/// Records one run's task events in database batches.
 ///
-/// The task monitor service is an independent, async service that subscribes to
-/// engine and Crankshaft task events and updates the Sprocket database with
-/// information. One task monitor is run per run and keeps track of all of the
-/// tasks therein (multiple tasks for a workflow run or a single task for a task
-/// run).
+/// Engine and Crankshaft events can arrive out of order. Status updates
+/// therefore only advance a task's state.
 ///
-/// The two event channels are independent and carry no ordering relative to one
-/// another, so a task's submission may be observed before the engine events
-/// that precede it. Every transition the monitor performs is therefore
-/// monotonic in the database: a status only ever advances.
+/// Flushes on a timer, at the write-count threshold, and during shutdown.
+/// Failed batches remain buffered for retry. Database delays can postpone
+/// persistence; writes are not durable until committed.
 #[allow(missing_debug_implementations)]
 pub struct TaskMonitorSvc {
     /// The run to associate with monitored tasks.
@@ -83,8 +92,13 @@ pub struct TaskMonitorSvc {
     /// The names of tasks that have a database row but have not been observed
     /// reaching a terminal status.
     unfinished: HashSet<String>,
-    /// In-memory call id and attempt tracking per task name.
+    /// Buffered task writes awaiting a flush; see the type-level
+    /// documentation for the batching rationale.
+    pending: Vec<TaskWrite>,
+    /// In-memory call id/attempt tracking per task name; see [`TaskMeta`].
     task_meta: HashMap<String, TaskMeta>,
+    /// Fires on [`FLUSH_INTERVAL`] to trigger a periodic flush of `pending`.
+    flush_tick: Interval,
 }
 
 impl TaskMonitorSvc {
@@ -96,6 +110,12 @@ impl TaskMonitorSvc {
         engine: broadcast::Receiver<EngineEvent>,
         shutdown: CancellationToken,
     ) -> Self {
+        let mut flush_tick = tokio::time::interval(FLUSH_INTERVAL);
+        // A late tick (e.g. because the loop was busy handling a burst of
+        // events) should not fire repeatedly to "catch up"; the next tick
+        // simply arrives one full interval after the late one.
+        flush_tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
         Self {
             run_id,
             db,
@@ -104,7 +124,9 @@ impl TaskMonitorSvc {
             shutdown,
             task_names: HashMap::new(),
             unfinished: HashSet::new(),
+            pending: Vec::new(),
             task_meta: HashMap::new(),
+            flush_tick,
         }
     }
 
@@ -114,7 +136,7 @@ impl TaskMonitorSvc {
     /// updates the database accordingly. It ends when it is shut down or when
     /// both event channels have closed, reconciling any task left in a
     /// non-terminal status on the way out.
-    pub async fn run(mut self) {
+    pub async fn run(mut self) -> Result<()> {
         let mut crankshaft_open = true;
         let mut engine_open = true;
 
@@ -135,19 +157,12 @@ impl TaskMonitorSvc {
                     Err(RecvError::Lagged(_)) => Incoming::Lagged,
                     Err(RecvError::Closed) => Incoming::EngineClosed,
                 },
+                _ = self.flush_tick.tick() => Incoming::Tick,
             };
 
             match incoming {
-                Incoming::Crankshaft(event) => {
-                    if let Err(e) = self.handle_crankshaft_event(event).await {
-                        error!("{e:#}");
-                    }
-                }
-                Incoming::Engine(event) => {
-                    if let Err(e) = self.handle_engine_event(event).await {
-                        error!("{e:#}");
-                    }
-                }
+                Incoming::Crankshaft(event) => self.handle_crankshaft_event(event),
+                Incoming::Engine(event) => self.handle_engine_event(event),
                 Incoming::Lagged => {
                     error!(
                         "task event handler lagged; task entries in database may not reflect the \
@@ -156,7 +171,14 @@ impl TaskMonitorSvc {
                 }
                 Incoming::CrankshaftClosed => crankshaft_open = false,
                 Incoming::EngineClosed => engine_open = false,
+                Incoming::Tick => self.flush().await,
                 Incoming::Shutdown => break,
+            }
+
+            // A tick-triggered flush just ran; this only catches the
+            // size-cap case for a burst of events arriving between ticks.
+            if self.pending.len() >= MAX_BUFFERED_WRITES {
+                self.flush().await;
             }
         }
 
@@ -164,18 +186,49 @@ impl TaskMonitorSvc {
         // are the record of what actually happened, so they are
         // consumed before any task is written off as unfinished.
         self.drain().await;
-        self.reconcile().await;
+        self.reconcile();
+
+        // Every write observed for this run is
+        // flushed together as the monitor's final batch.
+        self.flush_final().await
+    }
+
+    /// Flushes every buffered write to the database as a single batch.
+    ///
+    /// A failed flush remains buffered in its original order and is retried
+    /// by the next size, timer, or shutdown-triggered flush.
+    async fn flush(&mut self) {
+        if self.pending.is_empty() {
+            return;
+        }
+
+        let count = self.pending.len();
+        if let Err(e) = apply_pending(&mut self.pending, |writes| {
+            self.db.apply_task_writes(writes)
+        })
+        .await
+        {
+            error!("failed to flush {count} buffered task write(s): {e:#}");
+        }
+    }
+
+    /// Flushes the final batch with bounded retries for transient lock errors.
+    async fn flush_final(&mut self) -> Result<()> {
+        if self.pending.is_empty() {
+            return Ok(());
+        }
+
+        let writes = self.pending.clone();
+        retry_on_lock(|| self.db.apply_task_writes(writes.clone())).await?;
+        self.pending.clear();
+        Ok(())
     }
 
     /// Consumes every event still buffered on either channel.
     async fn drain(&mut self) {
         loop {
             match self.crankshaft.try_recv() {
-                Ok(event) => {
-                    if let Err(e) = self.handle_crankshaft_event(event).await {
-                        error!("{e:#}");
-                    }
-                }
+                Ok(event) => self.handle_crankshaft_event(event),
                 Err(TryRecvError::Lagged(_)) => continue,
                 Err(TryRecvError::Empty | TryRecvError::Closed) => break,
             }
@@ -183,11 +236,7 @@ impl TaskMonitorSvc {
 
         loop {
             match self.engine.try_recv() {
-                Ok(event) => {
-                    if let Err(e) = self.handle_engine_event(event).await {
-                        error!("{e:#}");
-                    }
-                }
+                Ok(event) => self.handle_engine_event(event),
                 Err(TryRecvError::Lagged(_)) => continue,
                 Err(TryRecvError::Empty | TryRecvError::Closed) => break,
             }
@@ -200,18 +249,23 @@ impl TaskMonitorSvc {
     /// canceled before the task reaches its backend, in which case no event
     /// announcing its fate is ever emitted. The run's own error carries why;
     /// this only ensures the task does not appear to be working forever.
-    async fn reconcile(&mut self) {
+    fn reconcile(&mut self) {
         let completed_at = Utc::now();
         for name in self.unfinished.drain() {
-            match self.db.update_task_canceled(&name, completed_at).await {
-                Ok(_) => {}
-                Err(e) => error!("failed to reconcile status of task `{name}`: {e:#}"),
-            }
+            self.pending
+                .push(TaskWrite::Canceled { name, completed_at });
         }
     }
 
     /// Handles a received engine event.
-    async fn handle_engine_event(&mut self, event: EngineEvent) -> Result<()> {
+    fn handle_engine_event(&mut self, event: EngineEvent) {
+        if let Err(e) = self.handle_engine_event_inner(event) {
+            error!("{e:#}");
+        }
+    }
+
+    /// Builds the buffered writes implied by a received engine event.
+    fn handle_engine_event_inner(&mut self, event: EngineEvent) -> Result<()> {
         match event {
             EngineEvent::TaskInitializing { id, name, attempt } => {
                 let attempt = attempt.try_into().unwrap_or(i64::MAX);
@@ -222,24 +276,24 @@ impl TaskMonitorSvc {
                         attempt,
                     },
                 );
-                self.db
-                    .create_task(NewTask {
-                        name: &name,
-                        run_id: self.run_id,
-                        status: TaskStatus::Initializing,
-                        call_id: Some(&id),
-                        attempt,
-                    })
-                    .await?;
+                self.pending.push(TaskWrite::Create {
+                    name: name.clone(),
+                    run_id: self.run_id,
+                    status: TaskStatus::Initializing,
+                    call_id: Some(id),
+                    attempt,
+                    created_at: Utc::now(),
+                });
                 self.unfinished.insert(name);
             }
             EngineEvent::TaskLocalizing { name } => {
-                let _ = self.db.update_task_localizing(&name).await?;
+                self.pending.push(TaskWrite::Localizing { name });
             }
             EngineEvent::TaskExecuting { name, constraints } => {
                 let constraints = serde_json::to_string(&constraints)
                     .context("failed to serialize task constraints")?;
-                let _ = self.db.update_task_constraints(&name, &constraints).await?;
+                self.pending
+                    .push(TaskWrite::Constraints { name, constraints });
             }
             EngineEvent::TaskRetrying {
                 prior_name,
@@ -250,13 +304,19 @@ impl TaskMonitorSvc {
                 // usually already reached a terminal status.
                 let cause =
                     serde_json::to_string(&cause).context("failed to serialize retry cause")?;
-                let _ = self.db.update_task_retry_cause(&prior_name, &cause).await?;
+                self.pending.push(TaskWrite::RetryCause {
+                    name: prior_name.clone(),
+                    cause,
+                });
 
                 // Create the successor's row, inheriting the call id and
                 // attempt number from the failed attempt. An evaluator retry
                 // is followed by a `TaskInitializing` event that raises the
                 // attempt number; a backend-local resubmission is not, and
-                // remains part of the same attempt.
+                // remains part of the same attempt. The prior attempt's
+                // metadata is looked up in memory rather than read back from
+                // the database, since its own creation may be
+                // unflushed in this same buffer.
                 let TaskMeta { call_id, attempt } =
                     self.task_meta.get(&prior_name).cloned().unwrap_or_default();
                 self.task_meta.insert(
@@ -266,30 +326,39 @@ impl TaskMonitorSvc {
                         attempt,
                     },
                 );
-                self.db
-                    .create_task(NewTask {
-                        name: &next_name,
-                        run_id: self.run_id,
-                        status: TaskStatus::Initializing,
-                        call_id: call_id.as_deref(),
-                        attempt,
-                    })
-                    .await?;
+                self.pending.push(TaskWrite::Create {
+                    name: next_name.clone(),
+                    run_id: self.run_id,
+                    status: TaskStatus::Initializing,
+                    call_id,
+                    attempt,
+                    created_at: Utc::now(),
+                });
                 self.unfinished.insert(next_name);
             }
             EngineEvent::ReusedCachedExecutionResult { id, name } => {
                 // The task may never have been announced as initializing if
-                // that event is still in flight on the other channel.
-                self.db
-                    .create_task(NewTask {
-                        name: &name,
-                        run_id: self.run_id,
-                        status: TaskStatus::Initializing,
-                        call_id: Some(&id),
+                // that event is still in flight on the other
+                // channel.
+                self.task_meta.insert(
+                    name.clone(),
+                    TaskMeta {
+                        call_id: Some(id.clone()),
                         attempt: 0,
-                    })
-                    .await?;
-                let _ = self.db.update_task_cached(&name, Utc::now()).await?;
+                    },
+                );
+                self.pending.push(TaskWrite::Create {
+                    name: name.clone(),
+                    run_id: self.run_id,
+                    status: TaskStatus::Initializing,
+                    call_id: Some(id),
+                    attempt: 0,
+                    created_at: Utc::now(),
+                });
+                self.pending.push(TaskWrite::Cached {
+                    name: name.clone(),
+                    completed_at: Utc::now(),
+                });
                 self.unfinished.remove(&name);
             }
             EngineEvent::TaskParked | EngineEvent::TaskUnparked { .. } => {
@@ -304,7 +373,14 @@ impl TaskMonitorSvc {
     }
 
     /// Handles a received Crankshaft event.
-    async fn handle_crankshaft_event(&mut self, event: CrankshaftEvent) -> Result<()> {
+    fn handle_crankshaft_event(&mut self, event: CrankshaftEvent) {
+        if let Err(e) = self.handle_crankshaft_event_inner(event) {
+            error!("{e:#}");
+        }
+    }
+
+    /// Builds the buffered writes implied by a received Crankshaft event.
+    fn handle_crankshaft_event_inner(&mut self, event: CrankshaftEvent) -> Result<()> {
         match event {
             CrankshaftEvent::TaskCreated {
                 id,
@@ -326,74 +402,91 @@ impl TaskMonitorSvc {
                 }
 
                 self.task_names.insert(id, name.clone());
-                self.db
-                    .create_task(NewTask::from_backend_event(
-                        &name,
-                        self.run_id,
-                        TaskStatus::Pending,
-                    ))
-                    .await?;
-                let _ = self.db.update_task_pending(&name).await?;
+                self.pending.push(TaskWrite::Create {
+                    name: name.clone(),
+                    run_id: self.run_id,
+                    status: TaskStatus::Pending,
+                    call_id: None,
+                    attempt: 0,
+                    created_at: Utc::now(),
+                });
+                self.pending.push(TaskWrite::Pending { name: name.clone() });
                 self.unfinished.insert(name);
             }
             CrankshaftEvent::TaskStarted { id } => {
-                if let Some(name) = self.task_names.get(&id) {
-                    let _ = self.db.update_task_started(name, Utc::now()).await?;
+                if let Some(name) = self.task_names.get(&id).cloned() {
+                    self.pending.push(TaskWrite::Started {
+                        name,
+                        started_at: Utc::now(),
+                    });
                 }
             }
             CrankshaftEvent::TaskCompleted { id, exit_statuses } => {
                 if let Some(name) = self.task_names.get(&id).cloned() {
                     let exit_status = exit_statuses.last().code();
-                    let _ = self
-                        .db
-                        .update_task_completed(&name, exit_status, Utc::now())
-                        .await?;
+                    self.pending.push(TaskWrite::Completed {
+                        name: name.clone(),
+                        exit_status,
+                        completed_at: Utc::now(),
+                    });
                     self.unfinished.remove(&name);
                 }
             }
             CrankshaftEvent::TaskFailed { id, message } => {
                 if let Some(name) = self.task_names.get(&id).cloned() {
-                    let _ = self
-                        .db
-                        .update_task_failed(&name, &message, Utc::now())
-                        .await?;
+                    self.pending.push(TaskWrite::Failed {
+                        name: name.clone(),
+                        error: message,
+                        completed_at: Utc::now(),
+                    });
                     self.unfinished.remove(&name);
                 }
             }
             CrankshaftEvent::TaskCanceled { id } => {
                 if let Some(name) = self.task_names.get(&id).cloned() {
-                    let _ = self.db.update_task_canceled(&name, Utc::now()).await?;
+                    self.pending.push(TaskWrite::Canceled {
+                        name: name.clone(),
+                        completed_at: Utc::now(),
+                    });
                     self.unfinished.remove(&name);
                 }
             }
             CrankshaftEvent::TaskPreempted { id } => {
                 if let Some(name) = self.task_names.get(&id).cloned() {
-                    let _ = self.db.update_task_preempted(&name, Utc::now()).await?;
+                    self.pending.push(TaskWrite::Preempted {
+                        name: name.clone(),
+                        completed_at: Utc::now(),
+                    });
                     self.unfinished.remove(&name);
                 }
             }
             CrankshaftEvent::TaskResourceUsage { id, usage } => {
-                // Utilization is a cumulative snapshot: the last received is
-                // authoritative, and the write is guard-free, so repeated
-                // samples simply overwrite.
+                // Utilization is a cumulative snapshot: the last received
+                // sample for each field is authoritative, and the write is
+                // guard-free, so repeated samples simply patch over the
+                // previous value for the fields they report.
                 if let Some(name) = self.task_names.get(&id).cloned() {
-                    let usage = serde_json::to_string(&usage)
+                    let patch = utilization_patch(&usage)
                         .context("failed to serialize task resource usage")?;
-                    let _ = self.db.update_task_utilization(&name, &usage).await?;
+                    self.pending.push(TaskWrite::Utilization { name, patch });
                 }
             }
             CrankshaftEvent::TaskStdout { id, message } => {
-                if let Some(name) = self.task_names.get(&id) {
-                    self.db
-                        .insert_task_log(name, LogSource::Stdout, &message)
-                        .await?;
+                if let Some(name) = self.task_names.get(&id).cloned() {
+                    self.pending.push(TaskWrite::Log {
+                        name,
+                        source: LogSource::Stdout,
+                        chunk: message.to_vec(),
+                    });
                 }
             }
             CrankshaftEvent::TaskStderr { id, message } => {
-                if let Some(name) = self.task_names.get(&id) {
-                    self.db
-                        .insert_task_log(name, LogSource::Stderr, &message)
-                        .await?;
+                if let Some(name) = self.task_names.get(&id).cloned() {
+                    self.pending.push(TaskWrite::Log {
+                        name,
+                        source: LogSource::Stderr,
+                        chunk: message.to_vec(),
+                    });
                 }
             }
             CrankshaftEvent::ImagePullStarted { id: _, name: _ }
@@ -420,13 +513,140 @@ impl TaskMonitorSvc {
     }
 }
 
+/// Applies a copy of the pending writes and clears the buffer only after
+/// success.
+async fn apply_pending<F, Fut, E>(pending: &mut Vec<TaskWrite>, apply: F) -> Result<(), E>
+where
+    F: FnOnce(Vec<TaskWrite>) -> Fut,
+    Fut: Future<Output = Result<(), E>>,
+{
+    apply(pending.clone()).await?;
+    pending.clear();
+    Ok(())
+}
+
+/// Serializes a resource usage sample into a JSON Merge Patch fragment
+/// suitable for [`Database::update_task_utilization`], omitting any
+/// top-level field whose value is `null`.
+///
+/// A JSON Merge Patch interprets an explicit `null` as "delete this key,"
+/// but an absent measurement here means "no information," not "clear the
+/// previously recorded value," so such fields must not appear in the patch
+/// at all.
+fn utilization_patch(usage: &impl serde::Serialize) -> Result<String> {
+    let mut value = serde_json::to_value(usage).context("failed to serialize task usage")?;
+    if let Some(map) = value.as_object_mut() {
+        map.retain(|_, v| !v.is_null());
+    }
+
+    serde_json::to_string(&value).context("failed to serialize task utilization patch")
+}
+
 #[cfg(test)]
 mod tests {
+    use anyhow::bail;
     use wdl::engine::RetryCause;
 
     use super::*;
     use crate::system::v1::db::SprocketCommand;
     use crate::system::v1::db::SqliteDatabase;
+
+    #[tokio::test]
+    async fn failed_flush_retains_writes_in_order() {
+        let mut pending = vec![
+            TaskWrite::Localizing {
+                name: "first".to_string(),
+            },
+            TaskWrite::Localizing {
+                name: "second".to_string(),
+            },
+        ];
+
+        let result = apply_pending(&mut pending, |_writes| async {
+            bail!("simulated database failure")
+        })
+        .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            pending.as_slice(),
+            [
+                TaskWrite::Localizing { name: first },
+                TaskWrite::Localizing { name: second }
+            ] if first == "first" && second == "second"
+        ));
+    }
+
+    #[sqlx::test]
+    async fn delayed_flush_preserves_task_creation_times(pool: sqlx::SqlitePool) {
+        let db = Arc::new(
+            SqliteDatabase::from_pool(pool)
+                .await
+                .expect("failed to create database"),
+        );
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        let (_crankshaft_tx, crankshaft) = broadcast::channel(1);
+        let (_engine_tx, engine) = broadcast::channel(1);
+        let mut monitor = TaskMonitorSvc::new(
+            run_id,
+            db.clone(),
+            crankshaft,
+            engine,
+            CancellationToken::new(),
+        );
+
+        let before_events = Utc::now();
+        monitor.handle_engine_event(EngineEvent::TaskInitializing {
+            id: "wf.engine".to_string(),
+            name: "engine".to_string(),
+            attempt: 0,
+        });
+        monitor.handle_engine_event(EngineEvent::TaskRetrying {
+            prior_name: "engine".to_string(),
+            next_name: "retry".to_string(),
+            cause: RetryCause::Preempted,
+        });
+        monitor.handle_engine_event(EngineEvent::ReusedCachedExecutionResult {
+            id: "wf.cached".to_string(),
+            name: "cached".to_string(),
+        });
+        for (id, name) in [(1, "engine"), (2, "backend")] {
+            monitor.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+                id,
+                name: name.to_string(),
+                tes_id: None,
+                token: CancellationToken::new(),
+            });
+            monitor.handle_crankshaft_event(CrankshaftEvent::TaskStarted { id });
+        }
+        let after_events = Utc::now();
+
+        // Cross a second boundary so SQLite's default timestamp cannot pass.
+        tokio::time::sleep(Duration::from_millis(1100)).await;
+        monitor.flush_final().await.expect("failed to flush tasks");
+
+        for name in ["engine", "retry", "cached", "backend"] {
+            let task = db.get_task(name).await.expect("failed to get task");
+            assert!(
+                (before_events..=after_events).contains(&task.created_at),
+                "{name}: creation time must reflect the event, not the flush"
+            );
+            if let Some(started_at) = task.started_at {
+                assert!(task.created_at <= started_at);
+            }
+            if let Some(completed_at) = task.completed_at {
+                assert!(task.created_at <= completed_at);
+            }
+        }
+    }
 
     #[sqlx::test]
     async fn retry_inherits_metadata_without_reading_the_prior_row(pool: sqlx::SqlitePool) {
@@ -456,14 +676,15 @@ mod tests {
             CancellationToken::new(),
         );
 
+        monitor.handle_engine_event(EngineEvent::TaskInitializing {
+            id: "wf.task".to_string(),
+            name: "wf-task-attempt-0".to_string(),
+            attempt: 2,
+        });
         monitor
-            .handle_engine_event(EngineEvent::TaskInitializing {
-                id: "wf.task".to_string(),
-                name: "wf-task-attempt-0".to_string(),
-                attempt: 2,
-            })
+            .flush_final()
             .await
-            .expect("failed to initialize task");
+            .expect("failed to flush initialization");
 
         sqlx::query("delete from tasks where name = ?")
             .bind("wf-task-attempt-0")
@@ -471,14 +692,12 @@ mod tests {
             .await
             .expect("failed to remove prior task row");
 
-        monitor
-            .handle_engine_event(EngineEvent::TaskRetrying {
-                prior_name: "wf-task-attempt-0".to_string(),
-                next_name: "wf-task-attempt-0-resubmit-1".to_string(),
-                cause: RetryCause::Preempted,
-            })
-            .await
-            .expect("failed to retry task");
+        monitor.handle_engine_event(EngineEvent::TaskRetrying {
+            prior_name: "wf-task-attempt-0".to_string(),
+            next_name: "wf-task-attempt-0-resubmit-1".to_string(),
+            cause: RetryCause::Preempted,
+        });
+        monitor.flush_final().await.expect("failed to flush retry");
 
         let successor = db
             .get_task("wf-task-attempt-0-resubmit-1")
