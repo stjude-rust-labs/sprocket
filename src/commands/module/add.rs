@@ -155,40 +155,22 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
     document
         .insert_dependency(name.manifest(), &source)
         .map_err(anyhow::Error::from)?;
-    let relock = if args.no_lock {
-        None
-    } else {
-        Some(
-            RelockPlanner::new(&config, &project, &baseline)
-                .plan_and_enforce(
-                    std::sync::Arc::new(document.manifest().clone()),
-                    signer_change_mode(&config, args.trust_mode),
-                    output,
-                )
-                .await?,
+    let relock = RelockPlanner::new(&config, &project, &baseline)
+        .apply_manifest_edit(
+            &document,
+            args.no_lock,
+            signer_change_mode(&config, args.trust_mode),
+            output,
         )
-    };
-
-    project
-        .write_manifest(&document)
-        .map_err(anyhow::Error::from)?;
-    let written = match relock.as_ref() {
-        Some(outcome) => Some(write_lockfile(
-            &project,
-            &outcome.lockfile,
-            document.manifest(),
-            WriteIntent::Satisfy,
-        )?),
-        None => None,
-    };
+        .await?;
     tracing::debug!(
         dependency = name.manifest(),
         manifest = %project.manifest_path().display(),
         "wrote dependency to manifest"
     );
 
-    if let Some(outcome) = relock {
-        if written == Some(LockfileWrite::Kept) {
+    if let Some((outcome, written)) = relock {
+        if written == LockfileWrite::Kept {
             tracing::debug!("kept the module lockfile another process had already written");
             output.completed(ADD, format!("`{}`", name.manifest()));
             print_source_details(output, &source);

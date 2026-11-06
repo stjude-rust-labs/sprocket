@@ -25,6 +25,7 @@ use super::project::WriteIntent;
 use super::project::discover;
 use super::project::load_lockfile;
 use super::project::trace_project;
+use super::project::validate_dependency_names;
 use super::project::write_lockfile;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::TrustModeArg;
@@ -66,17 +67,14 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
         "starting `sprocket dev module upgrade`"
     );
     let project = discover(&args.locator)?;
+    trace_project("module upgrade", &project);
+    let existing = load_lockfile(&project)?.unwrap_or_default();
+    let plan = plan_upgrade(&args, &config, &project, &existing).await?;
     if args.dry_run {
-        trace_project("module upgrade", &project);
-        let existing = load_lockfile(&project)?.unwrap_or_default();
-        let plan = plan_upgrade(&args, &config, &project, &existing).await?;
         print_upgrade_plan(output, plan);
         return Ok(());
     }
 
-    trace_project("module upgrade", &project);
-    let existing = load_lockfile(&project)?.unwrap_or_default();
-    let plan = plan_upgrade(&args, &config, &project, &existing).await?;
     let UpgradePlan::Changes(changes) = plan else {
         print_upgrade_plan(output, plan);
         return Ok(());
@@ -152,17 +150,7 @@ async fn plan_upgrade(
     if args.names.is_empty() {
         selected.extend(project.manifest().dependencies.keys().cloned());
     } else {
-        for raw in &args.names {
-            let name: DependencyName = raw
-                .parse()
-                .with_context(|| format!("invalid dependency name `{raw}`"))?;
-            if !project.manifest().dependencies.contains_key(&name) {
-                return Err(anyhow::anyhow!(
-                    "dependency `{raw}` not found in `module.json`"
-                ));
-            }
-            selected.push(name);
-        }
+        selected = validate_dependency_names(project, &args.names)?;
     }
     tracing::debug!(
         selected = selected.len(),

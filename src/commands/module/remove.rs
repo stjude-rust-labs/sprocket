@@ -4,11 +4,9 @@ use clap::Parser;
 
 use super::project::Locator;
 use super::project::LockfileWrite;
-use super::project::WriteIntent;
 use super::project::discover;
 use super::project::load_lockfile;
 use super::project::trace_project;
-use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::signer_change_mode;
@@ -56,42 +54,22 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         return Err(anyhow::anyhow!("dependency `{}` not found", args.name).into());
     }
 
-    // Relock against the pending manifest before touching any files so a
-    // refused or failed relock leaves the project untouched.
-    let relock = if args.no_lock {
-        None
-    } else {
-        Some(
-            RelockPlanner::new(&config, &project, &baseline)
-                .plan_and_enforce(
-                    std::sync::Arc::new(document.manifest().clone()),
-                    signer_change_mode(&config, args.trust_mode),
-                    output,
-                )
-                .await?,
+    let relock = RelockPlanner::new(&config, &project, &baseline)
+        .apply_manifest_edit(
+            &document,
+            args.no_lock,
+            signer_change_mode(&config, args.trust_mode),
+            output,
         )
-    };
-
-    project
-        .write_manifest(&document)
-        .map_err(anyhow::Error::from)?;
-    let written = match relock.as_ref() {
-        Some(outcome) => Some(write_lockfile(
-            &project,
-            &outcome.lockfile,
-            document.manifest(),
-            WriteIntent::Satisfy,
-        )?),
-        None => None,
-    };
+        .await?;
     tracing::debug!(
         dependency = args.name,
         manifest = %project.manifest_path().display(),
         "removed dependency from manifest"
     );
 
-    if let Some(outcome) = relock {
-        if written == Some(LockfileWrite::Kept) {
+    if let Some((outcome, written)) = relock {
+        if written == LockfileWrite::Kept {
             tracing::debug!("kept the module lockfile another process had already written");
             output.completed(REMOVE, format!("`{}`", args.name));
             output.current("module lockfile is up to date");
