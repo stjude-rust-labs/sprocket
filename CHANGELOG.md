@@ -13,6 +13,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   available. Local Docker containers sample these measurements every second by default; set
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
   unsupported ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+* Execution metrics include scheduler-pending and allocated CPU time, time lost to preemption,
+  resolved retry policy and curated hints, local work directory disk usage, execution backend and
+  Sprocket version, and localization transfer volume as a data-movement proxy
+  ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
 
 ### Changed
 
