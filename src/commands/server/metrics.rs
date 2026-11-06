@@ -70,12 +70,6 @@ pub async fn metrics(args: Args, config: Config, output: CommandOutput) -> Comma
 
 /// Formats a byte count for display, choosing the largest unit (B, KiB,
 /// MiB, or GiB) for which the value is at least 1.
-///
-/// A fixed unit (e.g. always GiB) can silently round a real, nonzero
-/// transfer down to `0.0`, which is visually indistinguishable from no
-/// transfer having happened at all. Choosing the unit by magnitude avoids
-/// that: the displayed value is always `>= 1.0` in its chosen unit unless
-/// the byte count is genuinely zero.
 fn format_bytes(bytes: u64) -> String {
     const KIB: f64 = 1024.0;
     const MIB: f64 = KIB * 1024.0;

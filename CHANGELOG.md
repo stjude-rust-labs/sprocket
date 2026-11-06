@@ -10,9 +10,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 * Execution metrics include backend-reported peak and average memory and cumulative CPU time when
-  available. The Docker backend can sample these measurements with
-  `backends.<name>.resource_usage_interval`
-  ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+  available. Local Docker containers sample these measurements every second by default; set
+  `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
+  unsupported ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
 
 ### Fixed
 

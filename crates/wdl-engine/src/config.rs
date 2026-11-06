@@ -1629,6 +1629,11 @@ fn default_docker_cleanup() -> bool {
     true
 }
 
+/// The default sampling interval for the Docker backend, in seconds.
+fn default_docker_resource_usage_interval() -> Option<u64> {
+    Some(1)
+}
+
 /// Represents configuration for the Docker backend.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
@@ -1644,15 +1649,14 @@ pub struct DockerBackendConfig {
     /// The interval, in seconds, at which to sample a running container's
     /// resource usage.
     ///
-    /// When set, each task's peak and average memory and cumulative CPU time
+    /// Each task's peak and average memory and cumulative CPU time
     /// are sampled from the Docker daemon at this interval and reported in
     /// the run's metrics.
     ///
-    /// When unset or zero, resource usage is not sampled. Sampling applies
-    /// only to local container execution; it is not supported for Docker
-    /// Swarm services.
-    #[toml(default)]
-    #[schemars(default)]
+    /// Defaults to one second. Set to zero to disable sampling. Sampling
+    /// applies only to local container execution, not Docker Swarm services.
+    #[toml(default = default_docker_resource_usage_interval())]
+    #[schemars(default = "default_docker_resource_usage_interval")]
     pub resource_usage_interval: Option<u64>,
 }
 
@@ -1667,7 +1671,7 @@ impl Default for DockerBackendConfig {
     fn default() -> Self {
         Self {
             cleanup: default_docker_cleanup(),
-            resource_usage_interval: None,
+            resource_usage_interval: default_docker_resource_usage_interval(),
         }
     }
 }
@@ -4257,5 +4261,35 @@ type = 'lsf_apptainer'
             eval(context, r#"hint.foo == "overridden!""#).await.unwrap(),
             true
         );
+    }
+
+    #[test]
+    fn docker_resource_usage_interval_defaults_and_overrides() {
+        assert_eq!(
+            DockerBackendConfig::default().resource_usage_interval,
+            Some(1)
+        );
+
+        for (setting, expected) in [
+            ("", Some(1)),
+            ("resource_usage_interval = 0", Some(0)),
+            ("resource_usage_interval = 5", Some(5)),
+        ] {
+            let source =
+                format!("backend = 'docker'\n[backends.docker]\ntype = 'docker'\n{setting}");
+            let BuiltConfig { config, warnings } = Config::builder()
+                .with_string_source(&source)
+                .try_build()
+                .expect("should build");
+
+            assert!(warnings.is_empty());
+            assert_eq!(
+                config.backends["docker"]
+                    .as_docker()
+                    .expect("should be Docker")
+                    .resource_usage_interval,
+                expected
+            );
+        }
     }
 }
