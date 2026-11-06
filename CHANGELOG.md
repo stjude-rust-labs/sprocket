@@ -36,6 +36,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The run summary records the execution backend, Sprocket version, and localization transfer volume
   as a data-movement proxy rather than a billing-egress figure
   ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Added opt-in TES resource usage reporting through
+  `backends.<name>.resource_usage_metadata = true`. It reads supported `TaskLog.metadata` keys,
+  including Planetary's sampled Kubernetes working-set memory and cumulative CPU time
+  ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ### Changed
 
