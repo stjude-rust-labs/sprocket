@@ -612,9 +612,8 @@ impl MonitorState {
 
                     let job = self.jobs.remove(&job_id).unwrap();
 
-                    // Report the utilization measured by Slurm for the
-                    // attempt; this occurs for any termination — successful,
-                    // failed, or canceled alike.
+                    // Report Slurm utilization when the attempt succeeds,
+                    // fails, or is canceled.
                     let mut usage = record.utilization();
                     if let Some(step_usage) = step_usage.remove(&job_id) {
                         merge_slurm_usage(&mut usage, step_usage);

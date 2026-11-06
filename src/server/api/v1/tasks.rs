@@ -107,9 +107,10 @@ pub struct Task {
     /// The resource utilization observed for this attempt (resident memory,
     /// CPU time).
     ///
-    /// Recorded at the attempt's termination by backends whose scheduler
-    /// reports utilization (currently LSF and Slurm); `null` for other
-    /// backends.
+    /// Reported by LSF and Slurm, and by local Docker containers when
+    /// `backends.<name>.resource_usage_interval` is set to a nonzero value.
+    /// Sampling is not supported for Docker Swarm services. `null` when no
+    /// measurements have been reported.
     #[schema(value_type = Option<Object>)]
     pub utilization: Option<serde_json::Value>,
     /// Timestamp when task was created.
