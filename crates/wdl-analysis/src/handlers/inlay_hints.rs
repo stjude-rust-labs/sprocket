@@ -15,8 +15,14 @@ use lsp_types::Range;
 use lsp_types::TextEdit;
 use rowan::TextSize;
 use url::Url;
-use wdl_ast::AstToken;
 
+use line_index::LineIndex;
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::v1::ScatterStatement;
+use wdl_ast::v1::WorkflowStatement;
+
+use crate::document::Document;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::common::position;
@@ -156,5 +162,96 @@ pub fn inlay_hints(
         }
     }
 
+    // Scatter variables get the element type of the expression they iterate
+    // over. The analysis builds a scope for the scatter body, so the type can
+    // be read from there.
+    if let Some(ast) = document.root().ast().as_v1() {
+        for workflow in ast.workflows() {
+            hints.extend(scatter_variable_hints(
+                document,
+                workflow.statements(),
+                &lines,
+                &range,
+            )?);
+        }
+    }
+
     Ok(Some(hints))
+}
+
+/// Collects type hints for scatter variables, including nested scatters and
+/// scatters inside conditional statements.
+fn scatter_variable_hints<I>(
+    document: &Document,
+    statements: I,
+    lines: &LineIndex,
+    range: &Range,
+) -> Result<Vec<InlayHint>>
+where
+    I: Iterator<Item = WorkflowStatement>,
+{
+    let mut hints = Vec::new();
+
+    for statement in statements {
+        if let Some(scatter) = statement.as_scatter() {
+            hints.extend(scatter_variable_hint(document, scatter, lines, range)?);
+            hints.extend(scatter_variable_hints(
+                document,
+                scatter.statements(),
+                lines,
+                range,
+            )?);
+        } else if let Some(conditional) = statement.as_conditional() {
+            for clause in conditional.clauses() {
+                hints.extend(scatter_variable_hints(
+                    document,
+                    clause.statements(),
+                    lines,
+                    range,
+                )?);
+            }
+        }
+    }
+
+    Ok(hints)
+}
+
+/// Creates a type hint for a scatter variable.
+fn scatter_variable_hint(
+    document: &Document,
+    scatter: &ScatterStatement,
+    lines: &LineIndex,
+    range: &Range,
+) -> Result<Option<InlayHint>> {
+    let variable = scatter.variable();
+    let variable_span = variable.span();
+    let end = position(lines, TextSize::try_from(variable_span.end())?)?;
+
+    // Skip if the variable is not within the requested range
+    if !position_in_range(&end, range) {
+        return Ok(None);
+    }
+
+    let Some(body_span) = scatter.braced_scope_span(false) else {
+        return Ok(None);
+    };
+    let Some(scope) = document.find_scope_by_position(body_span.start()) else {
+        return Ok(None);
+    };
+    let Some(name) = scope.local(variable.text()) else {
+        return Ok(None);
+    };
+
+    Ok(Some(InlayHint {
+        position: end,
+        label: InlayHintLabel::String(format!(": {}", name.ty())),
+        kind: Some(InlayHintKind::TYPE),
+        // Scatter variables have no type annotation syntax, so the hint is
+        // display-only.
+        text_edits: None,
+        tooltip: None,
+        padding_left: None,
+        padding_right: None,
+        data: None,
+    }))
 }

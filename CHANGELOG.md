@@ -13,6 +13,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   available. Local Docker containers sample these measurements every second by default; set
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
   unsupported ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+* Scatter variables now get inlay hints with their inferred type, e.g.
+  `scatter (foo in [1, 2, 3])` hints `foo` with `: Int`
+  ([#1368](https://github.com/stjude-rust-labs/sprocket/pull/1368)).
 
 ### Fixed
 

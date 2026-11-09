@@ -8,6 +8,7 @@ mod find_all_references;
 mod folding_range;
 mod goto_definition;
 mod hover;
+mod inlay_hints;
 mod rename;
 mod semantic_tokens;
 mod shutdown;
