@@ -10,6 +10,7 @@ use chrono::Utc;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::sqlite::SqliteJournalMode;
+use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::sqlite::SqliteSynchronous;
 use uuid::Uuid;
 
@@ -17,6 +18,7 @@ use super::Database;
 use super::DatabaseError;
 use super::NewTask;
 use super::Result;
+use super::TaskWrite;
 use super::models::IndexLogEntry;
 use super::models::LogSource;
 use super::models::Run;
@@ -39,11 +41,15 @@ const SQLITE_CONNECTION_PREFIX: &str = "sqlite:";
 /// Store temporary tables and indices in memory for faster operations.
 const SQLITE_TEMP_STORE: &str = "memory";
 
-/// Set memory-mapped I/O size to 4GiB for improved read performance.
-const SQLITE_MMAP_SIZE: &str = "4294967296";
+/// Disable memory-mapped I/O to avoid mapping faults on shared filesystems.
+const SQLITE_MMAP_SIZE: &str = "0";
 
 /// Set page size to 32KB to reduce I/O operations for sequential scans.
 const SQLITE_PAGE_SIZE: &str = "32768";
+
+/// Allocate SQLite's page cache: `page_size` (32KB) x `cache_size` (2000
+/// pages) is ~62.5MB.
+const SQLITE_CACHE_SIZE: &str = "2000";
 
 /// Enable foreign key constraint enforcement for referential integrity.
 const SQLITE_FOREIGN_KEYS: &str = "on";
@@ -58,9 +64,9 @@ const EXPECTED_VERSION: &str = "1";
 /// processes time to complete their writes under heavy parallel access.
 const SQLITE_BUSY_TIMEOUT: &str = "30000";
 
-/// Allocate approximately 8MB for SQLite page cache for improved query
-/// performance.
-const SQLITE_CACHE_SIZE: &str = "2000";
+/// Limit competing connections because SQLite permits only one writer at a
+/// time.
+const SQLITE_MAX_CONNECTIONS: u32 = 5;
 
 /// SQLite database implementation.
 #[derive(Debug, Clone)]
@@ -83,7 +89,10 @@ impl SqliteDatabase {
         let database_url = format!("{}//{}", SQLITE_CONNECTION_PREFIX, path.display());
         let options = SqliteConnectOptions::from_str(&database_url)?
             .create_if_missing(true)
-            .journal_mode(SqliteJournalMode::Delete)
+            // Keep the rollback journal between commits to reduce filesystem
+            // metadata operations. Avoid WAL because independent processes
+            // previously encountered recovery errors.
+            .journal_mode(SqliteJournalMode::Persist)
             .synchronous(SqliteSynchronous::Normal)
             .pragma("temp_store", SQLITE_TEMP_STORE)
             .pragma("mmap_size", SQLITE_MMAP_SIZE)
@@ -92,7 +101,10 @@ impl SqliteDatabase {
             .pragma("busy_timeout", SQLITE_BUSY_TIMEOUT)
             .pragma("cache_size", SQLITE_CACHE_SIZE);
 
-        let pool = SqlitePool::connect_with(options).await?;
+        let pool = SqlitePoolOptions::new()
+            .max_connections(SQLITE_MAX_CONNECTIONS)
+            .connect_with(options)
+            .await?;
         Self::from_pool(pool).await
     }
 
@@ -296,6 +308,76 @@ impl Database for SqliteDatabase {
 
     async fn update_run_outputs(&self, id: Uuid, outputs: &str) -> Result<()> {
         sqlx::query("update runs set outputs = ? where uuid = ?")
+            .bind(outputs)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    // Overrides the trait's default two-write implementation (status, then
+    // started_at) with a single statement/commit; every run takes this
+    // path, so halving its commit count matters on slow/contended storage.
+    async fn start_run(&self, id: Uuid, started_at: DateTime<Utc>) -> Result<()> {
+        sqlx::query("update runs set status = ?, started_at = ? where uuid = ?")
+            .bind(RunStatus::Running)
+            .bind(started_at)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    // See the note on `start_run` above
+    async fn complete_run(&self, id: Uuid, completed_at: DateTime<Utc>) -> Result<()> {
+        sqlx::query("update runs set status = ?, completed_at = ? where uuid = ?")
+            .bind(RunStatus::Completed)
+            .bind(completed_at)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    // See the note on `start_run` above
+    async fn fail_run(&self, id: Uuid, error: &str, completed_at: DateTime<Utc>) -> Result<()> {
+        sqlx::query("update runs set status = ?, error = ?, completed_at = ? where uuid = ?")
+            .bind(RunStatus::Failed)
+            .bind(error)
+            .bind(completed_at)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    // See the note on `start_run` above
+    async fn cancel_run(&self, id: Uuid, completed_at: DateTime<Utc>) -> Result<()> {
+        sqlx::query("update runs set status = ?, completed_at = ? where uuid = ?")
+            .bind(RunStatus::Canceled)
+            .bind(completed_at)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    // Combines `update_run_outputs` + `complete_run` into one statement/
+    // commit
+    async fn complete_run_with_outputs(
+        &self,
+        id: Uuid,
+        completed_at: DateTime<Utc>,
+        outputs: &str,
+    ) -> Result<()> {
+        sqlx::query("update runs set status = ?, completed_at = ?, outputs = ? where uuid = ?")
+            .bind(RunStatus::Completed)
+            .bind(completed_at)
             .bind(outputs)
             .bind(id.to_string())
             .execute(&self.pool)
@@ -534,9 +616,9 @@ impl Database for SqliteDatabase {
         // missing call id and raises the attempt number to the larger of the
         // two rather than discarding them.
         let task: Task = sqlx::query_as(
-            "insert into tasks (name, run_id, status, call_id, attempt) select ?, r.id, ?, ?, ? \
-             from runs r where r.uuid = ? on conflict(\"name\") do update set call_id = \
-             coalesce(tasks.call_id, excluded.call_id), attempt = max(tasks.attempt, \
+            "insert into tasks (name, run_id, status, call_id, attempt, created_at) select ?, \
+             r.id, ?, ?, ?, ? from runs r where r.uuid = ? on conflict(\"name\") do update set \
+             call_id = coalesce(tasks.call_id, excluded.call_id), attempt = max(tasks.attempt, \
              excluded.attempt) returning name, (select uuid from runs where id = run_id) as \
              run_uuid, status, exit_status, error, call_id, attempt, \"constraints\", \
              retry_cause, utilization, created_at, started_at, completed_at",
@@ -545,6 +627,7 @@ impl Database for SqliteDatabase {
         .bind(task.status)
         .bind(task.call_id)
         .bind(task.attempt)
+        .bind(task.created_at)
         .bind(task.run_id.to_string())
         .fetch_one(&self.pool)
         .await?;
@@ -582,16 +665,22 @@ impl Database for SqliteDatabase {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn update_task_utilization(&self, name: &str, utilization: &str) -> Result<bool> {
+    async fn update_task_utilization(&self, name: &str, patch: &str) -> Result<bool> {
         // No status guard: utilization is recorded at the attempt's
         // termination, which races the completion event on the other channel,
         // so the row is usually already in a terminal status.
+        //
+        // `json_patch` merges `patch` into the existing column server-side,
+        // avoiding a separate `SELECT` + Rust-side merge + `UPDATE` round
+        // trip; `coalesce(utilization, '{}')` treats a never-set column the
+        // same as an empty object so the first patch simply becomes the
+        // stored value.
         let result = sqlx::query(
             "update tasks
-             set utilization = ?
+             set utilization = json_patch(coalesce(utilization, '{}'), ?)
              where name = ?",
         )
-        .bind(utilization)
+        .bind(patch)
         .bind(name)
         .execute(&self.pool)
         .await?;
@@ -898,6 +987,224 @@ impl Database for SqliteDatabase {
         let count: i64 = q.fetch_one(&self.pool).await?;
         Ok(count)
     }
+
+    async fn apply_task_writes(&self, writes: Vec<TaskWrite>) -> Result<()> {
+        if writes.is_empty() {
+            return Ok(());
+        }
+
+        // Every buffered write is applied against the same open transaction,
+        // so a batch that may represent dozens of logically-separate task
+        // events shares a single commit instead of paying its cost once per
+        // event.
+        let mut tx = self.pool.begin().await?;
+        for write in &writes {
+            apply_task_write(&mut *tx, write).await?;
+        }
+        tx.commit().await?;
+
+        Ok(())
+    }
+}
+
+/// Applies a single buffered task write using the given executor.
+///
+/// Generic over the executor so the exact same statements run whether
+/// applying one write directly against the pool or applying many as part of
+/// an open transaction (see [`SqliteDatabase::apply_task_writes`]).
+///
+/// Unlike the corresponding per-operation trait methods, task creation here
+/// does not `returning` the created row. `TaskMonitorSvc` tracks the state it
+/// needs about a task, such as its call id and attempt number, in memory as it
+/// buffers writes, rather than reading it back from the database.
+async fn apply_task_write<'e, E>(executor: E, write: &TaskWrite) -> Result<()>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    match write {
+        TaskWrite::Create {
+            name,
+            run_id,
+            status,
+            call_id,
+            attempt,
+            created_at,
+        } => {
+            sqlx::query(
+                "insert into tasks (name, run_id, status, call_id, attempt, created_at) select ?, \
+                 r.id, ?, ?, ?, ? from runs r where r.uuid = ? on conflict(\"name\") do update \
+                 set call_id = coalesce(tasks.call_id, excluded.call_id), attempt = \
+                 max(tasks.attempt, excluded.attempt)",
+            )
+            .bind(name)
+            .bind(*status)
+            .bind(call_id.as_deref())
+            .bind(*attempt)
+            .bind(*created_at)
+            .bind(run_id.to_string())
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Localizing { name } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?
+                 where name = ? and status = 'initializing'",
+            )
+            .bind(TaskStatus::Localizing)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Constraints { name, constraints } => {
+            sqlx::query(
+                "update tasks
+                 set \"constraints\" = ?
+                 where name = ?",
+            )
+            .bind(constraints)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::RetryCause { name, cause } => {
+            sqlx::query(
+                "update tasks
+                 set retry_cause = ?
+                 where name = ?",
+            )
+            .bind(cause)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Utilization { name, patch } => {
+            sqlx::query(
+                "update tasks
+                 set utilization = json_patch(coalesce(utilization, '{}'), ?)
+                 where name = ?",
+            )
+            .bind(patch)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Pending { name } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?
+                 where name = ? and status in ('initializing', 'localizing')",
+            )
+            .bind(TaskStatus::Pending)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Cached { name, completed_at } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?, completed_at = ?
+                 where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+                 'cached')",
+            )
+            .bind(TaskStatus::Cached)
+            .bind(completed_at)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Started { name, started_at } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?, started_at = ?
+                 where name = ? and status in ('initializing', 'localizing', 'pending')",
+            )
+            .bind(TaskStatus::Running)
+            .bind(started_at)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Completed {
+            name,
+            exit_status,
+            completed_at,
+        } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?, exit_status = ?, completed_at = ?
+                 where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+                 'cached')",
+            )
+            .bind(TaskStatus::Completed)
+            .bind(exit_status)
+            .bind(completed_at)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Failed {
+            name,
+            error,
+            completed_at,
+        } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?, error = ?, completed_at = ?
+                 where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+                 'cached')",
+            )
+            .bind(TaskStatus::Failed)
+            .bind(error)
+            .bind(completed_at)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Canceled { name, completed_at } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?, completed_at = ?
+                 where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+                 'cached')",
+            )
+            .bind(TaskStatus::Canceled)
+            .bind(completed_at)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Preempted { name, completed_at } => {
+            sqlx::query(
+                "update tasks
+                 set status = ?, completed_at = ?
+                 where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+                 'cached')",
+            )
+            .bind(TaskStatus::Preempted)
+            .bind(completed_at)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::Log {
+            name,
+            source,
+            chunk,
+        } => {
+            sqlx::query(
+                "insert into task_logs (task_name, source, chunk)
+                 values (?, ?, ?)",
+            )
+            .bind(name)
+            .bind(*source)
+            .bind(chunk.as_slice())
+            .execute(executor)
+            .await?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1311,18 +1618,16 @@ mod tests {
         .await
         .expect("failed to create run");
 
+        let new_task = NewTask::from_backend_event("my_task", run_id, TaskStatus::Pending);
         let task = db
-            .create_task(NewTask::from_backend_event(
-                "my_task",
-                run_id,
-                TaskStatus::Pending,
-            ))
+            .create_task(new_task)
             .await
             .expect("failed to create task");
 
         assert_eq!(task.name, "my_task");
         assert_eq!(task.run_uuid, run_id);
         assert_eq!(task.status, TaskStatus::Pending);
+        assert_eq!(task.created_at, new_task.created_at);
     }
 
     #[sqlx::test]
@@ -1341,13 +1646,14 @@ mod tests {
             .await
             .expect("failed to create run");
 
-        db.create_task(NewTask::from_backend_event(
-            "t",
-            run_id,
-            TaskStatus::Initializing,
-        ))
-        .await
-        .expect("failed to create task");
+        let original = db
+            .create_task(NewTask::from_backend_event(
+                "t",
+                run_id,
+                TaskStatus::Initializing,
+            ))
+            .await
+            .expect("failed to create task");
         assert!(
             db.update_task_started("t", Utc::now())
                 .await
@@ -1366,6 +1672,7 @@ mod tests {
             .expect("failed to create task");
 
         assert_eq!(task.status, TaskStatus::Running);
+        assert_eq!(task.created_at, original.created_at);
     }
 
     #[sqlx::test]
@@ -1405,6 +1712,7 @@ mod tests {
                 status: TaskStatus::Initializing,
                 call_id: Some("wf-t"),
                 attempt: 2,
+                created_at: Utc::now(),
             })
             .await
             .expect("failed to create task");
@@ -1576,11 +1884,302 @@ mod tests {
             Some(utilization)
         );
 
+        // A later patch merges new fields in and overwrites fields it shares
+        // with the existing value, but leaves fields it doesn't mention.
+        let second_source = r#"{"cpu_time_ms":331000,"max_disk":1073741824}"#;
+        assert!(
+            db.update_task_utilization("t", second_source)
+                .await
+                .expect("failed to update utilization")
+        );
+        assert_eq!(
+            db.get_task("t")
+                .await
+                .expect("failed to get task")
+                .utilization
+                .as_deref(),
+            Some(r#"{"max_memory":241172480,"cpu_time_ms":331000,"max_disk":1073741824}"#)
+        );
+
         // An unknown task is reported as not updated.
         assert!(
             !db.update_task_utilization("missing", utilization)
                 .await
                 .expect("failed to update utilization")
+        );
+    }
+
+    #[sqlx::test]
+    async fn apply_task_writes_applies_a_batch(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        // A representative batch spanning several tasks and operations, as
+        // `TaskMonitorSvc` would build one: two tasks created (one directly
+        // by the engine, one from a backend event, folded together with its
+        // own `pending` transition), a log chunk, and a final status
+        // transition, none of which have been applied yet.
+        let started_at = Utc::now();
+        db.apply_task_writes(vec![
+            TaskWrite::Create {
+                name: "t1".to_string(),
+                run_id,
+                status: TaskStatus::Initializing,
+                call_id: Some("call.t1".to_string()),
+                attempt: 0,
+                created_at: started_at,
+            },
+            TaskWrite::Create {
+                name: "t2".to_string(),
+                run_id,
+                status: TaskStatus::Initializing,
+                call_id: None,
+                attempt: 0,
+                created_at: started_at,
+            },
+            TaskWrite::Pending {
+                name: "t2".to_string(),
+            },
+            TaskWrite::Log {
+                name: "t2".to_string(),
+                source: LogSource::Stdout,
+                chunk: b"hello".to_vec(),
+            },
+            TaskWrite::Started {
+                name: "t1".to_string(),
+                started_at,
+            },
+        ])
+        .await
+        .expect("failed to apply task writes");
+
+        let t1 = db.get_task("t1").await.expect("failed to get t1");
+        assert_eq!(t1.status, TaskStatus::Running);
+        assert_eq!(t1.call_id.as_deref(), Some("call.t1"));
+
+        let t2 = db.get_task("t2").await.expect("failed to get t2");
+        assert_eq!(t2.status, TaskStatus::Pending);
+
+        let logs = db
+            .get_task_logs("t2", None, None, None)
+            .await
+            .expect("failed to get task logs");
+        assert_eq!(logs.len(), 1);
+        assert_eq!(&*logs[0].chunk, b"hello");
+    }
+
+    #[sqlx::test]
+    async fn apply_task_writes_records_constraints_after_completion(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.apply_task_writes(vec![
+            TaskWrite::Create {
+                name: "t".to_string(),
+                run_id,
+                status: TaskStatus::Initializing,
+                call_id: Some("wf.t".to_string()),
+                attempt: 0,
+                created_at: Utc::now(),
+            },
+            TaskWrite::Completed {
+                name: "t".to_string(),
+                exit_status: Some(0),
+                completed_at: Utc::now(),
+            },
+            TaskWrite::Constraints {
+                name: "t".to_string(),
+                constraints: r#"{"cpu":4.0}"#.to_string(),
+            },
+        ])
+        .await
+        .expect("failed to apply task writes");
+
+        assert_eq!(
+            db.get_task("t")
+                .await
+                .expect("failed to get task")
+                .constraints
+                .as_deref(),
+            Some(r#"{"cpu":4.0}"#)
+        );
+    }
+
+    #[sqlx::test]
+    async fn apply_task_writes_is_all_or_nothing(pool: SqlitePool) {
+        // A batch that fails partway through must not leave earlier writes
+        // in the batch applied: they share a single transaction, so a
+        // failure rolls the whole batch back rather than leaving the
+        // database in a state no non-batched caller could ever have
+        // produced.
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task(NewTask::from_backend_event(
+            "t",
+            run_id,
+            TaskStatus::Initializing,
+        ))
+        .await
+        .expect("failed to create task");
+
+        let result = db
+            .apply_task_writes(vec![
+                TaskWrite::Started {
+                    name: "t".to_string(),
+                    started_at: Utc::now(),
+                },
+                // Malformed JSON: `json_patch` fails to parse this, which
+                // fails the whole transaction.
+                TaskWrite::Utilization {
+                    name: "t".to_string(),
+                    patch: "not json".to_string(),
+                },
+            ])
+            .await;
+        assert!(result.is_err());
+
+        // The `Started` write earlier in the same batch was rolled back
+        // along with the failing one.
+        let task = db.get_task("t").await.expect("failed to get task");
+        assert_eq!(task.status, TaskStatus::Initializing);
+        assert!(task.started_at.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn concurrent_task_writers_do_not_hit_lock_errors() {
+        use std::sync::Arc;
+
+        // Exercises the real, file-backed connection pool (with production
+        // pragmas: `PERSIST` journal mode, `busy_timeout`, and the
+        // right-sized `max_connections`) under many concurrent writers, each
+        // flushing its own batch of task writes for a different task, plus
+        // concurrent readers polling task status. This should
+        // complete quickly and without any `SQLITE_BUSY`/"database is
+        // locked" error on local disk.
+        let dir = tempfile::tempdir().expect("failed to create temp dir");
+        let db: Arc<dyn Database> = Arc::new(
+            SqliteDatabase::new(dir.path().join("concurrency.db"))
+                .await
+                .expect("failed to create database"),
+        );
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        const TASKS: usize = 40;
+
+        let writers = (0..TASKS).map(|i| {
+            let db = db.clone();
+            let name = format!("task-{i}");
+            tokio::spawn(async move {
+                db.apply_task_writes(vec![
+                    TaskWrite::Create {
+                        name: name.clone(),
+                        run_id,
+                        status: TaskStatus::Initializing,
+                        call_id: Some(name.clone()),
+                        attempt: 0,
+                        created_at: Utc::now(),
+                    },
+                    TaskWrite::Started {
+                        name: name.clone(),
+                        started_at: Utc::now(),
+                    },
+                    TaskWrite::Log {
+                        name: name.clone(),
+                        source: LogSource::Stdout,
+                        chunk: b"line one\n".to_vec(),
+                    },
+                    TaskWrite::Log {
+                        name: name.clone(),
+                        source: LogSource::Stdout,
+                        chunk: b"line two\n".to_vec(),
+                    },
+                    TaskWrite::Completed {
+                        name: name.clone(),
+                        exit_status: Some(0),
+                        completed_at: Utc::now(),
+                    },
+                ])
+                .await
+            })
+        });
+
+        let readers = (0..TASKS).map(|i| {
+            let db = db.clone();
+            tokio::spawn(async move {
+                // Readers race writers rather than waiting on them: a
+                // not-yet-created task is a normal, expected outcome here,
+                // not a failure.
+                let _ = db.get_task(&format!("task-{i}")).await;
+                let _ = db.count_tasks(Some(run_id), None).await;
+            })
+        });
+
+        let writer_handles: Vec<_> = writers.collect();
+        let reader_handles: Vec<_> = readers.collect();
+
+        let deadline = Duration::from_secs(30);
+        let (write_results, _) = tokio::time::timeout(deadline, async {
+            (
+                futures::future::join_all(writer_handles).await,
+                futures::future::join_all(reader_handles).await,
+            )
+        })
+        .await
+        .expect("concurrent task writes/reads did not complete within the deadline");
+
+        for outcome in write_results {
+            let write_result = outcome.expect("a spawned task panicked");
+            write_result.expect("a concurrent task write hit a database error");
+        }
+
+        assert_eq!(
+            db.count_tasks(Some(run_id), Some(TaskStatus::Completed))
+                .await
+                .expect("failed to count tasks"),
+            TASKS as i64
         );
     }
 
