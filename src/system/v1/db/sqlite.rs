@@ -47,6 +47,10 @@ const SQLITE_MMAP_SIZE: &str = "0";
 /// Set page size to 32KB to reduce I/O operations for sequential scans.
 const SQLITE_PAGE_SIZE: &str = "32768";
 
+/// Allocate SQLite's page cache: `page_size` (32KB) x `cache_size` (2000
+/// pages) is ~62.5MB.
+const SQLITE_CACHE_SIZE: &str = "2000";
+
 /// Enable foreign key constraint enforcement for referential integrity.
 const SQLITE_FOREIGN_KEYS: &str = "on";
 
@@ -59,12 +63,6 @@ const EXPECTED_VERSION: &str = "1";
 /// Configure 30-second timeout when database is locked to allow concurrent
 /// processes time to complete their writes under heavy parallel access.
 const SQLITE_BUSY_TIMEOUT: &str = "30000";
-
-/// Allocate SQLite's page cache: `page_size` (32KB) x `cache_size` (2000
-/// pages) is ~62.5MB. (Historically documented as "~8MB", which was stale
-/// relative to the current 32KB `page_size` — a 4KB page size would give
-/// ~8MB for the same page count.)
-const SQLITE_CACHE_SIZE: &str = "2000";
 
 /// Limit competing connections because SQLite permits only one writer at a
 /// time.
