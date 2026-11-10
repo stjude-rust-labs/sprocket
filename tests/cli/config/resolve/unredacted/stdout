@@ -207,6 +207,7 @@ choice_cache_capacity = 1000
 regex_cache_capacity = 1000
 
 [run.http]
+cache_dir = "default"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
@@ -223,6 +224,7 @@ container = "ubuntu:latest"
 shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "default"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
@@ -295,6 +297,7 @@ choice_cache_capacity = 1000
 regex_cache_capacity = 1000
 
 [server.engine.http]
+cache_dir = "default"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
@@ -311,6 +314,7 @@ container = "ubuntu:latest"
 shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "default"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []

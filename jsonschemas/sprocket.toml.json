@@ -1722,11 +1722,9 @@
       "type": "object",
       "properties": {
         "cache_dir": {
-          "description": "The HTTP download cache location.\n\nDefault cache directory is `<output_dir>/cache/downloads`.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "The HTTP download cache location.\n\nThe specified directory is relative to the output directory.\n\nDefault cache directory is `cache/downloads`.",
+          "type": "string",
+          "default": "default"
         },
         "retries": {
           "description": "The number of retries for transferring files.",
@@ -1821,11 +1819,9 @@
           "$ref": "#/$defs/TaskResourceLimitBehavior"
         },
         "cache_dir": {
-          "description": "The call cache directory to use for caching task execution results.\n\nDefaults to `<output_dir>/cache/calls`.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "The call cache directory to use for caching task execution results.\n\nThe specified directory is relative to the output directory.\n\nDefaults to `cache/calls`.",
+          "type": "string",
+          "default": "default"
         },
         "cache": {
           "description": "The call caching mode to use for tasks.",
@@ -2456,11 +2452,9 @@
           "default": "apptainer"
         },
         "image_cache_dir": {
-          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nDefaults to `<output_dir>/cache/images`.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nThe specified directory is relative to the output directory.\n\nDefaults to `cache/images`.",
+          "type": "string",
+          "default": "default"
         },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",

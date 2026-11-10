@@ -2511,7 +2511,7 @@ mod tests {
     fn create_config(mode: CallCachingMode, root_dir: &Path) -> Config {
         let mut config = Config::default();
         config.task.cache = mode;
-        config.task.cache_dir = Some(root_dir.join("cache"));
+        config.task.cache_dir = root_dir.join("cache");
         config
             .backends
             .insert("default".into(), DockerBackendConfig::default().into());
@@ -2759,7 +2759,7 @@ task test {
         let root_dir = tempdir().expect("failed to create temporary directory");
         let mut config = Config::default();
         config.task.cache = CallCachingMode::On;
-        config.task.cache_dir = Some(root_dir.path().join("cache"));
+        config.task.cache_dir = root_dir.path().join("cache");
         config
             .backends
             .insert("default".into(), LocalBackendConfig::default().into());
