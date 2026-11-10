@@ -37,6 +37,7 @@ use toml_spanner::helper::display;
 use toml_spanner::helper::flatten_any;
 use toml_spanner::helper::parse_string;
 use tracing::error;
+use tracing::warn;
 use url::Url;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
@@ -75,11 +76,22 @@ use crate::tree::SyntaxNode;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::ExprEvaluator;
 
+/// Default output directory.
+fn default_output_directory() -> &'static str {
+    "./out"
+}
+
 /// The inclusive maximum number of task retries the engine supports.
 pub(crate) const MAX_RETRIES: u64 = 100;
 
 /// The default task shell.
 pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
+
+/// The deprecated sentinel for cache directory values.
+///
+/// The system (per-user) cache locations are no longer used in favor of cache
+/// directories that are relative to the output directory.
+const DEPRECATED_SYSTEM_SENTINEL: &str = "system";
 
 /// The default task shell.
 pub(crate) const fn default_task_shell() -> &'static str {
@@ -104,11 +116,6 @@ const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
 
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
-
-/// Configuration sentinel value indicating use a system cache directory.
-const fn cache_dir_sentinel() -> &'static str {
-    "system"
-}
 
 /// The default for runtime digest cache capacity.
 const fn default_digest_cache_capacity() -> u32 {
@@ -146,16 +153,6 @@ const fn default_apptainer_executable() -> &'static str {
 /// statement.
 const fn default_scatter_concurrency() -> u64 {
     1000
-}
-
-/// Gets the default root cache directory for the user.
-pub(crate) fn cache_dir() -> Result<PathBuf> {
-    /// The subdirectory within the user's cache directory for all caches
-    const CACHE_DIR_ROOT: &str = "sprocket";
-
-    Ok(dirs::cache_dir()
-        .context("failed to determine user cache directory")?
-        .join(CACHE_DIR_ROOT))
 }
 
 /// Creates a mapping of byte indexes in an unescaped TOML string to the
@@ -411,6 +408,12 @@ mod index_map {
     deny_unknown_fields
 )]
 pub struct Config {
+    /// The output directory (default: `./out`).
+    ///
+    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
+    #[toml(default = PathBuf::from(default_output_directory()))]
+    #[schemars(default = "default_output_directory")]
+    pub output_dir: PathBuf,
     /// HTTP configuration.
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -515,6 +518,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            output_dir: default_output_directory().into(),
             http: Default::default(),
             workflow: Default::default(),
             task: Default::default(),
@@ -620,6 +624,59 @@ impl Config {
         // Use the default
         Ok(Cow::Owned(BackendConfig::default()))
     }
+
+    /// Get the downloads cache directory.
+    pub fn downloads_cache_dir(&self) -> Cow<'_, Path> {
+        self.http.cache_dir(&self.output_dir)
+    }
+
+    /// Get the call cache directory.
+    pub fn call_cache_dir(&self) -> Cow<'_, Path> {
+        self.task.cache_dir(&self.output_dir)
+    }
+
+    /// Calls the given callback for each path stored in the configuration.
+    ///
+    /// The callback is given a mutable reference to the configuration path.
+    pub fn for_each_path_mut(&mut self, cb: impl Fn(&mut PathBuf) -> Result<()>) -> Result<()> {
+        // Call for the output directory
+        cb(&mut self.output_dir)?;
+
+        // Call for the call cache directory
+        if let Some(dir) = &mut self.task.cache_dir
+            && dir != DEPRECATED_SYSTEM_SENTINEL
+        {
+            cb(dir)?;
+        }
+
+        // Call for the downloads cache directory
+        if let Some(dir) = &mut self.http.cache_dir
+            && dir != DEPRECATED_SYSTEM_SENTINEL
+        {
+            cb(dir)?;
+        }
+
+        // Call for every image cache directory
+        for backend in self.backends.values_mut() {
+            match backend {
+                BackendConfig::LsfApptainer {
+                    config: LsfApptainerBackendConfig { apptainer, .. },
+                }
+                | BackendConfig::SlurmApptainer {
+                    config: SlurmApptainerBackendConfig { apptainer, .. },
+                } => {
+                    if let Some(dir) = &mut apptainer.image_cache_dir
+                        && dir != DEPRECATED_SYSTEM_SENTINEL
+                    {
+                        cb(dir)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Represents the parallelism for HTTP downloads.
@@ -688,10 +745,8 @@ impl ToToml for Parallelism {
 pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
-    /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = String::from(cache_dir_sentinel()))]
-    #[schemars(default = "cache_dir_sentinel")]
-    pub cache_dir: String,
+    /// Default cache directory is `<output_dir>/cache/downloads`.
+    pub cache_dir: Option<PathBuf>,
     /// The number of retries for transferring files.
     #[toml(default = default_http_retries())]
     #[schemars(default = "default_http_retries")]
@@ -729,7 +784,7 @@ pub struct HttpConfig {
 impl Default for HttpConfig {
     fn default() -> Self {
         Self {
-            cache_dir: cache_dir_sentinel().into(),
+            cache_dir: None,
             retries: default_http_retries(),
             parallelism: Default::default(),
             hash_algorithm: Default::default(),
@@ -741,6 +796,15 @@ impl Default for HttpConfig {
 impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
+        if let Some(dir) = &self.cache_dir
+            && dir == DEPRECATED_SYSTEM_SENTINEL
+        {
+            warn!(
+                "the `http.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+                 deprecated and will be ignored"
+            );
+        }
+
         if let Parallelism::Use(parallelism) = self.parallelism
             && parallelism == 0
         {
@@ -754,20 +818,15 @@ impl HttpConfig {
         Ok(())
     }
 
-    /// Get the HTTP cache dir.
-    pub fn cache_dir(&self) -> Result<PathBuf> {
-        const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
-
-        if self.using_system_cache_dir() {
-            cache_dir().map(|d| d.join(DOWNLOADS_CACHE_SUBDIR))
-        } else {
-            Ok(PathBuf::from(&self.cache_dir))
+    /// Get the HTTP cache directory based on the given output directory.
+    pub fn cache_dir(&self, output_dir: &Path) -> Cow<'_, Path> {
+        if let Some(dir) = &self.cache_dir
+            && dir != DEPRECATED_SYSTEM_SENTINEL
+        {
+            return Cow::Borrowed(dir);
         }
-    }
 
-    /// Is this configuration using a system cache dir?
-    pub fn using_system_cache_dir(&self) -> bool {
-        self.cache_dir == cache_dir_sentinel()
+        output_dir.join("cache").join("downloads").into()
     }
 }
 
@@ -1287,10 +1346,8 @@ pub struct TaskConfig {
     pub memory_limit_behavior: TaskResourceLimitBehavior,
     /// The call cache directory to use for caching task execution results.
     ///
-    /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = String::from(cache_dir_sentinel()))]
-    #[schemars(default = "cache_dir_sentinel")]
-    pub cache_dir: String,
+    /// Defaults to `<output_dir>/cache/calls`.
+    pub cache_dir: Option<PathBuf>,
     /// The call caching mode to use for tasks.
     #[toml(default)]
     #[schemars(default)]
@@ -1342,7 +1399,7 @@ impl Default for TaskConfig {
             shell: default_task_shell().into(),
             cpu_limit_behavior: Default::default(),
             memory_limit_behavior: Default::default(),
-            cache_dir: cache_dir_sentinel().into(),
+            cache_dir: None,
             cache: Default::default(),
             digests: Default::default(),
             excluded_cache_requirements: Default::default(),
@@ -1355,6 +1412,15 @@ impl Default for TaskConfig {
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
+        if let Some(dir) = &self.cache_dir
+            && dir == DEPRECATED_SYSTEM_SENTINEL
+        {
+            warn!(
+                "the `task.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+                 deprecated and will be ignored"
+            );
+        }
+
         if let RetryConfig::Enabled(Retries::Use(value)) = self.retries
             && value >= MAX_RETRIES
         {
@@ -1364,20 +1430,15 @@ impl TaskConfig {
         Ok(())
     }
 
-    /// Gets the call cache directory.
-    pub fn cache_dir(&self) -> Result<PathBuf> {
-        const CALL_CACHE_SUBDIR: &str = "calls";
-
-        if self.using_system_cache_dir() {
-            cache_dir().map(|d| d.join(CALL_CACHE_SUBDIR))
-        } else {
-            Ok(PathBuf::from(&self.cache_dir))
+    /// Get the call cache directory based on the given output directory.
+    pub fn cache_dir(&self, output_dir: &Path) -> Cow<'_, Path> {
+        if let Some(dir) = &self.cache_dir
+            && dir != DEPRECATED_SYSTEM_SENTINEL
+        {
+            return Cow::Borrowed(dir);
         }
-    }
 
-    /// Determines if the system cache directory is being used.
-    pub fn using_system_cache_dir(&self) -> bool {
-        self.cache_dir == cache_dir_sentinel()
+        output_dir.join("cache").join("calls").into()
     }
 }
 
@@ -1994,10 +2055,8 @@ pub struct ApptainerConfig {
 
     /// Path to a shared directory for caching pulled `.sif` images.
     ///
-    /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = String::from(cache_dir_sentinel()))]
-    #[schemars(default = "cache_dir_sentinel")]
-    pub image_cache_dir: String,
+    /// Defaults to `<output_dir>/cache/images`.
+    pub image_cache_dir: Option<PathBuf>,
 
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
@@ -2010,7 +2069,7 @@ impl Default for ApptainerConfig {
     fn default() -> Self {
         Self {
             executable: default_apptainer_executable().into(),
-            image_cache_dir: cache_dir_sentinel().into(),
+            image_cache_dir: None,
             extra_args: Default::default(),
         }
     }
@@ -2022,20 +2081,15 @@ impl ApptainerConfig {
         Ok(())
     }
 
-    /// Get the image cache dir.
-    pub fn image_cache_dir(&self) -> Result<PathBuf> {
-        const IMAGES_CACHE_SUBDIR: &str = "images";
-
-        if self.image_cache_dir == cache_dir_sentinel() {
-            cache_dir().map(|d| d.join(IMAGES_CACHE_SUBDIR))
-        } else {
-            Ok(PathBuf::from(&self.image_cache_dir))
+    /// Get the image cache directory based on the given output directory.
+    pub fn image_cache_dir(&self, output_dir: &Path) -> Cow<'_, Path> {
+        if let Some(dir) = &self.image_cache_dir
+            && dir != DEPRECATED_SYSTEM_SENTINEL
+        {
+            return Cow::Borrowed(dir);
         }
-    }
 
-    /// Determines if the system image cache directory is being used.
-    pub fn using_system_image_cache_dir(&self) -> bool {
-        self.image_cache_dir == cache_dir_sentinel()
+        output_dir.join("cache").join("images").into()
     }
 }
 
@@ -2051,7 +2105,7 @@ impl ApptainerConfig {
 #[schemars(with = "String")]
 pub struct Condition {
     /// The raw WDL expression string.
-    pub raw: String,
+    raw: String,
     /// The parsed and validated conditional expression.
     expr: GreenNode,
 }
@@ -3362,6 +3416,12 @@ mod tests {
     use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_MEMORY;
+
+    #[test]
+    fn default_output_directory_is_out() {
+        let config = Config::default();
+        assert_eq!(config.output_dir.to_str().unwrap(), "./out");
+    }
 
     #[test]
     fn redacted_secret() {

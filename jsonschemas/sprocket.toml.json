@@ -1639,6 +1639,11 @@
       "description": "Represents the configuration for the Sprocket `run` command.",
       "type": "object",
       "properties": {
+        "output_dir": {
+          "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
+          "type": "string",
+          "default": "./out"
+        },
         "http": {
           "description": "HTTP configuration.",
           "$ref": "#/$defs/HttpConfig"
@@ -1702,11 +1707,6 @@
           "minimum": 1,
           "default": 1000
         },
-        "output_dir": {
-          "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
-          "type": "string",
-          "default": "./out"
-        },
         "events_capacity": {
           "description": "The capacity of the events channel used to display progress statistics.\n\nIf the number of progress events being generated outpaces Sprocket's\nability to read the events for displaying the progress statistics and\nthe channel reaches its capacity, Sprocket will stop displaying progress\nstatistics. This is most likely to occur when Sprocket has concurrently\nqueued up a large number of tasks.\n\nIncreasing the capacity will increase the size of the memory allocation\nmade by the events channel.\n\nThe default is `5000`.",
           "type": "integer",
@@ -1722,9 +1722,11 @@
       "type": "object",
       "properties": {
         "cache_dir": {
-          "description": "The HTTP download cache location.\n\nDefaults to an operating system specific cache directory for the user.",
-          "type": "string",
-          "default": "system"
+          "description": "The HTTP download cache location.\n\nDefault cache directory is `<output_dir>/caches/downloads`.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "retries": {
           "description": "The number of retries for transferring files.",
@@ -1819,9 +1821,11 @@
           "$ref": "#/$defs/TaskResourceLimitBehavior"
         },
         "cache_dir": {
-          "description": "The call cache directory to use for caching task execution results.\n\nDefaults to an operating system specific cache directory for the user.",
-          "type": "string",
-          "default": "system"
+          "description": "The call cache directory to use for caching task execution results.\n\nDefaults to `<output_dir>/caches/calls`.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "cache": {
           "description": "The call caching mode to use for tasks.",
@@ -2452,9 +2456,11 @@
           "default": "apptainer"
         },
         "image_cache_dir": {
-          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nDefaults to an operating system specific cache directory for the user.",
-          "type": "string",
-          "default": "system"
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nDefaults to `<output_dir>/caches/images`.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",
@@ -2688,11 +2694,6 @@
           "description": "Database configuration.",
           "$ref": "#/$defs/DatabaseConfig"
         },
-        "output_dir": {
-          "description": "Directory for workflow outputs.",
-          "type": "string",
-          "default": "./out"
-        },
         "allowed_file_paths": {
           "description": "Allowed file paths for file-based workflows.",
           "type": "array",
@@ -2760,6 +2761,11 @@
       "description": "Represents WDL evaluation configuration.\n\n<div class=\"warning\">\n\nBy default, serialization of [`Config`] will not redact the values of\nsecrets.\n\nUse the [`Config::redact`] method prior to serialization to redact secrets.\n\n</div>",
       "type": "object",
       "properties": {
+        "output_dir": {
+          "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
+          "type": "string",
+          "default": "./out"
+        },
         "http": {
           "description": "HTTP configuration.",
           "$ref": "#/$defs/HttpConfig"

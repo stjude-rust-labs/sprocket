@@ -132,7 +132,7 @@ impl RunManagerSvc {
         let mut config = config.server;
         let semaphore =
             Option::<usize>::from(config.max_concurrent_runs).map(|n| Arc::new(Semaphore::new(n)));
-        let output_dir = OutputDirectory::new(&config.output_dir);
+        let output_dir = OutputDirectory::new(&config.engine.output_dir);
         let engine = Engine::new(std::mem::take(&mut config.engine))
             .await
             .context("failed to create WDL evaluation engine")?;
