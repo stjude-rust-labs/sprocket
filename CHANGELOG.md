@@ -16,6 +16,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+* The `server.output_dir` configuration setting has moved to `server.engine.output_dir`
+  ([#1372](https://github.com/stjude-rust-labs/sprocket/pull/1372)).
+* The configuration settings `run.http.cache_dir`, `run.task.cache_dir`,
+  `server.engine.http.cache_dir`, `server.engine.task.cache_dir`, and the `image_cache_dir` of
+  LSF/Slurm backends are now relative to the output directory instead of being user-wide cache
+  locations; the previous `system` value is deprecated
+  ([#1372](https://github.com/stjude-rust-labs/sprocket/pull/1372)).
 * Execution database writes batch task updates and combine related run updates to reduce commits.
   SQLite uses `PERSIST` journaling, disables memory-mapped I/O, and limits the pool to five
   connections. Task updates normally flush every 250 milliseconds or after 256 buffered writes;
