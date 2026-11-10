@@ -37,6 +37,7 @@ use toml_spanner::helper::display;
 use toml_spanner::helper::flatten_any;
 use toml_spanner::helper::parse_string;
 use tracing::error;
+use tracing::warn;
 use url::Url;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
@@ -74,6 +75,12 @@ use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::ExprEvaluator;
+
+/// The deprecated sentinel for cache directory values.
+///
+/// The system (per-user) cache locations are no longer used in favor of cache
+/// directories that are relative to the output directory.
+const DEPRECATED_SYSTEM_SENTINEL: &str = "system";
 
 /// Default output directory.
 fn default_output_directory() -> &'static str {
@@ -785,6 +792,13 @@ impl Default for HttpConfig {
 impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
+        if self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            warn!(
+                "the `http.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+                 deprecated and will be ignored"
+            );
+        }
+
         if let Parallelism::Use(parallelism) = self.parallelism
             && parallelism == 0
         {
@@ -800,10 +814,10 @@ impl HttpConfig {
 
     /// Get the HTTP cache directory based on the given output directory.
     pub fn cache_dir(&self, output_dir: &Path) -> PathBuf {
-        if self.cache_dir != *default_sentinel() {
-            output_dir.join(&self.cache_dir)
-        } else {
+        if self.cache_dir == *default_sentinel() || self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
             output_dir.join("cache").join("downloads")
+        } else {
+            output_dir.join(&self.cache_dir)
         }
     }
 }
@@ -1394,6 +1408,13 @@ impl Default for TaskConfig {
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
+        if self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            warn!(
+                "the `task.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+                 deprecated and will be ignored"
+            );
+        }
+
         if let RetryConfig::Enabled(Retries::Use(value)) = self.retries
             && value >= MAX_RETRIES
         {
@@ -1405,10 +1426,10 @@ impl TaskConfig {
 
     /// Get the call cache directory based on the given output directory.
     pub fn cache_dir(&self, output_dir: &Path) -> PathBuf {
-        if self.cache_dir != *default_sentinel() {
-            output_dir.join(&self.cache_dir)
-        } else {
+        if self.cache_dir == *default_sentinel() || self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
             output_dir.join("cache").join("calls")
+        } else {
+            output_dir.join(&self.cache_dir)
         }
     }
 }
@@ -2053,15 +2074,24 @@ impl Default for ApptainerConfig {
 impl ApptainerConfig {
     /// Validate that Apptainer is appropriately configured.
     pub async fn validate(&self) -> Result<(), anyhow::Error> {
+        if self.image_cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            warn!(
+                "the `apptainer.image_cache_dir` configuration value of \
+                 `{DEPRECATED_SYSTEM_SENTINEL}` is deprecated and will be ignored"
+            );
+        }
+
         Ok(())
     }
 
     /// Get the image cache directory based on the given output directory.
     pub fn image_cache_dir(&self, output_dir: &Path) -> PathBuf {
-        if self.image_cache_dir != *default_sentinel() {
-            output_dir.join(&self.image_cache_dir)
-        } else {
+        if self.image_cache_dir == *default_sentinel()
+            || self.image_cache_dir == *DEPRECATED_SYSTEM_SENTINEL
+        {
             output_dir.join("cache").join("images")
+        } else {
+            output_dir.join(&self.image_cache_dir)
         }
     }
 }
@@ -3379,6 +3409,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempfile::TempPath;
     use tempfile::tempdir;
+    use tracing_test::traced_test;
 
     use super::*;
     use crate::Events;
@@ -3394,6 +3425,99 @@ mod tests {
     fn default_output_directory_is_out() {
         let config = Config::default();
         assert_eq!(config.output_dir.to_str().unwrap(), "./out");
+    }
+
+    #[test]
+    fn default_cache_dirs() {
+        let config = Config::default();
+        assert_eq!(config.call_cache_dir(), Path::new("./out/cache/calls"));
+        assert_eq!(
+            config.downloads_cache_dir(),
+            Path::new("./out/cache/downloads")
+        );
+
+        let backend = LsfApptainerBackendConfig::default();
+        assert_eq!(
+            backend.apptainer.image_cache_dir(&config.output_dir),
+            Path::new("./out/cache/images")
+        );
+    }
+
+    #[test]
+    fn cache_dirs_are_relative_to_output_dir() {
+        let config = Config {
+            output_dir: "./outputs".into(),
+            task: TaskConfig {
+                cache_dir: "foo".into(),
+                ..Default::default()
+            },
+            http: HttpConfig {
+                cache_dir: "bar".into(),
+                ..Default::default()
+            },
+            backends: [(
+                "default".into(),
+                LsfApptainerBackendConfig {
+                    apptainer: ApptainerConfig {
+                        image_cache_dir: "baz".into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        assert_eq!(config.call_cache_dir(), Path::new("./outputs/foo"));
+        assert_eq!(config.downloads_cache_dir(), Path::new("./outputs/bar"));
+        assert_eq!(
+            config
+                .backend()
+                .unwrap()
+                .as_lsf_apptainer()
+                .unwrap()
+                .apptainer
+                .image_cache_dir(&config.output_dir),
+            Path::new("./outputs/baz")
+        );
+
+        let config = Config {
+            output_dir: "./outputs".into(),
+            task: TaskConfig {
+                cache_dir: "/foo".into(),
+                ..Default::default()
+            },
+            http: HttpConfig {
+                cache_dir: "/bar".into(),
+                ..Default::default()
+            },
+            backends: [(
+                "default".into(),
+                LsfApptainerBackendConfig {
+                    apptainer: ApptainerConfig {
+                        image_cache_dir: "/baz".into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        assert_eq!(config.call_cache_dir(), Path::new("/foo"));
+        assert_eq!(config.downloads_cache_dir(), Path::new("/bar"));
+        assert_eq!(
+            config
+                .backend()
+                .unwrap()
+                .as_lsf_apptainer()
+                .unwrap()
+                .apptainer
+                .image_cache_dir(&config.output_dir),
+            Path::new("/baz")
+        );
     }
 
     #[test]
@@ -4324,5 +4448,50 @@ type = 'lsf_apptainer'
                 expected
             );
         }
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn deprecation_warnings() {
+        let config = Config {
+            task: TaskConfig {
+                cache_dir: DEPRECATED_SYSTEM_SENTINEL.into(),
+                ..Default::default()
+            },
+            http: HttpConfig {
+                cache_dir: DEPRECATED_SYSTEM_SENTINEL.into(),
+                ..Default::default()
+            },
+            backends: [(
+                "default".into(),
+                LsfApptainerBackendConfig {
+                    apptainer: ApptainerConfig {
+                        image_cache_dir: DEPRECATED_SYSTEM_SENTINEL.into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+            )]
+            .into(),
+            ..Default::default()
+        };
+
+        config.validate().await.unwrap();
+
+        assert!(logs_contain(&format!(
+            "the `http.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+             deprecated and will be ignored"
+        )));
+
+        assert!(logs_contain(&format!(
+            "the `task.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+             deprecated and will be ignored"
+        )));
+
+        assert!(logs_contain(&format!(
+            "the `apptainer.image_cache_dir` configuration value of \
+             `{DEPRECATED_SYSTEM_SENTINEL}` is deprecated and will be ignored"
+        )));
     }
 }
