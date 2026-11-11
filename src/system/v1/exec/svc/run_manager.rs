@@ -60,6 +60,9 @@ const CRANKSHAFT_EVENTS_CHANNEL_CAPACITY: usize = 2048;
 /// event production.
 const ENGINE_EVENTS_CHANNEL_CAPACITY: usize = 2048;
 
+/// Channel capacity for transfer events.
+const TRANSFER_EVENTS_CHANNEL_CAPACITY: usize = 2048;
+
 /// A receiver for commands issued to the run manager service.
 type Rx = mpsc::Receiver<RunManagerCmd>;
 
@@ -435,7 +438,8 @@ impl RunManagerSvc {
 
         let events = Events::default()
             .with_crankshaft(CRANKSHAFT_EVENTS_CHANNEL_CAPACITY)
-            .with_engine(ENGINE_EVENTS_CHANNEL_CAPACITY);
+            .with_engine(ENGINE_EVENTS_CHANNEL_CAPACITY)
+            .with_transfer(TRANSFER_EVENTS_CHANNEL_CAPACITY);
         let cancellation = CancellationContext::new(self.engine.config().failure_mode);
         let executor = RunnableExecutor::builder()
             .db(self.db.clone())
@@ -753,11 +757,74 @@ async fn get_task_logs(
 #[cfg(test)]
 mod tests {
     use sqlx::SqlitePool;
+    use wdl::engine::config::BackendConfig;
     use wdl::engine::config::FailureMode;
 
     use super::*;
     use crate::system::v1::db::SprocketCommand;
     use crate::system::v1::db::SqliteDatabase;
+
+    #[sqlx::test]
+    async fn submitted_run_completes_with_transfer_monitor(pool: SqlitePool) {
+        let temp = tempfile::tempdir().expect("failed to create temporary directory");
+        let source = temp.path().join("test.wdl");
+        std::fs::write(&source, "version 1.2\nworkflow test {}\n")
+            .expect("failed to write workflow");
+
+        let mut config = Config::default();
+        config.server.output_dir = temp.path().join("runs");
+        config.server.allowed_file_paths = vec![temp.path().to_path_buf()];
+        config.server.engine.backend = "local".to_string();
+        config.server.engine.backends.insert(
+            "local".to_string(),
+            BackendConfig::Local {
+                config: Default::default(),
+            },
+        );
+        config.server.validate().expect("invalid server config");
+
+        let db: Arc<dyn Database> = Arc::new(
+            SqliteDatabase::from_pool(pool)
+                .await
+                .expect("failed to create database"),
+        );
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+        let (_tx, rx) = mpsc::channel(1);
+        let manager = RunManagerSvc::new(
+            config,
+            Mode::default(),
+            false,
+            db.clone(),
+            rx,
+            ContainerImageOverrides::default(),
+        )
+        .await
+        .expect("failed to create run manager");
+        let response = manager
+            .submit_run(
+                session_id,
+                source.to_str().expect("path is not UTF-8").to_string(),
+                Default::default(),
+                None,
+                None,
+            )
+            .await
+            .expect("failed to submit run");
+
+        tokio::time::timeout(std::time::Duration::from_secs(30), response.handle)
+            .await
+            .expect("run did not finish")
+            .expect("run executor panicked");
+        let run = db
+            .get_run(response.id)
+            .await
+            .expect("failed to get run")
+            .expect("run not found");
+        assert_eq!(run.status, RunStatus::Completed, "{:?}", run.error);
+    }
 
     #[sqlx::test]
     async fn read_compatibility_helpers_preserve_not_found_errors(pool: SqlitePool) {
