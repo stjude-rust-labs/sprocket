@@ -582,8 +582,11 @@ pub struct TaskConstraintsSnapshot {
     /// A map of disk mount points to the initial amount of disk space
     /// allocated, in bytes.
     pub disks: BTreeMap<String, i64>,
-    /// The resolved `max_retries` requirement for the attempt.
-    pub max_retries: Option<u64>,
+    /// The effective maximum number of retries for the attempt.
+    ///
+    /// Task/input requirements override the configuration default. When retries
+    /// are disabled in configuration, this is zero regardless of requirements.
+    pub max_retries: u64,
     /// The resolved `preemptible` hint: the number of times the task may be
     /// preempted before it must be run on non-preemptible resources.
     pub preemptible: Option<i64>,
@@ -593,8 +596,10 @@ pub struct TaskConstraintsSnapshot {
     pub max_memory: Option<i64>,
 }
 
-impl From<&TaskExecutionConstraints> for TaskConstraintsSnapshot {
-    fn from(constraints: &TaskExecutionConstraints) -> Self {
+impl TaskConstraintsSnapshot {
+    /// Constructs a snapshot with the resolved execution constraints and retry
+    /// limit.
+    pub fn new(constraints: &TaskExecutionConstraints, max_retries: u64) -> Self {
         Self {
             container: constraints.sources.first().map(ImageSource::uri),
             cpu: constraints.cpu,
@@ -606,7 +611,7 @@ impl From<&TaskExecutionConstraints> for TaskConstraintsSnapshot {
                 .iter()
                 .map(|(k, v)| (k.clone(), *v))
                 .collect(),
-            max_retries: None,
+            max_retries,
             preemptible: None,
             max_cpu: None,
             max_memory: None,
@@ -1497,14 +1502,14 @@ mod tests {
             disks: [("/".to_string(), 10i64)].into_iter().collect(),
         };
 
-        let snapshot = TaskConstraintsSnapshot::from(&constraints);
+        let snapshot = TaskConstraintsSnapshot::new(&constraints, 3);
         assert_eq!(
             snapshot.container.as_deref(),
             Some("library://example.org/tools/tool:1")
         );
-        // The curated hints and retry policy are populated at emission, not
-        // from the constraints.
-        assert_eq!(snapshot.max_retries, None);
+        assert_eq!(snapshot.max_retries, 3);
+        // The curated hints are populated at emission, not from the
+        // constraints.
         assert_eq!(snapshot.preemptible, None);
         assert_eq!(snapshot.max_cpu, None);
         assert_eq!(snapshot.max_memory, None);

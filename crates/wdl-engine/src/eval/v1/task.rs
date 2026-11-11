@@ -1991,8 +1991,7 @@ impl Evaluator {
                     // Notify that the attempt is being submitted for
                     // execution, along with its resolved constraints and the
                     // curated hints and retry policy that inform metrics.
-                    let mut snapshot = TaskConstraintsSnapshot::from(&constraints);
-                    snapshot.max_retries = Some(max_retries);
+                    let mut snapshot = TaskConstraintsSnapshot::new(&constraints, max_retries);
                     snapshot.preemptible = hints::preemptible(&inputs, &hints).ok();
                     snapshot.max_cpu = hints::max_cpu(&inputs, &hints);
                     snapshot.max_memory = hints::max_memory(&inputs, &hints).ok().flatten();
@@ -2465,6 +2464,7 @@ mod tests {
     use crate::config::DockerBackendConfig;
     use crate::config::FailureMode;
     use crate::config::LocalBackendConfig;
+    use crate::config::RetryConfig;
     use crate::eval::EvaluatedTask;
     use crate::http::tests::NotImplementedHttpClient;
     use crate::resubmit_task_name;
@@ -2634,6 +2634,53 @@ mod tests {
     /// Helper for evaluating a simple task with the given call cache mode.
     async fn evaluate_task(config: Config, root_dir: &Path, source: &str) -> EvaluatedTask {
         evaluate_task_with_events(config, root_dir, source).await.0
+    }
+
+    #[tokio::test]
+    async fn execution_snapshots_capture_the_effective_retry_limit() {
+        for (case, retries, requirements, expected) in [
+            ("default", RetryConfig::default(), "", vec![0]),
+            ("configuration fallback", 3.into(), "", vec![3, 3, 3, 3]),
+            (
+                "requirement override",
+                3.into(),
+                "requirements { max_retries: 1 }",
+                vec![1, 1],
+            ),
+            (
+                "disabled retries",
+                RetryConfig::Disabled,
+                "requirements { max_retries: 3 }",
+                vec![0],
+            ),
+        ] {
+            let source = format!(
+                r#"
+version 1.2
+
+task test {{
+    command <<<exit 1>>>
+    {requirements}
+}}
+"#
+            );
+            let root_dir = tempdir().expect("failed to create temporary directory");
+            let mut config = Config::local();
+            config.task.retries = retries;
+
+            let (evaluated, events) =
+                evaluate_task_with_events(config, root_dir.path(), &source).await;
+            assert!(evaluated.failed(), "{case}");
+
+            let retry_limits = events
+                .iter()
+                .filter_map(|event| match event {
+                    EngineEvent::TaskExecuting { constraints, .. } => Some(constraints.max_retries),
+                    _ => None,
+                })
+                .collect::<Vec<u64>>();
+            assert_eq!(retry_limits, expected, "{case}");
+        }
     }
 
     #[tokio::test]
