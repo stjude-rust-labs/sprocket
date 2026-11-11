@@ -60,7 +60,7 @@ will be accepted.
 
 ### Review Policy
 
-While we love receiving contributions from the community, we are also a small time with limited
+While we love receiving contributions from the community, we are also a small team with limited
 bandwidth for code review. Internal PRs are prioritized ahead of external contributions, so you may
 not see any of us jump to review your PR immediately. We'll get to it, we promise! But it might take
 some extra time.
