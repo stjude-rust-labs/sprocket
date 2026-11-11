@@ -60,11 +60,24 @@ will be accepted.
 
 ### Review Policy
 
+While we love receiving contributions from the community, we are also a small time with limited
+bandwidth for code review. Internal PRs are prioritized ahead of external contributions, so you may
+not see any of us jump to review your PR immediately. We'll get to it, we promise! But it might take
+some extra time.
+
+**Only a single PR per-contributor will ever be considered at a time.** Do not open more than one PR
+for review. Please wait until we have gotten around to reviewing and closing your first PR before
+opening a second.
+
 Our pull request template has an extensive checklist that must be completed prior to review. Our
 policy is that any PRs submitted with an incomplete checklist will not be reviewed. Part of this
 checklist includes ensuring that our CI checks pass. Additional guidance for satisfying the CI
 checks can be
 [found below](#the-ci-has-turned-red-how-do-i-make-it-green-again).
+
+If your pull request has been awaiting review for over a week without any interaction from a
+maintainer, you may tag one of us and ask for a timeline on review.
+**Please only do this once, and only after at least a week has gone by without word from us**.
 
 Note that the maintainers reserve the right to close or delete any submission without review for any
 reason. This extends to issues, discussions, pull requests, and comments.
