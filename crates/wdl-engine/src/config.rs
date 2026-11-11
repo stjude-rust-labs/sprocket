@@ -4462,6 +4462,7 @@ type = 'lsf_apptainer'
                 cache_dir: DEPRECATED_SYSTEM_SENTINEL.into(),
                 ..Default::default()
             },
+            #[cfg(unix)]
             backends: [(
                 "default".into(),
                 LsfApptainerBackendConfig {
@@ -4489,6 +4490,7 @@ type = 'lsf_apptainer'
              deprecated and will be ignored"
         )));
 
+        #[cfg(unix)]
         assert!(logs_contain(&format!(
             "the `apptainer.image_cache_dir` configuration value of \
              `{DEPRECATED_SYSTEM_SENTINEL}` is deprecated and will be ignored"
