@@ -24,6 +24,7 @@ use crate::SourcePositionEncoding;
 use crate::document::Document as AnalysisDocument;
 use crate::graph::DocumentGraph;
 use crate::handlers;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position;
 use crate::handlers::common::position_to_offset;
@@ -120,18 +121,10 @@ pub fn find_all_references(
         .get_index(&definition_location.uri)
         .ok_or_else(|| anyhow!("definition document not in graph"))?;
 
-    let node = graph.get(doc_index);
-    let document = node
-        .document()
-        .ok_or_else(|| anyhow!("definition document not analyzed"))?;
-
-    let lines = node
-        .parse_state()
-        .lines()
-        .ok_or_else(|| anyhow!("missing line index for target"))?;
+    let (_, lines, document) = ensure_analyzed(graph, &definition_location.uri)?;
 
     let offset = position_to_offset(
-        lines,
+        &lines,
         SourcePosition::new(
             definition_location.range.start.line,
             definition_location.range.start.character,

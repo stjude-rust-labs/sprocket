@@ -6,7 +6,6 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_inlayHint)
 
 use anyhow::Result;
-use anyhow::bail;
 use lsp_types::InlayHint;
 use lsp_types::InlayHintKind;
 use lsp_types::InlayHintLabel;
@@ -18,7 +17,7 @@ use url::Url;
 use wdl_ast::AstToken;
 
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::position;
 use crate::types::CustomType;
 use crate::types::Type;
@@ -45,19 +44,7 @@ pub fn inlay_hints(
     uri: &Url,
     range: Range,
 ) -> Result<Option<Vec<InlayHint>>> {
-    let Some(index) = graph.get_index(uri) else {
-        bail!("document `{uri}` not found in graph.");
-    };
-
-    let node = graph.get(index);
-    let lines = match node.parse_state() {
-        ParseState::Parsed { lines, .. } => lines.clone(),
-        _ => bail!("document `{uri}` has not been parsed", uri = uri),
-    };
-
-    let Some(document) = node.document() else {
-        bail!("document analysis data not available for {}", uri);
-    };
+    let (_, lines, document) = ensure_analyzed(graph, uri)?;
 
     let mut hints = Vec::new();
 

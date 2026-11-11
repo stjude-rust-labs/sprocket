@@ -6,17 +6,14 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_codeLens)
 
 use anyhow::Result;
-use anyhow::anyhow;
-use anyhow::bail;
 use line_index::TextSize;
 use lsp_types::CodeLens;
 use lsp_types::Command;
 use lsp_types::Range;
 use url::Url;
-use wdl_grammar::SyntaxNode;
 
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::position;
 
 /// A `sprocket run` command, to be run on an LSP client.
@@ -44,24 +41,10 @@ impl From<RunCommand> for Command {
 ///
 /// [`textDocument/codeLens`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_codeLens
 pub fn code_lens(graph: &DocumentGraph, document_uri: &Url) -> Result<Option<Vec<CodeLens>>> {
-    let index = graph
-        .get_index(document_uri)
-        .ok_or_else(|| anyhow!("document `{uri}` not found in graph", uri = document_uri))?;
-
-    let node = graph.get(index);
-    let (_, lines) = match node.parse_state() {
-        ParseState::Parsed { lines, root, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{uri}` has not been parsed", uri = document_uri),
-    };
-
-    let Some(analysis_doc) = node.document() else {
-        bail!("document analysis data not available for `{document_uri}`");
-    };
+    let (_, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let mut lenses = Vec::new();
-    for target in analysis_doc.local_callables() {
+    for target in document.local_callables() {
         if target.inputs().values().any(|i| i.required()) {
             continue;
         }
