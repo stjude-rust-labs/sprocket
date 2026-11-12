@@ -2099,8 +2099,26 @@ pub(crate) mod tests {
         let value = eval_v1_expr(&env, V1::Two, "0xdeadbeef").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0xDEADBEEF);
 
-        let value = eval_v1_expr(&env, V1::Two, "0777").await.unwrap();
+        // Legacy octal literals are only valid in WDL 1.0
+        let value = eval_v1_expr(&env, V1::Zero, "0777").await.unwrap();
         assert_eq!(value.unwrap_integer(), 0o777);
+
+        let value = eval_v1_expr(&env, V1::Two, "0o777").await.unwrap();
+        assert_eq!(value.unwrap_integer(), 0o777);
+
+        let value = eval_v1_expr(&env, V1::Two, "0O17").await.unwrap();
+        assert_eq!(value.unwrap_integer(), 0o17);
+
+        let value = eval_v1_expr(&env, V1::Two, "0b101010").await.unwrap();
+        assert_eq!(value.unwrap_integer(), 42);
+
+        let value = eval_v1_expr(&env, V1::Two, "-0B1").await.unwrap();
+        assert_eq!(value.unwrap_integer(), -1);
+
+        let value = eval_v1_expr(&env, V1::Two, "-0o1000000000000000000000")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), i64::MIN);
 
         let value = eval_v1_expr(&env, V1::Two, "-9223372036854775808")
             .await

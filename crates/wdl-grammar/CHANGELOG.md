@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* The lexer now recognizes `0o`/`0O` octal and `0b`/`0B` binary integer literals from
+  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+
 ### Fixed
 
 * Fixed recovery when using the `null` keyword as an identifier

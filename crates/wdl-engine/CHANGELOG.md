@@ -31,6 +31,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   LSF/Slurm backends are now relative to the output directory instead of being user-wide cache
   locations; the previous `system` value is deprecated
   ([#1372](https://github.com/stjude-rust-labs/sprocket/pull/1372)).
+* In WDL 1.1 and later, `read_int` and `read_float` accept an optional `+` or `-` sign followed by
+  any form accepted for an `Int` (or, for `read_float`, `Int` or `Float`) literal, including
+  hexadecimal, octal, and binary forms, and reject legacy octal forms (e.g. `0755`) and non-finite
+  values, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791). WDL 1.0 behavior is
+  unchanged.
+
+### Fixed
+
+* `read_json` now rejects files with trailing content after the JSON value.
 
 ## 0.20.0 - 2026-10-29
 
