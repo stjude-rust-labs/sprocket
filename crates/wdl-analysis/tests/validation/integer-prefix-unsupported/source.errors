@@ -1,0 +1,54 @@
+error: use of an octal (`0o`) integer literal requires WDL version 1.1 or later
+  ┌─ tests/validation/integer-prefix-unsupported/source.wdl:8:12
+  │
+8 │         a: 0o755
+  │            ^^^^^
+
+error: use of an octal (`0o`) integer literal requires WDL version 1.1 or later
+  ┌─ tests/validation/integer-prefix-unsupported/source.wdl:9:13
+  │
+9 │         b: -0o755
+  │             ^^^^^
+
+error: use of a binary (`0b`) integer literal requires WDL version 1.1 or later
+   ┌─ tests/validation/integer-prefix-unsupported/source.wdl:10:13
+   │
+10 │         c: [0b1, 0B10]
+   │             ^^^
+
+error: use of a binary (`0b`) integer literal requires WDL version 1.1 or later
+   ┌─ tests/validation/integer-prefix-unsupported/source.wdl:10:18
+   │
+10 │         c: [0b1, 0B10]
+   │                  ^^^^
+
+error: use of an octal (`0o`) integer literal requires WDL version 1.1 or later
+   ┌─ tests/validation/integer-prefix-unsupported/source.wdl:14:23
+   │
+14 │         x: { nested: -0O17 }
+   │                       ^^^^
+
+error: use of an octal (`0o`) integer literal requires WDL version 1.1 or later
+   ┌─ tests/validation/integer-prefix-unsupported/source.wdl:21:13
+   │
+21 │     Int a = 0o755
+   │             ^^^^^
+
+error: use of an octal (`0o`) integer literal requires WDL version 1.1 or later
+   ┌─ tests/validation/integer-prefix-unsupported/source.wdl:22:14
+   │
+22 │     Int b = -0O755
+   │              ^^^^^
+
+error: use of a binary (`0b`) integer literal requires WDL version 1.1 or later
+   ┌─ tests/validation/integer-prefix-unsupported/source.wdl:23:13
+   │
+23 │     Int c = 0b1010
+   │             ^^^^^^
+
+error: use of a binary (`0b`) integer literal requires WDL version 1.1 or later
+   ┌─ tests/validation/integer-prefix-unsupported/source.wdl:24:13
+   │
+24 │     Int d = 0B1
+   │             ^^^
+
