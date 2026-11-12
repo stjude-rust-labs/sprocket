@@ -41,6 +41,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `read_json` now rejects files with trailing content after the JSON value.
 
+### Fixed
+
+* The `%` operator now follows the truncating remainder semantics from
+  [`openwdl/wdl#789`](https://github.com/openwdl/wdl/pull/789): a `Float` remainder with a
+  right-hand operand equal to zero, including negative zero, is an error instead of `NaN`, and `Int`
+  remainders evaluate to their exact result, so the remainder of the minimum `Int` value by `-1` is
+  `0` instead of an overflow error.
+
 ## 0.20.0 - 2026-10-29
 
 ### Added

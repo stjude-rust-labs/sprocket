@@ -1241,8 +1241,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         return Err(division_by_zero(span, rhs_span));
                     }
 
-                    left.checked_rem(right)
-                        .ok_or_else(|| numeric_overflow(span))
+                    // The only overflowing case is `i64::MIN % -1`, whose exact
+                    // result is zero; `wrapping_rem` returns that value instead
+                    // of overflowing
+                    Ok(left.wrapping_rem(right))
                 }
                 NumericOperator::Exponentiation => left
                     .checked_pow(
@@ -1255,15 +1257,30 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         /// Implements numeric operations on floating point operands.
-        fn float_numeric_op(op: NumericOperator, left: f64, right: f64) -> f64 {
-            match op {
+        fn float_numeric_op(
+            op: NumericOperator,
+            left: f64,
+            right: f64,
+            span: Span,
+            rhs_span: Span,
+        ) -> Result<f64, Diagnostic> {
+            Ok(match op {
                 NumericOperator::Addition => left + right,
                 NumericOperator::Subtraction => left - right,
                 NumericOperator::Multiplication => left * right,
                 NumericOperator::Division => left / right,
-                NumericOperator::Modulo => left % right,
+                NumericOperator::Modulo => {
+                    // Also matches negative zero
+                    if right == 0.0 {
+                        return Err(division_by_zero(span, rhs_span));
+                    }
+
+                    // Rust's `%` truncates the quotient toward zero, as WDL
+                    // requires
+                    left % right
+                }
                 NumericOperator::Exponentiation => left.pow(right),
-            }
+            })
         }
 
         let left = self.evaluate_expr(lhs).await?;
@@ -1276,15 +1293,15 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             (
                 Value::Primitive(PrimitiveValue::Float(left)),
                 Value::Primitive(PrimitiveValue::Float(right)),
-            ) => Some(float_numeric_op(op, left.0, right.0).into()),
+            ) => Some(float_numeric_op(op, left.0, right.0, span, rhs.span())?.into()),
             (
                 Value::Primitive(PrimitiveValue::Integer(left)),
                 Value::Primitive(PrimitiveValue::Float(right)),
-            ) => Some(float_numeric_op(op, *left as f64, right.0).into()),
+            ) => Some(float_numeric_op(op, *left as f64, right.0, span, rhs.span())?.into()),
             (
                 Value::Primitive(PrimitiveValue::Float(left)),
                 Value::Primitive(PrimitiveValue::Integer(right)),
-            ) => Some(float_numeric_op(op, left.0, *right as f64).into()),
+            ) => Some(float_numeric_op(op, left.0, *right as f64, span, rhs.span())?.into()),
             (Value::Primitive(PrimitiveValue::String(left)), Value::Primitive(right))
                 if op == NumericOperator::Addition
                     && !matches!(right, PrimitiveValue::Boolean(_)) =>
@@ -3602,16 +3619,37 @@ pub(crate) mod tests {
         let value = eval_v1_expr(&env, V1::Zero, r#"5.25 % 1.3"#).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 0.04999999999999982);
 
-        let diagnostic = eval_v1_expr(&env, V1::Zero, r#"5 % 0"#).await.unwrap_err();
-        assert_eq!(diagnostic.message(), "attempt to divide by zero");
+        // The quotient is truncated toward zero, so the result takes the sign
+        // of the left-hand operand
+        let value = eval_v1_expr(&env, V1::Zero, r#"-5 % 2"#).await.unwrap();
+        assert_eq!(value.unwrap_integer(), -1);
 
-        let diagnostic = eval_v1_expr(&env, V1::Zero, &format!(r#"{min} % -1"#, min = i64::MIN))
+        let value = eval_v1_expr(&env, V1::Zero, r#"5 % -2"#).await.unwrap();
+        assert_eq!(value.unwrap_integer(), 1);
+
+        let value = eval_v1_expr(&env, V1::Zero, r#"-5 % -2"#).await.unwrap();
+        assert_eq!(value.unwrap_integer(), -1);
+
+        let value = eval_v1_expr(&env, V1::Zero, r#"5.5 % 2.0"#).await.unwrap();
+        approx::assert_relative_eq!(value.unwrap_float(), 1.5);
+
+        let value = eval_v1_expr(&env, V1::Zero, r#"-5.5 % 2.0"#).await.unwrap();
+        approx::assert_relative_eq!(value.unwrap_float(), -1.5);
+
+        let value = eval_v1_expr(&env, V1::Zero, r#"5.5 % -2.0"#).await.unwrap();
+        approx::assert_relative_eq!(value.unwrap_float(), 1.5);
+
+        // The exact result is zero even though the intermediate quotient
+        // overflows
+        let value = eval_v1_expr(&env, V1::Zero, &format!(r#"{min} % -1"#, min = i64::MIN))
             .await
-            .unwrap_err();
-        assert_eq!(
-            diagnostic.message(),
-            "evaluation of arithmetic expression resulted in overflow"
-        );
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), 0);
+
+        for expr in ["5 % 0", "5.5 % 0", "5 % 0.0", "5.5 % 0.0", "5.5 % -0.0"] {
+            let diagnostic = eval_v1_expr(&env, V1::Zero, expr).await.unwrap_err();
+            assert_eq!(diagnostic.message(), "attempt to divide by zero", "{expr}");
+        }
     }
 
     #[tokio::test]
