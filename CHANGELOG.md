@@ -17,11 +17,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   resolved retry policy and curated hints, local work directory disk usage, execution backend and
   Sprocket version, and localization transfer volume as a data-movement proxy
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
-* Added the experimental WDL 1.4 postfix unwrap operator (`x!`), which converts an optional value
-  to its non-optional type and fails if the value is `None`. This implements
+* Added the experimental WDL 1.4 postfix unwrap operator (`x!`), which converts an optional value to
+  its non-optional type and fails if the value is `None`. This implements
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
-  `feature_flags.wdl_1_4 = true`
-  ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+  `feature_flags.wdl_1_4 = true` ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
 ### Changed
 
