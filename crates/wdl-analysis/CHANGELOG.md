@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+* Updated the `read_tsv` documentation to match
+  [`openwdl/wdl#787`](https://github.com/openwdl/wdl/pull/787): the two-argument form statically
+  returns `Array[Object]` and its `Boolean` argument must evaluate to `true`.
+
 ## 0.28.0 - 2026-10-29
 
 ### Added
