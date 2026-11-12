@@ -25,6 +25,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   backend may report through Crankshaft's `TaskResourceUsage` event
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
 
+### Changed
+
+* The configuration settings `http.cache_dir`, `task.cache_dir` and the `image_cache_dir` of
+  LSF/Slurm backends are now relative to the output directory instead of being user-wide cache
+  locations; the previous `system` value is deprecated
+  ([#1372](https://github.com/stjude-rust-labs/sprocket/pull/1372)).
+
 ## 0.20.0 - 2026-10-29
 
 ### Added

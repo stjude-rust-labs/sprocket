@@ -1,5 +1,7 @@
 //! Source validation and security tests.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use sprocket::ServerConfig;
 use sprocket::analysis::Source;
@@ -9,12 +11,15 @@ use tempfile::TempDir;
 use url::Url;
 
 fn make_config(
-    output_directory: std::path::PathBuf,
-    allowed_file_paths: Vec<std::path::PathBuf>,
+    output_dir: PathBuf,
+    allowed_file_paths: Vec<PathBuf>,
     allowed_urls: Vec<Url>,
 ) -> ServerConfig {
     ServerConfig {
-        output_dir: output_directory,
+        engine: wdl::engine::Config {
+            output_dir,
+            ..Default::default()
+        },
         allowed_file_paths,
         allowed_urls,
         ..Default::default()

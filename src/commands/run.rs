@@ -945,7 +945,7 @@ pub async fn run(
     };
 
     if let Some(output_dir) = &args.output_dir {
-        config.run.output_dir.clone_from(output_dir);
+        config.run.engine.output_dir.clone_from(output_dir);
     }
 
     // Respect the AWS SDK environment variables for endpoint
@@ -1353,7 +1353,7 @@ async fn setup_run_context(
     inputs: &Inputs,
 ) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
-    let output_dir = OutputDirectory::new(config.run.output_dir.clone());
+    let output_dir = OutputDirectory::new(config.run.engine.output_dir.clone());
 
     // Acquire an exclusive lock on the output directory to serialize setup
     // operations across concurrent processes (e.g., database creation,
