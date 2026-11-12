@@ -77,8 +77,9 @@ const EXISTENCE_ONLY_PLACEHOLDER: &str = concat!(
     "}\n",
 );
 
-/// Transient file suffixes that should be removed during `BLESS`.
-const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal"];
+/// Ignore SQLite journal files when blessing fixtures. `PERSIST` retains
+/// them between transactions.
+const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal", "-journal"];
 
 /// Finds tests at the given root directory.
 fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
