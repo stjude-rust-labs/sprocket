@@ -59,7 +59,7 @@ impl TsvHeader {
 ///
 /// Trailing end-of-line characters (\r and \n) are removed from each line.
 ///
-/// `Array[Array[String]] read_tsv(File, [false])`: Returns each row of the
+/// `Array[Array[String]] read_tsv(File)`: Returns each row of the
 /// table as an Array[String]. There is no requirement that the rows of the
 /// table are all the same length.
 ///
@@ -112,8 +112,9 @@ fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diag
 ///
 /// Trailing end-of-line characters (\r and \n) are removed from each line.
 ///
-/// `Array[Object] read_tsv(File, true)`: The second parameter must be true and
-/// specifies that the TSV file contains a header line. Each row is returned as
+/// `Array[Object] read_tsv(File, Boolean)`: The second parameter must evaluate
+/// to true, specifying that the TSV file contains a header line; if it
+/// evaluates to false, an error is raised. Each row is returned as
 /// an Object with its keys determined by the header (the first line in the
 /// file) and its values as Strings. All rows in the file must be the same
 /// length and the field names in the header row must be valid Object field
