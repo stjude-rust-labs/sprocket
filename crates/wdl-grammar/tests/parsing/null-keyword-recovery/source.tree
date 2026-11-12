@@ -1,0 +1,33 @@
+RootNode@0..136
+  Comment@0..58 "# https://github.com/ ..."
+  Whitespace@58..60 "\n\n"
+  VersionStatementNode@60..71
+    VersionKeyword@60..67 "version"
+    Whitespace@67..68 " "
+    Version@68..71 "1.0"
+  Whitespace@71..73 "\n\n"
+  WorkflowDefinitionNode@73..136
+    WorkflowKeyword@73..81 "workflow"
+    Whitespace@81..82 " "
+    Ident@82..87 "repro"
+    Whitespace@87..88 " "
+    OpenBrace@88..89 "{"
+    Whitespace@89..94 "\n    "
+    CallStatementNode@94..134
+      CallKeyword@94..98 "call"
+      Whitespace@98..99 " "
+      CallTargetNode@99..102
+        Ident@99..102 "foo"
+      Whitespace@102..103 " "
+      OpenBrace@103..104 "{"
+      Whitespace@104..113 "\n        "
+      CallInputItemNode@113..122
+        Ident@113..122 "something"
+      Colon@122..123 ":"
+      Whitespace@123..124 " "
+      CallInputItemNode@124..128
+        Ident@124..128 "null"
+      Whitespace@128..133 "\n    "
+      CloseBrace@133..134 "}"
+    Whitespace@134..135 "\n"
+    CloseBrace@135..136 "}"

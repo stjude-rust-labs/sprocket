@@ -199,7 +199,7 @@ mod tests {
         config.server.allowed_file_paths.push(prefix);
 
         let out_dir = tempfile::tempdir()?;
-        config.server.output_dir = out_dir.path().into();
+        config.server.engine.output_dir = out_dir.path().into();
 
         let port = listener.local_addr()?.port();
         let server_config = config.clone();

@@ -12,7 +12,9 @@ use std::collections::HashMap;
 
 use chrono::DateTime;
 use chrono::Utc;
-use crankshaft::events::Event as CrankshaftEvent;
+use cloud_copy::Location;
+use cloud_copy::TransferEvent;
+use crankshaft_events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -24,6 +26,7 @@ use wdl::engine::EngineEvent;
 use crate::server::RunMetrics;
 use crate::server::RunMetricsResponse;
 use crate::server::Task;
+use crate::server::TransferTotals;
 use crate::server::build_run_metrics;
 use crate::system::v1::db::TaskStatus;
 
@@ -42,8 +45,13 @@ struct AttemptRecord {
     constraints: Option<serde_json::Value>,
     /// Why the attempt was retried, when it was.
     retry_cause: Option<serde_json::Value>,
+    /// The resource utilization observed for the attempt, when the backend
+    /// reported it.
+    utilization: Option<serde_json::Value>,
     /// When the attempt was first observed.
     created_at: DateTime<Utc>,
+    /// When the attempt was submitted to an execution backend.
+    submitted_at: Option<DateTime<Utc>>,
     /// When the attempt started executing.
     started_at: Option<DateTime<Utc>>,
     /// When the attempt reached a terminal status.
@@ -60,7 +68,9 @@ impl AttemptRecord {
             exit_status: None,
             constraints: None,
             retry_cause: None,
+            utilization: None,
             created_at: Utc::now(),
+            submitted_at: None,
             started_at: None,
             completed_at: None,
         }
@@ -87,6 +97,58 @@ fn status_rank(status: TaskStatus) -> u8 {
     }
 }
 
+/// Accumulates transfer byte totals from the transfer event stream.
+///
+/// Totals count successful transfers whose size was known when the transfer
+/// started; direction is classified by the destination (a URL destination is
+/// an upload, a local path destination is a download).
+#[derive(Debug, Default)]
+pub struct TransferAccumulator {
+    /// In-flight transfers: id to (is upload, size in bytes).
+    pending: HashMap<u64, (bool, u64)>,
+    /// The accumulated totals.
+    totals: TransferTotals,
+    /// Whether any transfer was observed at all.
+    observed: bool,
+}
+
+impl TransferAccumulator {
+    /// Handles a transfer event.
+    pub fn handle_event(&mut self, event: &TransferEvent) {
+        match event {
+            TransferEvent::TransferStarted {
+                id,
+                destination,
+                size,
+                ..
+            } => {
+                self.observed = true;
+                if let Some(size) = size {
+                    let upload = matches!(destination, Location::Url(_));
+                    self.pending.insert(*id, (upload, *size));
+                }
+            }
+            TransferEvent::TransferCompleted { id, failed } => {
+                if let Some((upload, size)) = self.pending.remove(id)
+                    && !failed
+                {
+                    if upload {
+                        self.totals.uploaded_bytes += size;
+                    } else {
+                        self.totals.downloaded_bytes += size;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Returns the accumulated totals or `None` if no transfer was observed.
+    pub fn totals(&self) -> Option<TransferTotals> {
+        self.observed.then_some(self.totals)
+    }
+}
+
 /// Accumulates execution metrics from the engine and Crankshaft event
 /// streams.
 #[derive(Debug, Default)]
@@ -95,6 +157,8 @@ pub struct MetricsCollector {
     attempts: IndexMap<String, AttemptRecord>,
     /// Maps Crankshaft task ids to attempt names.
     task_names: HashMap<u64, String>,
+    /// Accumulates transfer byte totals.
+    transfers: TransferAccumulator,
 }
 
 impl MetricsCollector {
@@ -182,6 +246,17 @@ impl MetricsCollector {
                 record.status = TaskStatus::Cached;
                 record.completed_at = Some(Utc::now());
             }
+            EngineEvent::TaskDiskUsage { name, disk_used } => {
+                // Merge the engine-measured disk usage into whatever the
+                // backend may have reported.
+                let record = self.attempt(&name, None, 0, TaskStatus::Initializing);
+                let utilization = record
+                    .utilization
+                    .get_or_insert_with(|| serde_json::json!({}));
+                if let Some(map) = utilization.as_object_mut() {
+                    map.insert("disk_used".to_string(), disk_used.into());
+                }
+            }
             EngineEvent::TaskParked | EngineEvent::TaskUnparked { .. } => {}
             _ => {}
         }
@@ -199,6 +274,10 @@ impl MetricsCollector {
 
                 self.task_names.insert(id, name.clone());
                 self.advance(&name, TaskStatus::Pending);
+                let record = self.attempt(&name, None, 0, TaskStatus::Pending);
+                if record.submitted_at.is_none() {
+                    record.submitted_at = Some(Utc::now());
+                }
             }
             CrankshaftEvent::TaskStarted { id } => {
                 if let Some(name) = self.task_names.get(&id).cloned() {
@@ -229,6 +308,23 @@ impl MetricsCollector {
                     self.finish(&name, TaskStatus::Preempted, None);
                 }
             }
+            CrankshaftEvent::TaskResourceUsage { id, usage } => {
+                if let Some(name) = self.task_names.get(&id).cloned() {
+                    match serde_json::to_value(&usage) {
+                        Ok(serde_json::Value::Object(usage)) => {
+                            let record = self.attempt(&name, None, 0, TaskStatus::Initializing);
+                            let utilization = record
+                                .utilization
+                                .get_or_insert_with(|| serde_json::json!({}));
+                            if let Some(map) = utilization.as_object_mut() {
+                                map.extend(usage.into_iter().filter(|(_, value)| !value.is_null()));
+                            }
+                        }
+                        Ok(_) => tracing::error!("task resource usage must be a JSON object"),
+                        Err(e) => tracing::warn!("failed to serialize task resource usage: {e:#}"),
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -241,6 +337,12 @@ impl MetricsCollector {
             record.exit_status = exit_status;
             record.completed_at = Some(Utc::now());
         }
+    }
+
+    /// Returns the accumulated transfer totals or `None` if no transfer
+    /// was observed.
+    pub fn transfer_totals(&self) -> Option<TransferTotals> {
+        self.transfers.totals()
     }
 
     /// Renders the collected metrics into the shared response shape.
@@ -262,7 +364,9 @@ impl MetricsCollector {
                 attempt: record.attempt,
                 constraints: record.constraints,
                 retry_cause: record.retry_cause,
+                utilization: record.utilization,
                 created_at: record.created_at,
+                submitted_at: record.submitted_at,
                 started_at: record.started_at,
                 completed_at: record.completed_at,
             })
@@ -279,12 +383,14 @@ impl MetricsCollector {
 pub async fn collect_metrics(
     mut crankshaft: broadcast::Receiver<CrankshaftEvent>,
     mut engine: broadcast::Receiver<EngineEvent>,
+    mut transfer: broadcast::Receiver<TransferEvent>,
 ) -> MetricsCollector {
     let mut collector = MetricsCollector::default();
     let mut crankshaft_open = true;
     let mut engine_open = true;
+    let mut transfer_open = true;
 
-    while crankshaft_open || engine_open {
+    while crankshaft_open || engine_open || transfer_open {
         select! {
             r = crankshaft.recv(), if crankshaft_open => match r {
                 Ok(event) => collector.handle_crankshaft_event(event),
@@ -295,6 +401,11 @@ pub async fn collect_metrics(
                 Ok(event) => collector.handle_engine_event(event),
                 Err(RecvError::Lagged(_)) => {}
                 Err(RecvError::Closed) => engine_open = false,
+            },
+            r = transfer.recv(), if transfer_open => match r {
+                Ok(event) => collector.transfers.handle_event(&event),
+                Err(RecvError::Lagged(_)) => {}
+                Err(RecvError::Closed) => transfer_open = false,
             },
         }
     }
@@ -308,12 +419,17 @@ pub fn local_run_summary(
     name: &str,
     status: crate::system::v1::db::RunStatus,
     started_at: DateTime<Utc>,
+    backend: Option<String>,
+    transfer: Option<TransferTotals>,
 ) -> RunMetrics {
     RunMetrics {
         uuid: run_id,
         name: name.to_string(),
         status,
         wall_time_ms: Some((Utc::now() - started_at).num_milliseconds()),
+        backend,
+        sprocket_version: env!("CARGO_PKG_VERSION").to_string(),
+        transfer,
     }
 }
 
@@ -336,7 +452,11 @@ mod tests {
             "memory": 1024,
             "gpu": [],
             "fpga": [],
-            "disks": {}
+            "disks": {},
+            "max_retries": 1,
+            "preemptible": 0,
+            "max_cpu": null,
+            "max_memory": null
         }))
         .expect("constraints should deserialize");
         collector.handle_engine_event(EngineEvent::TaskExecuting {
@@ -359,6 +479,9 @@ mod tests {
             name: "test".to_string(),
             status: crate::system::v1::db::RunStatus::Completed,
             wall_time_ms: None,
+            backend: None,
+            sprocket_version: "0.0.0-test".to_string(),
+            transfer: None,
         };
         let response = collector.into_response(run);
 
@@ -423,5 +546,134 @@ mod tests {
         let record = &collector.attempts["wf-t-x1"];
         assert_eq!(record.status, TaskStatus::Cached);
         assert!(record.completed_at.is_some());
+    }
+
+    #[test]
+    fn utilization_is_recorded_on_the_attempt() {
+        let mut collector = MetricsCollector::default();
+
+        collector.handle_engine_event(EngineEvent::TaskInitializing {
+            id: "wf-t".to_string(),
+            name: "wf-t-x1".to_string(),
+            attempt: 0,
+        });
+        // The Crankshaft channel announces the task and then reports its
+        // resource usage by task id.
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+            id: 7,
+            name: "wf-t-x1".to_string(),
+            tes_id: None,
+            token: Default::default(),
+        });
+        let mut usage = crankshaft_events::TaskResourceUsage::default();
+        usage.max_memory = Some(241_172_480);
+        usage.cpu_time_ms = Some(324_000);
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage { id: 7, usage });
+
+        let utilization = collector.attempts["wf-t-x1"]
+            .utilization
+            .as_ref()
+            .expect("utilization should be recorded");
+        assert_eq!(utilization["max_memory"], 241_172_480u64);
+        assert_eq!(utilization["cpu_time_ms"], 324_000);
+    }
+
+    #[test]
+    fn transfers_total_successful_sized_transfers_by_direction() {
+        use std::path::PathBuf;
+
+        let mut acc = TransferAccumulator::default();
+        assert_eq!(acc.totals(), None);
+
+        // A successful download.
+        acc.handle_event(&TransferEvent::TransferStarted {
+            id: 1,
+            source: Location::Url("https://example.com/in".parse().unwrap()),
+            destination: Location::Path(PathBuf::from("/tmp/in")),
+            blocks: 1,
+            size: Some(1024),
+        });
+        acc.handle_event(&TransferEvent::TransferCompleted {
+            id: 1,
+            failed: false,
+        });
+
+        // A successful upload.
+        acc.handle_event(&TransferEvent::TransferStarted {
+            id: 2,
+            source: Location::Path(PathBuf::from("/tmp/out")),
+            destination: Location::Url("https://example.com/out".parse().unwrap()),
+            blocks: 1,
+            size: Some(2048),
+        });
+        acc.handle_event(&TransferEvent::TransferCompleted {
+            id: 2,
+            failed: false,
+        });
+
+        // A failed transfer contributes nothing.
+        acc.handle_event(&TransferEvent::TransferStarted {
+            id: 3,
+            source: Location::Url("https://example.com/bad".parse().unwrap()),
+            destination: Location::Path(PathBuf::from("/tmp/bad")),
+            blocks: 1,
+            size: Some(4096),
+        });
+        acc.handle_event(&TransferEvent::TransferCompleted {
+            id: 3,
+            failed: true,
+        });
+
+        let totals = acc.totals().expect("transfers were observed");
+        assert_eq!(totals.downloaded_bytes, 1024);
+        assert_eq!(totals.uploaded_bytes, 2048);
+    }
+
+    #[test]
+    fn disk_usage_merges_into_utilization() {
+        for disk_first in [false, true] {
+            let mut collector = MetricsCollector::default();
+
+            collector.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+                id: 7,
+                name: "wf-t-x1".to_string(),
+                tes_id: None,
+                token: Default::default(),
+            });
+            let disk = EngineEvent::TaskDiskUsage {
+                name: "wf-t-x1".to_string(),
+                disk_used: 4096,
+            };
+            if disk_first {
+                collector.handle_engine_event(disk.clone());
+            }
+            let mut usage = crankshaft_events::TaskResourceUsage::default();
+            usage.max_memory = Some(1024);
+            usage.cpu_time_ms = Some(2000);
+            collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage { id: 7, usage });
+            if !disk_first {
+                collector.handle_engine_event(disk);
+            }
+
+            let utilization = collector.attempts["wf-t-x1"]
+                .utilization
+                .as_ref()
+                .expect("utilization should be recorded");
+            assert_eq!(utilization["disk_used"], 4096, "disk first: {disk_first}");
+            assert_eq!(utilization["max_memory"], 1024);
+            assert_eq!(utilization["cpu_time_ms"], 2000);
+
+            let mut usage = crankshaft_events::TaskResourceUsage::default();
+            usage.cpu_time_ms = Some(3000);
+            collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage { id: 7, usage });
+
+            let utilization = collector.attempts["wf-t-x1"]
+                .utilization
+                .as_ref()
+                .expect("utilization should be recorded");
+            assert_eq!(utilization["disk_used"], 4096);
+            assert_eq!(utilization["max_memory"], 1024);
+            assert_eq!(utilization["cpu_time_ms"], 3000);
+        }
     }
 }
