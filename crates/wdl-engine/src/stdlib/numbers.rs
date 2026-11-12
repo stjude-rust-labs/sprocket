@@ -6,6 +6,9 @@
 //!
 //! See <https://github.com/openwdl/wdl/pull/791>.
 
+use wdl_grammar::lexer::Lexer;
+use wdl_grammar::lexer::v1::Token;
+
 /// Splits an optional leading `+` or `-` sign from the given string.
 ///
 /// Returns whether the value is negative and the remainder of the string.
@@ -41,109 +44,9 @@ fn int_literal_digits(s: &str) -> Option<(u32, &str)> {
 }
 
 /// Determines if the given string is an unsigned `Float` source literal.
-///
-/// The accepted forms are `digit+ exponent`, `digit+ . digit* exponent?`, and
-/// `. digit+ exponent?`, where `exponent` is `e` or `E`, an optional `+` or
-/// `-`, and one or more digits.
 fn is_float_literal(s: &str) -> bool {
-    let bytes = s.as_bytes();
-    let count_digits = |start: usize| {
-        bytes[start..]
-            .iter()
-            .take_while(|b| b.is_ascii_digit())
-            .count()
-    };
-
-    let int_digits = count_digits(0);
-    let mut i = int_digits;
-
-    let has_point = bytes.get(i) == Some(&b'.');
-    let mut frac_digits = 0;
-    if has_point {
-        i += 1;
-        frac_digits = count_digits(i);
-        i += frac_digits;
-    }
-
-    if int_digits == 0 && frac_digits == 0 {
-        return false;
-    }
-
-    let has_exponent = matches!(bytes.get(i), Some(b'e' | b'E'));
-    if has_exponent {
-        i += 1;
-        if matches!(bytes.get(i), Some(b'+' | b'-')) {
-            i += 1;
-        }
-
-        let exp_digits = count_digits(i);
-        if exp_digits == 0 {
-            return false;
-        }
-
-        i += exp_digits;
-    }
-
-    (has_point || has_exponent) && i == bytes.len()
-}
-
-/// Converts the digits of a hexadecimal, octal, or binary literal to the
-/// nearest `f64`, rounding ties to even.
-///
-/// Returns infinity if the value exceeds the range of `f64`.
-fn radix_digits_to_f64(digits: &str, radix: u32) -> f64 {
-    /// The number of bits in the significand of an `f64` (including the
-    /// implicit bit).
-    const SIGNIFICAND_BITS: u32 = f64::MANTISSA_DIGITS;
-
-    debug_assert!(radix.is_power_of_two());
-    let bits_per_digit = radix.trailing_zeros();
-    let bits = digits
-        .chars()
-        .map(|c| c.to_digit(radix).expect("digits should be valid"))
-        .flat_map(|d| (0..bits_per_digit).rev().map(move |i| (d >> i) & 1 == 1))
-        .skip_while(|b| !b);
-
-    let mut significand: u64 = 0;
-    let mut len = 0;
-    // The number of bits beyond the significand (i.e. the binary exponent)
-    let mut exponent: u64 = 0;
-    // The first bit beyond the significand
-    let mut round = false;
-    // Whether any bit after the round bit is set
-    let mut sticky = false;
-    for bit in bits {
-        if len < SIGNIFICAND_BITS {
-            significand = (significand << 1) | u64::from(bit);
-            len += 1;
-        } else {
-            if exponent == 0 {
-                round = bit;
-            } else {
-                sticky |= bit;
-            }
-
-            exponent += 1;
-        }
-    }
-
-    if round && (sticky || significand & 1 == 1) {
-        significand += 1;
-        if significand == 1 << SIGNIFICAND_BITS {
-            significand >>= 1;
-            exponent += 1;
-        }
-    }
-
-    let max_exponent = u64::try_from(f64::MAX_EXP - 1).expect("should fit");
-    if exponent > max_exponent {
-        return f64::INFINITY;
-    }
-
-    // Both the significand and the power of two are exactly representable, so
-    // the multiplication is exact unless it overflows to infinity
-    let scale = f64::from_bits((exponent + max_exponent) << (SIGNIFICAND_BITS - 1));
-    significand as f64 * scale
+    let mut lexer = Lexer::<Token>::new(s);
+    matches!(lexer.next(), Some((Ok(Token::Float), _))) && lexer.next().is_none()
 }
 
 /// Parses the contents of a file read by `read_int` in WDL 1.1 or later.
@@ -173,7 +76,7 @@ pub(super) fn parse_float(s: &str) -> Option<f64> {
     let (negative, s) = split_sign(s.trim());
     let value = match int_literal_digits(s) {
         Some((10, digits)) => digits.parse::<f64>().ok()?,
-        Some((radix, digits)) => radix_digits_to_f64(digits, radix),
+        Some((radix, digits)) => u64::from_str_radix(digits, radix).ok()? as f64,
         None if is_float_literal(s) => s.parse::<f64>().ok()?,
         None => return None,
     };
@@ -259,13 +162,6 @@ mod tests {
 
     #[test]
     fn float() {
-        let max = format!("0x{f}8{z}", f = "f".repeat(13), z = "0".repeat(242));
-        let below_max_tie = format!("0x{f}b{f2}", f = "f".repeat(13), f2 = "f".repeat(242));
-        let max_tie = format!("0x{f}c{z}", f = "f".repeat(13), z = "0".repeat(242));
-        let pow_1023_bin = format!("0b1{z}", z = "0".repeat(1023));
-        let pow_1023_oct = format!("-0o1{z}", z = "0".repeat(341));
-        let pow_1024_bin = format!("0b1{z}", z = "0".repeat(1024));
-        let all_ones = format!("0x{f}", f = "F".repeat(256));
         let large_decimal = format!("1{z}", z = "0".repeat(309));
 
         for (s, expected) in [
@@ -294,12 +190,6 @@ mod tests {
             ("0x20000000000003", 9007199254740996.0),
             // Values above a tie round up
             ("0x200000000000011", 144115188075855904.0),
-            // Values above `u128::MAX`
-            ("0x1000000000000000000000000000000000", 2f64.powi(132)),
-            (&max, f64::MAX),
-            (&below_max_tie, f64::MAX),
-            (&pow_1023_bin, 2f64.powi(1023)),
-            (&pow_1023_oct, -(2f64.powi(1023))),
         ] {
             assert_eq!(parse_float(s), Some(expected), "`{s}` should parse");
         }
@@ -338,9 +228,8 @@ mod tests {
             "-1e309",
             "1.7976931348623159e308",
             &large_decimal,
-            &max_tie,
-            &all_ones,
-            &pow_1024_bin,
+            // Prefixed values must fit in a `u64`
+            "0x10000000000000000",
         ] {
             assert_eq!(parse_float(s), None, "`{s}` should not parse");
         }
