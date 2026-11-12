@@ -10,7 +10,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 * Added the WDL 1.4 `exists` function from
-  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`.
+  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
+  ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
 
 ### Fixed
 

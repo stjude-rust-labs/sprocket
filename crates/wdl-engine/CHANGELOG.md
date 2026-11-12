@@ -12,7 +12,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added the WDL 1.4 `exists` function from
   [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), which checks whether a local or
   remote file or directory exists. Symbolic links are followed, and an error is raised when
-  existence cannot be determined.
+  existence cannot be determined ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
 
 ## 0.20.0 - 2026-10-29
 
