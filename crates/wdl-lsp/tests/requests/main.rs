@@ -2,6 +2,8 @@
 
 mod call_hierarchy;
 mod code_lens;
+#[path = "../common.rs"]
+mod common;
 mod completions;
 mod diagnostics;
 mod find_all_references;
@@ -13,6 +15,4 @@ mod semantic_tokens;
 mod shutdown;
 mod signature_help;
 mod symbols;
-
-#[path = "../common.rs"]
-mod common;
+mod will_rename_files;

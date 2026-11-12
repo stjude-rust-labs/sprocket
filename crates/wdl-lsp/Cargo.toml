@@ -38,6 +38,7 @@ fs_extra = { workspace = true }
 pretty_assertions = { workspace = true }
 serde = { workspace = true }
 tempfile = { workspace = true }
+test-log = { workspace = true }
 
 [lints]
 workspace = true

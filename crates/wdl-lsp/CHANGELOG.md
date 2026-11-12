@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added support for `textDocument/willRenameFiles` requests, to automatically update WDL import
+  paths and refresh test YAMLs ([#1346](https://github.com/stjude-rust-labs/sprocket/pull/1346)).
+
 ## 0.25.0 - 2026-10-29
 
 ### Added

@@ -807,6 +807,13 @@ impl DocumentGraph {
             .map(|e| e.source())
     }
 
+    /// Gets the direct dependents of a node.
+    pub fn dependents(&self, index: NodeIndex) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.inner
+            .edges_directed(index, Direction::Outgoing)
+            .map(|e| e.target())
+    }
+
     /// Looks up a previously resolved symbolic import of the importer.
     ///
     /// Dependency edges are stored reversed (dependency → dependent), so the
