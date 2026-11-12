@@ -23,6 +23,7 @@ use lsp_types::CallHierarchyItem;
 use lsp_types::CallHierarchyOutgoingCall;
 use lsp_types::CodeLens;
 use lsp_types::CompletionResponse;
+use lsp_types::DocumentLink;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::FoldingRange;
 use lsp_types::GotoDefinitionResponse;
@@ -155,6 +156,8 @@ pub enum Request<Context> {
     SemanticTokens(SemanticTokenRequest<Context>),
     /// A request to get symbols for a document.
     DocumentSymbol(DocumentSymbolRequest),
+    /// A request to get the external links in a document.
+    DocumentLink(DocumentLinkRequest<Context>),
     /// A request to get symbols for the workspace.
     WorkspaceSymbol(WorkspaceSymbolRequest<Context>),
     /// A request to get all incoming calls from a symbol.
@@ -357,6 +360,16 @@ pub struct DocumentSymbolRequest {
     pub document: Url,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<DocumentSymbolResponse>>,
+}
+
+/// Represents a request to get the external links in a document.
+pub struct DocumentLinkRequest<Context> {
+    /// The document to search
+    pub document: Url,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<DocumentLink>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request to get symbols for the workspace.
@@ -1083,6 +1096,34 @@ where
                         }
                         Err(err) => {
                             error!("document symbol request failed: {err:?}");
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::DocumentLink(DocumentLinkRequest {
+                    document,
+                    completed,
+                    context,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request for document links for {document}");
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
+                    let graph = self.graph.read();
+                    match handlers::document_link(&graph, &document) {
+                        Ok(result) => {
+                            debug!(
+                                "document link request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!("document link request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }

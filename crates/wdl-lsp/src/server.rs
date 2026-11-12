@@ -579,6 +579,11 @@ enum Request {
         params: DocumentDiagnosticParams,
         tx: RequestResponseSender<DocumentDiagnosticReportResult>,
     },
+    /// `textDocument/documentLink`
+    DocumentLink {
+        params: DocumentLinkParams,
+        tx: RequestResponseSender<Option<Vec<DocumentLink>>>,
+    },
     /// `textDocument/symbol`
     DocumentSymbol {
         params: DocumentSymbolParams,
@@ -946,6 +951,10 @@ impl<S: 'static> Server<S> {
                         let state = state.read().await;
                         Self::document_diagnostic(params, tx, &state, &options).await
                     }
+                    Request::DocumentLink { params, tx } => {
+                        let state = state.read().await;
+                        Self::document_link(params, tx, &state).await
+                    }
                     Request::DocumentSymbol { params, tx } => {
                         let state = state.read().await;
                         Self::document_symbol(params, tx, &state).await
@@ -1115,6 +1124,22 @@ impl<S: 'static> Server<S> {
                         )
                     })
             });
+
+        let _ = tx.send(results);
+    }
+
+    /// `textDocument/documentLink` request handler.
+    async fn document_link(
+        params: DocumentLinkParams,
+        tx: RequestResponseSender<Option<Vec<DocumentLink>>>,
+        state: &ServerState<S>,
+    ) {
+        let results = state
+            .config
+            .analyzer
+            .document_link(ProgressToken::default(), params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
         let _ = tx.send(results);
     }
@@ -1859,6 +1884,10 @@ impl<S: 'static> LanguageServer for Server<S> {
                     code_lens_provider: Some(CodeLensOptions {
                         resolve_provider: Some(false),
                     }),
+                    document_link_provider: Some(DocumentLinkOptions {
+                        resolve_provider: None,
+                        work_done_progress_options: Default::default(),
+                    }),
                     ..Default::default()
                 },
                 server_info: Some(info),
@@ -2060,6 +2089,18 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<Option<Vec<CodeLens>>, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
         self.request(move |tx| Message::Request(Request::CodeLens { params, tx }))
+    }
+
+    fn document_link(
+        &mut self,
+        mut params: DocumentLinkParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<DocumentLink>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::DocumentLink { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn formatting(

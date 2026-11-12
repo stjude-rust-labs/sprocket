@@ -18,7 +18,9 @@ use std::ops::ControlFlow;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use anyhow::Context;
 use async_lsp::ClientSocket;
 use async_lsp::LanguageClient;
 use async_lsp::MainLoop;
@@ -43,6 +45,7 @@ use tokio_util::compat::TokioAsyncReadCompatExt;
 use tower::ServiceBuilder;
 use tracing_subscriber::FmtSubscriber;
 use url::Url;
+use wdl_analysis::ResolutionContext;
 use wdl_lsp::FilterReloadHandle;
 use wdl_lsp::Server;
 use wdl_lsp::ServerOptions;
@@ -99,6 +102,7 @@ pub struct TestContextBuilder<C> {
     log_handle: Option<FilterReloadHandle<FmtSubscriber>>,
     server_options: ServerOptions,
     user_options: UserOptions,
+    setup_modules: bool,
 }
 
 impl TestContextBuilder<DummyClient> {
@@ -110,6 +114,7 @@ impl TestContextBuilder<DummyClient> {
             log_handle: None,
             server_options: Default::default(),
             user_options: Default::default(),
+            setup_modules: false,
         }
     }
 }
@@ -136,6 +141,7 @@ where
             log_handle: self.log_handle,
             server_options: self.server_options,
             user_options: self.user_options,
+            setup_modules: self.setup_modules,
         }
     }
 
@@ -154,6 +160,12 @@ where
     /// Set the [`UserOptions`].
     pub fn user_options(mut self, options: UserOptions) -> Self {
         self.user_options = options;
+        self
+    }
+
+    /// Setup the analyzer to resolve modules in the workspace.
+    pub fn setup_modules(mut self) -> Self {
+        self.setup_modules = true;
         self
     }
 
@@ -183,6 +195,44 @@ where
             &mut self.server_options,
             &mut self.user_options,
         );
+
+        if self.setup_modules {
+            self.server_options.feature_flags = self.server_options.feature_flags.with_wdl_1_4();
+
+            let modules_json = workspace.path().join("module.json");
+            assert!(
+                modules_json.exists(),
+                "enable_modules() requires an existing module.json!"
+            );
+
+            let lockfile_path = workspace.path().join(wdl_modules::LOCKFILE_FILENAME);
+            let lockfile = wdl_modules::project::LockedLockfile::read(&lockfile_path)
+                .with_context(|| format!("reading `{}`", lockfile_path.display()))
+                .unwrap()
+                .unwrap_or_default();
+
+            let trust_path = workspace.path().join("module-trust.toml");
+            let trust = wdl_modules::resolver::TrustStore::load_or_default(&trust_path)
+                .with_context(|| format!("loading trust store at `{}`", trust_path.display()))
+                .unwrap();
+
+            let manifest = wdl_modules::Manifest::parse(&fs::read(modules_json).unwrap()).unwrap();
+            let consumer_module =
+                wdl_modules::module::Module::new(Arc::new(manifest), workspace.path().into());
+
+            let cache_root = workspace.path().join("cache").join("modules");
+
+            let resolver = wdl_modules::resolver::GitResolver::builder()
+                .cache_root(cache_root)
+                .trust(trust)
+                .lockfile(lockfile)
+                .build();
+            resolver.initialize_cache().unwrap();
+
+            self.server_options.resolution_context =
+                ResolutionContext::enabled(Arc::new(resolver), consumer_module);
+        }
+
         let (server_loop, client_socket) = MainLoop::new_server(|client| {
             ServiceBuilder::new().service(Router::from_language_server(
                 Server::<FmtSubscriber>::new(
@@ -238,8 +288,13 @@ impl TestContext {
     }
 
     /// Gets the path to a file within the temporary workspace.
+    ///
+    /// NOTE: Paths are expected to use '/' separators
     pub fn doc_path(&self, path: &str) -> PathBuf {
-        self.workspace.path().join(path)
+        path.split('/')
+            .fold(self.workspace.path().to_path_buf(), |acc, part| {
+                acc.join(part)
+            })
     }
 
     /// Creates a file URI for the temporary workspace.

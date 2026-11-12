@@ -29,6 +29,7 @@ use lsp_types::CallHierarchyItem;
 use lsp_types::CallHierarchyOutgoingCall;
 use lsp_types::CodeLens;
 use lsp_types::CompletionResponse;
+use lsp_types::DocumentLink;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::FoldingRange;
 use lsp_types::GotoDefinitionResponse;
@@ -56,6 +57,7 @@ use crate::queue::CallHierarchyRequest;
 use crate::queue::CodeLensRequest;
 use crate::queue::CompletionRequest;
 use crate::queue::DeleteRequest;
+use crate::queue::DocumentLinkRequest;
 use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
 use crate::queue::FoldingRangeRequest;
@@ -1230,6 +1232,34 @@ where
         rx.await.map_err(|_| {
             anyhow!(
                 "failed to receive document symbol request to analysis queue because the channel \
+                 has closed"
+            )
+        })
+    }
+
+    /// Gets the external links in a document.
+    pub async fn document_link(
+        &self,
+        context: Context,
+        document: Url,
+    ) -> Result<Option<Vec<DocumentLink>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::DocumentLink(DocumentLinkRequest {
+                document,
+                context,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send document link request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive document link request to analysis queue because the channel \
                  has closed"
             )
         })

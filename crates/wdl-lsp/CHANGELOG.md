@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added support for the `textDocument/documentLink` request
+  ([#1381](https://github.com/stjude-rust-labs/sprocket/pull/1381)).
+
 ## 0.25.0 - 2026-10-29
 
 ### Added
