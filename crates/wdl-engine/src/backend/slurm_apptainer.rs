@@ -945,7 +945,9 @@ impl SlurmApptainerBackend {
                 .unwrap_or(DEFAULT_MAX_CONCURRENCY) as usize,
         );
 
-        let apptainer = ApptainerRuntime::new(backend_config.apptainer.image_cache_dir()?).await?;
+        let apptainer =
+            ApptainerRuntime::new(backend_config.apptainer.image_cache_dir(&config.output_dir))
+                .await?;
 
         Ok(Self {
             config,
