@@ -9,7 +9,7 @@ note[ParameterMetaOrder]: parameter metadata in workflow `parameter_meta_order_w
 13 │         String first
    │                ----- input `first` is declared before `second`
    │
-   = fix: based on the current `input` order, order the parameter metadata as:
+   = fix: based on the current input order, order the parameter metadata as:
      first
      second
 
@@ -24,7 +24,7 @@ note[ParameterMetaOrder]: parameter metadata in struct `ParameterMetaOrderStruct
 24 │     String first
    │            ----- field `first` is declared before `second`
    │
-   = fix: based on the current `field` order, order the parameter metadata as:
+   = fix: based on the current field order, order the parameter metadata as:
      first
      second
 
@@ -39,7 +39,7 @@ note[ParameterMetaOrder]: parameter metadata in task `parameter_meta_order_task`
 35 │         String first
    │                ----- input `first` is declared before `second`
    │
-   = fix: based on the current `input` order, order the parameter metadata as:
+   = fix: based on the current input order, order the parameter metadata as:
      first
      second
 
@@ -54,7 +54,7 @@ note[ParameterMetaOrder]: parameter metadata in task `more_parameters` is out of
 57 │         String second
    │                ------ input `second` is declared before `third`
    │
-   = fix: based on the current `input` order, order the parameter metadata as:
+   = fix: based on the current input order, order the parameter metadata as:
      first
      second
      third
@@ -70,7 +70,7 @@ note[ParameterMetaOrder]: parameter metadata in task `longer_permutation` is out
 81 │         String beta
    │                ---- input `beta` is declared before `delta`
    │
-   = fix: based on the current `input` order, order the parameter metadata as:
+   = fix: based on the current input order, order the parameter metadata as:
      alpha
      beta
      gamma

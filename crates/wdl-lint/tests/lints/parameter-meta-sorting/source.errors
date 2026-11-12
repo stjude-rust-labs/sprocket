@@ -9,7 +9,7 @@ note[ParameterMetaOrder]: parameter metadata in task `parameter_meta_matched` is
 18 │         Directory w
    │                   - input `w` is declared before `p`
    │
-   = fix: based on the current `input` order, order the parameter metadata as:
+   = fix: based on the current input order, order the parameter metadata as:
      w
      p
      t

@@ -25,7 +25,7 @@ note[ParameterMetaOrder]: parameter metadata in struct `Bar` is out of order
 38 │     String param_a
    │            ------- field `param_a` is declared before `param_b`
    │
-   = fix: based on the current `field` order, order the parameter metadata as:
+   = fix: based on the current field order, order the parameter metadata as:
      param_a
      param_b
 

@@ -29,15 +29,6 @@ use crate::rules::collect_parameter_meta;
 const ID: &str = "ParameterMetaOrder";
 
 /// Creates a "mismatched order" diagnostic.
-///
-/// # Note on Relative Direction Invariants
-/// Because `i` is the first index where `actual_order[i] != expected_order[i]`,
-/// and all earlier positions `j < i` match identically, `expected_name` has not
-/// yet been encountered in `actual_order`. Therefore:
-/// - In `parameter_meta`, `expected_name` is guaranteed to appear strictly
-///   after `actual_name` in document order.
-/// - In declarations, `expected_name` is guaranteed to be declared strictly
-///   before `actual_name`.
 #[allow(clippy::too_many_arguments)]
 fn mismatched_param_order(
     severity: Severity,
@@ -78,7 +69,7 @@ fn mismatched_param_order(
         decl_span,
     )
     .with_fix(format!(
-        "based on the current `{decl_type}` order, order the parameter metadata \
+        "based on the current {decl_type} order, order the parameter metadata \
          as:\n{expected_order}"
     ))
 }

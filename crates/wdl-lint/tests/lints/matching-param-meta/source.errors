@@ -41,7 +41,7 @@ note[ParameterMetaOrder]: parameter metadata in task `baz` is out of order
 82 │         String first
    │                ----- input `first` is declared before `second`
    │
-   = fix: based on the current `input` order, order the parameter metadata as:
+   = fix: based on the current input order, order the parameter metadata as:
      first
      second
 
@@ -56,7 +56,7 @@ note[ParameterMetaOrder]: parameter metadata in task `quux` is out of order
 115 │         first: "`first` is documented with parameter_meta"
     │         ----- parameter metadata for `first` is defined after `third` here
     │
-    = fix: based on the current `input` order, order the parameter metadata as:
+    = fix: based on the current input order, order the parameter metadata as:
       first
       third
 
