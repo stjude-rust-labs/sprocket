@@ -11,9 +11,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Added type checking for the WDL 1.4 postfix unwrap operator (`x!`) from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping a non-optional value is
-  an error, and use of the operator prior to WDL 1.4 is rejected.
+  an error, and use of the operator prior to WDL 1.4 is rejected
+  ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 * Added `types::v1::EvaluationContext::resolves_value_types` so contexts that resolve names to
-  runtime value types can skip checks that depend on declared optionality.
+  runtime value types can skip checks that depend on declared optionality
+  ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
 ## 0.28.0 - 2026-10-29
 
