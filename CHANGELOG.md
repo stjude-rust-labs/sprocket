@@ -20,7 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added the experimental WDL 1.4 postfix unwrap operator (`x!`), which converts an optional value
   to its non-optional type and fails if the value is `None`. This implements
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
-  `feature_flags.wdl_1_4 = true`.
+  `feature_flags.wdl_1_4 = true`
+  ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
 ### Changed
 
