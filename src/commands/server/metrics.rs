@@ -502,7 +502,7 @@ mod tests {
         assert!(report.contains("transferred 3.0 GiB down, 1.0 GiB up"));
     }
 
-    /// A transfer well under 1 GiB  must not render as `0.0 GiB`.
+    /// A transfer well under 1 GiB must not render as `0.0 GiB`.
     #[test]
     fn report_does_not_round_small_transfers_to_zero() {
         let mut small = body();

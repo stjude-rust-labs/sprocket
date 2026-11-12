@@ -772,7 +772,7 @@ mod tests {
             .expect("failed to write workflow");
 
         let mut config = Config::default();
-        config.server.output_dir = temp.path().join("runs");
+        config.server.engine.output_dir = temp.path().join("runs");
         config.server.allowed_file_paths = vec![temp.path().to_path_buf()];
         config.server.engine.backend = "local".to_string();
         config.server.engine.backends.insert(
