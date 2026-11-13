@@ -64,6 +64,8 @@ pub enum Expr<N: TreeNode = SyntaxNode> {
     Index(IndexExpr<N>),
     /// The expression is a member access expression.
     Access(AccessExpr<N>),
+    /// The expression is an unwrap expression.
+    Unwrap(UnwrapExpr<N>),
 }
 
 impl<N: TreeNode> Expr<N> {
@@ -895,6 +897,42 @@ impl<N: TreeNode> Expr<N> {
         }
     }
 
+    /// Attempts to get a reference to the inner [`UnwrapExpr`].
+    ///
+    /// * If `self` is a [`Expr::Unwrap`], then a reference to the inner
+    ///   [`UnwrapExpr`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_unwrap(&self) -> Option<&UnwrapExpr<N>> {
+        match self {
+            Self::Unwrap(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`UnwrapExpr`].
+    ///
+    /// * If `self` is a [`Expr::Unwrap`], then the inner [`UnwrapExpr`] is
+    ///   returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_unwrap(self) -> Option<UnwrapExpr<N>> {
+        match self {
+            Self::Unwrap(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the expression into an unwrap expression.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression is not an unwrap expression.
+    pub fn unwrap_unwrap(self) -> UnwrapExpr<N> {
+        match self {
+            Self::Unwrap(e) => e,
+            _ => panic!("not an unwrap expression"),
+        }
+    }
+
     /// Finds the first child that can be cast to an [`Expr`].
     pub fn child(node: &N) -> Option<Self> {
         node.children().find_map(Self::cast)
@@ -955,6 +993,7 @@ impl<N: TreeNode> AstNode<N> for Expr<N> {
                 | SyntaxKind::CallExprNode
                 | SyntaxKind::IndexExprNode
                 | SyntaxKind::AccessExprNode
+                | SyntaxKind::UnwrapExprNode
         )
     }
 
@@ -992,6 +1031,7 @@ impl<N: TreeNode> AstNode<N> for Expr<N> {
             SyntaxKind::CallExprNode => Some(Self::Call(CallExpr(inner))),
             SyntaxKind::IndexExprNode => Some(Self::Index(IndexExpr(inner))),
             SyntaxKind::AccessExprNode => Some(Self::Access(AccessExpr(inner))),
+            SyntaxKind::UnwrapExprNode => Some(Self::Unwrap(UnwrapExpr(inner))),
             _ => None,
         }
     }
@@ -1021,6 +1061,7 @@ impl<N: TreeNode> AstNode<N> for Expr<N> {
             Self::Call(c) => &c.0,
             Self::Index(i) => &i.0,
             Self::Access(a) => &a.0,
+            Self::Unwrap(u) => &u.0,
         }
     }
 }
@@ -3478,6 +3519,36 @@ impl<N: TreeNode> AstNode<N> for AccessExpr<N> {
     fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
             SyntaxKind::AccessExprNode => Some(Self(inner)),
+            _ => None,
+        }
+    }
+
+    fn inner(&self) -> &N {
+        &self.0
+    }
+}
+
+/// Represents an unwrap expression.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
+pub struct UnwrapExpr<N: TreeNode = SyntaxNode>(N);
+
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
+impl<N: TreeNode> UnwrapExpr<N> {
+    /// Gets the operand expression.
+    pub fn operand(&self) -> Expr<N> {
+        Expr::child(&self.0).expect("expected an operand expression")
+    }
+}
+
+impl<N: TreeNode> AstNode<N> for UnwrapExpr<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::UnwrapExprNode
+    }
+
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::UnwrapExprNode => Some(Self(inner)),
             _ => None,
         }
     }

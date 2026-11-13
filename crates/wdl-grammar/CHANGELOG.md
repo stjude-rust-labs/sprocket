@@ -11,6 +11,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * The lexer now recognizes `0o`/`0O` octal and `0b`/`0B` binary integer literals from
   [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+* Added parsing of the WDL 1.4 postfix unwrap operator (`x!`) as `SyntaxKind::UnwrapExprNode` from
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777)
+  ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
 ### Fixed
 

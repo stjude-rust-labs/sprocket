@@ -24,6 +24,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory is on a local file system. This complements the scheduler-observed measurements a
   backend may report through Crankshaft's `TaskResourceUsage` event
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
+* Added evaluation of the WDL 1.4 postfix unwrap operator (`x!`) from
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping `None` is an evaluation
+  error ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
 ### Changed
 

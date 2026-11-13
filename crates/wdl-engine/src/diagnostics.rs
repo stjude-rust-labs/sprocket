@@ -134,6 +134,16 @@ pub fn exponentiation_requirement(span: Span) -> Diagnostic {
         .with_highlight(span)
 }
 
+/// Creates an "unwrap operator requirement" diagnostic.
+pub fn unwrap_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of the unwrap operator requires WDL version 1.4").with_highlight(span)
+}
+
+/// Creates an "unwrapped `None`" diagnostic.
+pub fn unwrapped_none(span: Span) -> Diagnostic {
+    Diagnostic::error("cannot unwrap a `None` value").with_label("this evaluated to `None`", span)
+}
+
 /// Creates a "multi-line string requirement" diagnostic.
 pub fn multiline_string_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of multi-line strings requires WDL version 1.2").with_highlight(span)

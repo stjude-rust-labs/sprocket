@@ -321,6 +321,7 @@ const POSTFIX_OPERATOR_EXPECTED_SET: TokenSet = TokenSet::new(&[
     Token::OpenParen as u8,
     Token::OpenBracket as u8,
     Token::Dot as u8,
+    Token::Exclamation as u8,
 ]);
 
 /// A token set used to recover to the next expression.
@@ -2390,6 +2391,7 @@ fn expr_with_precedence(
                 let res = match token {
                     Token::OpenBracket => index_expr(&mut parser, postfix),
                     Token::Dot => access_expr(&mut parser, postfix),
+                    Token::Exclamation => unwrap_expr(&mut parser, postfix),
                     _ => panic!("unexpected postfix operator"),
                 };
 
@@ -2719,6 +2721,15 @@ fn access_expr(
     Ok(marker.complete(parser, SyntaxKind::AccessExprNode))
 }
 
+/// Parses an unwrap expression.
+fn unwrap_expr(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<CompletedMarker, (Marker, ParseDiagnostic)> {
+    parser.require(Token::Exclamation);
+    Ok(marker.complete(parser, SyntaxKind::UnwrapExprNode))
+}
+
 /// An operator associativity.
 enum Associativity {
     /// The operator has left-associativity.
@@ -2770,13 +2781,17 @@ fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 
 /// Determines the precedence of a postfix operator.
 ///
-/// <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
+/// <https://github.com/openwdl/wdl/blob/v1.3.0/SPEC.md#operator-precedence-table>
+///
+/// The precedence of the unwrap operator (`!`) is defined by
+/// <https://github.com/openwdl/wdl/pull/777>, which has not yet been ratified.
 fn postfix_precedence(token: Token) -> u8 {
     // All postfix operators are left-associative
     match token {
-        Token::OpenParen => 9,
-        Token::OpenBracket => 10,
-        Token::Dot => 11,
+        Token::Exclamation => 9,
+        Token::OpenParen => 10,
+        Token::OpenBracket => 11,
+        Token::Dot => 12,
         _ => panic!("unknown postfix operator token"),
     }
 }

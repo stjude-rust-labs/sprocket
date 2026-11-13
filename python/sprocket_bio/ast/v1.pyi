@@ -533,6 +533,15 @@ class Expr:
         def __len__(self) -> int: ...
         def __new__(cls, _0: SubtractionExpr) -> Expr.Subtraction: ...
 
+    @typing.final
+    class Unwrap(Expr):
+        _0: typing.Final[UnwrapExpr]
+        __match_args__ = ("_0",)
+
+        def __getitem__(self, key: int, /) -> typing.Any: ...
+        def __len__(self) -> int: ...
+        def __new__(cls, _0: UnwrapExpr) -> Expr.Unwrap: ...
+
 @typing.final
 class FalseKeyword(AstToken):
     pass
@@ -1565,6 +1574,10 @@ class Unknown(AstToken):
     pass
 
 @typing.final
+class UnwrapExpr(AstNode):
+    def operand(self) -> Expr: ...
+
+@typing.final
 class VersionKeyword(AstToken):
     pass
 
@@ -1968,6 +1981,7 @@ __all__ = [
     "TypeRef",
     "UnboundDecl",
     "Unknown",
+    "UnwrapExpr",
     "VersionKeyword",
     "WorkflowDefinition",
     "WorkflowHintsArray",

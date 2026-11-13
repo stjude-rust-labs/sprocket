@@ -76,6 +76,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
+use wdl_ast::v1::UnwrapExpr;
 use wdl_ast::version::V1;
 use wdl_grammar::SyntaxKind;
 
@@ -127,6 +128,8 @@ use crate::diagnostics::unknown_function;
 use crate::diagnostics::unknown_task_io;
 use crate::diagnostics::unnecessary_function_call;
 use crate::diagnostics::unsupported_function;
+use crate::diagnostics::unwrap_mismatch;
+use crate::diagnostics::unwrap_none;
 use crate::document::Task;
 use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
@@ -572,6 +575,18 @@ pub trait EvaluationContext {
         element: &N,
         exceptable_nodes: &Option<&'static [SyntaxKind]>,
     );
+
+    /// Determines if names resolve to the types of runtime values rather than
+    /// to declared types.
+    ///
+    /// The type of a runtime value does not preserve the optionality of its
+    /// declared type, so checks that require an optional type are skipped when
+    /// this returns `true`.
+    ///
+    /// Defaults to `false`.
+    fn resolves_value_types(&self) -> bool {
+        false
+    }
 }
 
 /// Represents an evaluator of expression types.
@@ -680,6 +695,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             Expr::Call(expr) => self.evaluate_call_expr(expr),
             Expr::Index(expr) => self.evaluate_index_expr(expr),
             Expr::Access(expr) => self.evaluate_access_expr(expr),
+            Expr::Unwrap(expr) => self.evaluate_unwrap_expr(expr),
         }
     }
 
@@ -1300,6 +1316,38 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         }
 
         Some(PrimitiveType::Boolean.into())
+    }
+
+    /// Evaluates the type of an unwrap expression.
+    fn evaluate_unwrap_expr<N: TreeNode + Exceptable>(
+        &mut self,
+        expr: &UnwrapExpr<N>,
+    ) -> Option<Type> {
+        // The operand should be an optional type
+        let operand = expr.operand();
+        let ty = self.evaluate_expr(&operand)?;
+        if ty.is_union() {
+            return Some(Type::Union);
+        }
+
+        if !ty.is_optional() {
+            if !self.context.resolves_value_types() {
+                self.context
+                    .add_diagnostic(unwrap_mismatch(&ty, operand.span()));
+            }
+
+            return Some(ty);
+        }
+
+        if ty.is_none() {
+            if !self.context.resolves_value_types() {
+                self.context.add_diagnostic(unwrap_none(operand.span()));
+            }
+
+            return Some(Type::Union);
+        }
+
+        Some(ty.require())
     }
 
     /// Evaluates the type of a negation expression.

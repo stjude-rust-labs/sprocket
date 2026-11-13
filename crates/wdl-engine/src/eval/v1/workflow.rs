@@ -2298,6 +2298,156 @@ workflow child {
     }
 
     #[tokio::test]
+    async fn it_evaluates_the_unwrap_operator() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow test_unwrap {
+    Int? maybe_five = 5
+    Int? maybe_ten = 10
+
+    output {
+        Int certainly_five = maybe_five!
+        Int fifteen = maybe_five! + maybe_ten!
+        Int untaken = if false then maybe_five! else 0
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "test_unwrap",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        let get = |name: &str| {
+            outputs
+                .get(name)
+                .unwrap_or_else(|| panic!("expected `{name}` output"))
+                .as_integer()
+                .expect("expected integer output")
+        };
+        assert_eq!(get("certainly_five"), 5);
+        assert_eq!(get("fifteen"), 15);
+        assert_eq!(get("untaken"), 0);
+    }
+
+    #[tokio::test]
+    async fn it_fails_to_unwrap_none() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow unwrap_none_fail {
+    Int? maybe_five = None
+    Int five = maybe_five!
+
+    output {
+        Int result = five
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let error = evaluator
+            .evaluate_workflow(
+                &document,
+                "unwrap_none_fail",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect_err("workflow should fail");
+
+        assert!(
+            error.contains("cannot unwrap a `None` value"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_an_unwrap_of_none_in_a_placeholder_to_empty() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow unwrap_placeholder {
+    input {
+        String salutation = "hello"
+        String? name1
+        String? name2 = "Fred"
+    }
+
+    output {
+        String greeting1 = "~{salutation + ' ' + name1! + ' '}nice to meet you!"
+        String greeting2 = "~{salutation + ' ' + name2! + ', '}nice to meet you!"
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "unwrap_placeholder",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        let get = |name: &str| {
+            outputs
+                .get(name)
+                .unwrap_or_else(|| panic!("expected `{name}` output"))
+                .as_string()
+                .expect("expected string output")
+                .to_string()
+        };
+        assert_eq!(get("greeting1"), "nice to meet you!");
+        assert_eq!(get("greeting2"), "hello Fred, nice to meet you!");
+    }
+
+    #[tokio::test]
     async fn it_evaluates_a_reexported_workflow_by_its_defining_name() {
         let root_dir = TempDir::new().expect("failed to create temporary directory");
         fs::write(

@@ -196,6 +196,7 @@ impl Writable for &FormatElement {
                 }
                 AstNode::TypeRef(_) => v1::decl::format_type_ref(self, stream, config),
                 AstNode::UnboundDecl(_) => v1::decl::format_unbound_decl(self, stream, config),
+                AstNode::UnwrapExpr(_) => v1::expr::format_unwrap_expr(self, stream, config),
                 AstNode::VersionStatement(_) => v1::format_version_statement(self, stream, config),
                 AstNode::WorkflowDefinition(_) => {
                     v1::workflow::format_workflow_definition(self, stream, config)
