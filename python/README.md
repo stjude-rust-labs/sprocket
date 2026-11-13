@@ -169,7 +169,7 @@ after the fact using `cargo-llvm-cov`.
 
 ### API Documentation
 
-In order to build the API docs, you must have Python 3.12 or greater installed. You can then install
+In order to build the API docs, you must have Python 3.13 or greater installed. You can then install
 the necessary dependencies and generate the website with the following commands:
 
 ```bash
