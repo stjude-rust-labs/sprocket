@@ -18,6 +18,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Legacy octal integer literals with a leading zero (e.g. `0755`) are now an error in WDL 1.1 and
   later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); they remain
   valid in WDL 1.0 documents.
+* Updated the WDL 1.2+ `basename` and `size` documentation to describe the explicit `String` path
+  overloads specified in [`openwdl/wdl#790`](https://github.com/openwdl/wdl/pull/790).
 
 ## 0.28.0 - 2026-10-29
 
