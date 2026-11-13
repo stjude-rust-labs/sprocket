@@ -6,7 +6,6 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover)
 
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
 use lsp_types::Hover;
 use lsp_types::HoverContents;
@@ -45,9 +44,9 @@ use crate::Document;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
 use crate::handlers::common::comments_to_string;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
 use crate::handlers::common::provide_callable_documentation;
@@ -79,31 +78,18 @@ pub fn hover(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<Hover>> {
-    let Some(index) = graph.get_index(document_uri) else {
-        bail!("document `{document_uri}` not found in graph")
-    };
-    let node = graph.get(index);
-    let (root, lines) = match node.parse_state() {
-        ParseState::Parsed { lines, root, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{uri}` has not been parsed", uri = document_uri),
-    };
-
-    let Some(document) = node.document() else {
-        bail!("document analysis data not available for {}", document_uri);
-    };
+    let (root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
-    let hovered_token = root
-        .token_at_offset(offset)
-        .find(|t| {
-            matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::Comment)
-                || (t.kind() == SyntaxKind::LiteralStringText
-                    && t.parent_ancestors()
-                        .any(|ancestor| ancestor.kind() == SyntaxKind::ImportStatementNode))
-        })
-        .ok_or_else(|| anyhow!("no hoverable token found at offset"))?;
+    let Some(hovered_token) = root.token_at_offset(offset).find(|t| {
+        matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::Comment)
+            || (t.kind() == SyntaxKind::LiteralStringText
+                && t.parent_ancestors()
+                    .any(|ancestor| ancestor.kind() == SyntaxKind::ImportStatementNode))
+    }) else {
+        tracing::trace!("no hoverable token found at offset");
+        return Ok(None);
+    };
 
     let parent_node = hovered_token.parent().expect("token has no parent");
 

@@ -780,7 +780,7 @@ where
                     }
 
                     let graph = self.graph.read();
-                    match handlers::folding_range(&graph, document) {
+                    match handlers::folding_range(&graph, &document) {
                         Ok(result) => {
                             debug!(
                                 "folding range request completed in {elapsed:?}",

@@ -8,7 +8,6 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens)
 
 use anyhow::Result;
-use anyhow::bail;
 use line_index::LineCol;
 use line_index::WideEncoding;
 use lsp_types::SemanticToken;
@@ -47,7 +46,7 @@ use wdl_ast::version::V1;
 
 use crate::Document;
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::position;
 use crate::types::Type;
 
@@ -86,21 +85,7 @@ pub const WDL_SEMANTIC_TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
 /// It traverses the entire CST of the document, classifies each token
 /// into a semantic type, and constructs the [`SemanticTokens`].
 pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<SemanticTokens>> {
-    let Some(index) = graph.get_index(uri) else {
-        bail!("document `{uri}` not found in graph.");
-    };
-
-    let node = graph.get(index);
-    let (root, lines) = match node.parse_state() {
-        ParseState::Parsed { lines, root, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{uri}` has not been parsed", uri = uri),
-    };
-
-    let Some(document) = node.document() else {
-        bail!("document analysis data not available for {}", uri);
-    };
+    let (root, lines, document) = ensure_analyzed(graph, uri)?;
 
     let mut tokens = Vec::new();
     let mut last_line = 0;
