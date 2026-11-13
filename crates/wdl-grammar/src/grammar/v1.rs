@@ -2781,7 +2781,10 @@ fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 
 /// Determines the precedence of a postfix operator.
 ///
-/// <https://github.com/openwdl/wdl/blob/wdl-1.4/SPEC.md#operator-precedence-table>
+/// <https://github.com/openwdl/wdl/blob/v1.3.0/SPEC.md#operator-precedence-table>
+///
+/// The precedence of the unwrap operator (`!`) is defined by
+/// <https://github.com/openwdl/wdl/pull/777>, which has not yet been ratified.
 fn postfix_precedence(token: Token) -> u8 {
     // All postfix operators are left-associative
     match token {

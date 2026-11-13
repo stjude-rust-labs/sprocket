@@ -46,10 +46,26 @@ error: type mismatch: expected an instance of struct `Income`, but found type `I
    │            │
    │            this expects an instance of struct `Income`
 
-error: type mismatch: expected type `String`, but found type `Int`
-   ┌─ tests/analysis/unwrap-mismatch/source.wdl:44:20
+error: cannot unwrap a value that is always `None`
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:41:16
    │
-44 │     String wrong = maybe_five!
+41 │     Int none = None!
+   │                ^^^^ this is always `None`
+   │
+   = fix: remove the unwrap operator `!` or use a value that may be defined
+
+error: cannot unwrap a value that is always `None`
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:42:24
+   │
+42 │     Int none_element = [None][0]!
+   │                        ^^^^^^^^^ this is always `None`
+   │
+   = fix: remove the unwrap operator `!` or use a value that may be defined
+
+error: type mismatch: expected type `String`, but found type `Int`
+   ┌─ tests/analysis/unwrap-mismatch/source.wdl:45:20
+   │
+45 │     String wrong = maybe_five!
    │            -----   ^^^^^^^^^^^ this is type `Int`
    │            │
    │            this expects type `String`

@@ -37,8 +37,9 @@ workflow test {
     Int first_or = select_first([maybes[1]])!
     Income bad_member = person.income!.amount!
 
-    # Unwrapping `None` is allowed by the type checker
-    Int? none = None!
+    # Unwrapping a value that is always `None`
+    Int none = None!
+    Int none_element = [None][0]!
 
     # Assigning an unwrapped value to an incompatible type
     String wrong = maybe_five!
