@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.21.0 - 2026-11-13
+
 ### Added
 
 * Added the `backends.<name>.resource_usage_interval` Docker configuration option for sampling task
