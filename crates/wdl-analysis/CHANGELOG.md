@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* `textDocument/signatureHelp` now supports `call` statements: the signature describes the called
+  task or workflow's inputs, with per-input documentation sourced from doc comments and
+  `parameter_meta` descriptions ([#1387](https://github.com/stjude-rust-labs/sprocket/pull/1387)).
 * Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from
   [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); using them in a WDL 1.0 document is
   an error.

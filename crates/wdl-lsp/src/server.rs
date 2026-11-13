@@ -1416,6 +1416,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .signature_help(
+                ProgressToken::default(),
                 params.text_document_position_params.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1847,7 +1848,11 @@ impl<S: 'static> LanguageServer for Server<S> {
                         ),
                     ),
                     signature_help_provider: Some(SignatureHelpOptions {
-                        trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                        trigger_characters: Some(vec![
+                            "(".to_string(),
+                            ",".to_string(),
+                            "{".to_string(),
+                        ]),
                         retrigger_characters: None,
                         work_done_progress_options: WorkDoneProgressOptions {
                             work_done_progress: Some(false),

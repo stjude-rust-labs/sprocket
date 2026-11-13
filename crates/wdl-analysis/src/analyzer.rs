@@ -1327,9 +1327,11 @@ where
         })
     }
 
-    /// Gets signature help for a function call at a given position.
+    /// Gets signature help for a function call or call statement at a given
+    /// position.
     pub async fn signature_help(
         &self,
+        context: Context,
         document: Url,
         position: SourcePosition,
         encoding: SourcePositionEncoding,
@@ -1341,6 +1343,7 @@ where
                 position,
                 encoding,
                 completed: tx,
+                context,
             }))
             .map_err(|_| {
                 anyhow!(
