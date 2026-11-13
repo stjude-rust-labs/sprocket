@@ -129,6 +129,7 @@ use crate::diagnostics::unknown_task_io;
 use crate::diagnostics::unnecessary_function_call;
 use crate::diagnostics::unsupported_function;
 use crate::diagnostics::unwrap_mismatch;
+use crate::diagnostics::unwrap_none;
 use crate::document::Task;
 use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
@@ -1336,6 +1337,14 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             }
 
             return Some(ty);
+        }
+
+        if ty.is_none() {
+            if !self.context.resolves_value_types() {
+                self.context.add_diagnostic(unwrap_none(operand.span()));
+            }
+
+            return Some(Type::Union);
         }
 
         Some(ty.require())
