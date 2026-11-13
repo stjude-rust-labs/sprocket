@@ -2282,13 +2282,13 @@ workflow test_split {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
     const BASENAME_DEFINITION_V1_2: &str = r#"
-Returns the "basename" of a file or directory - the name after the last directory separator in the path.
+Returns the "basename" of a path, file, or directory - the name after the last directory separator in the path.
 
 The optional second parameter specifies a literal suffix to remove from the file name. If the file name does not end with the specified suffix then it is ignored.
 
 **Parameters**
 
-1. `File|Directory`: Path of the file or directory to read. If the argument is a `String`, it is assumed to be a local file path relative to the current working directory of the task.
+1. `String|File|Directory`: Path of the file or directory to read. If the argument is a `String`, it is assumed to be a local file path relative to the current working directory of the task.
 2. `String`: (Optional) Suffix to remove from the file name.
 
 **Returns**: The file's basename as a `String`.
@@ -2330,11 +2330,9 @@ workflow test_basename {
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but
-                    // the spec allows for `String` where file/directory are
-                    // accepted; an explicit `String` overload is required as
-                    // `String` may coerce to either `File` or `Directory`,
-                    // which is ambiguous.
+                    // An explicit `String` overload is required as `String` may
+                    // coerce to either `File` or `Directory`, which is
+                    // ambiguous (see https://github.com/openwdl/wdl/pull/790).
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
@@ -2579,15 +2577,15 @@ Varieties of the `size` function also exist for the following compound types. Th
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
     const SIZE_DEFINITION_V1_2: &str = r#"
-Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. The files may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage)
+Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. A `String` is assumed to be a local file path relative to the current working directory of the task. Paths may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage).
 
-In the second variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
+In the generic variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
 
 If the size cannot be represented in the specified unit because the resulting value is too large to fit in a `Float`, an error is raised. It is recommended to use a unit that will always be large enough to handle any expected inputs without numerical overflow.
 
 **Parameters**
 
-1. `File|File?|Directory|Directory?|X|X?`: A file, directory, or a compound value containing files/directories, for which to determine the size.
+1. `String|String?|File|File?|Directory|Directory?|X|X?`: A path, file, directory, or a compound value containing files/directories, for which to determine the size.
 2. `String`: (Optional) The unit of storage; defaults to 'B'.
 
 **Returns**: The size of the files/directories as a `Float`.
@@ -2599,18 +2597,21 @@ version 1.2
 
 task file_sizes {
   command <<<
-    printf "this file is 22 bytes\n" > created_file
+    printf "this file is 22 bytes\n" > out.txt
   >>>
 
   File? missing_file = None
+  String? missing_path = None
 
   output {
-    File created_file = "created_file"
-    Float missing_file_bytes = size(missing_file)
+    File created_file = "out.txt"
+    Float missing_file_bytes = size(missing_file, "B")
+    Float missing_path_bytes = size(missing_path, "B")
     Float created_file_bytes = size(created_file, "B")
-    Float multi_file_kb = size([created_file, missing_file], "K")
+    Float created_path_bytes = size("out.txt", "B")
+    Float multi_file_kb = size([created_file, missing_file], "K") # 0.022
 
-    Map[String, Pair[Int, File]] nested = {
+    Map[String, Pair[Int, File?]] nested = {
       "a": (10, created_file),
       "b": (50, missing_file)
     }
@@ -2663,19 +2664,18 @@ task file_sizes {
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but
-                    // the spec allows for `String` where file/directory are
-                    // accepted; an explicit `String` overload is required as
-                    // `String` may coerce to either `File` or `Directory`,
-                    // which is ambiguous.
+                    // An explicit `String` overload is required as `String` may
+                    // coerce to either `File` or `Directory`, which is
+                    // ambiguous (see https://github.com/openwdl/wdl/pull/790).
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "value",
                             Type::from(PrimitiveType::String).optional(),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size.",
+                            "A path for which to determine the size. A `String` is assumed to be \
+                             a local file path relative to the current working directory of the \
+                             task.",
                         )
                         .parameter(
                             "unit",
