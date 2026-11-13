@@ -21,9 +21,6 @@ use crate::system::v1::exec::SelectTargetError;
 use crate::system::v1::exec::Target;
 
 /// Displays help for the `run` subcommand.
-///
-/// Contextual information about the inputs of the selected task or workflow is
-/// appended to the standard help when the source is a local WDL document.
 pub fn display_help(
     args: &Args,
     fallback_version: Option<SupportedVersion>,
@@ -49,12 +46,6 @@ pub fn display_help(
 }
 
 /// Renders the standard Clap help for the `run` subcommand.
-///
-/// The help is rendered from the full command tree so that propagated global
-/// arguments are included and the usage line is prefixed with the binary name.
-///
-/// When `long` is true, the long help is rendered (as for `--help`); otherwise
-/// the short help is rendered (as for `-h`).
 fn base_help(long: bool) -> String {
     let mut cmd = crate::Cli::command();
     cmd.build();
@@ -85,9 +76,6 @@ fn base_help(long: bool) -> String {
 }
 
 /// Formats the contextual help for the `run` subcommand.
-///
-/// The returned help consists of the standard Clap help followed by a section
-/// describing the inputs of the selected task or workflow (if any).
 pub fn format_contextual_help(
     source: Option<&Source>,
     target: Option<&str>,
@@ -172,10 +160,6 @@ fn append_note(base_help: &str, note: impl fmt::Display) -> String {
 }
 
 /// Resolves the local file to read for contextual help.
-///
-/// Returns `None` for remote URLs, which are not read to generate contextual
-/// help. An error is returned if a directory source cannot be resolved to its
-/// module entrypoint.
 fn resolve_local_file(source: &Source) -> Result<Option<PathBuf>, String> {
     match source {
         Source::Url(_) => Ok(None),
@@ -189,15 +173,6 @@ fn resolve_local_file(source: &Source) -> Result<Option<PathBuf>, String> {
 }
 
 /// Selects the target task or workflow from a parsed AST.
-///
-/// This mirrors the selection policy of
-/// [`select_target`](crate::system::v1::exec::select_target) without requiring
-/// a fully analyzed document:
-///
-/// 1. If a target is provided, the workflow or task with that name is selected.
-/// 2. Otherwise, the workflow is selected if exactly one is present.
-/// 3. Otherwise, the single task is selected if exactly one exists.
-/// 4. Otherwise, an error is returned.
 pub fn select_target_from_ast(
     ast: &Ast,
     target: Option<&str>,
@@ -244,9 +219,6 @@ struct InputRow {
 }
 
 /// Formats the inputs of the selected target.
-///
-/// Input keys are qualified with the target name unless the target was
-/// explicitly specified, matching the key format the engine accepts.
 fn format_input_section(ast: &Ast, target: &Target, target_specified: bool, help: &mut String) {
     let inputs = match target {
         Target::Workflow(name) => ast
