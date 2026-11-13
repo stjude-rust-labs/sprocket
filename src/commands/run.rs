@@ -799,8 +799,8 @@ async fn progress(
                             // announced separately and re-enters preparation.
                             state.depart(&Arc::new(prior_name));
                         }
-                        EngineEvent::TaskDiskUsage { .. } => {
-                            // Disk usage is recorded by the metrics
+                        EngineEvent::TaskUsageMeasured { .. } => {
+                            // Measured usage is recorded by the metrics
                             // collector, not displayed in the progress bar.
                         }
                         EngineEvent::ReusedCachedExecutionResult { name, .. } => {

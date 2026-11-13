@@ -1818,6 +1818,11 @@
           "description": "The behavior when a task's `memory` requirement cannot be met.",
           "$ref": "#/$defs/TaskResourceLimitBehavior"
         },
+        "measure_resource_usage": {
+          "description": "Measure CPU time and container peak memory inside each task.\n\nCPU measurements require Linux `/proc`; memory measurements also\nrequire readable cgroup counters. Local execution on other platforms\nis not wrapped. Engine values take precedence for fields reported by\nboth sources; backend-only values are kept.\n\nLocal recordings (`.sprocket_usage`) are removed before output and\ncache processing. TES exports the recording outside the work directory.\n\nDefaults to `false`.",
+          "type": "boolean",
+          "default": false
+        },
         "cache_dir": {
           "description": "The call cache directory to use for caching task execution results.\n\nThe specified directory is relative to the output directory.\n\nDefaults to `cache/calls`.",
           "type": "string",
@@ -1975,7 +1980,7 @@
               "default": true
             },
             "resource_usage_interval": {
-              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nEach task's peak and average memory and cumulative CPU time\nare sampled from the Docker daemon at this interval and reported in\nthe run's metrics.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.",
+              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nSprocket asks Crankshaft to sample local containers at this interval.\nMemory is sampled container memory with inactive file cache removed;\nthe maximum is the largest observed sample, and the average is the\narithmetic mean of successful samples. CPU time excludes work after\nthe last successful sample.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.\nTasks that finish before the first sample may report no usage.",
               "type": [
                 "integer",
                 "null"
