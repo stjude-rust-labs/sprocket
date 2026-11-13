@@ -1989,6 +1989,19 @@ pub struct TesBackendConfig {
     #[toml(default)]
     #[schemars(default)]
     pub insecure: bool,
+
+    /// Whether or not to read task resource usage from the TES server's task
+    /// log metadata.
+    ///
+    /// When enabled, tasks are polled with the `BASIC` view and the
+    /// documented resource usage metadata keys (e.g. `peak_memory_bytes`,
+    /// `avg_memory_bytes`, `cpu_time_ms`), when reported by the server, are
+    /// recorded as task resource usage.
+    ///
+    /// Defaults to `false`.
+    #[toml(default)]
+    #[schemars(default)]
+    pub resource_usage_metadata: bool,
 }
 
 impl TesBackendConfig {
@@ -3597,6 +3610,7 @@ mod tests {
                         interval: None,
                         retries: None,
                         max_concurrency: None,
+                        resource_usage_metadata: false,
                     }
                     .into(),
                 ),
@@ -3616,6 +3630,7 @@ mod tests {
                         interval: None,
                         retries: None,
                         max_concurrency: None,
+                        resource_usage_metadata: false,
                     }
                     .into(),
                 ),
@@ -3661,6 +3676,14 @@ resource_usage_interval = 5
 [backends.disabled]
 type = "docker"
 resource_usage_interval = 0
+
+[backends.tes]
+type = "tes"
+service = "https://tes.example.com"
+inputs = "https://tes.example.com/inputs"
+outputs = "https://tes.example.com/outputs"
+insecure = true
+resource_usage_metadata = true
 "#;
 
         let config = toml_spanner::from_str::<Config>(source).unwrap();
@@ -3677,6 +3700,12 @@ resource_usage_interval = 0
                 .unwrap()
                 .resource_usage_interval,
             Some(0)
+        );
+        assert!(
+            config.backends["tes"]
+                .as_tes()
+                .unwrap()
+                .resource_usage_metadata
         );
         let rendered = toml_spanner::to_string(&config).unwrap();
         let reparsed = toml_spanner::from_str::<Config>(&rendered).unwrap();
@@ -3870,6 +3899,7 @@ resource_usage_interval = 0
                     interval: None,
                     retries: None,
                     max_concurrency: Some(0),
+                    resource_usage_metadata: false,
                 }
                 .into(),
             )]
@@ -3894,6 +3924,7 @@ resource_usage_interval = 0
                     interval: None,
                     retries: None,
                     max_concurrency: None,
+                    resource_usage_metadata: false,
                 }
                 .into(),
             )]
@@ -3919,6 +3950,7 @@ resource_usage_interval = 0
                     interval: None,
                     retries: None,
                     max_concurrency: None,
+                    resource_usage_metadata: false,
                 }
                 .into(),
             )]
@@ -4161,6 +4193,7 @@ type = 'lsf_apptainer'
                             interval: None,
                             retries: None,
                             max_concurrency: None,
+                            resource_usage_metadata: false,
                         }
                         .into()
                     ),

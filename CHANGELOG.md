@@ -25,6 +25,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   readable cgroup counters ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 * Engine measurements take precedence when both the engine and backend report a field. Backend-only
   values are kept ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Added opt-in TES resource usage reporting through
+  `backends.<name>.resource_usage_metadata = true`. It reads supported `TaskLog.metadata` keys,
+  including Planetary's sampled Kubernetes working-set memory and cumulative CPU time
+  ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ### Changed
 
