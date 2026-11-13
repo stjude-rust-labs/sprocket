@@ -7128,6 +7128,7 @@ dependencies = [
  "wdl-analysis",
  "wdl-ast",
  "wdl-lint",
+ "wdl-modules",
 ]
 
 [[package]]

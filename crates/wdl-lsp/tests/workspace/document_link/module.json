@@ -1,0 +1,7 @@
+{
+  "name": "document_link",
+  "license": "Apache-2.0 OR MIT",
+  "dependencies": {
+    "module": { "path": "module" }
+  }
+}

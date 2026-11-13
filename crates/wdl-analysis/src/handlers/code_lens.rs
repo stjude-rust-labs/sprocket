@@ -41,7 +41,7 @@ impl From<RunCommand> for Command {
 ///
 /// [`textDocument/codeLens`]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_codeLens
 pub fn code_lens(graph: &DocumentGraph, document_uri: &Url) -> Result<Option<Vec<CodeLens>>> {
-    let (_, lines, document) = ensure_analyzed(graph, document_uri)?;
+    let (_, _, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let mut lenses = Vec::new();
     for target in document.local_callables() {

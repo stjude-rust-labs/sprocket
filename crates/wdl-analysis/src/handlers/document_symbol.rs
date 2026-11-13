@@ -11,6 +11,7 @@ use lsp_types::DocumentSymbol;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::SymbolKind;
 use url::Url;
+use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Document;
@@ -38,10 +39,11 @@ use crate::handlers::common::ensure_parsed;
 
 /// Handles a document symbol request
 pub fn document_symbol(graph: &DocumentGraph, uri: &Url) -> Result<Option<DocumentSymbolResponse>> {
-    let (root, lines, _) = ensure_parsed(graph, uri)?;
+    let (root, lines, version) = ensure_parsed(graph, uri)?;
 
     let mut symbols = Vec::new();
-    let Some(ast) = Document::cast(root).and_then(|doc| doc.ast().into_v1()) else {
+    let Some(Ast::V1(ast)) = Document::cast(root).map(|doc| doc.ast_with_version_fallback(version))
+    else {
         return Ok(None);
     };
 

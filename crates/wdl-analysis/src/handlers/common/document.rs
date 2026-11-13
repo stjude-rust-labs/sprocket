@@ -6,6 +6,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use line_index::LineIndex;
+use petgraph::graph::NodeIndex;
 use url::Url;
 use wdl_grammar::SupportedVersion;
 use wdl_grammar::SyntaxNode;
@@ -46,11 +47,11 @@ pub fn ensure_parsed(
 
 /// Ensure that the given `uri` exists in the `graph` and has been analyzed.
 ///
-/// Returns the CST root, line index, and analyzed document
+/// Returns the document index, CST root, line index, and analyzed document
 pub fn ensure_analyzed<'a>(
     graph: &'a DocumentGraph,
     uri: &Url,
-) -> Result<(SyntaxNode, Arc<LineIndex>, &'a Document)> {
+) -> Result<(NodeIndex, SyntaxNode, Arc<LineIndex>, &'a Document)> {
     let index = graph
         .get_index(uri)
         .ok_or_else(|| anyhow!("document `{uri}` not found in graph"))?;
@@ -67,5 +68,5 @@ pub fn ensure_analyzed<'a>(
         bail!("document analysis data not available for `{uri}`");
     };
 
-    Ok((root, lines, analysis_doc))
+    Ok((index, root, lines, analysis_doc))
 }

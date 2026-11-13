@@ -63,7 +63,7 @@ pub fn goto_definition(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<Location>> {
-    let (root, lines, document) = ensure_analyzed(graph, document_uri)?;
+    let (_, root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(token) = find_identifier_token_at_offset(&root, offset) else {
