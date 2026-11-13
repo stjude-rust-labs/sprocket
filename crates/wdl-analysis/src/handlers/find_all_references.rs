@@ -117,11 +117,7 @@ pub fn find_all_references(
             )
         })?;
 
-    let doc_index = graph
-        .get_index(&definition_location.uri)
-        .ok_or_else(|| anyhow!("definition document not in graph"))?;
-
-    let (_, lines, document) = ensure_analyzed(graph, &definition_location.uri)?;
+    let (index, _, lines, document) = ensure_analyzed(graph, &definition_location.uri)?;
 
     let offset = position_to_offset(
         &lines,
@@ -145,7 +141,7 @@ pub fn find_all_references(
         location: definition_location.clone(),
     };
 
-    let search_scope = reference_search_scope(graph, doc_index, document, &token);
+    let search_scope = reference_search_scope(graph, index, document, &token);
 
     let mut locations = Vec::new();
     for doc_index in search_scope {

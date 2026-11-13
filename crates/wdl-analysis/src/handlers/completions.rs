@@ -111,7 +111,7 @@ pub fn completion(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Vec<CompletionItem>> {
-    let (root, lines, document) = ensure_analyzed(graph, document_uri)?;
+    let (_, root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let token = root.token_at_offset(offset).left_biased();

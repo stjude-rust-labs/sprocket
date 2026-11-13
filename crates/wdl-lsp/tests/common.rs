@@ -202,7 +202,7 @@ where
             let modules_json = workspace.path().join("module.json");
             assert!(
                 modules_json.exists(),
-                "enable_modules() requires an existing module.json!"
+                "setup_modules() requires an existing module.json!"
             );
 
             let lockfile_path = workspace.path().join(wdl_modules::LOCKFILE_FILENAME);

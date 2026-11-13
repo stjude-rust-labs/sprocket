@@ -78,7 +78,7 @@ pub fn hover(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<Hover>> {
-    let (root, lines, document) = ensure_analyzed(graph, document_uri)?;
+    let (_, root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(hovered_token) = root.token_at_offset(offset).find(|t| {

@@ -85,7 +85,7 @@ pub const WDL_SEMANTIC_TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
 /// It traverses the entire CST of the document, classifies each token
 /// into a semantic type, and constructs the [`SemanticTokens`].
 pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<SemanticTokens>> {
-    let (root, lines, document) = ensure_analyzed(graph, uri)?;
+    let (_, root, lines, document) = ensure_analyzed(graph, uri)?;
 
     let mut tokens = Vec::new();
     let mut last_line = 0;

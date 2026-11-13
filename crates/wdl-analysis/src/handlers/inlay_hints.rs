@@ -44,7 +44,7 @@ pub fn inlay_hints(
     uri: &Url,
     range: Range,
 ) -> Result<Option<Vec<InlayHint>>> {
-    let (_, lines, document) = ensure_analyzed(graph, uri)?;
+    let (_, _, lines, document) = ensure_analyzed(graph, uri)?;
 
     let mut hints = Vec::new();
 

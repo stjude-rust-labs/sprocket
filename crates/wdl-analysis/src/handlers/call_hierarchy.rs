@@ -92,7 +92,7 @@ fn find_callable_at_position<'a>(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<(Document, Arc<LineIndex>, Callable<'a>)>> {
-    let (root, lines, document) = ensure_analyzed(graph, document_uri)?;
+    let (_, root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(token) = find_identifier_token_at_offset(&root, offset) else {
