@@ -4,6 +4,7 @@ mod call_hierarchy;
 mod code_lens;
 mod completions;
 mod diagnostics;
+mod document_link;
 mod find_all_references;
 mod folding_range;
 mod goto_definition;

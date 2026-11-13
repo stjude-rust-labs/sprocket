@@ -8,8 +8,6 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use anyhow::anyhow;
-use anyhow::bail;
 use lsp_types::FoldingRange;
 use lsp_types::FoldingRangeKind;
 use rowan::Direction;
@@ -39,7 +37,7 @@ use wdl_grammar::SyntaxKind;
 use wdl_grammar::SyntaxNode;
 
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
+use crate::handlers::common::ensure_parsed;
 use crate::handlers::common::position;
 
 /// Context for folding range operations.
@@ -51,18 +49,8 @@ struct FoldingContext {
 }
 
 /// Determines all folding ranges in the document.
-pub fn folding_range(graph: &DocumentGraph, document_uri: Url) -> Result<Vec<FoldingRange>> {
-    let index = graph
-        .get_index(&document_uri)
-        .ok_or_else(|| anyhow!("document `{uri}` not found in graph", uri = document_uri))?;
-
-    let node = graph.get(index);
-    let (root, lines) = match node.parse_state() {
-        ParseState::Parsed { lines, root, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{uri}` has not been parsed", uri = document_uri),
-    };
+pub fn folding_range(graph: &DocumentGraph, document_uri: &Url) -> Result<Vec<FoldingRange>> {
+    let (root, lines, _) = ensure_parsed(graph, document_uri)?;
 
     let mut ctx = FoldingContext::default();
     let mut ranges = Vec::new();

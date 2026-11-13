@@ -37,8 +37,8 @@ use crate::document::Document;
 use crate::document::EnumRef;
 use crate::document::StructRef;
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::get_imported_doc_context;
 use crate::handlers::common::location_from_span;
@@ -63,21 +63,7 @@ pub fn goto_definition(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<Location>> {
-    let index = graph
-        .get_index(document_uri)
-        .ok_or_else(|| anyhow!("document `{document_uri}` not found in graph"))?;
-
-    let node = graph.get(index);
-    let (root, lines) = match node.parse_state() {
-        ParseState::Parsed { lines, root, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{document_uri}` has not been parsed"),
-    };
-
-    let Some(analysis_doc) = node.document() else {
-        bail!("document analysis data not available for {document_uri}");
-    };
+    let (_, root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(token) = find_identifier_token_at_offset(&root, offset) else {
@@ -88,12 +74,12 @@ pub fn goto_definition(
     let parent_node = token.parent().expect("identifier has not parent");
 
     // Context based resolution
-    if let Some(location) = resolve_by_context(&parent_node, &token, analysis_doc, &lines, graph)? {
+    if let Some(location) = resolve_by_context(&parent_node, &token, document, &lines, graph)? {
         return Ok(Some(location));
     }
 
     // Scope based resolution
-    if let Some(scope_ref) = analysis_doc.find_scope_by_position(token.span().start())
+    if let Some(scope_ref) = document.find_scope_by_position(token.span().start())
         && let Some(name_def) = scope_ref.lookup(ident_text)
     {
         if let Type::Call(_) = name_def.ty() {
@@ -115,7 +101,7 @@ pub fn goto_definition(
                 return resolve_call_target(
                     target.inner(),
                     callee_name.inner(),
-                    analysis_doc,
+                    document,
                     lines,
                     graph,
                 );
@@ -130,7 +116,7 @@ pub fn goto_definition(
     }
 
     // Global resolution
-    resolve_global_identifier(analysis_doc, ident_text, document_uri, &lines, graph)
+    resolve_global_identifier(document, ident_text, document_uri, &lines, graph)
 }
 
 /// Resolves identifier definition based on their parent node's syntax kind.

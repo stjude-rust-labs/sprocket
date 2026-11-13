@@ -70,8 +70,8 @@ use crate::document::Callable;
 use crate::document::ScopeRef;
 use crate::document::TASK_VAR_NAME;
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::make_md_docs;
 use crate::handlers::common::position;
 use crate::handlers::common::position_to_offset;
@@ -111,20 +111,7 @@ pub fn completion(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Vec<CompletionItem>> {
-    let Some(index) = graph.get_index(document_uri) else {
-        bail!("document `{document_uri}` not found in graph")
-    };
-    let node = graph.get(index);
-    let (root, lines) = match node.parse_state() {
-        ParseState::Parsed { lines, root, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{uri}` has not been parsed", uri = document_uri),
-    };
-
-    let Some(document) = node.document() else {
-        bail!("document analysis data not available for {}", document_uri);
-    };
+    let (_, root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let token = root.token_at_offset(offset).left_biased();

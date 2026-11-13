@@ -17,6 +17,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   resolved retry policy and curated hints, local work directory disk usage, execution backend and
   Sprocket version, and localization transfer volume as a data-movement proxy
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
+* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals in WDL 1.1 and later
+  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
 * Added the experimental WDL 1.4 postfix unwrap operator (`x!`), which converts an optional value to
   its non-optional type and fails if the value is `None`. This implements
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
@@ -38,11 +40,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
 * Task resource utilization updates merge reported fields into the stored JSON snapshot instead of
   replacing it ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+* Legacy octal integer literals with a leading zero (e.g. `0755`) are now an error in WDL 1.1 and
+  later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+* In WDL 1.1 and later, `read_int` and `read_float` accept the numeric forms defined by
+  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791), including an optional sign and
+  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values.
 
 ### Fixed
 
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
   config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
+* `read_json` now rejects files with trailing content after the JSON value.
 
 ## 0.33.0 - 2026-10-29
 

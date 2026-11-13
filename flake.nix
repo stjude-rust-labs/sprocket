@@ -82,6 +82,12 @@
           # version is then guaranteed to match libgit2-sys's bindings.
           OPENSSL_NO_VENDOR = "1";
 
+          # nixpkgs' `cargoSetupHook` otherwise forces every `*-sys` crate onto a
+          # system library (e.g. `AWS_LC_SYS_USE_SYSTEM=1`, `LIBGIT2_NO_VENDOR=1`).
+          # There is no system AWS-LC to link against and libgit2 is vendored on
+          # purpose (see above), so opt out and let each crate pick its default.
+          dontCargoUseSystemLibs = true;
+
           # Only build the top-level `sprocket` binary; gauntlet and other helpers
           # are workspace members but not part of the installed package output.
           cargoBuildFlags = [

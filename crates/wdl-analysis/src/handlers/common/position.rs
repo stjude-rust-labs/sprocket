@@ -33,15 +33,20 @@ pub fn position(index: &LineIndex, offset: TextSize) -> Result<Position> {
     Ok(Position::new(line_col.line, line_col.col))
 }
 
-/// Converts a `Span` to an LSP location.
-pub fn location_from_span(uri: &Url, span: Span, lines: &LineIndex) -> Result<Location> {
+/// Converts a `Span` to an LSP range.
+pub fn range_from_span(span: Span, lines: &LineIndex) -> Result<lsp_types::Range> {
     let start_offset = TextSize::from(span.start() as u32);
     let end_offset = TextSize::from(span.end() as u32);
-    let range = lsp_types::Range {
+
+    Ok(lsp_types::Range {
         start: position(lines, start_offset)?,
         end: position(lines, end_offset)?,
-    };
+    })
+}
 
+/// Converts a `Span` to an LSP location.
+pub fn location_from_span(uri: &Url, span: Span, lines: &LineIndex) -> Result<Location> {
+    let range = range_from_span(span, lines)?;
     Ok(Location::new(uri.clone(), range))
 }
 
