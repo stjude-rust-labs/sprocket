@@ -36,6 +36,7 @@ use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::InlayHint;
 use lsp_types::Location;
+use lsp_types::PrepareRenameResponse;
 use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
@@ -69,6 +70,7 @@ use crate::queue::InlayHintsRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::OutgoingCallsRequest;
+use crate::queue::PrepareRenameRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
@@ -1182,6 +1184,38 @@ where
             anyhow!(
                 "failed to receive rename response from analysis queue because the channel has \
                  closed"
+            )
+        })
+    }
+
+    /// Determine the rename range for a symbol at a given position.
+    pub async fn prepare_rename(
+        &self,
+        context: Context,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<PrepareRenameResponse>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::PrepareRename(PrepareRenameRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+                context,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send prepare rename request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive prepare rename response from analysis queue because the \
+                 channel has closed"
             )
         })
     }
