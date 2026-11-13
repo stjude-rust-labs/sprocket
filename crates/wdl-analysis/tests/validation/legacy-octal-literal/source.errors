@@ -1,0 +1,80 @@
+error: literal integer has a leading zero
+  ┌─ tests/validation/legacy-octal-literal/source.wdl:8:12
+  │
+8 │         a: 0755
+  │            ^^^^ leading zeros are not permitted in literal integers
+  │
+  = fix: use `0o755` for an octal integer or `755` for a decimal integer
+
+error: literal integer has a leading zero
+  ┌─ tests/validation/legacy-octal-literal/source.wdl:9:13
+  │
+9 │         b: -0755
+  │             ^^^^ leading zeros are not permitted in literal integers
+  │
+  = fix: use `0o755` for an octal integer or `755` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:10:13
+   │
+10 │         c: [00, 01]
+   │             ^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o0` for an octal integer or `0` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:10:17
+   │
+10 │         c: [00, 01]
+   │                 ^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o1` for an octal integer or `1` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:14:23
+   │
+14 │         x: { nested: -0777 }
+   │                       ^^^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o777` for an octal integer or `777` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:21:13
+   │
+21 │     Int a = 0755
+   │             ^^^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o755` for an octal integer or `755` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:22:14
+   │
+22 │     Int b = -0755
+   │              ^^^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o755` for an octal integer or `755` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:23:13
+   │
+23 │     Int c = 0000
+   │             ^^^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o0` for an octal integer or `0` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:24:13
+   │
+24 │     Int d = 01777777777777777777777777
+   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o1777777777777777777777777` for an octal integer or `1777777777777777777777777` for a decimal integer
+
+error: literal integer has a leading zero
+   ┌─ tests/validation/legacy-octal-literal/source.wdl:25:17
+   │
+25 │     Int e = 0 + 0755
+   │                 ^^^^ leading zeros are not permitted in literal integers
+   │
+   = fix: use `0o755` for an octal integer or `755` for a decimal integer
+

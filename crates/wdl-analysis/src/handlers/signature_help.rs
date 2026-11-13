@@ -19,7 +19,6 @@ use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CloseParen;
@@ -28,7 +27,7 @@ use wdl_ast::v1::OpenParen;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
+use crate::handlers::common::ensure_parsed;
 use crate::handlers::common::position_to_offset;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
@@ -41,30 +40,11 @@ pub fn signature_help(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<SignatureHelp>> {
-    let Some(index) = graph.get_index(uri) else {
-        bail!("document `{uri}` not found in graph")
-    };
-    let node = graph.get(index);
-    let (root, lines, parsed_version) = match node.parse_state() {
-        ParseState::Parsed {
-            root,
-            lines,
-            wdl_version,
-            ..
-        } => (
-            SyntaxNode::new_root(root.clone()),
-            lines.clone(),
-            *wdl_version,
-        ),
-        _ => bail!("document `{uri} has not been parsed",),
-    };
-    let version = node
-        .document()
-        .and_then(|document| document.version())
-        .or(parsed_version);
+    let (root, lines, version) = ensure_parsed(graph, uri)?;
     let Some(version) = version else {
         return Ok(None);
     };
+
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(token) = root.token_at_offset(offset).left_biased() else {
         return Ok(None);
