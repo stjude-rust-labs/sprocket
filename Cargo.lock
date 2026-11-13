@@ -5328,7 +5328,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5406,7 +5406,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-py"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "pyo3",
  "wdl-ast",
@@ -5426,7 +5426,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket-test-types"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "indexmap 2.14.2",
@@ -6854,7 +6854,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.9"
+version = "0.23.10"
 dependencies = [
  "anyhow",
  "clap",
@@ -6872,7 +6872,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6917,7 +6917,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.27.2"
+version = "0.27.3"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -6936,7 +6936,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "anyhow",
  "clap",
@@ -6949,7 +6949,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.18.0"
+version = "0.18.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6978,7 +6978,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "approx",
@@ -7036,7 +7036,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.22.1"
+version = "0.22.2"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -7052,7 +7052,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.27.1"
+version = "0.27.2"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -7067,7 +7067,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.30.0"
+version = "0.30.1"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -7102,7 +7102,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.25.0"
+version = "0.25.1"
 dependencies = [
  "anyhow",
  "async-lsp",
@@ -7133,7 +7133,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-modules"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "async-trait",
  "base64 0.23.1",

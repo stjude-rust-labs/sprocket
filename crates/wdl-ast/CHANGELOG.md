@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.27.3 - 2026-11-13
+
 ### Added
 
 * `LiteralInteger::value()` and `LiteralInteger::negate()` now support `0o`/`0O` octal and `0b`/`0B`

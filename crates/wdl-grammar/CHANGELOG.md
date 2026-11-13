@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.27.2 - 2026-11-13
+
 ### Added
 
 * The lexer now recognizes `0o`/`0O` octal and `0b`/`0B` binary integer literals from
