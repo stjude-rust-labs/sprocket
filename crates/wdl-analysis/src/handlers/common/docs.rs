@@ -1,5 +1,6 @@
 //! Utilities for generating documentation for LSP handlers.
 
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use lsp_types::Documentation;
@@ -359,6 +360,63 @@ pub fn provide_workflow_documentation(
             .map(|n| render_workflow_doc(&n)),
         Err(_) => None,
     }
+}
+
+/// Provides documentation for each input of a callable.
+///
+/// Returns a map of input names to descriptions sourced from the callable's
+/// input declarations, preferring doc comments over `parameter_meta`
+/// description values. Inputs without documentation are omitted from the map.
+///
+/// The `root` argument is the AST root of the document that resolved the
+/// callable; it is used to locate locally defined callables. Imported
+/// callables are located in their defining document.
+pub fn provide_callable_inputs_documentation(
+    callable: Callable<'_>,
+    root: &wdl_ast::Document,
+) -> Option<HashMap<String, String>> {
+    let (defining_root, source_name) = match &callable {
+        Callable::Task(TaskRef::Imported(t)) => (t.document().root(), t.name().to_string()),
+        Callable::Workflow(WorkflowRef::Imported(w)) => (w.document().root(), w.name().to_string()),
+        _ => (root.clone(), callable.name().to_string()),
+    };
+
+    let ast = defining_root.ast();
+    let (input, param_meta) = match callable {
+        Callable::Task(_) => {
+            let task = ast
+                .as_v1()?
+                .tasks()
+                .find(|task| task.name().text() == source_name)?;
+            (task.input(), task.parameter_metadata())
+        }
+        Callable::Workflow(_) => {
+            let workflow = ast
+                .as_v1()?
+                .workflows()
+                .find(|workflow| workflow.name().text() == source_name)?;
+            (workflow.input(), workflow.parameter_metadata())
+        }
+    };
+
+    let mut docs = HashMap::new();
+    for decl in input?.declarations() {
+        let name = decl.name().text().to_string();
+        let description =
+            first_paragraph_doc(decl.doc_comments().unwrap_or_default()).or_else(|| {
+                get_param_meta(&name, param_meta.as_ref()).map(|meta_val| {
+                    let mut buf = String::new();
+                    let _ = format_meta_value(&mut buf, &meta_val, 2);
+                    buf
+                })
+            });
+
+        if let Some(description) = description {
+            docs.insert(name, description);
+        }
+    }
+
+    Some(docs)
 }
 
 /// Provides documentation for namespaces.

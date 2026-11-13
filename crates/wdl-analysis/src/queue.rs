@@ -162,7 +162,7 @@ pub enum Request<Context> {
     /// A request to get all outgoing calls from a symbol.
     OutgoingCalls(OutgoingCallsRequest<Context>),
     /// A request to get signature help.
-    SignatureHelp(SignatureHelpRequest),
+    SignatureHelp(SignatureHelpRequest<Context>),
     /// A request to get inlay hints for a document.
     InlayHints(InlayHintsRequest<Context>),
     /// Replace the current validator.
@@ -398,7 +398,7 @@ pub struct OutgoingCallsRequest<Context> {
 }
 
 /// Represents a request for signature help.
-pub struct SignatureHelpRequest {
+pub struct SignatureHelpRequest<Context> {
     /// The document where the request was initiated.
     pub document: Url,
     /// The position of the cursor in the document.
@@ -407,6 +407,8 @@ pub struct SignatureHelpRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<SignatureHelp>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
 }
 
 /// Represents a request for inlay hints.
@@ -1196,6 +1198,7 @@ where
                     position,
                     encoding,
                     completed,
+                    context,
                 }) => {
                     let start = Instant::now();
                     debug!(
@@ -1204,7 +1207,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_parsed(&document) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }

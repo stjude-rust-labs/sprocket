@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* `textDocument/signatureHelp` now supports `call` statements, showing the called task or
+  workflow's input signature and documentation
+  ([#1367](https://github.com/stjude-rust-labs/sprocket/issues/1367)).
+* `{` is now a signature help trigger character
+  ([#1367](https://github.com/stjude-rust-labs/sprocket/issues/1367)).
+
 ## 0.25.0 - 2026-10-29
 
 ### Added
