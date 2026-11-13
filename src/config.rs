@@ -1,5 +1,6 @@
 //! Implementation of the configuration module.
 
+use std::borrow::Cow;
 use std::env;
 use std::fmt;
 use std::path::Path;
@@ -32,9 +33,6 @@ use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
-use wdl::engine::config::BackendConfig;
-use wdl::engine::config::LsfApptainerBackendConfig;
-use wdl::engine::config::SlurmApptainerBackendConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
 
@@ -56,14 +54,6 @@ pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 /// Sentinel value for using a local database.
 fn sentinel_database_filename() -> &'static str {
     "default"
-}
-
-/// Default output directory.
-pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
-
-/// Default output directory.
-fn default_output_directory() -> &'static str {
-    DEFAULT_OUTPUT_DIRECTORY
 }
 
 /// The name of the Sprocket configuration file.
@@ -463,13 +453,6 @@ pub struct RunConfig {
     #[schemars(default, flatten)]
     pub engine: EngineConfig,
 
-    /// The output directory (default: `./out`).
-    ///
-    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
-    #[toml(default = PathBuf::from(default_output_directory()))]
-    #[schemars(default = "default_output_directory")]
-    pub output_dir: PathBuf,
-
     /// The capacity of the events channel used to display progress statistics.
     ///
     /// If the number of progress events being generated outpaces Sprocket's
@@ -491,7 +474,6 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: EngineConfig::default(),
-            output_dir: default_output_directory().into(),
             events_capacity: default_events_channel_capacity(),
         }
     }
@@ -679,10 +661,6 @@ pub struct ServerConfig {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub database: DatabaseConfig,
-    /// Directory for workflow outputs.
-    #[toml(default = PathBuf::from(default_output_directory()))]
-    #[schemars(default = "default_output_directory")]
-    pub output_dir: PathBuf,
     /// Allowed file paths for file-based workflows.
     #[toml(default)]
     #[schemars(default)]
@@ -714,7 +692,6 @@ impl Default for ServerConfig {
             port: default_port(),
             allowed_origins: Vec::new(),
             database: DatabaseConfig::default(),
-            output_dir: DEFAULT_OUTPUT_DIRECTORY.into(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
             max_concurrent_runs: Default::default(),
@@ -858,6 +835,8 @@ pub struct TestConfig {
     /// Whether to enable arbitrary code execution for custom test assertions.
     ///
     /// **Warning:** this may run arbitrary user code on the host machine!
+    #[toml(default)]
+    #[schemars(default)]
     pub enable_custom_assertions: bool,
 }
 
@@ -1352,68 +1331,29 @@ impl Config {
             bail!("`events_capacity` must be at least 1")
         }
 
-        // Shell-expand certain paths
-        fn expand(path: &Path) -> Result<PathBuf> {
+        // Perform shell expansion for the given path.
+        fn expand(path: &mut PathBuf) -> Result<()> {
             match shellexpand::path::full(path) {
-                Ok(expanded) => Ok(PathBuf::from(expanded)),
+                Ok(Cow::Borrowed(_)) => Ok(()),
+                Ok(Cow::Owned(expanded)) => {
+                    *path = expanded;
+                    Ok(())
+                }
                 Err(e) => {
                     bail!(
-                        "failed to expand `{}` in path `{}`: {}",
-                        e.var_name.to_string_lossy(),
-                        path.display(),
-                        e.cause
+                        "failed to expand `{var}` in path `{path}`: {cause}",
+                        var = e.var_name.display(),
+                        path = path.display(),
+                        cause = e.cause
                     );
                 }
             }
         }
 
-        // Expands the paths in the given engine configuration.
-        fn expand_paths(config: &mut EngineConfig) -> Result<()> {
-            // Expand the call cache directory
-            if !config.task.using_system_cache_dir() {
-                config.task.cache_dir = config
-                    .task
-                    .cache_dir()
-                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
-            }
-
-            // Expand the download cache directory
-            if !config.http.using_system_cache_dir() {
-                config.http.cache_dir = config
-                    .http
-                    .cache_dir()
-                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
-            }
-
-            // Expand the apptainer image cache directory
-            for backend in config.backends.values_mut() {
-                match backend {
-                    BackendConfig::LsfApptainer {
-                        config: LsfApptainerBackendConfig { apptainer, .. },
-                    }
-                    | BackendConfig::SlurmApptainer {
-                        config: SlurmApptainerBackendConfig { apptainer, .. },
-                    } if !apptainer.using_system_image_cache_dir() => {
-                        apptainer.image_cache_dir = apptainer
-                            .image_cache_dir()
-                            .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
-                    }
-                    _ => {}
-                }
-            }
-
-            Ok(())
-        }
-
         // Expand paths in the configuration for both the `run` and `server`
         // sections
-        self.run.output_dir = expand(&self.run.output_dir)?;
-        self.server.output_dir = expand(&self.server.output_dir)?;
-
-        // Expand the paths in the engine configuration for both `run` and
-        // `server`
-        expand_paths(&mut self.run.engine)?;
-        expand_paths(&mut self.server.engine)?;
+        self.run.engine.for_each_path_mut(expand)?;
+        self.server.engine.for_each_path_mut(expand)?;
 
         // Validate inner configs
         self.server.validate()?;
@@ -1435,6 +1375,7 @@ mod tests {
 
     use schemars::schema_for;
     use toml_spanner::ValueMut;
+    use wdl::engine::config::BackendConfig;
     use wdl::engine::config::BuiltConfig;
 
     use super::*;

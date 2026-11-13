@@ -565,6 +565,7 @@ fn ident(parser: &mut Parser<'_>, name: &str) -> Result<(), ParseDiagnostic> {
             | Token::FloatTypeKeyword
             | Token::IntTypeKeyword
             | Token::MapTypeKeyword
+            | Token::NullKeyword
             | Token::ObjectTypeKeyword
             | Token::PairTypeKeyword
             | Token::StringTypeKeyword

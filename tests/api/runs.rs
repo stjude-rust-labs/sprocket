@@ -43,16 +43,18 @@ async fn create_test_server(
     let wdl_dir = temp.path().join("wdl");
     std::fs::create_dir(&wdl_dir).unwrap();
 
+    let mut engine = engine.unwrap_or_default();
+    engine.output_dir = temp.path().into();
+
     let mut server_config = ServerConfig {
-        output_dir: temp.path().to_path_buf(),
         allowed_file_paths: vec![wdl_dir],
         allowed_urls: allowed_urls.unwrap_or_default(),
         max_concurrent_runs: max_concurrent_runs.into(),
-        engine: engine.unwrap_or_default(),
+        engine,
         ..Default::default()
     };
     server_config.validate().unwrap();
-    let output_dir = server_config.output_dir.display().to_string();
+    let output_dir = server_config.engine.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -2075,7 +2077,10 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
     std::fs::create_dir(&wdl_dir).unwrap();
 
     let mut server_config = ServerConfig {
-        output_dir: temp.path().to_path_buf(),
+        engine: wdl::engine::Config {
+            output_dir: temp.path().into(),
+            ..Default::default()
+        },
         allowed_file_paths: vec![wdl_dir.clone()],
         ..Default::default()
     };

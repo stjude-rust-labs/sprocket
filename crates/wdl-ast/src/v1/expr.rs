@@ -1770,6 +1770,10 @@ impl<N: TreeNode> LiteralInteger<N> {
             0
         } else if text.starts_with("0x") || text.starts_with("0X") {
             u64::from_str_radix(&text[2..], 16).ok()?
+        } else if text.starts_with("0o") || text.starts_with("0O") {
+            u64::from_str_radix(&text[2..], 8).ok()?
+        } else if text.starts_with("0b") || text.starts_with("0B") {
+            u64::from_str_radix(&text[2..], 2).ok()?
         } else if text.starts_with('0') {
             u64::from_str_radix(text, 8).ok()?
         } else {
@@ -3659,6 +3663,70 @@ task test {
                 .value()
                 .is_none()
         );
+    }
+
+    #[test]
+    fn literal_integer_prefixed() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.1
+
+task test {
+    meta {
+        a: -0o755
+        b: -0b1000000000000000000000000000000000000000000000000000000000000000
+        c: -0o1000000000000000000001
+    }
+
+    Int a = 0o755
+    Int b = 0O17
+    Int c = 0b1010
+    Int d = 0B1
+    Int e = 0o777777777777777777777
+    Int f = 0o1000000000000000000000
+    Int g = 0b111111111111111111111111111111111111111111111111111111111111111
+    Int h = 0b1000000000000000000000000000000000000000000000000000000000000000
+    Int i = 0b10000000000000000000000000000000000000000000000000000000000000000
+    Int j = 0x8000000000000000
+}
+"#,
+            None,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+
+        let integer = |expr: Expr| expr.unwrap_literal().unwrap_integer();
+        let decls: Vec<_> = tasks[0].declarations().collect();
+        assert_eq!(decls.len(), 10);
+        assert_eq!(integer(decls[0].expr()).value(), Some(0o755));
+        assert_eq!(integer(decls[0].expr()).negate(), Some(-0o755));
+        assert_eq!(integer(decls[1].expr()).value(), Some(0o17));
+        assert_eq!(integer(decls[2].expr()).value(), Some(0b1010));
+        assert_eq!(integer(decls[3].expr()).value(), Some(1));
+        assert_eq!(integer(decls[4].expr()).value(), Some(i64::MAX));
+        assert_eq!(integer(decls[5].expr()).value(), None);
+        assert_eq!(integer(decls[5].expr()).negate(), Some(i64::MIN));
+        assert_eq!(integer(decls[6].expr()).value(), Some(i64::MAX));
+        assert_eq!(integer(decls[7].expr()).value(), None);
+        assert_eq!(integer(decls[7].expr()).negate(), Some(i64::MIN));
+        assert_eq!(integer(decls[8].expr()).value(), None);
+        assert_eq!(integer(decls[8].expr()).negate(), None);
+        assert_eq!(integer(decls[9].expr()).value(), None);
+        assert_eq!(integer(decls[9].expr()).negate(), Some(i64::MIN));
+
+        let items: Vec<_> = tasks[0]
+            .metadata()
+            .expect("should have metadata")
+            .items()
+            .collect();
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].value().unwrap_integer().value(), Some(-0o755));
+        assert_eq!(items[1].value().unwrap_integer().value(), Some(i64::MIN));
+        assert_eq!(items[2].value().unwrap_integer().value(), None);
     }
 
     #[test]
