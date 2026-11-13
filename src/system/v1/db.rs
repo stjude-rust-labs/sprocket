@@ -1,5 +1,6 @@
 //! Database schema and operations for provenance tracking in v1.
 
+use std::future::Future;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -7,6 +8,9 @@ use chrono::DateTime;
 use chrono::Utc;
 use serde_json::Value;
 use thiserror::Error;
+use tokio_retry2::Retry;
+use tokio_retry2::RetryError;
+use tokio_retry2::strategy::ExponentialBackoff;
 use uuid::Uuid;
 
 pub mod models;
@@ -79,6 +83,65 @@ fn page_total<T>(records: &[T], total: i64, offset: Option<i64>) -> i64 {
     total.max(page_end)
 }
 
+/// Retry limit for transient SQLite lock errors.
+const MAX_LOCK_RETRIES: usize = 10;
+
+/// Returns `true` if `error` represents a transient SQLite busy/locked
+/// condition (`SQLITE_BUSY` or `SQLITE_LOCKED`) that is worth retrying, as
+/// opposed to a permanent error such as a constraint violation or "not
+/// found".
+///
+/// `sqlx`'s SQLite error `code()` returns the *extended* result code (e.g.
+/// `773` for `SQLITE_BUSY_TIMEOUT`), so the primary code is recovered by
+/// masking with `0xff` rather than comparing the raw value directly.
+fn is_transient_lock_error(error: &DatabaseError) -> bool {
+    let DatabaseError::Sqlx(sqlx::Error::Database(db_err)) = error else {
+        return false;
+    };
+
+    db_err
+        .code()
+        .and_then(|code| code.parse::<i32>().ok())
+        .map(|code| matches!(code & 0xFF, 5 | 6)) // SQLITE_BUSY | SQLITE_LOCKED
+        .unwrap_or(false)
+}
+
+/// Retries SQLite busy/locked errors with bounded exponential backoff.
+///
+/// Other errors return immediately. Use for execution writes that must
+/// tolerate contention beyond `busy_timeout`. Each backoff delay is capped
+/// at 10 seconds, in addition to the time spent waiting on the database.
+pub async fn retry_on_lock<T, F, Fut>(operation: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T>>,
+{
+    let strategy = ExponentialBackoff::from_millis(500)
+        .max_delay(Duration::from_secs(10))
+        .take(MAX_LOCK_RETRIES);
+
+    let mut operation = operation;
+    Retry::spawn_notify(
+        strategy,
+        move || {
+            let fut = operation();
+            async move {
+                fut.await.map_err(|e| {
+                    if is_transient_lock_error(&e) {
+                        RetryError::transient(e)
+                    } else {
+                        RetryError::permanent(e)
+                    }
+                })
+            }
+        },
+        |e: &DatabaseError, _| {
+            tracing::warn!("database write hit lock contention, retrying: {e}");
+        },
+    )
+    .await
+}
+
 /// Parameters for creating a task record.
 ///
 /// See [`Database::create_task`].
@@ -97,6 +160,8 @@ pub struct NewTask<'a> {
     pub call_id: Option<&'a str>,
     /// The 0-based execution attempt number within the call.
     pub attempt: i64,
+    /// When the task was first observed.
+    pub created_at: DateTime<Utc>,
 }
 
 impl<'a> NewTask<'a> {
@@ -109,8 +174,127 @@ impl<'a> NewTask<'a> {
             status,
             call_id: None,
             attempt: 0,
+            created_at: Utc::now(),
         }
     }
+}
+
+/// A buffered task database operation.
+///
+/// Owns its data until flushed through [`Database::apply_task_writes`].
+#[derive(Debug, Clone)]
+pub enum TaskWrite {
+    /// Create a new task row (or fold into an existing one; see
+    /// [`Database::create_task`]).
+    Create {
+        /// The unique name of the task's execution attempt.
+        name: String,
+        /// The UUID of the run managing this task.
+        run_id: Uuid,
+        /// The starting status of the task.
+        status: TaskStatus,
+        /// The stable WDL call path shared by every attempt of the same
+        /// call, if known.
+        call_id: Option<String>,
+        /// The 0-based execution attempt number within the call.
+        attempt: i64,
+        /// When the task was first observed, before buffering.
+        created_at: DateTime<Utc>,
+    },
+    /// Advance a task to localizing (see
+    /// [`Database::update_task_localizing`]).
+    Localizing {
+        /// The task's name.
+        name: String,
+    },
+    /// Record resolved execution constraints (see
+    /// [`Database::update_task_constraints`]).
+    Constraints {
+        /// The task's name.
+        name: String,
+        /// The serialized constraints.
+        constraints: String,
+    },
+    /// Record why a task's execution attempt was retried (see
+    /// [`Database::update_task_retry_cause`]).
+    RetryCause {
+        /// The task's name.
+        name: String,
+        /// The serialized retry cause.
+        cause: String,
+    },
+    /// Merge newly observed resource-utilization fields (see
+    /// [`Database::update_task_utilization`]).
+    Utilization {
+        /// The task's name.
+        name: String,
+        /// The JSON Merge Patch fragment to apply.
+        patch: String,
+    },
+    /// Advance a task to pending (see [`Database::update_task_pending`]).
+    Pending {
+        /// The task's name.
+        name: String,
+        /// When the task was submitted to a backend.
+        submitted_at: DateTime<Utc>,
+    },
+    /// Advance a task to cached (see [`Database::update_task_cached`]).
+    Cached {
+        /// The task's name.
+        name: String,
+        /// When the cached result was observed.
+        completed_at: DateTime<Utc>,
+    },
+    /// Advance a task to running (see [`Database::update_task_started`]).
+    Started {
+        /// The task's name.
+        name: String,
+        /// When the task started running.
+        started_at: DateTime<Utc>,
+    },
+    /// Advance a task to completed (see [`Database::update_task_completed`]).
+    Completed {
+        /// The task's name.
+        name: String,
+        /// The task's exit status, if any.
+        exit_status: Option<i32>,
+        /// When the task completed.
+        completed_at: DateTime<Utc>,
+    },
+    /// Advance a task to failed (see [`Database::update_task_failed`]).
+    Failed {
+        /// The task's name.
+        name: String,
+        /// The error message.
+        error: String,
+        /// When the task failed.
+        completed_at: DateTime<Utc>,
+    },
+    /// Advance a task to canceled (see [`Database::update_task_canceled`]).
+    Canceled {
+        /// The task's name.
+        name: String,
+        /// When the task was canceled.
+        completed_at: DateTime<Utc>,
+    },
+    /// Advance a task to preempted (see
+    /// [`Database::update_task_preempted`]).
+    Preempted {
+        /// The task's name.
+        name: String,
+        /// When the task was preempted.
+        completed_at: DateTime<Utc>,
+    },
+    /// Append a chunk of task log output (see
+    /// [`Database::insert_task_log`]).
+    Log {
+        /// The task's name.
+        name: String,
+        /// The log's source stream.
+        source: LogSource,
+        /// The logged bytes.
+        chunk: Vec<u8>,
+    },
 }
 
 /// A database trait containing needed provenance operations.
@@ -209,6 +393,18 @@ pub trait Database: Send + Sync {
     #[must_use = "the return value indicates whether a run was updated"]
     async fn update_run_index_directory(&self, id: Uuid, index_directory: &str) -> Result<bool>;
 
+    /// Record the name of the execution backend the run executed on.
+    ///
+    /// Returns `true` if a run was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a run was updated"]
+    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool>;
+
+    /// Record the run's transfer byte totals.
+    ///
+    /// Returns `true` if a run was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a run was updated"]
+    async fn update_run_transfer_totals(&self, id: Uuid, transfer_totals: &str) -> Result<bool>;
+
     /// Get a run by ID.
     async fn get_run(&self, id: Uuid) -> Result<Option<Run>>;
 
@@ -300,7 +496,18 @@ pub trait Database: Send + Sync {
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_retry_cause(&self, name: &str, cause: &str) -> Result<bool>;
 
-    /// Record the resource utilization observed for a task.
+    /// Merge newly observed resource utilization fields for a task into
+    /// whatever has already been recorded.
+    ///
+    /// `patch` is a JSON object containing only the fields being reported;
+    /// it is merged into the existing `utilization` column server-side (as a
+    /// [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7386)),
+    /// so fields reported by one source (e.g. the engine) are not clobbered
+    /// by a later report from another source
+    /// (e.g. the backend) that doesn't set them. Callers must omit any key
+    /// whose value is not currently known, since a JSON Merge Patch
+    /// interprets an explicit `null` as "delete this key" rather than "no
+    /// information."
     ///
     /// This is recorded at the attempt's termination, which races the
     /// completion event on the other channel, so the row is usually already
@@ -308,7 +515,7 @@ pub trait Database: Send + Sync {
     ///
     /// Returns `true` if a task was updated, `false` if it was not found.
     #[must_use = "the return value indicates whether a task was updated"]
-    async fn update_task_utilization(&self, name: &str, utilization: &str) -> Result<bool>;
+    async fn update_task_utilization(&self, name: &str, patch: &str) -> Result<bool>;
 
     /// Advance a task to localizing its inputs.
     ///
@@ -320,10 +527,13 @@ pub trait Database: Send + Sync {
     /// Advance a task to pending, meaning it has been submitted to a backend
     /// and is awaiting scheduling.
     ///
+    /// Records the submission time (keeping the first observed time if
+    /// repeated).
+    ///
     /// Returns `true` if a task was updated, `false` if it was not found or
-    /// has already advanced past localizing.
+    /// has already advanced past pending.
     #[must_use = "the return value indicates whether a task was updated"]
-    async fn update_task_pending(&self, name: &str) -> Result<bool>;
+    async fn update_task_pending(&self, name: &str, submitted_at: DateTime<Utc>) -> Result<bool>;
 
     /// Update a task as served from the call cache.
     ///
@@ -456,7 +666,90 @@ pub trait Database: Send + Sync {
         Ok(ReadPage { records, total })
     }
 
+    /// Applies buffered task writes in order.
+    ///
+    /// The default implementation uses separate operations without a shared
+    /// transaction. Database implementations can override it to use one
+    /// transaction for the whole batch.
+    async fn apply_task_writes(&self, writes: Vec<TaskWrite>) -> Result<()> {
+        for write in writes {
+            match write {
+                TaskWrite::Create {
+                    name,
+                    run_id,
+                    status,
+                    call_id,
+                    attempt,
+                    created_at,
+                } => {
+                    self.create_task(NewTask {
+                        name: &name,
+                        run_id,
+                        status,
+                        call_id: call_id.as_deref(),
+                        attempt,
+                        created_at,
+                    })
+                    .await?;
+                }
+                TaskWrite::Localizing { name } => {
+                    self.update_task_localizing(&name).await?;
+                }
+                TaskWrite::Constraints { name, constraints } => {
+                    self.update_task_constraints(&name, &constraints).await?;
+                }
+                TaskWrite::RetryCause { name, cause } => {
+                    self.update_task_retry_cause(&name, &cause).await?;
+                }
+                TaskWrite::Utilization { name, patch } => {
+                    self.update_task_utilization(&name, &patch).await?;
+                }
+                TaskWrite::Pending { name, submitted_at } => {
+                    self.update_task_pending(&name, submitted_at).await?;
+                }
+                TaskWrite::Cached { name, completed_at } => {
+                    self.update_task_cached(&name, completed_at).await?;
+                }
+                TaskWrite::Started { name, started_at } => {
+                    self.update_task_started(&name, started_at).await?;
+                }
+                TaskWrite::Completed {
+                    name,
+                    exit_status,
+                    completed_at,
+                } => {
+                    self.update_task_completed(&name, exit_status, completed_at)
+                        .await?;
+                }
+                TaskWrite::Failed {
+                    name,
+                    error,
+                    completed_at,
+                } => {
+                    self.update_task_failed(&name, &error, completed_at).await?;
+                }
+                TaskWrite::Canceled { name, completed_at } => {
+                    self.update_task_canceled(&name, completed_at).await?;
+                }
+                TaskWrite::Preempted { name, completed_at } => {
+                    self.update_task_preempted(&name, completed_at).await?;
+                }
+                TaskWrite::Log {
+                    name,
+                    source,
+                    chunk,
+                } => {
+                    self.insert_task_log(&name, source, &chunk).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Transition a run to `Running` status with `started_at` timestamp.
+    ///
+    /// The default uses separate writes. Database implementations can
+    /// override it to store both fields in one statement.
     async fn start_run(&self, id: Uuid, started_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Running).await?;
         self.update_run_started_at(id, Some(started_at)).await?;
@@ -464,6 +757,9 @@ pub trait Database: Send + Sync {
     }
 
     /// Transition a run to `Completed` status with `completed_at` timestamp.
+    ///
+    /// See the note on [`start_run`](Self::start_run) about overriding for a
+    /// single-write implementation.
     async fn complete_run(&self, id: Uuid, completed_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Completed).await?;
         self.update_run_completed_at(id, Some(completed_at)).await?;
@@ -472,6 +768,9 @@ pub trait Database: Send + Sync {
 
     /// Transition a run to `Failed` status with error message and
     /// `completed_at` timestamp.
+    ///
+    /// See the note on [`start_run`](Self::start_run) about overriding for a
+    /// single-write implementation.
     async fn fail_run(&self, id: Uuid, error: &str, completed_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Failed).await?;
         self.update_run_error(id, error).await?;
@@ -480,9 +779,28 @@ pub trait Database: Send + Sync {
     }
 
     /// Transition a run to `Canceled` status with `completed_at` timestamp.
+    ///
+    /// See the note on [`start_run`](Self::start_run) about overriding for a
+    /// single-write implementation.
     async fn cancel_run(&self, id: Uuid, completed_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Canceled).await?;
         self.update_run_completed_at(id, Some(completed_at)).await?;
+        Ok(())
+    }
+
+    /// Records outputs and marks the run completed at `completed_at`.
+    ///
+    /// The default uses separate operations. Database implementations can
+    /// override it to store the outputs, status, and timestamp in one
+    /// statement.
+    async fn complete_run_with_outputs(
+        &self,
+        id: Uuid,
+        completed_at: DateTime<Utc>,
+        outputs: &str,
+    ) -> Result<()> {
+        self.update_run_outputs(id, outputs).await?;
+        self.complete_run(id, completed_at).await?;
         Ok(())
     }
 

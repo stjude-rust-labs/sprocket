@@ -37,13 +37,16 @@ async fn create_test_server(
     std::fs::create_dir(&wdl_dir).unwrap();
 
     let mut server_config = ServerConfig {
-        output_dir: temp.path().to_path_buf(),
+        engine: wdl::engine::Config {
+            output_dir: temp.path().into(),
+            ..Default::default()
+        },
         allowed_file_paths: vec![wdl_dir],
         max_concurrent_runs: max_concurrent_runs.into(),
         ..Default::default()
     };
     server_config.validate().unwrap();
-    let output_dir = server_config.output_dir.display().to_string();
+    let output_dir = server_config.engine.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);

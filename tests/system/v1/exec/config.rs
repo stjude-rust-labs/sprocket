@@ -1,18 +1,23 @@
 //! Server configuration validation tests.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use sprocket::ServerConfig;
 use tempfile::TempDir;
 use url::Url;
 
 fn make_config(
-    output_directory: std::path::PathBuf,
-    allowed_file_paths: Vec<std::path::PathBuf>,
+    output_dir: PathBuf,
+    allowed_file_paths: Vec<PathBuf>,
     allowed_urls: Vec<Url>,
     max_concurrent_runs: Option<usize>,
 ) -> ServerConfig {
     ServerConfig {
-        output_dir: output_directory,
+        engine: wdl::engine::Config {
+            output_dir,
+            ..Default::default()
+        },
         allowed_file_paths,
         allowed_urls,
         max_concurrent_runs: max_concurrent_runs.into(),
@@ -145,12 +150,6 @@ fn validate_sorts_urls() {
     assert_eq!(config.allowed_urls[0].as_str(), "https://aaa.com/");
     assert_eq!(config.allowed_urls[1].as_str(), "https://mmm.com/");
     assert_eq!(config.allowed_urls[2].as_str(), "https://zzz.com/");
-}
-
-#[test]
-fn default_output_directory_is_out() {
-    let config = ServerConfig::default();
-    assert_eq!(config.output_dir.to_str().unwrap(), "./out");
 }
 
 #[test]

@@ -13,11 +13,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   available. Local Docker containers sample these measurements every second by default; set
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
   unsupported ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+* Execution metrics include scheduler-pending and allocated CPU time, time lost to preemption,
+  resolved retry policy and curated hints, local work directory disk usage, execution backend and
+  Sprocket version, and localization transfer volume as a data-movement proxy
+  ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
+* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals in WDL 1.1 and later
+  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+
+### Changed
+
+* The `server.output_dir` configuration setting has moved to `server.engine.output_dir`
+  ([#1372](https://github.com/stjude-rust-labs/sprocket/pull/1372)).
+* The configuration settings `run.http.cache_dir`, `run.task.cache_dir`,
+  `server.engine.http.cache_dir`, `server.engine.task.cache_dir`, and the `image_cache_dir` of
+  LSF/Slurm backends are now relative to the output directory instead of being user-wide cache
+  locations; the previous `system` value is deprecated
+  ([#1372](https://github.com/stjude-rust-labs/sprocket/pull/1372)).
+* Execution database writes batch task updates and combine related run updates to reduce commits.
+  SQLite uses `PERSIST` journaling, disables memory-mapped I/O, and limits the pool to five
+  connections. Task updates normally flush every 250 milliseconds or after 256 buffered writes;
+  database delays can extend the wait
+  ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+* Task resource utilization updates merge reported fields into the stored JSON snapshot instead of
+  replacing it ([#1260](https://github.com/stjude-rust-labs/sprocket/pull/1260)).
+* Legacy octal integer literals with a leading zero (e.g. `0755`) are now an error in WDL 1.1 and
+  later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+* In WDL 1.1 and later, `read_int` and `read_float` accept the numeric forms defined by
+  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791), including an optional sign and
+  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values.
 
 ### Fixed
 
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
   config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
+* `read_json` now rejects files with trailing content after the JSON value.
 
 ## 0.33.0 - 2026-10-29
 

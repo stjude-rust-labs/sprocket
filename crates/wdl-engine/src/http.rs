@@ -151,7 +151,7 @@ pub struct DefaultHttpClient(Arc<State>);
 impl DefaultHttpClient {
     /// Constructs a new [`DefaultHttpClient`] with the given configuration.
     pub fn new(config: &Config) -> Result<Self> {
-        let cache_dir = config.http.cache_dir()?;
+        let cache_dir = config.downloads_cache_dir();
 
         let temp_dir = cache_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
