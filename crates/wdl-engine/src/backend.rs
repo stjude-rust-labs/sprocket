@@ -3,8 +3,12 @@
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Output;
+use std::time::Duration;
 
+use anyhow::Context as _;
 use anyhow::Result;
+use anyhow::bail;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 
@@ -53,6 +57,41 @@ pub(crate) const STDOUT_FILE_NAME: &str = "stdout";
 
 /// The default stderr file name.
 pub(crate) const STDERR_FILE_NAME: &str = "stderr";
+
+/// The timeout for HPC scheduler commands that query or cancel jobs (e.g.,
+/// `sacct`, `scancel`, `bjobs`, and `bkill`).
+///
+/// These commands are safe to kill and retry; a timeout prevents an
+/// unresponsive scheduler or file system from stalling the engine.
+const SCHEDULER_COMMAND_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+
+/// Spawns the given command and waits for it to exit, collecting its output.
+///
+/// If the command does not exit within the given timeout, it is killed and an
+/// error is returned.
+async fn output_with_timeout(
+    command: &mut tokio::process::Command,
+    timeout: Duration,
+) -> Result<Output> {
+    let program = command
+        .as_std()
+        .get_program()
+        .to_string_lossy()
+        .into_owned();
+
+    let child = command
+        .kill_on_drop(true)
+        .spawn()
+        .with_context(|| format!("failed to spawn `{program}`"))?;
+
+    match tokio::time::timeout(timeout, child.wait_with_output()).await {
+        Ok(output) => output.with_context(|| format!("failed to wait for `{program}` to exit")),
+        Err(_) => bail!(
+            "`{program}` did not exit within {secs} seconds and was terminated",
+            secs = timeout.as_secs()
+        ),
+    }
+}
 
 /// Represents a `File` or `Directory` input to a backend.
 #[derive(Debug, Clone)]
