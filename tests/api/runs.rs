@@ -2251,6 +2251,72 @@ async fn get_run_returns_seeded_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+async fn submit_run_records_backend_name(pool: sqlx::SqlitePool) {
+    let engine = wdl::engine::Config {
+        backend: String::from("my-local"),
+        backends: [(
+            String::from("my-local"),
+            wdl::engine::config::BackendConfig::Local {
+                config: Default::default(),
+            },
+        )]
+        .into(),
+        ..Default::default()
+    };
+
+    let (app, db, temp) = create_test_server().pool(pool).engine(engine).call().await;
+
+    let wdl_file = temp.path().join("wdl").join("test.wdl");
+    std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(paths::LIST_RUNS)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    // The backend is recorded when execution starts.
+    let status = poll_for_completion(&db, run_id, 120)
+        .await
+        .expect("run should complete");
+    assert_eq!(status, RunStatus::Completed);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/runs/{run_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["backend"], "local");
+    assert_eq!(json["backend_name"], "my-local");
+}
+
+#[sqlx::test]
 #[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn submit_run_rejects_non_object_inputs(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;

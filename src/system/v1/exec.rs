@@ -981,7 +981,9 @@ pub async fn execute_target(
     // Record the execution backend for the run's environment tracking. This
     // is best-effort.
     if let Ok(backend) = engine.config().backend()
-        && let Err(e) = db.update_run_backend(ctx.run_id, backend.name()).await
+        && let Err(e) = db
+            .update_run_backend(ctx.run_id, backend.name(), &engine.config().backend)
+            .await
     {
         tracing::warn!("failed to record run backend: {e:#}");
     }

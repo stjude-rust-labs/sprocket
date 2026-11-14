@@ -796,7 +796,7 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         .unwrap();
     let run_id = seed_run(&db, session_id, "metrics-run").await;
     db.start_run(run_id, Utc::now()).await.unwrap();
-    db.update_run_backend(run_id, "lsf_apptainer")
+    db.update_run_backend(run_id, "lsf_apptainer", "hpc")
         .await
         .unwrap();
     db.update_run_transfer_totals(run_id, r#"{"downloaded_bytes":1024,"uploaded_bytes":0}"#)

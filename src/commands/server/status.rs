@@ -345,6 +345,7 @@ mod tests {
             directory: None,
             index_directory: None,
             backend: None,
+            backend_name: None,
             transfer_totals: None,
             started_at: None,
             completed_at: None,

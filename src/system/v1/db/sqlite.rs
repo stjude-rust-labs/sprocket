@@ -228,8 +228,8 @@ impl Database for SqliteDatabase {
             "insert into runs (uuid, session_id, name, source, target, status, inputs) select ?, \
              s.id, ?, ?, ?, ?, ? from sessions s where s.uuid = ? returning uuid, (select uuid \
              from sessions where id = session_id) as session_uuid, name, source, target, status, \
-             inputs, outputs, error, directory, index_directory, backend, transfer_totals, \
-             started_at, completed_at, created_at",
+             inputs, outputs, error, directory, index_directory, backend, backend_name, \
+             transfer_totals, started_at, completed_at, created_at",
         )
         .bind(id.to_string())
         .bind(name)
@@ -416,9 +416,15 @@ impl Database for SqliteDatabase {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool> {
-        let result = sqlx::query("update runs set backend = ? where uuid = ?")
+    async fn update_run_backend(
+        &self,
+        id: Uuid,
+        backend: &str,
+        backend_name: &str,
+    ) -> Result<bool> {
+        let result = sqlx::query("update runs set backend = ?, backend_name = ? where uuid = ?")
             .bind(backend)
+            .bind(backend_name)
             .bind(id.to_string())
             .execute(&self.pool)
             .await?;
@@ -440,8 +446,8 @@ impl Database for SqliteDatabase {
         let run: Option<Run> = sqlx::query_as(
             "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
              r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-             r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
-             sessions s on r.session_id = s.id where r.uuid = ?",
+             r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at from \
+             runs r join sessions s on r.session_id = s.id where r.uuid = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -463,9 +469,9 @@ impl Database for SqliteDatabase {
             sqlx::query_as(
                 "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
                  r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-                 r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
-                 sessions s on r.session_id = s.id where r.status = ? order by r.created_at desc \
-                 limit ? offset ?",
+                 r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at \
+                 from runs r join sessions s on r.session_id = s.id where r.status = ? order by \
+                 r.created_at desc limit ? offset ?",
             )
             .bind(status)
             .bind(limit)
@@ -476,8 +482,9 @@ impl Database for SqliteDatabase {
             sqlx::query_as(
                 "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
                  r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-                 r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
-                 sessions s on r.session_id = s.id order by r.created_at desc limit ? offset ?",
+                 r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at \
+                 from runs r join sessions s on r.session_id = s.id order by r.created_at desc \
+                 limit ? offset ?",
             )
             .bind(limit)
             .bind(offset)
@@ -507,8 +514,8 @@ impl Database for SqliteDatabase {
         let runs: Vec<Run> = sqlx::query_as(
             "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
              r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-             r.transfer_totals, r.started_at, r.completed_at, r.created_at from runs r join \
-             sessions s on r.session_id = s.id where s.uuid = ? order by r.created_at",
+             r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at from \
+             runs r join sessions s on r.session_id = s.id where s.uuid = ? order by r.created_at",
         )
         .bind(session_id.to_string())
         .fetch_all(&self.pool)
@@ -1936,7 +1943,7 @@ mod tests {
             .expect("failed to create run");
 
         assert!(
-            db.update_run_backend(run_id, "lsf_apptainer")
+            db.update_run_backend(run_id, "lsf_apptainer", "hpc")
                 .await
                 .expect("failed to update backend")
         );
@@ -1953,11 +1960,12 @@ mod tests {
             .expect("failed to get run")
             .expect("run should exist");
         assert_eq!(run.backend.as_deref(), Some("lsf_apptainer"));
+        assert_eq!(run.backend_name.as_deref(), Some("hpc"));
         assert_eq!(run.transfer_totals.as_deref(), Some(totals));
 
         // Unknown runs are reported as not updated.
         assert!(
-            !db.update_run_backend(Uuid::new_v4(), "docker")
+            !db.update_run_backend(Uuid::new_v4(), "docker", "default")
                 .await
                 .expect("failed to update backend")
         );

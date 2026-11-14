@@ -118,6 +118,10 @@ pub struct Run {
     pub index_directory: Option<String>,
     /// The name of the execution backend on which the run executed.
     pub backend: Option<String>,
+    /// The configured name of the execution backend on which the run executed.
+    ///
+    /// This distinguishes configured backends that share a type.
+    pub backend_name: Option<String>,
     /// JSON-encoded transfer byte totals for the run.
     pub transfer_totals: Option<String>,
     /// Timestamp when the run started.
@@ -143,6 +147,7 @@ impl From<crate::system::v1::db::Run> for Run {
             directory: run.directory,
             index_directory: run.index_directory,
             backend: run.backend,
+            backend_name: run.backend_name,
             transfer_totals: run.transfer_totals,
             started_at: run.started_at,
             completed_at: run.completed_at,
@@ -409,6 +414,7 @@ mod tests {
             directory: Some("/runs/run-name".to_string()),
             index_directory: Some("/index/run-name".to_string()),
             backend: Some("docker".to_string()),
+            backend_name: Some("default".to_string()),
             transfer_totals: None,
             started_at: Some(now),
             completed_at: Some(now),
@@ -466,6 +472,8 @@ mod tests {
         assert_eq!(response.run.outputs, db_run.outputs);
         assert_eq!(response.run.directory, db_run.directory);
         assert_eq!(response.run.index_directory, db_run.index_directory);
+        assert_eq!(response.run.backend, db_run.backend);
+        assert_eq!(response.run.backend_name, db_run.backend_name);
         assert_eq!(response.run.started_at, db_run.started_at);
         assert_eq!(response.run.completed_at, db_run.completed_at);
         assert_eq!(response.run.created_at, db_run.created_at);

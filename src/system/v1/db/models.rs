@@ -271,6 +271,13 @@ pub struct Run {
     /// `None` for runs recorded before backends were tracked or that never
     /// began execution.
     pub backend: Option<String>,
+    /// The configured name of the execution backend the run executed on.
+    ///
+    /// This is the name the backend was selected by (e.g. `default` or a key
+    /// under `[backends]`), which distinguishes configured backends that share
+    /// a type. `None` for runs recorded before backend names were tracked or
+    /// that never began execution.
+    pub backend_name: Option<String>,
     /// JSON value totaling the bytes transferred while localizing inputs and
     /// delocalizing outputs.
     ///
