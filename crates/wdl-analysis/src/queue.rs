@@ -53,6 +53,7 @@ use wdl_ast::Severity;
 use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
+use wdl_modules::lockfile::ResolvedSource;
 use wdl_modules::module::Module;
 use wdl_modules::module::ModuleId;
 use wdl_modules::symbolic_path::SymbolicPath;
@@ -1868,6 +1869,12 @@ where
                                     let import_index = graph
                                         .get_index(&import_uri)
                                         .unwrap_or_else(|| graph.add_node(import_uri, false));
+
+                                    let is_external = graph.get(index).is_external();
+                                    if is_external {
+                                        graph.get_mut(import_index).mark_external();
+                                    }
+
                                     graph.add_dependency_edge(
                                         index,
                                         import_index,
@@ -2052,6 +2059,18 @@ where
                         let import_index = graph
                             .get_index(&import_uri)
                             .unwrap_or_else(|| graph.add_node(import_uri.clone(), false));
+
+                        let is_external = match &materialized.source {
+                            ResolvedSource::Git { .. } => true,
+                            ResolvedSource::Path { path } => self
+                                .consumer_module
+                                .as_ref()
+                                .is_some_and(|m| !path.starts_with(&m.root)),
+                        };
+                        if is_external {
+                            graph.get_mut(import_index).mark_external();
+                        }
+
                         for importer in &importers {
                             graph.add_dependency_edge(
                                 *importer,

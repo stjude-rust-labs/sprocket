@@ -42,8 +42,17 @@ pub fn prepare_rename(
         return Ok(None);
     };
 
-    if handlers::goto_definition(graph, document_uri, position, encoding)?.is_none() {
+    let Some(location) = handlers::goto_definition(graph, document_uri, position, encoding)? else {
         return Ok(None); // Not a valid definition, reject the rename
+    };
+
+    let Some(def_index) = graph.get_index(&location.uri) else {
+        return Ok(None);
+    };
+
+    if graph.get(def_index).is_external() {
+        // External to the workspace (e.g., non-`file://` URI or external module), reject
+        return Ok(None);
     }
 
     Ok(Some(PrepareRenameResponse::RangeWithPlaceholder {
@@ -68,6 +77,10 @@ pub fn rename(
 ) -> Result<Option<WorkspaceEdit>> {
     if !is_ident(&new_name) {
         bail!("name `{new_name}` is not a valid WDL identifier");
+    }
+
+    if prepare_rename(graph, document_uri, position, encoding)?.is_none() {
+        bail!("invalid symbol for rename");
     }
 
     let references = handlers::find_all_references(graph, document_uri, position, encoding, true)?;
