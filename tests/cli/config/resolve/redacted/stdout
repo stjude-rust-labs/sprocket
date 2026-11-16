@@ -224,7 +224,6 @@ container = "ubuntu:latest"
 shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
-measure_resource_usage = false
 cache_dir = "default"
 cache = "off"
 digests = "weak"
@@ -238,6 +237,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
 
 [run.backends.first.auth]
 type = "basic"
@@ -250,6 +250,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
 
 [run.backends.second.auth]
 type = "bearer"
@@ -261,6 +262,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
 
 [run.backends.third.auth]
 type = "oauth"
@@ -331,7 +333,6 @@ container = "ubuntu:latest"
 shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
-measure_resource_usage = false
 cache_dir = "default"
 cache = "off"
 digests = "weak"
@@ -345,6 +346,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
 
 [server.engine.backends.first.auth]
 type = "basic"
@@ -357,6 +359,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
 
 [server.engine.backends.second.auth]
 type = "bearer"
@@ -368,6 +371,7 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
 
 [server.engine.backends.third.auth]
 type = "oauth"

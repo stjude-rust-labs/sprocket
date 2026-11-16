@@ -333,10 +333,9 @@ pub struct Task {
     pub retry_cause: Option<String>,
     /// JSON snapshot of the resource utilization observed for this attempt.
     ///
-    /// Values come from scheduler accounting, Docker sampling, or the engine.
-    /// Engine values take precedence for fields reported by both sources.
-    /// Docker sampling requires a nonzero
-    /// `backends.<name>.resource_usage_interval` and excludes Docker Swarm.
+    /// CPU and memory come from native local or scheduler accounting, Docker
+    /// sampling, or a cgroup-v2 fallback for Swarm/TES without native usage.
+    /// The engine separately measures final local work-directory size.
     /// `None` when no source reports usage.
     pub utilization: Option<String>,
     /// Timestamp when the task was submitted to an execution backend.

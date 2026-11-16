@@ -28,6 +28,7 @@ mod lsf_apptainer;
 pub(crate) mod manager;
 mod slurm_apptainer;
 mod tes;
+mod usage;
 
 pub use apptainer::*;
 pub use docker::*;
@@ -257,8 +258,6 @@ pub struct ExecuteTaskRequest<'a> {
     pub name: &'a str,
     /// The command of the task.
     pub command: &'a str,
-    /// Whether the command records resource usage through the engine shim.
-    pub measure_resource_usage: bool,
     /// The original input values to the task.
     pub inputs: &'a TaskInputs,
     /// The backend inputs for task.
@@ -323,8 +322,6 @@ pub struct TaskExecutionResult {
     pub exit_code: i32,
     /// The task's working directory.
     pub work_dir: EvaluationPath,
-    /// A backend-provided usage file outside the working directory.
-    pub usage_file: Option<EvaluationPath>,
     /// The value of the task's stdout file.
     pub stdout: Value,
     /// The value of the task's stderr file.
@@ -395,7 +392,15 @@ pub(crate) mod tests {
 
     impl EvalContext {
         pub async fn new(events: Events, cancellation: CancellationContext) -> Self {
-            let engine = Engine::new_with_http_client(Config::local(), NotImplementedHttpClient)
+            Self::new_with_http_client(events, cancellation, NotImplementedHttpClient).await
+        }
+
+        pub async fn new_with_http_client(
+            events: Events,
+            cancellation: CancellationContext,
+            http: impl crate::http::HttpClient + 'static,
+        ) -> Self {
+            let engine = Engine::new_with_http_client(Config::local(), http)
                 .await
                 .unwrap();
 

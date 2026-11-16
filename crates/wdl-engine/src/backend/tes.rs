@@ -35,6 +35,7 @@ use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
+use tracing::warn;
 use tracing_indicatif::indicatif_eprintln;
 
 use super::ExecuteTaskRequest;
@@ -55,6 +56,8 @@ use crate::TaskInputs;
 use crate::backend::STDERR_FILE_NAME;
 use crate::backend::STDOUT_FILE_NAME;
 use crate::backend::WORK_DIR_NAME;
+use crate::backend::usage;
+use crate::backend::usage::UsageEvents;
 use crate::config::Config;
 use crate::config::ContentDigestMode;
 use crate::config::TesBackendAuthConfig;
@@ -77,11 +80,11 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
-/// The path to the resource-usage file outside the exported work directory.
-const GUEST_USAGE_PATH: &str = "/mnt/task/usage";
+/// A separate writable volume for the fallback recording.
+const GUEST_USAGE_DIR: &str = "/mnt/task/usage";
 
-/// The environment variable used by the resource-usage shim.
-const USAGE_FILE_ENV: &str = "SPROCKET_USAGE_FILE";
+/// The path to the fallback recording outside the exported work directory.
+const GUEST_USAGE_PATH: &str = "/mnt/task/usage/recording";
 
 /// The default poll interval, in seconds, for the TES backend.
 const DEFAULT_TES_INTERVAL: u64 = 30;
@@ -417,13 +420,9 @@ impl TaskExecutionBackend for TesBackend {
             let mut work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
             let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
             let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
-            let usage_url = request
-                .measure_resource_usage
-                .then(|| outputs_url.join("usage").expect("should join"));
-
-            // The TES backend outputs the working directory, stdout, stderr,
-            // and, when enabled, the shim's usage file separately.
-            let mut outputs = vec![
+            let container_usage =
+                backend_config.cgroup_usage && request.context.events().crankshaft().is_some();
+            let outputs = vec![
                 Output::builder()
                     .path(GUEST_WORK_DIR)
                     .url(work_dir_url.clone())
@@ -440,20 +439,6 @@ impl TaskExecutionBackend for TesBackend {
                     .ty(OutputType::File)
                     .build(),
             ];
-            if let Some(url) = &usage_url {
-                outputs.push(
-                    Output::builder()
-                        .path(GUEST_USAGE_PATH)
-                        .url(url.clone())
-                        .ty(OutputType::File)
-                        .build(),
-                );
-            }
-
-            let mut env = request.env.clone();
-            if request.measure_resource_usage {
-                env.insert(USAGE_FILE_ENV.to_string(), GUEST_USAGE_PATH.to_string());
-            }
 
             // Calculate the total size required for all disks as TES does not
             // have a way of specifying volume sizes; a single disk
@@ -471,7 +456,7 @@ impl TaskExecutionBackend for TesBackend {
                 }
             };
 
-            let volumes = request
+            let mut volumes = request
                 .constraints
                 .disks
                 .keys()
@@ -493,11 +478,29 @@ impl TaskExecutionBackend for TesBackend {
                      will be created but sizes will not be limited"
                 );
             }
+            if container_usage {
+                volumes.push(GUEST_USAGE_DIR.to_string());
+            }
 
             let mut preemptible = preemptible;
             let mut name = request.name.to_string();
             let mut resubmission: u64 = 0;
             loop {
+                let mut outputs = outputs.clone();
+                let usage_url = container_usage.then(|| {
+                    outputs_url
+                        .join(&format!("usage-{resubmission}/"))
+                        .expect("should join")
+                });
+                if let Some(url) = &usage_url {
+                    outputs.push(
+                        Output::builder()
+                            .path(GUEST_USAGE_DIR)
+                            .url(url.clone())
+                            .ty(OutputType::Directory)
+                            .build(),
+                    );
+                }
                 let task = Task::builder()
                     .name(&name)
                     .executions(NonEmpty::new(
@@ -506,10 +509,22 @@ impl TaskExecutionBackend for TesBackend {
                                 ImageSource::Docker(s) => s.clone(),
                                 c => format!("{c:#}"),
                             }))?
-                            .program(&self.config.task.shell)
-                            .args([GUEST_COMMAND_PATH.to_string()])
+                            .program(if container_usage {
+                                usage::WRAPPER_SHELL
+                            } else {
+                                &self.config.task.shell
+                            })
+                            .args(if container_usage {
+                                usage::command_args(
+                                    &self.config.task.shell,
+                                    GUEST_COMMAND_PATH,
+                                    GUEST_USAGE_PATH,
+                                )
+                            } else {
+                                vec![GUEST_COMMAND_PATH.to_string()]
+                            })
                             .work_dir(GUEST_WORK_DIR)
-                            .env(env.clone())
+                            .env(request.env.clone())
                             .stdout(GUEST_STDOUT_PATH)
                             .stderr(GUEST_STDERR_PATH)
                             .build(),
@@ -529,15 +544,18 @@ impl TaskExecutionBackend for TesBackend {
                     .volumes(volumes.clone())
                     .build();
 
-                let results = match self
-                    .inner
-                    .run(
-                        task,
-                        request.context.events().crankshaft().cloned(),
-                        request.context.cancellation().second().clone(),
-                    )?
-                    .await
-                {
+                let mut observed = container_usage
+                    .then(|| UsageEvents::new(request.context.events().crankshaft(), &name));
+                let execution = self.inner.run(
+                    task,
+                    request.context.events().crankshaft().cloned(),
+                    request.context.cancellation().second().clone(),
+                )?;
+                let results = match if let Some(observed) = &mut observed {
+                    observed.run(execution).await
+                } else {
+                    execution.await
+                } {
                     Ok(results) => results,
                     Err(TaskRunError::Preempted) if preemptible > 0 => {
                         // Decrement the preemptible count and resubmit under a
@@ -564,6 +582,27 @@ impl TaskExecutionBackend for TesBackend {
                 assert_eq!(results.len(), 1, "there should only be one output");
                 let result = results.into_iter().next().unwrap();
 
+                if let Some(observed) = &observed
+                    && observed.needs_fallback()
+                    && let Some(url) = &usage_url
+                {
+                    match request
+                        .context
+                        .http_client()
+                        .download(
+                            &url.join("recording").expect("should join"),
+                            request.context.cancellation().second(),
+                        )
+                        .await
+                    {
+                        Ok(location) => match fs::read_to_string(&*location) {
+                            Ok(contents) => observed.publish(&contents),
+                            Err(error) => warn!("failed to read TES usage recording: {error:#}"),
+                        },
+                        Err(error) => warn!("failed to retrieve TES usage recording: {error:#}"),
+                    }
+                }
+
                 // Push an empty path segment so that future joins of the work
                 // directory URL treat it as a directory
                 work_dir_url.path_segments_mut().unwrap().push("");
@@ -574,10 +613,6 @@ impl TaskExecutionBackend for TesBackend {
                     image: result.image.map(|s| s.parse().unwrap()),
                     exit_code: result.status.code().expect("should have exit code"),
                     work_dir: EvaluationPath::try_from(work_dir_url)?,
-                    usage_file: usage_url
-                        .clone()
-                        .map(EvaluationPath::try_from)
-                        .transpose()?,
                     stdout: PrimitiveValue::new_file(stdout_url).into(),
                     stderr: PrimitiveValue::new_file(stderr_url).into(),
                 }));
@@ -590,6 +625,451 @@ impl TaskExecutionBackend for TesBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn successful_tasks_keep_status_when_metrics_are_missing_and_native_zero_wins() {
+        use std::time::Duration;
+
+        use crankshaft::events::Event;
+        use tokio::io::AsyncBufReadExt;
+        use tokio::io::AsyncReadExt;
+        use tokio::io::AsyncWriteExt;
+        use tokio::io::BufReader;
+        use tokio::net::TcpListener;
+
+        use crate::CancellationContext;
+        use crate::Events;
+        use crate::backend::tests::EvalContext;
+
+        for (enabled, recording, native, metadata_enabled, preempted) in [
+            (
+                true,
+                Some("usage_usec 1000\nuser_usec 1000\nsystem_usec 0\nmemory_peak_bytes 32\n"),
+                false,
+                false,
+                false,
+            ),
+            (true, Some(""), false, false, false),
+            (true, None, false, false, false),
+            (
+                true,
+                Some("usage_usec 1000\nuser_usec 1000\nsystem_usec 0\nmemory_peak_bytes 32\n"),
+                true,
+                true,
+                false,
+            ),
+            (
+                true,
+                Some("usage_usec 1000\nuser_usec 1000\nsystem_usec 0\nmemory_peak_bytes 32\n"),
+                true,
+                false,
+                false,
+            ),
+            (false, None, false, false, false),
+            (
+                true,
+                Some("usage_usec 1000\nuser_usec 1000\nsystem_usec 0\nmemory_peak_bytes 32\n"),
+                false,
+                false,
+                true,
+            ),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let address = listener.local_addr().unwrap();
+            let fetched = Arc::new(Mutex::new(Vec::new()));
+            let fetched_by_server = fetched.clone();
+            let polls = Arc::new(Mutex::new(Vec::new()));
+            let polls_by_server = polls.clone();
+            let server = tokio::spawn(async move {
+                let mut task = None;
+                let mut submissions = 0;
+                loop {
+                    let (stream, _) = listener.accept().await.unwrap();
+                    let mut stream = BufReader::new(stream);
+                    let mut line = String::new();
+                    stream.read_line(&mut line).await.unwrap();
+                    let request_line = line.clone();
+                    let mut length = 0;
+                    loop {
+                        line.clear();
+                        assert!(stream.read_line(&mut line).await.unwrap() > 0);
+                        if line == "\r\n" {
+                            break;
+                        }
+                        if let Some((key, value)) = line.split_once(':')
+                            && key.eq_ignore_ascii_case("content-length")
+                        {
+                            length = value.trim().parse().unwrap();
+                        }
+                    }
+                    let mut body = vec![0; length];
+                    stream.read_exact(&mut body).await.unwrap();
+                    let path = request_line.split_whitespace().nth(1).unwrap();
+                    let (status, response) = if request_line.starts_with("POST ") {
+                        let mut created: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                        submissions += 1;
+                        let id = format!("tes-test-{submissions}");
+                        created["id"] = id.clone().into();
+                        created["state"] = if preempted && submissions == 1 {
+                            "PREEMPTED"
+                        } else {
+                            "COMPLETE"
+                        }
+                        .into();
+                        created["logs"] = serde_json::json!([{
+                            "logs": [{"exit_code": 0}],
+                            "outputs": [],
+                            "metadata": if native { serde_json::json!({"cpu_time_ms": 0}) } else { serde_json::json!({}) },
+                        }]);
+                        task = Some(created);
+                        ("200 OK", serde_json::json!({"id": id}).to_string())
+                    } else if path.starts_with("/tasks?") {
+                        polls_by_server.lock().unwrap().push(path.to_string());
+                        let tasks: Vec<_> = task
+                            .iter()
+                            .map(|task| {
+                                if path.contains("BASIC") {
+                                    task.clone()
+                                } else {
+                                    serde_json::json!({"id": task["id"], "state": task["state"]})
+                                }
+                            })
+                            .collect();
+                        ("200 OK", serde_json::json!({"tasks": tasks}).to_string())
+                    } else if path.starts_with("/tasks/") {
+                        ("200 OK", task.as_ref().unwrap().to_string())
+                    } else {
+                        assert!(path.starts_with("/outputs/"), "{request_line}");
+                        fetched_by_server.lock().unwrap().push(path.to_string());
+                        match recording {
+                            Some(contents) => ("200 OK", contents.to_string()),
+                            None => ("404 Not Found", String::new()),
+                        }
+                    };
+                    stream
+                        .get_mut()
+                        .write_all(
+                            format!(
+                                "HTTP/1.1 {status}\r\nContent-Type: \
+                                 application/json\r\nContent-Length: {}\r\nConnection: \
+                                 close\r\n\r\n{response}",
+                                response.len(),
+                            )
+                            .as_bytes(),
+                        )
+                        .await
+                        .unwrap();
+                }
+            });
+            let config = toml_spanner::from_str::<Config>(&format!(
+                r#"
+backend = "tes"
+[backends.tes]
+type = "tes"
+service = "http://{address}"
+inputs = "http://{address}/inputs/"
+outputs = "http://{address}/outputs/"
+insecure = true
+interval = 1
+cgroup_usage = {enabled}
+"#
+            ))
+            .unwrap();
+            let config = Arc::new(config);
+            let backend = if metadata_enabled {
+                let url = config.backend().unwrap().as_tes().unwrap().service.clone();
+                let inner = Backend::initialize_with_client(
+                    backend::tes::Config::builder()
+                        .url(url.clone())
+                        .interval(1)
+                        .resource_usage_metadata(true)
+                        .build(),
+                    Client::builder().url(url).try_build().unwrap(),
+                    Arc::new(Mutex::new(GeneratorIterator::new(
+                        UniqueAlphanumeric::default_with_expected_generations(
+                            INITIAL_EXPECTED_NAMES,
+                        ),
+                        INITIAL_EXPECTED_NAMES,
+                    ))),
+                )
+                .await;
+                TesBackend { config, inner }
+            } else {
+                TesBackend::new(config).await.unwrap()
+            };
+            let events = Events::default().with_crankshaft(32);
+            let mut receiver = events.subscribe_crankshaft().unwrap();
+            let context = EvalContext::new_with_http_client(
+                events,
+                CancellationContext::default(),
+                crate::http::DefaultHttpClient::new(&Config::local()).unwrap(),
+            )
+            .await;
+            let root = tempfile::tempdir().unwrap();
+            let request = ExecuteTaskRequest {
+                context: &context,
+                name: "usage-success",
+                command: "exit 0",
+                inputs: &TaskInputs::default(),
+                backend_inputs: &[],
+                requirements: &Object::empty(),
+                hints: &Object::new(if preempted {
+                    [("preemptible".to_string(), 1_i64.into())]
+                        .into_iter()
+                        .collect()
+                } else {
+                    Default::default()
+                }),
+                env: &Default::default(),
+                constraints: &TaskExecutionConstraints {
+                    sources: vec![ImageSource::Docker("test:latest".into())],
+                    cpu: 1.0,
+                    memory: 1024 * 1024 * 1024,
+                    gpu: Vec::new(),
+                    fpga: Vec::new(),
+                    disks: Default::default(),
+                },
+                base_dir: &EvaluationPath::from(root.path()),
+                attempt_dir: root.path(),
+                temp_dir: root.path(),
+            };
+            let result = tokio::time::timeout(Duration::from_secs(10), backend.execute(&request))
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            server.abort();
+            let _ = server.await;
+            assert_eq!(result.exit_code, 0);
+            assert_eq!(
+                result.execution_name_override,
+                preempted.then(|| resubmit_task_name(request.name, 1))
+            );
+            let mut created = None;
+            let mut measured = Vec::new();
+            while let Ok(event) = receiver.try_recv() {
+                match event {
+                    Event::TaskCreated { id, .. } => created = Some(id),
+                    Event::TaskResourceUsage { id, usage } if !usage.is_empty() => {
+                        assert_eq!(Some(id), created);
+                        measured.push(usage.cpu_time_ms.unwrap());
+                    }
+                    _ => {}
+                }
+            }
+            assert_eq!(
+                measured,
+                if native && metadata_enabled {
+                    vec![0]
+                } else if enabled && recording.is_some_and(|r| !r.is_empty()) {
+                    vec![1]
+                } else {
+                    vec![]
+                }
+            );
+            let fetched = fetched.lock().unwrap();
+            let polls = polls.lock().unwrap();
+            assert!(!polls.is_empty());
+            let view = if metadata_enabled {
+                "view=BASIC"
+            } else {
+                "view=MINIMAL"
+            };
+            assert!(polls.iter().all(|path| path.contains(view)), "{polls:?}");
+            if enabled && !(native && metadata_enabled) {
+                assert!(!fetched.is_empty());
+                let suffix = if preempted {
+                    "/usage-1/recording"
+                } else {
+                    "/usage-0/recording"
+                };
+                assert!(
+                    fetched.iter().all(|path| path.ends_with(suffix)),
+                    "{fetched:?}"
+                );
+            } else {
+                assert!(fetched.is_empty(), "{fetched:?}");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn fallback_recording_has_separate_storage_only_when_observed() {
+        use std::time::Duration;
+
+        use tokio::io::AsyncBufReadExt;
+        use tokio::io::AsyncReadExt;
+        use tokio::io::AsyncWriteExt;
+        use tokio::io::BufReader;
+        use tokio::net::TcpListener;
+
+        use crate::CancellationContext;
+        use crate::Events;
+        use crate::backend::tests::EvalContext;
+
+        for (setting, enabled, observed) in [
+            (None, true, true),
+            (Some(true), true, true),
+            (Some(false), false, true),
+            (Some(true), false, false),
+        ] {
+            let cgroup_setting = setting
+                .map(|value| format!("cgroup_usage = {value}"))
+                .unwrap_or_default();
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let address = listener.local_addr().unwrap();
+            let server = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let mut stream = BufReader::new(stream);
+                let mut line = String::new();
+                stream.read_line(&mut line).await.unwrap();
+                assert!(line.starts_with("POST "));
+                let mut length = None;
+                loop {
+                    line.clear();
+                    assert!(stream.read_line(&mut line).await.unwrap() > 0);
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some((key, value)) = line.split_once(':')
+                        && key.eq_ignore_ascii_case("content-length")
+                    {
+                        length = Some(value.trim().parse::<usize>().unwrap());
+                    }
+                }
+                let mut body = vec![0; length.expect("request must have content length")];
+                stream.read_exact(&mut body).await.unwrap();
+                stream
+                    .get_mut()
+                    .write_all(
+                        b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    )
+                    .await
+                    .unwrap();
+                serde_json::from_slice::<serde_json::Value>(&body).unwrap()
+            });
+            let config = toml_spanner::from_str::<Config>(&format!(
+                r#"
+backend = "tes"
+[backends.tes]
+type = "tes"
+service = "http://{address}"
+inputs = "http://{address}/inputs/"
+outputs = "http://{address}/outputs/"
+insecure = true
+{cgroup_setting}
+"#
+            ))
+            .unwrap();
+            let backend = TesBackend::new(Arc::new(config)).await.unwrap();
+            let events = if observed {
+                Events::default().with_crankshaft(32)
+            } else {
+                Events::default()
+            };
+            let context = EvalContext::new(events, CancellationContext::default()).await;
+            let root = tempfile::tempdir().unwrap();
+            let request = ExecuteTaskRequest {
+                context: &context,
+                name: "usage-test",
+                command: "exit 7",
+                inputs: &TaskInputs::default(),
+                backend_inputs: &[],
+                requirements: &Object::empty(),
+                hints: &Object::empty(),
+                env: &Default::default(),
+                constraints: &TaskExecutionConstraints {
+                    sources: vec![ImageSource::Docker("test:latest".into())],
+                    cpu: 1.0,
+                    memory: 1024 * 1024 * 1024,
+                    gpu: Vec::new(),
+                    fpga: Vec::new(),
+                    disks: Default::default(),
+                },
+                base_dir: &EvaluationPath::from(root.path()),
+                attempt_dir: root.path(),
+                temp_dir: root.path(),
+            };
+            assert!(
+                tokio::time::timeout(Duration::from_secs(10), backend.execute(&request))
+                    .await
+                    .unwrap()
+                    .is_err(),
+                "the capture server rejects execution after recording the request"
+            );
+            let task = tokio::time::timeout(Duration::from_secs(10), server)
+                .await
+                .unwrap()
+                .unwrap();
+            let outputs = task["outputs"].as_array().unwrap();
+            if enabled {
+                let recording = outputs
+                    .iter()
+                    .find(|output| {
+                        output["url"]
+                            .as_str()
+                            .unwrap()
+                            .trim_end_matches('/')
+                            .ends_with("/usage-0")
+                    })
+                    .expect("recording must be exported separately");
+                let path = recording["path"].as_str().unwrap();
+                assert_eq!(recording["type"], "DIRECTORY");
+                assert_eq!(path, GUEST_USAGE_DIR);
+                assert!(
+                    task["volumes"]
+                        .as_array()
+                        .is_some_and(|volumes| volumes.iter().any(|volume| volume == path)),
+                    "recording needs a provisioned volume: {task}"
+                );
+                assert!(!path.starts_with(GUEST_WORK_DIR));
+                assert_eq!(
+                    task["executors"][0]["command"]
+                        .as_array()
+                        .unwrap()
+                        .last()
+                        .unwrap(),
+                    GUEST_USAGE_PATH
+                );
+                #[cfg(unix)]
+                {
+                    let startup = root.path().join("startup");
+                    fs::write(&startup, "printf startup").unwrap();
+                    let recording = root.path().join("recording");
+                    let args = task["executors"][0]["command"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|value| match value.as_str().unwrap() {
+                            GUEST_COMMAND_PATH => {
+                                request.command_path().to_str().unwrap().to_string()
+                            }
+                            GUEST_USAGE_PATH => recording.to_str().unwrap().to_string(),
+                            argument => argument.to_string(),
+                        })
+                        .collect::<Vec<_>>();
+                    let output = tokio::process::Command::new(&args[0])
+                        .args(&args[1..])
+                        .env("BASH_ENV", startup)
+                        .output()
+                        .await
+                        .unwrap();
+                    assert_eq!(output.status.code(), Some(7));
+                    assert_eq!(
+                        output.stdout, b"startup",
+                        "the configured shell's startup must run exactly once"
+                    );
+                    assert!(output.stderr.is_empty());
+                }
+            } else {
+                assert_eq!(outputs.len(), 3);
+                assert_eq!(
+                    task["executors"][0]["command"],
+                    serde_json::json!([backend.config.task.shell, GUEST_COMMAND_PATH])
+                );
+            }
+        }
+    }
 
     #[test]
     fn execution_name_override_is_only_reported_when_changed() {

@@ -24,13 +24,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory is on a local file system. This complements the scheduler-observed measurements a
   backend may report through Crankshaft's `TaskResourceUsage` event
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
-* Added `task.measure_resource_usage` to measure CPU time and container peak memory inside tasks.
-  Disabled by default. Measurements require Linux `/proc` and readable cgroup counters. Local
-  recordings are removed before output and cache processing; TES exports them separately
+* Local Linux and macOS execution reports per-task CPU time and peak RSS using `wait4`, through
+  `TaskResourceUsage` events. The first Ctrl-C waits in slow failure mode; a subsequent Ctrl-C
+  cancels. Fast mode cancels immediately. Windows CPU and memory accounting remains unavailable
   ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
-* `TaskUsageMeasured` replaces `TaskDiskUsage` and reports available disk, CPU, and memory
-  measurements. Engine values take precedence for fields reported by both sources. Backend-only
-  values are kept ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Docker Swarm services and TES tasks collect backend-owned cgroup-v2 fallback recordings. Native
+  usage takes priority; fallback requires task-scoped, readable `cpu.stat` and `memory.peak`
+  counters. Cgroup memory includes page cache and differs from native RSS and Docker sampled
+  working-set memory. Recordings are outside the work directory and do not affect call-cache keys.
+  Set the backend-specific `cgroup_usage = false` to disable the `/bin/sh` wrapper and usage
+  storage; Docker's `resource_usage_interval` only controls local container sampling
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 
 ### Changed
 
@@ -46,14 +50,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+* `read_json` now rejects files with trailing content after the JSON value
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * The `%` operator now follows the truncating remainder semantics from
   [`openwdl/wdl#789`](https://github.com/openwdl/wdl/pull/789): a `Float` remainder with a
   right-hand operand equal to zero, including negative zero, is an error instead of `NaN`, and `Int`
   remainders evaluate to their exact result, so the remainder of the minimum `Int` value by `-1` is
   `0` instead of an overflow error
   ([#1384](https://github.com/stjude-rust-labs/sprocket/pull/1384)).
-* `read_json` now rejects files with trailing content after the JSON value
-  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 
 ## 0.20.0 - 2026-10-29
 

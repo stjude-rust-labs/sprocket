@@ -682,23 +682,22 @@ pub enum EngineEvent {
         /// The unique name of the task for this attempt.
         name: String,
     },
-    /// Resource usage the engine measured for a task execution attempt.
+    /// The disk space used by a task execution attempt's work directory.
     ///
-    /// Reports available engine measurements after an attempt finishes:
+    /// Measured by the engine after the attempt's execution returns, when the
+    /// work directory is on a local file system; attempts whose work
+    /// directory is remote (e.g. on the TES backend) do not report it. This
+    /// complements the scheduler-observed measurements a backend may report
+    /// through Crankshaft's `TaskResourceUsage` event.
     ///
-    /// * the disk space used by the attempt's work directory, when the work
-    ///   directory is on a local file system (its size at the end of execution,
-    ///   not a high-water mark, excluding scratch space written outside the
-    ///   work directory); and
-    /// * CPU time and container peak memory from the optional in-task shim.
-    ///
-    /// These fields take precedence over backend `TaskResourceUsage` values.
-    /// Consumers should retain fields reported only by the backend.
-    TaskUsageMeasured {
+    /// Note: this measures the directory's size at the end of execution, not
+    /// its high-water mark, and does not include scratch space written
+    /// outside the work directory.
+    TaskDiskUsage {
         /// The unique name of the task for this attempt.
         name: String,
-        /// The measured resource usage; only the measured fields are set.
-        usage: crankshaft::events::TaskResourceUsage,
+        /// The size of the attempt's work directory, in bytes.
+        disk_used: u64,
     },
     /// A locally running task has been parked by the engine due to insufficient
     /// resources.

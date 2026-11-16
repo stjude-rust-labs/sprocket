@@ -1336,20 +1336,6 @@ pub struct TaskConfig {
     #[toml(default)]
     #[schemars(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
-    /// Measure CPU time and container peak memory inside each task.
-    ///
-    /// CPU measurements require Linux `/proc`; memory measurements also
-    /// require readable cgroup counters. Local execution on other platforms
-    /// is not wrapped. Engine values take precedence for fields reported by
-    /// both sources; backend-only values are kept.
-    ///
-    /// Local recordings (`.sprocket_usage`) are removed before output and
-    /// cache processing. TES exports the recording outside the work directory.
-    ///
-    /// Defaults to `false`.
-    #[toml(default)]
-    #[schemars(default)]
-    pub measure_resource_usage: bool,
     /// The call cache directory to use for caching task execution results.
     ///
     /// The specified directory is relative to the output directory.
@@ -1409,7 +1395,6 @@ impl Default for TaskConfig {
             shell: default_task_shell().into(),
             cpu_limit_behavior: Default::default(),
             memory_limit_behavior: Default::default(),
-            measure_resource_usage: false,
             cache_dir: default_sentinel().into(),
             cache: Default::default(),
             digests: Default::default(),
@@ -1713,6 +1698,11 @@ fn default_docker_resource_usage_interval() -> Option<u64> {
     Some(1)
 }
 
+/// Enables backend-owned container accounting by default.
+fn default_cgroup_usage() -> bool {
+    true
+}
+
 /// Represents configuration for the Docker backend.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
@@ -1724,14 +1714,14 @@ pub struct DockerBackendConfig {
     #[toml(default = default_docker_cleanup())]
     #[schemars(default = "default_docker_cleanup")]
     pub cleanup: bool,
+
     /// The interval, in seconds, at which to sample a running container's
     /// resource usage.
     ///
-    /// Sprocket asks Crankshaft to sample local containers at this interval.
-    /// Memory is sampled container memory with inactive file cache removed;
-    /// the maximum is the largest observed sample, and the average is the
-    /// arithmetic mean of successful samples. CPU time excludes work after
-    /// the last successful sample.
+    /// Memory is sampled container memory with inactive file cache removed.
+    /// Peak memory is the largest sample; average memory is the arithmetic
+    /// mean of successful samples. CPU time excludes work after the last
+    /// successful sample.
     ///
     /// Defaults to one second. Set to zero to disable sampling. Sampling
     /// applies only to local container execution, not Docker Swarm services.
@@ -1739,6 +1729,18 @@ pub struct DockerBackendConfig {
     #[toml(default = default_docker_resource_usage_interval())]
     #[schemars(default = "default_docker_resource_usage_interval")]
     pub resource_usage_interval: Option<u64>,
+
+    /// Collect a final cgroup-v2 recording for Docker Swarm services only.
+    ///
+    /// Defaults to `true`, independently of `resource_usage_interval`. Requires
+    /// `/bin/sh`, a private task-scoped cgroup namespace, and readable
+    /// `cpu.stat` and `memory.peak`. Peak memory includes page cache.
+    /// Set to `false` to leave the configured task shell and arguments
+    /// unwrapped, without a usage mount or event observer. Local Docker
+    /// sampling is unaffected.
+    #[toml(default = default_cgroup_usage())]
+    #[schemars(default = "default_cgroup_usage")]
+    pub cgroup_usage: bool,
 }
 
 impl DockerBackendConfig {
@@ -1753,6 +1755,7 @@ impl Default for DockerBackendConfig {
         Self {
             cleanup: default_docker_cleanup(),
             resource_usage_interval: default_docker_resource_usage_interval(),
+            cgroup_usage: default_cgroup_usage(),
         }
     }
 }
@@ -1989,6 +1992,19 @@ pub struct TesBackendConfig {
     #[toml(default)]
     #[schemars(default)]
     pub insecure: bool,
+
+    /// Collect a final cgroup-v2 recording when no native usage events are
+    /// available. Explicit zero native measurements take priority.
+    /// This option does not enable TES metadata parsing.
+    ///
+    /// Defaults to `true`. Requires `/bin/sh`, a private task-scoped cgroup
+    /// namespace, and readable `cpu.stat` and `memory.peak`. Peak memory
+    /// includes page cache. Missing recordings only warn.
+    /// Set to `false` to leave the configured shell and arguments unwrapped,
+    /// without a usage volume, output, or event observer.
+    #[toml(default = default_cgroup_usage())]
+    #[schemars(default = "default_cgroup_usage")]
+    pub cgroup_usage: bool,
 }
 
 impl TesBackendConfig {
@@ -3584,6 +3600,7 @@ mod tests {
                 (
                     "first".to_string(),
                     TesBackendConfig {
+                        cgroup_usage: true,
                         service: "https://example.com".parse().unwrap(),
                         inputs: "https://example.com/inputs/".parse().unwrap(),
                         outputs: "https://example.com/outputs/".parse().unwrap(),
@@ -3603,6 +3620,7 @@ mod tests {
                 (
                     "second".to_string(),
                     TesBackendConfig {
+                        cgroup_usage: true,
                         service: "https://example.com".parse().unwrap(),
                         inputs: "https://example.com/inputs/".parse().unwrap(),
                         outputs: "https://example.com/outputs".parse().unwrap(),
@@ -3650,35 +3668,45 @@ mod tests {
     }
 
     #[test]
-    fn resource_usage_configuration_round_trips() {
+    fn cgroup_usage_defaults_and_opt_out_round_trip() {
         let source = r#"
 backend = "docker"
 
 [backends.docker]
 type = "docker"
-resource_usage_interval = 5
+resource_usage_interval = 0
 
 [backends.disabled]
 type = "docker"
 resource_usage_interval = 0
+cgroup_usage = false
+
+[backends.tes]
+type = "tes"
+service = "https://example.com"
+inputs = "https://example.com/inputs/"
+outputs = "https://example.com/outputs/"
+
+[backends.tes_disabled]
+type = "tes"
+service = "https://example.com"
+inputs = "https://example.com/inputs/"
+outputs = "https://example.com/outputs/"
+cgroup_usage = false
 "#;
 
         let config = toml_spanner::from_str::<Config>(source).unwrap();
-        assert_eq!(
-            config.backends["docker"]
-                .as_docker()
-                .unwrap()
-                .resource_usage_interval,
-            Some(5)
-        );
-        assert_eq!(
-            config.backends["disabled"]
-                .as_docker()
-                .unwrap()
-                .resource_usage_interval,
-            Some(0)
-        );
         let rendered = toml_spanner::to_string(&config).unwrap();
+        assert_eq!(rendered.matches("cgroup_usage = true").count(), 2);
+        assert_eq!(rendered.matches("cgroup_usage = false").count(), 2);
+        let tes = rendered
+            .split("[backends.tes]\n")
+            .nth(1)
+            .unwrap()
+            .split("\n[")
+            .next()
+            .unwrap();
+        assert!(tes.find("insecure =").unwrap() < tes.find("cgroup_usage =").unwrap());
         let reparsed = toml_spanner::from_str::<Config>(&rendered).unwrap();
         assert_eq!(reparsed, config);
     }
@@ -3862,6 +3890,7 @@ resource_usage_interval = 0
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
+                    cgroup_usage: true,
                     service: "https://example.com".parse().unwrap(),
                     inputs: "https://example.com/inputs/".parse().unwrap(),
                     outputs: "https://example.com/outputs/".parse().unwrap(),
@@ -3886,6 +3915,7 @@ resource_usage_interval = 0
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
+                    cgroup_usage: true,
                     service: "http://example.com".parse().unwrap(),
                     inputs: "http://example.com/inputs/".parse().unwrap(),
                     outputs: "http://example.com/outputs/".parse().unwrap(),
@@ -3911,6 +3941,7 @@ resource_usage_interval = 0
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
+                    cgroup_usage: true,
                     service: "http://example.com".parse().unwrap(),
                     inputs: "http://example.com".parse().unwrap(),
                     outputs: "http://example.com".parse().unwrap(),
@@ -4153,6 +4184,7 @@ type = 'lsf_apptainer'
                     (
                         "baz".to_string(),
                         TesBackendConfig {
+                            cgroup_usage: true,
                             service: "https://example.com".parse().unwrap(),
                             inputs: "https://example.com/inputs/".parse().unwrap(),
                             outputs: "https://example.com/outputs/".parse().unwrap(),
@@ -4392,7 +4424,6 @@ type = 'lsf_apptainer'
                     context: &eval_context,
                     name: "test",
                     command: "",
-                    measure_resource_usage: false,
                     inputs: &context.inputs,
                     backend_inputs: &[],
                     requirements: &Object::empty(),
