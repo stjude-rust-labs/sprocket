@@ -2776,6 +2776,7 @@ workflow w {
                             assert_eq!(exit_statuses[0].code().expect("should have code"), 0);
                             events_state.tasks_completed.fetch_add(1, Ordering::SeqCst);
                         }
+                        Event::TaskResourceUsage { .. } => {}
                         _ => panic!("unexpected task event"),
                     },
                     Err(RecvError::Closed) => break,
