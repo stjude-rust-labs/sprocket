@@ -122,6 +122,9 @@ struct ClientSupport {
     pub work_done_progress: bool,
     /// Whether or not the client supports configuration change notifications.
     pub did_change_configuration: bool,
+    /// Whether or not the client supports `textDocument/prepareRename`
+    /// requests.
+    pub prepare_rename: bool,
 }
 
 impl ClientSupport {
@@ -157,6 +160,12 @@ impl ClientSupport {
                         .map(|c| c.dynamic_registration == Some(true))
                         .unwrap_or(false)
                 })
+                .unwrap_or(false),
+            prepare_rename: capabilities
+                .text_document
+                .as_ref()
+                .and_then(|c| c.rename.as_ref())
+                .and_then(|c| c.prepare_support)
                 .unwrap_or(false),
         }
     }
@@ -1889,10 +1898,14 @@ impl<S: 'static> LanguageServer for Server<S> {
                         ..Default::default()
                     }),
                     hover_provider: Some(HoverProviderCapability::Simple(true)),
-                    rename_provider: Some(OneOf::Right(RenameOptions {
-                        prepare_provider: Some(true),
-                        work_done_progress_options: Default::default(),
-                    })),
+                    rename_provider: Some(if client_support.prepare_rename {
+                        OneOf::Right(RenameOptions {
+                            prepare_provider: Some(true),
+                            work_done_progress_options: Default::default(),
+                        })
+                    } else {
+                        OneOf::Left(true)
+                    }),
                     semantic_tokens_provider: Some(
                         SemanticTokensServerCapabilities::SemanticTokensOptions(
                             SemanticTokensOptions {
