@@ -1073,7 +1073,7 @@ where
                         char = position.character
                     );
 
-                    if !self.ensure_analyzed(None, context) {
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
                         completed.send(None).ok();
                         continue;
                     }
