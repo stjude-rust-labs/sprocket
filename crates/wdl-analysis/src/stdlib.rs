@@ -2497,7 +2497,7 @@ task join_paths {
                         .ret(PrimitiveType::Boolean)
                         .definition(
                             r#"
-Determines whether a path refers to an existing `File` or `Directory`. The path is resolved according to the context-dependent rules for [relative and absolute paths](#relative-and-absolute-paths), including resolving symbolic links to their final targets.
+Determines whether a path refers to an existing `File` or `Directory`. The path is resolved according to the context-dependent rules for [relative and absolute paths](https://github.com/openwdl/wdl/blob/wdl-1.4/SPEC.md#relative-and-absolute-paths), including resolving symbolic links to their final targets.
 
 Unlike creating a non-optional `File` or `Directory` value, `exists` returns `false` only if the path does not exist. It returns `true` if the path refers to an existing file or directory. If the path exists but cannot be validated for any other reason, such as insufficient permissions or a localization failure, an error is raised rather than `false`.
 
