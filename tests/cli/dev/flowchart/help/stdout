@@ -1,0 +1,64 @@
+Renders a WDL workflow as a diagram
+
+Usage: sprocket dev flowchart [OPTIONS] <SOURCE>
+
+Arguments:
+  <SOURCE>
+          The path or URL to a `WDL` document containing the workflow
+
+Options:
+  -t, --type <TYPE>
+          The type of diagram to render
+
+          Possible values:
+          - mermaid: A `Mermaid` flowchart diagram
+
+          [default: mermaid]
+
+  -w, --workflow <WORKFLOW>
+          The name of the workflow to render
+
+      --depth <DEPTH>
+          The maximum recursion depth when expanding called workflows.
+
+          Defaults to unlimited. Pass `0` to disable expansion entirely (all called workflows render as plain nodes). Pass `1` to expand only direct callees, `2` for their callees, and so on.
+
+  -m, --report-mode <MODE>
+          The report mode for diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+
+          [default: auto]
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version

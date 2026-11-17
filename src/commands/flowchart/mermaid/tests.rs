@@ -1,4 +1,6 @@
 use super::*;
+use crate::analysis::Source;
+use crate::analysis::analyze_singular_source;
 
 struct TestContext {
     source: String,
@@ -55,7 +57,7 @@ impl TestContext {
             .next()
             .unwrap();
 
-        render_mermaid(&workflow, &document, depth)
+        render(&workflow, &document, depth)
     }
 }
 

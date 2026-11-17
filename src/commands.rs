@@ -171,7 +171,6 @@ pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),
     /// Renders a WDL workflow as a diagram.
-    #[command(subcommand)]
     Flowchart(flowchart::Args),
     /// Generates a container image lock file.
     Lock(lock::Args),

@@ -1,4 +1,4 @@
-//! Implementation of the `dev flowchart mermaid` subcommand.
+//! Rendering of workflows as `Mermaid` flowchart diagrams.
 
 #[cfg(test)]
 mod tests;
@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Write as _;
 
-use anyhow::Context;
-use anyhow::anyhow;
 use indexmap::IndexSet;
 use petgraph::Direction;
 use wdl::analysis::Diagnostics;
@@ -18,110 +16,16 @@ use wdl::analysis::eval::v1::WorkflowGraphNode;
 use wdl::ast::Ast;
 use wdl::ast::AstNode as _;
 use wdl::ast::AstToken as _;
-use wdl::ast::Severity;
 use wdl::ast::SyntaxNode;
 use wdl::ast::v1::ConditionalStatementClauseKind;
 use wdl::ast::v1::WorkflowDefinition;
 use wdl::ast::v1::WorkflowStatement;
-use wdl::diagnostics::Mode;
-use wdl::diagnostics::emit_diagnostics;
-
-use crate::Config;
-use crate::analysis::Source;
-use crate::analysis::analyze_singular_source;
-use crate::commands::CommandError;
-use crate::commands::CommandResult;
-
-/// Arguments for the `dev flowchart mermaid` subcommand.
-#[derive(clap::Parser, Debug)]
-#[command(author, version, about)]
-pub struct Args {
-    /// The name of the workflow to render.
-    #[arg(short, long, value_name = "WORKFLOW")]
-    pub workflow: Option<String>,
-
-    /// The path or URL to a `WDL` document containing the workflow.
-    #[arg(value_name = "SOURCE")]
-    pub source: Source,
-
-    /// The maximum recursion depth when expanding called workflows.
-    ///
-    /// Defaults to unlimited. Pass `0` to disable expansion entirely (all
-    /// called workflows render as plain nodes). Pass `1` to expand only direct
-    /// callees, `2` for their callees, and so on.
-    #[arg(long, value_name = "DEPTH")]
-    pub depth: Option<usize>,
-
-    /// The report mode for diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
-}
-
-/// Runs the `dev flowchart mermaid` subcommand.
-pub async fn mermaid(args: Args, config: &Config, colorize: bool) -> CommandResult<()> {
-    let report_mode = args.report_mode.unwrap_or_default();
-    let document = analyze_singular_source(
-        &args.source,
-        config.common.wdl.fallback_version.into(),
-        config.modules.clone(),
-        config.common.wdl.feature_flags,
-        config.common.ignore_filename(),
-        report_mode,
-        colorize,
-    )
-    .await
-    .map_err(CommandError::from)?;
-
-    let errors: Vec<_> = document
-        .diagnostics()
-        .filter(|d| d.severity() == Severity::Error)
-        .collect();
-
-    if !errors.is_empty() {
-        let path = document.path().to_string();
-        let source = document.root().text().to_string();
-        emit_diagnostics(&path, &source, errors, report_mode, colorize)
-            .context("failed to emit diagnostics")?;
-        return Err(anyhow!("source contains analysis errors").into());
-    }
-
-    let local_workflows = document.local_workflows().count();
-    if local_workflows == 0 {
-        return Err(anyhow!("document does not contain any workflows").into());
-    } else if local_workflows > 1 && args.workflow.is_none() {
-        return Err(anyhow!(
-            "document contains multiple workflows, specify one by name with `--workflow`"
-        )
-        .into());
-    }
-
-    let ast_doc = document.root();
-    let Ast::V1(v1) = ast_doc.ast() else {
-        return Err(anyhow!("document does not use a supported WDL v1 version").into());
-    };
-
-    let workflow = match args.workflow {
-        Some(wf) => v1
-            .workflows()
-            .find(|w| w.name().text() == wf)
-            .ok_or_else(|| anyhow!("document does not contain a workflow named `{wf}`"))?,
-        None => v1.workflows().next().expect("length verified before"),
-    };
-
-    let diagram = render_mermaid(&workflow, &document, args.depth);
-    println!("{diagram}");
-    Ok(())
-}
 
 /// Four-space indent used at the top level of the flowchart body.
 const INDENT: &str = "    ";
 
 /// Renders a workflow definition as a `Mermaid` flowchart diagram string.
-fn render_mermaid(
-    workflow: &WorkflowDefinition,
-    doc: &Document,
-    max_depth: Option<usize>,
-) -> String {
+pub fn render(workflow: &WorkflowDefinition, doc: &Document, max_depth: Option<usize>) -> String {
     let mut out = String::new();
     let name = workflow.name().text().to_owned();
 
