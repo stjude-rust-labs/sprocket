@@ -152,7 +152,7 @@ async fn glob_remote_path(
         .await
         .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
 
-    // Look for matches in the entires, ignoring directory entries (ends with
+    // Look for matches in the entries, ignoring directory entries (ends with
     // '/')
     for path in paths.iter().filter(|e| !e.ends_with('/')) {
         // Add it to the list if it matches
