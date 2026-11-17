@@ -24,8 +24,11 @@ use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
 use tracing::debug;
+use tracing::error;
 use tracing::warn;
 
+use crate::EngineEvent;
+use crate::Events;
 use crate::ImageSource;
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
@@ -53,6 +56,36 @@ const SINGULARITY_ENV_PREFIX: &str = "SINGULARITYENV";
 
 /// The name of the file that is used as an advisory lock for the image cache.
 const LOCK_FILE_NAME: &str = ".lock";
+
+/// The name of the attempt file that stores the scheduler's job ID.
+pub(crate) const JOB_ID_FILE_NAME: &str = "job_id";
+
+/// The name of the attempt file that stores the Apptainer exit code.
+///
+/// The job script writes it when Apptainer exits. It is missing when the
+/// scheduler stops the job first, for example on a timeout or a cancel.
+pub(crate) const EXIT_CODE_FILE_NAME: &str = "exit_code";
+
+/// Records the job ID that a scheduler assigned to a task attempt.
+///
+/// Writes the ID to the attempt's `job_id` file and sends a
+/// [`EngineEvent::TaskSubmitted`] event.
+///
+/// A failure to write the file is logged, not returned, so that the engine can
+/// continue to monitor the task.
+pub(crate) async fn record_job_id(events: &Events, attempt_dir: &Path, name: &str, job_id: u64) {
+    let path = attempt_dir.join(JOB_ID_FILE_NAME);
+    if let Err(e) = tokio::fs::write(&path, format!("{job_id}\n")).await {
+        error!("failed to write file `{path}`: {e}", path = path.display());
+    }
+
+    if let Some(sender) = events.engine() {
+        let _ = sender.send(EngineEvent::TaskSubmitted {
+            name: name.to_string(),
+            external_id: job_id.to_string(),
+        });
+    }
+}
 
 /// Represents the Apptainer container runtime.
 pub struct ApptainerRuntime {
@@ -266,6 +299,18 @@ impl ApptainerRuntime {
             stdout = apptainer_stdout_path.display(),
             stderr = apptainer_stderr_path.display()
         )?;
+
+        // Save the exit code so it can be read back after a server restart.
+        // Write to a temporary file and rename it so that a reader never sees a
+        // partly written file.
+        let exit_code_path = attempt_dir.join(EXIT_CODE_FILE_NAME);
+        writeln!(&mut apptainer_command, "rc=$?")?;
+        writeln!(
+            &mut apptainer_command,
+            "echo \"$rc\" > \"{path}.tmp\" && mv -f \"{path}.tmp\" \"{path}\"",
+            path = exit_code_path.display()
+        )?;
+        writeln!(&mut apptainer_command, "exit \"$rc\"")?;
         Ok(apptainer_command)
     }
 
@@ -503,6 +548,26 @@ mod tests {
     use crate::config::DEFAULT_TASK_SHELL;
 
     #[tokio::test]
+    async fn recording_a_job_id_writes_the_file_and_announces_it() {
+        let root = TempDir::new().unwrap();
+        let events = Events::default().with_engine(10);
+        let mut receiver = events.subscribe_engine().unwrap();
+
+        record_job_id(&events, root.path(), "task-0", 42).await;
+
+        assert_eq!(
+            std::fs::read_to_string(root.path().join(JOB_ID_FILE_NAME)).unwrap(),
+            "42\n"
+        );
+        let crate::EngineEvent::TaskSubmitted { name, external_id } = receiver.try_recv().unwrap()
+        else {
+            panic!("expected a `TaskSubmitted` event");
+        };
+        assert_eq!(name, "task-0");
+        assert_eq!(external_id, "42");
+    }
+
+    #[tokio::test]
     async fn example_task_generates() {
         let root = TempDir::new().unwrap();
 
@@ -625,5 +690,76 @@ mod tests {
             .await
             .unwrap();
         assert!(shellcheck_status.success());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn script_records_the_exit_code() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = TempDir::new().unwrap();
+        let attempt_dir = root.path().join("0");
+        std::fs::create_dir_all(&attempt_dir).unwrap();
+
+        let fake_apptainer = root.path().join("apptainer");
+        std::fs::write(&fake_apptainer, "#!/bin/sh\nexit 3\n").unwrap();
+        std::fs::set_permissions(&fake_apptainer, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let runtime = ApptainerRuntime::new(root.path().join("cache"))
+            .await
+            .unwrap();
+        let config = ApptainerConfig {
+            executable: fake_apptainer.display().to_string(),
+            ..Default::default()
+        };
+        let context = EvalContext::new(Events::default(), Default::default()).await;
+        let script = runtime
+            .generate_apptainer_script(
+                &config,
+                DEFAULT_TASK_SHELL,
+                &root.path().join("image.sif"),
+                &ExecuteTaskRequest {
+                    context: &context,
+                    name: "example-task-0",
+                    command: "exit 3",
+                    inputs: &TaskInputs::default(),
+                    backend_inputs: &[],
+                    requirements: &Object::empty(),
+                    hints: &Object::empty(),
+                    env: &IndexMap::new(),
+                    constraints: &TaskExecutionConstraints {
+                        sources: Vec::new(),
+                        cpu: 1.0,
+                        memory: ONE_GIBIBYTE as u64,
+                        gpu: Default::default(),
+                        fpga: Default::default(),
+                        disks: Default::default(),
+                    },
+                    base_dir: &EvaluationPath::from_local_path(root.path().into()),
+                    attempt_dir: &attempt_dir,
+                    temp_dir: &root.path().join("temp"),
+                },
+            )
+            .await
+            .unwrap();
+
+        let script_file = root.path().join("apptainer_script");
+        std::fs::write(&script_file, script).unwrap();
+        let status = tokio::process::Command::new("bash")
+            .arg(&script_file)
+            .status()
+            .await
+            .unwrap();
+
+        assert_eq!(status.code(), Some(3));
+        assert_eq!(
+            std::fs::read_to_string(attempt_dir.join(EXIT_CODE_FILE_NAME)).unwrap(),
+            "3\n"
+        );
+        assert!(
+            !attempt_dir
+                .join(format!("{EXIT_CODE_FILE_NAME}.tmp"))
+                .exists()
+        );
     }
 }

@@ -24,6 +24,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory is on a local file system. This complements the scheduler-observed measurements a
   backend may report through Crankshaft's `TaskResourceUsage` event
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
+* `EngineEvent` gained a `TaskSubmitted` event. The LSF and Slurm backends send it with the job ID
+  once the scheduler accepts a job
+  ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* LSF and Slurm job scripts now write the Apptainer exit code to an `exit_code` file in the attempt
+  folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* The TES backend now writes the task's outputs location to a `tes_outputs` file in the attempt
+  folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
 
 ### Changed
 

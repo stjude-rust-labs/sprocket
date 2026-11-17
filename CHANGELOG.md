@@ -19,6 +19,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
 * Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals in WDL 1.1 and later
   documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+* Task records now store the backend's ID for each attempt (`external_id`): the job ID for LSF and
+  Slurm, or the task ID for TES. The API returns it with each task
+  ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
 
 ### Changed
 
