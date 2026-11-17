@@ -64,7 +64,7 @@ pub(crate) const JOB_ID_FILE_NAME: &str = "job_id";
 ///
 /// The job script writes it when Apptainer exits. It is missing when the
 /// scheduler stops the job first, for example on a timeout or a cancel.
-pub(crate) const EXIT_CODE_FILE_NAME: &str = "exit_code";
+pub(crate) const APPTAINER_EXIT_CODE_FILE_NAME: &str = "apptainer_exit_code";
 
 /// Records the job ID that a scheduler assigned to a task attempt.
 ///
@@ -300,10 +300,11 @@ impl ApptainerRuntime {
             stderr = apptainer_stderr_path.display()
         )?;
 
-        // Save the exit code so it can be read back after a server restart.
-        // Write to a temporary file and rename it so that a reader never sees a
-        // partly written file.
-        let exit_code_path = attempt_dir.join(EXIT_CODE_FILE_NAME);
+        // Save the exit code so it can be read back after a restart if
+        // the job completes while Sprocket is not running. The scheduler may no
+        // longer report the job. Write to a temporary file and rename it so
+        // that a reader never sees a partly written file.
+        let exit_code_path = attempt_dir.join(APPTAINER_EXIT_CODE_FILE_NAME);
         writeln!(&mut apptainer_command, "rc=$?")?;
         writeln!(
             &mut apptainer_command,
@@ -753,12 +754,12 @@ mod tests {
 
         assert_eq!(status.code(), Some(3));
         assert_eq!(
-            std::fs::read_to_string(attempt_dir.join(EXIT_CODE_FILE_NAME)).unwrap(),
+            std::fs::read_to_string(attempt_dir.join(APPTAINER_EXIT_CODE_FILE_NAME)).unwrap(),
             "3\n"
         );
         assert!(
             !attempt_dir
-                .join(format!("{EXIT_CODE_FILE_NAME}.tmp"))
+                .join(format!("{APPTAINER_EXIT_CODE_FILE_NAME}.tmp"))
                 .exists()
         );
     }
