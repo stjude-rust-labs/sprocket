@@ -371,11 +371,16 @@ impl HttpClient for DefaultHttpClient {
                         .context("failed to acquire permit")?;
 
                     // Get the size
-                    cloud_copy::size(self.0.config.clone(), self.0.client.clone(), url.clone())
-                        .await
-                        .with_context(|| {
-                            format!("failed to retrieve size of `{url}`", url = url.display())
-                        })
+                    cloud_copy::size(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                        token.clone(),
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("failed to retrieve size of `{url}`", url = url.display())
+                    })
                 })
                 .await?
             {
@@ -405,12 +410,18 @@ impl HttpClient for DefaultHttpClient {
                         .await
                         .context("failed to acquire permit")?;
 
-                    let mut entries =
-                        cloud_copy::walk(self.0.config.clone(), self.0.client.clone(), url.clone())
-                            .await
-                            .with_context(|| {
-                                format!("failed to walk URL `{url}`", url = url.display())
-                            })?;
+                    let mut entries = cloud_copy::walk(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                        token.clone(),
+                    )
+                    .await
+                    .with_context(|| format!("failed to walk URL `{url}`", url = url.display()))?
+                    .unwrap_or_default();
+
+                    // Filter out any directory entries
+                    entries.retain(|e| !e.ends_with('/'));
 
                     // We return the entries in lexicographical order
                     entries.sort();
@@ -454,14 +465,19 @@ impl HttpClient for DefaultHttpClient {
                         .context("failed to acquire permit")?;
 
                     // Determine if the URL exists
-                    cloud_copy::exists(self.0.config.clone(), self.0.client.clone(), url.clone())
-                        .await
-                        .with_context(|| {
-                            format!(
-                                "failed to determine existence of `{url}`",
-                                url = url.display()
-                            )
-                        })
+                    cloud_copy::exists(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                        token.clone(),
+                    )
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to determine existence of `{url}`",
+                            url = url.display()
+                        )
+                    })
                 })
                 .await?
             {
@@ -492,10 +508,11 @@ impl HttpClient for DefaultHttpClient {
                         .context("failed to acquire permit")?;
 
                     debug!("retrieving content digest for `{url}`", url = url.display());
-                    let digest = cloud_copy::get_content_digest(
+                    let digest = cloud_copy::digest(
                         self.0.config.clone(),
                         self.0.client.clone(),
                         url.clone(),
+                        token.clone(),
                     )
                     .await
                     .with_context(|| {
