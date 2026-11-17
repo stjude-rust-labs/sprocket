@@ -99,8 +99,11 @@ pub trait HttpClient: Send + Sync {
 
     /// Walks a given storage URL as if it were a directory.
     ///
-    /// Returns a list of relative paths from the given URL that are in
-    /// lexicographical order.
+    /// Returns a lexicographically-sorted list of relative paths from the given
+    /// URL.
+    ///
+    /// If the storage URL contains directory objects, the entry will end with a
+    /// `/`.
     ///
     /// If the given storage URL is not a directory, an empty list is returned.
     fn walk<'a>(
@@ -410,7 +413,7 @@ impl HttpClient for DefaultHttpClient {
                         .await
                         .context("failed to acquire permit")?;
 
-                    let mut entries = cloud_copy::walk(
+                    let entries = cloud_copy::walk(
                         self.0.config.clone(),
                         self.0.client.clone(),
                         url.clone(),
@@ -419,12 +422,6 @@ impl HttpClient for DefaultHttpClient {
                     .await
                     .with_context(|| format!("failed to walk URL `{url}`", url = url.display()))?
                     .unwrap_or_default();
-
-                    // Filter out any directory entries
-                    entries.retain(|e| !e.ends_with('/'));
-
-                    // We return the entries in lexicographical order
-                    entries.sort();
 
                     anyhow::Ok(entries.into())
                 })

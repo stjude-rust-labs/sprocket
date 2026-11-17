@@ -233,6 +233,11 @@ async fn list_remote(
             }
         }
 
+        // If the path ends with a slash, it is a directory
+        if path.ends_with('/') {
+            continue;
+        }
+
         let name = path
             .rsplit('/')
             .next()

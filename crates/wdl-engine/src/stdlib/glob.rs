@@ -145,14 +145,16 @@ async fn glob_remote_path(
 ) -> Result<Vec<Value>, Diagnostic> {
     let mut matches: Vec<Value> = Vec::new();
 
-    // Walk the URL looking for matches
+    // Walk the URL to get the entries
     let (client, token) = context.http();
     let paths = client
         .walk(url, token)
         .await
         .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
 
-    for path in paths.iter() {
+    // Look for matches in the entires, ignoring directory entries (ends with
+    // '/')
+    for path in paths.iter().filter(|e| !e.ends_with('/')) {
         // Add it to the list if it matches
         if matcher.is_match(path) {
             matches.push(PrimitiveValue::new_file(path.as_str()).into());
