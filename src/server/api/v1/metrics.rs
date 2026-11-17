@@ -34,11 +34,11 @@ pub struct RunMetrics {
     ///
     /// `null` until the run has both started and reached a terminal status.
     pub wall_time_ms: Option<i64>,
-    /// The name of the execution backend the run executed on.
+    /// The type of the execution backend the run executed on (e.g. `docker`).
     ///
     /// `null` for runs recorded before backends were tracked or that never
     /// began execution.
-    pub backend: Option<String>,
+    pub backend_type: Option<String>,
     /// The version of Sprocket that produced this report.
     pub sprocket_version: String,
     /// The bytes transferred while localizing inputs and delocalizing
@@ -327,7 +327,7 @@ pub async fn get_run_metrics(
         name: run.name,
         status: run.status,
         wall_time_ms: duration_ms(run.started_at, run.completed_at),
-        backend: run.backend,
+        backend_type: run.backend_type,
         sprocket_version: env!("CARGO_PKG_VERSION").to_string(),
         transfer: run
             .transfer_totals

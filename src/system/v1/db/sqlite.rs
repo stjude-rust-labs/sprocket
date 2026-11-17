@@ -18,6 +18,7 @@ use super::Database;
 use super::DatabaseError;
 use super::NewTask;
 use super::Result;
+use super::RunBackend;
 use super::TaskWrite;
 use super::models::IndexLogEntry;
 use super::models::LogSource;
@@ -228,8 +229,8 @@ impl Database for SqliteDatabase {
             "insert into runs (uuid, session_id, name, source, target, status, inputs) select ?, \
              s.id, ?, ?, ?, ?, ? from sessions s where s.uuid = ? returning uuid, (select uuid \
              from sessions where id = session_id) as session_uuid, name, source, target, status, \
-             inputs, outputs, error, directory, index_directory, backend, backend_name, \
-             transfer_totals, started_at, completed_at, created_at",
+             inputs, outputs, error, directory, index_directory, backend_type, backend_name, \
+             backend_config, transfer_totals, started_at, completed_at, created_at",
         )
         .bind(id.to_string())
         .bind(name)
@@ -416,18 +417,16 @@ impl Database for SqliteDatabase {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn update_run_backend(
-        &self,
-        id: Uuid,
-        backend: &str,
-        backend_name: &str,
-    ) -> Result<bool> {
-        let result = sqlx::query("update runs set backend = ?, backend_name = ? where uuid = ?")
-            .bind(backend)
-            .bind(backend_name)
-            .bind(id.to_string())
-            .execute(&self.pool)
-            .await?;
+    async fn update_run_backend(&self, id: Uuid, backend: &RunBackend) -> Result<bool> {
+        let result = sqlx::query(
+            "update runs set backend_type = ?, backend_name = ?, backend_config = ? where uuid = ?",
+        )
+        .bind(backend.backend_type())
+        .bind(backend.name())
+        .bind(backend.config())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -445,9 +444,9 @@ impl Database for SqliteDatabase {
     async fn get_run(&self, id: Uuid) -> Result<Option<Run>> {
         let run: Option<Run> = sqlx::query_as(
             "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-             r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at from \
-             runs r join sessions s on r.session_id = s.id where r.uuid = ?",
+             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend_type, \
+             r.backend_name, r.backend_config, r.transfer_totals, r.started_at, r.completed_at, \
+             r.created_at from runs r join sessions s on r.session_id = s.id where r.uuid = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -468,10 +467,10 @@ impl Database for SqliteDatabase {
         let runs: Vec<Run> = if let Some(status) = status {
             sqlx::query_as(
                 "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-                 r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at \
-                 from runs r join sessions s on r.session_id = s.id where r.status = ? order by \
-                 r.created_at desc limit ? offset ?",
+                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend_type, \
+                 r.backend_name, r.backend_config, r.transfer_totals, r.started_at, \
+                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
+                 where r.status = ? order by r.created_at desc limit ? offset ?",
             )
             .bind(status)
             .bind(limit)
@@ -481,10 +480,10 @@ impl Database for SqliteDatabase {
         } else {
             sqlx::query_as(
                 "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-                 r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at \
-                 from runs r join sessions s on r.session_id = s.id order by r.created_at desc \
-                 limit ? offset ?",
+                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend_type, \
+                 r.backend_name, r.backend_config, r.transfer_totals, r.started_at, \
+                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
+                 order by r.created_at desc limit ? offset ?",
             )
             .bind(limit)
             .bind(offset)
@@ -513,9 +512,10 @@ impl Database for SqliteDatabase {
     async fn list_runs_by_session(&self, session_id: Uuid) -> Result<Vec<Run>> {
         let runs: Vec<Run> = sqlx::query_as(
             "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend, \
-             r.backend_name, r.transfer_totals, r.started_at, r.completed_at, r.created_at from \
-             runs r join sessions s on r.session_id = s.id where s.uuid = ? order by r.created_at",
+             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.backend_type, \
+             r.backend_name, r.backend_config, r.transfer_totals, r.started_at, r.completed_at, \
+             r.created_at from runs r join sessions s on r.session_id = s.id where s.uuid = ? \
+             order by r.created_at",
         )
         .bind(session_id.to_string())
         .fetch_all(&self.pool)
@@ -1942,8 +1942,14 @@ mod tests {
             .await
             .expect("failed to create run");
 
+        let backend = RunBackend::new(
+            "hpc",
+            &wdl::engine::config::BackendConfig::LsfApptainer {
+                config: Default::default(),
+            },
+        );
         assert!(
-            db.update_run_backend(run_id, "lsf_apptainer", "hpc")
+            db.update_run_backend(run_id, &backend)
                 .await
                 .expect("failed to update backend")
         );
@@ -1959,13 +1965,14 @@ mod tests {
             .await
             .expect("failed to get run")
             .expect("run should exist");
-        assert_eq!(run.backend.as_deref(), Some("lsf_apptainer"));
+        assert_eq!(run.backend_type.as_deref(), Some("lsf_apptainer"));
         assert_eq!(run.backend_name.as_deref(), Some("hpc"));
+        assert_eq!(run.backend_config.as_deref(), Some(backend.config()));
         assert_eq!(run.transfer_totals.as_deref(), Some(totals));
 
         // Unknown runs are reported as not updated.
         assert!(
-            !db.update_run_backend(Uuid::new_v4(), "docker", "default")
+            !db.update_run_backend(Uuid::new_v4(), &backend)
                 .await
                 .expect("failed to update backend")
         );

@@ -266,18 +266,23 @@ pub struct Run {
     pub directory: Option<String>,
     /// Path to the indexed output directory (`null` if not indexed).
     pub index_directory: Option<String>,
-    /// The name of the execution backend the run executed on.
+    /// The type of the execution backend the run executed on (e.g. `docker`).
     ///
     /// `None` for runs recorded before backends were tracked or that never
     /// began execution.
-    pub backend: Option<String>,
+    pub backend_type: Option<String>,
     /// The configured name of the execution backend the run executed on.
     ///
     /// This is the name the backend was selected by (e.g. `default` or a key
-    /// under `[backends]`), which distinguishes configured backends that share
-    /// a type. `None` for runs recorded before backend names were tracked or
-    /// that never began execution.
+    /// under `[backends]`). `None` for runs recorded before backend names were
+    /// tracked or that never began execution.
     pub backend_name: Option<String>,
+    /// JSON snapshot of identifying, non-secret configuration of the execution
+    /// backend the run executed on.
+    ///
+    /// `None` for runs recorded before backend configurations were tracked or
+    /// that never began execution.
+    pub backend_config: Option<String>,
     /// JSON value totaling the bytes transferred while localizing inputs and
     /// delocalizing outputs.
     ///

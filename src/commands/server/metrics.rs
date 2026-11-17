@@ -319,7 +319,7 @@ mod tests {
                 name: "happy-dolphin-42".to_string(),
                 status: RunStatus::Completed,
                 wall_time_ms: Some(83_000),
-                backend: Some("lsf_apptainer".to_string()),
+                backend_type: Some("lsf_apptainer".to_string()),
                 sprocket_version: "0.0.0-test".to_string(),
                 transfer: None,
             },

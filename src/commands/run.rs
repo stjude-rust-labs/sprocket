@@ -1081,9 +1081,9 @@ pub async fn run(
 
     let uses_docker = uses_docker_backend(&config.run.engine);
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
-    // Capture the backend name before the engine configuration is moved
+    // Capture the backend type before the engine configuration is moved
     // into execution; used for the run's metrics summary.
-    let backend_name = config
+    let backend_type = config
         .run
         .engine
         .backend()
@@ -1221,7 +1221,7 @@ pub async fn run(
                         &ctx.run_generated_name,
                         status,
                         ctx.started_at,
-                        backend_name.clone(),
+                        backend_type.clone(),
                         collector.transfer_totals(),
                     );
                     let response = collector.into_response(summary);

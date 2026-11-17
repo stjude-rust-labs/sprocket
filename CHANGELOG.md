@@ -9,9 +9,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-* Runs record the name of the configured execution backend (for example, `default`) as
-  `backend_name`, alongside the backend type in `backend`, on runs returned by `sprocket dev server`
-  ([#805](https://github.com/stjude-rust-labs/sprocket/issues/805)).
+* Runs returned by `sprocket dev server` include the configured name of their execution backend as
+  `backend_name` and an allowlisted, secret-free snapshot of its configuration as `backend_config`.
+  The backend type is reported as `backend_type` (formerly `backend`) on runs and run metrics
+  ([#1395](https://github.com/stjude-rust-labs/sprocket/pull/1395)).
 * Execution metrics include backend-reported peak and average memory and cumulative CPU time when
   available. Local Docker containers sample these measurements every second by default; set
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
