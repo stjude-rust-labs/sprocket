@@ -81,6 +81,14 @@ fn env_var_requirement(span: Span) -> Diagnostic {
         .with_highlight(span)
 }
 
+/// Creates a "prefixed integer literal requirement" diagnostic.
+fn prefixed_integer_requirement(kind: &str, prefix: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "use of {kind} (`{prefix}`) integer literal requires WDL version 1.1 or later"
+    ))
+    .with_highlight(span)
+}
+
 /// Creates a deprecation warning for a deprecated version feature flag.
 fn deprecated_version_feature_flag(flag_name: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!(
@@ -190,9 +198,10 @@ impl Visitor for VersionVisitor {
                 SupportedVersion::V1(V1::Four) if !self.wdl_1_4_enabled => {
                     diagnostics.add(unstable_wdl_1_4(stmt.version().span()));
                 }
-                // TODO ACF 2025-10-21: This is an unfortunate consequence of using
-                // `#[non_exhaustive]` on the version enums. We should consider removing that
-                // attribute in the future to get static assurance that downstream consumers of
+                // TODO ACF 2025-10-21: This is an unfortunate consequence of
+                // using `#[non_exhaustive]` on the version enums. We should
+                // consider removing that attribute in the future to get static
+                // assurance that downstream consumers of
                 // versions comprehensively handle the possible cases.
                 SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three | V1::Four) => {}
                 other => diagnostics.add(unsupported_version(other, stmt.version().span())),
@@ -311,6 +320,25 @@ impl Visitor for VersionVisitor {
                         && s.kind() == v1::LiteralStringKind::Multiline =>
                 {
                     diagnostics.add(multiline_string_requirement(s.span()));
+                }
+                v1::Expr::Literal(v1::LiteralExpr::Integer(i))
+                    if version < SupportedVersion::V1(V1::One) =>
+                {
+                    let token = i.integer();
+                    let text = token.text();
+                    if text.starts_with("0o") || text.starts_with("0O") {
+                        diagnostics.add(prefixed_integer_requirement(
+                            "an octal",
+                            "0o",
+                            token.span(),
+                        ));
+                    } else if text.starts_with("0b") || text.starts_with("0B") {
+                        diagnostics.add(prefixed_integer_requirement(
+                            "a binary",
+                            "0b",
+                            token.span(),
+                        ));
+                    }
                 }
                 _ => {}
             }

@@ -17,7 +17,7 @@ use crate::Value;
 /// Equivalent to evaluating "~{array[i]}~{suffix}" for each i in
 /// range(length(array)).
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#suffix
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#suffix>
 fn suffix(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type().clone()));

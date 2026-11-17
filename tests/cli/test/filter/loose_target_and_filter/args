@@ -1,0 +1,1 @@
+test -t say_hello -f greeting -qq --no-status

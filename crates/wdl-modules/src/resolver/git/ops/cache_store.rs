@@ -2,6 +2,7 @@
 
 use std::fs::File;
 use std::fs::TryLockError;
+use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -347,8 +348,53 @@ pub(super) fn sparse_meta_path(leaf: &Path) -> PathBuf {
     leaf.with_file_name(format!(".{name}{SPARSE_META_EXT}"))
 }
 
-/// Removes a worktree path without following symbolic links.
-pub(super) fn remove_worktree_path(path: &Path) -> Result<(), GitError> {
+/// Removes `path` from the cache leaf `leaf` without following symbolic
+/// links.
+///
+/// Every directory between `leaf` and `path` must be a real directory, so a
+/// symbolic link planted in the leaf can never redirect the removal outside
+/// it. When a parent is missing or is a regular file, `path` cannot exist
+/// and nothing is removed.
+pub(super) fn remove_worktree_path(leaf: &Path, path: &Path) -> Result<(), GitError> {
+    let unsafe_path = |reason| GitError::UnsafeWorktreePath {
+        path: path.to_path_buf(),
+        reason,
+    };
+    let relative = path
+        .strip_prefix(leaf)
+        .ok()
+        .filter(|relative| {
+            relative.components().next().is_some()
+                && relative
+                    .components()
+                    .all(|component| matches!(component, Component::Normal(_)))
+        })
+        .ok_or_else(|| unsafe_path("it is not inside the cache leaf"))?;
+    let mut parent = leaf.to_path_buf();
+    for component in relative.parent().into_iter().flat_map(Path::components) {
+        parent.push(component);
+        match std::fs::symlink_metadata(&parent) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(unsafe_path("a parent directory is a symbolic link"));
+            }
+            Ok(metadata) if metadata.is_dir() => {}
+            Ok(_) => return Ok(()),
+            Err(source)
+                if matches!(
+                    source.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+                ) =>
+            {
+                return Ok(());
+            }
+            Err(source) => {
+                return Err(GitError::Io {
+                    path: parent,
+                    source,
+                });
+            }
+        }
+    }
     let metadata = match std::fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -368,4 +414,71 @@ pub(super) fn remove_worktree_path(path: &Path) -> Result<(), GitError> {
         path: path.to_path_buf(),
         source,
     })
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::fs;
+    use std::os::unix::fs::symlink;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn remove_worktree_path_refuses_a_symlinked_parent() {
+        let root = tempdir().unwrap();
+        let leaf = root.path().join("leaf");
+        let outside = root.path().join("outside");
+        fs::create_dir_all(leaf.join("mod")).unwrap();
+        fs::create_dir_all(outside.join("dir")).unwrap();
+        fs::write(outside.join("dir/keep"), b"keep").unwrap();
+        fs::write(outside.join("keep"), b"keep").unwrap();
+        symlink(&outside, leaf.join("mod/link")).unwrap();
+
+        for target in ["mod/link/keep", "mod/link/dir", "mod/link/dir/keep"] {
+            let error = remove_worktree_path(&leaf, &leaf.join(target)).unwrap_err();
+            assert!(
+                matches!(error, GitError::UnsafeWorktreePath { .. }),
+                "got: {error}"
+            );
+        }
+        assert!(outside.join("keep").exists());
+        assert!(outside.join("dir/keep").exists());
+
+        // The link itself is removed without touching its target.
+        remove_worktree_path(&leaf, &leaf.join("mod/link")).unwrap();
+        assert!(fs::symlink_metadata(leaf.join("mod/link")).is_err());
+        assert!(outside.join("dir/keep").exists());
+    }
+
+    #[test]
+    fn remove_worktree_path_refuses_paths_outside_the_leaf() {
+        let root = tempdir().unwrap();
+        let leaf = root.path().join("leaf");
+        fs::create_dir_all(&leaf).unwrap();
+        fs::write(root.path().join("keep"), b"keep").unwrap();
+
+        for target in [root.path().join("keep"), leaf.join("../keep"), leaf.clone()] {
+            let error = remove_worktree_path(&leaf, &target).unwrap_err();
+            assert!(
+                matches!(error, GitError::UnsafeWorktreePath { .. }),
+                "got: {error}"
+            );
+        }
+        assert!(root.path().join("keep").exists());
+        assert!(leaf.exists());
+    }
+
+    #[test]
+    fn remove_worktree_path_ignores_paths_below_missing_or_file_parents() {
+        let root = tempdir().unwrap();
+        let leaf = root.path().join("leaf");
+        fs::create_dir_all(&leaf).unwrap();
+        fs::write(leaf.join("file"), b"x").unwrap();
+
+        remove_worktree_path(&leaf, &leaf.join("missing/child")).unwrap();
+        remove_worktree_path(&leaf, &leaf.join("file/child")).unwrap();
+        assert!(leaf.join("file").exists());
+    }
 }

@@ -5,6 +5,7 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
 
@@ -46,7 +47,8 @@ impl fmt::Display for LicenseError {
 /// Validates both the expression syntax and the license identifiers
 /// against the SPDX license list (so typos like `MIT-2.0` are rejected
 /// even though they would parse syntactically).
-#[derive(Clone, SerializeDisplay, DeserializeFromStr)]
+#[derive(Clone, SerializeDisplay, DeserializeFromStr, JsonSchema)]
+#[schemars(with = "String", description = "An SPDX license expression")]
 pub struct LicenseExpression(spdx::Expression);
 
 impl LicenseExpression {

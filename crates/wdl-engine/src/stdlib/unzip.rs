@@ -17,7 +17,7 @@ use crate::Value;
 ///
 /// This is the inverse of the zip function.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#unzip
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#unzip>
 fn unzip(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
 

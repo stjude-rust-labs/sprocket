@@ -3,15 +3,16 @@
 version 1.1
 
 # This applies only to the struct and everything in it
-#@ except: PascalCase, SnakeCase
+#@ except: NamingConvention, MetaSections
 struct OK {         # OK
     Int AlsoOk      # OK
     Int OKTOO       # OK
 }
 
-# This applies to the specified members only
+# The naming exception applies to the specified members only
+#@ except: MetaSections
 struct Ok {         # OK
-    #@ except: SnakeCase
+    #@ except: NamingConvention
     Int AlsoOk      # OK
     Int NotOk       # NOT OK
 }

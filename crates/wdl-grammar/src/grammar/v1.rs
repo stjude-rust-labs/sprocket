@@ -565,6 +565,7 @@ fn ident(parser: &mut Parser<'_>, name: &str) -> Result<(), ParseDiagnostic> {
             | Token::FloatTypeKeyword
             | Token::IntTypeKeyword
             | Token::MapTypeKeyword
+            | Token::NullKeyword
             | Token::ObjectTypeKeyword
             | Token::PairTypeKeyword
             | Token::StringTypeKeyword
@@ -2287,7 +2288,7 @@ pub fn expr(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Pars
 
 /// Parses an expression with the given minimum precedence.
 ///
-/// See https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+/// See <https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html>
 fn expr_with_precedence(
     parser: &mut Parser<'_>,
     marker: Marker,
@@ -2728,7 +2729,7 @@ enum Associativity {
 
 /// Determines the precedence of a prefix operator.
 ///
-/// See: https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+/// See: <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
 fn prefix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
     use Associativity::*;
     use SyntaxKind::*;
@@ -2744,7 +2745,7 @@ fn prefix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 
 /// Determines the precedence of an infix operator.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+/// <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
 fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
     use Associativity::*;
     use SyntaxKind::*;
@@ -2769,7 +2770,7 @@ fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 
 /// Determines the precedence of a postfix operator.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table
+/// <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
 fn postfix_precedence(token: Token) -> u8 {
     // All postfix operators are left-associative
     match token {

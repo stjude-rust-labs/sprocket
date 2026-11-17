@@ -206,3 +206,45 @@ async fn materialize_root_module_dependency() {
             .is_file()
     );
 }
+
+/// A module may not hide a symbolic link under `.sprocket/`, which is
+/// excluded from its content hash.
+#[cfg(unix)]
+#[tokio::test]
+async fn resolution_rejects_a_symlink_under_sprocket() {
+    let (upstream, _) = upstream();
+    let outside = tempdir().unwrap();
+    let sprocket = upstream.path().join("dep/.sprocket");
+    fs::create_dir_all(&sprocket).unwrap();
+    std::os::unix::fs::symlink(outside.path(), sprocket.join("link")).unwrap();
+    let repo = git2::Repository::open(upstream.path()).unwrap();
+    let mut index = repo.index().unwrap();
+    index
+        .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+        .unwrap();
+    index.write().unwrap();
+    let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+    let sig = git2::Signature::now("test", "test@example.com").unwrap();
+    let parent = repo.head().unwrap().peel_to_commit().unwrap();
+    let sha = repo
+        .commit(Some("HEAD"), &sig, &sig, "link", &tree, &[&parent])
+        .unwrap()
+        .to_string();
+
+    let workdir = tempdir().unwrap();
+    let consumer = consumer(workdir.path(), upstream.path(), &sha);
+    let cache = tempdir().unwrap();
+    let error = resolver(&cache, Lockfile::default())
+        .resolve_tree(&consumer)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            &error,
+            ResolverError::Git(crate::resolver::git::ops::GitError::UnsafeTreeEntry { path, .. })
+                if path == "dep/.sprocket/link"
+        ),
+        "got: {error}"
+    );
+    assert!(fs::read_dir(outside.path()).unwrap().next().is_none());
+}

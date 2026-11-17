@@ -72,6 +72,11 @@ pub const SIGNATURE_FILENAME: &str = "module.sig";
 /// The default filename of a module entrypoint, used when
 /// `Manifest::entrypoint` is not set.
 pub const DEFAULT_ENTRYPOINT_FILENAME: &str = "index.wdl";
+/// The default filename of a module entrypoint, used when
+/// `Manifest::entrypoint` is not set.
+pub(crate) fn default_entrypoint_filename() -> &'static str {
+    DEFAULT_ENTRYPOINT_FILENAME
+}
 
 /// The default filename of a module readme, used when `Manifest::readme` is
 /// `Readme::Default`.

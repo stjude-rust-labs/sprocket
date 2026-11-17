@@ -1,0 +1,16 @@
+note[InputName]: declaration identifier must be at least 3 characters
+   ┌─ tests/lints/input-name-no-prefix-check/source.wdl:27:14
+   │
+27 │         File f
+   │              ^
+   │
+   = fix: rename the identifier to be at least 3 characters long
+
+note[InputName]: declaration identifier must be at least 3 characters
+   ┌─ tests/lints/input-name-no-prefix-check/source.wdl:28:13
+   │
+28 │         Int ab
+   │             ^^
+   │
+   = fix: rename the identifier to be at least 3 characters long
+

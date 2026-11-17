@@ -6,6 +6,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
@@ -321,9 +322,16 @@ pub struct GitCommitError(String);
 /// A Git commit selector: any unique prefix of a commit SHA, from 4 to
 /// 40 lowercase hex characters (Git's own minimum abbreviation length).
 /// The resolver expands the prefix to a full [`GitCommit`] at lock time.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(try_from = "String")]
-pub struct GitCommitish(String);
+#[schemars(
+    transparent,
+    description = "A Git commit selector: any unique prefix of a commit SHA, from 4 to 40 lowercase hex characters.",
+    !try_from
+)]
+pub struct GitCommitish(#[schemars(pattern("^[a-f0-9]{4,40}$"))] String);
 
 impl GitCommitish {
     /// Returns the commit-ish as a string slice.

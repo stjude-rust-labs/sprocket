@@ -6,6 +6,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use anyhow;
+use anyhow::Context as _;
 use anyhow::Error;
 use codespan_reporting::diagnostic::Diagnostic;
 use codespan_reporting::files::SimpleFiles;
@@ -13,11 +15,14 @@ use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tracing::info;
 use wdl::analysis::Analyzer;
+use wdl::analysis::Document;
+use wdl::analysis::FeatureFlags;
 use wdl::analysis::ProgressKind;
 use wdl::analysis::Validator;
-use wdl::analysis::config::FeatureFlags;
 use wdl::analysis::find_nearest_rule;
+use wdl::ast::AstNode as _;
 use wdl::ast::SupportedVersion;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::lint::Linter;
 
 mod results;
@@ -29,7 +34,6 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::Rule;
 use wdl::lint::RuleSeverity;
-use wdl::lint::TagSet;
 
 use crate::IGNORE_FILENAME;
 
@@ -53,8 +57,8 @@ pub struct Analysis {
     /// A list of rules to except.
     exceptions: HashSet<String>,
 
-    /// Which lint rules to enable, as specified via a [`TagSet`].
-    enabled_lint_tags: TagSet,
+    /// Whether linting is enabled.
+    linting: bool,
 
     /// The rule configuration.
     rules_config: wdl::lint::Config,
@@ -123,9 +127,9 @@ impl Analysis {
         self
     }
 
-    /// Sets the enabled lint tags.
-    pub fn enabled_lint_tags(mut self, tags: TagSet) -> Self {
-        self.enabled_lint_tags = tags;
+    /// Enables linting.
+    pub fn linting(mut self, linting: bool) -> Self {
+        self.linting = linting;
         self
     }
 
@@ -203,19 +207,6 @@ impl Analysis {
             rules_config.set_severity(exception, RuleSeverity::Off);
         }
 
-        if self.enabled_lint_tags.count() > 0 && tracing::enabled!(tracing::Level::INFO) {
-            let mut enabled_rules = vec![];
-            let mut disabled_rules = vec![];
-            for rule in wdl::lint::rules(&wdl::lint::Config::default()) {
-                if is_rule_enabled(&self.enabled_lint_tags, &rules_config, rule.as_ref()) {
-                    enabled_rules.push(rule.id());
-                } else {
-                    disabled_rules.push(rule.id());
-                }
-            }
-            info!("enabled lint rules: {:?}", enabled_rules);
-            info!("disabled lint rules: {:?}", disabled_rules);
-        }
         let resolution = self
             .resolution_context_from_sources()
             .map_err(|e| NonEmpty::new(Arc::new(e)))?;
@@ -235,8 +226,8 @@ impl Analysis {
             // when the linter isn't. Keeps `KnownRules` from firing
             // unnecessarily.
             validator.extend_rules(wdl::lint::RULE_MAP.clone());
-            if self.enabled_lint_tags.count() > 0 {
-                let visitor = get_lint_visitor(&self.enabled_lint_tags, &rules_config);
+            if self.linting {
+                let visitor = get_lint_visitor(&rules_config);
                 validator.add_visitor(visitor);
             }
 
@@ -270,7 +261,7 @@ impl Default for Analysis {
         Self {
             sources: Default::default(),
             exceptions: Default::default(),
-            enabled_lint_tags: TagSet::EMPTY,
+            linting: false,
             rules_config: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
@@ -280,6 +271,32 @@ impl Default for Analysis {
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }
     }
+}
+
+/// Emits any error diagnostics for the document and fails if any are present.
+///
+/// Only error-severity diagnostics are emitted; warnings and notes are left
+/// unreported. Returns `Ok(())` when the document analyzed without errors.
+pub fn ensure_no_analysis_errors(
+    document: &Document,
+    report_mode: wdl::diagnostics::Mode,
+    colorize: bool,
+) -> anyhow::Result<()> {
+    let mut diagnostics = document
+        .diagnostics()
+        .filter(|d| d.severity() == wdl::ast::Severity::Error)
+        .peekable();
+
+    if diagnostics.peek().is_none() {
+        return Ok(());
+    }
+
+    let path = document.path().to_string();
+    let source = document.root().text().to_string();
+    emit_diagnostics(&path, &source, diagnostics, report_mode, colorize)
+        .context("failed to emit diagnostics")?;
+
+    Err(anyhow::anyhow!("source contains analysis errors"))
 }
 
 /// Returns the default global module cache root.
@@ -514,31 +531,20 @@ fn warn_unknown_rules(exceptions: &HashSet<String>, report_mode: Mode, colorize:
 
 /// Determines if a lint rule should be enabled.
 ///
-/// A rule is enabled if its severity isn't `off` and all of its tags are
-/// enabled.
-fn is_rule_enabled(
-    enabled_lint_tags: &TagSet,
-    rules_config: &wdl::lint::Config,
-    rule: &dyn Rule,
-) -> bool {
-    if rules_config.severity(rule.id()) == Some(RuleSeverity::Off) {
-        return false;
-    }
-
-    enabled_lint_tags.intersect(rule.tags()) == rule.tags()
+/// A rule is enabled if its severity isn't `off`.
+fn is_rule_enabled(rules_config: &wdl::lint::Config, rule: &dyn Rule) -> bool {
+    rules_config
+        .severity(rule.id())
+        .is_some_and(|s| s != RuleSeverity::Off)
 }
 
 /// Gets a lint visitor with the rules depending on provided options.
-///
-/// `enabled_lint_tags` controls which rules are considered for being added to
-/// the visitor. Rules that are `off` in `rules_config` are not added.
-fn get_lint_visitor(enabled_lint_tags: &TagSet, rules_config: &wdl::lint::Config) -> Linter {
+fn get_lint_visitor(rules_config: &wdl::lint::Config) -> Linter {
     Linter::new(
         wdl::lint::rules(rules_config)
             .into_iter()
             .filter_map(|rule| {
-                is_rule_enabled(enabled_lint_tags, rules_config, rule.as_ref())
-                    .then_some(rule as Box<dyn Rule>)
+                is_rule_enabled(rules_config, rule.as_ref()).then_some(rule as Box<dyn Rule>)
             }),
     )
 }

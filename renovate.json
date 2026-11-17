@@ -28,8 +28,12 @@
     "cargo",
     "npm",
     "github-actions",
-    "pep621"
+    "pep621",
+    "nix"
   ],
+  "nix": {
+    "enabled": true
+  },
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": [
@@ -118,6 +122,17 @@
         "python"
       ],
       "enabled": false
+    },
+    {
+      "description": "Group all Nix updates into one PR",
+      "matchManagers": [
+        "nix"
+      ],
+      "groupName": "nix updates",
+      "rangeStrategy": "bump",
+      "addLabels": [
+        "nix"
+      ]
     }
   ],
   "vulnerabilityAlerts": {

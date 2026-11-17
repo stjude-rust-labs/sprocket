@@ -4,12 +4,10 @@ import { grind_beans, steam_milk } from coffeeshop
 
 workflow make_coffee {
     call grind_beans {
-        input:
             roast_level = "dark"
     }
 
     call steam_milk {
-        input:
             milk_type = "oat"
     }
 

@@ -184,9 +184,10 @@ mod python {
     /// Returns the parser events that result from parsing the document.
     #[pyfunction(name = "document")]
     pub fn py_document(
-        // The original function accepts a `Parser` instead of the source string. `Parser` is
-        // intentionally not implemented in the Python bindings due to its use of generics, which
-        // is why it is substituted out here.
+        // The original function accepts a `Parser` instead of the source
+        // string. `Parser` is intentionally not implemented in the Python
+        // bindings due to its use of generics, which is why it is substituted
+        // out here.
         source: &str,
         fallback_version: Option<SupportedVersion>,
     ) -> (Vec<PyEvent>, Vec<Diagnostic>) {

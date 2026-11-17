@@ -43,6 +43,10 @@
     "modules": {
       "description": "Configuration for the module system (`[modules]` section).",
       "$ref": "#/$defs/ModulesConfig"
+    },
+    "lock": {
+      "description": "Configuration for the `lock` command.",
+      "$ref": "#/$defs/LockConfig"
     }
   },
   "additionalProperties": false,
@@ -172,8 +176,8 @@
       "description": "Represents the configuration for the Sprocket `check` and `lint` commands.",
       "type": "object",
       "properties": {
-        "except": {
-          "description": "Rule IDs or tags to except from running.\n\nThis list is also honored by the `analyzer` subcommand.",
+        "disable": {
+          "description": "Rule IDs to prevent from running.\n\nThis list is also honored by the `analyzer` subcommand.",
           "type": "array",
           "items": {
             "type": "string"
@@ -199,14 +203,6 @@
           "description": "Hide diagnostics with `warning` and `note` severity.",
           "type": "boolean",
           "default": false
-        },
-        "tags": {
-          "description": "Set of lint tags to opt into. Leave this empty to use the default set of\ntags.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
         },
         "baseline": {
           "description": "Path to the diagnostic baseline file.",
@@ -261,6 +257,9 @@
             "DeprecatedRuntimeSection": {
               "severity": "warning"
             },
+            "DeprecatedInputKeyword": {
+              "severity": "warning"
+            },
             "BashSetSyntax": {
               "severity": "warning",
               "bash_set_options": [
@@ -268,9 +267,6 @@
                 "nounset",
                 "pipefail"
               ]
-            },
-            "CallInputKeyword": {
-              "severity": "note"
             },
             "ConciseInput": {
               "severity": "note"
@@ -292,13 +288,13 @@
               "severity": "warning"
             },
             "DescriptionLength": {
-              "severity": "note"
+              "severity": "off"
             },
             "DocCommentTabs": {
               "severity": "warning"
             },
             "DocMetaStrings": {
-              "severity": "warning"
+              "severity": "off"
             },
             "EmptyDocComment": {
               "severity": "note"
@@ -314,7 +310,7 @@
               "severity": "warning"
             },
             "HostPathLiterals": {
-              "severity": "note"
+              "severity": "warning"
             },
             "ImportPlacement": {
               "severity": "warning"
@@ -323,7 +319,9 @@
               "severity": "warning"
             },
             "InputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "MatchingOutputMeta": {
               "severity": "warning"
@@ -337,8 +335,19 @@
             "MutableContainerTag": {
               "severity": "note"
             },
+            "NamingConvention": {
+              "severity": "warning",
+              "task": "snake_case",
+              "workflow": "snake_case",
+              "variable": "snake_case",
+              "type": "pascal_case",
+              "struct_member": "snake_case",
+              "allowed_names": []
+            },
             "OutputName": {
-              "severity": "note"
+              "severity": "note",
+              "min_length": 3,
+              "check_prefixes": true
             },
             "OutputMetaOrder": {
               "severity": "note"
@@ -349,11 +358,11 @@
             "MissingParameterMeta": {
               "severity": "warning"
             },
+            "ParameterizedResources": {
+              "severity": "off"
+            },
             "ParameterMetaOrder": {
               "severity": "note"
-            },
-            "PascalCase": {
-              "severity": "warning"
             },
             "RedundantNone": {
               "severity": "note"
@@ -370,18 +379,23 @@
             "RuntimeSection": {
               "severity": "warning"
             },
+            "ShellSplitting": {
+              "severity": "warning"
+            },
             "ShellCheck": {
-              "severity": "note"
+              "severity": "warning"
             },
-            "SnakeCase": {
-              "severity": "warning",
-              "allowed_names": []
-            },
-            "TodoComment": {
-              "severity": "note"
+            "FlaggedComment": {
+              "severity": "note",
+              "keywords": [
+                "TODO"
+              ]
             },
             "UnusedDocComments": {
               "severity": "note"
+            },
+            "StructOverMap": {
+              "severity": "off"
             }
           }
         }
@@ -490,6 +504,13 @@
             "severity": "warning"
           }
         },
+        "DeprecatedInputKeyword": {
+          "description": "The `DeprecatedInputKeyword` rule.",
+          "$ref": "#/$defs/DeprecatedInputKeywordConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
         "BashSetSyntax": {
           "description": "The `BashSetSyntax` rule.",
           "$ref": "#/$defs/BashSetSyntaxConfig",
@@ -500,13 +521,6 @@
               "nounset",
               "pipefail"
             ]
-          }
-        },
-        "CallInputKeyword": {
-          "description": "The `CallInputKeyword` rule.",
-          "$ref": "#/$defs/CallInputKeywordConfig",
-          "default": {
-            "severity": "note"
           }
         },
         "ConciseInput": {
@@ -556,7 +570,7 @@
           "description": "The `DescriptionLength` rule.",
           "$ref": "#/$defs/DescriptionLengthConfig",
           "default": {
-            "severity": "note"
+            "severity": "off"
           }
         },
         "DocCommentTabs": {
@@ -570,7 +584,7 @@
           "description": "The `DocMetaStrings` rule.",
           "$ref": "#/$defs/DocMetaStringsConfig",
           "default": {
-            "severity": "warning"
+            "severity": "off"
           }
         },
         "EmptyDocComment": {
@@ -606,7 +620,7 @@
           "description": "The `HostPathLiterals` rule.",
           "$ref": "#/$defs/HostPathLiteralsConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
         "ImportPlacement": {
@@ -627,7 +641,9 @@
           "description": "The `InputName` rule.",
           "$ref": "#/$defs/InputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "MatchingOutputMeta": {
@@ -658,11 +674,26 @@
             "severity": "note"
           }
         },
+        "NamingConvention": {
+          "description": "The `NamingConvention` rule.",
+          "$ref": "#/$defs/NamingConventionConfig",
+          "default": {
+            "severity": "warning",
+            "task": "snake_case",
+            "workflow": "snake_case",
+            "variable": "snake_case",
+            "type": "pascal_case",
+            "struct_member": "snake_case",
+            "allowed_names": []
+          }
+        },
         "OutputName": {
           "description": "The `OutputName` rule.",
           "$ref": "#/$defs/OutputNameConfig",
           "default": {
-            "severity": "note"
+            "severity": "note",
+            "min_length": 3,
+            "check_prefixes": true
           }
         },
         "OutputMetaOrder": {
@@ -686,18 +717,18 @@
             "severity": "warning"
           }
         },
+        "ParameterizedResources": {
+          "description": "The `ParameterizedResources` rule.",
+          "$ref": "#/$defs/ParameterizedResourcesConfig",
+          "default": {
+            "severity": "off"
+          }
+        },
         "ParameterMetaOrder": {
           "description": "The `ParameterMetaOrder` rule.",
           "$ref": "#/$defs/ParameterMetaOrderConfig",
           "default": {
             "severity": "note"
-          }
-        },
-        "PascalCase": {
-          "description": "The `PascalCase` rule.",
-          "$ref": "#/$defs/PascalCaseConfig",
-          "default": {
-            "severity": "warning"
           }
         },
         "RedundantNone": {
@@ -735,26 +766,28 @@
             "severity": "warning"
           }
         },
+        "ShellSplitting": {
+          "description": "The `ShellSplitting` rule.",
+          "$ref": "#/$defs/ShellSplittingConfig",
+          "default": {
+            "severity": "warning"
+          }
+        },
         "ShellCheck": {
           "description": "The `ShellCheck` rule.",
           "$ref": "#/$defs/ShellCheckConfig",
           "default": {
-            "severity": "note"
+            "severity": "warning"
           }
         },
-        "SnakeCase": {
-          "description": "The `SnakeCase` rule.",
-          "$ref": "#/$defs/SnakeCaseConfig",
+        "FlaggedComment": {
+          "description": "The `FlaggedComment` rule.",
+          "$ref": "#/$defs/FlaggedCommentConfig",
           "default": {
-            "severity": "warning",
-            "allowed_names": []
-          }
-        },
-        "TodoComment": {
-          "description": "The `TodoComment` rule.",
-          "$ref": "#/$defs/TodoCommentConfig",
-          "default": {
-            "severity": "note"
+            "severity": "note",
+            "keywords": [
+              "TODO"
+            ]
           }
         },
         "UnusedDocComments": {
@@ -762,6 +795,13 @@
           "$ref": "#/$defs/UnusedDocCommentsConfig",
           "default": {
             "severity": "note"
+          }
+        },
+        "StructOverMap": {
+          "description": "The `StructOverMap` rule.",
+          "$ref": "#/$defs/StructOverMapConfig",
+          "default": {
+            "severity": "off"
           }
         }
       },
@@ -955,6 +995,18 @@
       },
       "additionalProperties": false
     },
+    "DeprecatedInputKeywordConfig": {
+      "description": "Configuration for the `DeprecatedInputKeyword` analysis rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
     "BashSetSyntaxConfig": {
       "description": "Configuration for the `BashSetSyntax` lint rule.",
       "type": "object",
@@ -1004,18 +1056,6 @@
         "verbose",
         "xtrace"
       ]
-    },
-    "CallInputKeywordConfig": {
-      "description": "Configuration for the `CallInputKeyword` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
-        }
-      },
-      "additionalProperties": false
     },
     "ConciseInputConfig": {
       "description": "Configuration for the `ConciseInput` lint rule.",
@@ -1104,7 +1144,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1128,7 +1168,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1196,7 +1236,7 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false
@@ -1233,6 +1273,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of input names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.InputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag input names that start with a disallowed\nprefix (`in`/`In` followed by an uppercase letter or underscore, or `input`).\n\n##### Example\n\n```toml\n[check.rules.InputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1285,6 +1338,76 @@
       },
       "additionalProperties": false
     },
+    "NamingConventionConfig": {
+      "description": "Configuration for the `NamingConvention` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        },
+        "task": {
+          "description": "The case style for task names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntask = \"pascal_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "workflow": {
+          "description": "The case style for workflow names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nworkflow = \"pascal_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "variable": {
+          "description": "The case style for input, output, and private declaration\nnames.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nvariable = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "type": {
+          "description": "The case style for the names of user-defined types: structs,\nenums, and enum choices.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\ntype = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "pascal_case"
+        },
+        "struct_member": {
+          "description": "The case style for struct member names.\n\nOne of `snake_case`, `screaming_snake_case`, `camel_case`, or\n`pascal_case`. Defaults to `snake_case`.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nstruct_member = \"camel_case\"\n```",
+          "$ref": "#/$defs/CaseStyle",
+          "default": "snake_case"
+        },
+        "allowed_names": {
+          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.NamingConvention]\nallowed_names = [\"Foo\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "CaseStyle": {
+      "description": "A case style for identifiers.",
+      "oneOf": [
+        {
+          "description": "`snake_case`.",
+          "type": "string",
+          "const": "snake_case"
+        },
+        {
+          "description": "`SCREAMING_SNAKE_CASE`.",
+          "type": "string",
+          "const": "screaming_snake_case"
+        },
+        {
+          "description": "`camelCase`.",
+          "type": "string",
+          "const": "camel_case"
+        },
+        {
+          "description": "`PascalCase`.",
+          "type": "string",
+          "const": "pascal_case"
+        }
+      ]
+    },
     "OutputNameConfig": {
       "description": "Configuration for the `OutputName` lint rule.",
       "type": "object",
@@ -1293,6 +1416,19 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        },
+        "min_length": {
+          "description": "The minimum length of output names; shorter names are flagged.\n\n##### Example\n\n```toml\n[check.rules.OutputName]\nmin_length = 5\n```",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 3
+        },
+        "check_prefixes": {
+          "description": "Whether to flag output names that start with a disallowed\nprefix (`out`/`Out` followed by an uppercase letter or underscore, or `output`).\n\n##### Example\n\n```toml\n[check.rules.OutputName]\ncheck_prefixes = false\n```",
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -1333,6 +1469,18 @@
       },
       "additionalProperties": false
     },
+    "ParameterizedResourcesConfig": {
+      "description": "Configuration for the `ParameterizedResources` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "off"
+        }
+      },
+      "additionalProperties": false
+    },
     "ParameterMetaOrderConfig": {
       "description": "Configuration for the `ParameterMetaOrder` lint rule.",
       "type": "object",
@@ -1341,18 +1489,6 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
-        }
-      },
-      "additionalProperties": false
-    },
-    "PascalCaseConfig": {
-      "description": "Configuration for the `PascalCase` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
         }
       },
       "additionalProperties": false
@@ -1417,6 +1553,18 @@
       },
       "additionalProperties": false
     },
+    "ShellSplittingConfig": {
+      "description": "Configuration for the `ShellSplitting` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "warning"
+        }
+      },
+      "additionalProperties": false
+    },
     "ShellCheckConfig": {
       "description": "Configuration for the `ShellCheck` lint rule.",
       "type": "object",
@@ -1424,39 +1572,29 @@
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": "warning"
         }
       },
       "additionalProperties": false
     },
-    "SnakeCaseConfig": {
-      "description": "Configuration for the `SnakeCase` lint rule.",
+    "FlaggedCommentConfig": {
+      "description": "Configuration for the `FlaggedComment` lint rule.",
       "type": "object",
       "properties": {
         "severity": {
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
-          "default": "warning"
+          "default": "note"
         },
-        "allowed_names": {
-          "description": "List of names to ignore.\n\n##### Example\n\n```toml\n[check.rules.SnakeCase]\nallowed_names = [\"Foo\"]\n```",
+        "keywords": {
+          "description": "List of keywords to flag in comments.\n\nKeywords are matched as case-sensitive substrings of the comment\ntext, and cannot be empty. When keywords overlap (for example,\n`FIX` and `FIXME`), the longest keyword is reported.\n\n##### Example\n\n```toml\n[check.rules.FlaggedComment]\nkeywords = [\"TODO\", \"FIXME\", \"XXX\"]\n```",
           "type": "array",
           "items": {
             "type": "string"
           },
-          "default": []
-        }
-      },
-      "additionalProperties": false
-    },
-    "TodoCommentConfig": {
-      "description": "Configuration for the `TodoComment` lint rule.",
-      "type": "object",
-      "properties": {
-        "severity": {
-          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
-          "$ref": "#/$defs/RuleSeverity",
-          "default": "note"
+          "default": [
+            "TODO"
+          ]
         }
       },
       "additionalProperties": false
@@ -1469,6 +1607,18 @@
           "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
           "$ref": "#/$defs/RuleSeverity",
           "default": "note"
+        }
+      },
+      "additionalProperties": false
+    },
+    "StructOverMapConfig": {
+      "description": "Configuration for the `StructOverMap` lint rule.",
+      "type": "object",
+      "properties": {
+        "severity": {
+          "description": "The severity of the rule's diagnostics: `off`, `note` or `warning`.",
+          "$ref": "#/$defs/RuleSeverity",
+          "default": "off"
         }
       },
       "additionalProperties": false
@@ -1489,6 +1639,11 @@
       "description": "Represents the configuration for the Sprocket `run` command.",
       "type": "object",
       "properties": {
+        "output_dir": {
+          "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
+          "type": "string",
+          "default": "./out"
+        },
         "http": {
           "description": "HTTP configuration.",
           "$ref": "#/$defs/HttpConfig"
@@ -1552,11 +1707,6 @@
           "minimum": 1,
           "default": 1000
         },
-        "output_dir": {
-          "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
-          "type": "string",
-          "default": "./out"
-        },
         "events_capacity": {
           "description": "The capacity of the events channel used to display progress statistics.\n\nIf the number of progress events being generated outpaces Sprocket's\nability to read the events for displaying the progress statistics and\nthe channel reaches its capacity, Sprocket will stop displaying progress\nstatistics. This is most likely to occur when Sprocket has concurrently\nqueued up a large number of tasks.\n\nIncreasing the capacity will increase the size of the memory allocation\nmade by the events channel.\n\nThe default is `5000`.",
           "type": "integer",
@@ -1572,9 +1722,9 @@
       "type": "object",
       "properties": {
         "cache_dir": {
-          "description": "The HTTP download cache location.\n\nDefaults to an operating system specific cache directory for the user.",
+          "description": "The HTTP download cache location.\n\nThe specified directory is relative to the output directory.\n\nDefault cache directory is `cache/downloads`.",
           "type": "string",
-          "default": "system"
+          "default": "default"
         },
         "retries": {
           "description": "The number of retries for transferring files.",
@@ -1669,9 +1819,9 @@
           "$ref": "#/$defs/TaskResourceLimitBehavior"
         },
         "cache_dir": {
-          "description": "The call cache directory to use for caching task execution results.\n\nDefaults to an operating system specific cache directory for the user.",
+          "description": "The call cache directory to use for caching task execution results.\n\nThe specified directory is relative to the output directory.\n\nDefaults to `cache/calls`.",
           "type": "string",
-          "default": "system"
+          "default": "default"
         },
         "cache": {
           "description": "The call caching mode to use for tasks.",
@@ -1786,6 +1936,10 @@
           "description": "Use the local task execution backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "local"
+            },
             "cpu": {
               "description": "Set the number of CPUs available for task execution.\n\nDefaults to the number of logical CPUs for the host.\n\nThe value cannot be zero or exceed the host's number of CPUs.",
               "type": [
@@ -1801,10 +1955,6 @@
                 "string",
                 "null"
               ]
-            },
-            "type": {
-              "type": "string",
-              "const": "local"
             }
           },
           "required": [
@@ -1815,14 +1965,24 @@
           "description": "Use the Docker task execution backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "docker"
+            },
             "cleanup": {
               "description": "Whether or not to remove a task's container after the task completes.\n\nDefaults to `true`.",
               "type": "boolean",
               "default": true
             },
-            "type": {
-              "type": "string",
-              "const": "docker"
+            "resource_usage_interval": {
+              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nEach task's peak and average memory and cumulative CPU time\nare sampled from the Docker daemon at this interval and reported in\nthe run's metrics.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0,
+              "default": 1
             }
           },
           "required": [
@@ -1833,12 +1993,13 @@
           "description": "Use the TES task execution backend.",
           "type": "object",
           "properties": {
-            "url": {
+            "type": {
+              "type": "string",
+              "const": "tes"
+            },
+            "service": {
               "description": "The URL of the Task Execution Service.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "auth": {
@@ -1854,22 +2015,16 @@
             },
             "inputs": {
               "description": "The root cloud storage URL for storing inputs.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "outputs": {
               "description": "The root cloud storage URL for storing outputs.",
-              "type": [
-                "string",
-                "null"
-              ],
+              "type": "string",
               "format": "uri"
             },
             "interval": {
-              "description": "The polling interval, in seconds, for checking task status.\n\nDefaults to 1 second.",
+              "description": "The polling interval, in seconds, for checking task status.\n\nDefaults to 30 seconds.",
               "type": [
                 "integer",
                 "null"
@@ -1899,20 +2054,23 @@
               "description": "Whether or not the TES server URL may use an insecure protocol like\nHTTP.",
               "type": "boolean",
               "default": false
-            },
-            "type": {
-              "type": "string",
-              "const": "tes"
             }
           },
           "required": [
-            "type"
+            "type",
+            "service",
+            "inputs",
+            "outputs"
           ]
         },
         {
           "description": "Use the experimental LSF + Apptainer task execution backend.\n\nRequires enabling experimental features.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "lsf_apptainer"
+            },
             "interval": {
               "description": "The task monitor polling interval, in seconds.\n\nDefaults to 30 seconds.",
               "type": [
@@ -1989,10 +2147,6 @@
             "apptainer": {
               "description": "The configuration of Apptainer, which is used as the container runtime\non the compute nodes where LSF dispatches tasks.\n\nNote that this will likely be replaced by an abstraction over multiple\ncontainer execution runtimes in the future, rather than being\nhardcoded to Apptainer.",
               "$ref": "#/$defs/ApptainerConfig"
-            },
-            "type": {
-              "type": "string",
-              "const": "lsf_apptainer"
             }
           },
           "required": [
@@ -2003,6 +2157,10 @@
           "description": "Use the experimental Slurm + Apptainer task execution backend.\n\nRequires enabling experimental features.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "slurm_apptainer"
+            },
             "interval": {
               "description": "The task monitor polling interval, in seconds.\n\nDefaults to 30 seconds.",
               "type": [
@@ -2079,10 +2237,6 @@
             "apptainer": {
               "description": "The configuration of Apptainer, which is used as the container runtime\non the compute nodes where Slurm dispatches tasks.\n\nNote that this will likely be replaced by an abstraction over multiple\ncontainer execution runtimes in the future, rather than being\nhardcoded to Apptainer.",
               "$ref": "#/$defs/ApptainerConfig"
-            },
-            "type": {
-              "type": "string",
-              "const": "slurm_apptainer"
             }
           },
           "required": [
@@ -2098,40 +2252,107 @@
           "description": "Use basic authentication for the TES backend.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "basic"
+            },
             "username": {
               "description": "The HTTP basic authentication username.",
               "type": "string"
             },
             "password": {
               "description": "The HTTP basic authentication password.",
-              "$ref": "#/$defs/SecretString"
-            },
-            "type": {
-              "type": "string",
-              "const": "basic"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretString"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
             "type",
-            "username",
-            "password"
+            "username"
           ]
         },
         {
           "description": "Use bearer token authentication for the TES backend.",
           "type": "object",
           "properties": {
-            "token": {
-              "description": "The HTTP bearer authentication token.",
-              "$ref": "#/$defs/SecretString"
-            },
             "type": {
               "type": "string",
               "const": "bearer"
+            },
+            "token": {
+              "description": "The HTTP bearer authentication token.",
+              "$ref": "#/$defs/SecretString"
             }
           },
           "required": [
             "type",
+            "token"
+          ]
+        },
+        {
+          "description": "Use OAuth authentication for the TES backend.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "oauth"
+            },
+            "client_id": {
+              "description": "The OAuth application's client identifier.",
+              "type": "string"
+            },
+            "client_secret": {
+              "description": "The OAuth application's client secret.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SecretString"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "audience": {
+              "description": "The OAuth audience.\n\nWhen `None`, defaults to the base URI of the TES server.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "authorization": {
+              "description": "The URL for OAuth authorization requests.",
+              "type": "string",
+              "format": "uri"
+            },
+            "token": {
+              "description": "The URL for OAuth token requests.",
+              "type": "string",
+              "format": "uri"
+            },
+            "scopes": {
+              "description": "The desired scopes for OAuth.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "require_refresh": {
+              "description": "Whether or not to require a refresh token.\n\nIf `true` and the OAuth authorization does not return a refresh token,\nan error will be returned when the TES backend is created.\n\nIf `false` and the OAuth authorization does not return a refresh token,\na device reauthorization will occur.\n\nDefaults to `false`.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "type",
+            "client_id",
+            "authorization",
             "token"
           ]
         }
@@ -2231,9 +2452,9 @@
           "default": "apptainer"
         },
         "image_cache_dir": {
-          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nDefaults to an operating system specific cache directory for the user.",
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nThe specified directory is relative to the output directory.\n\nDefaults to `cache/images`.",
           "type": "string",
-          "default": "system"
+          "default": "default"
         },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",
@@ -2344,6 +2565,14 @@
             "string",
             "null"
           ]
+        },
+        "endpoint": {
+          "description": "The custom endpoint URL to use for S3.\n\nUses the default AWS endpoints when `None`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
         },
         "auth": {
           "description": "The AWS S3 storage authentication configuration.",
@@ -2459,11 +2688,6 @@
           "description": "Database configuration.",
           "$ref": "#/$defs/DatabaseConfig"
         },
-        "output_dir": {
-          "description": "Directory for workflow outputs.",
-          "type": "string",
-          "default": "./out"
-        },
         "allowed_file_paths": {
           "description": "Allowed file paths for file-based workflows.",
           "type": "array",
@@ -2476,7 +2700,8 @@
           "description": "Allowed URL prefixes for URL-based workflows.",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "format": "uri"
           },
           "default": []
         },
@@ -2530,6 +2755,11 @@
       "description": "Represents WDL evaluation configuration.\n\n<div class=\"warning\">\n\nBy default, serialization of [`Config`] will not redact the values of\nsecrets.\n\nUse the [`Config::redact`] method prior to serialization to redact secrets.\n\n</div>",
       "type": "object",
       "properties": {
+        "output_dir": {
+          "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
+          "type": "string",
+          "default": "./out"
+        },
         "http": {
           "description": "HTTP configuration.",
           "$ref": "#/$defs/HttpConfig"
@@ -2619,12 +2849,24 @@
             "null"
           ]
         },
+        "bin_dir": {
+          "description": "Directory containing executable files to run for custom assertions.\n\nIf not set, executables are resolved from `<workspace>/test/bin`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "run_dir": {
           "description": "Directory to use for executing tests.\n\nIf not set, runs are written to `<workspace>/test/runs`.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "enable_custom_assertions": {
+          "description": "Whether to enable arbitrary code execution for custom test assertions.\n\n**Warning:** this may run arbitrary user code on the host machine!",
+          "type": "boolean",
+          "default": false
         }
       },
       "additionalProperties": false,
@@ -2669,11 +2911,6 @@
         },
         "light_mode": {
           "description": "Initialize pages in light mode instead of the default dark mode.",
-          "type": "boolean",
-          "default": false
-        },
-        "with_doc_comments": {
-          "description": "Enables support for documentation comments\n\nThis option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.",
           "type": "boolean",
           "default": false
         },
@@ -3092,6 +3329,32 @@
           "const": "confirm"
         }
       ]
+    },
+    "LockConfig": {
+      "description": "Configuration for the `lock` subcommand.",
+      "type": "object",
+      "properties": {
+        "library": {
+          "description": "Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.",
+          "$ref": "#/$defs/LibraryLockConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LibraryLockConfig": {
+      "description": "Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.",
+      "type": "object",
+      "properties": {
+        "registry": {
+          "description": "The default registry to download images from.\n\nFor `library://` container images that *don't* specify a registry (e.g.,\n`library://sylabs/default/alpine:3.18`), this is the registry that will\nbe used.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

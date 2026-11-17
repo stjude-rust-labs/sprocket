@@ -174,7 +174,8 @@ fn check_decl_name(
         Type::Ref(_) => return, // Skip type reference types (user-defined structs)
         Type::Primitive(ty) => {
             match ty.kind() {
-                // Skip File and String types as they cause too many false positives
+                // Skip File and String types as they cause too many false
+                // positives
                 PrimitiveTypeKind::File | PrimitiveTypeKind::String => return,
                 PrimitiveTypeKind::Boolean => ("Boolean", Some("Bool")),
                 PrimitiveTypeKind::Integer => ("Int", Some("Integer")),

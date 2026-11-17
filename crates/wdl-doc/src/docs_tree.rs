@@ -1952,7 +1952,6 @@ mod tests {
             wdl_ast::SupportedVersion::V1(wdl_ast::version::V1::Zero),
             definition,
             None,
-            false,
         );
         Rc::new(HTMLPage::new(name.to_string(), PageType::Task(task)))
     }

@@ -228,3 +228,33 @@ task no_output_section {
 
     command <<<>>>
 }
+
+# This task documents its outputs with doc comments and should not trigger warnings.
+task outputs_with_doc_comments {
+    meta {}
+
+    command <<<>>>
+
+    output {
+        ## Output documented with a doc comment; ignored by this rule
+        String s = "hello"
+    }
+}
+
+# This task has mixed doc comments and meta.outputs and should not trigger warnings.
+task outputs_mixed_doc_comments_and_meta {
+    meta {
+        outputs: {
+            s: "String output in meta",
+        }
+    }
+
+    command <<<>>>
+
+    output {
+        String s = "hello"
+        ## Output documented with a doc comment; ignored by this rule
+        String t = "world"
+    }
+}
+

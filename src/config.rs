@@ -1,5 +1,6 @@
 //! Implementation of the configuration module.
 
+use std::borrow::Cow;
 use std::env;
 use std::fmt;
 use std::path::Path;
@@ -32,9 +33,6 @@ use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
-use wdl::engine::config::BackendConfig;
-use wdl::engine::config::LsfApptainerBackendConfig;
-use wdl::engine::config::SlurmApptainerBackendConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
 
@@ -58,16 +56,8 @@ fn sentinel_database_filename() -> &'static str {
     "default"
 }
 
-/// Default output directory.
-pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
-
-/// Default output directory.
-fn default_output_directory() -> &'static str {
-    DEFAULT_OUTPUT_DIRECTORY
-}
-
 /// The name of the Sprocket configuration file.
-const CONFIG_FILENAME: &str = "sprocket.toml";
+pub(crate) const CONFIG_FILENAME: &str = "sprocket.toml";
 
 /// Returns the user-level Sprocket configuration directory, the same root
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
@@ -224,6 +214,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub modules: ModulesConfig,
+    /// Configuration for the `lock` command.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub lock: LockConfig,
 }
 
 impl Config {
@@ -405,12 +399,12 @@ mod feature_flags {
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Rule IDs or tags to except from running.
+    /// Rule IDs to prevent from running.
     ///
     /// This list is also honored by the `analyzer` subcommand.
     #[toml(default)]
     #[schemars(default)]
-    pub except: Vec<String>,
+    pub disable: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
     #[toml(default)]
     #[schemars(default)]
@@ -427,11 +421,6 @@ pub struct CheckConfig {
     #[toml(default)]
     #[schemars(default)]
     pub hide_warnings: bool,
-    /// Set of lint tags to opt into. Leave this empty to use the default set of
-    /// tags.
-    #[toml(default)]
-    #[schemars(default)]
-    pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
     /// Per-rule configuration, keyed by rule ID.
@@ -464,13 +453,6 @@ pub struct RunConfig {
     #[schemars(default, flatten)]
     pub engine: EngineConfig,
 
-    /// The output directory (default: `./out`).
-    ///
-    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
-    #[toml(default = PathBuf::from(default_output_directory()))]
-    #[schemars(default = "default_output_directory")]
-    pub output_dir: PathBuf,
-
     /// The capacity of the events channel used to display progress statistics.
     ///
     /// If the number of progress events being generated outpaces Sprocket's
@@ -492,7 +474,6 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: EngineConfig::default(),
-            output_dir: default_output_directory().into(),
             events_capacity: default_events_channel_capacity(),
         }
     }
@@ -600,6 +581,65 @@ impl ToToml for MaxConcurrentRuns {
     }
 }
 
+/// Helper module for parsing `Vec<T>` from TOML.
+mod parse_string_array {
+    use toml_spanner::Context;
+    use toml_spanner::Error;
+    use toml_spanner::Failed;
+    use toml_spanner::Item;
+
+    /// Parses a list of TOML string values into a `Vec<T>` via [`FromStr`] for
+    /// each item.
+    ///
+    /// Returns [`Failed`] when the item is not an array of strings or when the
+    /// an item fails to parse.
+    ///
+    /// [`FromStr`]: std::str::FromStr
+    pub fn from_toml<'de, T>(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Vec<T>, Failed>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display,
+    {
+        let Some(list) = item.as_array() else {
+            return Err(ctx.report_expected_but_found(&"an array of strings", item));
+        };
+
+        list.iter()
+            .map(|i| match i.parse::<T>() {
+                Ok(val) => Ok(val),
+                Err(e) => Err(ctx.push_error(Error::custom(e, item.span()))),
+            })
+            .collect()
+    }
+}
+
+/// Helper module for converting `Vec<T>` to TOML.
+mod display_array {
+    use toml_spanner::Arena;
+    use toml_spanner::Array;
+    use toml_spanner::Item;
+    use toml_spanner::ToTomlError;
+
+    /// Converts a slice of values to a TOML array of strings via [`Display`].
+    ///
+    /// Each element in the array is formatted as a string that is allocated in
+    /// the arena so it lives as long as other parsed data.
+    ///
+    /// [`Display`]: std::fmt::Display
+    pub fn to_toml<'a, T>(values: &[T], arena: &'a Arena) -> Result<Item<'a>, ToTomlError>
+    where
+        T: std::fmt::Display,
+    {
+        let mut array = Array::new();
+
+        for value in values {
+            array.push(Item::string(arena.alloc_str(&value.to_string())), arena);
+        }
+
+        Ok(array.into_item())
+    }
+}
+
 /// Server configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
@@ -621,18 +661,14 @@ pub struct ServerConfig {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub database: DatabaseConfig,
-    /// Directory for workflow outputs.
-    #[toml(default = PathBuf::from(default_output_directory()))]
-    #[schemars(default = "default_output_directory")]
-    pub output_dir: PathBuf,
     /// Allowed file paths for file-based workflows.
     #[toml(default)]
     #[schemars(default)]
     pub allowed_file_paths: Vec<PathBuf>,
     /// Allowed URL prefixes for URL-based workflows.
-    #[toml(default)]
+    #[toml(default, FromToml with = parse_string_array, ToToml with = display_array)]
     #[schemars(default)]
-    pub allowed_urls: Vec<String>,
+    pub allowed_urls: Vec<Url>,
     /// Maximum concurrent workflows.
     #[toml(default)]
     #[schemars(default)]
@@ -656,7 +692,6 @@ impl Default for ServerConfig {
             port: default_port(),
             allowed_origins: Vec::new(),
             database: DatabaseConfig::default(),
-            output_dir: DEFAULT_OUTPUT_DIRECTORY.into(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
             max_concurrent_runs: Default::default(),
@@ -698,22 +733,24 @@ impl ServerConfig {
     ///
     /// Returns an error if any URL cannot be parsed or any path cannot be
     /// canonicalized.
-    pub fn validate(&mut self) -> anyhow::Result<()> {
+    pub fn validate(&mut self) -> Result<()> {
         // Validate max concurrent workflows is at least 1
         if let MaxConcurrentRuns::Limited(max) = self.max_concurrent_runs
             && max == 0
         {
-            anyhow::bail!("`max_concurrent_runs` must be at least 1");
+            bail!("`max_concurrent_runs` must be at least 1");
+        }
+
+        // Validate that all allowed URLs are based
+        for url in &self.allowed_urls {
+            if url.cannot_be_a_base() {
+                bail!("invalid URL in `allowed_urls`: `{url}`");
+            }
         }
 
         // Validate the orphan timeout is at least a minute
         if self.orphan_timeout_minutes == 0 {
-            anyhow::bail!("`orphan_timeout_minutes` must be at least 1");
-        }
-
-        // Validate that all allowed URLs can be parsed
-        for url in &self.allowed_urls {
-            Url::parse(url).with_context(|| format!("invalid URL in `allowed_urls`: `{}`", url))?;
+            bail!("`orphan_timeout_minutes` must be at least 1");
         }
 
         // Canonicalize file paths
@@ -730,52 +767,33 @@ impl ServerConfig {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Add file paths to allowed URLs with a file:// prefix
-        let file_urls = self
-            .allowed_file_paths
-            .iter()
-            .map(|p| {
-                Url::from_file_path(p)
-                    .map_err(|_| {
-                        anyhow::anyhow!(
-                            "failed to convert allowed file path to file:// URL: `{}`",
-                            p.display()
-                        )
-                    })
-                    .map(|u| u.to_string())
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
         // Add file URLs to allowed file paths
+        // The inverse isn't required as `file://` URLs aren't checked against the allowed URLs list.
         let file_paths = self
             .allowed_urls
             .iter()
-            .filter_map(|u| match Url::parse(u) {
-                Ok(url) => match url.scheme() == "file" {
-                    true => match url.to_file_path() {
+            .filter_map(|url| {
+                if url.scheme() == "file" {
+                    match url.to_file_path() {
                         Ok(path) => Some(Ok(path)),
-                        Err(_) => Some(Err(anyhow::anyhow!(
-                            "failed to convert allowed URL to file path: `{}`",
-                            u
+                        Err(_) => Some(Err(anyhow!(
+                            "failed to convert allowed URL to file path: `{url}`"
                         ))),
-                    },
-                    false => None,
-                },
-                Err(e) => Some(Err(anyhow::anyhow!(
-                    "failed to parse allowed URL `{}`: {e}",
-                    u
-                ))),
+                    }
+                } else {
+                    None
+                }
             })
             .collect::<Result<Vec<_>, _>>()?;
 
         self.allowed_file_paths.extend(file_paths);
-        self.allowed_urls.extend(file_urls);
 
         // Deduplicate and sort file paths
         self.allowed_file_paths.sort();
         self.allowed_file_paths.dedup();
 
-        // Deduplicate and sort URLs
+        // Remove `file://` URLs, deduplicate, and sort
+        self.allowed_urls.retain(|url| url.scheme() != "file");
         self.allowed_urls.sort();
         self.allowed_urls.dedup();
 
@@ -806,10 +824,20 @@ pub struct TestConfig {
     ///
     /// If not set, fixtures are resolved from `<workspace>/test/fixtures`.
     pub fixtures_dir: Option<PathBuf>,
+    /// Directory containing executable files to run for custom assertions.
+    ///
+    /// If not set, executables are resolved from `<workspace>/test/bin`.
+    pub bin_dir: Option<PathBuf>,
     /// Directory to use for executing tests.
     ///
     /// If not set, runs are written to `<workspace>/test/runs`.
     pub run_dir: Option<PathBuf>,
+    /// Whether to enable arbitrary code execution for custom test assertions.
+    ///
+    /// **Warning:** this may run arbitrary user code on the host machine!
+    #[toml(default)]
+    #[schemars(default)]
+    pub enable_custom_assertions: bool,
 }
 
 impl Default for TestConfig {
@@ -818,7 +846,9 @@ impl Default for TestConfig {
             parallelism: DEFAULT_TEST_PARALLELISM,
             throttle: DEFAULT_TEST_THROTTLE,
             fixtures_dir: None,
+            bin_dir: None,
             run_dir: None,
+            enable_custom_assertions: false,
         }
     }
 }
@@ -876,12 +906,6 @@ pub struct DocConfig {
     #[toml(default)]
     #[schemars(default)]
     pub light_mode: bool,
-    /// Enables support for documentation comments
-    ///
-    /// This option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
-    #[toml(default)]
-    #[schemars(default)]
-    pub with_doc_comments: bool,
     /// Configuration for custom HTML to embed in generated pages.
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -902,7 +926,6 @@ impl Default for DocConfig {
             github_url: sentinel_doc_config_value().into(),
             slack_url: sentinel_doc_config_value().into(),
             light_mode: false,
-            with_doc_comments: false,
             extra_html: DocExtraHtmlConfig::default(),
             seo: DocSeoConfig::default(),
         }
@@ -1196,6 +1219,32 @@ impl Default for DocSeoConfig {
     }
 }
 
+/// Configuration for the `lock` subcommand.
+#[derive(Default, Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct LockConfig {
+    /// Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub library: LibraryLockConfig,
+}
+
+/// Configuration for locking [Library API](https://singularityhub.github.io/library-api) images.
+#[derive(Default, Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct LibraryLockConfig {
+    /// The default registry to download images from.
+    ///
+    /// For `library://` container images that *don't* specify a registry (e.g.,
+    /// `library://sylabs/default/alpine:3.18`), this is the registry that will
+    /// be used.
+    #[toml(default)]
+    #[schemars(default)]
+    pub registry: Option<String>,
+}
+
 impl Config {
     /// Create a new config instance by reading potential configurations.
     ///
@@ -1267,72 +1316,44 @@ impl Config {
     pub fn validate(&mut self) -> Result<()> {
         self.module.init.validate()?;
 
+        if self
+            .check
+            .rules
+            .flagged_comment
+            .keywords
+            .iter()
+            .any(|keyword| keyword.trim().is_empty())
+        {
+            bail!("`check.rules.FlaggedComment.keywords` cannot contain empty keywords");
+        }
+
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
         }
 
-        // Shell-expand certain paths
-        fn expand(path: &Path) -> Result<PathBuf> {
+        // Perform shell expansion for the given path.
+        fn expand(path: &mut PathBuf) -> Result<()> {
             match shellexpand::path::full(path) {
-                Ok(expanded) => Ok(PathBuf::from(expanded)),
+                Ok(Cow::Borrowed(_)) => Ok(()),
+                Ok(Cow::Owned(expanded)) => {
+                    *path = expanded;
+                    Ok(())
+                }
                 Err(e) => {
                     bail!(
-                        "failed to expand `{}` in path `{}`: {}",
-                        e.var_name.to_string_lossy(),
-                        path.display(),
-                        e.cause
+                        "failed to expand `{var}` in path `{path}`: {cause}",
+                        var = e.var_name.display(),
+                        path = path.display(),
+                        cause = e.cause
                     );
                 }
             }
         }
 
-        // Expands the paths in the given engine configuration.
-        fn expand_paths(config: &mut EngineConfig) -> Result<()> {
-            // Expand the call cache directory
-            if !config.task.using_system_cache_dir() {
-                config.task.cache_dir = config
-                    .task
-                    .cache_dir()
-                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
-            }
-
-            // Expand the download cache directory
-            if !config.http.using_system_cache_dir() {
-                config.http.cache_dir = config
-                    .http
-                    .cache_dir()
-                    .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
-            }
-
-            // Expand the apptainer image cache directory
-            for backend in config.backends.values_mut() {
-                match backend {
-                    BackendConfig::LsfApptainer {
-                        config: LsfApptainerBackendConfig { apptainer, .. },
-                    }
-                    | BackendConfig::SlurmApptainer {
-                        config: SlurmApptainerBackendConfig { apptainer, .. },
-                    } if !apptainer.using_system_image_cache_dir() => {
-                        apptainer.image_cache_dir = apptainer
-                            .image_cache_dir()
-                            .and_then(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))?;
-                    }
-                    _ => {}
-                }
-            }
-
-            Ok(())
-        }
-
         // Expand paths in the configuration for both the `run` and `server`
         // sections
-        self.run.output_dir = expand(&self.run.output_dir)?;
-        self.server.output_dir = expand(&self.server.output_dir)?;
-
-        // Expand the paths in the engine configuration for both `run` and
-        // `server`
-        expand_paths(&mut self.run.engine)?;
-        expand_paths(&mut self.server.engine)?;
+        self.run.engine.for_each_path_mut(expand)?;
+        self.server.engine.for_each_path_mut(expand)?;
 
         // Validate inner configs
         self.server.validate()?;
@@ -1354,6 +1375,7 @@ mod tests {
 
     use schemars::schema_for;
     use toml_spanner::ValueMut;
+    use wdl::engine::config::BackendConfig;
     use wdl::engine::config::BuiltConfig;
 
     use super::*;
@@ -1493,15 +1515,14 @@ mod tests {
         let allowed = tempdir.path().join("allowed");
         std::fs::create_dir(&allowed)?;
         let file_url = Url::from_directory_path(&allowed)
-            .map_err(|_| anyhow!("failed to convert temp directory to URL"))?
-            .to_string();
+            .map_err(|_| anyhow!("failed to convert temp directory to URL"))?;
 
         let mut config = ServerConfig {
             allowed_file_paths: vec![allowed.clone(), allowed.clone()],
             allowed_urls: vec![
-                "https://example.com/workflows/".to_string(),
+                "https://example.com/workflows/".parse().unwrap(),
                 file_url.clone(),
-                "https://example.com/workflows/".to_string(),
+                "https://example.com/workflows/".parse().unwrap(),
             ],
             ..Default::default()
         };
@@ -1509,21 +1530,14 @@ mod tests {
         config.validate()?;
 
         let canonical = allowed.canonicalize()?;
-        let file_url_path = Url::parse(&file_url)
-            .map_err(|e| anyhow!("failed to parse file URL: {e}"))?
+        let file_url_path = file_url
             .to_file_path()
             .map_err(|_| anyhow!("failed to convert file URL to path"))?;
         let mut expected_file_paths = vec![canonical.clone(), file_url_path];
         expected_file_paths.sort();
         expected_file_paths.dedup();
         assert_eq!(config.allowed_file_paths, expected_file_paths);
-        let mut expected_urls = vec![
-            file_url,
-            Url::from_file_path(canonical)
-                .map_err(|_| anyhow!("failed to convert canonical path to URL"))?
-                .to_string(),
-            "https://example.com/workflows/".to_string(),
-        ];
+        let mut expected_urls = vec!["https://example.com/workflows/".parse().unwrap()];
         expected_urls.sort();
         expected_urls.dedup();
         assert_eq!(config.allowed_urls, expected_urls);
@@ -1532,9 +1546,26 @@ mod tests {
     }
 
     #[test]
+    fn flagged_comment_rejects_empty_keywords() {
+        for keyword in ["", "  "] {
+            let mut config = Config::default();
+            config.check.rules.flagged_comment.keywords = vec![String::from(keyword)];
+            let error = config.validate().unwrap_err().to_string();
+            assert_eq!(
+                error,
+                "`check.rules.FlaggedComment.keywords` cannot contain empty keywords"
+            );
+        }
+
+        let mut config = Config::default();
+        config.check.rules.flagged_comment.keywords = vec![String::from("FIXME")];
+        config.validate().unwrap();
+    }
+
+    #[test]
     fn server_validate_reports_bad_locations() {
         let mut config = ServerConfig {
-            allowed_urls: vec!["not a url".to_string()],
+            allowed_urls: vec!["data:text/plain,HelloWorld".parse().unwrap()],
             ..Default::default()
         };
         let Err(error) = config.validate() else {
@@ -1542,7 +1573,7 @@ mod tests {
         };
         assert_eq!(
             error.to_string(),
-            "invalid URL in `allowed_urls`: `not a url`"
+            "invalid URL in `allowed_urls`: `data:text/plain,HelloWorld`"
         );
 
         let mut config = ServerConfig {
@@ -1772,21 +1803,27 @@ mod tests {
         std::fs::write(
             &first,
             r#"
-[check.rules.SnakeCase]
+[check.rules.NamingConvention]
 allowed_names = ["Foo"]
 
 [check.rules.UnusedInput]
 severity = "off"
 "#,
         )?;
-        std::fs::write(&second, "[check.rules.SnakeCase]\nseverity = \"note\"\n")?;
+        std::fs::write(
+            &second,
+            "[check.rules.NamingConvention]\nseverity = \"note\"\n",
+        )?;
 
         let BuiltConfig { config, warnings } = Config::new([&*first, &*second], true)?;
         assert!(warnings.is_empty());
 
         let rules = &config.check.rules;
-        assert_eq!(rules.snake_case.severity, wdl::lint::RuleSeverity::Note);
-        assert_eq!(rules.snake_case.allowed_names, ["Foo"]);
+        assert_eq!(
+            rules.naming_convention.severity,
+            wdl::lint::RuleSeverity::Note
+        );
+        assert_eq!(rules.naming_convention.allowed_names, ["Foo"]);
         assert_eq!(rules.unused_input.severity, wdl::lint::RuleSeverity::Off);
         assert_eq!(rules.diagnostics_config().unused_input, None);
 
@@ -1808,7 +1845,8 @@ severity = "off"
 [check.rules.NotARule]
 severity = "note"
 
-[check.rules.PascalCase]
+[check.rules.NamingConvention]
+not_a_param = true
 allowed_names = ["Foo"]
 "#,
         )?;
@@ -1820,10 +1858,59 @@ allowed_names = ["Foo"]
     }
 
     #[test]
+    fn naming_convention_styles() -> Result<()> {
+        use wdl::lint::rules::CaseStyle;
+
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        std::fs::write(
+            &path,
+            r#"
+[check.rules.NamingConvention]
+task = "pascal_case"
+workflow = "camel_case"
+variable = "screaming_snake_case"
+type = "snake_case"
+"#,
+        )?;
+
+        let BuiltConfig { config, warnings } = Config::new([&*path], true)?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+
+        let naming = &config.check.rules.naming_convention;
+        assert_eq!(naming.task, CaseStyle::PascalCase);
+        assert_eq!(naming.workflow, CaseStyle::CamelCase);
+        assert_eq!(naming.variable, CaseStyle::ScreamingSnakeCase);
+        assert_eq!(naming.r#type, CaseStyle::SnakeCase);
+        assert_eq!(naming.struct_member, CaseStyle::SnakeCase);
+
+        Ok(())
+    }
+
+    #[test]
+    fn naming_convention_rejects_unknown_styles() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let path = tempdir.path().join("sprocket.toml");
+        for style in ["PascalCase", "kebab-case"] {
+            std::fs::write(
+                &path,
+                format!("[check.rules.NamingConvention]\ntask = \"{style}\"\n"),
+            )?;
+
+            assert!(Config::new([&*path], true).is_err(), "{style}");
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn error_severity_is_rejected() -> Result<()> {
         let tempdir = tempfile::TempDir::new()?;
         let path = tempdir.path().join("sprocket.toml");
-        std::fs::write(&path, "[check.rules.SnakeCase]\nseverity = \"error\"\n")?;
+        std::fs::write(
+            &path,
+            "[check.rules.NamingConvention]\nseverity = \"error\"\n",
+        )?;
 
         assert!(Config::new([&*path], true).is_err());
 
@@ -1866,6 +1953,27 @@ allowed_names = ["Foo"]
 
                         let mut backend_config = Table::new();
                         backend_config.insert(Key::new("type"), Item::string(variant), arena);
+
+                        if variant == "tes" {
+                            // Write the required fields for the TES backend
+                            // configuration
+                            backend_config.insert(
+                                Key::new("service"),
+                                Item::string("https://example.com"),
+                                arena,
+                            );
+                            backend_config.insert(
+                                Key::new("inputs"),
+                                Item::string("https://example.com/inputs/"),
+                                arena,
+                            );
+                            backend_config.insert(
+                                Key::new("outputs"),
+                                Item::string("https://example.com/outputs/"),
+                                arena,
+                            );
+                        }
+
                         populate_table(&mut backend_config, arena, false, false, count);
 
                         table.insert(Key::new(variant), backend_config.into_item(), arena);

@@ -25,7 +25,7 @@ use crate::Value;
 /// The order of the elements in the Map values is the same as their order of
 /// occurrence in the input Array.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#collect_by_key
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#collect_by_key>
 fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
 

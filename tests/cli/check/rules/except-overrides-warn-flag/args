@@ -1,1 +1,1 @@
-check --warn UnusedInput --except UnusedInput unused-input.wdl
+check --warn UnusedInput --off UnusedInput unused-input.wdl

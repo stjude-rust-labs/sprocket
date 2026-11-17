@@ -33,21 +33,20 @@
 
 ## 📚 Getting Started
 
-The `wdl` family of crates consists of (a) a number of component crates (any
-crate that is not explicitly `wdl`) that are developed and versioned
-independently, and (b) a convenience crate (the `wdl` crate) that exists to ease
-syncing compatible component crates versions. Component crates can be enabled
-using features and are generally re-exported crates without the `wdl-` (or
-`wdl_`) prefix.
+The `wdl` family of crates consists of (a) a number of component crates (any crate that is not
+explicitly `wdl`) that are developed and versioned independently, and (b) a convenience crate (the
+`wdl` crate) that exists to ease syncing compatible component crates versions. Component crates can
+be enabled using features and are generally re-exported crates without the `wdl-` (or `wdl_`)
+prefix.
 
-This repository contains crates that can be used to work with WDL within your
-own Rust projects—if you're looking for a command-line tool built on top of
-these crates instead, you should check out [`sprocket`].
+This repository contains crates that can be used to work with WDL within your own Rust projects—if
+you're looking for a command-line tool built on top of these crates instead, you should check out
+[`sprocket`].
 
 ### Convenience Crate
 
-Most users should prefer selecting a version of the convenience crate and
-enabling features as they wish. For example,
+Most users should prefer selecting a version of the convenience crate and enabling features as they
+wish. For example,
 
 ```bash
 cargo add wdl --features grammar
@@ -73,8 +72,7 @@ and then
 use wdl_grammar;
 ```
 
-Be aware, however, that versions between component crates are explicitly not
-compatible. In other words, if you choose not to use the convenience crate, it
-is not simple to derive which crate versions are compatible, and you'll need to
-manually sync those. We _highly_ recommend using the convenience crate if you
-intend to use more than one component crate in conjunction.
+Be aware, however, that versions between component crates are explicitly not compatible. In other
+words, if you choose not to use the convenience crate, it is not simple to derive which crate
+versions are compatible, and you'll need to manually sync those. We _highly_ recommend using the
+convenience crate if you intend to use more than one component crate in conjunction.

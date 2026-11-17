@@ -147,7 +147,8 @@ fn ast_generic_ident(generics: &Generics) -> Result<Option<Ident>> {
 /// parameters. Returns the original ident without its generics.
 fn make_py_self_ty(self_ty: &mut Type) -> Result<Path> {
     let type_path = match self_ty {
-        // When encountering a group or parenthesized type, recurse into the inner element.
+        // When encountering a group or parenthesized type, recurse into the
+        // inner element.
         Type::Group(TypeGroup { elem, .. }) | Type::Paren(TypeParen { elem, .. }) => {
             *self_ty = *elem.clone();
             return make_py_self_ty(self_ty);
@@ -566,8 +567,8 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
 
             Ok(())
         }
-        //  While `impl Trait` and `dyn Trait` may contain paths with generics, we don't support
-        // stripping them.
+        //  While `impl Trait` and `dyn Trait` may contain paths with generics,
+        // we don't support stripping them.
         Type::ImplTrait(_)
         | Type::TraitObject(_)
         | Type::Infer(_)
@@ -1235,7 +1236,8 @@ mod tests {
         let test_cases: [(Type, Type); _] = [
             (parse_quote!(Self), parse_quote!(Ast)),
             (parse_quote!(Self::foo), parse_quote!(Ast::foo)),
-            // This is an invalid path because `Self` must be first, so it is skipped.
+            // This is an invalid path because `Self` must be first, so it is
+            // skipped.
             (parse_quote!(foo::Self), parse_quote!(foo::Self)),
             (parse_quote!(Vec<Self>), parse_quote!(Vec<Ast>)),
             (

@@ -19,7 +19,6 @@ use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CloseParen;
@@ -28,7 +27,7 @@ use wdl_ast::v1::OpenParen;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
+use crate::handlers::common::ensure_parsed;
 use crate::handlers::common::position_to_offset;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
@@ -41,16 +40,11 @@ pub fn signature_help(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<SignatureHelp>> {
-    let Some(index) = graph.get_index(uri) else {
-        bail!("document `{uri}` not found in graph")
+    let (root, lines, version) = ensure_parsed(graph, uri)?;
+    let Some(version) = version else {
+        return Ok(None);
     };
-    let node = graph.get(index);
-    let (root, lines) = match node.parse_state() {
-        ParseState::Parsed { root, lines, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{uri} has not been parsed",),
-    };
+
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(token) = root.token_at_offset(offset).left_biased() else {
         return Ok(None);
@@ -99,9 +93,18 @@ pub fn signature_help(
         }
     };
 
-    let signatures = match func {
-        Function::Monomorphic(m) => vec![m.signature()],
-        Function::Polymorphic(p) => p.signatures().iter().collect(),
+    let (signatures, definition) = match func {
+        Function::Monomorphic(m) if m.minimum_version() <= version => {
+            (vec![m.signature()], m.signature().definition())
+        }
+        Function::Monomorphic(_) => return Ok(None),
+        Function::Polymorphic(p) => (
+            p.signatures()
+                .iter()
+                .filter(|s| s.minimum_version() <= version)
+                .collect(),
+            p.definition(version),
+        ),
     };
 
     let sig_info: Vec<_> = signatures
@@ -146,7 +149,7 @@ pub fn signature_help(
 
             SignatureInformation {
                 label,
-                documentation: s.definition().map(|def| {
+                documentation: definition.map(|def| {
                     Documentation::MarkupContent(MarkupContent {
                         kind: MarkupKind::Markdown,
                         value: def.to_string(),

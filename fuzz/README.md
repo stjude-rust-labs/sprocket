@@ -10,4 +10,5 @@ cargo fuzz run <TARGET>
 
 Where `<TARGET>` is one of the targets listed in `cargo fuzz list`.
 
-See the [`cargo-fuzz` book](https://rust-fuzz.github.io/book/introduction.html) for more information.
+See the [`cargo-fuzz` book](https://rust-fuzz.github.io/book/introduction.html) for more
+information.

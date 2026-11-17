@@ -9,7 +9,6 @@ workflow latte_special {
     }
 
     call pour_latte_art {
-        input:
             espresso = espresso,
             steamed_milk = steamed_milk
     }

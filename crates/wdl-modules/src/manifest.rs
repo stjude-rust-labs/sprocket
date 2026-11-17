@@ -4,6 +4,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use schemars::JsonSchema;
+use schemars::Schema;
+use schemars::SchemaGenerator;
+use schemars::json_schema;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -12,6 +16,7 @@ use url::Url;
 
 use crate::DEFAULT_ENTRYPOINT_FILENAME;
 use crate::DEFAULT_README_FILENAME;
+use crate::default_entrypoint_filename;
 use crate::dependency::DependencyName;
 use crate::dependency::DependencyNameError;
 use crate::dependency::DependencySource;
@@ -99,19 +104,29 @@ pub enum ManifestError {
 }
 
 /// The `readme` field of a manifest.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(untagged)]
 pub enum Readme {
     /// The `readme` field was omitted; engines look for `README.md`.
+    #[schemars(skip)]
+    #[default]
     Default,
-    /// The `readme` field is a relative path to a markdown file.
+    /// A relative path to a markdown file.
     Path(RelativePath),
-    /// The `readme` field is the literal `false`; no readme is associated
-    /// with the module.
+    /// No readme is associated with the module.
+    #[schemars(schema_with = "disabled_schema")]
     Disabled,
 }
 
+/// Schema for [`Readme::Disabled`].
+fn disabled_schema(_generator: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+        "const": false
+    })
+}
+
 /// A `tools[]` entry.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Tool {
     /// The tool name.
     pub name: String,
@@ -125,49 +140,63 @@ pub struct Tool {
     pub url: Option<Url>,
     /// External identifiers for the tool, each a [CURIE](https://www.w3.org/TR/curie/)
     /// of the form `prefix:reference` (e.g. `doi:10.21105/joss.04704`,
-    /// `biotools:csvkit`). Validated at parse time.
+    /// `biotools:csvkit`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ids: Vec<String>,
     /// Unknown fields, preserved for round-trip and inspection by
     /// downstream linters.
     #[serde(flatten)]
+    #[schemars(skip)]
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 /// A parsed `module.json`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(description = "A WDL module manifest.")]
 pub struct Manifest {
     /// The module's display name. Not used for dependency resolution.
     pub name: String,
     /// The module's SPDX license expression.
     pub license: LicenseExpression,
     /// The author descriptions.
+    #[schemars(default)]
     pub authors: Vec<String>,
     /// A brief description of the module.
+    #[schemars(default)]
     pub description: Option<String>,
     /// The canonical Git URL for the module's source repository.
+    #[schemars(default)]
     pub repository: Option<Url>,
     /// A URL for the module's documentation or landing page.
+    #[schemars(default)]
     pub homepage: Option<Url>,
     /// The path to the module's entrypoint WDL file, relative to the
     /// module root. Defaults to [`DEFAULT_ENTRYPOINT_FILENAME`] if absent.
+    #[schemars(
+        description = "The path to the module's entrypoint WDL file",
+        default = "default_entrypoint_filename"
+    )]
     pub entrypoint: Option<RelativePath>,
     /// The module's readme.
+    #[schemars(default)]
     pub readme: Readme,
     /// Gitignore-style glob patterns identifying files within the module
-    /// that consumers may not reach via symbolic import. Each entry is a
-    /// validated [`RelativePath`]; absolute paths, `..` segments, and
-    /// other invalid forms are rejected at parse time. Has no effect on
-    /// content hashing, signing, validation, or quoted within-module
-    /// imports.
+    /// that consumers may not reach via symbolic import.
+    ///
+    /// Excluded files have no effect on content hashing, signing, validation,
+    /// or quoted within-module imports.
+    #[schemars(default)]
     pub exclude: Vec<RelativePath>,
     /// The upstream tools wrapped by the module.
+    #[schemars(default)]
     pub tools: Vec<Tool>,
     /// The module's dependencies, keyed by consumer-chosen name.
+    #[schemars(default)]
     pub dependencies: BTreeMap<DependencyName, DependencySource>,
     /// Unknown top-level fields. The spec requires implementations to
     /// ignore unrecognized fields; capturing them here lets downstream
     /// linters surface typos without a re-parse.
+    #[schemars(skip)]
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -368,6 +397,9 @@ impl TryFrom<ManifestFields> for Manifest {
 
 #[cfg(test)]
 mod tests {
+    use schemars::schema_for;
+    use serde_json::Value;
+
     use super::*;
 
     fn parse(s: &str) -> Result<Manifest, ManifestError> {
@@ -750,5 +782,56 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, ManifestError::InvalidDependencyName { .. }));
+    }
+
+    fn json_schema_path() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("jsonschemas")
+            .join("module.json")
+    }
+
+    fn json_schema() -> String {
+        std::fs::read_to_string(json_schema_path()).unwrap()
+    }
+
+    fn full_test_path() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("assets")
+            .join("module.json")
+    }
+
+    #[test]
+    fn public_schema_up_to_date() {
+        let current_schema = schema_for!(Manifest);
+        let current_schema_pretty = serde_json::to_string_pretty(&current_schema).unwrap();
+
+        pretty_assertions::assert_eq!(
+            current_schema_pretty,
+            json_schema().trim(),
+            "The `module.json` schema at `{}` is out of date! Update it with the output of \
+             `sprocket dev module schema`.",
+            json_schema_path().display()
+        );
+    }
+
+    #[test]
+    fn schema_matches_config() {
+        let manifest_str = std::fs::read_to_string(full_test_path()).unwrap();
+
+        let schema = serde_json::from_str::<Value>(&json_schema()).unwrap();
+        let config = serde_json::from_str::<Value>(&manifest_str).unwrap();
+
+        let mut failed = false;
+        let validator = jsonschema::draft202012::new(&schema).unwrap();
+        for error in validator.iter_errors(&config) {
+            failed = true;
+            eprintln!("{error}");
+        }
+        assert!(
+            !failed,
+            "the generated schema does not match the current `Manifest` spec!"
+        );
     }
 }

@@ -274,8 +274,8 @@ pub struct ServerOptions {
     /// Context for resolving symbolic module imports.
     pub resolution_context: wdl_analysis::ResolutionContext,
 
-    /// Analysis or lint rule IDs to except (ignore).
-    pub exceptions: Vec<String>,
+    /// Analysis or lint rule IDs to disable.
+    pub disable: Vec<String>,
 
     /// Basename for any ignorefiles which should be respected.
     pub ignore_filename: Option<String>,
@@ -302,7 +302,7 @@ impl Default for ServerOptions {
         Self {
             name: String::from(env!("CARGO_CRATE_NAME")),
             version: String::from(env!("CARGO_PKG_VERSION")),
-            exceptions: Vec::new(),
+            disable: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
             resolution_context: Default::default(),
@@ -401,7 +401,7 @@ pub(crate) struct ServerState<S> {
     config: ServerConfig,
     /// Level filter reload handle.
     log_handle: Option<FilterReloadHandle<S>>,
-    /// Known `sprocket dev test` YAML files.
+    /// Known `sprocket test` YAML files.
     pub(crate) test_yamls: SprocketTestCache,
 }
 
@@ -459,8 +459,8 @@ struct ServerConfig {
 /// Gets the rule configuration with the server's excepted rules turned off.
 fn rules_config(options: &ServerOptions, lint_options: &LintOptions) -> wdl_lint::Config {
     let mut config = (*lint_options.config).clone();
-    for exception in &options.exceptions {
-        config.set_severity(exception, RuleSeverity::Off);
+    for disable in &options.disable {
+        config.set_severity(disable, RuleSeverity::Off);
     }
     config
 }
@@ -578,6 +578,11 @@ enum Request {
     DocumentDiagnostic {
         params: DocumentDiagnosticParams,
         tx: RequestResponseSender<DocumentDiagnosticReportResult>,
+    },
+    /// `textDocument/documentLink`
+    DocumentLink {
+        params: DocumentLinkParams,
+        tx: RequestResponseSender<Option<Vec<DocumentLink>>>,
     },
     /// `textDocument/symbol`
     DocumentSymbol {
@@ -946,6 +951,10 @@ impl<S: 'static> Server<S> {
                         let state = state.read().await;
                         Self::document_diagnostic(params, tx, &state, &options).await
                     }
+                    Request::DocumentLink { params, tx } => {
+                        let state = state.read().await;
+                        Self::document_link(params, tx, &state).await
+                    }
                     Request::DocumentSymbol { params, tx } => {
                         let state = state.read().await;
                         Self::document_symbol(params, tx, &state).await
@@ -1119,6 +1128,22 @@ impl<S: 'static> Server<S> {
         let _ = tx.send(results);
     }
 
+    /// `textDocument/documentLink` request handler.
+    async fn document_link(
+        params: DocumentLinkParams,
+        tx: RequestResponseSender<Option<Vec<DocumentLink>>>,
+        state: &ServerState<S>,
+    ) {
+        let results = state
+            .config
+            .analyzer
+            .document_link(ProgressToken::default(), params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(results);
+    }
+
     /// `textDocument/foldingRange` request handler.
     async fn folding_range(
         mut params: FoldingRangeParams,
@@ -1155,8 +1180,8 @@ impl<S: 'static> Server<S> {
                 res.map(|(end_line, end_col, formatted)| {
                     vec![TextEdit {
                         range: Range {
-                            // NOTE: always replace the full set of text starting at the
-                            // very first position.
+                            // NOTE: always replace the full set of text
+                            // starting at the very first position.
                             start: Position {
                                 line: 0,
                                 character: 0,
@@ -1807,13 +1832,14 @@ impl<S: 'static> LanguageServer for Server<S> {
                         DiagnosticOptions {
                             inter_file_dependencies: true,
                             workspace_diagnostics: true,
-                            // Intentionally disabled as currently VS code doesn't send a work done
-                            // token on the diagnostic requests, only one for partial results;
+                            // Intentionally disabled as currently VS code
+                            // doesn't send a work done token on the diagnostic
+                            // requests, only one for partial results;
                             // instead, we'll use a token created by the
                             // server to report progress.
-                            // work_done_progress_options: WorkDoneProgressOptions {
-                            //     work_done_progress: Some(true),
-                            // },
+                            // work_done_progress_options:
+                            // WorkDoneProgressOptions {     work_done_progress:
+                            // Some(true), },
                             ..Default::default()
                         },
                     )),
@@ -1857,6 +1883,10 @@ impl<S: 'static> LanguageServer for Server<S> {
                     folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
                     code_lens_provider: Some(CodeLensOptions {
                         resolve_provider: Some(false),
+                    }),
+                    document_link_provider: Some(DocumentLinkOptions {
+                        resolve_provider: None,
+                        work_done_progress_options: Default::default(),
                     }),
                     ..Default::default()
                 },
@@ -2061,6 +2091,18 @@ impl<S: 'static> LanguageServer for Server<S> {
         self.request(move |tx| Message::Request(Request::CodeLens { params, tx }))
     }
 
+    fn document_link(
+        &mut self,
+        mut params: DocumentLinkParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<DocumentLink>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::DocumentLink { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
+    }
+
     fn formatting(
         &mut self,
         mut params: DocumentFormattingParams,
@@ -2098,8 +2140,9 @@ impl<S: 'static> LanguageServer for Server<S> {
                     register_options: Some(
                         to_value(DidChangeWatchedFilesRegistrationOptions {
                             watchers: vec![FileSystemWatcher {
-                                // We use a generic glob so we can be notified for when directories,
-                                // which might contain WDL documents, are deleted
+                                // We use a generic glob so we can be notified
+                                // for when directories, which might contain WDL
+                                // documents, are deleted
                                 glob_pattern: GlobPattern::String("**/*".to_string()),
                                 kind: None,
                             }],

@@ -42,7 +42,7 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 
 mod analyzer;
-pub mod config;
+mod config;
 pub mod diagnostics;
 pub mod document;
 pub mod eval;
@@ -57,11 +57,8 @@ mod validation;
 mod visitor;
 
 pub use analyzer::*;
-pub use config::Config;
-pub use config::DiagnosticsConfig;
-pub use config::FeatureFlags;
+pub use config::*;
 pub use document::Document;
-pub use document::cache::*;
 pub use rules::*;
 pub use validation::*;
 pub use visitor::*;

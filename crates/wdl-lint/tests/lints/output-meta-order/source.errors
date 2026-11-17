@@ -26,3 +26,17 @@ note[OutputMetaOrder]: `outputs` section of `meta` for the workflow `output_meta
    │  
    = fix: ensure the keys within `meta.outputs` have the same order as they appear in `output`
 
+note[OutputMetaOrder]: `outputs` section of `meta` for the task `output_meta_order_with_doc_comments_err` is out of order
+   ┌─ tests/lints/output-meta-order/source.wdl:72:9
+   │  
+72 │ ╭         outputs: {
+73 │ │             second: "The second output",
+74 │ │             first: "The first output",
+75 │ │         }
+   │ ╰─────────^
+   ·  
+86 │       output {
+   │       ------
+   │  
+   = fix: ensure the keys within `meta.outputs` have the same order as they appear in `output`
+

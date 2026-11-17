@@ -38,7 +38,7 @@ const FUNCTION_NAME: &str = "size";
 /// returned in bytes unless the optional second argument is specified with a
 /// unit.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size>
 fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
@@ -356,7 +356,7 @@ pub const fn descriptor() -> Function {
                 ),
                 Signature::new(
                     "(value: X, <unit: String>) -> Float where `X`: any compound type that \
-                     recursively contains a `File` or `Directory`",
+                     recursively contains a file system path",
                     Callback::Async(size),
                 ),
             ]

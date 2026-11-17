@@ -193,7 +193,7 @@ impl GitResolver {
     }
 
     /// Returns a policy-configured Git fetcher.
-    pub(in crate::resolver) fn fetcher(&self) -> GitFetcher {
+    fn fetcher(&self) -> GitFetcher {
         GitFetcher::new(self.policy.clone())
     }
 

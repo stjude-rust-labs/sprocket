@@ -54,14 +54,13 @@ impl Workflow {
         version: SupportedVersion,
         definition: WorkflowDefinition,
         wdl_path: Option<PathBuf>,
-        enable_doc_comments: bool,
     ) -> Self {
         let mut meta = match definition.metadata() {
             Some(mds) => parse_metadata_items(mds.items()),
             _ => MetaMap::default(),
         };
 
-        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+        if let Some(comments) = definition.doc_comments() {
             // Doc comments take precedence
             meta.append(&mut doc_comments(comments));
         }
@@ -71,11 +70,11 @@ impl Workflow {
             _ => MetaMap::default(),
         };
         let inputs = match definition.input() {
-            Some(is) => parse_inputs(&is, &parameter_meta, enable_doc_comments),
+            Some(is) => parse_inputs(&is, &parameter_meta),
             _ => Vec::new(),
         };
         let outputs = match definition.output() {
-            Some(os) => parse_outputs(&os, &meta, &parameter_meta, enable_doc_comments),
+            Some(os) => parse_outputs(&os, &meta, &parameter_meta),
             _ => Vec::new(),
         };
 
@@ -280,7 +279,6 @@ mod tests {
             r#"
             version 1.0
 
-            ## This comment should be ignored.
             workflow test {
                 input {
                     String name
@@ -301,7 +299,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
-            false,
         );
 
         assert_eq!(workflow.name(), "test");
@@ -339,7 +336,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
-            true,
         );
 
         assert_eq!(workflow.name(), "test");
@@ -404,7 +400,6 @@ mod tests {
             SupportedVersion::V1(V1::Two),
             ast_workflow,
             None,
-            false,
         );
 
         let links = PageLinkIndex::default();
@@ -438,7 +433,6 @@ mod tests {
             SupportedVersion::V1(V1::Two),
             ast_workflow,
             None,
-            false,
         );
 
         let links = PageLinkIndex::default();
@@ -476,7 +470,6 @@ mod tests {
             SupportedVersion::V1(V1::Two),
             ast_workflow,
             None,
-            false,
         );
 
         let html = workflow.render_allow_nested_inputs().into_string();
@@ -515,7 +508,6 @@ mod tests {
             SupportedVersion::V1(V1::Two),
             ast_workflow,
             None,
-            false,
         );
 
         let html = workflow.render_allow_nested_inputs().into_string();
@@ -545,7 +537,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
-            false,
         );
         let links = PageLinkIndex::default();
         let (markup, sections) = workflow.render(Path::new("assets"), &links, Path::new(""));
@@ -579,7 +570,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
-            false,
         );
         let links = PageLinkIndex::default();
         let (markup, sections) = workflow.render(Path::new("assets"), &links, Path::new(""));

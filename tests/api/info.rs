@@ -21,6 +21,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
+use wdl::engine::ContainerImageOverrides;
 
 /// Create a test server whose `AppState` reports the given failure mode.
 ///
@@ -34,11 +35,14 @@ async fn create_test_server(
     let temp = TempDir::new().unwrap();
 
     let mut server_config = ServerConfig {
-        output_dir: temp.path().to_path_buf(),
+        engine: wdl::engine::Config {
+            output_dir: temp.path().into(),
+            ..Default::default()
+        },
         ..Default::default()
     };
     server_config.validate().unwrap();
-    let output_dir = server_config.output_dir.display().to_string();
+    let output_dir = server_config.engine.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -52,6 +56,7 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
+        ContainerImageOverrides::default(),
     )
     .await
     .expect("failed to spawn run manager service");

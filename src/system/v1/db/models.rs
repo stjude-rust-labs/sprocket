@@ -266,6 +266,16 @@ pub struct Run {
     pub directory: Option<String>,
     /// Path to the indexed output directory (`null` if not indexed).
     pub index_directory: Option<String>,
+    /// The name of the execution backend the run executed on.
+    ///
+    /// `None` for runs recorded before backends were tracked or that never
+    /// began execution.
+    pub backend: Option<String>,
+    /// JSON value totaling the bytes transferred while localizing inputs and
+    /// delocalizing outputs.
+    ///
+    /// This is a proxy for data movement, not a billing figure.
+    pub transfer_totals: Option<String>,
     /// Timestamp when the run started.
     pub started_at: Option<DateTime<Utc>>,
     /// Timestamp when the run finished.
@@ -304,6 +314,36 @@ pub struct Task {
     pub exit_status: Option<i32>,
     /// Error message if task failed.
     pub error: Option<String>,
+    /// The stable WDL call path shared by every attempt of the same call.
+    ///
+    /// `None` for rows created before metrics were recorded or observed only
+    /// through backend events.
+    pub call_id: Option<String>,
+    /// The 0-based execution attempt number within the call.
+    pub attempt: i64,
+    /// JSON snapshot of the resolved execution constraints for this attempt.
+    ///
+    /// Captured when the attempt is submitted to a backend; `None` when the
+    /// attempt never reached one (e.g. served from the call cache).
+    pub constraints: Option<String>,
+    /// JSON value recording why this attempt was retried.
+    ///
+    /// Set on the row of the attempt that failed; `None` when the attempt was
+    /// not retried.
+    pub retry_cause: Option<String>,
+    /// JSON snapshot of the resource utilization observed for this attempt.
+    ///
+    /// Reported by LSF and Slurm, and by local Docker containers when
+    /// `backends.<name>.resource_usage_interval` is set to a nonzero value.
+    /// Sampling is not supported for Docker Swarm services. `None` when no
+    /// measurements have been reported.
+    pub utilization: Option<String>,
+    /// Timestamp when the task was submitted to an execution backend.
+    ///
+    /// Splits the time before execution into preparation (evaluation and
+    /// localization, `created_at` to `submitted_at`) and scheduler queuing
+    /// (`submitted_at` to `started_at`).
+    pub submitted_at: Option<DateTime<Utc>>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.

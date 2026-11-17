@@ -94,11 +94,14 @@
           }
         },
         "custom": {
-          "description": "A custom command to execute.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "A custom command to execute. The key is the binary name and the value is\nthe arguments to pass.\n\nThe arguments array _must_ contain the literal `$OUTPUTS` to denote\nwhere the path to the WDL output JSON will be inserted.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       }
     },
@@ -221,6 +224,32 @@
           },
           "required": [
             "Last"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Unpacks every element of an `Array` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "All": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "All"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Unpacks the elements of an `Array` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "Any": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "Any"
           ],
           "additionalProperties": false
         },

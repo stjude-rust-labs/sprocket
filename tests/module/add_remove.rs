@@ -537,6 +537,52 @@ fn remove_leaves_manifest_untouched_when_relock_fails() {
 }
 
 #[test]
+fn remove_no_lock_skips_resolution_and_preserves_lockfile() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("consumer");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("module.json"),
+        r#"{
+  "name": "consumer",
+  "license": "MIT",
+  "dependencies": {
+    "broken": { "path": "../missing" },
+    "drop": { "path": "../also-missing" }
+  }
+}
+"#,
+    )
+    .unwrap();
+    let lockfile_before = br#"{"version":1,"dependencies":{}}"#;
+    fs::write(root.join("module-lock.json"), lockfile_before).unwrap();
+
+    let output = sprocket(&["dev", "module", "remove", "drop", "--no-lock"])
+        .current_dir(&root)
+        .output()
+        .expect("failed to run sprocket dev module remove");
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+
+    let manifest = Manifest::parse(&fs::read(root.join("module.json")).unwrap()).unwrap();
+    assert!(
+        manifest
+            .dependencies
+            .contains_key(&"broken".parse().unwrap())
+    );
+    assert!(!manifest.dependencies.contains_key(&"drop".parse().unwrap()));
+    assert_eq!(
+        fs::read(root.join("module-lock.json")).unwrap(),
+        lockfile_before,
+        "`--no-lock` must leave the existing lockfile byte-for-byte unchanged"
+    );
+}
+
+#[test]
 fn add_new_signer_matrix_respects_trust_mode() {
     let cases = [
         (CliTrustMode::Confirm, false, true),

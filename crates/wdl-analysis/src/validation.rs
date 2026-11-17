@@ -15,6 +15,7 @@ use wdl_ast::TreeNode;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
+use wdl_ast::v1::RequirementsItem;
 use wdl_grammar::Severity;
 use wdl_grammar::SyntaxKind;
 
@@ -208,6 +209,12 @@ pub struct Validator {
     /// The exceptions visitor.
     exceptions: exceptions::Exceptions,
 }
+
+/// Asserts that validators can move between analysis workers.
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<Validator>();
+};
 
 impl Validator {
     /// Creates a validator with an empty visitors set.
@@ -539,6 +546,17 @@ impl Visitor for Validator {
     ) {
         for visitor in self.visitors.iter_mut() {
             visitor.requirements_section(diagnostics, reason, section);
+        }
+    }
+
+    fn requirements_item(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        item: &RequirementsItem,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.requirements_item(diagnostics, reason, item);
         }
     }
 

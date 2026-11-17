@@ -8,7 +8,6 @@ workflow daily_special {
     }
 
     call make_espresso {
-        input:
             ground_coffee = ground_coffee
     }
 

@@ -1,0 +1,4 @@
+error: failed to create WDL evaluation engine
+
+Caused by:
+    S3 endpoint URL `invalid://localhost` must use a `http` or `https` scheme

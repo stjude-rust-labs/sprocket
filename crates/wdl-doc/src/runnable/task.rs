@@ -61,14 +61,13 @@ impl Task {
         version: SupportedVersion,
         definition: TaskDefinition,
         wdl_path: Option<PathBuf>,
-        enable_doc_comments: bool,
     ) -> Self {
         let mut meta = match definition.metadata() {
             Some(mds) => parse_metadata_items(mds.items()),
             _ => MetaMap::default(),
         };
 
-        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+        if let Some(comments) = definition.doc_comments() {
             // Doc comments take precedence
             meta.append(&mut doc_comments(comments));
         }
@@ -78,11 +77,11 @@ impl Task {
             _ => MetaMap::default(),
         };
         let inputs = match definition.input() {
-            Some(is) => parse_inputs(&is, &parameter_meta, enable_doc_comments),
+            Some(is) => parse_inputs(&is, &parameter_meta),
             _ => Vec::new(),
         };
         let outputs = match definition.output() {
-            Some(os) => parse_outputs(&os, &meta, &parameter_meta, enable_doc_comments),
+            Some(os) => parse_outputs(&os, &meta, &parameter_meta),
             _ => Vec::new(),
         };
 
@@ -256,7 +255,7 @@ mod tests {
             r#"
             version 1.0
 
-            ## This comment should be ignored.
+            ## A simple task
             task my_task {
                 input {
                     String name
@@ -268,7 +267,7 @@ mod tests {
                     docker: "ubuntu:latest"
                 }
                 meta {
-                    description: "A simple task"
+                    description: "This meta should be ignored in favor of doc comment"
                 }
             }
             "#,
@@ -283,7 +282,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_task,
             None,
-            false,
         );
 
         assert_eq!(task.name(), "my_task");
@@ -292,12 +290,8 @@ mod tests {
                 .get("description")
                 .unwrap()
                 .clone()
-                .into_meta()
-                .unwrap()
-                .unwrap_string()
                 .text()
-                .unwrap()
-                .text(),
+                .unwrap(),
             "A simple task"
         );
         assert_eq!(task.inputs().len(), 1);
@@ -315,7 +309,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_task,
             Some(PathBuf::from(wdl_path)),
-            false,
         )
     }
 
@@ -400,7 +393,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_task,
             None,
-            true,
         );
 
         assert_eq!(task.name(), "my_task");

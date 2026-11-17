@@ -547,7 +547,8 @@ impl Coercible for Type {
             | (Self::Object, Self::OptionalObject)
             | (Self::OptionalObject, Self::OptionalObject) => true,
 
-            // Map[X, Y] -> Object, Map[X, Y] -> Object?, Map[X, Y]? -> Object? where: X -> String
+            // Map[X, Y] -> Object, Map[X, Y] -> Object?, Map[X, Y]? -> Object?
+            // where: X -> String
             //
             // Struct -> Object, Struct -> Object?, Struct? -> Object?
             (Self::Compound(src, false), Self::Object)
@@ -560,11 +561,12 @@ impl Coercible for Type {
                 _ => false,
             },
 
-            // Object -> Map[X, Y], Object -> Map[X, Y]?, Object? -> Map[X, Y]? where: String -> X
-            // and all object members are coercible to Y
+            // Object -> Map[X, Y], Object -> Map[X, Y]?, Object? -> Map[X, Y]?
+            // where: String -> X and all object members are coercible to Y
             //
-            // Object -> Struct, Object -> Struct?, Object? -> Struct? where: object keys match
-            // struct member names and object values are coercible to struct member types
+            // Object -> Struct, Object -> Struct?, Object? -> Struct? where:
+            // object keys match struct member names and object values are
+            // coercible to struct member types
             (Self::Object, Self::Compound(target, _))
             | (Self::OptionalObject, Self::Compound(target, true)) => {
                 match target {
@@ -839,20 +841,20 @@ impl fmt::Display for CompoundType {
 impl Coercible for CompoundType {
     fn is_coercible_to(&self, target: &Self) -> bool {
         match (self, target) {
-            // Array[X] -> Array[Y], Array[X] -> Array[Y]?, Array[X]? -> Array[Y]?, Array[X]+ ->
-            // Array[Y] where: X -> Y
+            // Array[X] -> Array[Y], Array[X] -> Array[Y]?, Array[X]? ->
+            // Array[Y]?, Array[X]+ -> Array[Y] where: X -> Y
             (Self::Array(src), Self::Array(target)) => src.is_coercible_to(target),
 
-            // Pair[W, X] -> Pair[Y, Z], Pair[W, X] -> Pair[Y, Z]?, Pair[W, X]? -> Pair[Y, Z]?
-            // where: W -> Y and X -> Z
+            // Pair[W, X] -> Pair[Y, Z], Pair[W, X] -> Pair[Y, Z]?, Pair[W, X]?
+            // -> Pair[Y, Z]? where: W -> Y and X -> Z
             (Self::Pair(src), Self::Pair(target)) => src.is_coercible_to(target),
 
-            // Map[W, X] -> Map[Y, Z], Map[W, X] -> Map[Y, Z]?, Map[W, X]? -> Map[Y, Z]? where: W ->
-            // Y and X -> Z
+            // Map[W, X] -> Map[Y, Z], Map[W, X] -> Map[Y, Z]?, Map[W, X]? ->
+            // Map[Y, Z]? where: W -> Y and X -> Z
             (Self::Map(src), Self::Map(target)) => src.is_coercible_to(target),
 
-            // Struct -> Struct, Struct -> Struct?, Struct? -> Struct? where: all member names match
-            // and all member types coerce
+            // Struct -> Struct, Struct -> Struct?, Struct? -> Struct? where:
+            // all member names match and all member types coerce
             (Self::Custom(CustomType::Struct(src)), Self::Custom(CustomType::Struct(target))) => {
                 src.is_coercible_to(target)
             }
@@ -862,8 +864,8 @@ impl Coercible for CompoundType {
                 src.is_coercible_to(target)
             }
 
-            // Map[X, Y] -> Struct, Map[X, Y] -> Struct?, Map[X, Y]? -> Struct? where: X -> String,
-            // keys match member names, and Y -> member type
+            // Map[X, Y] -> Struct, Map[X, Y] -> Struct?, Map[X, Y]? -> Struct?
+            // where: X -> String, keys match member names, and Y -> member type
             (Self::Map(src), Self::Custom(CustomType::Struct(target))) => {
                 if !src
                     .key_type()
@@ -886,8 +888,8 @@ impl Coercible for CompoundType {
                 true
             }
 
-            // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]? where: String -> X
-            // and member types -> Y
+            // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]?
+            // where: String -> X and member types -> Y
             (Self::Custom(CustomType::Struct(src)), Self::Map(target)) => {
                 if !Type::from(PrimitiveType::String).is_coercible_to(target.key_type()) {
                     return false;

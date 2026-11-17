@@ -20,16 +20,16 @@ use lsp_types::Location;
 use lsp_types::Range;
 use lsp_types::SymbolKind;
 use url::Url;
-use wdl_grammar::SyntaxNode;
 
 use crate::Document;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
-use crate::TaskRef;
-use crate::WorkflowRef;
 use crate::document::Callable;
+use crate::document::TaskRef;
+use crate::document::WorkflowRef;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
+use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
@@ -92,28 +92,14 @@ fn find_callable_at_position<'a>(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<(Document, Arc<LineIndex>, Callable<'a>)>> {
-    let index = graph
-        .get_index(document_uri)
-        .ok_or_else(|| anyhow!("document `{uri}` not found in graph", uri = document_uri))?;
-
-    let node = graph.get(index);
-    let (root, lines) = match node.parse_state() {
-        ParseState::Parsed { lines, root, .. } => {
-            (SyntaxNode::new_root(root.clone()), lines.clone())
-        }
-        _ => bail!("document `{uri}` has not been parsed", uri = document_uri),
-    };
-
-    let Some(analysis_doc) = node.document() else {
-        bail!("document analysis data not available for `{document_uri}`");
-    };
+    let (_, root, lines, document) = ensure_analyzed(graph, document_uri)?;
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(token) = find_identifier_token_at_offset(&root, offset) else {
         return Ok(None);
     };
 
-    let Some(definition) = goto_definition(graph, &analysis_doc.uri(), position, encoding)? else {
+    let Some(definition) = goto_definition(graph, &document.uri(), position, encoding)? else {
         return Ok(None);
     };
 
@@ -127,10 +113,10 @@ fn find_callable_at_position<'a>(
     )?
     .into();
 
-    if let Some(callable) = analysis_doc.callable_by_name(token.text())
+    if let Some(callable) = document.callable_by_name(token.text())
         && callable.name_span().contains(definition_offset as usize)
     {
-        return Ok(Some((analysis_doc.clone(), lines, callable)));
+        return Ok(Some((document.clone(), lines, callable)));
     }
 
     Ok(None)
@@ -187,34 +173,31 @@ fn resolve_enclosing_scope(
     offset: usize,
     lines: &LineIndex,
 ) -> Option<EnclosingScope> {
-    if let Some(workflow) = document.workflow()
-        && workflow.scope().span().contains(offset)
-    {
-        let location = location_from_span(&document.uri(), workflow.name_span(), lines).ok()?;
-        let range = location_from_span(&document.uri(), workflow.span(), lines)
-            .ok()?
-            .range;
+    for callable in document.local_callables() {
+        let Some(scope) = callable.scope() else {
+            continue;
+        };
+
+        let Some(span) = callable.span() else {
+            continue;
+        };
+
+        if !scope.span().contains(offset) {
+            continue;
+        }
+
+        let location = location_from_span(&document.uri(), callable.name_span(), lines).ok()?;
+        let range = location_from_span(&document.uri(), span, lines).ok()?.range;
         return Some(EnclosingScope {
-            kind: EnclosingScopeKind::Workflow,
-            name: workflow.name().to_string(),
+            kind: if callable.is_workflow() {
+                EnclosingScopeKind::Workflow
+            } else {
+                EnclosingScopeKind::Task
+            },
+            name: callable.name().to_string(),
             location,
             range,
         });
-    }
-
-    for task in document.local_tasks() {
-        if task.scope().span().contains(offset) {
-            let location = location_from_span(&document.uri(), task.name_span(), lines).ok()?;
-            let range = location_from_span(&document.uri(), task.span(), lines)
-                .ok()?
-                .range;
-            return Some(EnclosingScope {
-                kind: EnclosingScopeKind::Task,
-                name: task.name().to_string(),
-                location,
-                range,
-            });
-        }
     }
 
     None

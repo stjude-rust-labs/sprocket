@@ -19,7 +19,7 @@ task inputs_with_doc_comments {
     command <<<>>>
 }
 
-# This should not have diagnostics for <= 1.2
+# This struct should have diagnostics for missing doc comments
 struct Test {
     String x
 }

@@ -1,0 +1,70 @@
+//! Implementation of the `cancel` subcommand.
+
+use clap::Parser;
+use tracing::debug;
+
+use super::client::ServerConnectionArgs;
+use super::client::fetch_server_info;
+use super::client::resolve_run_id;
+use super::client::send_json;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
+use crate::commands::CommandResult;
+use crate::config::Config;
+use crate::server::CancelRunResponse;
+use crate::server::ServerFailureMode;
+use crate::server::paths;
+
+/// Cancellation signal action.
+const SIGNAL: Action = Action::new("Signaled", "signal");
+
+/// Arguments for the `cancel` subcommand.
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+pub struct Args {
+    /// The run to cancel.
+    ///
+    /// May be a UUID or the human-readable generated name of the run (e.g.
+    /// `happy-dolphin-42`).
+    #[clap(value_name = "RUN")]
+    run_id: String,
+
+    #[command(flatten)]
+    client_args: ServerConnectionArgs,
+}
+
+/// Handles the `cancel` subcommand.
+///
+/// Sends a cancellation request to the server for the specified run.
+pub async fn cancel(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
+    let base_url = args.client_args.base_url(&config);
+    let uuid = resolve_run_id(&args.run_id, &base_url).await?;
+
+    let url = format!("{base_url}{path}", path = paths::cancel_run(uuid));
+    let body: CancelRunResponse = send_json(reqwest::Client::new().post(&url), "cancel").await?;
+
+    output.completed(
+        SIGNAL,
+        format!("cancellation for run `{uuid}`", uuid = body.uuid),
+    );
+
+    // Only print the slow-cancel advisory when the server is actually running
+    // in slow-failure mode. The fetch is best-effort: if `/info` is
+    // unavailable (e.g. older server) we silently skip the note rather than
+    // failing the overall command, since the cancel itself already succeeded.
+    match fetch_server_info(&base_url).await {
+        Ok(info) if info.failure_mode == ServerFailureMode::Slow => {
+            output.detail(
+                "Note",
+                "in slow-failure mode, currently executing tasks will be allowed to finish before \
+                 the run is marked as canceled. Use the `status` subcommand to track progress.",
+            );
+        }
+        Ok(_) => {}
+        Err(err) => {
+            debug!("failed to fetch server info while preparing cancel advisory: {err:#}");
+        }
+    }
+
+    Ok(())
+}

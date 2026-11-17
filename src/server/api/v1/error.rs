@@ -67,7 +67,9 @@ impl From<SubmitRunError> for Error {
     fn from(err: SubmitRunError) -> Self {
         match err {
             SubmitRunError::Config(err) => match err {
-                ConfigError::FileNotFound(_) => Self::BadRequest(err.to_string()),
+                ConfigError::FileNotFound(_) | ConfigError::InvalidFileUrl(_) => {
+                    Self::BadRequest(err.to_string())
+                }
                 ConfigError::FilePathForbidden(_) => Self::Forbidden(err.to_string()),
                 ConfigError::UrlForbidden(_) => Self::Forbidden(err.to_string()),
                 ConfigError::FailedToCanonicalize(_) => Self::Internal,

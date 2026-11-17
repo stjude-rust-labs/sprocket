@@ -1,12 +1,14 @@
-#@ except: BashSetSyntax, ContainerUri, MutableContainerTag, RedundantContainerArray, EmptyOutputs, MetaSections
-
+#@ except: BashSetSyntax, ContainerUri, EmptyOutputs, MetaSections, MutableContainerTag
+#@ except: RedundantContainerArray
 version 1.3
 
-# TODO: this comment is only flagged when the `Style` tag is enabled.
+# TODO: this comment is only flagged when linting is enabled.
 task foo {
-    command <<<>>>
+    command <<<
+    >>>
 
-    output {}
+    output {
+    }
 
     requirements {
         container: "ubuntu:latest"

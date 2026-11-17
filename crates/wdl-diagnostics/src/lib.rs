@@ -99,7 +99,6 @@ impl DiagnosticCounts {
         module = "sprocket_bio.diagnostics",
         frozen,
         rename_all = "SCREAMING_SNAKE_CASE",
-        skip_from_py_object,
         eq
     )
 )]

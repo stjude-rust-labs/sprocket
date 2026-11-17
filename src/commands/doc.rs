@@ -1,6 +1,8 @@
 //! Implementation of the `doc` command.
 
+use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 
 use anyhow::Context;
 use anyhow::anyhow;
@@ -23,7 +25,14 @@ use wdl::doc::install_theme;
 
 use crate::Config;
 use crate::analysis::Source;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
+
+/// Documentation check action.
+const CHECK: Action = Action::new("Checked", "check");
+/// Documentation generation action.
+const GENERATE: Action = Action::new("Generated", "generate");
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -94,7 +103,7 @@ pub struct Args {
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn doc(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
@@ -166,7 +175,14 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .with_ignore_filename(config.common.ignore_filename())
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
-    let index_page = args.index_page.or(config.doc.index_page());
+    let index_page = if let Some(index) = args.index_page {
+        Some(
+            absolute(&index)
+                .with_context(|| format!("getting absolute path for `{}`", index.display()))?,
+        )
+    } else {
+        config.doc.index_page()
+    };
     let light_mode = config.doc.light_mode;
     let logo = args.logo.or(config.doc.logo());
     let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
@@ -199,7 +215,6 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         })
         .additional_html(addl_html)
         .seo(seo)
-        .enable_doc_comments(true)
         .check(args.check);
 
     let mut counts = DiagnosticCounts::default();
@@ -222,7 +237,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
                             false
                         }),
                         config.common.report_mode,
-                        colorize,
+                        output.colorize(),
                     )
                     .context("failed to emit diagnostics")?;
                 }
@@ -242,9 +257,38 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         return Err(e.into());
     }
 
+    if args.check {
+        output.completed(
+            CHECK,
+            format!("documentation for `{}`", relative_display(&workspace)),
+        );
+    } else {
+        output.completed(
+            GENERATE,
+            format!("documentation at `{}`", relative_display(&docs_dir)),
+        );
+    }
+
     if args.open {
         opener::open(docs_dir.join("index.html")).context("failed to open documentation")?;
     }
 
     Ok(())
+}
+
+/// Displays a path relative to the current directory when it is inside it.
+fn relative_display(path: &Path) -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| path.strip_prefix(cwd).ok().map(Path::to_path_buf))
+        .map(|relative| {
+            if relative.as_os_str().is_empty() {
+                PathBuf::from(".")
+            } else {
+                relative
+            }
+        })
+        .unwrap_or_else(|| path.to_path_buf())
+        .display()
+        .to_string()
 }

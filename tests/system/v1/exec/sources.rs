@@ -1,19 +1,25 @@
 //! Source validation and security tests.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use sprocket::ServerConfig;
 use sprocket::analysis::Source;
 use sprocket::system::v1::exec::ConfigError;
 use sprocket::system::v1::exec::validate_source;
 use tempfile::TempDir;
+use url::Url;
 
 fn make_config(
-    output_directory: std::path::PathBuf,
-    allowed_file_paths: Vec<std::path::PathBuf>,
-    allowed_urls: Vec<String>,
+    output_dir: PathBuf,
+    allowed_file_paths: Vec<PathBuf>,
+    allowed_urls: Vec<Url>,
 ) -> ServerConfig {
     ServerConfig {
-        output_dir: output_directory,
+        engine: wdl::engine::Config {
+            output_dir,
+            ..Default::default()
+        },
         allowed_file_paths,
         allowed_urls,
         ..Default::default()
@@ -194,7 +200,7 @@ fn validate_url_with_prefix_matching() {
     let mut config = make_config(
         "./out".into(),
         vec![],
-        vec!["https://example.com/".to_string()],
+        vec!["https://example.com/".parse().unwrap()],
     );
     config.validate().unwrap();
 
@@ -216,7 +222,7 @@ fn validate_url_without_allowed_prefix() {
     let mut config = make_config(
         "./out".into(),
         vec![],
-        vec!["https://example.com/".to_string()],
+        vec!["https://example.com/".parse().unwrap()],
     );
     config.validate().unwrap();
 
@@ -230,7 +236,7 @@ fn validate_url_scheme_must_match() {
     let mut config = make_config(
         "./out".into(),
         vec![],
-        vec!["https://example.com/".to_string()],
+        vec!["https://example.com/".parse().unwrap()],
     );
     config.validate().unwrap();
 
@@ -244,7 +250,7 @@ fn validate_url_subdomain_must_match() {
     let mut config = make_config(
         "./out".into(),
         vec![],
-        vec!["https://example.com/".to_string()],
+        vec!["https://example.com/".parse().unwrap()],
     );
     config.validate().unwrap();
 
@@ -259,9 +265,9 @@ fn validate_url_with_port_and_special_formats() {
         "./out".into(),
         vec![],
         vec![
-            "http://localhost:8080/".to_string(),
-            "http://192.168.1.1/".to_string(),
-            "http://[::1]/".to_string(),
+            "http://localhost:8080/".parse().unwrap(),
+            "http://192.168.1.1/".parse().unwrap(),
+            "http://[::1]/".parse().unwrap(),
         ],
     );
     config.validate().unwrap();
@@ -281,7 +287,7 @@ fn validate_url_with_unicode_and_encoding() {
     let mut config = make_config(
         "./out".into(),
         vec![],
-        vec!["https://example.com/".to_string()],
+        vec!["https://example.com/".parse().unwrap()],
     );
     config.validate().unwrap();
 
@@ -305,7 +311,7 @@ fn source_to_url_and_display() -> Result<()> {
     let mut config = make_config(
         temp_path.to_path_buf(),
         vec![temp_path.to_path_buf()],
-        vec!["https://example.com/".to_string()],
+        vec!["https://example.com/".parse().unwrap()],
     );
     config.validate()?;
 

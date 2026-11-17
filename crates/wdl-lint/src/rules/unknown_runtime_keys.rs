@@ -78,7 +78,7 @@ impl KeyKind {
 
 /// The mapping between `runtime` keys and their kind for WDL v1.0.
 ///
-/// Link: https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#runtime-section
+/// Link: <https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#runtime-section>
 pub(crate) fn keys_v1_0() -> &'static HashMap<&'static str, KeyKind> {
     /// Keys and their kind for WDL v1.0.
     static KEYS_V1_0: OnceLock<HashMap<&'static str, KeyKind>> = OnceLock::new();
@@ -93,7 +93,7 @@ pub(crate) fn keys_v1_0() -> &'static HashMap<&'static str, KeyKind> {
 
 /// The mapping between `runtime` keys and their kind for WDL v1.1.
 ///
-/// Link: https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#runtime-section
+/// Link: <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#runtime-section>
 pub(crate) fn keys_v1_1() -> &'static HashMap<&'static str, KeyKind> {
     /// Keys and their kind for WDL v1.1.
     static KEYS_V1_1: OnceLock<HashMap<&'static str, KeyKind>> = OnceLock::new();

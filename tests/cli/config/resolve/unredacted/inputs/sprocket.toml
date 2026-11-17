@@ -3,6 +3,9 @@ backend = "first"
 
 [run.backends.first]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 
 [run.backends.first.auth]
 type = "basic"
@@ -11,6 +14,9 @@ password = "secret!"
 
 [run.backends.second]
 type = "tes"
+service = "https://example.com/"
+inputs = "http://example.com/inputs/"
+outputs = "http://example.com/outputs/"
 
 [run.backends.second.auth]
 type = "bearer"

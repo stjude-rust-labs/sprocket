@@ -11,7 +11,7 @@ use super::project::load_lockfile;
 use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::SignerChangeMode;
-use crate::commands::output::CommandOutput;
+use crate::commands::CommandOutput;
 use crate::config::Config;
 
 /// What to do when `module-lock.json` is missing or out of date.

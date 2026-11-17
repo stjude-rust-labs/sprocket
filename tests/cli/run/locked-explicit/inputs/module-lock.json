@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "dependencies": {
+    "coffeeshop": {
+      "source": {
+        "path": "coffeeshop"
+      },
+      "dependencies": {}
+    },
+    "cafe_menu": {
+      "source": {
+        "path": "cafe_menu"
+      },
+      "dependencies": {
+        "coffeeshop": {
+          "source": {
+            "path": "../coffeeshop"
+          },
+          "dependencies": {}
+        }
+      }
+    }
+  }
+}

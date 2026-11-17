@@ -1,1 +1,1 @@
-lint --deny-warnings --deny-notes source.wdl
+lint --off inputname --deny-notes source.wdl

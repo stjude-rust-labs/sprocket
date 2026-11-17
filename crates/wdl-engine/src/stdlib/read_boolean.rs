@@ -25,7 +25,7 @@ const FUNCTION_NAME: &str = "read_boolean";
 /// is returned as a Boolean. If the file is empty or does not contain a single
 /// boolean, an error is raised. The comparison is case-insensitive.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_boolean
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_boolean>
 fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

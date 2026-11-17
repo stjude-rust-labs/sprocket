@@ -1,0 +1,1 @@
+-qq run source.wdl --aws-endpoint-url invalid://localhost

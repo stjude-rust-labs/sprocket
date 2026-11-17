@@ -29,9 +29,6 @@ pub enum Tag {
     /// Rules associated with the names of WDL elements.
     Naming,
 
-    /// Rules associated with the whitespace in a document.
-    Spacing,
-
     /// Rules associated with the style of a document.
     Style,
 
@@ -60,7 +57,8 @@ pub enum Tag {
     /// Rules associated with the performance of a document.
     Performance,
 
-    // NOTE: This **must** be the last variant. It gets special treatment in `TagSet`.
+    // NOTE: This **must** be the last variant. It gets special treatment in
+    // `TagSet`.
     /// Rules from all tags.
     All,
 }

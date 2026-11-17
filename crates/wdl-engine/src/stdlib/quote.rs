@@ -16,7 +16,7 @@ use crate::Value;
 ///
 /// Equivalent to evaluating '"~{array[i]}"' for each i in range(length(array)).
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#quote
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#quote>
 fn quote(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_string_type().clone()));

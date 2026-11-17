@@ -1,0 +1,1 @@
+error: --locked cannot be used without a `sprocket.lock` present

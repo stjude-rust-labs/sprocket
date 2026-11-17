@@ -10,6 +10,7 @@ use std::path::Path;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde::ser::SerializeMap;
@@ -18,6 +19,7 @@ use serde_yaml_ng::Value as YamlValue;
 use wdl_analysis::Document;
 use wdl_analysis::document::Input;
 use wdl_analysis::document::Task;
+use wdl_analysis::document::TaskRef;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
 use wdl_analysis::types::CallType;
@@ -47,16 +49,16 @@ pub type JsonMap = serde_json::Map<String, JsonValue>;
 fn resolve_call_document<'a>(
     document: &'a Document,
     call: &'a CallType,
-) -> (&'a Document, &'a str) {
+) -> Result<(&'a Document, &'a str)> {
     let base = match call.namespace() {
         Some(ns) => document
             .namespace(ns)
-            .expect("namespace should be present")
+            .with_context(|| format!("namespace `{ns}` was not found"))?
             .document(),
         None => document,
     };
 
-    match call.kind() {
+    Ok(match call.kind() {
         CallKind::Task => base
             .imported_task_by_name(call.name())
             .map(|task| (task.document(), task.name()))
@@ -65,7 +67,7 @@ fn resolve_call_document<'a>(
             .imported_workflow_by_name(call.name())
             .map(|workflow| (workflow.document(), workflow.name()))
             .unwrap_or((base, call.name())),
-    }
+    })
 }
 
 /// Checks that an input value matches the type of the input.
@@ -119,7 +121,7 @@ async fn resolve_with_origins(
         let mut resolved = Vec::with_capacity(array.as_slice().len());
         for (elem, base_dir) in array.as_slice().iter().zip(origins) {
             resolved.push(
-                elem.resolve_paths(optional, None, None, &|p| p.expand(base_dir))
+                elem.resolve_paths(optional, false, None, None, &|p| p.expand(base_dir))
                     .await?,
             );
         }
@@ -131,7 +133,7 @@ async fn resolve_with_origins(
 
     let base_dir = &origins[0];
     value
-        .resolve_paths(ty.is_optional(), None, None, &|p| p.expand(base_dir))
+        .resolve_paths(ty.is_optional(), false, None, None, &|p| p.expand(base_dir))
         .await
 }
 
@@ -203,15 +205,28 @@ impl TaskInputs {
     /// expected types.
     pub async fn join_paths<'a>(
         &mut self,
-        task: &Task,
-        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
+        task: TaskRef<'_>,
+        path: &impl Fn(&str) -> Result<&'a [EvaluationPath]>,
+    ) -> Result<()> {
+        self.join_paths_with_prefix(task, task.name(), path).await
+    }
+
+    /// The logic for [`Self::join_paths()`].
+    ///
+    /// This is split out to allow specifying the `prefix` for input paths in
+    /// nested calls.
+    async fn join_paths_with_prefix<'a>(
+        &mut self,
+        task: TaskRef<'_>,
+        prefix: &str,
+        path: &impl Fn(&str) -> Result<&'a [EvaluationPath]>,
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = task.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let origins = path(name)?;
+            let origins = path(&format!("{prefix}.{name}"))?;
 
             if let Ok(v) = value.coerce(None, &ty) {
                 *value = resolve_with_origins(v, &ty, origins).await?;
@@ -519,20 +534,59 @@ impl WorkflowInputs {
     /// expected types.
     pub async fn join_paths<'a>(
         &mut self,
+        document: &Document,
         workflow: &Workflow,
-        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
+        path: &'a (impl Fn(&str) -> Result<&'a [EvaluationPath]> + Send + Sync),
+    ) -> Result<()> {
+        self.join_paths_with_prefix(document, workflow, workflow.name(), path)
+            .await
+    }
+
+    /// The logic for [`Self::join_paths()`].
+    ///
+    /// This is split out to allow specifying the `prefix` for input paths in
+    /// nested calls.
+    async fn join_paths_with_prefix<'a>(
+        &mut self,
+        document: &Document,
+        workflow: &Workflow,
+        prefix: &str,
+        path: &(impl Fn(&str) -> Result<&'a [EvaluationPath]> + Send + Sync),
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = workflow.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let origins = path(name)?;
+            let origins = path(&format!("{prefix}.{name}"))?;
 
             if let Ok(v) = value.coerce(None, &ty) {
                 *value = resolve_with_origins(v, &ty, origins).await?;
             }
         }
+
+        if !workflow.allows_nested_inputs() {
+            return Ok(());
+        }
+
+        let workflow_calls = workflow.calls();
+        for (call_name, nested_inputs) in self.calls.iter_mut() {
+            let Some(call) = workflow_calls.get(call_name) else {
+                bail!("could not find call {call_name} in workflow");
+            };
+
+            let (target_doc, call_target_name) = resolve_call_document(document, call)?;
+
+            nested_inputs
+                .join_paths(
+                    target_doc,
+                    call_target_name,
+                    &format!("{prefix}.{call_name}"),
+                    path,
+                )
+                .await?;
+        }
+
         Ok(())
     }
 
@@ -586,14 +640,19 @@ impl WorkflowInputs {
                 )
             })?;
 
-            let (document, call_target_name) = resolve_call_document(document, call);
+            let (document, call_target_name) = resolve_call_document(document, call)?;
 
             // Validate the call's inputs
             let inputs = match call.kind() {
                 CallKind::Task => {
-                    let task = document
-                        .local_task_by_name(call_target_name)
-                        .expect("task should be present");
+                    let task =
+                        document
+                            .local_task_by_name(call_target_name)
+                            .with_context(|| {
+                                format!(
+                                    "task `{call_target_name}` was not found in the call document"
+                                )
+                            })?;
 
                     let task_inputs = inputs.as_task_inputs().with_context(|| {
                         format!("`{name}` is a call to a task, but workflow inputs were supplied")
@@ -603,12 +662,13 @@ impl WorkflowInputs {
                     &task_inputs.inputs
                 }
                 CallKind::Workflow => {
-                    let workflow = document.workflow().expect("should have a workflow");
-                    assert_eq!(
-                        workflow.name(),
-                        call_target_name,
-                        "call name does not match workflow name"
-                    );
+                    let workflow = document
+                        .local_workflow_by_name(call_target_name)
+                        .with_context(|| {
+                            format!(
+                                "workflow `{call_target_name}` was not found in the call document"
+                            )
+                        })?;
                     let workflow_inputs = inputs.as_workflow_inputs().with_context(|| {
                         format!("`{name}` is a call to a workflow, but task inputs were supplied")
                     })?;
@@ -683,7 +743,7 @@ impl WorkflowInputs {
                             CallKind::Workflow => Inputs::Workflow(Default::default()),
                         });
 
-                let (document, call_target_name) = resolve_call_document(document, call);
+                let (document, call_target_name) = resolve_call_document(document, call)?;
 
                 let next = remainder
                     .split_once('.')
@@ -699,21 +759,29 @@ impl WorkflowInputs {
                 // Recurse on the call's inputs to set the value
                 let input = match call.kind() {
                     CallKind::Task => {
-                        let task = document
-                            .local_task_by_name(call_target_name)
-                            .expect("task should be present");
+                        let task =
+                            document
+                                .local_task_by_name(call_target_name)
+                                .with_context(|| {
+                                    format!(
+                                        "task `{call_target_name}` was not found in the call \
+                                         document"
+                                    )
+                                })?;
                         inputs
                             .as_task_inputs_mut()
                             .expect("should be a task input")
                             .set_path_value(document, task, remainder, value)?
                     }
                     CallKind::Workflow => {
-                        let workflow = document.workflow().expect("should have a workflow");
-                        assert_eq!(
-                            workflow.name(),
-                            call_target_name,
-                            "call name does not match workflow name"
-                        );
+                        let workflow = document
+                            .local_workflow_by_name(call_target_name)
+                            .with_context(|| {
+                                format!(
+                                    "workflow `{call_target_name}` was not found in the call \
+                                     document"
+                                )
+                            })?;
                         inputs
                             .as_workflow_inputs_mut()
                             .expect("should be a task input")
@@ -929,6 +997,45 @@ impl Inputs {
         Self::parse_json_object(document, object)
     }
 
+    /// Used to recursively join paths.
+    ///
+    /// See [`TaskInputs::join_paths()`] and [`WorkflowInputs::join_paths()`].
+    fn join_paths<'a, 'b>(
+        &'b mut self,
+        document: &'b Document,
+        call_target_name: &'b str,
+        prefix: &'b str,
+        path: &'b (impl Fn(&str) -> Result<&'a [EvaluationPath]> + Send + Sync),
+    ) -> BoxFuture<'b, Result<()>> {
+        Box::pin(async move {
+            match self {
+                Inputs::Task(task_inputs) => {
+                    let task = document
+                        .local_task_by_name(call_target_name)
+                        .expect("task should be present");
+
+                    task_inputs
+                        .join_paths_with_prefix(TaskRef::Local(task), prefix, path)
+                        .await
+                }
+                Inputs::Workflow(workflow_inputs) => {
+                    let workflow = document
+                        .local_workflow_by_name(call_target_name)
+                        .expect("workflow should be present");
+                    assert_eq!(
+                        workflow.name(),
+                        call_target_name,
+                        "call name does not match workflow name"
+                    );
+
+                    workflow_inputs
+                        .join_paths_with_prefix(document, workflow, prefix, path)
+                        .await
+                }
+            }
+        })
+    }
+
     /// Determines if the inputs are empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
@@ -1073,12 +1180,10 @@ impl Inputs {
 
         let inputs = match (
             document.local_task_by_name(&target_name),
-            document.workflow(),
+            document.local_workflow_by_name(&target_name),
         ) {
             (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
-            (None, Some(workflow)) if workflow.name() == target_name => {
-                Self::parse_workflow_inputs(document, workflow, object)?
-            }
+            (None, Some(workflow)) => Self::parse_workflow_inputs(document, workflow, object)?,
             _ => bail!(
                 "invalid inputs: a task or workflow named `{target_name}` does not exist in the \
                  document"

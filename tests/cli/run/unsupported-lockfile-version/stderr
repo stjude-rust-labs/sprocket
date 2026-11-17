@@ -1,0 +1,7 @@
+error: invalid lock file version
+  ┌─ _TEMP_DIR_/sprocket.lock:3:11
+  │
+3 │ version = 2 # unsupported version number, should produce an error
+  │           ^
+
+error: failed to parse lock file

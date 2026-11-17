@@ -15,9 +15,9 @@ use wdl_modules::signing::parse_openssh_public_key_identity;
 use super::project::Locator;
 use super::project::discover;
 use super::project::trace_project;
+use crate::commands::Action;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::Action;
-use crate::commands::output::CommandOutput;
 
 const SIGN: Action = Action::new("Signed", "sign");
 

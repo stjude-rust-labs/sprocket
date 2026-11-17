@@ -1,0 +1,1 @@
+-c sprocket.toml inputs --target second source.wdl

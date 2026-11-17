@@ -31,7 +31,7 @@ const FUNCTION_NAME: &str = "read_lines";
 ///
 /// If the file is empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_lines
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_lines>
 fn read_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);

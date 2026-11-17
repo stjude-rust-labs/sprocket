@@ -3,21 +3,20 @@
 use std::process::Command;
 use std::process::Stdio;
 
-/// Determines whether or not a string containing embedded quotes is balanced.
-pub fn is_quote_balanced(s: &str, quote_char: char) -> bool {
-    let mut closed = true;
-    let mut escaped = false;
-    s.chars().for_each(|c| {
-        if c == '\\' {
-            escaped = true;
-        } else if !escaped && c == quote_char {
-            closed = !closed;
-        } else {
-            escaped = false;
-        }
-    });
-    closed
-}
+use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Document;
+use wdl_analysis::Exceptable;
+use wdl_analysis::diagnostics::unknown_type;
+use wdl_analysis::document::ScopeRef;
+use wdl_analysis::document::Task;
+use wdl_analysis::types::Type;
+use wdl_analysis::types::TypeNameRef;
+use wdl_analysis::types::v1::EvaluationContext;
+use wdl_ast::Diagnostic;
+use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxKind;
+use wdl_ast::TreeNode;
 
 /// Check whether or not a program exists.
 ///
@@ -73,6 +72,80 @@ pub fn serialize_oxford_comma<T: std::fmt::Display>(items: &[T]) -> Option<Strin
     }
 }
 
+/// A context for evaluating expressions in a command section.
+pub(crate) struct CommandContext<'a> {
+    /// The document being linted.
+    document: Document,
+    /// The scope of the command section.
+    scope: ScopeRef<'a>,
+}
+
+impl EvaluationContext for CommandContext<'_> {
+    fn version(&self) -> SupportedVersion {
+        self.document.version().expect("document has a version")
+    }
+
+    fn resolve_name(&mut self, name: &str, _span: Span) -> Option<Type> {
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
+            return Some(var);
+        }
+
+        if let Some(ty) = self.document.get_custom_type(name) {
+            return Some(
+                TypeNameRef::new(
+                    name,
+                    ty.as_custom()
+                        .expect("type should be a custom type")
+                        .clone(),
+                )
+                .into(),
+            );
+        }
+
+        None
+    }
+
+    fn resolve_type_name(
+        &mut self,
+        name: &str,
+        span: Span,
+    ) -> std::result::Result<Type, Diagnostic> {
+        self.scope
+            .lookup(name)
+            .map(|n| n.ty().clone())
+            .ok_or_else(|| unknown_type(name, span))
+    }
+
+    fn task(&self) -> Option<&Task> {
+        None
+    }
+
+    fn diagnostics_config(&self) -> DiagnosticsConfig {
+        DiagnosticsConfig::except_all()
+    }
+
+    fn add_diagnostic(&mut self, _diagnostic: Diagnostic) {
+        // do nothing
+    }
+
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        _diagnostic: Diagnostic,
+        _element: &N,
+        _exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    ) {
+        // do nothing
+    }
+}
+
+impl<'a> CommandContext<'a> {
+    /// Create a new `CommandContext`.
+    pub(crate) fn new(document: Document, scope: ScopeRef<'a>) -> Self {
+        Self { document, scope }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -86,24 +159,6 @@ mod tests {
         } else {
             assert!(program_exists("which"));
         }
-    }
-
-    #[test]
-    fn test_is_properly_quoted() {
-        let s = "\"this string is quoted properly.\"";
-        assert!(is_quote_balanced(s, '"'));
-        let s = "\"this string has an escaped \\\" quote.\"";
-        assert!(is_quote_balanced(s, '"'));
-        let s = "\"this string is missing an end quote";
-        assert_eq!(is_quote_balanced(s, '"'), false);
-        let s = "this string is missing an open quote\"";
-        assert_eq!(is_quote_balanced(s, '"'), false);
-        let s = "\"this string has an irrelevant escape \\ \"";
-        assert!(is_quote_balanced(s, '"'));
-        let s = "'this string has single quotes'";
-        assert!(is_quote_balanced(s, '\''));
-        let s = "this string has unclosed single quotes'";
-        assert_eq!(is_quote_balanced(s, '\''), false);
     }
 
     #[test]

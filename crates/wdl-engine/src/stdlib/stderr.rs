@@ -16,7 +16,7 @@ const FUNCTION_NAME: &str = "stderr";
 /// Returns the value of the executed command's standard error (stderr) as a
 /// File
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#stderr
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#stderr>
 fn stderr(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.is_empty());
     debug_assert!(context.return_type_eq(PrimitiveType::File));

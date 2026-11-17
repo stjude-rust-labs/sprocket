@@ -8,6 +8,5 @@ Rules with the tag `Clarity`:
   - ImportPlacement
   - MetaSections
   - MutableContainerTag
-  - PascalCase
+  - NamingConvention
   - RedundantContainerArray
-  - SnakeCase

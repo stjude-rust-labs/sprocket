@@ -14,7 +14,7 @@ use crate::Value;
 ///
 /// If the map is empty, an empty array is returned.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-values
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-values>
 fn values(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(

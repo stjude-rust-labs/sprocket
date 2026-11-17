@@ -10,12 +10,11 @@ newline_style = "auto"
 quote_style = "preserve"
 
 [check]
-except = []
+disable = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
 hide_warnings = false
-tags = []
 
 [check.rules.UnusedImport]
 severity = "warning"
@@ -59,12 +58,12 @@ severity = "warning"
 [check.rules.DeprecatedRuntimeSection]
 severity = "warning"
 
+[check.rules.DeprecatedInputKeyword]
+severity = "warning"
+
 [check.rules.BashSetSyntax]
 severity = "warning"
 bash_set_options = ["errexit", "nounset", "pipefail"]
-
-[check.rules.CallInputKeyword]
-severity = "note"
 
 [check.rules.ConciseInput]
 severity = "note"
@@ -86,13 +85,13 @@ severity = "note"
 severity = "warning"
 
 [check.rules.DescriptionLength]
-severity = "note"
+severity = "off"
 
 [check.rules.DocCommentTabs]
 severity = "warning"
 
 [check.rules.DocMetaStrings]
-severity = "warning"
+severity = "off"
 
 [check.rules.EmptyDocComment]
 severity = "note"
@@ -108,7 +107,7 @@ allowed_runtime_keys = []
 severity = "warning"
 
 [check.rules.HostPathLiterals]
-severity = "note"
+severity = "warning"
 
 [check.rules.ImportPlacement]
 severity = "warning"
@@ -118,6 +117,8 @@ severity = "warning"
 
 [check.rules.InputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.MatchingOutputMeta]
 severity = "warning"
@@ -131,8 +132,19 @@ severity = "note"
 [check.rules.MutableContainerTag]
 severity = "note"
 
+[check.rules.NamingConvention]
+severity = "warning"
+task = "snake_case"
+workflow = "snake_case"
+variable = "snake_case"
+type = "pascal_case"
+struct_member = "snake_case"
+allowed_names = []
+
 [check.rules.OutputName]
 severity = "note"
+min_length = 3
+check_prefixes = true
 
 [check.rules.OutputMetaOrder]
 severity = "note"
@@ -143,11 +155,11 @@ severity = "note"
 [check.rules.MissingParameterMeta]
 severity = "warning"
 
+[check.rules.ParameterizedResources]
+severity = "off"
+
 [check.rules.ParameterMetaOrder]
 severity = "note"
-
-[check.rules.PascalCase]
-severity = "warning"
 
 [check.rules.RedundantNone]
 severity = "note"
@@ -164,25 +176,28 @@ severity = "note"
 [check.rules.RuntimeSection]
 severity = "warning"
 
-[check.rules.ShellCheck]
-severity = "note"
-
-[check.rules.SnakeCase]
+[check.rules.ShellSplitting]
 severity = "warning"
-allowed_names = []
 
-[check.rules.TodoComment]
+[check.rules.ShellCheck]
+severity = "warning"
+
+[check.rules.FlaggedComment]
 severity = "note"
+keywords = ["TODO"]
 
 [check.rules.UnusedDocComments]
 severity = "note"
+
+[check.rules.StructOverMap]
+severity = "off"
 
 [analyzer]
 lint = false
 
 [run]
-output_dir = "./out"
 events_capacity = 5000
+output_dir = "./out"
 backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
@@ -192,7 +207,7 @@ choice_cache_capacity = 1000
 regex_cache_capacity = 1000
 
 [run.http]
-cache_dir = "system"
+cache_dir = "default"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
@@ -209,7 +224,7 @@ container = "ubuntu:latest"
 shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
-cache_dir = "system"
+cache_dir = "default"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
@@ -219,14 +234,17 @@ excluded_cache_inputs = []
 [run.backends.first]
 type = "docker"
 cleanup = true
+resource_usage_interval = 1
 
 [run.backends.second]
 type = "docker"
 cleanup = true
+resource_usage_interval = 1
 
 [run.backends.default]
 type = "docker"
 cleanup = true
+resource_usage_interval = 1
 
 [run.storage]
 
@@ -240,7 +258,6 @@ cleanup = true
 host = "127.0.0.1"
 port = 8080
 allowed_origins = []
-output_dir = "./out"
 allowed_file_paths = []
 allowed_urls = []
 max_concurrent_runs = "unlimited"
@@ -250,6 +267,7 @@ orphan_timeout_minutes = 5
 url = "default"
 
 [server.engine]
+output_dir = "./out"
 backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
@@ -259,7 +277,7 @@ choice_cache_capacity = 1000
 regex_cache_capacity = 1000
 
 [server.engine.http]
-cache_dir = "system"
+cache_dir = "default"
 retries = 5
 parallelism = "available"
 hash_algorithm = "sha256"
@@ -276,7 +294,7 @@ container = "ubuntu:latest"
 shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
-cache_dir = "system"
+cache_dir = "default"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
@@ -296,6 +314,7 @@ excluded_cache_inputs = []
 [test]
 parallelism = 50
 throttle = 100
+enable_custom_assertions = false
 
 [doc]
 index_page = "none"
@@ -305,7 +324,6 @@ homepage_url = "none"
 github_url = "none"
 slack_url = "none"
 light_mode = false
-with_doc_comments = false
 
 [doc.extra_html]
 head = "none"
@@ -356,3 +374,7 @@ denied_hosts = [
 ]
 allowed_hosts = []
 allowed_transitive_hosts = ["github.com", "gitlab.com"]
+
+[lock]
+
+[lock.library]

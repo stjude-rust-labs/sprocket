@@ -12,7 +12,7 @@ use crate::Value;
 /// Tests whether the given optional value is defined, i.e., has a non-None
 /// value.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#defined
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#defined>
 fn defined(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Boolean));

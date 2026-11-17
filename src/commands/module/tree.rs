@@ -12,8 +12,8 @@ use super::project::LockedFlag;
 use super::project::discover;
 use super::project::require_lockfile;
 use super::project::trace_project;
+use crate::commands::CommandOutput;
 use crate::commands::CommandResult;
-use crate::commands::output::CommandOutput;
 
 /// Arguments to `sprocket dev module tree`.
 #[derive(Parser, Debug)]

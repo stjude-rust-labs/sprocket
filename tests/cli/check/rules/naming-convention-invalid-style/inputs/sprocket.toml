@@ -1,0 +1,2 @@
+[check.rules.NamingConvention]
+task = "snake-case"

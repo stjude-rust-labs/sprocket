@@ -49,6 +49,7 @@ use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::Placeholder;
+use wdl_ast::v1::RequirementsItem;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeItem;
 use wdl_ast::v1::RuntimeSection;
@@ -89,8 +90,10 @@ pub type RuleMap = HashMap<String, Option<&'static [SyntaxKind]>>;
 /// Each encountered node will receive a corresponding method call
 /// that receives both a [VisitReason::Enter] call and a
 /// matching [VisitReason::Exit] call.
+///
+/// Visitors must be transferable between analysis worker threads.
 #[allow(unused_variables)]
-pub trait Visitor {
+pub trait Visitor: Send {
     /// Get all lint rules known to this `Visitor`.
     ///
     /// Note that [`Validator`]s will expect this value to be static.
@@ -215,6 +218,15 @@ pub trait Visitor {
         diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &RequirementsSection,
+    ) {
+    }
+
+    /// Visits a requirements item node.
+    fn requirements_item(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        item: &RequirementsItem,
     ) {
     }
 
@@ -466,9 +478,11 @@ pub(crate) fn visit<V: Visitor>(
             SyntaxKind::TaskHintsItemNode | SyntaxKind::WorkflowHintsItemNode => {
                 // Skip this node as it's part of a hints section
             }
-            SyntaxKind::RequirementsItemNode => {
-                // Skip this node as it's part of a requirements section
-            }
+            SyntaxKind::RequirementsItemNode => visitor.requirements_item(
+                diagnostics,
+                reason,
+                &RequirementsItem::cast(element.into_node().unwrap()).expect("should cast"),
+            ),
             SyntaxKind::RuntimeSectionNode => visitor.runtime_section(
                 diagnostics,
                 reason,

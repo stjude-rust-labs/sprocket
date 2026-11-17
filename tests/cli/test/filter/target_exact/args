@@ -1,0 +1,1 @@
+test -t say_hello --exact -qq --no-status

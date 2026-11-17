@@ -1,0 +1,3 @@
+[InputName]
+min_length = 5
+check_prefixes = false

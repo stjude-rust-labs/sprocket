@@ -487,7 +487,13 @@ async fn analyze_workspace(
 /// are already present.
 pub async fn document_workspace(config: Config) -> DocResult<()> {
     let workspace_abs_path = absolute(&config.workspace)?.clean();
-    let index_page = config.index_page.and_then(|p| absolute(p).ok());
+    let index_page = config.index_page.map(|p| {
+        if p.is_absolute() {
+            p
+        } else {
+            workspace_abs_path.join(&p)
+        }
+    });
 
     if !workspace_abs_path.is_dir() {
         return Err(
@@ -555,8 +561,9 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                 }
             },
             Err(_) => (
-                // The URI could not be converted to a file path, so it must be a remote WDL file.
-                // In this case, we will generate documentation in the `external/` directory.
+                // The URI could not be converted to a file path, so it must be
+                // a remote WDL file. In this case, we will generate
+                // documentation in the `external/` directory.
                 PathBuf::from("external").join(
                     uri.path()
                         .strip_prefix("/")
@@ -605,7 +612,6 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
-                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Struct(r#struct)));
@@ -626,7 +632,6 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
-                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(name, PageType::Task(task)));
@@ -647,7 +652,6 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
-                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(
@@ -672,7 +676,6 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
-                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Enum(r#enum)));
@@ -748,7 +751,6 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
-            false,
         );
 
         let description = workflow.render_description(false);

@@ -1,0 +1,5 @@
+error: this use of function `list` requires a minimum WDL version of 1.4
+  ┌─ tests/analysis/list-unsupported-version/source.wdl:9:55
+  │
+9 │         Pair[Array[File], Array[Directory]] entries = list(directory)
+  │                                                       ^^^^

@@ -11,6 +11,7 @@ use sprocket::server::create_router;
 use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::LogSource;
+use sprocket::system::v1::db::NewTask;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::db::TaskStatus;
@@ -61,7 +62,11 @@ async fn direct_reads_bypass_manager(pool: sqlx::SqlitePool) {
         .await
         .unwrap();
     database
-        .create_task("test-task", run_id, TaskStatus::Running)
+        .create_task(NewTask::from_backend_event(
+            "test-task",
+            run_id,
+            TaskStatus::Running,
+        ))
         .await
         .unwrap();
     database

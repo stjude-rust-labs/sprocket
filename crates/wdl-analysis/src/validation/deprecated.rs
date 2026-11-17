@@ -3,6 +3,7 @@
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::TreeToken;
+use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::TaskDefinition;
@@ -11,8 +12,10 @@ use wdl_grammar::Diagnostic;
 use wdl_grammar::Severity;
 use wdl_grammar::Span;
 use wdl_grammar::SupportedVersion;
+use wdl_grammar::SyntaxKind;
 use wdl_grammar::version::V1;
 
+use crate::DeprecatedInputKeywordRule;
 use crate::DeprecatedObjectRule;
 use crate::DeprecatedPlaceholderRule;
 use crate::DeprecatedRuntimeSectionRule;
@@ -86,11 +89,24 @@ fn deprecated_runtime_section(task: &str, span: Span) -> Diagnostic {
     .with_fix("replace the `runtime` section with a `requirements` section")
 }
 
+/// Creates a diagnostic for unnecessary input keyword.
+fn call_input_unnecessary(severity: Severity, span: Span) -> Diagnostic {
+    Diagnostic::new(
+        severity,
+        "the `input:` keyword is unnecessary for WDL version 1.2 and later",
+    )
+    .with_rule(DeprecatedInputKeywordRule::ID)
+    .with_highlight(span)
+    .with_fix("remove the `input:` keyword from the call statement")
+}
+
 /// A visitor for deprecated WDL features.
 #[derive(Default)]
 pub struct Deprecated {
     /// The document version.
     version: Option<SupportedVersion>,
+    /// The severity of the `DeprecatedInputKeyword` rule.
+    call_input_keyword: Option<Severity>,
     /// The severity of the `DeprecatedObject` rule.
     object: Option<Severity>,
     /// The severity of the `DeprecatedPlaceholder` rule.
@@ -116,6 +132,10 @@ impl Visitor for Deprecated {
         }
 
         self.version = Some(version);
+        self.call_input_keyword = document
+            .config()
+            .diagnostics_config()
+            .deprecated_input_keyword;
         self.object = document.config().diagnostics_config().deprecated_object;
         self.placeholder = document
             .config()
@@ -263,6 +283,39 @@ impl Visitor for Deprecated {
                 placeholder.inner(),
                 &DeprecatedPlaceholderRule::EXCEPTABLE_NODES,
             )
+        }
+    }
+
+    fn call_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &CallStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let Some(severity) = self.call_input_keyword else {
+            return;
+        };
+
+        let version = self.version.expect("document should have a version");
+
+        if version <= SupportedVersion::V1(V1::One) {
+            return;
+        }
+
+        if let Some(input_keyword) = stmt
+            .inner()
+            .children_with_tokens()
+            .find(|c| c.kind() == SyntaxKind::InputKeyword)
+        {
+            diagnostics.exceptable_add(
+                call_input_unnecessary(severity, input_keyword.text_range().into()),
+                stmt.inner(),
+                &DeprecatedInputKeywordRule::EXCEPTABLE_NODES,
+            );
         }
     }
 }

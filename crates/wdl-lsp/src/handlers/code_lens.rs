@@ -145,7 +145,8 @@ mod tests {
         for (wdl_path, yaml_path) in [
             ("foo.wdl", "foo.yaml"),
             ("foo.wdl", "test/foo.yaml"),
-            // Make sure we don't get tripped up on WDL files _inside_ test directories
+            // Make sure we don't get tripped up on WDL files _inside_ test
+            // directories
             ("test/foo.wdl", "test/foo.yaml"),
         ] {
             let dir = tempdir().unwrap();

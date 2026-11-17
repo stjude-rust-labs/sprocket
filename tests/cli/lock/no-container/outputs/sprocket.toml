@@ -1,0 +1,2 @@
+[run.task]
+container = "docker://quay.io/lib/ubuntu:latest"

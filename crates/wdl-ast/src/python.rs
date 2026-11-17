@@ -73,8 +73,9 @@ impl From<ThreadSafeSyntaxToken> for SyntaxToken<WorkflowDescriptionLanguage> {
         let node: SyntaxNode<_> = token.parent.into();
 
         match node.token_at_offset(token.offset) {
-            // The offset represents where the token begins. If the offset is 7, we might encounter
-            // `Between(VersionKeyword@0..7, Whitespace@7..8)`. The `Whitespace` begins at 7, so we
+            // The offset represents where the token begins. If the offset is 7,
+            // we might encounter `Between(VersionKeyword@0..7,
+            // Whitespace@7..8)`. The `Whitespace` begins at 7, so we
             // select right token.
             TokenAtOffset::Between(_, token) | TokenAtOffset::Single(token) => token,
             TokenAtOffset::None => unreachable!(),

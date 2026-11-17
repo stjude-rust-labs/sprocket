@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ContainerUri, MutableContainerTag, RedundantContainerArray, EmptyOutputs, BashSetSyntax
+#@ except: MetaDescription, ContainerUri, MutableContainerTag, RedundantContainerArray, EmptyOutputs, BashSetSyntax, ParameterizedResources
 
 version 1.1
 

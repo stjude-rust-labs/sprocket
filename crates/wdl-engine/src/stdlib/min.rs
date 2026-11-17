@@ -11,7 +11,7 @@ use crate::Value;
 
 /// Returns the smaller of two integer values.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#min
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#min>
 fn int_min(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));
@@ -27,7 +27,7 @@ fn int_min(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Returns the smaller of two float values.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#min
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#min>
 fn float_min(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::Float));

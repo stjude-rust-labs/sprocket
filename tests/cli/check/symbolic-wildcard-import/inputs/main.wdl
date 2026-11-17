@@ -4,7 +4,6 @@ import * from coffeeshop
 
 workflow make_coffee {
     call grind_beans {
-        input:
             roast_level = "dark"
     }
 

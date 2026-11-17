@@ -12,7 +12,7 @@ use crate::Value;
 /// Rounds a floating point number to the nearest integer based on standard
 /// rounding rules ("round half up").
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#round
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#round>
 fn round(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
     debug_assert!(context.return_type_eq(PrimitiveType::Integer));

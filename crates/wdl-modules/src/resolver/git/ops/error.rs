@@ -114,6 +114,26 @@ pub enum GitError {
         /// The reason the root is unsafe.
         reason: &'static str,
     },
+    /// A Git tree contains an entry that is unsafe to check out, such as a
+    /// symbolic link, a submodule, or a name that could escape the cache.
+    #[error(
+        "refusing to check out `{path}` from the module's Git commit because {reason}; modules \
+         must contain only regular files and directories"
+    )]
+    UnsafeTreeEntry {
+        /// The repository-relative path of the offending entry.
+        path: String,
+        /// Why the entry is unsafe.
+        reason: &'static str,
+    },
+    /// A path inside a cache leaf could not be removed safely.
+    #[error("refusing to remove `{path}` from the module cache because {reason}")]
+    UnsafeWorktreePath {
+        /// The path that was to be removed.
+        path: PathBuf,
+        /// Why removal is unsafe.
+        reason: &'static str,
+    },
     /// A remote advertised too many refs.
     #[error("remote at `{url}` advertised {count} refs, exceeding the limit of {limit}")]
     RefLimitExceeded {

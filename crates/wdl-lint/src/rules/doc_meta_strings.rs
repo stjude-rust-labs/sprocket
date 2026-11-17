@@ -247,12 +247,14 @@ impl Visitor for DocMetaStringsRule {
                 // Simple string description - this is valid
                 MetadataValue::String(_) => {}
 
-                // Object with potential reserved keys - recursively check all nested objects
+                // Object with potential reserved keys - recursively check all
+                // nested objects
                 MetadataValue::Object(obj) => {
                     check_object_items(self.severity, &obj, diagnostics, &self.exceptable_nodes());
                 }
 
-                // Any other type - warn that parameter descriptions should be strings
+                // Any other type - warn that parameter descriptions should be
+                // strings
                 _ => {
                     let value_type = get_value_type_name(&value);
                     diagnostics.exceptable_add(

@@ -15,6 +15,7 @@ mod call_hierarchy;
 mod code_lens;
 mod common;
 mod completions;
+mod document_link;
 mod document_symbol;
 mod find_all_references;
 mod folding_range;
@@ -30,6 +31,7 @@ mod workspace_symbol;
 pub use call_hierarchy::*;
 pub use code_lens::*;
 pub use completions::*;
+pub use document_link::*;
 pub use document_symbol::*;
 pub use find_all_references::*;
 pub use folding_range::*;
@@ -50,6 +52,7 @@ pub use workspace_symbol::*;
 /// information.
 ///
 /// The context is specifically designed for LSP handlers where:
+///
 /// - We need to evaluate expression types at a specific cursor position
 /// - We want to avoid collecting diagnostics (since they're handled separately)
 /// - We only need read-only access to scope and document information

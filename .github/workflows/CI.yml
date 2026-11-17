@@ -23,7 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Spell Check Repo
-        uses: crate-ci/typos@v1.50.1
+        uses: crate-ci/typos@v1.51.1
+
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: rvben/rumdl@v0
+        with:
+          command: fmt-check
 
   format:
     runs-on: ubuntu-latest
@@ -86,9 +94,26 @@ jobs:
       - name: Update Rust
         run: rustup update nightly && rustup default nightly && rustup component add llvm-tools
 
+      # `--all-features` turns on the Python bindings, so the tests link to
+      # Python. Pin the version so the tests don't depend on whichever Python
+      # the runner image includes.
+      - name: Setup Python
+        id: python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+
+      # On macOS, Python's `lib` folder includes OpenSSL 1.1. The linker checks
+      # that folder before Homebrew's OpenSSL 3+, so it picks the old version
+      # and fails. Linking OpenSSL statically avoids the search.
+      - name: Link OpenSSL statically (macOS)
+        if: runner.os == 'macOS'
+        run: echo "OPENSSL_STATIC=1" >> "$GITHUB_ENV"
+
       - name: Cache build artifacts
         uses: Swatinem/rust-cache@v2
         with:
+          key: python-${{ steps.python.outputs.python-version }}
           # Only save cache on the main branch, as caches saved on other branches cannot be shared.
           # <https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache>
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -115,6 +140,7 @@ jobs:
         shell: bash
         env:
           RUST_LOG: info,thirtyfour::manager::driver=debug
+          PYO3_PYTHON: ${{ steps.python.outputs.python-path }}
         run: |
           cargo llvm-cov clean --workspace
           cargo llvm-cov --no-report nextest --profile=ci --workspace --locked --all-targets --exclude fuzz --all-features --no-fail-fast

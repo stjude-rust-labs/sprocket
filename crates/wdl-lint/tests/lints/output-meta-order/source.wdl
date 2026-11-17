@@ -42,3 +42,52 @@ workflow output_meta_order_workflow {
         String workflow_second = value
     }
 }
+
+task output_meta_order_with_doc_comments_ok {
+    meta {
+        outputs: {
+            first: "The first output",
+            second: "The second output",
+        }
+    }
+
+    requirements {
+        container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
+    }
+
+    command <<<
+        echo "hello"
+    >>>
+
+    output {
+        ## ignored output with doc comments
+        String ignored = "zero"
+        String first = "one"
+        String second = "two"
+    }
+}
+
+task output_meta_order_with_doc_comments_err {
+    meta {
+        outputs: {
+            second: "The second output",
+            first: "The first output",
+        }
+    }
+
+    requirements {
+        container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
+    }
+
+    command <<<
+        echo "hello"
+    >>>
+
+    output {
+        ## ignored output with doc comments
+        String ignored = "zero"
+        String first = "one"
+        String second = "two"
+    }
+}
+

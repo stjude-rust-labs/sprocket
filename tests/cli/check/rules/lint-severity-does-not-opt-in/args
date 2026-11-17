@@ -1,1 +1,1 @@
---config sprocket.toml check --lint source.wdl
+--config sprocket.toml check source.wdl

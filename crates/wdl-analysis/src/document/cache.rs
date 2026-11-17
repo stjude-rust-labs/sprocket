@@ -5,20 +5,17 @@ mod hash;
 mod tests;
 
 use std::cmp::Ordering;
-use std::hash::Hash;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
 use petgraph::prelude::DiGraphMap;
 use sha2::Digest;
 use sha2::Sha256;
-use url::Url;
+use wdl_ast::AstToken;
 use wdl_ast::TreeNode;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::DocumentItem;
-use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::ImportStatement;
-use wdl_ast::v1::StructDefinition;
 use wdl_grammar::Diagnostic;
 use wdl_grammar::Span;
 use wdl_grammar::SyntaxKind;
@@ -27,19 +24,21 @@ use crate::AppliedEdit;
 use crate::Diagnostics;
 use crate::Exceptable;
 use crate::document::Enum;
+use crate::document::EnumRef;
 use crate::document::ImportedEnum;
 use crate::document::ImportedStruct;
 use crate::document::ImportedTask;
 use crate::document::ImportedWorkflow;
-use crate::document::Input;
+use crate::document::MaybeImported;
 use crate::document::Namespace;
-use crate::document::Output;
 use crate::document::Struct;
+use crate::document::StructRef;
 use crate::document::Task;
+use crate::document::TaskRef;
 use crate::document::Workflow;
+use crate::document::WorkflowRef;
 use crate::document::cache::hash::HashableCallable;
 use crate::document::cache::hash::HashableItem;
-use crate::types::Type;
 
 /// The kind of an [`LocalItem`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -53,30 +52,28 @@ pub enum ItemKind {
     Task,
     /// A workflow.
     Workflow,
-    /// An import.
-    Import,
 }
 
 /// The import merges its contents directly into the document's scope.
 #[derive(Debug, Clone, Default, PartialEq)]
-pub(crate) struct MergingImport {
+pub struct MergingImport {
     /// Tasks imported via wildcard or selected import.
-    pub(in crate::document) imported_tasks: IndexMap<String, ImportedTask>,
+    pub imported_tasks: IndexMap<String, ImportedTask>,
     /// Workflows imported via wildcard or selected import.
-    pub(in crate::document) imported_workflows: IndexMap<String, ImportedWorkflow>,
+    pub imported_workflows: IndexMap<String, ImportedWorkflow>,
     /// Structs imported via wildcard or selected import.
     ///
     /// NOTE: While this is separated from the [`Document`], imported
     /// structs/enums are copied into the document's scope and should
     /// be treated as though they were defined in the document.
-    pub(in crate::document) imported_structs: IndexMap<String, ImportedStruct>,
+    pub imported_structs: IndexMap<String, ImportedStruct>,
     /// Enums imported via wildcard or selected import.
-    pub(in crate::document) imported_enums: IndexMap<String, ImportedEnum>,
+    pub imported_enums: IndexMap<String, ImportedEnum>,
 }
 
 impl MergingImport {
     /// Gets all of the items that this import brings into scope.
-    pub(crate) fn items(&self) -> impl Iterator<Item = ImportedItem<'_>> {
+    pub fn items(&self) -> impl Iterator<Item = ImportedItem<'_>> {
         self.imported_tasks
             .values()
             .map(ImportedItem::Task)
@@ -88,7 +85,7 @@ impl MergingImport {
 
 /// An import in a document.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Import {
+pub enum Import {
     /// The import introduces a new namespace in the document.
     Namespace(Namespace),
     /// The import merges its contents directly into the document's scope.
@@ -98,7 +95,7 @@ pub(crate) enum Import {
 impl Import {
     /// Get the [`MergingImport`] contents of the import if it's a merging
     /// import.
-    pub(crate) fn merging(&self) -> Option<&MergingImport> {
+    pub fn merging(&self) -> Option<&MergingImport> {
         match self {
             Import::Merging(i) => Some(i),
             _ => None,
@@ -106,7 +103,7 @@ impl Import {
     }
 
     /// Get the namespace of the import, if it has one.
-    pub(crate) fn namespace(&self) -> Option<&Namespace> {
+    pub fn namespace(&self) -> Option<&Namespace> {
         match self {
             Import::Namespace(n) => Some(n),
             _ => None,
@@ -130,7 +127,7 @@ impl Import {
     }
 
     /// Add a struct to this import.
-    pub(in crate::document) fn add_struct(&mut self, s: ImportedStruct) {
+    pub fn add_struct(&mut self, s: ImportedStruct) {
         let _ = match self {
             Import::Namespace(n) => n.imported_structs.insert(s.local_name.clone(), s),
             Import::Merging(m) => m.imported_structs.insert(s.local_name.clone(), s),
@@ -146,7 +143,7 @@ impl Import {
     }
 
     /// Add an enum to this import.
-    pub(in crate::document) fn add_enum(&mut self, e: ImportedEnum) {
+    pub fn add_enum(&mut self, e: ImportedEnum) {
         let _ = match self {
             Import::Namespace(n) => n.imported_enums.insert(e.local_name.clone(), e),
             Import::Merging(m) => m.imported_enums.insert(e.local_name.clone(), e),
@@ -155,7 +152,8 @@ impl Import {
 }
 
 /// A reference to an externally defined item.
-pub(crate) enum ImportedItem<'a> {
+#[derive(Debug)]
+pub enum ImportedItem<'a> {
     /// A struct.
     Struct(&'a ImportedStruct),
     /// An enum.
@@ -178,284 +176,39 @@ impl<'a> ImportedItem<'a> {
     }
 }
 
-/// An item in the current document's scope.
-#[derive(Copy, Clone, Debug)]
-pub enum MaybeImported<Local, Imported> {
-    /// The item is locally defined.
-    Local(Local),
-    /// The item was imported from another document.
-    Imported(Imported),
-}
-
-impl<L, I> MaybeImported<L, I> {
-    /// Returns true if the item was imported.
-    pub fn is_imported(&self) -> bool {
-        matches!(self, Self::Imported(_))
-    }
-
-    /// Returns the imported item.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the item was locally defined.
-    pub fn expect_imported(self) -> I {
-        match self {
-            Self::Imported(i) => i,
-            Self::Local(_) => panic!("expected an imported item"),
-        }
-    }
-
-    /// Returns the contained local item.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the item was imported.
-    pub fn expect_local(self) -> L {
-        match self {
-            Self::Local(l) => l,
-            Self::Imported(_) => panic!("expected a locally defined item"),
-        }
-    }
-}
-
-/// A reference to an item in the document's scope.
-pub(in crate::document) type Item<'a> = MaybeImported<CachedItemRef<'a>, ImportedItem<'a>>;
-
-/// A reference to a workflow in the document's scope.
-pub type WorkflowRef<'a> = MaybeImported<&'a Workflow, &'a ImportedWorkflow>;
-impl<'a> WorkflowRef<'a> {
-    /// Gets the name of the workflow.
-    pub fn name(&self) -> &'a str {
-        match self {
-            WorkflowRef::Local(w) => w.name(),
-            WorkflowRef::Imported(i) => &i.local_name,
-        }
-    }
-
-    /// Gets the span of the name.
-    pub fn name_span(&self) -> Span {
-        match self {
-            WorkflowRef::Local(w) => w.name_span(),
-            WorkflowRef::Imported(i) => i.span,
-        }
-    }
-
-    /// The inputs of the workflow.
-    pub fn inputs(&self) -> Arc<IndexMap<String, Input>> {
-        match self {
-            WorkflowRef::Local(w) => Arc::clone(&w.inputs),
-            WorkflowRef::Imported(i) => Arc::clone(&i.inputs),
-        }
-    }
-
-    /// The outputs of the workflow.
-    pub fn outputs(&self) -> Arc<IndexMap<String, Output>> {
-        match self {
-            WorkflowRef::Local(w) => Arc::clone(&w.outputs),
-            WorkflowRef::Imported(i) => Arc::clone(&i.outputs),
-        }
-    }
-
-    /// Gets the source of the workflow, if it was imported.
-    pub fn source(&self) -> Option<Arc<Url>> {
-        match self {
-            WorkflowRef::Local(_) => None,
-            WorkflowRef::Imported(i) => Some(i.source()),
-        }
-    }
-}
-
-/// A reference to a task in the document's scope.
-pub type TaskRef<'a> = MaybeImported<&'a Task, &'a ImportedTask>;
-impl<'a> TaskRef<'a> {
-    /// Gets the name of the task.
-    pub fn name(&self) -> &'a str {
-        match self {
-            TaskRef::Local(t) => t.name(),
-            TaskRef::Imported(i) => &i.local_name,
-        }
-    }
-
-    /// Gets the span of the name.
-    pub fn name_span(&self) -> Span {
-        match self {
-            TaskRef::Local(t) => t.name_span(),
-            TaskRef::Imported(i) => i.span,
-        }
-    }
-
-    /// The inputs of the task.
-    pub fn inputs(&self) -> Arc<IndexMap<String, Input>> {
-        match self {
-            TaskRef::Local(t) => Arc::clone(&t.inputs),
-            TaskRef::Imported(i) => Arc::clone(&i.inputs),
-        }
-    }
-
-    /// The outputs of the task.
-    pub fn outputs(&self) -> Arc<IndexMap<String, Output>> {
-        match self {
-            TaskRef::Local(t) => Arc::clone(&t.outputs),
-            TaskRef::Imported(i) => Arc::clone(&i.outputs),
-        }
-    }
-
-    /// Gets the source of the task, if it was imported.
-    pub fn source(&self) -> Option<Arc<Url>> {
-        match self {
-            TaskRef::Local(_) => None,
-            TaskRef::Imported(i) => Some(i.source()),
-        }
-    }
-}
-
-/// A reference to a struct in the document's scope.
-pub type StructRef<'a> = MaybeImported<&'a Struct, &'a ImportedStruct>;
-impl<'a> StructRef<'a> {
-    /// Gets the name of the struct.
-    pub fn name(&self) -> &'a str {
-        match self {
-            StructRef::Local(s) => s.name(),
-            StructRef::Imported(i) => &i.local_name,
-        }
-    }
-
-    /// Gets the span of the name.
-    pub fn name_span(&self) -> Span {
-        match self {
-            StructRef::Local(s) => s.name_span(),
-            StructRef::Imported(i) => i.span,
-        }
-    }
-
-    /// Gets the type of the struct, if it was computed.
-    pub fn ty(&self) -> Option<&'a Type> {
-        match self {
-            StructRef::Local(s) => s.ty(),
-            StructRef::Imported(i) => i.ty(),
-        }
-    }
-
-    /// Gets the source of the struct, if it was imported.
-    pub fn source(&self) -> Option<Arc<Url>> {
-        match self {
-            StructRef::Local(_) => None,
-            StructRef::Imported(i) => Some(i.source()),
-        }
-    }
-
-    /// Reconstructs the AST definition from the stored green node.
-    pub fn definition(&self) -> StructDefinition {
-        match self {
-            StructRef::Local(s) => s.definition(),
-            StructRef::Imported(i) => i.definition(),
-        }
-    }
-
-    /// Gets the offset of the struct in the source document's CST.
-    pub fn offset(&self) -> usize {
-        match self {
-            StructRef::Local(s) => s.offset(),
-            StructRef::Imported(i) => i.offset(),
-        }
-    }
-
-    /// Gets the node of the struct.
-    pub fn node(&self) -> &'a rowan::GreenNode {
-        match self {
-            StructRef::Local(s) => s.node(),
-            StructRef::Imported(i) => i.node(),
-        }
-    }
-}
-
-/// A reference to an enum in the document's scope.
-pub type EnumRef<'a> = MaybeImported<&'a Enum, &'a ImportedEnum>;
-impl<'a> EnumRef<'a> {
-    /// Gets the name of the enum.
-    pub fn name(&self) -> &'a str {
-        match self {
-            EnumRef::Local(e) => e.name(),
-            EnumRef::Imported(i) => &i.local_name,
-        }
-    }
-
-    /// Gets the span of the name.
-    pub fn name_span(&self) -> Span {
-        match self {
-            EnumRef::Local(e) => e.name_span(),
-            EnumRef::Imported(i) => i.span,
-        }
-    }
-
-    /// Gets the type of the enum, if it was computed.
-    pub fn ty(&self) -> Option<&'a Type> {
-        match self {
-            EnumRef::Local(e) => e.ty(),
-            EnumRef::Imported(i) => i.ty(),
-        }
-    }
-
-    /// Gets the source of the enum if it was imported.
-    pub fn source(&self) -> Option<Arc<Url>> {
-        match self {
-            EnumRef::Local(_) => None,
-            EnumRef::Imported(i) => Some(i.source()),
-        }
-    }
-
-    /// Reconstructs the AST definition from the stored green node.
-    pub fn definition(&self) -> EnumDefinition {
-        match self {
-            EnumRef::Local(e) => e.definition(),
-            EnumRef::Imported(i) => i.definition(),
-        }
-    }
-
-    /// Gets the offset of the enum.
-    pub fn offset(&self) -> usize {
-        match self {
-            EnumRef::Local(e) => e.offset(),
-            EnumRef::Imported(i) => i.offset(),
-        }
-    }
-
-    /// Gets the node of the enum.
-    pub fn node(&self) -> &'a rowan::GreenNode {
-        match self {
-            EnumRef::Local(e) => e.node(),
-            EnumRef::Imported(i) => i.node(),
-        }
-    }
-}
-
-impl<'a> Item<'a> {
-    /// Get the name of the item, if it introduces one.
-    fn name(&self) -> Option<&'a str> {
-        match self {
-            Item::Local(i) => i.name(),
-            Item::Imported(i) => Some(i.aliased_name()),
-        }
-    }
-
-    /// Get the [`SignatureHash`] of the item, if it was locally defined.
-    pub fn signature_hash(&self) -> Option<SignatureHash> {
-        match self {
-            Item::Local(i) => Some(i.signature_hash()),
-            Item::Imported(_) => None,
-        }
-    }
-}
-
 /// A hash of an item's signature.
 ///
 /// Any changes to the signature of an item will invalidate it and all of its
 /// dependents.
-pub(in crate::document) type SignatureHash = [u8; 32];
+pub type SignatureHash = [u8; 32];
 /// A hash of an item's body.
 ///
 /// Any change to the body of an item will only invalidate itself.
-pub(in crate::document) type BodyHash = [u8; 32];
+pub type BodyHash = [u8; 32];
+
+/// The declarations and resolved imports that determine document scope.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct ScopeState {
+    /// Local declarations in analysis order.
+    declarations: Vec<(ItemKind, String)>,
+    /// Import signatures and the hashes of their resolved exports.
+    imports: Vec<(SignatureHash, Option<BodyHash>)>,
+}
+
+impl ScopeState {
+    /// Returns whether existing callables must be rebuilt for `current`.
+    fn requires_callable_refresh(&self, current: &Self) -> bool {
+        if self.imports != current.imports {
+            return true;
+        }
+
+        let mut previous = self.declarations.iter();
+        current
+            .declarations
+            .iter()
+            .any(|declaration| !previous.any(|candidate| candidate == declaration))
+    }
+}
 
 /// An analyzed item with an associated [`BodyHash`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -481,7 +234,7 @@ pub struct CachedItem<T> {
 
 impl<T> CachedItem<T> {
     /// Create a new cached item.
-    pub(in crate::document) fn new(
+    pub fn new(
         signature_hash: SignatureHash,
         offset: usize,
         item: T,
@@ -516,7 +269,7 @@ impl<T> CachedItem<T> {
     /// Adds a diagnostic to this item.
     ///
     /// NOTE: This expects diagnostics with absolute offsets.
-    pub(in crate::document) fn add_diagnostic(&mut self, mut diagnostic: Diagnostic) {
+    pub fn add_diagnostic(&mut self, mut diagnostic: Diagnostic) {
         diagnostic.offset(-(self.offset as isize));
         self.diagnostics.add(diagnostic);
     }
@@ -524,7 +277,7 @@ impl<T> CachedItem<T> {
     /// See [`Diagnostics::exceptable_add()`]
     ///
     /// NOTE: This expects diagnostics with absolute offsets.
-    pub(in crate::document) fn exceptable_add<N: TreeNode + Exceptable>(
+    pub fn exceptable_add<N: TreeNode + Exceptable>(
         &mut self,
         mut diagnostic: Diagnostic,
         element: &N,
@@ -565,9 +318,31 @@ impl<T> CachedItem<WithBodyHash<T>> {
     }
 }
 
+/// A reference to an item in the document's scope.
+pub type Item<'a> = MaybeImported<CachedItemRef<'a>, ImportedItem<'a>>;
+
+impl<'a> Item<'a> {
+    /// Get the name of the item, if it introduces one.
+    fn name(&self) -> Option<&'a str> {
+        match self {
+            Item::Local(i) => i.name(),
+            Item::Imported(i) => Some(i.aliased_name()),
+        }
+    }
+
+    /// Get the [`SignatureHash`] of the item, if it was locally defined.
+    #[cfg(test)]
+    fn signature_hash(&self) -> Option<SignatureHash> {
+        match self {
+            Item::Local(i) => Some(i.signature_hash()),
+            Item::Imported(_) => None,
+        }
+    }
+}
+
 /// A mutable reference to an item in the cache.
 #[derive(Debug)]
-pub(in crate::document) enum CachedItemRefMut<'a> {
+pub enum CachedItemRefMut<'a> {
     /// An analyzed struct.
     Struct(&'a mut CachedItem<Struct>),
     /// An analyzed enum.
@@ -825,7 +600,7 @@ impl CachedItemRefMut<'_> {
 
 /// A reference to an item in the cache.
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub(in crate::document) enum CachedItemRef<'a> {
+pub enum CachedItemRef<'a> {
     /// An analyzed struct.
     Struct(&'a CachedItem<Struct>),
     /// An analyzed enum.
@@ -906,19 +681,21 @@ struct TestCache {
 
 /// A cache of a document's analyzed items.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct AnalysisCache {
+pub struct AnalysisCache {
     /// Map of struct hashes to their cached analysis results.
     pub structs: IndexMap<SignatureHash, CachedItem<Struct>>,
     /// Map of enum hashes to their cached analysis results.
     pub enums: IndexMap<SignatureHash, CachedItem<Enum>>,
     /// Map of task hashes to their cached analysis results.
     pub tasks: IndexMap<SignatureHash, CachedItem<WithBodyHash<Task>>>,
-    /// The workflow in the document.
-    pub workflow: Option<CachedItem<WithBodyHash<Workflow>>>,
+    /// Map of workflow hashes to their cached analysis results.
+    pub workflows: IndexMap<SignatureHash, CachedItem<WithBodyHash<Workflow>>>,
     /// Map of import hashes to their cached analysis results.
     pub imports: IndexMap<SignatureHash, CachedItem<WithBodyHash<Import>>>,
     /// Analysis item dependency graph.
     dependencies: DiGraphMap<SignatureHash, ()>,
+    /// The scope state from which this cache was populated.
+    scope: ScopeState,
     /// Extra data used for tests.
     #[cfg(test)]
     tests: TestCache,
@@ -929,7 +706,7 @@ impl PartialEq for AnalysisCache {
         self.structs == other.structs
             && self.enums == other.enums
             && self.tasks == other.tasks
-            && self.workflow == other.workflow
+            && self.workflows == other.workflows
             && self.imports == other.imports
             && self
                 .dependencies
@@ -955,7 +732,7 @@ macro_rules! item_getters {
             ///
             /// * `index` - The position of the item in the cache. See
             #[doc = "[`Self::" $item_ty "_by_index()`]."]
-            pub(crate) fn $local_fn(&self) -> impl Iterator<Item = (usize, SignatureHash, &$ty)> {
+            pub fn $local_fn(&self) -> impl Iterator<Item = (usize, SignatureHash, &$ty)> {
                 self.$cache_field
                     .iter()
                     .enumerate()
@@ -965,7 +742,7 @@ macro_rules! item_getters {
             #[doc = "Gets a locally defined " $item_ty " in the document by name."]
             ///
             #[doc = "See: [`Self::" $local_fn "`]"]
-            pub(crate) fn $local_fn_by_name(&self, name: &str) -> Option<(usize, SignatureHash, &$ty)> {
+            pub fn $local_fn_by_name(&self, name: &str) -> Option<(usize, SignatureHash, &$ty)> {
                 self.$local_fn().find(|(_idx, _hash, i)| i.name() == name)
             }
 
@@ -974,7 +751,7 @@ macro_rules! item_getters {
             /// NOTE: This includes both locally defined and imported items.
             ///
             #[doc = "See: [`Self::" $local_fn "`], [`Self::" $import_fn "`]."]
-            pub(crate) fn $cache_field(&self) -> impl Iterator<Item = $ref_ty<'_>> {
+            pub fn $cache_field(&self) -> impl Iterator<Item = $ref_ty<'_>> {
                 self.$local_fn()
                     .map(|(_idx, _hash, t)| $ref_ty::Local(t))
                     .chain(self.$import_fn().map(|(_hash, t)| $ref_ty::Imported(t)))
@@ -983,7 +760,7 @@ macro_rules! item_getters {
             #[doc = "Gets a " $item_ty " in the document by name."]
             ///
             #[doc = "See: [`Self::" $local_fn_by_name "`], [`Self::" $import_fn_by_name "`]."]
-            pub(crate) fn $all_by_name(&self, name: &str) -> Option<(SignatureHash, $ref_ty<'_>)> {
+            pub fn $all_by_name(&self, name: &str) -> Option<(SignatureHash, $ref_ty<'_>)> {
                 self.$local_fn_by_name(name)
                     .map(|(_idx, hash, t)| (hash, $ref_ty::Local(t)))
                     .or_else(|| {
@@ -996,7 +773,7 @@ macro_rules! item_getters {
             ///
             /// NOTE: This only includes imports in the current document's scope. Namespaced imports
             ///       are available through [`Self::namespaces()`].
-            pub(crate) fn $import_fn_by_name(
+            pub fn $import_fn_by_name(
                 &self,
                 name: &str,
             ) -> Option<(SignatureHash, &$imported_ty)> {
@@ -1012,6 +789,7 @@ macro_rules! item_getters {
 impl AnalysisCache {
     item_getters!(
         (task, tasks, task_by_name, local_tasks, local_task_by_name, imported_tasks, imported_task_by_name) => (Task, TaskRef, ImportedTask),
+        (workflow, workflows, workflow_by_name, local_workflows, local_workflow_by_name, imported_workflows, imported_workflow_by_name) => (Workflow, WorkflowRef, ImportedWorkflow),
         (struct, structs, struct_by_name, local_structs, local_struct_by_name, imported_structs, imported_struct_by_name) => (Struct, StructRef, ImportedStruct),
         (enum, enums, enum_by_name, local_enums, local_enum_by_name, imported_enums, imported_enum_by_name) => (Enum, EnumRef, ImportedEnum),
     );
@@ -1022,28 +800,21 @@ impl AnalysisCache {
             structs,
             enums,
             tasks,
-            workflow,
+            workflows,
             imports,
             dependencies: _,
+            scope: _,
             #[cfg(test)]
                 tests: _,
         } = self;
 
-        structs.len() + enums.len() + tasks.len() + workflow.is_some() as usize + imports.len()
-    }
-
-    /// Returns whether the cache is empty.
-    #[cfg(test)]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        structs.len() + enums.len() + tasks.len() + workflows.len() + imports.len()
     }
 
     /// Gets all imported structs in the document.
     ///
     /// NOTE: This includes structs from all import forms.
-    pub(crate) fn imported_structs(
-        &self,
-    ) -> impl Iterator<Item = (SignatureHash, &ImportedStruct)> {
+    pub fn imported_structs(&self) -> impl Iterator<Item = (SignatureHash, &ImportedStruct)> {
         self.imports()
             .flat_map(|(_idx, hash, i)| i.structs().map(move |s| (hash, s)))
     }
@@ -1051,7 +822,7 @@ impl AnalysisCache {
     /// Gets all imported enums in the document.
     ///
     /// NOTE: This includes enums from all import forms.
-    pub(crate) fn imported_enums(&self) -> impl Iterator<Item = (SignatureHash, &ImportedEnum)> {
+    pub fn imported_enums(&self) -> impl Iterator<Item = (SignatureHash, &ImportedEnum)> {
         self.imports()
             .flat_map(|(_idx, hash, i)| i.enums().map(move |e| (hash, e)))
     }
@@ -1060,14 +831,14 @@ impl AnalysisCache {
     ///
     /// NOTE: This only includes tasks in the current document's scope (e.g.,
     /// those from select/wildcard imports).
-    pub(crate) fn imported_tasks(&self) -> impl Iterator<Item = (SignatureHash, &ImportedTask)> {
+    pub fn imported_tasks(&self) -> impl Iterator<Item = (SignatureHash, &ImportedTask)> {
         self.imports()
             .filter_map(|(_idx, hash, i)| i.merging().map(|m| (hash, m)))
             .flat_map(|(hash, i)| i.imported_tasks.values().map(move |t| (hash, t)))
     }
 
     /// Gets the import statements in the document.
-    pub(crate) fn imports(&self) -> impl Iterator<Item = (usize, SignatureHash, &Import)> {
+    pub fn imports(&self) -> impl Iterator<Item = (usize, SignatureHash, &Import)> {
         self.imports
             .iter()
             .enumerate()
@@ -1075,7 +846,7 @@ impl AnalysisCache {
     }
 
     /// Gets the namespaces in the document.
-    pub(crate) fn namespaces(&self) -> impl Iterator<Item = (SignatureHash, &Namespace)> {
+    pub fn namespaces(&self) -> impl Iterator<Item = (SignatureHash, &Namespace)> {
         self.imports()
             .filter_map(|(_idx, hash, i)| i.namespace().map(|ns| (hash, ns)))
     }
@@ -1085,50 +856,14 @@ impl AnalysisCache {
         self.namespaces().find(|(_, ns)| ns.name == name)
     }
 
-    /// Gets the workflow in the document.
-    ///
-    /// Returns `None` if the document did not contain a workflow.
-    pub(crate) fn workflow(&self) -> Option<&Workflow> {
-        self.workflow.as_ref().map(|i| &i.item.item)
-    }
-
-    /// Gets an imported workflow in the document by local name.
-    ///
-    /// NOTE: This only includes workflows in the current document's scope
-    /// (e.g., those from select/wildcard imports).
-    pub(crate) fn imported_workflow_by_name(
-        &self,
-        name: &str,
-    ) -> Option<(SignatureHash, &ImportedWorkflow)> {
-        self.imports()
-            .filter_map(|(_idx, hash, i)| i.merging().map(|m| (hash, m)))
-            .find_map(|(hash, i)| i.imported_workflows.get(name).map(|w| (hash, w)))
-    }
-
     /// Gets all imported workflows in the document.
     ///
     /// NOTE: This only includes workflows in the current document's scope
     /// (e.g., those from select/wildcard imports).
-    pub(crate) fn imported_workflows(
-        &self,
-    ) -> impl Iterator<Item = (SignatureHash, &ImportedWorkflow)> {
+    pub fn imported_workflows(&self) -> impl Iterator<Item = (SignatureHash, &ImportedWorkflow)> {
         self.imports()
             .filter_map(|(_idx, hash, i)| i.merging().map(|m| (hash, m)))
             .flat_map(|(hash, i)| i.imported_workflows.values().map(move |w| (hash, w)))
-    }
-
-    /// Gets a task in the document by name.
-    ///
-    /// See: [`Self::imported_workflow_by_name()`].
-    pub(crate) fn workflow_by_name(&self, name: &str) -> Option<(SignatureHash, WorkflowRef<'_>)> {
-        self.workflow
-            .as_ref()
-            .filter(|wf| wf.item.item.name == name)
-            .map(|item| (item.signature_hash, WorkflowRef::Local(&item.item.item)))
-            .or_else(|| {
-                self.imported_workflow_by_name(name)
-                    .map(|(hash, wf)| (hash, WorkflowRef::Imported(wf)))
-            })
     }
 }
 
@@ -1142,11 +877,19 @@ impl AnalysisCache {
     /// 1. `import`
     /// 2. `struct`, `enum`
     /// 3. `task`, `workflow`
-    pub(in crate::document) fn dirty<'a>(
+    pub fn dirty<'a>(
         &self,
         current_ast: &'a AstItems,
     ) -> impl Iterator<Item = (SignatureHash, Option<BodyHash>, &'a DocumentItem)> {
+        let mut seen = std::collections::HashSet::new();
         current_ast.items.iter().filter_map(move |ast_item| {
+            // The cache is keyed by signature hash and can retain only one
+            // identical definition. Keep later occurrences dirty so their
+            // conflict diagnostics are reproduced after incremental edits.
+            if !seen.insert(ast_item.signature_hash) {
+                return Some((ast_item.signature_hash, ast_item.body_hash, &ast_item.item));
+            }
+
             match self.get(&ast_item.signature_hash) {
                 Some(cache_item) => {
                     let Some(expected_body_hash) = cache_item.body_hash() else {
@@ -1181,72 +924,50 @@ impl AnalysisCache {
             .map(CachedItemRef::Struct)
             .chain(self.enums.values().map(CachedItemRef::Enum))
             .chain(self.tasks.values().map(CachedItemRef::Task))
-            .chain(
-                self.workflow
-                    .as_ref()
-                    .into_iter()
-                    .map(CachedItemRef::Workflow),
-            )
+            .chain(self.workflows.values().map(CachedItemRef::Workflow))
             .chain(self.imports.values().map(CachedItemRef::Import))
     }
 
     /// Gets a mutable reference all of the items in the cache.
-    pub(in crate::document) fn items_mut(&mut self) -> impl Iterator<Item = CachedItemRefMut<'_>> {
+    pub fn items_mut(&mut self) -> impl Iterator<Item = CachedItemRefMut<'_>> {
         self.structs
             .values_mut()
             .map(CachedItemRefMut::Struct)
             .chain(self.enums.values_mut().map(CachedItemRefMut::Enum))
             .chain(self.tasks.values_mut().map(CachedItemRefMut::Task))
-            .chain(
-                self.workflow
-                    .as_mut()
-                    .into_iter()
-                    .map(CachedItemRefMut::Workflow),
-            )
+            .chain(self.workflows.values_mut().map(CachedItemRefMut::Workflow))
             .chain(self.imports.values_mut().map(CachedItemRefMut::Import))
     }
 
     /// Gets all of the diagnostics in the cache.
-    pub(in crate::document) fn diagnostics(&self) -> impl Iterator<Item = Diagnostic> + use<'_> {
+    pub fn diagnostics(&self) -> impl Iterator<Item = Diagnostic> + use<'_> {
         self.items().flat_map(|i| i.diagnostics())
     }
 
     /// Looks up a cached item by hash.
-    pub(in crate::document) fn get(&self, hash: &SignatureHash) -> Option<CachedItemRef<'_>> {
+    pub fn get(&self, hash: &SignatureHash) -> Option<CachedItemRef<'_>> {
         self.structs
             .get(hash)
             .map(CachedItemRef::Struct)
             .or_else(|| self.enums.get(hash).map(CachedItemRef::Enum))
             .or_else(|| self.tasks.get(hash).map(CachedItemRef::Task))
-            .or_else(|| {
-                if self.workflow.as_ref().map(|w| &w.signature_hash) == Some(hash) {
-                    self.workflow.as_ref().map(CachedItemRef::Workflow)
-                } else {
-                    None
-                }
-            })
+            .or_else(|| self.workflows.get(hash).map(CachedItemRef::Workflow))
             .or_else(|| self.imports.get(hash).map(CachedItemRef::Import))
     }
 
     /// Looks up a cached item by hash.
-    fn get_mut(&mut self, hash: &SignatureHash) -> Option<CachedItemRefMut<'_>> {
+    pub fn get_mut(&mut self, hash: &SignatureHash) -> Option<CachedItemRefMut<'_>> {
         self.structs
             .get_mut(hash)
             .map(CachedItemRefMut::Struct)
             .or_else(|| self.enums.get_mut(hash).map(CachedItemRefMut::Enum))
             .or_else(|| self.tasks.get_mut(hash).map(CachedItemRefMut::Task))
-            .or_else(|| {
-                if self.workflow.as_ref().map(|w| &w.signature_hash) == Some(hash) {
-                    self.workflow.as_mut().map(CachedItemRefMut::Workflow)
-                } else {
-                    None
-                }
-            })
+            .or_else(|| self.workflows.get_mut(hash).map(CachedItemRefMut::Workflow))
             .or_else(|| self.imports.get_mut(hash).map(CachedItemRefMut::Import))
     }
 
     /// Get an item in the document's scope by name.
-    pub(in crate::document) fn item_by_name(&self, name: &str) -> Option<Item<'_>> {
+    pub fn item_by_name(&self, name: &str) -> Option<Item<'_>> {
         self.items()
             .map(Item::Local)
             .chain(
@@ -1258,12 +979,12 @@ impl AnalysisCache {
     }
 
     /// Gets a struct in the document at the given cache index.
-    pub(in crate::document) fn struct_by_index(&self, index: usize) -> Option<&Struct> {
+    pub fn struct_by_index(&self, index: usize) -> Option<&Struct> {
         Some(&self.structs.get_index(index)?.1.item)
     }
 
     /// Gets an enum in the document at the given cache index.
-    pub(in crate::document) fn enum_by_index(&self, index: usize) -> Option<&Enum> {
+    pub fn enum_by_index(&self, index: usize) -> Option<&Enum> {
         Some(&self.enums.get_index(index)?.1.item)
     }
 
@@ -1276,12 +997,12 @@ impl AnalysisCache {
             .keys()
             .chain(self.enums.keys())
             .chain(self.tasks.keys())
-            .chain(self.workflow.as_ref().map(|w| &w.signature_hash))
+            .chain(self.workflows.keys())
             .chain(self.imports.keys())
     }
 
     /// Hash all of the exported symbols in the cache.
-    pub(in crate::document) fn exports_hash(&self) -> BodyHash {
+    pub fn exports_hash(&self) -> BodyHash {
         let mut hasher = Sha256::default();
 
         // Invalidation, on both the signature and body level, will shift around
@@ -1299,7 +1020,7 @@ impl AnalysisCache {
 
 /// The method for invalidating an existing cache item.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(in crate::document) enum InvalidationStrategy {
+pub enum InvalidationStrategy {
     /// The item's signature needs to be invalidated.
     Signature,
     /// The item's body needs to be invalidated.
@@ -1309,10 +1030,7 @@ pub(in crate::document) enum InvalidationStrategy {
 // Mutation (only ever used in `populate_document`)
 impl AnalysisCache {
     /// Inserts an import into the cache.
-    pub(in crate::document) fn insert_import(
-        &mut self,
-        mut item: CachedItem<WithBodyHash<Import>>,
-    ) {
+    pub fn insert_import(&mut self, mut item: CachedItem<WithBodyHash<Import>>) {
         let hash = item.signature_hash;
         item.shift_diagnostic_offsets();
 
@@ -1321,7 +1039,7 @@ impl AnalysisCache {
     }
 
     /// Inserts an enum into the cache.
-    pub(in crate::document) fn insert_enum(&mut self, mut item: CachedItem<Enum>) {
+    pub fn insert_enum(&mut self, mut item: CachedItem<Enum>) {
         let hash = item.signature_hash;
         item.shift_diagnostic_offsets();
 
@@ -1330,7 +1048,7 @@ impl AnalysisCache {
     }
 
     /// Inserts a struct into the cache.
-    pub(in crate::document) fn insert_struct(&mut self, mut item: CachedItem<Struct>) {
+    pub fn insert_struct(&mut self, mut item: CachedItem<Struct>) {
         let hash = item.signature_hash;
         item.shift_diagnostic_offsets();
 
@@ -1339,7 +1057,7 @@ impl AnalysisCache {
     }
 
     /// Inserts a task into the cache.
-    pub(in crate::document) fn insert_task(&mut self, mut item: CachedItem<WithBodyHash<Task>>) {
+    pub fn insert_task(&mut self, mut item: CachedItem<WithBodyHash<Task>>) {
         let hash = item.signature_hash;
         item.shift_diagnostic_offsets();
 
@@ -1348,35 +1066,31 @@ impl AnalysisCache {
     }
 
     /// Inserts a workflow into the cache.
-    pub(in crate::document) fn set_workflow(&mut self, item: CachedItem<WithBodyHash<Workflow>>) {
-        // NOTE: We don't shift the diagnostics here. Workflow addition and
-        // population are different steps. Diagnostics are shifted
-        // *after* `populate_workflow()`.
+    pub fn insert_workflow(&mut self, mut item: CachedItem<WithBodyHash<Workflow>>) {
         let hash = item.signature_hash;
-        self.workflow = Some(item);
+        item.shift_diagnostic_offsets();
+
+        self.workflows.insert(item.signature_hash, item);
         self.dependencies.add_node(hash);
     }
 
     /// Gets the namespaces in the document.
-    pub(in crate::document) fn namespaces_mut(&mut self) -> impl Iterator<Item = &mut Namespace> {
+    pub fn namespaces_mut(&mut self) -> impl Iterator<Item = &mut Namespace> {
         self.imports
             .values_mut()
             .flat_map(|i| i.item.item.namespace_mut())
     }
 
-    /// Gets a mutable reference to the cached item for the workflow in the
-    /// document.
-    pub(in crate::document) fn workflow_item_mut(
+    /// Gets a mutable reference to a cached workflow by signature hash.
+    pub fn workflow_item_mut(
         &mut self,
+        hash: &SignatureHash,
     ) -> Option<&mut CachedItem<WithBodyHash<Workflow>>> {
-        self.workflow.as_mut()
+        self.workflows.get_mut(hash)
     }
 
     /// Gets a mutable reference to a `struct` `CachedItem` at the given index.
-    pub(in crate::document) fn struct_item_mut(
-        &mut self,
-        index: usize,
-    ) -> Option<&mut CachedItem<Struct>> {
+    pub fn struct_item_mut(&mut self, index: usize) -> Option<&mut CachedItem<Struct>> {
         Some(self.structs.get_index_mut(index)?.1)
     }
 
@@ -1389,15 +1103,12 @@ impl AnalysisCache {
             .map(|_| ())
             .or_else(|| self.enums.shift_remove(hash).map(|_| ()))
             .or_else(|| self.tasks.shift_remove(hash).map(|_| ()))
+            .or_else(|| self.workflows.shift_remove(hash).map(|_| ()))
             .or_else(|| self.imports.shift_remove(hash).map(|_| ()));
-
-        if self.workflow.as_ref().map(|w| &w.signature_hash) == Some(hash) {
-            self.workflow = None;
-        }
     }
 
     /// Invalidates the given items and all of their dependents from the cache.
-    pub(in crate::document) fn invalidate(
+    pub fn invalidate(
         &mut self,
         ast_items: &AstItems,
         edits: &[AppliedEdit],
@@ -1459,11 +1170,7 @@ impl AnalysisCache {
 
     /// Drop items and their dependents from the cache that are not present in
     /// `current_ast` or whose body hash has changed.
-    pub(in crate::document) fn intersect(
-        &self,
-        current_ast: &AstItems,
-        mut resolve_import_body_hash: impl FnMut(&ImportStatement) -> Option<BodyHash>,
-    ) -> Vec<(InvalidationStrategy, SignatureHash)> {
+    pub fn intersect(&self, current_ast: &AstItems) -> Vec<(InvalidationStrategy, SignatureHash)> {
         let mut to_remove = Vec::new();
         for cache_item in self.items() {
             let signature_hash = cache_item.signature_hash();
@@ -1473,19 +1180,20 @@ impl AnalysisCache {
             }
 
             let new_body_hash = match cache_item {
-                CachedItemRef::Import(_) => {
-                    let import_stmt = current_ast
-                        .imports()
-                        .find(|(h, _)| **h == signature_hash)
-                        .map(|(_, i)| i)
-                        .expect("should exist because current_ast contains hash");
-                    resolve_import_body_hash(import_stmt)
-                }
+                CachedItemRef::Import(_) => current_ast
+                    .scope
+                    .imports
+                    .iter()
+                    .find_map(|(hash, body_hash)| (hash == &signature_hash).then_some(*body_hash))
+                    .expect("should exist because current_ast contains hash"),
                 _ => current_ast.get_body_hash(&signature_hash),
             };
 
             if cache_item.body_hash() != new_body_hash {
-                if matches!(cache_item, CachedItemRef::Import(_)) {
+                if matches!(
+                    cache_item,
+                    CachedItemRef::Import(_) | CachedItemRef::Workflow(_)
+                ) {
                     to_remove.push((InvalidationStrategy::Signature, signature_hash));
                 } else {
                     to_remove.push((InvalidationStrategy::Body, signature_hash));
@@ -1493,24 +1201,88 @@ impl AnalysisCache {
             }
         }
 
+        // A changed import or declaration set can resolve a previously unknown
+        // workflow call or change which declaration owns a conflicting name.
+        // Rebuild existing callables so those diagnostics and dependency edges
+        // reflect the complete source-ordered scope.
+        let removed_callables: std::collections::HashSet<_> = to_remove
+            .iter()
+            .filter_map(|(_, hash)| match self.get(hash) {
+                Some(CachedItemRef::Task(task)) => {
+                    Some((ItemKind::Task, task.item.item.name().to_string()))
+                }
+                Some(CachedItemRef::Workflow(workflow)) => {
+                    Some((ItemKind::Workflow, workflow.item.item.name().to_string()))
+                }
+                _ => None,
+            })
+            .collect();
+        let has_uncached_rejected_callable = current_ast.items.iter().any(|item| {
+            self.get(&item.signature_hash).is_none()
+                && item
+                    .callable_identity()
+                    .is_some_and(|identity| !removed_callables.contains(&identity))
+        });
+        let callable_scope_changed = self.scope.requires_callable_refresh(&current_ast.scope)
+            || has_uncached_rejected_callable;
+        if callable_scope_changed {
+            to_remove.extend(
+                self.tasks
+                    .keys()
+                    .chain(self.workflows.keys())
+                    .copied()
+                    .map(|hash| (InvalidationStrategy::Signature, hash)),
+            );
+        }
+
         to_remove
     }
 
+    /// Records the scope state from which the cache was populated.
+    pub fn set_scope(&mut self, current_ast: &AstItems) {
+        self.scope = current_ast.scope.clone();
+    }
+
     /// Gets a mutable reference to an `enum` `CachedItem` at the given index.
-    pub(in crate::document) fn enum_item_mut(
-        &mut self,
-        index: usize,
-    ) -> Option<&mut CachedItem<Enum>> {
+    pub fn enum_item_mut(&mut self, index: usize) -> Option<&mut CachedItem<Enum>> {
         Some(self.enums.get_index_mut(index)?.1)
     }
 
     /// Adds a dependency edge to the graph.
-    pub(in crate::document) fn add_dependency(
-        &mut self,
-        dependent: SignatureHash,
-        dependency: SignatureHash,
-    ) {
+    pub fn add_dependency(&mut self, dependent: SignatureHash, dependency: SignatureHash) {
         self.dependencies.add_edge(dependent, dependency, ());
+    }
+
+    /// Returns whether `from` reaches `to` using only local workflow
+    /// dependency edges.
+    pub(in crate::document) fn has_workflow_dependency_path(
+        &self,
+        from: SignatureHash,
+        to: SignatureHash,
+    ) -> bool {
+        if !self.workflows.contains_key(&from) || !self.workflows.contains_key(&to) {
+            return false;
+        }
+
+        let mut visited = std::collections::HashSet::new();
+        let mut stack = vec![from];
+        while let Some(node) = stack.pop() {
+            if node == to {
+                return true;
+            }
+
+            if !visited.insert(node) {
+                continue;
+            }
+
+            stack.extend(
+                self.dependencies
+                    .neighbors_directed(node, petgraph::Direction::Outgoing)
+                    .filter(|dependency| self.workflows.contains_key(dependency)),
+            );
+        }
+
+        false
     }
 }
 
@@ -1526,10 +1298,39 @@ struct AstItem {
     item: DocumentItem,
 }
 
+impl AstItem {
+    /// Gets the identity of a local declaration.
+    fn declaration_identity(&self) -> Option<(ItemKind, String)> {
+        match &self.item {
+            DocumentItem::Struct(definition) => {
+                Some((ItemKind::Struct, definition.name().text().to_string()))
+            }
+            DocumentItem::Enum(definition) => {
+                Some((ItemKind::Enum, definition.name().text().to_string()))
+            }
+            DocumentItem::Task(definition) => {
+                Some((ItemKind::Task, definition.name().text().to_string()))
+            }
+            DocumentItem::Workflow(definition) => {
+                Some((ItemKind::Workflow, definition.name().text().to_string()))
+            }
+            DocumentItem::Import(_) => None,
+        }
+    }
+
+    /// Gets the identity of a local callable declaration.
+    fn callable_identity(&self) -> Option<(ItemKind, String)> {
+        let identity = self.declaration_identity()?;
+        matches!(identity.0, ItemKind::Task | ItemKind::Workflow).then_some(identity)
+    }
+}
+
 /// A collection of the items in the document's AST.
-pub(in crate::document) struct AstItems {
+pub struct AstItems {
     /// The items in the AST.
     items: Vec<AstItem>,
+    /// The scope described by the AST.
+    scope: ScopeState,
 }
 
 impl AstItems {
@@ -1562,6 +1363,17 @@ impl AstItems {
             DocumentItem::Import(i) => Some((&item.signature_hash, i)),
             _ => None,
         })
+    }
+
+    /// Resolves every import for scope-change detection.
+    pub fn resolve_imports(
+        &mut self,
+        mut resolve: impl FnMut(&ImportStatement) -> Option<BodyHash>,
+    ) {
+        self.scope.imports = self
+            .imports()
+            .map(|(hash, import)| (*hash, resolve(import)))
+            .collect();
     }
 
     /// Create a new [`AstItems`] from the document's AST.
@@ -1619,6 +1431,17 @@ impl AstItems {
 
         items.sort_by(|a, b| DocumentItemOrd(&a.item).cmp(&DocumentItemOrd(&b.item)));
 
-        Self { items }
+        let declarations = items
+            .iter()
+            .filter_map(AstItem::declaration_identity)
+            .collect();
+
+        Self {
+            items,
+            scope: ScopeState {
+                declarations,
+                imports: Vec::new(),
+            },
+        }
     }
 }

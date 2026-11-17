@@ -29,6 +29,7 @@ use url::Url;
 
 use crate::ContentKind;
 use crate::EvaluationPath;
+use crate::ImageSource;
 use crate::Object;
 use crate::PrimitiveValue;
 use crate::Value;
@@ -38,7 +39,6 @@ use crate::cache::hash::hash_sequence;
 use crate::config::ContentDigestMode;
 use crate::digest::DigestCalculator;
 use crate::lock::LockedFile;
-use crate::v1::requirements::ImageSource;
 
 /// The current cache entry version.
 ///
@@ -618,6 +618,7 @@ impl CallCache {
             .await?;
 
         Ok(Some(TaskExecutionResult {
+            execution_name_override: None,
             image: entry.source,
             exit_code: entry.exit,
             work_dir: work,
@@ -792,6 +793,7 @@ mod tests {
             fs::create_dir(&self.work_dir).await.unwrap();
 
             TaskExecutionResult {
+                execution_name_override: None,
                 image: Some("ubuntu:latest".parse().unwrap()),
                 exit_code: 0,
                 work_dir: EvaluationPath::from_local_path(self.work_dir.clone()),

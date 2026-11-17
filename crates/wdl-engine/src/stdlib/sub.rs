@@ -77,7 +77,7 @@ fn needs_conversion(s: &str) -> bool {
 /// function replaces all non-overlapping occurrences of `pattern` in `input`
 /// with `replace`.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#sub
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#sub>
 fn sub(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 3);
     debug_assert!(context.return_type_eq(PrimitiveType::String));

@@ -37,6 +37,7 @@ use toml_spanner::helper::display;
 use toml_spanner::helper::flatten_any;
 use toml_spanner::helper::parse_string;
 use tracing::error;
+use tracing::warn;
 use url::Url;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
@@ -75,6 +76,17 @@ use crate::tree::SyntaxNode;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::ExprEvaluator;
 
+/// The deprecated sentinel for cache directory values.
+///
+/// The system (per-user) cache locations are no longer used in favor of cache
+/// directories that are relative to the output directory.
+const DEPRECATED_SYSTEM_SENTINEL: &str = "system";
+
+/// Default output directory.
+fn default_output_directory() -> &'static str {
+    "./out"
+}
+
 /// The inclusive maximum number of task retries the engine supports.
 pub(crate) const MAX_RETRIES: u64 = 100;
 
@@ -94,8 +106,8 @@ pub(crate) const fn default_task_container() -> &'static str {
     DEFAULT_TASK_CONTAINER
 }
 
-/// The default backend name.
-const fn default_backend_name() -> &'static str {
+/// A sentinel value representing the setting should be treated as the default.
+const fn default_sentinel() -> &'static str {
     "default"
 }
 
@@ -104,11 +116,6 @@ const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
 
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
-
-/// Configuration sentinel value indicating use a system cache directory.
-const fn cache_dir_sentinel() -> &'static str {
-    "system"
-}
 
 /// The default for runtime digest cache capacity.
 const fn default_digest_cache_capacity() -> u32 {
@@ -146,16 +153,6 @@ const fn default_apptainer_executable() -> &'static str {
 /// statement.
 const fn default_scatter_concurrency() -> u64 {
     1000
-}
-
-/// Gets the default root cache directory for the user.
-pub(crate) fn cache_dir() -> Result<PathBuf> {
-    /// The subdirectory within the user's cache directory for all caches
-    const CACHE_DIR_ROOT: &str = "sprocket";
-
-    Ok(dirs::cache_dir()
-        .context("failed to determine user cache directory")?
-        .join(CACHE_DIR_ROOT))
 }
 
 /// Creates a mapping of byte indexes in an unescaped TOML string to the
@@ -259,9 +256,8 @@ impl SecretString {
     ///
     /// By default, a [`SecretString`] is unredacted; when redacted, the string
     /// is replaced with `<REDACTED>` when serialized.
-    pub fn redact(mut self) -> Self {
+    pub fn redact(&mut self) {
         self.redacted = true;
-        self
     }
 
     /// Gets the inner [`secrecy::SecretString`].
@@ -412,6 +408,12 @@ mod index_map {
     deny_unknown_fields
 )]
 pub struct Config {
+    /// The output directory (default: `./out`).
+    ///
+    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
+    #[toml(default = PathBuf::from(default_output_directory()))]
+    #[schemars(default = "default_output_directory")]
+    pub output_dir: PathBuf,
     /// HTTP configuration.
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -425,8 +427,8 @@ pub struct Config {
     #[schemars(default)]
     pub task: TaskConfig,
     /// The name of the backend to use.
-    #[toml(default = String::from(default_backend_name()))]
-    #[schemars(default = "default_backend_name")]
+    #[toml(default = String::from(default_sentinel()))]
+    #[schemars(default = "default_sentinel")]
     pub backend: String,
     /// Task execution backends configuration.
     ///
@@ -516,10 +518,11 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            output_dir: default_output_directory().into(),
             http: Default::default(),
             workflow: Default::default(),
             task: Default::default(),
-            backend: default_backend_name().into(),
+            backend: default_sentinel().into(),
             backends: Default::default(),
             storage: Default::default(),
             suppress_env_specific_output: Default::default(),
@@ -552,7 +555,7 @@ impl Config {
         self.workflow.validate()?;
         self.task.validate()?;
 
-        if self.backends.is_empty() && self.backend == default_backend_name() {
+        if self.backends.is_empty() && self.backend == default_sentinel() {
             // we'll use the default
         } else {
             let backend = &self.backend;
@@ -589,24 +592,22 @@ impl Config {
     /// Redacts the secrets contained in the configuration.
     ///
     /// By default, secrets are redacted for serialization.
-    pub fn redact(mut self) -> Self {
+    pub fn redact(&mut self) {
         for backend in self.backends.values_mut() {
-            *backend = std::mem::take(backend).redact();
+            backend.redact();
         }
 
-        if let Some(auth) = self.storage.azure.auth.take() {
-            self.storage.azure.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.azure.auth.as_mut() {
+            auth.redact();
         }
 
-        if let Some(auth) = self.storage.s3.auth.take() {
-            self.storage.s3.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.s3.auth.as_mut() {
+            auth.redact();
         }
 
-        if let Some(auth) = self.storage.google.auth.take() {
-            self.storage.google.auth = Some(auth.redact());
+        if let Some(auth) = self.storage.google.auth.as_mut() {
+            auth.redact();
         }
-
-        self
     }
 
     /// Gets the backend configuration.
@@ -622,6 +623,51 @@ impl Config {
         }
         // Use the default
         Ok(Cow::Owned(BackendConfig::default()))
+    }
+
+    /// Get the downloads cache directory.
+    pub fn downloads_cache_dir(&self) -> PathBuf {
+        self.http.cache_dir(&self.output_dir)
+    }
+
+    /// Get the call cache directory.
+    pub fn call_cache_dir(&self) -> PathBuf {
+        self.task.cache_dir(&self.output_dir)
+    }
+
+    /// Calls the given callback for each path stored in the configuration.
+    ///
+    /// The callback is given a mutable reference to the configuration path.
+    pub fn for_each_path_mut(&mut self, cb: impl Fn(&mut PathBuf) -> Result<()>) -> Result<()> {
+        // Call for the output directory
+        cb(&mut self.output_dir)?;
+
+        // Call for the call cache directory
+        if self.task.cache_dir != *default_sentinel() {
+            cb(&mut self.task.cache_dir)?;
+        }
+
+        // Call for the downloads cache directory
+        if self.http.cache_dir != *default_sentinel() {
+            cb(&mut self.http.cache_dir)?;
+        }
+
+        // Call for every image cache directory
+        for backend in self.backends.values_mut() {
+            match backend {
+                BackendConfig::LsfApptainer {
+                    config: LsfApptainerBackendConfig { apptainer, .. },
+                }
+                | BackendConfig::SlurmApptainer {
+                    config: SlurmApptainerBackendConfig { apptainer, .. },
+                } if apptainer.image_cache_dir != *default_sentinel() => {
+                    cb(&mut apptainer.image_cache_dir)?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -691,10 +737,12 @@ impl ToToml for Parallelism {
 pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
-    /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = String::from(cache_dir_sentinel()))]
-    #[schemars(default = "cache_dir_sentinel")]
-    pub cache_dir: String,
+    /// The specified directory is relative to the output directory.
+    ///
+    /// Default cache directory is `cache/downloads`.
+    #[toml(default = default_sentinel().into())]
+    #[schemars(default = "default_sentinel")]
+    pub cache_dir: PathBuf,
     /// The number of retries for transferring files.
     #[toml(default = default_http_retries())]
     #[schemars(default = "default_http_retries")]
@@ -732,7 +780,7 @@ pub struct HttpConfig {
 impl Default for HttpConfig {
     fn default() -> Self {
         Self {
-            cache_dir: cache_dir_sentinel().into(),
+            cache_dir: default_sentinel().into(),
             retries: default_http_retries(),
             parallelism: Default::default(),
             hash_algorithm: Default::default(),
@@ -744,6 +792,13 @@ impl Default for HttpConfig {
 impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
+        if self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            warn!(
+                "the `http.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+                 deprecated and will be ignored"
+            );
+        }
+
         if let Parallelism::Use(parallelism) = self.parallelism
             && parallelism == 0
         {
@@ -757,20 +812,13 @@ impl HttpConfig {
         Ok(())
     }
 
-    /// Get the HTTP cache dir.
-    pub fn cache_dir(&self) -> Result<PathBuf> {
-        const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
-
-        if self.using_system_cache_dir() {
-            cache_dir().map(|d| d.join(DOWNLOADS_CACHE_SUBDIR))
+    /// Get the HTTP cache directory based on the given output directory.
+    pub fn cache_dir(&self, output_dir: &Path) -> PathBuf {
+        if self.cache_dir == *default_sentinel() || self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            output_dir.join("cache").join("downloads")
         } else {
-            Ok(PathBuf::from(&self.cache_dir))
+            output_dir.join(&self.cache_dir)
         }
-    }
-
-    /// Is this configuration using a system cache dir?
-    pub fn using_system_cache_dir(&self) -> bool {
-        self.cache_dir == cache_dir_sentinel()
     }
 }
 
@@ -830,9 +878,8 @@ impl AzureStorageAuthConfig {
 
     /// Redacts the secrets contained in the Azure Blob Storage storage
     /// authentication configuration.
-    pub fn redact(mut self) -> Self {
-        self.access_key = self.access_key.redact();
-        self
+    pub fn redact(&mut self) {
+        self.access_key.redact();
     }
 }
 
@@ -884,9 +931,8 @@ impl S3StorageAuthConfig {
 
     /// Redacts the secrets contained in the AWS S3 storage authentication
     /// configuration.
-    pub fn redact(mut self) -> Self {
-        self.secret_access_key = self.secret_access_key.redact();
-        self
+    pub fn redact(&mut self) {
+        self.secret_access_key.redact();
     }
 }
 
@@ -900,6 +946,12 @@ pub struct S3StorageConfig {
     ///
     /// Defaults to `us-east-1`.
     pub region: Option<String>,
+
+    /// The custom endpoint URL to use for S3.
+    ///
+    /// Uses the default AWS endpoints when `None`.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub endpoint: Option<Url>,
 
     /// The AWS S3 storage authentication configuration.
     #[toml(style = Header)]
@@ -944,9 +996,8 @@ impl GoogleStorageAuthConfig {
 
     /// Redacts the secrets contained in the Google Cloud Storage authentication
     /// configuration.
-    pub fn redact(mut self) -> Self {
-        self.secret = self.secret.redact();
-        self
+    pub fn redact(&mut self) {
+        self.secret.redact();
     }
 }
 
@@ -1287,10 +1338,12 @@ pub struct TaskConfig {
     pub memory_limit_behavior: TaskResourceLimitBehavior,
     /// The call cache directory to use for caching task execution results.
     ///
-    /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = String::from(cache_dir_sentinel()))]
-    #[schemars(default = "cache_dir_sentinel")]
-    pub cache_dir: String,
+    /// The specified directory is relative to the output directory.
+    ///
+    /// Defaults to `cache/calls`.
+    #[toml(default = default_sentinel().into())]
+    #[schemars(default = "default_sentinel")]
+    pub cache_dir: PathBuf,
     /// The call caching mode to use for tasks.
     #[toml(default)]
     #[schemars(default)]
@@ -1342,7 +1395,7 @@ impl Default for TaskConfig {
             shell: default_task_shell().into(),
             cpu_limit_behavior: Default::default(),
             memory_limit_behavior: Default::default(),
-            cache_dir: cache_dir_sentinel().into(),
+            cache_dir: default_sentinel().into(),
             cache: Default::default(),
             digests: Default::default(),
             excluded_cache_requirements: Default::default(),
@@ -1355,6 +1408,13 @@ impl Default for TaskConfig {
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
+        if self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            warn!(
+                "the `task.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+                 deprecated and will be ignored"
+            );
+        }
+
         if let RetryConfig::Enabled(Retries::Use(value)) = self.retries
             && value >= MAX_RETRIES
         {
@@ -1364,20 +1424,13 @@ impl TaskConfig {
         Ok(())
     }
 
-    /// Gets the call cache directory.
-    pub fn cache_dir(&self) -> Result<PathBuf> {
-        const CALL_CACHE_SUBDIR: &str = "calls";
-
-        if self.using_system_cache_dir() {
-            cache_dir().map(|d| d.join(CALL_CACHE_SUBDIR))
+    /// Get the call cache directory based on the given output directory.
+    pub fn cache_dir(&self, output_dir: &Path) -> PathBuf {
+        if self.cache_dir == *default_sentinel() || self.cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            output_dir.join("cache").join("calls")
         } else {
-            Ok(PathBuf::from(&self.cache_dir))
+            output_dir.join(&self.cache_dir)
         }
-    }
-
-    /// Determines if the system cache directory is being used.
-    pub fn using_system_cache_dir(&self) -> bool {
-        self.cache_dir == cache_dir_sentinel()
     }
 }
 
@@ -1452,6 +1505,17 @@ impl Default for BackendConfig {
 }
 
 impl BackendConfig {
+    /// Gets the canonical name of the configured backend kind.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Local { .. } => "local",
+            Self::Docker { .. } => "docker",
+            Self::Tes { .. } => "tes",
+            Self::LsfApptainer { .. } => "lsf_apptainer",
+            Self::SlurmApptainer { .. } => "slurm_apptainer",
+        }
+    }
+
     /// Validates the backend configuration.
     pub async fn validate(&self) -> Result<()> {
         match self {
@@ -1516,15 +1580,15 @@ impl BackendConfig {
     }
 
     /// Redacts the secrets contained in the backend configuration.
-    pub fn redact(self) -> Self {
+    pub fn redact(&mut self) {
         match self {
             Self::Local { .. }
             | Self::Docker { .. }
             | Self::LsfApptainer { .. }
-            | Self::SlurmApptainer { .. } => self,
-            Self::Tes { config } => Self::Tes {
-                config: config.redact(),
-            },
+            | Self::SlurmApptainer { .. } => {}
+            Self::Tes { config } => {
+                config.redact();
+            }
         }
     }
 }
@@ -1629,6 +1693,11 @@ fn default_docker_cleanup() -> bool {
     true
 }
 
+/// The default sampling interval for the Docker backend, in seconds.
+fn default_docker_resource_usage_interval() -> Option<u64> {
+    Some(1)
+}
+
 /// Represents configuration for the Docker backend.
 #[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
@@ -1640,6 +1709,19 @@ pub struct DockerBackendConfig {
     #[toml(default = default_docker_cleanup())]
     #[schemars(default = "default_docker_cleanup")]
     pub cleanup: bool,
+
+    /// The interval, in seconds, at which to sample a running container's
+    /// resource usage.
+    ///
+    /// Each task's peak and average memory and cumulative CPU time
+    /// are sampled from the Docker daemon at this interval and reported in
+    /// the run's metrics.
+    ///
+    /// Defaults to one second. Set to zero to disable sampling. Sampling
+    /// applies only to local container execution, not Docker Swarm services.
+    #[toml(default = default_docker_resource_usage_interval())]
+    #[schemars(default = "default_docker_resource_usage_interval")]
+    pub resource_usage_interval: Option<u64>,
 }
 
 impl DockerBackendConfig {
@@ -1653,19 +1735,20 @@ impl Default for DockerBackendConfig {
     fn default() -> Self {
         Self {
             cleanup: default_docker_cleanup(),
+            resource_usage_interval: default_docker_resource_usage_interval(),
         }
     }
 }
 
 /// Represents HTTP basic authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BasicAuthConfig {
     /// The HTTP basic authentication username.
     pub username: String,
     /// The HTTP basic authentication password.
-    pub password: SecretString,
+    pub password: Option<SecretString>,
 }
 
 impl BasicAuthConfig {
@@ -1675,14 +1758,15 @@ impl BasicAuthConfig {
     }
 
     /// Redacts the secrets contained in the HTTP basic auth configuration.
-    pub fn redact(mut self) -> Self {
-        self.password = self.password.redact();
-        self
+    pub fn redact(&mut self) {
+        if let Some(password) = &mut self.password {
+            password.redact();
+        }
     }
 }
 
 /// Represents HTTP bearer token authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BearerAuthConfig {
@@ -1697,9 +1781,82 @@ impl BearerAuthConfig {
     }
 
     /// Redacts the secrets contained in the HTTP bearer auth configuration.
-    pub fn redact(mut self) -> Self {
-        self.token = self.token.redact();
-        self
+    pub fn redact(&mut self) {
+        self.token.redact();
+    }
+}
+
+/// The default value for the `require_refresh` field in [`OAuthConfig`].
+fn default_require_refresh() -> bool {
+    false
+}
+
+/// Represents OAuth authentication configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct OAuthConfig {
+    /// The OAuth application's client identifier.
+    pub client_id: String,
+    /// The OAuth application's client secret.
+    pub client_secret: Option<SecretString>,
+    /// The OAuth audience.
+    ///
+    /// When `None`, defaults to the base URI of the TES server.
+    pub audience: Option<String>,
+    /// The URL for OAuth authorization requests.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub authorization: Url,
+    /// The URL for OAuth token requests.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
+    pub token: Url,
+    /// The desired scopes for OAuth.
+    #[toml(default)]
+    #[schemars(default)]
+    pub scopes: Vec<String>,
+    /// Whether or not to require a refresh token.
+    ///
+    /// If `true` and the OAuth authorization does not return a refresh token,
+    /// an error will be returned when the TES backend is created.
+    ///
+    /// If `false` and the OAuth authorization does not return a refresh token,
+    /// a device reauthorization will occur.
+    ///
+    /// Defaults to `false`.
+    #[toml(default = default_require_refresh())]
+    #[schemars(default = "default_require_refresh")]
+    pub require_refresh: bool,
+}
+
+impl OAuthConfig {
+    /// Validates the OAuth configuration.
+    pub fn validate(&self, insecure: bool) -> Result<()> {
+        if !insecure {
+            if self.authorization.scheme() != "https" {
+                bail!(
+                    "TES backend OAuth configuration value `authorization` has invalid value \
+                     `{url}`: URL must use a HTTPS scheme",
+                    url = self.authorization
+                );
+            }
+
+            if self.token.scheme() != "https" {
+                bail!(
+                    "TES backend OAuth configuration value `token` has invalid value `{url}`: URL \
+                     must use a HTTPS scheme",
+                    url = self.token
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Redacts the secrets contained in the OAuth configuration.
+    pub fn redact(&mut self) {
+        if let Some(secret) = &mut self.client_secret {
+            secret.redacted = true;
+        }
     }
 }
 
@@ -1722,27 +1879,40 @@ pub enum TesBackendAuthConfig {
         #[schemars(default, flatten)]
         config: BearerAuthConfig,
     },
+    /// Use OAuth authentication for the TES backend.
+    #[toml(rename = "oauth")]
+    #[schemars(rename = "oauth")]
+    OAuth {
+        /// The inner OAuth configuration.
+        #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
+        config: Box<OAuthConfig>,
+    },
 }
 
 impl TesBackendAuthConfig {
     /// Validates the TES backend authentication configuration.
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self, insecure: bool) -> Result<()> {
         match self {
             Self::Basic { config } => config.validate(),
             Self::Bearer { config } => config.validate(),
+            Self::OAuth { config } => config.validate(insecure),
         }
     }
 
     /// Redacts the secrets contained in the TES backend authentication
     /// configuration.
-    pub fn redact(self) -> Self {
+    pub fn redact(&mut self) {
         match self {
-            Self::Basic { config } => Self::Basic {
-                config: config.redact(),
-            },
-            Self::Bearer { config } => Self::Bearer {
-                config: config.redact(),
-            },
+            Self::Basic { config } => {
+                config.redact();
+            }
+            Self::Bearer { config } => {
+                config.redact();
+            }
+            Self::OAuth { config } => {
+                config.redact();
+            }
         }
     }
 }
@@ -1760,13 +1930,13 @@ impl From<BearerAuthConfig> for TesBackendAuthConfig {
 }
 
 /// Represents configuration for the Task Execution Service (TES) backend.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", warn_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TesBackendConfig {
     /// The URL of the Task Execution Service.
-    #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub url: Option<Url>,
+    #[toml(FromToml with = parse_string, ToToml with = display, alias = "url")]
+    pub service: Url,
 
     /// The authentication configuration for the TES backend.
     #[toml(style = Header)]
@@ -1774,15 +1944,15 @@ pub struct TesBackendConfig {
 
     /// The root cloud storage URL for storing inputs.
     #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub inputs: Option<Url>,
+    pub inputs: Url,
 
     /// The root cloud storage URL for storing outputs.
     #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub outputs: Option<Url>,
+    pub outputs: Url,
 
     /// The polling interval, in seconds, for checking task status.
     ///
-    /// Defaults to 1 second.
+    /// Defaults to 30 seconds.
     pub interval: Option<u64>,
 
     /// The number of retries after encountering an error communicating with the
@@ -1807,20 +1977,20 @@ pub struct TesBackendConfig {
 impl TesBackendConfig {
     /// Validates the TES backend configuration.
     pub fn validate(&self) -> Result<()> {
-        match &self.url {
-            Some(url) => {
-                if !self.insecure && url.scheme() != "https" {
-                    bail!(
-                        "TES backend configuration value `url` has invalid value `{url}`: URL \
-                         must use a HTTPS scheme"
-                    );
-                }
+        match self.service.scheme() {
+            "https" => {}
+            "http" if self.insecure => {}
+            _ => {
+                bail!(
+                    "TES backend configuration value `service` has invalid value `{url}`: URL \
+                     must use a HTTPS scheme",
+                    url = self.service
+                );
             }
-            None => bail!("TES backend configuration value `url` is required"),
         }
 
         if let Some(auth) = &self.auth {
-            auth.validate()?;
+            auth.validate(self.insecure)?;
         }
 
         if let Some(max_concurrency) = self.max_concurrency
@@ -1829,54 +1999,46 @@ impl TesBackendConfig {
             bail!("TES backend configuration value `max_concurrency` cannot be zero");
         }
 
-        match &self.inputs {
-            Some(url) => {
-                if !is_supported_url(url.as_str()) {
-                    bail!(
-                        "TES backend storage configuration value `inputs` has invalid value \
-                         `{url}`: URL scheme is not supported"
-                    );
-                }
-
-                if !url.path().ends_with('/') {
-                    bail!(
-                        "TES backend storage configuration value `inputs` has invalid value \
-                         `{url}`: URL path must end with a slash"
-                    );
-                }
-            }
-            None => bail!("TES backend configuration value `inputs` is required"),
+        if !is_supported_url(self.inputs.as_str()) {
+            bail!(
+                "TES backend storage configuration value `inputs` has invalid value `{url}`: URL \
+                 scheme is not supported",
+                url = self.inputs
+            );
         }
 
-        match &self.outputs {
-            Some(url) => {
-                if !is_supported_url(url.as_str()) {
-                    bail!(
-                        "TES backend storage configuration value `outputs` has invalid value \
-                         `{url}`: URL scheme is not supported"
-                    );
-                }
+        if !self.inputs.path().ends_with('/') {
+            bail!(
+                "TES backend storage configuration value `inputs` has invalid value `{url}`: URL \
+                 path must end with a slash",
+                url = self.inputs
+            );
+        }
 
-                if !url.path().ends_with('/') {
-                    bail!(
-                        "TES backend storage configuration value `outputs` has invalid value \
-                         `{url}`: URL path must end with a slash"
-                    );
-                }
-            }
-            None => bail!("TES backend storage configuration value `outputs` is required"),
+        if !is_supported_url(self.outputs.as_str()) {
+            bail!(
+                "TES backend storage configuration value `outputs` has invalid value `{url}`: URL \
+                 scheme is not supported",
+                url = self.outputs
+            );
+        }
+
+        if !self.outputs.path().ends_with('/') {
+            bail!(
+                "TES backend storage configuration value `outputs` has invalid value `{url}`: URL \
+                 path must end with a slash",
+                url = self.outputs
+            );
         }
 
         Ok(())
     }
 
     /// Redacts the secrets contained in the TES backend configuration.
-    pub fn redact(mut self) -> Self {
-        if let Some(auth) = self.auth.take() {
-            self.auth = Some(auth.redact());
+    pub fn redact(&mut self) {
+        if let Some(auth) = &mut self.auth {
+            auth.redact();
         }
-
-        self
     }
 }
 
@@ -1896,10 +2058,12 @@ pub struct ApptainerConfig {
 
     /// Path to a shared directory for caching pulled `.sif` images.
     ///
-    /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = String::from(cache_dir_sentinel()))]
-    #[schemars(default = "cache_dir_sentinel")]
-    pub image_cache_dir: String,
+    /// The specified directory is relative to the output directory.
+    ///
+    /// Defaults to `cache/images`.
+    #[toml(default = default_sentinel().into())]
+    #[schemars(default = "default_sentinel")]
+    pub image_cache_dir: PathBuf,
 
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
@@ -1912,7 +2076,7 @@ impl Default for ApptainerConfig {
     fn default() -> Self {
         Self {
             executable: default_apptainer_executable().into(),
-            image_cache_dir: cache_dir_sentinel().into(),
+            image_cache_dir: default_sentinel().into(),
             extra_args: Default::default(),
         }
     }
@@ -1921,23 +2085,25 @@ impl Default for ApptainerConfig {
 impl ApptainerConfig {
     /// Validate that Apptainer is appropriately configured.
     pub async fn validate(&self) -> Result<(), anyhow::Error> {
+        if self.image_cache_dir == *DEPRECATED_SYSTEM_SENTINEL {
+            warn!(
+                "the `apptainer.image_cache_dir` configuration value of \
+                 `{DEPRECATED_SYSTEM_SENTINEL}` is deprecated and will be ignored"
+            );
+        }
+
         Ok(())
     }
 
-    /// Get the image cache dir.
-    pub fn image_cache_dir(&self) -> Result<PathBuf> {
-        const IMAGES_CACHE_SUBDIR: &str = "images";
-
-        if self.image_cache_dir == cache_dir_sentinel() {
-            cache_dir().map(|d| d.join(IMAGES_CACHE_SUBDIR))
+    /// Get the image cache directory based on the given output directory.
+    pub fn image_cache_dir(&self, output_dir: &Path) -> PathBuf {
+        if self.image_cache_dir == *default_sentinel()
+            || self.image_cache_dir == *DEPRECATED_SYSTEM_SENTINEL
+        {
+            output_dir.join("cache").join("images")
         } else {
-            Ok(PathBuf::from(&self.image_cache_dir))
+            output_dir.join(&self.image_cache_dir)
         }
-    }
-
-    /// Determines if the system image cache directory is being used.
-    pub fn using_system_image_cache_dir(&self) -> bool {
-        self.image_cache_dir == cache_dir_sentinel()
     }
 }
 
@@ -1953,7 +2119,7 @@ impl ApptainerConfig {
 #[schemars(with = "String")]
 pub struct Condition {
     /// The raw WDL expression string.
-    pub raw: String,
+    raw: String,
     /// The parsed and validated conditional expression.
     expr: GreenNode,
 }
@@ -2402,8 +2568,9 @@ impl LsfQueueConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("bqueues").arg(queue).output(),
         )
@@ -2625,8 +2792,9 @@ impl SlurmPartitionConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns extremely quickly, but
-            // we don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns
+            // extremely quickly, but we don't want things to run away on a
+            // misconfigured system
             std::time::Duration::from_secs(10),
             Command::new("scontrol")
                 .arg("show")
@@ -3252,6 +3420,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempfile::TempPath;
     use tempfile::tempdir;
+    use tracing_test::traced_test;
 
     use super::*;
     use crate::Events;
@@ -3262,6 +3431,105 @@ mod tests {
     use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_MEMORY;
+
+    #[test]
+    fn default_output_directory_is_out() {
+        let config = Config::default();
+        assert_eq!(config.output_dir.to_str().unwrap(), "./out");
+    }
+
+    #[test]
+    fn default_cache_dirs() {
+        let config = Config::default();
+        assert_eq!(config.call_cache_dir(), Path::new("./out/cache/calls"));
+        assert_eq!(
+            config.downloads_cache_dir(),
+            Path::new("./out/cache/downloads")
+        );
+
+        let backend = LsfApptainerBackendConfig::default();
+        assert_eq!(
+            backend.apptainer.image_cache_dir(&config.output_dir),
+            Path::new("./out/cache/images")
+        );
+    }
+
+    #[test]
+    fn cache_dirs_are_relative_to_output_dir() {
+        let config = Config {
+            output_dir: "./outputs".into(),
+            task: TaskConfig {
+                cache_dir: "foo".into(),
+                ..Default::default()
+            },
+            http: HttpConfig {
+                cache_dir: "bar".into(),
+                ..Default::default()
+            },
+            backends: [(
+                "default".into(),
+                LsfApptainerBackendConfig {
+                    apptainer: ApptainerConfig {
+                        image_cache_dir: "baz".into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        assert_eq!(config.call_cache_dir(), Path::new("./outputs/foo"));
+        assert_eq!(config.downloads_cache_dir(), Path::new("./outputs/bar"));
+        assert_eq!(
+            config
+                .backend()
+                .unwrap()
+                .as_lsf_apptainer()
+                .unwrap()
+                .apptainer
+                .image_cache_dir(&config.output_dir),
+            Path::new("./outputs/baz")
+        );
+
+        let config = Config {
+            output_dir: "./outputs".into(),
+            task: TaskConfig {
+                cache_dir: "/foo".into(),
+                ..Default::default()
+            },
+            http: HttpConfig {
+                cache_dir: "/bar".into(),
+                ..Default::default()
+            },
+            backends: [(
+                "default".into(),
+                LsfApptainerBackendConfig {
+                    apptainer: ApptainerConfig {
+                        image_cache_dir: "/baz".into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        assert_eq!(config.call_cache_dir(), Path::new("/foo"));
+        assert_eq!(config.downloads_cache_dir(), Path::new("/bar"));
+        assert_eq!(
+            config
+                .backend()
+                .unwrap()
+                .as_lsf_apptainer()
+                .unwrap()
+                .apptainer
+                .image_cache_dir(&config.output_dir),
+            Path::new("/baz")
+        );
+    }
 
     #[test]
     fn redacted_secret() {
@@ -3299,26 +3567,38 @@ mod tests {
                 (
                     "first".to_string(),
                     TesBackendConfig {
+                        service: "https://example.com".parse().unwrap(),
+                        inputs: "https://example.com/inputs/".parse().unwrap(),
+                        outputs: "https://example.com/outputs/".parse().unwrap(),
                         auth: Some(TesBackendAuthConfig::Basic {
                             config: BasicAuthConfig {
                                 username: "foo".into(),
-                                password: "secret".into(),
+                                password: Some("secret".into()),
                             },
                         }),
-                        ..Default::default()
+                        insecure: false,
+                        interval: None,
+                        retries: None,
+                        max_concurrency: None,
                     }
                     .into(),
                 ),
                 (
                     "second".to_string(),
                     TesBackendConfig {
+                        service: "https://example.com".parse().unwrap(),
+                        inputs: "https://example.com/inputs/".parse().unwrap(),
+                        outputs: "https://example.com/outputs".parse().unwrap(),
                         auth: Some(
                             BearerAuthConfig {
                                 token: "secret".into(),
                             }
                             .into(),
                         ),
-                        ..Default::default()
+                        insecure: false,
+                        interval: None,
+                        retries: None,
+                        max_concurrency: None,
                     }
                     .into(),
                 ),
@@ -3526,24 +3806,19 @@ mod tests {
                 )
         );
 
-        // Test missing TES URL
-        let config = Config {
-            backends: [("default".to_string(), TesBackendConfig::default().into())].into(),
-            ..Default::default()
-        };
-        assert_eq!(
-            config.validate().await.unwrap_err().to_string(),
-            "TES backend configuration value `url` is required"
-        );
-
         // Test TES invalid max concurrency
         let config = Config {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("https://example.com".parse().unwrap()),
+                    service: "https://example.com".parse().unwrap(),
+                    inputs: "https://example.com/inputs/".parse().unwrap(),
+                    outputs: "https://example.com/outputs/".parse().unwrap(),
+                    insecure: false,
+                    auth: None,
+                    interval: None,
+                    retries: None,
                     max_concurrency: Some(0),
-                    ..Default::default()
                 }
                 .into(),
             )]
@@ -3560,10 +3835,14 @@ mod tests {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
-                    ..Default::default()
+                    service: "http://example.com".parse().unwrap(),
+                    inputs: "http://example.com/inputs/".parse().unwrap(),
+                    outputs: "http://example.com/outputs/".parse().unwrap(),
+                    insecure: false,
+                    auth: None,
+                    interval: None,
+                    retries: None,
+                    max_concurrency: None,
                 }
                 .into(),
             )]
@@ -3572,8 +3851,8 @@ mod tests {
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
-            "TES backend configuration value `url` has invalid value `http://example.com/`: URL \
-             must use a HTTPS scheme"
+            "TES backend configuration value `service` has invalid value `http://example.com/`: \
+             URL must use a HTTPS scheme"
         );
 
         // Allow insecure URL
@@ -3581,11 +3860,14 @@ mod tests {
             backends: [(
                 "default".to_string(),
                 TesBackendConfig {
-                    url: Some("http://example.com".parse().unwrap()),
-                    inputs: Some("http://example.com".parse().unwrap()),
-                    outputs: Some("http://example.com".parse().unwrap()),
+                    service: "http://example.com".parse().unwrap(),
+                    inputs: "http://example.com".parse().unwrap(),
+                    outputs: "http://example.com".parse().unwrap(),
                     insecure: true,
-                    ..Default::default()
+                    auth: None,
+                    interval: None,
+                    retries: None,
+                    max_concurrency: None,
                 }
                 .into(),
             )]
@@ -3770,6 +4052,9 @@ excluded_cache_inputs = ['6', '7', '8']
 
 [backends.baz]
 type = 'tes'
+url = "https://example.com"
+inputs = "https://example.com/inputs/"
+outputs = "https://example.com/outputs/"
 "#,
         );
 
@@ -3814,7 +4099,20 @@ type = 'lsf_apptainer'
                 backends: IndexMap::from_iter([
                     ("foo".to_string(), LocalBackendConfig::default().into()),
                     ("bar".to_string(), DockerBackendConfig::default().into()),
-                    ("baz".to_string(), TesBackendConfig::default().into()),
+                    (
+                        "baz".to_string(),
+                        TesBackendConfig {
+                            service: "https://example.com".parse().unwrap(),
+                            inputs: "https://example.com/inputs/".parse().unwrap(),
+                            outputs: "https://example.com/outputs/".parse().unwrap(),
+                            insecure: false,
+                            auth: None,
+                            interval: None,
+                            retries: None,
+                            max_concurrency: None,
+                        }
+                        .into()
+                    ),
                     (
                         "qux".to_string(),
                         LsfApptainerBackendConfig::default().into()
@@ -4036,7 +4334,7 @@ type = 'lsf_apptainer'
         /// The string is expected to be a valid WDL expression.
         async fn eval(context: Context, expression: &str) -> Result<bool> {
             let dir = tempdir().context("failed to create temporary directory")?;
-            let eval_context = EvalContext::new(Events::disabled(), Default::default()).await;
+            let eval_context = EvalContext::new(Events::default(), Default::default()).await;
             let condition = Condition::new(expression).expect("invalid expression");
             condition
                 .evaluate(&ExecuteTaskRequest {
@@ -4131,5 +4429,82 @@ type = 'lsf_apptainer'
             eval(context, r#"hint.foo == "overridden!""#).await.unwrap(),
             true
         );
+    }
+
+    #[test]
+    fn docker_resource_usage_interval_defaults_and_overrides() {
+        assert_eq!(
+            DockerBackendConfig::default().resource_usage_interval,
+            Some(1)
+        );
+
+        for (setting, expected) in [
+            ("", Some(1)),
+            ("resource_usage_interval = 0", Some(0)),
+            ("resource_usage_interval = 5", Some(5)),
+        ] {
+            let source =
+                format!("backend = 'docker'\n[backends.docker]\ntype = 'docker'\n{setting}");
+            let BuiltConfig { config, warnings } = Config::builder()
+                .with_string_source(&source)
+                .try_build()
+                .expect("should build");
+
+            assert!(warnings.is_empty());
+            assert_eq!(
+                config.backends["docker"]
+                    .as_docker()
+                    .expect("should be Docker")
+                    .resource_usage_interval,
+                expected
+            );
+        }
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn deprecation_warnings() {
+        let config = Config {
+            task: TaskConfig {
+                cache_dir: DEPRECATED_SYSTEM_SENTINEL.into(),
+                ..Default::default()
+            },
+            http: HttpConfig {
+                cache_dir: DEPRECATED_SYSTEM_SENTINEL.into(),
+                ..Default::default()
+            },
+            #[cfg(unix)]
+            backends: [(
+                "default".into(),
+                LsfApptainerBackendConfig {
+                    apptainer: ApptainerConfig {
+                        image_cache_dir: DEPRECATED_SYSTEM_SENTINEL.into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+            )]
+            .into(),
+            ..Default::default()
+        };
+
+        config.validate().await.unwrap();
+
+        assert!(logs_contain(&format!(
+            "the `http.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+             deprecated and will be ignored"
+        )));
+
+        assert!(logs_contain(&format!(
+            "the `task.cache_dir` configuration value of `{DEPRECATED_SYSTEM_SENTINEL}` is \
+             deprecated and will be ignored"
+        )));
+
+        #[cfg(unix)]
+        assert!(logs_contain(&format!(
+            "the `apptainer.image_cache_dir` configuration value of \
+             `{DEPRECATED_SYSTEM_SENTINEL}` is deprecated and will be ignored"
+        )));
     }
 }

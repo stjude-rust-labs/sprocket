@@ -1,0 +1,5 @@
+[check.rules.NamingConvention]
+task = "pascal_case"
+variable = "camel_case"
+type = "snake_case"
+struct_member = "camel_case"

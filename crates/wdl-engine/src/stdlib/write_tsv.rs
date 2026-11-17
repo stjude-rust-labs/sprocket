@@ -163,7 +163,7 @@ async fn write_array_tsv_file(
 /// tab ('\t') delimiter and written as a row in the file. There is no header
 /// row.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv>
 fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 1);
@@ -187,7 +187,7 @@ fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
 /// as the first row of the file. All elements must be the same length as the
 /// header array.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv>
 fn write_tsv_with_header(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert_eq!(context.arguments.len(), 3);
@@ -223,7 +223,7 @@ fn write_tsv_with_header(context: CallContext<'_>) -> BoxFuture<'_, Result<Value
 /// If the second argument is true, then the optional third argument may be used
 /// to specify column names to use instead of the struct field names.
 ///
-/// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
+/// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv>
 fn write_tsv_struct(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
         debug_assert!(!context.arguments.is_empty() && context.arguments.len() <= 3);
