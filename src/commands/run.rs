@@ -736,6 +736,11 @@ async fn progress(
                             state.canceled += 1;
                             Some(id)
                         }
+                        CrankshaftEvent::TaskResourceUsage { .. } => {
+                            // Utilization is recorded by the metrics
+                            // collector, not displayed in the progress bar.
+                            continue;
+                        }
                         CrankshaftEvent::TaskStderr { id, message } if show_stderr => {
                             let Some(task) = state.tasks.get_mut(&id) else {
                                 continue;
@@ -747,7 +752,6 @@ async fn progress(
 
                             continue
                         }
-                        CrankshaftEvent::TaskResourceUsage { .. } |
                         CrankshaftEvent::TaskContainerCreated { .. }
                         | CrankshaftEvent::TaskContainerExited { .. }
                         | CrankshaftEvent::TaskStdout { .. }
@@ -794,6 +798,10 @@ async fn progress(
                             // The failed attempt is finished; the retry is
                             // announced separately and re-enters preparation.
                             state.depart(&Arc::new(prior_name));
+                        }
+                        EngineEvent::TaskDiskUsage { .. } => {
+                            // Disk usage is recorded by the metrics
+                            // collector, not displayed in the progress bar.
                         }
                         EngineEvent::ReusedCachedExecutionResult { name, .. } => {
                             state.depart(&Arc::new(name));
@@ -937,7 +945,7 @@ pub async fn run(
     };
 
     if let Some(output_dir) = &args.output_dir {
-        config.run.output_dir.clone_from(output_dir);
+        config.run.engine.output_dir.clone_from(output_dir);
     }
 
     // Respect the AWS SDK environment variables for endpoint
@@ -1073,6 +1081,15 @@ pub async fn run(
 
     let uses_docker = uses_docker_backend(&config.run.engine);
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    // Capture the backend name before the engine configuration is moved
+    // into execution; used for the run's metrics summary.
+    let backend_name = config
+        .run
+        .engine
+        .backend()
+        .ok()
+        .map(|b| b.name().to_string());
+
     let engine = Engine::new(config.run.engine)
         .await
         .context("failed to create WDL evaluation engine")?;
@@ -1120,6 +1137,9 @@ pub async fn run(
         events
             .subscribe_engine()
             .expect("should have engine events"),
+        events
+            .subscribe_transfer()
+            .expect("should have transfer events"),
     ));
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
@@ -1201,6 +1221,8 @@ pub async fn run(
                         &ctx.run_generated_name,
                         status,
                         ctx.started_at,
+                        backend_name.clone(),
+                        collector.transfer_totals(),
                     );
                     let response = collector.into_response(summary);
                     let metrics_file = run_dir.root().join("metrics.json");
@@ -1331,7 +1353,7 @@ async fn setup_run_context(
     inputs: &Inputs,
 ) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
-    let output_dir = OutputDirectory::new(config.run.output_dir.clone());
+    let output_dir = OutputDirectory::new(config.run.engine.output_dir.clone());
 
     // Acquire an exclusive lock on the output directory to serialize setup
     // operations across concurrent processes (e.g., database creation,

@@ -344,6 +344,8 @@ mod tests {
             error: None,
             directory: None,
             index_directory: None,
+            backend: None,
+            transfer_totals: None,
             started_at: None,
             completed_at: None,
             created_at: Utc::now(),

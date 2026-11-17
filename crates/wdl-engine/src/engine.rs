@@ -108,7 +108,7 @@ impl Engine {
             }
             _ => Some(
                 CallCache::new(
-                    config.task.cache_dir()?,
+                    config.call_cache_dir(),
                     config.task.digests,
                     CallCacheExclusions {
                         inputs: HashSet::from_iter(

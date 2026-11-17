@@ -35,11 +35,14 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
     let temp = TempDir::new().unwrap();
 
     let mut server_config = ServerConfig {
-        output_dir: temp.path().to_path_buf(),
+        engine: wdl::engine::Config {
+            output_dir: temp.path().into(),
+            ..Default::default()
+        },
         ..Default::default()
     };
     server_config.validate().unwrap();
-    let output_dir = server_config.output_dir.display().to_string();
+    let output_dir = server_config.engine.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -793,6 +796,12 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         .unwrap();
     let run_id = seed_run(&db, session_id, "metrics-run").await;
     db.start_run(run_id, Utc::now()).await.unwrap();
+    db.update_run_backend(run_id, "lsf_apptainer")
+        .await
+        .unwrap();
+    db.update_run_transfer_totals(run_id, r#"{"downloaded_bytes":1024,"uploaded_bytes":0}"#)
+        .await
+        .unwrap();
 
     // Call `wf-a`: a failed attempt that was retried, then a successful one.
     db.create_task(NewTask {
@@ -801,12 +810,14 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         status: TaskStatus::Initializing,
         call_id: Some("wf-a"),
         attempt: 0,
+        created_at: Utc::now(),
     })
     .await
     .unwrap();
     db.update_task_constraints("wf-a-x1", r#"{"cpu":2.0,"memory":1024}"#)
         .await
         .unwrap();
+    db.update_task_pending("wf-a-x1", Utc::now()).await.unwrap();
     db.update_task_started("wf-a-x1", Utc::now()).await.unwrap();
     db.update_task_completed("wf-a-x1", Some(137), Utc::now())
         .await
@@ -821,6 +832,7 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         status: TaskStatus::Initializing,
         call_id: Some("wf-a"),
         attempt: 1,
+        created_at: Utc::now(),
     })
     .await
     .unwrap();
@@ -828,6 +840,12 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
     db.update_task_completed("wf-a-x2", Some(0), Utc::now())
         .await
         .unwrap();
+    db.update_task_utilization(
+        "wf-a-x2",
+        r#"{"max_memory":241172480,"cpu_time_ms":324000}"#,
+    )
+    .await
+    .unwrap();
 
     // Call `wf-b`: served from the call cache.
     db.create_task(NewTask {
@@ -836,6 +854,7 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         status: TaskStatus::Initializing,
         call_id: Some("wf-b"),
         attempt: 0,
+        created_at: Utc::now(),
     })
     .await
     .unwrap();
@@ -863,9 +882,13 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
     assert_eq!(response.status(), StatusCode::OK);
     let json = response_json(response).await;
 
-    // Run summary.
+    // Run summary, including the execution environment and transfer proxy.
     assert_eq!(json["run"]["uuid"], run_id.to_string().as_str());
     assert_eq!(json["run"]["name"], "metrics-run");
+    assert_eq!(json["run"]["backend"], "lsf_apptainer");
+    assert!(json["run"]["sprocket_version"].is_string());
+    assert_eq!(json["run"]["transfer"]["downloaded_bytes"], 1024);
+    assert_eq!(json["run"]["transfer"]["uploaded_bytes"], 0);
 
     // Totals.
     assert_eq!(json["totals"]["attempts"], 4);
@@ -900,13 +923,34 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
     assert_eq!(attempts[0]["retry_cause"]["code"], 137);
     assert!(attempts[0]["wall_time_ms"].as_i64().unwrap() >= 0);
     assert!(attempts[0]["queued_ms"].as_i64().unwrap() >= 0);
+    // The submitted attempt reports scheduler-pending time and allocated CPU
+    // time (2 CPUs times its execution wall time).
+    assert!(attempts[0]["pending_ms"].as_i64().unwrap() >= 0);
+    assert_eq!(
+        attempts[0]["allocated_cpu_time_ms"].as_i64().unwrap(),
+        2 * attempts[0]["wall_time_ms"].as_i64().unwrap()
+    );
+    // Totals include the allocated CPU time.
+    assert_eq!(
+        json["totals"]["allocated_cpu_time_ms"],
+        attempts[0]["allocated_cpu_time_ms"]
+    );
+    assert_eq!(json["totals"]["preemption_wasted_ms"], 0);
+    // The unsubmitted attempt has no pending time.
+    assert!(attempts[1]["pending_ms"].is_null());
     assert_eq!(attempts[0]["logs"], paths::get_task_logs("wf-a-x1"));
 
-    // The successful attempt has no retry cause.
+    // The successful attempt has no retry cause; its utilization (recorded
+    // by the backend at termination) is reported.
     assert_eq!(attempts[1]["name"], "wf-a-x2");
     assert_eq!(attempts[1]["attempt"], 1);
     assert_eq!(attempts[1]["status"], "completed");
     assert!(attempts[1]["retry_cause"].is_null());
+    assert_eq!(attempts[1]["utilization"]["max_memory"], 241172480);
+    assert_eq!(attempts[1]["utilization"]["cpu_time_ms"], 324000);
+
+    // The retried attempt has no utilization recorded.
+    assert!(attempts[0]["utilization"].is_null());
 
     // The cached attempt reports no wall time (it never started executing).
     let wf_b = calls
@@ -919,6 +963,62 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
 
     // The legacy row falls back to its own name as the call id.
     assert!(calls.iter().any(|c| c["call_id"] == "legacy-x1"));
+}
+
+/// Transfer totals recorded before a run fails must still be reported by the
+/// metrics endpoint: transfer accounting reflects data actually moved during
+/// localization/delocalization, independent of whether the run went on to
+/// succeed or fail.
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+#[sqlx::test]
+async fn run_metrics_reports_transfer_totals_for_failed_run(pool: sqlx::SqlitePool) {
+    let (app, db, _temp) = create_test_server(pool).await;
+
+    let session_id = Uuid::new_v4();
+    db.create_session(session_id, SprocketCommand::Server, "tester")
+        .await
+        .unwrap();
+    let run_id = seed_run(&db, session_id, "failed-metrics-run").await;
+    db.start_run(run_id, Utc::now()).await.unwrap();
+    db.update_run_transfer_totals(run_id, r#"{"downloaded_bytes":2048,"uploaded_bytes":512}"#)
+        .await
+        .unwrap();
+
+    db.create_task(NewTask {
+        name: "wf-a-x1",
+        run_id,
+        status: TaskStatus::Initializing,
+        call_id: Some("wf-a"),
+        attempt: 0,
+        created_at: Utc::now(),
+    })
+    .await
+    .unwrap();
+    db.update_task_started("wf-a-x1", Utc::now()).await.unwrap();
+    db.update_task_completed("wf-a-x1", Some(1), Utc::now())
+        .await
+        .unwrap();
+
+    db.fail_run(run_id, "task `wf-a-x1` failed", Utc::now())
+        .await
+        .unwrap();
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(paths::run_metrics(run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+
+    assert_eq!(json["run"]["status"], "failed");
+    assert_eq!(json["run"]["transfer"]["downloaded_bytes"], 2048);
+    assert_eq!(json["run"]["transfer"]["uploaded_bytes"], 512);
 }
 
 /// Metrics for an unknown run must return 404.

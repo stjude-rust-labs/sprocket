@@ -303,6 +303,8 @@ pub enum Token {
     #[regex(r"[1-9][0-9]*")]
     #[regex(r"0[0-7]+")]
     #[regex(r"0[xX][0-9a-fA-F]+")]
+    #[regex(r"0[oO][0-7]+")]
+    #[regex(r"0[bB][01]+")]
     Integer,
 
     /// An identifier.
@@ -916,7 +918,11 @@ mod tests {
 0777
 0x0
 0X0
-0x123456789ABCDEF"#,
+0x123456789ABCDEF
+0o755
+0O17
+0b1010
+0B1"#,
         );
         let tokens: Vec<_> = lexer.map(map).collect();
         assert_eq!(
@@ -940,6 +946,14 @@ mod tests {
                 (Ok(Integer), 38..41),
                 (Ok(Whitespace), 41..42),
                 (Ok(Integer), 42..59),
+                (Ok(Whitespace), 59..60),
+                (Ok(Integer), 60..65),
+                (Ok(Whitespace), 65..66),
+                (Ok(Integer), 66..70),
+                (Ok(Whitespace), 70..71),
+                (Ok(Integer), 71..77),
+                (Ok(Whitespace), 77..78),
+                (Ok(Integer), 78..81),
             ],
         );
     }

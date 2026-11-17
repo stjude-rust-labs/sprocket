@@ -7,6 +7,48 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the `backends.<name>.resource_usage_interval` Docker configuration option for sampling task
+  memory and CPU usage. Local containers are sampled every second by default; set the interval to
+  `0` to disable sampling. Docker Swarm sampling is unsupported
+  ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+* The LSF and Slurm backends report task resource utilization through Crankshaft's cumulative
+  `TaskResourceUsage` event. LSF sources measurements from `bjobs`; Slurm uses `sacct`
+  ([#1259](https://github.com/stjude-rust-labs/sprocket/pull/1259)).
+* `TaskConstraintsSnapshot` now records the resolved retry policy and curated hints (`max_retries`,
+  `preemptible`, `max_cpu`, and `max_memory`) alongside the constraints
+  ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
+* `EngineEvent` gained a `TaskDiskUsage` event reporting the disk space used by an execution
+  attempt's work directory, measured by the engine at the attempt's termination when the work
+  directory is on a local file system. This complements the scheduler-observed measurements a
+  backend may report through Crankshaft's `TaskResourceUsage` event
+  ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
+
+### Changed
+
+* The configuration settings `http.cache_dir`, `task.cache_dir` and the `image_cache_dir` of
+  LSF/Slurm backends are now relative to the output directory instead of being user-wide cache
+  locations; the previous `system` value is deprecated
+  ([#1372](https://github.com/stjude-rust-labs/sprocket/pull/1372)).
+* In WDL 1.1 and later, `read_int` and `read_float` accept an optional `+` or `-` sign followed by
+  any form accepted for an `Int` (or, for `read_float`, `Int` or `Float`) literal, including
+  hexadecimal, octal, and binary forms, and reject legacy octal forms (e.g. `0755`) and non-finite
+  values, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791). WDL 1.0 behavior is
+  unchanged.
+
+### Fixed
+
+* `read_json` now rejects files with trailing content after the JSON value.
+
+### Fixed
+
+* The `%` operator now follows the truncating remainder semantics from
+  [`openwdl/wdl#789`](https://github.com/openwdl/wdl/pull/789): a `Float` remainder with a
+  right-hand operand equal to zero, including negative zero, is an error instead of `NaN`, and `Int`
+  remainders evaluate to their exact result, so the remainder of the minimum `Int` value by `-1` is
+  `0` instead of an overflow error.
+
 ## 0.20.0 - 2026-10-29
 
 ### Added

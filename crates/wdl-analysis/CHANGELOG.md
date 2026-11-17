@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from
+  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); using them in a WDL 1.0 document is
+  an error.
+
+### Changed
+
+* Legacy octal integer literals with a leading zero (e.g. `0755`) are now an error in WDL 1.1 and
+  later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); they remain
+  valid in WDL 1.0 documents.
+
 ## 0.28.0 - 2026-10-29
 
 ### Added

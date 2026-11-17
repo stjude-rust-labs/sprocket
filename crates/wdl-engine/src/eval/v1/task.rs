@@ -241,6 +241,29 @@ fn strip_url_path_prefix(url: &Url, base: &Url) -> Option<String> {
     None
 }
 
+/// Recursively computes the total size, in bytes, of the files in a
+/// directory.
+///
+/// Symbolic links are not followed and contribute nothing to the total, so
+/// links back into the inputs (or elsewhere) are not counted as space used by
+/// the directory.
+fn directory_size(dir: &Path) -> std::io::Result<u64> {
+    let mut total = 0;
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let metadata = entry.metadata()?;
+        if metadata.is_symlink() {
+            continue;
+        }
+        if metadata.is_dir() {
+            total += directory_size(&entry.path())?;
+        } else {
+            total += metadata.len();
+        }
+    }
+    Ok(total)
+}
+
 /// Used to evaluate expressions in tasks.
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
@@ -1966,11 +1989,13 @@ impl Evaluator {
                     attempt_dir.push(attempt.to_string());
 
                     // Notify that the attempt is being submitted for
-                    // execution, along with its resolved constraints.
-                    self.notify_task_executing(
-                        &state.task_name,
-                        TaskConstraintsSnapshot::from(&constraints),
-                    );
+                    // execution, along with its resolved constraints and the
+                    // curated hints and retry policy that inform metrics.
+                    let mut snapshot = TaskConstraintsSnapshot::new(&constraints, max_retries);
+                    snapshot.preemptible = hints::preemptible(&inputs, &hints).ok();
+                    snapshot.max_cpu = hints::max_cpu(&inputs, &hints);
+                    snapshot.max_memory = hints::max_memory(&inputs, &hints).ok().flatten();
+                    self.notify_task_executing(&state.task_name, snapshot);
 
                     match self
                         .engine()
@@ -2002,6 +2027,30 @@ impl Evaluator {
                     }
                 }
             };
+
+            // Report the disk space used by the attempt's work directory when
+            // it is on a local file system. This is best-effort and skipped
+            // for cached results.
+            if !cached && let Some(work_dir) = result.work_dir.as_local() {
+                let work_dir = work_dir.to_path_buf();
+                match tokio::task::spawn_blocking(move || directory_size(&work_dir)).await {
+                    Ok(Ok(disk_used)) => {
+                        self.notify_task_disk_usage(&state.task_name, disk_used);
+                    }
+                    Ok(Err(e)) => {
+                        debug!(
+                            "failed to measure work directory size for task `{name}`: {e:#}",
+                            name = state.task.name()
+                        );
+                    }
+                    Err(e) => {
+                        debug!(
+                            "failed to measure work directory size for task `{name}`: {e:#}",
+                            name = state.task.name()
+                        );
+                    }
+                }
+            }
 
             // Update the task variable for the execution result
             if version >= SupportedVersion::V1(V1::Two) {
@@ -2415,6 +2464,7 @@ mod tests {
     use crate::config::DockerBackendConfig;
     use crate::config::FailureMode;
     use crate::config::LocalBackendConfig;
+    use crate::config::RetryConfig;
     use crate::eval::EvaluatedTask;
     use crate::http::tests::NotImplementedHttpClient;
     use crate::resubmit_task_name;
@@ -2511,7 +2561,7 @@ mod tests {
     fn create_config(mode: CallCachingMode, root_dir: &Path) -> Config {
         let mut config = Config::default();
         config.task.cache = mode;
-        config.task.cache_dir = root_dir.join("cache").to_string_lossy().into();
+        config.task.cache_dir = root_dir.join("cache");
         config
             .backends
             .insert("default".into(), DockerBackendConfig::default().into());
@@ -2584,6 +2634,53 @@ mod tests {
     /// Helper for evaluating a simple task with the given call cache mode.
     async fn evaluate_task(config: Config, root_dir: &Path, source: &str) -> EvaluatedTask {
         evaluate_task_with_events(config, root_dir, source).await.0
+    }
+
+    #[tokio::test]
+    async fn execution_snapshots_capture_the_effective_retry_limit() {
+        for (case, retries, requirements, expected) in [
+            ("default", RetryConfig::default(), "", vec![0]),
+            ("configuration fallback", 3.into(), "", vec![3, 3, 3, 3]),
+            (
+                "requirement override",
+                3.into(),
+                "requirements { max_retries: 1 }",
+                vec![1, 1],
+            ),
+            (
+                "disabled retries",
+                RetryConfig::Disabled,
+                "requirements { max_retries: 3 }",
+                vec![0],
+            ),
+        ] {
+            let source = format!(
+                r#"
+version 1.2
+
+task test {{
+    command <<<exit 1>>>
+    {requirements}
+}}
+"#
+            );
+            let root_dir = tempdir().expect("failed to create temporary directory");
+            let mut config = Config::local();
+            config.task.retries = retries;
+
+            let (evaluated, events) =
+                evaluate_task_with_events(config, root_dir.path(), &source).await;
+            assert!(evaluated.failed(), "{case}");
+
+            let retry_limits = events
+                .iter()
+                .filter_map(|event| match event {
+                    EngineEvent::TaskExecuting { constraints, .. } => Some(constraints.max_retries),
+                    _ => None,
+                })
+                .collect::<Vec<u64>>();
+            assert_eq!(retry_limits, expected, "{case}");
+        }
     }
 
     #[tokio::test]
@@ -2759,7 +2856,7 @@ task test {
         let root_dir = tempdir().expect("failed to create temporary directory");
         let mut config = Config::default();
         config.task.cache = CallCachingMode::On;
-        config.task.cache_dir = root_dir.path().join("cache").to_string_lossy().into();
+        config.task.cache_dir = root_dir.path().join("cache");
         config
             .backends
             .insert("default".into(), LocalBackendConfig::default().into());
@@ -3888,5 +3985,20 @@ task test {
             logs_contain("task cache key is"),
             "expected the cache key to be calculated"
         );
+    }
+
+    #[test]
+    fn directory_sizes_sum_files_and_skip_symlinks() {
+        let dir = tempfile::tempdir().expect("failed to create temporary directory");
+        std::fs::write(dir.path().join("a"), vec![0u8; 100]).expect("failed to write file");
+        std::fs::create_dir(dir.path().join("sub")).expect("failed to create directory");
+        std::fs::write(dir.path().join("sub/b"), vec![0u8; 50]).expect("failed to write file");
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(dir.path().join("a"), dir.path().join("link"))
+            .expect("failed to create symlink");
+
+        let size = super::directory_size(dir.path()).expect("failed to measure directory");
+        assert_eq!(size, 150);
     }
 }

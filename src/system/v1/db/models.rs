@@ -266,6 +266,16 @@ pub struct Run {
     pub directory: Option<String>,
     /// Path to the indexed output directory (`null` if not indexed).
     pub index_directory: Option<String>,
+    /// The name of the execution backend the run executed on.
+    ///
+    /// `None` for runs recorded before backends were tracked or that never
+    /// began execution.
+    pub backend: Option<String>,
+    /// JSON value totaling the bytes transferred while localizing inputs and
+    /// delocalizing outputs.
+    ///
+    /// This is a proxy for data movement, not a billing figure.
+    pub transfer_totals: Option<String>,
     /// Timestamp when the run started.
     pub started_at: Option<DateTime<Utc>>,
     /// Timestamp when the run finished.
@@ -321,6 +331,19 @@ pub struct Task {
     /// Set on the row of the attempt that failed; `None` when the attempt was
     /// not retried.
     pub retry_cause: Option<String>,
+    /// JSON snapshot of the resource utilization observed for this attempt.
+    ///
+    /// Reported by LSF and Slurm, and by local Docker containers when
+    /// `backends.<name>.resource_usage_interval` is set to a nonzero value.
+    /// Sampling is not supported for Docker Swarm services. `None` when no
+    /// measurements have been reported.
+    pub utilization: Option<String>,
+    /// Timestamp when the task was submitted to an execution backend.
+    ///
+    /// Splits the time before execution into preparation (evaluation and
+    /// localization, `created_at` to `submitted_at`) and scheduler queuing
+    /// (`submitted_at` to `started_at`).
+    pub submitted_at: Option<DateTime<Utc>>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.

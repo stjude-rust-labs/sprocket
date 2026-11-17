@@ -7,11 +7,14 @@ use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
+use wdl_ast::SupportedVersion;
+use wdl_ast::version::V1;
 
 use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
+use super::numbers;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
@@ -23,6 +26,10 @@ const FUNCTION_NAME: &str = "read_int";
 ///
 /// If the line contains a valid integer, that value is returned as an Int. If
 /// the file is empty or does not contain a single integer, an error is raised.
+///
+/// Starting with WDL 1.1, the integer may have an optional `+` or `-` sign
+/// followed by any form accepted for an `Int` literal; legacy octal forms
+/// (e.g. `0755`) and integers out of range are errors.
 ///
 /// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_int>
 fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
@@ -70,11 +77,14 @@ fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             return Err(invalid_contents());
         }
 
-        Ok(line
-            .trim()
-            .parse::<i64>()
-            .map_err(|_| invalid_contents())?
-            .into())
+        // WDL 1.0 predates the specification of the accepted numeric forms
+        let value = if context.inner().version() >= SupportedVersion::V1(V1::One) {
+            numbers::parse_int(&line)
+        } else {
+            line.trim().parse::<i64>().ok()
+        };
+
+        Ok(value.ok_or_else(invalid_contents)?.into())
     }
     .boxed()
 }
@@ -134,5 +144,67 @@ mod tests {
 
         let value = eval_v1_expr(&env, V1::Two, "read_int(file)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
+    }
+
+    #[tokio::test]
+    async fn read_int_literal_forms() {
+        let env = TestEnv::default();
+        for (file, contents) in [
+            ("decimal", "  -12345  \n"),
+            ("plus", "+12345"),
+            ("hex", "  0Xcafe  \n"),
+            ("octal", "  0o755  \n"),
+            ("binary", "  0B101010  \n"),
+            ("legacy-octal", "0755"),
+            ("min", "-9223372036854775808"),
+            ("out-of-range", "9223372036854775808"),
+            ("hex-out-of-range", "0x8000000000000000"),
+            ("float", "1.0"),
+        ] {
+            env.write_file(file, contents);
+        }
+
+        let read = async |version, file: &str| {
+            eval_v1_expr(&env, version, &format!("read_int('{file}')"))
+                .await
+                .map(|v| v.unwrap_integer())
+                .map_err(|e| e.message().to_string())
+        };
+
+        let invalid = |file: &str| {
+            Err(format!(
+                "call to function `read_int` failed: file `{file}` does not contain an integer \
+                 value on a single line"
+            ))
+        };
+
+        // WDL 1.0 uses the legacy behavior
+        assert_eq!(read(V1::Zero, "decimal").await, Ok(-12345));
+        assert_eq!(read(V1::Zero, "plus").await, Ok(12345));
+        assert_eq!(read(V1::Zero, "legacy-octal").await, Ok(755));
+        assert_eq!(read(V1::Zero, "min").await, Ok(i64::MIN));
+        assert_eq!(read(V1::Zero, "hex").await, invalid("hex"));
+        assert_eq!(read(V1::Zero, "octal").await, invalid("octal"));
+        assert_eq!(read(V1::Zero, "binary").await, invalid("binary"));
+        assert_eq!(
+            read(V1::Zero, "out-of-range").await,
+            invalid("out-of-range")
+        );
+
+        for version in [V1::One, V1::Two, V1::Three] {
+            assert_eq!(read(version, "decimal").await, Ok(-12345));
+            assert_eq!(read(version, "plus").await, Ok(12345));
+            assert_eq!(read(version, "hex").await, Ok(0xCAFE));
+            assert_eq!(read(version, "octal").await, Ok(0o755));
+            assert_eq!(read(version, "binary").await, Ok(42));
+            assert_eq!(read(version, "min").await, Ok(i64::MIN));
+            assert_eq!(read(version, "legacy-octal").await, invalid("legacy-octal"));
+            assert_eq!(read(version, "out-of-range").await, invalid("out-of-range"));
+            assert_eq!(
+                read(version, "hex-out-of-range").await,
+                invalid("hex-out-of-range")
+            );
+            assert_eq!(read(version, "float").await, invalid("float"));
+        }
     }
 }
