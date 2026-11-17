@@ -49,13 +49,9 @@ public in generated API documentation.
 
 ### Exit Status and Stream Conventions
 
-Sprocket uses these command-wide exit statuses:
-
-| Status | Meaning |
-| --- | --- |
-| `0` | The command completed successfully. |
-| `1` | The command could not complete successfully, including configuration, validation, analysis, execution, or operational failures. |
-| `2` | The command line could not be parsed, or an argument value failed argument-level validation, such as when a source path does not exist. |
+An exit status of `0` means the command completed successfully. Any non-zero exit status means the
+command failed. Specific non-zero values are not stable unless a command's documentation defines
+them.
 
 Unless a command documents a different contract, its requested result or machine-readable payload
 goes to standard output. Diagnostics, warnings, progress, prompts, and logs go to standard error.
@@ -65,10 +61,10 @@ Human-readable wording, whitespace, layout, color, progress displays, diagnostic
 messages are not stable. Scripts must not parse human-readable output. A machine-readable format is
 stable only when the documentation identifies its format and stream.
 
-## Experimental Interfaces
+## Unstable Interfaces
 
-Experimental interfaces may change or be removed without the stable deprecation period. User-visible
-experimental changes must still appear in the release notes.
+Unstable interfaces may change or be removed without the stable deprecation period. User-visible
+changes to them must still appear in the release notes.
 
 The following interfaces are experimental or otherwise outside the executable compatibility
 contract:
@@ -107,10 +103,6 @@ stable command. Invoking the alias must write a deprecation warning to standard 
 stable command. The alias follows the [deprecation](#deprecation) process and its removal
 thresholds, so users who tested the command under `dev` have time to migrate.
 
-The server must graduate from `sprocket dev server` before Sprocket 1.0 makes `/api/v1` stable.
-Sprocket 1.0 must not be released while `/api/v1` is available only through the experimental `dev`
-namespace.
-
 ### Database Schema
 
 The `sprocket.db` schema is an internal implementation detail and is explicitly not backward
@@ -138,9 +130,9 @@ Compatible changes preserve documented behavior for existing users. Examples inc
 - Adding an HTTP endpoint without changing an existing endpoint.
 - Fixing behavior that contradicts the documentation.
 
-Consumers of extensible JSON objects must ignore fields they do not recognize. An enumeration is not
-extensible unless its documentation says so; adding a variant to a closed enumeration is a breaking
-change.
+Consumers of extensible JSON objects must ignore fields they do not recognize. When documentation
+lists every value a field can take, such as the possible statuses of a run, adding a new value is a
+breaking change unless the documentation says the list may grow.
 
 Breaking changes require existing users, scripts, configurations, or clients to change. Examples
 include:
