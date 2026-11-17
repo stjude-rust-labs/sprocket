@@ -17,6 +17,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Fixed recovery when using the `null` keyword as an identifier
   ([#1352]<https://github.com/stjude-rust-labs/sprocket/pull/1352>).
 
+* The `enum` keyword is now permitted as an arbitrary key in `runtime`, `requirements`, `hints`, and
+  `meta` sections, metadata objects, and `Object` literals, and as a member name in access
+  expressions (e.g., `task.meta.enum`), matching all other reserved keywords per
+  [openwdl/wdl#793](https://github.com/openwdl/wdl/pull/793).
+
 ## 0.27.1 - 2026-10-29
 
 ## 0.27.0 - 2026-10-07

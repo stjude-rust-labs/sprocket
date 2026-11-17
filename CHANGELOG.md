@@ -47,6 +47,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
   config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
 * `read_json` now rejects files with trailing content after the JSON value.
+* The `enum` keyword can now be used, like other reserved keywords, as an arbitrary key in
+  `runtime`, `requirements`, `hints`, and `meta` sections, metadata objects, and `Object` literals,
+  and as a member name (e.g., `task.meta.enum`), per
+  [openwdl/wdl#793](https://github.com/openwdl/wdl/pull/793).
 
 ## 0.33.0 - 2026-10-29
 
