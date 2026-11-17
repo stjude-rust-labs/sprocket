@@ -890,7 +890,12 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
     // Run summary, including the execution environment and transfer proxy.
     assert_eq!(json["run"]["uuid"], run_id.to_string().as_str());
     assert_eq!(json["run"]["name"], "metrics-run");
-    assert_eq!(json["run"]["backend_type"], "lsf_apptainer");
+    assert_eq!(json["run"]["backend"]["name"], "hpc");
+    assert_eq!(json["run"]["backend"]["type"], "lsf_apptainer");
+    assert_eq!(
+        json["run"]["backend"]["info"]["max_concurrency"],
+        serde_json::Value::Null
+    );
     assert!(json["run"]["sprocket_version"].is_string());
     assert_eq!(json["run"]["transfer"]["downloaded_bytes"], 1024);
     assert_eq!(json["run"]["transfer"]["uploaded_bytes"], 0);

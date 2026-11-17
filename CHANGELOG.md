@@ -9,9 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-* Runs returned by `sprocket dev server` include the configured name of their execution backend as
-  `backend_name` and an allowlisted, secret-free snapshot of its configuration as `backend_config`.
-  The backend type is reported as `backend_type` (formerly `backend`) on runs and run metrics
+* The `backend` reported for runs and run metrics is an object with the configured `name` of the
+  execution backend, its `type`, and allowlisted, secret-free configuration `info`
   ([#1395](https://github.com/stjude-rust-labs/sprocket/pull/1395)).
 * Execution metrics include backend-reported peak and average memory and cumulative CPU time when
   available. Local Docker containers sample these measurements every second by default; set

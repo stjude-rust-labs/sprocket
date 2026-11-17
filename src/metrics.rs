@@ -419,7 +419,7 @@ pub fn local_run_summary(
     name: &str,
     status: crate::system::v1::db::RunStatus,
     started_at: DateTime<Utc>,
-    backend_type: Option<String>,
+    backend: Option<crate::system::v1::db::RunBackend>,
     transfer: Option<TransferTotals>,
 ) -> RunMetrics {
     RunMetrics {
@@ -427,7 +427,7 @@ pub fn local_run_summary(
         name: name.to_string(),
         status,
         wall_time_ms: Some((Utc::now() - started_at).num_milliseconds()),
-        backend_type,
+        backend,
         sprocket_version: env!("CARGO_PKG_VERSION").to_string(),
         transfer,
     }
@@ -479,7 +479,7 @@ mod tests {
             name: "test".to_string(),
             status: crate::system::v1::db::RunStatus::Completed,
             wall_time_ms: None,
-            backend_type: None,
+            backend: None,
             sprocket_version: "0.0.0-test".to_string(),
             transfer: None,
         };

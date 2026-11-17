@@ -2251,7 +2251,7 @@ async fn get_run_returns_seeded_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
-async fn submit_run_records_backend_name(pool: sqlx::SqlitePool) {
+async fn submit_run_records_backend(pool: sqlx::SqlitePool) {
     let engine = wdl::engine::Config {
         backend: String::from("my-local"),
         backends: [(
@@ -2312,9 +2312,10 @@ async fn submit_run_records_backend_name(pool: sqlx::SqlitePool) {
     assert_eq!(response.status(), StatusCode::OK);
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(json["backend_type"], "local");
-    assert_eq!(json["backend_name"], "my-local");
-    assert_eq!(json["backend_config"], r#"{"cpu":null,"memory":null}"#);
+    assert_eq!(
+        json["backend"],
+        r#"{"name":"my-local","type":"local","info":{"cpu":null,"memory":null}}"#
+    );
 }
 
 #[sqlx::test]
@@ -2400,11 +2401,11 @@ async fn backend_secrets_are_never_persisted(pool: sqlx::SqlitePool) {
         .expect("run should finish");
 
     let run = db.get_run(run_id).await.unwrap().expect("run should exist");
-    assert_eq!(run.backend_type.as_deref(), Some("tes"));
-    assert_eq!(run.backend_name.as_deref(), Some("cloud"));
     assert_eq!(
-        run.backend_config.as_deref(),
-        Some(r#"{"service":"http://127.0.0.1:9/","max_concurrency":null}"#)
+        run.backend.as_deref(),
+        Some(
+            r#"{"name":"cloud","type":"tes","info":{"service":"http://127.0.0.1:9/","max_concurrency":null}}"#
+        )
     );
 
     // Check every value in every table, not just the backend columns.

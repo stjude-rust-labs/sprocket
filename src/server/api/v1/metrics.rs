@@ -16,6 +16,7 @@ use super::send_command;
 use super::tasks::Task;
 use crate::server::api::v1::RunStatus;
 use crate::server::api::v1::TaskStatus;
+use crate::system::v1::db::RunBackend;
 use crate::system::v1::exec::svc::run_manager::RunManagerCmd;
 
 /// The page size used when collecting every task of a run.
@@ -34,11 +35,11 @@ pub struct RunMetrics {
     ///
     /// `null` until the run has both started and reached a terminal status.
     pub wall_time_ms: Option<i64>,
-    /// The type of the execution backend the run executed on (e.g. `docker`).
+    /// The execution backend the run executed on.
     ///
     /// `null` for runs recorded before backends were tracked or that never
     /// began execution.
-    pub backend_type: Option<String>,
+    pub backend: Option<RunBackend>,
     /// The version of Sprocket that produced this report.
     pub sprocket_version: String,
     /// The bytes transferred while localizing inputs and delocalizing
@@ -327,7 +328,10 @@ pub async fn get_run_metrics(
         name: run.name,
         status: run.status,
         wall_time_ms: duration_ms(run.started_at, run.completed_at),
-        backend_type: run.backend_type,
+        backend: run
+            .backend
+            .as_deref()
+            .and_then(|b| serde_json::from_str(b).ok()),
         sprocket_version: env!("CARGO_PKG_VERSION").to_string(),
         transfer: run
             .transfer_totals

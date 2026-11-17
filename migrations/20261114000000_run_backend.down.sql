@@ -1,3 +1,1 @@
-alter table runs drop column backend_config;
-alter table runs drop column backend_name;
-alter table runs rename column backend_type to backend;
+update runs set backend = json_extract(backend, '$.type') where backend is not null;

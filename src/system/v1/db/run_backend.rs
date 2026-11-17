@@ -1,30 +1,39 @@
 //! The execution backend details recorded for a run.
 
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Value;
 use serde_json::json;
 use url::Url;
+use utoipa::ToSchema;
 use wdl::engine::config::BackendConfig;
 
-/// The execution backend details recorded for a run.
+/// The execution backend a run executed on.
 ///
-/// The configuration snapshot is built from an allowlist of identifying,
-/// non-secret fields rather than by serializing the backend configuration, so
-/// secrets such as TES credentials are never persisted. New backend
-/// configuration fields are excluded until they are explicitly added here.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The backend information is built from an allowlist of identifying,
+/// non-secret configuration fields rather than by serializing the backend
+/// configuration, so secrets such as TES credentials are never persisted. New
+/// backend configuration fields are excluded until they are explicitly added
+/// here.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct RunBackend {
-    /// The backend type (e.g. `docker`).
-    backend_type: &'static str,
-    /// The configured name the backend was selected by.
+    /// The configured name the backend was selected by (e.g. `default` or a
+    /// key under `[backends]`).
     name: String,
-    /// The JSON snapshot of allowlisted backend configuration fields.
-    config: String,
+    /// The backend type (e.g. `docker`).
+    #[serde(rename = "type")]
+    backend_type: String,
+    /// Identifying, non-secret configuration of the backend, which varies by
+    /// backend type.
+    #[schema(value_type = Object)]
+    info: Value,
 }
 
 impl RunBackend {
     /// Creates the details for the backend selected by `name` with the given
     /// configuration.
     pub fn new(name: impl Into<String>, config: &BackendConfig) -> Self {
-        let snapshot = match config {
+        let info = match config {
             BackendConfig::Local { config } => json!({
                 "cpu": config.cpu,
                 "memory": config.memory,
@@ -54,15 +63,15 @@ impl RunBackend {
         };
 
         Self {
-            backend_type: config.name(),
             name: name.into(),
-            config: snapshot.to_string(),
+            backend_type: config.name().to_string(),
+            info,
         }
     }
 
     /// Gets the backend type (e.g. `docker`).
     pub fn backend_type(&self) -> &str {
-        self.backend_type
+        &self.backend_type
     }
 
     /// Gets the configured name the backend was selected by.
@@ -70,9 +79,14 @@ impl RunBackend {
         &self.name
     }
 
-    /// Gets the JSON snapshot of allowlisted backend configuration fields.
-    pub fn config(&self) -> &str {
-        &self.config
+    /// Gets the identifying, non-secret configuration of the backend.
+    pub fn info(&self) -> &Value {
+        &self.info
+    }
+
+    /// Serializes the backend details to JSON.
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).expect("backend details should serialize")
     }
 }
 
@@ -137,17 +151,17 @@ mod tests {
     }
 
     fn assert_no_secrets(backend: &RunBackend) {
+        let json = backend.to_json();
         for secret in SECRETS {
             assert!(
-                !backend.config().contains(secret),
-                "backend config `{config}` contains secret `{secret}`",
-                config = backend.config()
+                !json.contains(secret),
+                "backend `{json}` contains secret `{secret}`"
             );
         }
     }
 
     #[test]
-    fn tes_snapshot_excludes_secrets() {
+    fn tes_info_excludes_secrets() {
         let auths = [
             TesBackendAuthConfig::Basic {
                 config: BasicAuthConfig {
@@ -175,18 +189,16 @@ mod tests {
 
         for auth in auths {
             let backend = RunBackend::new("cloud", &tes(auth));
-            assert_eq!(backend.backend_type(), "tes");
-            assert_eq!(backend.name(), "cloud");
             assert_eq!(
-                backend.config(),
-                r#"{"service":"https://tes.example.com/ga4gh/tes","max_concurrency":5}"#
+                backend.to_json(),
+                r#"{"name":"cloud","type":"tes","info":{"service":"https://tes.example.com/ga4gh/tes","max_concurrency":5}}"#
             );
             assert_no_secrets(&backend);
         }
     }
 
     #[test]
-    fn snapshots_include_only_allowlisted_fields() {
+    fn info_includes_only_allowlisted_fields() {
         let apptainer = ApptainerConfig {
             extra_args: vec!["--env=TOKEN=extra-arg-secret".into()],
             ..Default::default()
@@ -263,7 +275,7 @@ mod tests {
         for (config, backend_type, expected) in cases {
             let backend = RunBackend::new("default", &config);
             assert_eq!(backend.backend_type(), backend_type);
-            assert_eq!(backend.config(), expected);
+            assert_eq!(backend.info().to_string(), expected);
             assert_no_secrets(&backend);
         }
     }
