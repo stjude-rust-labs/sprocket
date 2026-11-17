@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added `sprocket dev flowchart` to render WDL workflows as diagrams; Mermaid is the default and
+  only `--type` ([#1069](https://github.com/stjude-rust-labs/sprocket/pull/1069)).
+
 ### Fixed
 
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required

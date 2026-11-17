@@ -239,6 +239,34 @@ workflow test {
 }
 
 #[tokio::test]
+async fn expands_each_call_to_the_same_workflow() {
+    let source = r#"version 1.0
+import "child.wdl" as child
+
+workflow root {
+    call child.child as first
+    call child.child as second
+}
+"#;
+    let child = r#"version 1.0
+
+task noop {
+    command <<< echo noop >>>
+}
+
+workflow child {
+    call noop
+}
+"#;
+
+    let ctx = TestContext::new(source.into()).with_dependency("child.wdl".into(), child.into());
+    let diagram = ctx.render(None).await;
+
+    assert!(diagram.contains("subgraph n0[\"first (child.child)\"]"));
+    assert!(diagram.contains("subgraph n2[\"second (child.child)\"]"));
+}
+
+#[tokio::test]
 async fn depth_limited_calls_do_not_block_later_expansion() {
     let source = r#"version 1.0
 import "child.wdl" as child

@@ -188,8 +188,11 @@ impl Rendered {
 #[derive(Default)]
 struct MermaidCtx {
     counter: usize,
-    /// Tracks workflow URI-and-name keys that have already been expanded.
-    expanded: HashSet<String>,
+    /// Workflow URI-and-name keys being expanded on the current call path.
+    ///
+    /// Used to stop recursive expansion while still expanding a workflow
+    /// that is called more than once outside of recursion.
+    call_path: HashSet<String>,
     /// Maximum recursion depth for workflow expansion. `None` means unlimited.
     max_depth: Option<usize>,
     /// Current recursion depth.
@@ -557,8 +560,9 @@ impl MermaidCtx {
     }
 
     /// Emits a called workflow as an expanded `subgraph`, then recursively
-    /// descends into its body. Falls back to a leaf node when the workflow
-    /// has already been expanded (cycle guard).
+    /// descends into its body. Falls back to a leaf node when the depth limit
+    /// is reached or the workflow is already being expanded on the current
+    /// call path (cycle guard).
     fn emit_workflow_call(
         &mut self,
         label: &str,
@@ -571,15 +575,9 @@ impl MermaidCtx {
         let uri = callee_doc.uri().to_string();
         let cycle_key = format!("{uri}#{}", wf_def.name().text());
 
-        // Depth guard: render as a plain node if the depth limit has been
-        // reached. This is checked before the cycle guard so that a workflow
-        // skipped here can still be expanded by a shallower call.
-        if self.max_depth.is_some_and(|max| self.current_depth >= max) {
-            return self.emit_call_node(label, target, out, indent);
-        }
-
-        // Render as a plain node if this workflow has already been expanded.
-        if !self.expanded.insert(cycle_key) {
+        if self.max_depth.is_some_and(|max| self.current_depth >= max)
+            || !self.call_path.insert(cycle_key.clone())
+        {
             return self.emit_call_node(label, target, out, indent);
         }
 
@@ -597,6 +595,7 @@ impl MermaidCtx {
         let subgraph = self.emit_subgraph(&subgraph_label, &body, callee_doc, out, indent);
 
         self.current_depth -= 1;
+        self.call_path.remove(&cycle_key);
 
         Rendered {
             entry: subgraph.group_id.clone(),
