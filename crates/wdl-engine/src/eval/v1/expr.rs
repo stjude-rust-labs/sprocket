@@ -964,7 +964,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
 
             fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type> {
-                self.context.resolve_name(name, span).map(|v| v.ty()).ok()
+                // Prefer the declared type, as the type of a value doesn't
+                // preserve optionality
+                self.context
+                    .declared_type(name, span)
+                    .or_else(|| self.context.resolve_name(name, span).map(|v| v.ty()).ok())
             }
 
             fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
@@ -991,10 +995,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             ) {
                 self.diagnostics
                     .exceptable_add(diagnostic, element, exceptable_nodes);
-            }
-
-            fn resolves_value_types(&self) -> bool {
-                true
             }
         }
 
@@ -2694,16 +2694,6 @@ pub(crate) mod tests {
             value.unwrap_string().as_str(),
             "hello Fred, nice to meet you!"
         );
-
-        let value = eval_v1_expr(&env, V1::Four, "if false then maybe_five! else 0")
-            .await
-            .unwrap();
-        assert_eq!(value.unwrap_integer(), 0);
-
-        let value = eval_v1_expr(&env, V1::Four, "if true then 0 else maybe_five!")
-            .await
-            .unwrap();
-        assert_eq!(value.unwrap_integer(), 0);
 
         let diagnostic = eval_v1_expr(&env, V1::Three, "maybe_five!")
             .await

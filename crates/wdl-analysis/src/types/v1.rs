@@ -575,18 +575,6 @@ pub trait EvaluationContext {
         element: &N,
         exceptable_nodes: &Option<&'static [SyntaxKind]>,
     );
-
-    /// Determines if names resolve to the types of runtime values rather than
-    /// to declared types.
-    ///
-    /// The type of a runtime value does not preserve the optionality of its
-    /// declared type, so checks that require an optional type are skipped when
-    /// this returns `true`.
-    ///
-    /// Defaults to `false`.
-    fn resolves_value_types(&self) -> bool {
-        false
-    }
 }
 
 /// Represents an evaluator of expression types.
@@ -1331,18 +1319,14 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         }
 
         if !ty.is_optional() {
-            if !self.context.resolves_value_types() {
-                self.context
-                    .add_diagnostic(unwrap_mismatch(&ty, operand.span()));
-            }
+            self.context
+                .add_diagnostic(unwrap_mismatch(&ty, operand.span()));
 
             return Some(ty);
         }
 
         if ty.is_none() {
-            if !self.context.resolves_value_types() {
-                self.context.add_diagnostic(unwrap_none(operand.span()));
-            }
+            self.context.add_diagnostic(unwrap_none(operand.span()));
 
             return Some(Type::Union);
         }

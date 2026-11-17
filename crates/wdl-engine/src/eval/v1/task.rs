@@ -368,6 +368,14 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         Err(unknown_name(name, span))
     }
 
+    fn declared_type(&self, name: &str, span: Span) -> Option<Type> {
+        self.state
+            .document
+            .find_scope_by_position(span.start())?
+            .lookup(name)
+            .map(|n| n.ty().clone())
+    }
+
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(self.state.document, name, span)
     }

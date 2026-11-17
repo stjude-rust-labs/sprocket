@@ -180,6 +180,14 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         Err(unknown_name(name, span))
     }
 
+    fn declared_type(&self, name: &str, span: Span) -> Option<Type> {
+        self.state
+            .document
+            .find_scope_by_position(span.start())?
+            .lookup(name)
+            .map(|n| n.ty().clone())
+    }
+
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(&self.state.document, name, span)
     }
@@ -2305,14 +2313,34 @@ workflow child {
             r#"
 version 1.4
 
+task unwrap_in_task {
+    input {
+        Int? maybe_five = 5
+        Int? nothing
+    }
+
+    command <<<>>>
+
+    output {
+        Int untaken = if false then maybe_five! else 0
+        Int untaken_none = if false then nothing! else 0
+    }
+}
+
 workflow test_unwrap {
     Int? maybe_five = 5
     Int? maybe_ten = 10
+    Int? nothing = None
+
+    call unwrap_in_task
 
     output {
         Int certainly_five = maybe_five!
         Int fifteen = maybe_five! + maybe_ten!
         Int untaken = if false then maybe_five! else 0
+        Int untaken_none = if true then 0 else nothing!
+        Int task_untaken = unwrap_in_task.untaken
+        Int task_untaken_none = unwrap_in_task.untaken_none
     }
 }
 "#,
@@ -2347,6 +2375,9 @@ workflow test_unwrap {
         assert_eq!(get("certainly_five"), 5);
         assert_eq!(get("fifteen"), 15);
         assert_eq!(get("untaken"), 0);
+        assert_eq!(get("untaken_none"), 0);
+        assert_eq!(get("task_untaken"), 0);
+        assert_eq!(get("task_untaken_none"), 0);
     }
 
     #[tokio::test]
