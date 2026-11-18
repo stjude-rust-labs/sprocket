@@ -101,7 +101,7 @@ impl StartArgs {
         }
 
         if let Some(output_dir) = self.output_dir {
-            config.server.output_dir = output_dir;
+            config.server.engine.output_dir = output_dir;
         }
 
         config

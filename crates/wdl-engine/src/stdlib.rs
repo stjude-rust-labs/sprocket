@@ -50,6 +50,7 @@ mod list;
 mod matches;
 mod max;
 mod min;
+mod numbers;
 mod prefix;
 mod quote;
 mod range;

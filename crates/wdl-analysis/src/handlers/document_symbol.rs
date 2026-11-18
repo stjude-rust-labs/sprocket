@@ -7,13 +7,14 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentSymbol)
 
 use anyhow::Result;
-use anyhow::bail;
 use lsp_types::DocumentSymbol;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::SymbolKind;
 use url::Url;
+use wdl_ast::Ast;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Document;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::ConditionalStatement;
@@ -33,27 +34,16 @@ use wdl_ast::v1::WorkflowItem;
 use wdl_ast::v1::WorkflowStatement;
 
 use crate::graph::DocumentGraph;
-use crate::graph::ParseState;
 use crate::handlers::common;
+use crate::handlers::common::ensure_parsed;
 
 /// Handles a document symbol request
 pub fn document_symbol(graph: &DocumentGraph, uri: &Url) -> Result<Option<DocumentSymbolResponse>> {
-    let Some(index) = graph.get_index(uri) else {
-        bail!("document `{uri}` not found in graph");
-    };
-
-    let node = graph.get(index);
-    let lines = match node.parse_state() {
-        ParseState::Parsed { lines, .. } => lines.clone(),
-        _ => bail!("document `{uri}` has not been parsed", uri = uri),
-    };
-
-    let Some(document) = node.root() else {
-        return Ok(None);
-    };
+    let (root, lines, version) = ensure_parsed(graph, uri)?;
 
     let mut symbols = Vec::new();
-    let Some(ast) = document.ast().into_v1() else {
+    let Some(Ast::V1(ast)) = Document::cast(root).map(|doc| doc.ast_with_version_fallback(version))
+    else {
         return Ok(None);
     };
 

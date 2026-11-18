@@ -1,0 +1,432 @@
+RootNode@0..1117
+  Comment@0..78 "# This is a test of r ..."
+  Whitespace@78..80 "\n\n"
+  VersionStatementNode@80..91
+    VersionKeyword@80..87 "version"
+    Whitespace@87..88 " "
+    Version@88..91 "1.3"
+  Whitespace@91..93 "\n\n"
+  StructDefinitionNode@93..275
+    StructKeyword@93..99 "struct"
+    Whitespace@99..100 " "
+    Ident@100..103 "Foo"
+    Whitespace@103..104 " "
+    OpenBrace@104..105 "{"
+    Whitespace@105..110 "\n    "
+    UnboundDeclNode@110..118
+      PrimitiveTypeNode@110..116
+        StringTypeKeyword@110..116 "String"
+      Whitespace@116..117 " "
+      Ident@117..118 "x"
+    Whitespace@118..124 "\n\n    "
+    MetadataSectionNode@124..174
+      MetaKeyword@124..128 "meta"
+      Whitespace@128..129 " "
+      OpenBrace@129..130 "{"
+      Whitespace@130..139 "\n        "
+      MetadataObjectItemNode@139..148
+        Ident@139..143 "enum"
+        Colon@143..144 ":"
+        Whitespace@144..145 " "
+        LiteralStringNode@145..148
+          DoubleQuote@145..146 "\""
+          LiteralStringText@146..147 "a"
+          DoubleQuote@147..148 "\""
+      Whitespace@148..157 "\n        "
+      MetadataObjectItemNode@157..168
+        Ident@157..163 "import"
+        Colon@163..164 ":"
+        Whitespace@164..165 " "
+        LiteralStringNode@165..168
+          DoubleQuote@165..166 "\""
+          LiteralStringText@166..167 "b"
+          DoubleQuote@167..168 "\""
+      Whitespace@168..173 "\n    "
+      CloseBrace@173..174 "}"
+    Whitespace@174..180 "\n\n    "
+    ParameterMetadataSectionNode@180..273
+      ParameterMetaKeyword@180..194 "parameter_meta"
+      Whitespace@194..195 " "
+      OpenBrace@195..196 "{"
+      Whitespace@196..205 "\n        "
+      MetadataObjectItemNode@205..267
+        Ident@205..206 "x"
+        Colon@206..207 ":"
+        Whitespace@207..208 " "
+        MetadataObjectNode@208..267
+          OpenBrace@208..209 "{"
+          Whitespace@209..222 "\n            "
+          MetadataObjectItemNode@222..231
+            Ident@222..226 "enum"
+            Colon@226..227 ":"
+            Whitespace@227..228 " "
+            LiteralStringNode@228..231
+              DoubleQuote@228..229 "\""
+              LiteralStringText@229..230 "c"
+              DoubleQuote@230..231 "\""
+          Comma@231..232 ","
+          Whitespace@232..245 "\n            "
+          MetadataObjectItemNode@245..256
+            Ident@245..251 "struct"
+            Colon@251..252 ":"
+            Whitespace@252..253 " "
+            LiteralStringNode@253..256
+              DoubleQuote@253..254 "\""
+              LiteralStringText@254..255 "d"
+              DoubleQuote@255..256 "\""
+          Comma@256..257 ","
+          Whitespace@257..266 "\n        "
+          CloseBrace@266..267 "}"
+      Whitespace@267..272 "\n    "
+      CloseBrace@272..273 "}"
+    Whitespace@273..274 "\n"
+    CloseBrace@274..275 "}"
+  Whitespace@275..277 "\n\n"
+  TaskDefinitionNode@277..935
+    TaskKeyword@277..281 "task"
+    Whitespace@281..282 " "
+    Ident@282..286 "test"
+    Whitespace@286..287 " "
+    OpenBrace@287..288 "{"
+    Whitespace@288..293 "\n    "
+    MetadataSectionNode@293..474
+      MetaKeyword@293..297 "meta"
+      Whitespace@297..298 " "
+      OpenBrace@298..299 "{"
+      Whitespace@299..308 "\n        "
+      MetadataObjectItemNode@308..321
+        Ident@308..314 "import"
+        Colon@314..315 ":"
+        Whitespace@315..316 " "
+        LiteralStringNode@316..321
+          DoubleQuote@316..317 "\""
+          LiteralStringText@317..320 "abc"
+          DoubleQuote@320..321 "\""
+      Whitespace@321..330 "\n        "
+      MetadataObjectItemNode@330..341
+        Ident@330..334 "None"
+        Colon@334..335 ":"
+        Whitespace@335..336 " "
+        LiteralStringNode@336..341
+          DoubleQuote@336..337 "\""
+          LiteralStringText@337..340 "xyz"
+          DoubleQuote@340..341 "\""
+      Whitespace@341..350 "\n        "
+      MetadataObjectItemNode@350..359
+        Ident@350..354 "enum"
+        Colon@354..355 ":"
+        Whitespace@355..356 " "
+        LiteralStringNode@356..359
+          DoubleQuote@356..357 "\""
+          LiteralStringText@357..358 "e"
+          DoubleQuote@358..359 "\""
+      Whitespace@359..368 "\n        "
+      MetadataObjectItemNode@368..380
+        Ident@368..375 "version"
+        Colon@375..376 ":"
+        Whitespace@376..377 " "
+        LiteralStringNode@377..380
+          DoubleQuote@377..378 "\""
+          LiteralStringText@378..379 "v"
+          DoubleQuote@379..380 "\""
+      Whitespace@380..389 "\n        "
+      MetadataObjectItemNode@389..398
+        Ident@389..393 "from"
+        Colon@393..394 ":"
+        Whitespace@394..395 " "
+        LiteralStringNode@395..398
+          DoubleQuote@395..396 "\""
+          LiteralStringText@396..397 "f"
+          DoubleQuote@397..398 "\""
+      Whitespace@398..407 "\n        "
+      MetadataObjectItemNode@407..468
+        Ident@407..413 "nested"
+        Colon@413..414 ":"
+        Whitespace@414..415 " "
+        MetadataObjectNode@415..468
+          OpenBrace@415..416 "{"
+          Whitespace@416..429 "\n            "
+          MetadataObjectItemNode@429..437
+            Ident@429..431 "if"
+            Colon@431..432 ":"
+            Whitespace@432..433 " "
+            LiteralBooleanNode@433..437
+              TrueKeyword@433..437 "true"
+          Comma@437..438 ","
+          Whitespace@438..451 "\n            "
+          MetadataObjectItemNode@451..457
+            Ident@451..454 "Int"
+            Colon@454..455 ":"
+            Whitespace@455..456 " "
+            LiteralIntegerNode@456..457
+              Integer@456..457 "1"
+          Comma@457..458 ","
+          Whitespace@458..467 "\n        "
+          CloseBrace@467..468 "}"
+      Whitespace@468..473 "\n    "
+      CloseBrace@473..474 "}"
+    Whitespace@474..480 "\n\n    "
+    ParameterMetadataSectionNode@480..520
+      ParameterMetaKeyword@480..494 "parameter_meta"
+      Whitespace@494..495 " "
+      OpenBrace@495..496 "{"
+      Whitespace@496..505 "\n        "
+      MetadataObjectItemNode@505..514
+        Ident@505..509 "enum"
+        Colon@509..510 ":"
+        Whitespace@510..511 " "
+        LiteralStringNode@511..514
+          DoubleQuote@511..512 "\""
+          LiteralStringText@512..513 "g"
+          DoubleQuote@513..514 "\""
+      Whitespace@514..519 "\n    "
+      CloseBrace@519..520 "}"
+    Whitespace@520..526 "\n\n    "
+    CommandSectionNode@526..625
+      CommandKeyword@526..533 "command"
+      Whitespace@533..534 " "
+      OpenHeredoc@534..537 "<<<"
+      LiteralCommandText@537..552 "\n        echo \""
+      PlaceholderNode@552..571
+        PlaceholderOpen@552..554 "~{"
+        AccessExprNode@554..570
+          AccessExprNode@554..563
+            NameRefExprNode@554..558
+              Ident@554..558 "task"
+            Dot@558..559 "."
+            Ident@559..563 "meta"
+          Dot@563..564 "."
+          Ident@564..570 "import"
+        CloseBrace@570..571 "}"
+      LiteralCommandText@571..574 "\" \""
+      PlaceholderNode@574..591
+        PlaceholderOpen@574..576 "~{"
+        AccessExprNode@576..590
+          AccessExprNode@576..585
+            NameRefExprNode@576..580
+              Ident@576..580 "task"
+            Dot@580..581 "."
+            Ident@581..585 "meta"
+          Dot@585..586 "."
+          Ident@586..590 "enum"
+        CloseBrace@590..591 "}"
+      LiteralCommandText@591..594 "\" \""
+      PlaceholderNode@594..616
+        PlaceholderOpen@594..596 "~{"
+        AccessExprNode@596..615
+          AccessExprNode@596..612
+            AccessExprNode@596..605
+              NameRefExprNode@596..600
+                Ident@596..600 "task"
+              Dot@600..601 "."
+              Ident@601..605 "meta"
+            Dot@605..606 "."
+            Ident@606..612 "nested"
+          Dot@612..613 "."
+          Ident@613..615 "if"
+        CloseBrace@615..616 "}"
+      LiteralCommandText@616..622 "\"\n    "
+      CloseHeredoc@622..625 ">>>"
+    Whitespace@625..631 "\n\n    "
+    OutputSectionNode@631..819
+      OutputKeyword@631..637 "output"
+      Whitespace@637..638 " "
+      OpenBrace@638..639 "{"
+      Whitespace@639..648 "\n        "
+      BoundDeclNode@648..742
+        ObjectTypeNode@648..654
+          ObjectTypeKeyword@648..654 "Object"
+        Whitespace@654..655 " "
+        Ident@655..656 "o"
+        Whitespace@656..657 " "
+        Assignment@657..658 "="
+        Whitespace@658..659 " "
+        LiteralObjectNode@659..742
+          ObjectKeyword@659..665 "object"
+          Whitespace@665..666 " "
+          OpenBrace@666..667 "{"
+          Whitespace@667..680 "\n            "
+          LiteralObjectItemNode@680..689
+            Ident@680..686 "import"
+            Colon@686..687 ":"
+            Whitespace@687..688 " "
+            LiteralIntegerNode@688..689
+              Integer@688..689 "1"
+          Comma@689..690 ","
+          Whitespace@690..703 "\n            "
+          LiteralObjectItemNode@703..710
+            Ident@703..707 "enum"
+            Colon@707..708 ":"
+            Whitespace@708..709 " "
+            LiteralIntegerNode@709..710
+              Integer@709..710 "2"
+          Comma@710..711 ","
+          Whitespace@711..724 "\n            "
+          LiteralObjectItemNode@724..731
+            Ident@724..728 "None"
+            Colon@728..729 ":"
+            Whitespace@729..730 " "
+            LiteralIntegerNode@730..731
+              Integer@730..731 "3"
+          Comma@731..732 ","
+          Whitespace@732..741 "\n        "
+          CloseBrace@741..742 "}"
+      Whitespace@742..751 "\n        "
+      BoundDeclNode@751..767
+        PrimitiveTypeNode@751..754
+          IntTypeKeyword@751..754 "Int"
+        Whitespace@754..755 " "
+        Ident@755..756 "a"
+        Whitespace@756..757 " "
+        Assignment@757..758 "="
+        Whitespace@758..759 " "
+        AccessExprNode@759..767
+          NameRefExprNode@759..760
+            Ident@759..760 "o"
+          Dot@760..761 "."
+          Ident@761..767 "import"
+      Whitespace@767..776 "\n        "
+      BoundDeclNode@776..790
+        PrimitiveTypeNode@776..779
+          IntTypeKeyword@776..779 "Int"
+        Whitespace@779..780 " "
+        Ident@780..781 "b"
+        Whitespace@781..782 " "
+        Assignment@782..783 "="
+        Whitespace@783..784 " "
+        AccessExprNode@784..790
+          NameRefExprNode@784..785
+            Ident@784..785 "o"
+          Dot@785..786 "."
+          Ident@786..790 "enum"
+      Whitespace@790..799 "\n        "
+      BoundDeclNode@799..813
+        PrimitiveTypeNode@799..802
+          IntTypeKeyword@799..802 "Int"
+        Whitespace@802..803 " "
+        Ident@803..804 "c"
+        Whitespace@804..805 " "
+        Assignment@805..806 "="
+        Whitespace@806..807 " "
+        AccessExprNode@807..813
+          NameRefExprNode@807..808
+            Ident@807..808 "o"
+          Dot@808..809 "."
+          Ident@809..813 "None"
+      Whitespace@813..818 "\n    "
+      CloseBrace@818..819 "}"
+    Whitespace@819..825 "\n\n    "
+    RequirementsSectionNode@825..880
+      RequirementsKeyword@825..837 "requirements"
+      Whitespace@837..838 " "
+      OpenBrace@838..839 "{"
+      Whitespace@839..848 "\n        "
+      RequirementsItemNode@848..874
+        Ident@848..857 "container"
+        Colon@857..858 ":"
+        Whitespace@858..859 " "
+        LiteralStringNode@859..874
+          DoubleQuote@859..860 "\""
+          LiteralStringText@860..873 "ubuntu:latest"
+          DoubleQuote@873..874 "\""
+      Whitespace@874..879 "\n    "
+      CloseBrace@879..880 "}"
+    Whitespace@880..886 "\n\n    "
+    TaskHintsSectionNode@886..933
+      HintsKeyword@886..891 "hints"
+      Whitespace@891..892 " "
+      OpenBrace@892..893 "{"
+      Whitespace@893..902 "\n        "
+      TaskHintsItemNode@902..909
+        Ident@902..906 "enum"
+        Colon@906..907 ":"
+        Whitespace@907..908 " "
+        LiteralIntegerNode@908..909
+          Integer@908..909 "1"
+      Whitespace@909..918 "\n        "
+      TaskHintsItemNode@918..927
+        Ident@918..924 "import"
+        Colon@924..925 ":"
+        Whitespace@925..926 " "
+        LiteralIntegerNode@926..927
+          Integer@926..927 "2"
+      Whitespace@927..932 "\n    "
+      CloseBrace@932..933 "}"
+    Whitespace@933..934 "\n"
+    CloseBrace@934..935 "}"
+  Whitespace@935..937 "\n\n"
+  WorkflowDefinitionNode@937..1116
+    WorkflowKeyword@937..945 "workflow"
+    Whitespace@945..946 " "
+    Ident@946..948 "wf"
+    Whitespace@948..949 " "
+    OpenBrace@949..950 "{"
+    Whitespace@950..955 "\n    "
+    MetadataSectionNode@955..1007
+      MetaKeyword@955..959 "meta"
+      Whitespace@959..960 " "
+      OpenBrace@960..961 "{"
+      Whitespace@961..970 "\n        "
+      MetadataObjectItemNode@970..979
+        Ident@970..974 "enum"
+        Colon@974..975 ":"
+        Whitespace@975..976 " "
+        LiteralStringNode@976..979
+          DoubleQuote@976..977 "\""
+          LiteralStringText@977..978 "h"
+          DoubleQuote@978..979 "\""
+      Whitespace@979..988 "\n        "
+      MetadataObjectItemNode@988..1001
+        Ident@988..996 "workflow"
+        Colon@996..997 ":"
+        Whitespace@997..998 " "
+        LiteralStringNode@998..1001
+          DoubleQuote@998..999 "\""
+          LiteralStringText@999..1000 "i"
+          DoubleQuote@1000..1001 "\""
+      Whitespace@1001..1006 "\n    "
+      CloseBrace@1006..1007 "}"
+    Whitespace@1007..1013 "\n\n    "
+    WorkflowHintsSectionNode@1013..1114
+      HintsKeyword@1013..1018 "hints"
+      Whitespace@1018..1019 " "
+      OpenBrace@1019..1020 "{"
+      Whitespace@1020..1029 "\n        "
+      WorkflowHintsItemNode@1029..1038
+        Ident@1029..1033 "enum"
+        Colon@1033..1034 ":"
+        Whitespace@1034..1035 " "
+        LiteralStringNode@1035..1038
+          DoubleQuote@1035..1036 "\""
+          LiteralStringText@1036..1037 "j"
+          DoubleQuote@1037..1038 "\""
+      Whitespace@1038..1047 "\n        "
+      WorkflowHintsItemNode@1047..1108
+        Ident@1047..1051 "call"
+        Colon@1051..1052 ":"
+        Whitespace@1052..1053 " "
+        WorkflowHintsObjectNode@1053..1108
+          OpenBrace@1053..1054 "{"
+          Whitespace@1054..1067 "\n            "
+          WorkflowHintsObjectItemNode@1067..1076
+            Ident@1067..1073 "import"
+            Colon@1073..1074 ":"
+            Whitespace@1074..1075 " "
+            LiteralIntegerNode@1075..1076
+              Integer@1075..1076 "1"
+          Comma@1076..1077 ","
+          Whitespace@1077..1090 "\n            "
+          WorkflowHintsObjectItemNode@1090..1097
+            Ident@1090..1094 "enum"
+            Colon@1094..1095 ":"
+            Whitespace@1095..1096 " "
+            LiteralIntegerNode@1096..1097
+              Integer@1096..1097 "2"
+          Comma@1097..1098 ","
+          Whitespace@1098..1107 "\n        "
+          CloseBrace@1107..1108 "}"
+      Whitespace@1108..1113 "\n    "
+      CloseBrace@1113..1114 "}"
+    Whitespace@1114..1115 "\n"
+    CloseBrace@1115..1116 "}"
+  Whitespace@1116..1117 "\n"
