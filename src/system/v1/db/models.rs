@@ -335,10 +335,10 @@ pub struct Task {
     pub retry_cause: Option<String>,
     /// JSON snapshot of the resource utilization observed for this attempt.
     ///
-    /// Reported by LSF and Slurm, and by local Docker containers when
-    /// `backends.<name>.resource_usage_interval` is set to a nonzero value.
-    /// Sampling is not supported for Docker Swarm services. `None` when no
-    /// measurements have been reported.
+    /// CPU and memory come from native scheduler accounting, Docker sampling,
+    /// or a cgroup-v2 fallback for Swarm/TES without native usage.
+    /// The engine separately measures final local work-directory size.
+    /// `None` when no source reports usage.
     pub utilization: Option<String>,
     /// Timestamp when the task was submitted to an execution backend.
     ///

@@ -28,6 +28,7 @@ mod lsf_apptainer;
 pub(crate) mod manager;
 mod slurm_apptainer;
 mod tes;
+mod usage;
 
 pub use apptainer::*;
 pub use docker::*;
@@ -391,7 +392,15 @@ pub(crate) mod tests {
 
     impl EvalContext {
         pub async fn new(events: Events, cancellation: CancellationContext) -> Self {
-            let engine = Engine::new_with_http_client(Config::local(), NotImplementedHttpClient)
+            Self::new_with_http_client(events, cancellation, NotImplementedHttpClient).await
+        }
+
+        pub async fn new_with_http_client(
+            events: Events,
+            cancellation: CancellationContext,
+            http: impl crate::http::HttpClient + 'static,
+        ) -> Self {
+            let engine = Engine::new_with_http_client(Config::local(), http)
                 .await
                 .unwrap();
 

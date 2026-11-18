@@ -31,6 +31,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the attempt folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
 * The TES backend now writes the task's outputs location to a `tes_outputs` file in the attempt
   folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* Docker Swarm services and TES tasks collect backend-owned cgroup-v2 fallback recordings. Native
+  usage takes priority; fallback requires task-scoped, readable `cpu.stat` and `memory.peak`
+  counters. Cgroup memory includes page cache and differs from native RSS and Docker sampled
+  working-set memory. Recordings are outside the work directory and do not affect call-cache keys.
+  Set the backend-specific `cgroup_usage = false` to disable the `/bin/sh` wrapper and usage
+  storage; Docker's `resource_usage_interval` only controls local container sampling
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 
 ### Changed
 
@@ -42,16 +49,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   any form accepted for an `Int` (or, for `read_float`, `Int` or `Float`) literal, including
   hexadecimal, octal, and binary forms, and reject legacy octal forms (e.g. `0755`) and non-finite
   values, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791). WDL 1.0 behavior is
-  unchanged.
+  unchanged ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 
 ### Fixed
 
-* `read_json` now rejects files with trailing content after the JSON value.
+* `read_json` now rejects files with trailing content after the JSON value
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * The `%` operator now follows the truncating remainder semantics from
   [`openwdl/wdl#789`](https://github.com/openwdl/wdl/pull/789): a `Float` remainder with a
   right-hand operand equal to zero, including negative zero, is an error instead of `NaN`, and `Int`
   remainders evaluate to their exact result, so the remainder of the minimum `Int` value by `-1` is
-  `0` instead of an overflow error.
+  `0` instead of an overflow error
+  ([#1384](https://github.com/stjude-rust-labs/sprocket/pull/1384)).
 
 ### Dependencies
 
@@ -179,7 +188,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Call cache entries for commands that reference temporary files created by a call to a `write_*`
   stdlib function will no longer be ignored due to a mismatch between the evaluated command and the
   cached evaluated command.
-
   NOTE: this fix will invalidate all existing call cache entries ([#1103](https://github.com/stjude-rust-labs/sprocket/pull/1103)).
 * `WorkflowInputs` serialization no longer drops call-nested inputs. Previously, the `Serialize`
   impl silently discarded per-call inputs (including task input overrides, requirements, and hints

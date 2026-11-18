@@ -136,6 +136,7 @@ mod tests {
     fn tes(auth: TesBackendAuthConfig) -> BackendConfig {
         BackendConfig::Tes {
             config: TesBackendConfig {
+                cgroup_usage: true,
                 service: "https://service-user:service-password@tes.example.com/ga4gh/tes?token=service-query-token#service-fragment"
                     .parse()
                     .unwrap(),

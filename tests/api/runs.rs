@@ -2341,6 +2341,7 @@ async fn backend_secrets_are_never_persisted(pool: sqlx::SqlitePool) {
             String::from("cloud"),
             BackendConfig::Tes {
                 config: TesBackendConfig {
+                    cgroup_usage: true,
                     service: "http://user:service-password@127.0.0.1:9/?token=service-query-token"
                         .parse()
                         .unwrap(),

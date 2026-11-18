@@ -1975,7 +1975,7 @@
               "default": true
             },
             "resource_usage_interval": {
-              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nEach task's peak and average memory and cumulative CPU time\nare sampled from the Docker daemon at this interval and reported in\nthe run's metrics.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.",
+              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nMemory is sampled from the container with inactive file cache removed.\nPeak memory is the largest sample; average memory is the arithmetic\nmean of successful samples. CPU time excludes work after the last\nsuccessful sample.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.\nTasks that finish before the first sample may report no usage.",
               "type": [
                 "integer",
                 "null"
@@ -1983,6 +1983,11 @@
               "format": "uint64",
               "minimum": 0,
               "default": 1
+            },
+            "cgroup_usage": {
+              "description": "Collect a final cgroup-v2 recording for Docker Swarm services only.\n\nDefaults to `true`, independently of `resource_usage_interval`. Requires\n`/bin/sh`, a private task-scoped cgroup namespace, and readable\n`cpu.stat` and `memory.peak`. Peak memory includes page cache.\nSet to `false` to leave the configured task shell and arguments\nunwrapped, without a usage mount or event observer. Local Docker\nsampling is unaffected.",
+              "type": "boolean",
+              "default": true
             }
           },
           "required": [
@@ -2054,6 +2059,11 @@
               "description": "Whether or not the TES server URL may use an insecure protocol like\nHTTP.",
               "type": "boolean",
               "default": false
+            },
+            "cgroup_usage": {
+              "description": "Collect a final cgroup-v2 recording when no native usage events are\navailable. Explicit zero native measurements take priority.\nThis option does not enable TES metadata parsing.\n\nDefaults to `true`. Requires `/bin/sh`, a private task-scoped cgroup\nnamespace, and readable `cpu.stat` and `memory.peak`. Peak memory\nincludes page cache. Missing recordings only warn.\nSet to `false` to leave the configured shell and arguments unwrapped,\nwithout a usage volume, output, or event observer.",
+              "type": "boolean",
+              "default": true
             }
           },
           "required": [

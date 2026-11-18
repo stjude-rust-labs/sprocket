@@ -631,6 +631,26 @@ mod tests {
     }
 
     #[test]
+    fn usage_after_terminal_event_does_not_reopen_the_attempt() {
+        let mut collector = MetricsCollector::default();
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+            id: 7,
+            name: "wf-t-x1".to_string(),
+            tes_id: None,
+            token: Default::default(),
+        });
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCanceled { id: 7 });
+
+        let mut usage = crankshaft_events::TaskResourceUsage::default();
+        usage.cpu_time_ms = Some(300);
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage { id: 7, usage });
+
+        let attempt = &collector.attempts["wf-t-x1"];
+        assert_eq!(attempt.status, TaskStatus::Canceled);
+        assert_eq!(attempt.utilization.as_ref().unwrap()["cpu_time_ms"], 300);
+    }
+
+    #[test]
     fn disk_usage_merges_into_utilization() {
         for disk_first in [false, true] {
             let mut collector = MetricsCollector::default();

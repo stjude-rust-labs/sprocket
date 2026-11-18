@@ -21,10 +21,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Sprocket version, and localization transfer volume as a data-movement proxy
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
 * Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals in WDL 1.1 and later
-  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791)
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * Task records now store the backend's ID for each attempt (`external_id`): the job ID for LSF and
   Slurm, or the task ID for TES. The API returns it with each task
   ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* Docker Swarm services and TES tasks collect a small cgroup-v2 fallback recording, used only when
+  no native usage was reported. Set `backends.<name>.cgroup_usage = false` to opt out of the
+  `/bin/sh` fallback wrapper. Unsupported environments leave usage unavailable
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 
 ### Changed
 
@@ -46,13 +51,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
 * In WDL 1.1 and later, `read_int` and `read_float` accept the numeric forms defined by
   [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791), including an optional sign and
-  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values.
+  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 
 ### Fixed
 
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
   config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
-* `read_json` now rejects files with trailing content after the JSON value.
+* `read_json` now rejects files with trailing content after the JSON value
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * The `enum` keyword can now be used, like other reserved keywords, as an arbitrary key in
   `runtime`, `requirements`, `hints`, and `meta` sections, metadata objects, and `Object` literals,
   and as a member name (e.g., `task.meta.enum`), per
