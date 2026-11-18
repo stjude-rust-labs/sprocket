@@ -1009,7 +1009,16 @@ impl ImportedStruct {
         self.offset
     }
 
+    /// Gets the document this struct was imported from.
+    ///
+    /// NOTE: This may not be the defining document.
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
+
     /// Gets the URI of the document this struct was imported from.
+    ///
+    /// NOTE: This may not be the defining document.
     pub fn source(&self) -> Arc<Url> {
         self.document.uri()
     }
@@ -1077,7 +1086,16 @@ impl ImportedEnum {
         self.offset
     }
 
+    /// Gets the document this enum was imported from.
+    ///
+    /// NOTE: This may not be the defining document.
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
+
     /// Gets the URI of the document this enum was imported from.
+    ///
+    /// NOTE: This may not be the defining document.
     pub fn source(&self) -> Arc<Url> {
         self.document.uri()
     }
