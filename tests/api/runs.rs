@@ -2314,7 +2314,7 @@ async fn submit_run_records_backend(pool: sqlx::SqlitePool) {
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(
         json["backend"],
-        r#"{"name":"my-local","type":"local","info":{"cpu":null,"memory":null}}"#
+        json!({"name": "my-local", "type": "local", "info": {"cpu": null, "memory": null}})
     );
 }
 

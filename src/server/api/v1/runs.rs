@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 use super::AppState;
 use super::Pagination;
+use super::RunBackend;
 use super::RunStatus;
 use super::error::Error;
 use super::send_command;
@@ -116,10 +117,11 @@ pub struct Run {
     pub directory: Option<String>,
     /// Path to the indexed output directory (`null` if not indexed).
     pub index_directory: Option<String>,
-    /// JSON-encoded execution backend on which the run executed: its
-    /// configured `name`, its `type`, and allowlisted, non-secret
-    /// configuration `info`.
-    pub backend: Option<String>,
+    /// The execution backend on which the run executed.
+    ///
+    /// `null` for runs recorded before backends were tracked or that never
+    /// began execution.
+    pub backend: Option<RunBackend>,
     /// JSON-encoded transfer byte totals for the run.
     pub transfer_totals: Option<String>,
     /// Timestamp when the run started.
@@ -144,7 +146,10 @@ impl From<crate::system::v1::db::Run> for Run {
             error: run.error,
             directory: run.directory,
             index_directory: run.index_directory,
-            backend: run.backend,
+            backend: run
+                .backend
+                .as_deref()
+                .and_then(|b| serde_json::from_str(b).ok()),
             transfer_totals: run.transfer_totals,
             started_at: run.started_at,
             completed_at: run.completed_at,
@@ -410,7 +415,7 @@ mod tests {
             error: None,
             directory: Some("/runs/run-name".to_string()),
             index_directory: Some("/index/run-name".to_string()),
-            backend: Some("docker".to_string()),
+            backend: Some(r#"{"name":"default","type":"docker","info":{}}"#.to_string()),
             transfer_totals: None,
             started_at: Some(now),
             completed_at: Some(now),
@@ -468,6 +473,10 @@ mod tests {
         assert_eq!(response.run.outputs, db_run.outputs);
         assert_eq!(response.run.directory, db_run.directory);
         assert_eq!(response.run.index_directory, db_run.index_directory);
+        assert_eq!(
+            response.run.backend.as_ref().map(RunBackend::to_json),
+            db_run.backend
+        );
         assert_eq!(response.run.started_at, db_run.started_at);
         assert_eq!(response.run.completed_at, db_run.completed_at);
         assert_eq!(response.run.created_at, db_run.created_at);
