@@ -26,12 +26,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Task records now store the backend's ID for each attempt (`external_id`): the job ID for LSF and
   Slurm, or the task ID for TES. The API returns it with each task
   ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
-* Local execution on Linux and macOS reports native CPU time and peak resident memory. Docker Swarm
-  services and TES tasks collect a small cgroup-v2 fallback recording, used only when no native
-  usage was reported. Set `backends.<name>.cgroup_usage = false` to opt out of the `/bin/sh`
-  fallback wrapper. Unsupported environments leave usage unavailable. For local Linux and macOS
-  tasks, the first Ctrl-C waits in slow failure mode; a subsequent Ctrl-C cancels. Fast mode cancels
-  immediately ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Docker Swarm services and TES tasks collect a small cgroup-v2 fallback recording, used only when
+  no native usage was reported. Set `backends.<name>.cgroup_usage = false` to opt out of the
+  `/bin/sh` fallback wrapper. Unsupported environments leave usage unavailable
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 
 ### Changed
 

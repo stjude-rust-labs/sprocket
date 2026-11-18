@@ -31,10 +31,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the attempt folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
 * The TES backend now writes the task's outputs location to a `tes_outputs` file in the attempt
   folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
-* Local Linux and macOS execution reports per-task CPU time and peak RSS using `wait4`, through
-  `TaskResourceUsage` events. The first Ctrl-C waits in slow failure mode; a subsequent Ctrl-C
-  cancels. Fast mode cancels immediately. Windows CPU and memory accounting remains unavailable
-  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
 * Docker Swarm services and TES tasks collect backend-owned cgroup-v2 fallback recordings. Native
   usage takes priority; fallback requires task-scoped, readable `cpu.stat` and `memory.peak`
   counters. Cgroup memory includes page cache and differs from native RSS and Docker sampled

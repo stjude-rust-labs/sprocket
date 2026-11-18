@@ -335,8 +335,8 @@ pub struct Task {
     pub retry_cause: Option<String>,
     /// JSON snapshot of the resource utilization observed for this attempt.
     ///
-    /// CPU and memory come from native local or scheduler accounting, Docker
-    /// sampling, or a cgroup-v2 fallback for Swarm/TES without native usage.
+    /// CPU and memory come from native scheduler accounting, Docker sampling,
+    /// or a cgroup-v2 fallback for Swarm/TES without native usage.
     /// The engine separately measures final local work-directory size.
     /// `None` when no source reports usage.
     pub utilization: Option<String>,

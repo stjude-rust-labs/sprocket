@@ -103,11 +103,11 @@ pub struct TaskAttemptMetrics {
     /// Resource utilization as a JSON object: memory and disk usage in bytes
     /// and CPU time in milliseconds.
     ///
-    /// CPU and memory come from native local or scheduler accounting, Docker
-    /// sampling, or a cgroup-v2 fallback for Swarm/TES without native usage.
-    /// Native local memory is RSS; cgroup memory includes page cache; Docker
-    /// samples exclude inactive file cache. Local work-directory size is
-    /// measured separately by the engine, not as a disk high-water mark.
+    /// CPU and memory come from native scheduler accounting, Docker sampling,
+    /// or a cgroup-v2 fallback for Swarm/TES without native usage. Cgroup
+    /// memory includes page cache; Docker samples exclude inactive file cache.
+    /// Local work-directory size is measured separately by the engine, not as a
+    /// disk high-water mark.
     /// `null` when no source reports usage.
     #[schema(value_type = Option<Object>)]
     pub utilization: Option<serde_json::Value>,
