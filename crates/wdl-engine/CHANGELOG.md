@@ -38,6 +38,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Set the backend-specific `cgroup_usage = false` to disable the `/bin/sh` wrapper and usage
   storage; Docker's `resource_usage_interval` only controls local container sampling
   ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Added the `backends.<name>.resource_usage_metadata` TES configuration option. When enabled, tasks
+  are polled with the `BASIC` view and supported top-level `TaskLog.metadata` resource usage values
+  are reported through Crankshaft's `TaskResourceUsage` event. The TES server defines each value's
+  semantics. Planetary reports sampled Kubernetes working-set memory and cumulative CPU time
+  ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ### Changed
 

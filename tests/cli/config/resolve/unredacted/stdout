@@ -238,6 +238,7 @@ inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
+resource_usage_metadata = false
 
 [run.backends.first.auth]
 type = "basic"
@@ -251,6 +252,7 @@ inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
+resource_usage_metadata = false
 
 [run.backends.second.auth]
 type = "bearer"

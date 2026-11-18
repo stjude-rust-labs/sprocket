@@ -2064,6 +2064,11 @@
               "description": "Collect a final cgroup-v2 recording when no native usage events are\navailable. Explicit zero native measurements take priority.\nThis option does not enable TES metadata parsing.\n\nDefaults to `true`. Requires `/bin/sh`, a private task-scoped cgroup\nnamespace, and readable `cpu.stat` and `memory.peak`. Peak memory\nincludes page cache. Missing recordings only warn.\nSet to `false` to leave the configured shell and arguments unwrapped,\nwithout a usage volume, output, or event observer.",
               "type": "boolean",
               "default": true
+            },
+            "resource_usage_metadata": {
+              "description": "Whether or not to read task resource usage from the TES server's task\nlog metadata.\n\nWhen enabled, tasks are polled with the `BASIC` view and the\ndocumented resource usage metadata keys (e.g. `peak_memory_bytes`,\n`avg_memory_bytes`, `cpu_time_ms`), when reported by the server, are\nrecorded as task resource usage.\n\nDefaults to `false`.",
+              "type": "boolean",
+              "default": false
             }
           },
           "required": [

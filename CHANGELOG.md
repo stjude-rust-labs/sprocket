@@ -30,6 +30,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   no native usage was reported. Set `backends.<name>.cgroup_usage = false` to opt out of the
   `/bin/sh` fallback wrapper. Unsupported environments leave usage unavailable
   ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Added opt-in TES resource usage reporting through
+  `backends.<name>.resource_usage_metadata = true`. It reads supported `TaskLog.metadata` keys,
+  including Planetary's sampled Kubernetes working-set memory and cumulative CPU time
+  ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ### Changed
 
