@@ -2005,6 +2005,19 @@ pub struct TesBackendConfig {
     #[toml(default = default_cgroup_usage())]
     #[schemars(default = "default_cgroup_usage")]
     pub cgroup_usage: bool,
+
+    /// Whether or not to read task resource usage from the TES server's task
+    /// log metadata.
+    ///
+    /// When enabled, tasks are polled with the `BASIC` view and the
+    /// documented resource usage metadata keys (e.g. `peak_memory_bytes`,
+    /// `avg_memory_bytes`, `cpu_time_ms`), when reported by the server, are
+    /// recorded as task resource usage.
+    ///
+    /// Defaults to `false`.
+    #[toml(default)]
+    #[schemars(default)]
+    pub resource_usage_metadata: bool,
 }
 
 impl TesBackendConfig {
@@ -3614,6 +3627,7 @@ mod tests {
                         interval: None,
                         retries: None,
                         max_concurrency: None,
+                        resource_usage_metadata: false,
                     }
                     .into(),
                 ),
@@ -3634,6 +3648,7 @@ mod tests {
                         interval: None,
                         retries: None,
                         max_concurrency: None,
+                        resource_usage_metadata: false,
                     }
                     .into(),
                 ),
@@ -3686,6 +3701,7 @@ type = "tes"
 service = "https://example.com"
 inputs = "https://example.com/inputs/"
 outputs = "https://example.com/outputs/"
+resource_usage_metadata = true
 
 [backends.tes_disabled]
 type = "tes"
@@ -3696,6 +3712,18 @@ cgroup_usage = false
 "#;
 
         let config = toml_spanner::from_str::<Config>(source).unwrap();
+        assert!(
+            config.backends["tes"]
+                .as_tes()
+                .unwrap()
+                .resource_usage_metadata
+        );
+        assert!(
+            !config.backends["tes_disabled"]
+                .as_tes()
+                .unwrap()
+                .resource_usage_metadata
+        );
         let rendered = toml_spanner::to_string(&config).unwrap();
         assert_eq!(rendered.matches("cgroup_usage = true").count(), 2);
         assert_eq!(rendered.matches("cgroup_usage = false").count(), 2);
@@ -3899,6 +3927,7 @@ cgroup_usage = false
                     interval: None,
                     retries: None,
                     max_concurrency: Some(0),
+                    resource_usage_metadata: false,
                 }
                 .into(),
             )]
@@ -3924,6 +3953,7 @@ cgroup_usage = false
                     interval: None,
                     retries: None,
                     max_concurrency: None,
+                    resource_usage_metadata: false,
                 }
                 .into(),
             )]
@@ -3950,6 +3980,7 @@ cgroup_usage = false
                     interval: None,
                     retries: None,
                     max_concurrency: None,
+                    resource_usage_metadata: false,
                 }
                 .into(),
             )]
@@ -4193,6 +4224,7 @@ type = 'lsf_apptainer'
                             interval: None,
                             retries: None,
                             max_concurrency: None,
+                            resource_usage_metadata: false,
                         }
                         .into()
                     ),

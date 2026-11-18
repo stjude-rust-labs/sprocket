@@ -137,6 +137,7 @@ mod tests {
         BackendConfig::Tes {
             config: TesBackendConfig {
                 cgroup_usage: true,
+                resource_usage_metadata: false,
                 service: "https://service-user:service-password@tes.example.com/ga4gh/tes?token=service-query-token#service-fragment"
                     .parse()
                     .unwrap(),
