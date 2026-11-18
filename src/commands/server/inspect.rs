@@ -450,6 +450,7 @@ mod tests {
             utilization: None,
             created_at: DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
             submitted_at: None,
+            external_id: None,
             started_at: started.map(|s| DateTime::<Utc>::from_timestamp(s, 0).unwrap()),
             completed_at: completed.map(|c| DateTime::<Utc>::from_timestamp(c, 0).unwrap()),
         }

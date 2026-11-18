@@ -24,6 +24,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory is on a local file system. This complements the scheduler-observed measurements a
   backend may report through Crankshaft's `TaskResourceUsage` event
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
+* `EngineEvent` gained a `TaskSubmitted` event. The LSF and Slurm backends send it with the job ID
+  once the scheduler accepts a job
+  ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* LSF and Slurm job scripts now write the Apptainer exit code to an `apptainer_exit_code` file in
+  the attempt folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* The TES backend now writes the task's outputs location to a `tes_outputs` file in the attempt
+  folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
 * Local Linux and macOS execution reports per-task CPU time and peak RSS using `wait4`, through
   `TaskResourceUsage` events. The first Ctrl-C waits in slow failure mode; a subsequent Ctrl-C
   cancels. Fast mode cancels immediately. Windows CPU and memory accounting remains unavailable
@@ -58,6 +65,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   remainders evaluate to their exact result, so the remainder of the minimum `Int` value by `-1` is
   `0` instead of an overflow error
   ([#1384](https://github.com/stjude-rust-labs/sprocket/pull/1384)).
+
+### Dependencies
+
+* Updated `cloud-copy` to `0.13.0`
+  ([#1409](https://github.com/stjude-rust-labs/sprocket/pull/1409)).
 
 ## 0.20.0 - 2026-10-29
 

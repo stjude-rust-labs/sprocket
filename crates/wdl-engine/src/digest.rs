@@ -284,8 +284,9 @@ impl DigestCalculator {
                         format!("failed to walk URL `{url}`", url = url.display())
                     })?;
 
+                // Digest each entry, ignoring directory entries (ends with '/')
                 let mut hasher = Hasher::new();
-                for entry in entries.iter() {
+                for entry in entries.iter().filter(|e| !e.ends_with('/')) {
                     let mut url = url.clone();
 
                     {

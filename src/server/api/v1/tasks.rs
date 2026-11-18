@@ -119,6 +119,11 @@ pub struct Task {
     pub created_at: DateTime<Utc>,
     /// Timestamp when the task was submitted to an execution backend.
     pub submitted_at: Option<DateTime<Utc>>,
+    /// The ID the execution backend assigned to this attempt.
+    ///
+    /// The job ID for LSF and Slurm, or the task ID for TES. `null` for other
+    /// backends and for attempts that were never submitted.
+    pub external_id: Option<String>,
     /// Timestamp when task started executing.
     pub started_at: Option<DateTime<Utc>>,
     /// Timestamp when task reached terminal state.
@@ -140,6 +145,7 @@ impl From<crate::system::v1::db::Task> for Task {
             utilization: parse_json_column(task.utilization),
             created_at: task.created_at,
             submitted_at: task.submitted_at,
+            external_id: task.external_id,
             started_at: task.started_at,
             completed_at: task.completed_at,
         }
@@ -510,6 +516,7 @@ mod tests {
             utilization: None,
             created_at: now,
             submitted_at: Some(now),
+            external_id: None,
             started_at: Some(now),
             completed_at: Some(now),
         }

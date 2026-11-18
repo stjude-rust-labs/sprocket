@@ -344,6 +344,11 @@ pub struct Task {
     /// localization, `created_at` to `submitted_at`) and scheduler queuing
     /// (`submitted_at` to `started_at`).
     pub submitted_at: Option<DateTime<Utc>>,
+    /// The ID the execution backend assigned to this attempt.
+    ///
+    /// The job ID for LSF and Slurm, or the task ID for TES. `None` for other
+    /// backends and for attempts that were never submitted.
+    pub external_id: Option<String>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.
