@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.34.0 - 2026-11-18
+
 ### Added
 
 * The `backend` reported for runs and run metrics is an object with the configured `name` of the
