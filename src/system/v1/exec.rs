@@ -432,17 +432,30 @@ impl RunnableExecutor {
             );
         }
 
-        let result = match analyze_wdl_document(
-            &self.source,
+        let analysis = spawn_analysis(
+            self.source.clone(),
             self.fallback_version,
             self.modules_config.clone(),
             self.feature_flags,
             self.no_ignore,
             self.report_mode,
             self.colorize,
-        )
-        .await
-        {
+        );
+        // Analysis runs no tasks, so the first cancel stops the run.
+        let canceled = self.cancellation.first().clone();
+        let result = tokio::select! {
+            biased;
+            _ = canceled.cancelled() => {
+                if let Err(e) = self.db.cancel_run(self.run_id, Utc::now()).await {
+                    tracing::error!("failed to record run cancellation: {e:#}");
+                }
+                self.runs.lock().await.remove(&self.run_id);
+                return;
+            }
+            result = analysis => result
+                .unwrap_or_else(|_| Err(anyhow!("analysis thread panicked"))),
+        };
+        let result = match result {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!(
@@ -683,13 +696,58 @@ impl RunnableExecutor {
     }
 }
 
+/// Runs [`analyze_wdl_document`] on its own thread and runtime.
+///
+/// A canceled run stops waiting and leaves the analysis to finish alone.
+/// Dropping an analyzer blocks until its in-flight imports finish, so it must
+/// not be dropped on the server's runtime.
+#[allow(clippy::too_many_arguments)]
+fn spawn_analysis(
+    source: Source,
+    fallback_version: Option<SupportedVersion>,
+    modules_config: wdl_modules::resolver::ModulesConfig,
+    feature_flags: FeatureFlags,
+    no_ignore: bool,
+    report_mode: Mode,
+    colorize: bool,
+) -> tokio::sync::oneshot::Receiver<Result<AnalysisResult>> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let spawned = std::thread::Builder::new()
+        .name("run-analysis".into())
+        .spawn(move || {
+            let result = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(1)
+                .enable_all()
+                .build()
+                .context("failed to create analysis runtime")
+                .and_then(|runtime| {
+                    runtime.block_on(analyze_wdl_document(
+                        source,
+                        fallback_version,
+                        modules_config,
+                        feature_flags,
+                        no_ignore,
+                        report_mode,
+                        colorize,
+                    ))
+                });
+            let _ = tx.send(result);
+        });
+    if let Err(e) = spawned {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let _ = tx.send(Err(anyhow!("failed to spawn analysis thread: {e}")));
+        return rx;
+    }
+    rx
+}
+
 /// Analyzes a WDL document from the given source.
 ///
 /// Creates an analyzer, adds the document, runs analysis, and returns the
 /// result for the entrypoint document. Checks all analysis results (including
 /// transitive dependencies) for errors before returning.
 pub async fn analyze_wdl_document(
-    source: &Source,
+    source: Source,
     fallback_version: Option<SupportedVersion>,
     modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: FeatureFlags,
@@ -735,7 +793,7 @@ pub async fn analyze_wdl_document(
     }
 
     results
-        .filter(&[source])
+        .filter(&[&source])
         .next()
         .cloned()
         .context("analyzer didn't return analysis results for document")

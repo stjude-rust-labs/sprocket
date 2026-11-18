@@ -74,6 +74,7 @@ pub use crate::system::v1::db::TaskStatus;
         RunStatus,
         RunTaskCountsResponse,
         ServerFailureMode,
+        ServerState,
         ServerInfoResponse,
         Session,
         SessionResponse,
