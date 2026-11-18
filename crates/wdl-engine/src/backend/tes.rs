@@ -80,6 +80,24 @@ const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 /// The default poll interval, in seconds, for the TES backend.
 const DEFAULT_TES_INTERVAL: u64 = 30;
 
+/// The name of the attempt file that stores where TES writes the task's
+/// outputs.
+///
+/// The location includes a timestamp taken at submission, so it can't be
+/// rebuilt later.
+const OUTPUTS_URL_FILE_NAME: &str = "tes_outputs";
+
+/// Writes the outputs location of a TES task to the attempt folder.
+///
+/// A failure to write the file is logged, not returned, so that the task can
+/// still run.
+fn record_outputs_url(attempt_dir: &std::path::Path, url: &url::Url) {
+    let path = attempt_dir.join(OUTPUTS_URL_FILE_NAME);
+    if let Err(e) = fs::write(&path, format!("{url}\n")) {
+        error!("failed to write file `{path}`: {e}", path = path.display());
+    }
+}
+
 /// Returns an override only when the actual name differs from the requested
 /// name.
 fn execution_name_override(requested: &str, actual: String) -> Option<String> {
@@ -407,6 +425,7 @@ impl TaskExecutionBackend for TesBackend {
                 .outputs
                 .join(&output_dir)
                 .expect("should join");
+            record_outputs_url(request.attempt_dir, &outputs_url);
 
             let mut work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
             let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
@@ -562,6 +581,8 @@ impl TaskExecutionBackend for TesBackend {
 
 #[cfg(test)]
 mod tests {
+    use url::Url;
+
     use super::*;
 
     #[test]
@@ -570,6 +591,21 @@ mod tests {
         assert_eq!(
             execution_name_override("base", "base~1".to_string()),
             Some("base~1".to_string())
+        );
+    }
+
+    #[test]
+    fn outputs_url_is_recorded_in_the_attempt_dir() {
+        let root = tempfile::tempdir().unwrap();
+        let url: Url = "s3://bucket/outputs/task-0-20260101-000000/"
+            .parse()
+            .unwrap();
+
+        record_outputs_url(root.path(), &url);
+
+        assert_eq!(
+            std::fs::read_to_string(root.path().join(OUTPUTS_URL_FILE_NAME)).unwrap(),
+            "s3://bucket/outputs/task-0-20260101-000000/\n"
         );
     }
 }

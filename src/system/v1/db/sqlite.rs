@@ -642,7 +642,8 @@ impl Database for SqliteDatabase {
              call_id = coalesce(tasks.call_id, excluded.call_id), attempt = max(tasks.attempt, \
              excluded.attempt) returning name, (select uuid from runs where id = run_id) as \
              run_uuid, status, exit_status, error, call_id, attempt, \"constraints\", \
-             retry_cause, utilization, submitted_at, created_at, started_at, completed_at",
+             retry_cause, utilization, submitted_at, external_id, created_at, started_at, \
+             completed_at",
         )
         .bind(task.name)
         .bind(task.status)
@@ -679,6 +680,20 @@ impl Database for SqliteDatabase {
              where name = ?",
         )
         .bind(cause)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_task_external_id(&self, name: &str, external_id: &str) -> Result<bool> {
+        let result = sqlx::query(
+            "update tasks
+             set external_id = ?
+             where name = ?",
+        )
+        .bind(external_id)
         .bind(name)
         .execute(&self.pool)
         .await?;
@@ -851,7 +866,7 @@ impl Database for SqliteDatabase {
         let task: Option<Task> = sqlx::query_as(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
                     t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization, \
-             t.submitted_at,
+             t.submitted_at, t.external_id,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id
              where t.name = ?",
@@ -876,7 +891,7 @@ impl Database for SqliteDatabase {
         let mut query = String::from(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
                     t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization, \
-             t.submitted_at,
+             t.submitted_at, t.external_id,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id where 1=1",
         );
@@ -1100,6 +1115,17 @@ where
                  where name = ?",
             )
             .bind(cause)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::ExternalId { name, external_id } => {
+            sqlx::query(
+                "update tasks
+                 set external_id = ?
+                 where name = ?",
+            )
+            .bind(external_id)
             .bind(name)
             .execute(executor)
             .await?;
