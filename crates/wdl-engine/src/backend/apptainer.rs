@@ -5,6 +5,7 @@
 //!
 //! The entrypoint for both of these is [`ApptainerRuntime::generate_script`].
 
+use std::borrow::Cow;
 use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
@@ -85,6 +86,28 @@ pub(crate) async fn record_job_id(events: &Events, attempt_dir: &Path, name: &st
             external_id: job_id.to_string(),
         });
     }
+}
+
+/// Quotes one literal shell argument, rejecting NUL bytes.
+fn quote_shell_arg(value: &str) -> Result<Cow<'_, str>> {
+    shlex::try_quote(value).context("shell arguments must not contain NUL bytes")
+}
+
+/// Encodes a bind mount as CSV and quotes it as one shell argument.
+fn quote_mount_arg(source: &Path, destination: &str, read_only: bool) -> Result<String> {
+    let source = source
+        .to_str()
+        .context("mount source path is not valid UTF-8")?;
+    // Apptainer parses mount fields as CSV after the host shell parses the
+    // argument.
+    let mount = format!(
+        "type=bind,\"src={}\",\"dst={}\"{}",
+        source.replace('"', "\"\""),
+        destination.replace('"', "\"\""),
+        if read_only { ",ro" } else { "" },
+    );
+    // The mount always contains `"`, so the quoted result is always owned.
+    quote_shell_arg(&mount).map(Cow::into_owned)
 }
 
 /// Represents the Apptainer container runtime.
@@ -223,54 +246,52 @@ impl ApptainerRuntime {
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/usr/bin/env bash")?;
         for (k, v) in request.env.iter() {
-            writeln!(&mut apptainer_command, "export {env_prefix}_{k}={v:?}")?;
-        }
-        writeln!(&mut apptainer_command, "{} -v exec \\", config.executable)?;
-        writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
-        writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
-        for input in request.backend_inputs {
+            // Keys are WDL declaration names, which are always valid shell
+            // names.
+            assert!(
+                wdl_grammar::lexer::v1::is_ident(k),
+                "environment variable name `{k}` is not a WDL identifier"
+            );
             writeln!(
                 &mut apptainer_command,
-                "--mount type=bind,src=\"{host_path}\",dst=\"{guest_path}\",ro \\",
-                host_path = input
-                    .local_path()
-                    .ok_or_else(|| anyhow!("input not localized: {input:?}"))?
-                    .display(),
-                guest_path = input
-                    .guest_path()
-                    .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?,
+                "export {env_prefix}_{k}={}",
+                quote_shell_arg(v)?
             )?;
         }
         writeln!(
             &mut apptainer_command,
-            "--mount type=bind,src=\"{}\",dst=\"{GUEST_COMMAND_PATH}\",ro \\",
-            request.command_path().display()
+            "{} -v exec \\",
+            quote_shell_arg(&config.executable)?
         )?;
-        writeln!(
-            &mut apptainer_command,
-            "--mount type=bind,src=\"{}\",dst=\"{GUEST_WORK_DIR}\" \\",
-            request.work_dir().display()
-        )?;
-        writeln!(
-            &mut apptainer_command,
-            "--mount type=bind,src=\"{}\",dst=\"/tmp\" \\",
-            container_tmp_path.display()
-        )?;
-        writeln!(
-            &mut apptainer_command,
-            "--mount type=bind,src=\"{}\",dst=\"/var/tmp\" \\",
-            container_var_tmp_path.display()
-        )?;
-        writeln!(
-            &mut apptainer_command,
-            "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDOUT_PATH}\" \\",
-            request.stdout_path().display()
-        )?;
-        writeln!(
-            &mut apptainer_command,
-            "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDERR_PATH}\" \\",
-            request.stderr_path().display()
-        )?;
+        writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
+        writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
+        for input in request.backend_inputs {
+            let host_path = input
+                .local_path()
+                .ok_or_else(|| anyhow!("input not localized: {input:?}"))?;
+            let guest_path = input
+                .guest_path()
+                .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?;
+            writeln!(
+                &mut apptainer_command,
+                "--mount {} \\",
+                quote_mount_arg(host_path, guest_path.as_str(), true)?
+            )?;
+        }
+        for (source, destination, read_only) in [
+            (request.command_path(), GUEST_COMMAND_PATH, true),
+            (request.work_dir(), GUEST_WORK_DIR, false),
+            (container_tmp_path, "/tmp", false),
+            (container_var_tmp_path, "/var/tmp", false),
+            (request.stdout_path(), GUEST_STDOUT_PATH, false),
+            (request.stderr_path(), GUEST_STDERR_PATH, false),
+        ] {
+            writeln!(
+                &mut apptainer_command,
+                "--mount {} \\",
+                quote_mount_arg(&source, destination, read_only)?
+            )?;
+        }
 
         if let Some(true) = request
             .requirements
@@ -281,23 +302,44 @@ impl ApptainerRuntime {
         }
 
         for arg in &config.extra_args {
-            writeln!(&mut apptainer_command, "{arg} \\")?;
+            writeln!(&mut apptainer_command, "{} \\", quote_shell_arg(arg)?)?;
         }
 
-        writeln!(&mut apptainer_command, "\"{}\" \\", image_path.display())?;
+        let image_path =
+            absolute(image_path).context("failed to make container image path absolute")?;
         writeln!(
             &mut apptainer_command,
-            "{shell} -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
-             \\\"{GUEST_STDERR_PATH}\\\"\" \\"
+            "{} \\",
+            quote_shell_arg(
+                image_path
+                    .to_str()
+                    .context("container image path is not valid UTF-8")?
+            )?
+        )?;
+        writeln!(
+            &mut apptainer_command,
+            "{} -c {} \\",
+            quote_shell_arg(shell)?,
+            quote_shell_arg(&format!(
+                "\"{GUEST_COMMAND_PATH}\" > \"{GUEST_STDOUT_PATH}\" 2> \"{GUEST_STDERR_PATH}\""
+            ))?,
         )?;
         let attempt_dir = request.attempt_dir;
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
         let apptainer_stderr_path = attempt_dir.join("apptainer.stderr");
         writeln!(
             &mut apptainer_command,
-            "> \"{stdout}\" 2> \"{stderr}\"",
-            stdout = apptainer_stdout_path.display(),
-            stderr = apptainer_stderr_path.display()
+            "> {} 2> {}",
+            quote_shell_arg(
+                apptainer_stdout_path
+                    .to_str()
+                    .context("Apptainer stdout path is not valid UTF-8")?
+            )?,
+            quote_shell_arg(
+                apptainer_stderr_path
+                    .to_str()
+                    .context("Apptainer stderr path is not valid UTF-8")?
+            )?,
         )?;
 
         // Save the exit code so it can be read back after a restart if
@@ -538,15 +580,342 @@ mod tests {
     use url::Url;
 
     use super::*;
+    use crate::ContentKind;
     use crate::EvaluationPath;
     use crate::Events;
+    use crate::GuestPath;
     use crate::ONE_GIBIBYTE;
     use crate::Object;
     use crate::TaskInputs;
     use crate::backend::ExecuteTaskRequest;
+    use crate::backend::Input;
     use crate::backend::TaskExecutionConstraints;
     use crate::backend::tests::EvalContext;
     use crate::config::DEFAULT_TASK_SHELL;
+
+    async fn generate_test_script(
+        root: &Path,
+        config: &ApptainerConfig,
+        shell: &str,
+        image_path: &Path,
+        env: &IndexMap<String, String>,
+        backend_inputs: &[Input],
+    ) -> Result<String> {
+        tokio::fs::create_dir_all(root.join("0")).await?;
+        let runtime = ApptainerRuntime::new(root.join("cache")).await?;
+        let context = EvalContext::new(Events::default(), Default::default()).await;
+        runtime
+            .generate_apptainer_script(
+                config,
+                shell,
+                image_path,
+                &ExecuteTaskRequest {
+                    context: &context,
+                    name: "quoting-test",
+                    command: "true",
+                    inputs: &TaskInputs::default(),
+                    backend_inputs,
+                    requirements: &Object::empty(),
+                    hints: &Object::empty(),
+                    env,
+                    constraints: &TaskExecutionConstraints {
+                        sources: Vec::new(),
+                        cpu: 1.0,
+                        memory: ONE_GIBIBYTE as u64,
+                        gpu: Default::default(),
+                        fpga: Default::default(),
+                        disks: Default::default(),
+                    },
+                    base_dir: &EvaluationPath::from_local_path(root.into()),
+                    attempt_dir: &root.join("0"),
+                    temp_dir: &root.join("temp"),
+                },
+            )
+            .await
+    }
+
+    #[cfg(unix)]
+    async fn capturing_runtime(root: &Path, name: &str) -> ApptainerConfig {
+        use std::os::unix::fs::PermissionsExt;
+
+        let executable = root.join(name);
+        tokio::fs::write(
+            &executable,
+            "#!/usr/bin/env bash\nprintf '%s\\0' \
+             \"${APPTAINERENV_VALUE-${SINGULARITYENV_VALUE-}}\" \"$@\"\nprintf '%s' \
+             runtime-stderr >&2\n",
+        )
+        .await
+        .unwrap();
+        tokio::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700))
+            .await
+            .unwrap();
+        ApptainerConfig {
+            executable: executable.to_str().unwrap().to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[cfg(unix)]
+    async fn capture_script_arguments(root: &Path, script: &str) -> Vec<String> {
+        let script_path = root.join("script.sh");
+        tokio::fs::write(&script_path, script).await.unwrap();
+        let output = Command::new("bash")
+            .arg(&script_path)
+            .current_dir(root)
+            .env("QUOTING_MARKER", "expanded")
+            .env_remove("APPTAINERENV_VALUE")
+            .env_remove("SINGULARITYENV_VALUE")
+            .output()
+            .await
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "generated script failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            tokio::fs::read_to_string(root.join("0/apptainer.stderr"))
+                .await
+                .unwrap(),
+            "runtime-stderr"
+        );
+        tokio::fs::read_to_string(root.join("0/apptainer.stdout"))
+            .await
+            .unwrap()
+            .split_terminator('\0')
+            .map(str::to_string)
+            .collect()
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn generated_environment_values_remain_literal() {
+        for runtime_name in ["apptainer", "singularity"] {
+            let root = TempDir::new().unwrap();
+            let config = capturing_runtime(root.path(), runtime_name).await;
+            for value in [
+                "",
+                "spaces ' \" $QUOTING_MARKER $(printf changed) `printf changed` \\\n\u{e9}",
+            ] {
+                let env = [("VALUE".to_string(), value.to_string())]
+                    .into_iter()
+                    .collect();
+                let script = generate_test_script(
+                    root.path(),
+                    &config,
+                    DEFAULT_TASK_SHELL,
+                    &root.path().join("image.sif"),
+                    &env,
+                    &[],
+                )
+                .await
+                .unwrap();
+                let captured = capture_script_arguments(root.path(), &script).await;
+                assert_eq!(captured[0], value, "runtime: {runtime_name}");
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn generated_arguments_and_redirects_remain_literal() {
+        let root = tempfile::Builder::new()
+            .prefix("wdl $QUOTING_MARKER ")
+            .tempdir()
+            .unwrap();
+        let mut config = capturing_runtime(root.path(), "apptainer ' $QUOTING_MARKER").await;
+        config.extra_args = vec![
+            "--env".to_string(),
+            "EXTRA=spaces ' \" $QUOTING_MARKER $(printf changed)".to_string(),
+            String::new(),
+        ];
+        let image_path = root
+            .path()
+            .join("image ' \" $QUOTING_MARKER $(printf changed).sif");
+        let shell = "/bin/shell ' $QUOTING_MARKER";
+        let input_path = root.path().join("input, \"quoted\":$QUOTING_MARKER");
+        let inputs = [Input::new(
+            ContentKind::File,
+            EvaluationPath::from_local_path(input_path),
+            Some(GuestPath::new("/mnt/input, \"quoted\":$QUOTING_MARKER")),
+        )];
+        let script = generate_test_script(
+            root.path(),
+            &config,
+            shell,
+            &image_path,
+            &IndexMap::new(),
+            &inputs,
+        )
+        .await
+        .unwrap();
+        let captured = capture_script_arguments(root.path(), &script).await;
+        let args = &captured[1..];
+        assert_eq!(
+            &args[..6],
+            [
+                "-v",
+                "exec",
+                "--pwd",
+                GUEST_WORK_DIR,
+                "--containall",
+                "--cleanenv"
+            ]
+        );
+        assert_eq!(
+            args[7],
+            format!(
+                "type=bind,\"src={}/input, \"\"quoted\"\":$QUOTING_MARKER\",\"dst=/mnt/input, \
+                 \"\"quoted\"\":$QUOTING_MARKER\",ro",
+                root.path().display()
+            )
+        );
+        for (index, source, destination) in [
+            (9, "0/command", GUEST_COMMAND_PATH),
+            (11, "0/work", GUEST_WORK_DIR),
+            (13, "temp/container_tmp", "/tmp"),
+            (15, "temp/container_var_tmp", "/var/tmp"),
+            (17, "0/stdout", GUEST_STDOUT_PATH),
+            (19, "0/stderr", GUEST_STDERR_PATH),
+        ] {
+            assert_eq!(args[index - 1], "--mount");
+            assert_eq!(
+                args[index],
+                format!(
+                    "type=bind,\"src={}/{source}\",\"dst={destination}\"{}",
+                    root.path().display(),
+                    if index == 9 { ",ro" } else { "" },
+                )
+            );
+        }
+        assert_eq!(&args[20..23], config.extra_args);
+        assert_eq!(args[23], image_path.to_str().unwrap());
+        assert_eq!(args[24], shell);
+        assert_eq!(args[25], "-c");
+        assert_eq!(
+            args[26],
+            "\"/mnt/task/command\" > \"/mnt/task/stdout\" 2> \"/mnt/task/stderr\""
+        );
+        assert_eq!(args.len(), 27);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn relative_image_paths_cannot_be_runtime_options() {
+        let root = TempDir::new().unwrap();
+        let config = capturing_runtime(root.path(), "apptainer").await;
+        let script = generate_test_script(
+            root.path(),
+            &config,
+            DEFAULT_TASK_SHELL,
+            Path::new("-image.sif"),
+            &IndexMap::new(),
+            &[],
+        )
+        .await
+        .unwrap();
+        let captured = capture_script_arguments(root.path(), &script).await;
+        let image = Path::new(&captured[captured.len() - 4]);
+        assert!(image.is_absolute());
+        assert_eq!(image.file_name().unwrap(), "-image.sif");
+    }
+
+    #[tokio::test]
+    async fn nul_in_environment_values_is_rejected() {
+        let root = TempDir::new().unwrap();
+        let env = [("VALID".to_string(), "contains\0nul".to_string())]
+            .into_iter()
+            .collect();
+        assert!(
+            generate_test_script(
+                root.path(),
+                &ApptainerConfig::default(),
+                DEFAULT_TASK_SHELL,
+                &root.path().join("image.sif"),
+                &env,
+                &[],
+            )
+            .await
+            .is_err(),
+            "environment value with NUL was accepted"
+        );
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "is not a WDL identifier")]
+    async fn invalid_environment_names_panic() {
+        let root = TempDir::new().unwrap();
+        let env = [("BAD-NAME;id".to_string(), "value".to_string())]
+            .into_iter()
+            .collect();
+        let _ = generate_test_script(
+            root.path(),
+            &ApptainerConfig::default(),
+            DEFAULT_TASK_SHELL,
+            &root.path().join("image.sif"),
+            &env,
+            &[],
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn nul_in_runtime_arguments_is_rejected() {
+        let root = TempDir::new().unwrap();
+        let invalid = "contains\0nul";
+        for (config, shell, image) in [
+            (
+                ApptainerConfig {
+                    executable: invalid.to_string(),
+                    ..Default::default()
+                },
+                DEFAULT_TASK_SHELL,
+                root.path().join("image.sif"),
+            ),
+            (
+                ApptainerConfig {
+                    extra_args: vec![invalid.to_string()],
+                    ..Default::default()
+                },
+                DEFAULT_TASK_SHELL,
+                root.path().join("image.sif"),
+            ),
+            (
+                ApptainerConfig::default(),
+                invalid,
+                root.path().join("image.sif"),
+            ),
+            (
+                ApptainerConfig::default(),
+                DEFAULT_TASK_SHELL,
+                root.path().join(invalid),
+            ),
+        ] {
+            assert!(
+                generate_test_script(root.path(), &config, shell, &image, &IndexMap::new(), &[],)
+                    .await
+                    .is_err()
+            );
+        }
+        let inputs = [Input::new(
+            ContentKind::File,
+            EvaluationPath::from_local_path(root.path().join("input")),
+            Some(GuestPath::new(invalid)),
+        )];
+        assert!(
+            generate_test_script(
+                root.path(),
+                &ApptainerConfig::default(),
+                DEFAULT_TASK_SHELL,
+                &root.path().join("image.sif"),
+                &IndexMap::new(),
+                &inputs,
+            )
+            .await
+            .is_err()
+        );
+    }
 
     #[tokio::test]
     async fn recording_a_job_id_writes_the_file_and_announces_it() {

@@ -7,6 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Security Fix
+
+* Fixed host-side shell injection through task environment values, input mount paths, and local
+  container image paths in the Slurm and LSF Apptainer/Singularity backends. Mount paths containing
+  commas or quotes are now CSV-encoded before shell quoting. NUL-containing arguments and
+  environment values are rejected
+  ([GHSA-rhmr-gc89-f7vj](https://github.com/stjude-rust-labs/sprocket/security/advisories/GHSA-rhmr-gc89-f7vj)).
+
+### Changed
+
+* Each `ApptainerConfig::extra_args` entry is now passed as one literal argument, without shell
+  expansion or splitting. Configurations that relied on shell splitting must use separate entries
+  for each argument.
+
 ## 0.21.0 - 2026-11-18
 
 ### Added
