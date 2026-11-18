@@ -420,7 +420,7 @@ pub fn local_run_summary(
     name: &str,
     status: crate::system::v1::db::RunStatus,
     started_at: DateTime<Utc>,
-    backend: Option<String>,
+    backend: Option<crate::system::v1::db::RunBackend>,
     transfer: Option<TransferTotals>,
 ) -> RunMetrics {
     RunMetrics {

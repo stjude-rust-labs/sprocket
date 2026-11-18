@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* The `backend` reported for runs and run metrics is an object with the configured `name` of the
+  execution backend, its `type`, and allowlisted, secret-free configuration `info`
+  ([#1395](https://github.com/stjude-rust-labs/sprocket/pull/1395)).
 * Execution metrics include backend-reported peak and average memory and cumulative CPU time when
   available. Local Docker containers sample these measurements every second by default; set
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is

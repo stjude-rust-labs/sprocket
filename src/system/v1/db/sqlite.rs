@@ -18,6 +18,7 @@ use super::Database;
 use super::DatabaseError;
 use super::NewTask;
 use super::Result;
+use super::RunBackend;
 use super::TaskWrite;
 use super::models::IndexLogEntry;
 use super::models::LogSource;
@@ -416,9 +417,9 @@ impl Database for SqliteDatabase {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool> {
+    async fn update_run_backend(&self, id: Uuid, backend: &RunBackend) -> Result<bool> {
         let result = sqlx::query("update runs set backend = ? where uuid = ?")
-            .bind(backend)
+            .bind(backend.to_json())
             .bind(id.to_string())
             .execute(&self.pool)
             .await?;
@@ -1961,8 +1962,14 @@ mod tests {
             .await
             .expect("failed to create run");
 
+        let backend = RunBackend::new(
+            "hpc",
+            &wdl::engine::config::BackendConfig::LsfApptainer {
+                config: Default::default(),
+            },
+        );
         assert!(
-            db.update_run_backend(run_id, "lsf_apptainer")
+            db.update_run_backend(run_id, &backend)
                 .await
                 .expect("failed to update backend")
         );
@@ -1978,12 +1985,12 @@ mod tests {
             .await
             .expect("failed to get run")
             .expect("run should exist");
-        assert_eq!(run.backend.as_deref(), Some("lsf_apptainer"));
+        assert_eq!(run.backend, Some(backend.to_json()));
         assert_eq!(run.transfer_totals.as_deref(), Some(totals));
 
         // Unknown runs are reported as not updated.
         assert!(
-            !db.update_run_backend(Uuid::new_v4(), "docker")
+            !db.update_run_backend(Uuid::new_v4(), &backend)
                 .await
                 .expect("failed to update backend")
         );

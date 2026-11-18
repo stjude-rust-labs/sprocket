@@ -266,7 +266,9 @@ pub struct Run {
     pub directory: Option<String>,
     /// Path to the indexed output directory (`null` if not indexed).
     pub index_directory: Option<String>,
-    /// The name of the execution backend the run executed on.
+    /// JSON-encoded [`RunBackend`](super::RunBackend) describing the execution
+    /// backend the run executed on: its configured `name`, its `type`, and
+    /// allowlisted, non-secret configuration `info`.
     ///
     /// `None` for runs recorded before backends were tracked or that never
     /// began execution.

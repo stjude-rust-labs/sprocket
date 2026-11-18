@@ -309,6 +309,7 @@ mod tests {
     use crate::server::RunMetrics;
     use crate::server::RunMetricsTotals;
     use crate::server::TransferTotals;
+    use crate::system::v1::db::RunBackend;
     use crate::system::v1::db::RunStatus;
     use crate::system::v1::db::TaskStatus;
 
@@ -319,7 +320,12 @@ mod tests {
                 name: "happy-dolphin-42".to_string(),
                 status: RunStatus::Completed,
                 wall_time_ms: Some(83_000),
-                backend: Some("lsf_apptainer".to_string()),
+                backend: Some(RunBackend::new(
+                    "hpc",
+                    &wdl::engine::config::BackendConfig::LsfApptainer {
+                        config: Default::default(),
+                    },
+                )),
                 sprocket_version: "0.0.0-test".to_string(),
                 transfer: None,
             },
