@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.34.1 - 2026-11-18
+
 ### Security Fix
 
 * Fixed host-side shell injection through task environment values, input mount paths, and local
