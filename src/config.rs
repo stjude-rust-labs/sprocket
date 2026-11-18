@@ -683,6 +683,10 @@ pub struct ServerConfig {
     #[toml(default = default_orphan_timeout_minutes())]
     #[schemars(default = "default_orphan_timeout_minutes")]
     pub orphan_timeout_minutes: u64,
+    /// Minutes to wait, after a shutdown signal, for running tasks to finish
+    /// before canceling them. Unset waits until a second signal. Has no effect
+    /// in fast failure mode.
+    pub shutdown_timeout_minutes: Option<u64>,
 }
 
 impl Default for ServerConfig {
@@ -697,6 +701,7 @@ impl Default for ServerConfig {
             max_concurrent_runs: Default::default(),
             engine: EngineConfig::default(),
             orphan_timeout_minutes: default_orphan_timeout_minutes(),
+            shutdown_timeout_minutes: None,
         }
     }
 }
@@ -718,6 +723,12 @@ impl ServerConfig {
     /// owns are considered orphaned.
     pub fn orphan_timeout(&self) -> Duration {
         Duration::from_secs(self.orphan_timeout_minutes * 60)
+    }
+
+    /// How long to wait for running tasks after a shutdown signal, if set.
+    pub fn shutdown_timeout(&self) -> Option<Duration> {
+        self.shutdown_timeout_minutes
+            .map(|minutes| Duration::from_secs(minutes * 60))
     }
 
     /// Validates and normalizes the server configuration.
@@ -751,6 +762,11 @@ impl ServerConfig {
         // Validate the orphan timeout is at least a minute
         if self.orphan_timeout_minutes == 0 {
             bail!("`orphan_timeout_minutes` must be at least 1");
+        }
+
+        // Validate the shutdown timeout is at least a minute, if set
+        if self.shutdown_timeout_minutes == Some(0) {
+            bail!("`shutdown_timeout_minutes` must be at least 1");
         }
 
         // Canonicalize file paths
@@ -1586,6 +1602,21 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "failed to canonicalize path in `allowed_file_paths`: `does-not-exist`"
+        );
+    }
+
+    #[test]
+    fn zero_shutdown_timeout_is_rejected() {
+        let mut config = ServerConfig {
+            shutdown_timeout_minutes: Some(0),
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("a zero shutdown timeout should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "`shutdown_timeout_minutes` must be at least 1"
         );
     }
 

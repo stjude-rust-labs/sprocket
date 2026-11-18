@@ -114,6 +114,17 @@ impl ManagedTask for LocalTask<'_> {
                 )
                 .kill_on_drop(true);
 
+            // Run the task in its own process group so a terminal Ctrl+C
+            // reaches only this process.
+            #[cfg(unix)]
+            command.process_group(0);
+            #[cfg(windows)]
+            {
+                /// See `CREATE_NEW_PROCESS_GROUP` in the Windows API.
+                const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+                command.creation_flags(CREATE_NEW_PROCESS_GROUP);
+            }
+
             // Set the PATH variable for the child on Windows to get consistent
             // PATH searching. See: https://github.com/rust-lang/rust/issues/122660
             #[cfg(windows)]
@@ -135,9 +146,17 @@ impl ManagedTask for LocalTask<'_> {
                 name = self.name
             );
 
+            // Kills the task's process group if this future is dropped
+            // (canceled).
+            #[cfg(unix)]
+            let group = ProcessGroupGuard(Some(id as libc::pid_t));
+
             let status = child.wait().await.with_context(|| {
                 format!("failed to wait for termination of task child process {id}")
             })?;
+
+            #[cfg(unix)]
+            group.disarm();
 
             #[cfg(unix)]
             {
@@ -203,6 +222,28 @@ impl ManagedTask for LocalTask<'_> {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Kills a process group with `SIGKILL` when dropped, unless disarmed.
+#[cfg(unix)]
+struct ProcessGroupGuard(Option<libc::pid_t>);
+
+#[cfg(unix)]
+impl ProcessGroupGuard {
+    /// Stops the guard from killing the group.
+    fn disarm(mut self) {
+        self.0 = None;
+    }
+}
+
+#[cfg(unix)]
+impl Drop for ProcessGroupGuard {
+    fn drop(&mut self) {
+        if let Some(pgid) = self.0 {
+            // SAFETY: `killpg` has no memory-safety requirements.
+            unsafe { libc::killpg(pgid, libc::SIGKILL) };
         }
     }
 }

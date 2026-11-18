@@ -3814,6 +3814,115 @@ task t {
         }
     }
 
+    /// A local task runs in its own process group, so a terminal Ctrl+C reaches
+    /// only the server, and a cancel kills the whole group.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn local_task_has_own_process_group() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let root = root_dir.path().canonicalize().unwrap();
+        let source_path = root.join("source.wdl");
+        fs::write(
+            &source_path,
+            format!(
+                r#"
+version 1.1
+
+task t {{
+  command <<<
+    ps -o pgid= -p $$ | tr -d ' ' > '{root}/pgid'
+    echo $$ > '{root}/shell_pid'
+    sleep 120 &
+    echo $! > '{root}/child_pid.tmp'
+    mv '{root}/child_pid.tmp' '{root}/child_pid'
+    wait
+  >>>
+}}
+"#,
+                root = root.display()
+            ),
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(&root)
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results
+            .iter()
+            .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+            .expect("should have result")
+            .document();
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let cancellation = CancellationContext::new(FailureMode::Fast);
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            cancellation.clone(),
+            ContainerImageOverrides::default(),
+        );
+        let mut evaluation = evaluator
+            .evaluate_task(
+                document,
+                document.local_task_by_name("t").unwrap(),
+                TaskInputs::default(),
+                root.join("run"),
+            )
+            .boxed();
+
+        let child_pid_path = root.join("child_pid");
+        tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            loop {
+                tokio::select! {
+                    res = &mut evaluation => panic!("task ended early: {:?}", res.err().map(|e| e.to_string())),
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(50)) => {
+                        if child_pid_path.exists() {
+                            return;
+                        }
+                    }
+                }
+            }
+        })
+        .await
+        .expect("task did not start");
+
+        let read_pid = |name: &str| -> i32 {
+            fs::read_to_string(root.join(name))
+                .unwrap()
+                .trim()
+                .parse()
+                .unwrap()
+        };
+        assert_eq!(
+            read_pid("pgid"),
+            read_pid("shell_pid"),
+            "task shell should lead its own process group"
+        );
+
+        let _ = cancellation.cancel();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(30), evaluation)
+            .await
+            .expect("task did not stop");
+
+        let child = read_pid("child_pid");
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            // SAFETY: signal 0 only checks that the process exists.
+            while unsafe { libc::kill(child, 0) } == 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .expect("task's child process outlived the cancel");
+    }
+
     /// Gets the paths of an `Array[File]` output.
     #[cfg(unix)]
     fn file_paths(outputs: &Outputs, name: &str) -> Vec<String> {

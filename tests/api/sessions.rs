@@ -22,6 +22,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
+use wdl::engine::CancellationContext;
 use wdl::engine::ContainerImageOverrides;
 
 /// Create a test server with real database and filesystem.
@@ -61,6 +62,7 @@ async fn create_test_server(
         true,
         db.clone(),
         ContainerImageOverrides::default(),
+        CancellationContext::default(),
     )
     .await
     .expect("failed to create run manager service");

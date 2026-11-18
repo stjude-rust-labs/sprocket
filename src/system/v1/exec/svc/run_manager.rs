@@ -13,6 +13,7 @@ use tokio::sync::Semaphore;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::MissedTickBehavior;
+use tokio_util::task::TaskTracker;
 use tracing::error;
 use tracing::info;
 use tracing::trace;
@@ -108,6 +109,12 @@ pub struct RunManagerSvc {
     /// A [`tokio::sync::Mutex`] is used because the [`run()`][Self::run] future
     /// must be `Send`.
     runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
+    /// The server's root cancellation context.
+    ///
+    /// Each run's context is its child, so canceling it cancels every run.
+    shutdown: CancellationContext,
+    /// Tracks each run's task, so shutdown can wait for them.
+    tracker: TaskTracker,
     /// The diagnostic reporting mode.
     report_mode: Mode,
     /// Whether to colorize diagnostics.
@@ -127,6 +134,7 @@ impl RunManagerSvc {
         db: Arc<dyn Database>,
         rx: Rx,
         image_overrides: ContainerImageOverrides,
+        shutdown: CancellationContext,
     ) -> Result<Self> {
         let fallback_version = config.common.wdl.fallback_version;
         let feature_flags = config.common.wdl.feature_flags;
@@ -154,6 +162,8 @@ impl RunManagerSvc {
             rx,
             semaphore,
             runs: Default::default(),
+            shutdown,
+            tracker: TaskTracker::new(),
             report_mode,
             colorize,
             image_overrides,
@@ -321,6 +331,11 @@ impl RunManagerSvc {
                     let result = get_task_logs(&self.db, name, stream, limit, offset).await;
                     let _ = rx.send(result);
                 }
+                RunManagerCmd::Drain { rx } => {
+                    trace!("received `Drain` command");
+                    self.tracker.close();
+                    let _ = rx.send(self.tracker.clone());
+                }
                 RunManagerCmd::Shutdown { rx } => {
                     trace!("received `Shutdown` command");
                     info!("run manager service is shutting down");
@@ -405,9 +420,19 @@ impl RunManagerSvc {
         colorize: bool,
         db: Arc<dyn Database>,
         image_overrides: ContainerImageOverrides,
+        shutdown: CancellationContext,
     ) -> Result<(JoinHandle<()>, mpsc::Sender<RunManagerCmd>)> {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
-        let manager = Self::new(config, report_mode, colorize, db, rx, image_overrides).await?;
+        let manager = Self::new(
+            config,
+            report_mode,
+            colorize,
+            db,
+            rx,
+            image_overrides,
+            shutdown,
+        )
+        .await?;
         let handle = tokio::spawn(manager.run());
         Ok((handle, tx))
     }
@@ -421,6 +446,11 @@ impl RunManagerSvc {
         target: Option<String>,
         index_on: Option<IndexPath>,
     ) -> Result<SubmitResponse, SubmitRunError> {
+        let state = self.shutdown.state();
+        if state != CancellationContextState::NotCanceled {
+            return Err(SubmitRunError::ShuttingDown(state));
+        }
+
         let source = match validate_source(&source, &self.config)? {
             Source::Directory(dir) => crate::analysis::resolve_module_entrypoint(&dir)
                 .map_err(SubmitRunError::Analysis)?,
@@ -440,7 +470,7 @@ impl RunManagerSvc {
             .with_crankshaft(CRANKSHAFT_EVENTS_CHANNEL_CAPACITY)
             .with_engine(ENGINE_EVENTS_CHANNEL_CAPACITY)
             .with_transfer(TRANSFER_EVENTS_CHANNEL_CAPACITY);
-        let cancellation = CancellationContext::new(self.engine.config().failure_mode);
+        let cancellation = self.shutdown.child(self.engine.config().failure_mode);
         let executor = RunnableExecutor::builder()
             .db(self.db.clone())
             .output_dir(self.output_dir.clone())
@@ -464,21 +494,38 @@ impl RunManagerSvc {
             .build();
 
         let semaphore = self.semaphore.clone();
-        let handle = tokio::spawn(async move {
-            let _permit = if let Some(ref sem) = semaphore {
-                // SAFETY: the semaphore is Arc-wrapped and held by the manager
-                // for its entire lifetime. It is never
-                // explicitly closed. If this fails, it
-                // indicates a catastrophic programming error.
-                Some(sem.acquire().await.unwrap())
-            } else {
-                None
+        let canceled = cancellation.first().clone();
+        let db = self.db.clone();
+        let runs = self.runs.clone();
+        self.runs.lock().await.insert(run_id, cancellation);
+
+        let handle = self.tracker.spawn(async move {
+            let slot = async {
+                match &semaphore {
+                    // SAFETY: the semaphore is Arc-wrapped and held by the
+                    // manager for its entire lifetime. It is never explicitly
+                    // closed. If this fails, it indicates a catastrophic
+                    // programming error.
+                    Some(sem) => Some(sem.acquire().await.unwrap()),
+                    None => None,
+                }
+            };
+
+            // A run canceled while queued ends without starting.
+            let _permit = tokio::select! {
+                biased;
+                _ = canceled.cancelled() => {
+                    if let Err(e) = db.cancel_run(run_id, Utc::now()).await {
+                        error!(error = %e, "failed to record canceled queued run");
+                    }
+                    runs.lock().await.remove(&run_id);
+                    return;
+                }
+                permit = slot => permit,
             };
 
             executor.execute().await;
         });
-
-        self.runs.lock().await.insert(run_id, cancellation);
 
         Ok(SubmitResponse {
             id: run_id,
@@ -510,6 +557,9 @@ pub enum SubmitRunError {
     /// JSON error.
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    /// The server is shutting down and not taking new runs.
+    #[error("the server is shutting down; not accepting new runs")]
+    ShuttingDown(CancellationContextState),
 }
 
 /// Error type for getting a run.
@@ -800,6 +850,7 @@ mod tests {
             db.clone(),
             rx,
             ContainerImageOverrides::default(),
+            CancellationContext::default(),
         )
         .await
         .expect("failed to create run manager");
@@ -922,7 +973,7 @@ mod tests {
             .await
             .expect("failed to update run status");
 
-        let cancellation = CancellationContext::new(FailureMode::Slow);
+        let cancellation = CancellationContext::default().child(FailureMode::Slow);
         let runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>> =
             Arc::new(Mutex::new(HashMap::from([(run_id, cancellation)])));
 
@@ -951,5 +1002,299 @@ mod tests {
             .unwrap();
         assert_eq!(run.status, RunStatus::Canceled);
         assert!(!runs.lock().await.contains_key(&run_id));
+    }
+
+    /// A WDL task that runs until canceled.
+    const WAIT_TASK: &str = "version 1.2\n\ntask wait {\n    command <<< sleep 600 >>>\n}\n";
+
+    /// A config that runs tasks locally, with `dir` as the allowed path.
+    fn local_config(dir: &std::path::Path, mode: FailureMode) -> Config {
+        let mut config = Config::default();
+        config.server.engine.output_dir = dir.join("runs");
+        config.server.engine.failure_mode = mode;
+        config.server.allowed_file_paths = vec![dir.to_path_buf()];
+        config.server.engine.backend = "local".to_string();
+        config.server.engine.backends.insert(
+            "local".to_string(),
+            BackendConfig::Local {
+                config: Default::default(),
+            },
+        );
+        config.server.validate().expect("invalid server config");
+        config
+    }
+
+    /// Opens the test database and creates a session in it.
+    async fn test_db(pool: SqlitePool) -> (Arc<dyn Database>, Uuid) {
+        let db: Arc<dyn Database> = Arc::new(
+            SqliteDatabase::from_pool(pool)
+                .await
+                .expect("failed to create database"),
+        );
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+        (db, session_id)
+    }
+
+    async fn test_manager(
+        config: Config,
+        db: Arc<dyn Database>,
+        shutdown: CancellationContext,
+    ) -> RunManagerSvc {
+        let (_tx, rx) = mpsc::channel(1);
+        RunManagerSvc::new(
+            config,
+            Mode::default(),
+            false,
+            db,
+            rx,
+            ContainerImageOverrides::default(),
+            shutdown,
+        )
+        .await
+        .expect("failed to create run manager")
+    }
+
+    /// Writes `WAIT_TASK` into `dir` and returns its path.
+    fn write_wait_task(dir: &std::path::Path) -> String {
+        let path = dir.join("wait.wdl");
+        std::fs::write(&path, WAIT_TASK).expect("failed to write task");
+        path.to_str().expect("path is not UTF-8").to_string()
+    }
+
+    /// Waits until the run has the given status.
+    async fn wait_for_status(db: &Arc<dyn Database>, id: Uuid, status: RunStatus) {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            loop {
+                let run = db.get_run(id).await.unwrap().unwrap();
+                if run.status == status {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("run did not reach `{status}`"));
+    }
+
+    #[sqlx::test]
+    async fn submit_run_rejected_after_shutdown_starts(pool: SqlitePool) {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().canonicalize().unwrap();
+        let source = write_wait_task(&dir);
+        let (db, session_id) = test_db(pool).await;
+        let shutdown = CancellationContext::new(FailureMode::Slow);
+        let manager = test_manager(
+            local_config(&dir, FailureMode::Slow),
+            db.clone(),
+            shutdown.clone(),
+        )
+        .await;
+
+        let _ = shutdown.cancel();
+        let result = manager
+            .submit_run(
+                session_id,
+                source,
+                Default::default(),
+                Some("wait".into()),
+                None,
+            )
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(SubmitRunError::ShuttingDown(
+                CancellationContextState::Waiting
+            ))
+        ));
+        let runs = db.read_runs(None, None, None).await.unwrap();
+        assert_eq!(runs.total, 0, "no run record should be created");
+    }
+
+    #[sqlx::test]
+    async fn shutdown_cancels_running_run(pool: SqlitePool) {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().canonicalize().unwrap();
+        let source = write_wait_task(&dir);
+        let (db, session_id) = test_db(pool).await;
+        let shutdown = CancellationContext::new(FailureMode::Fast);
+        let manager = test_manager(
+            local_config(&dir, FailureMode::Fast),
+            db.clone(),
+            shutdown.clone(),
+        )
+        .await;
+
+        let response = manager
+            .submit_run(
+                session_id,
+                source,
+                Default::default(),
+                Some("wait".into()),
+                None,
+            )
+            .await
+            .expect("failed to submit run");
+        wait_for_status(&db, response.id, RunStatus::Running).await;
+
+        let _ = shutdown.cancel();
+        tokio::time::timeout(Duration::from_secs(30), response.handle)
+            .await
+            .expect("run did not stop")
+            .expect("run executor panicked");
+
+        let run = db.get_run(response.id).await.unwrap().unwrap();
+        assert_eq!(run.status, RunStatus::Canceled, "{:?}", run.error);
+    }
+
+    #[sqlx::test]
+    async fn shutdown_cancels_queued_run_without_starting_it(pool: SqlitePool) {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().canonicalize().unwrap();
+        let source = write_wait_task(&dir);
+        let (db, session_id) = test_db(pool).await;
+        let mut config = local_config(&dir, FailureMode::Fast);
+        config.server.max_concurrent_runs = Some(1).into();
+        let shutdown = CancellationContext::new(FailureMode::Fast);
+        let manager = test_manager(config, db.clone(), shutdown.clone()).await;
+
+        let running = manager
+            .submit_run(
+                session_id,
+                source.clone(),
+                Default::default(),
+                Some("wait".into()),
+                None,
+            )
+            .await
+            .expect("failed to submit run");
+        wait_for_status(&db, running.id, RunStatus::Running).await;
+        let queued = manager
+            .submit_run(
+                session_id,
+                source,
+                Default::default(),
+                Some("wait".into()),
+                None,
+            )
+            .await
+            .expect("failed to submit run");
+
+        let _ = shutdown.cancel();
+        for handle in [queued.handle, running.handle] {
+            tokio::time::timeout(Duration::from_secs(30), handle)
+                .await
+                .expect("run did not stop")
+                .expect("run executor panicked");
+        }
+
+        let run = db.get_run(queued.id).await.unwrap().unwrap();
+        assert_eq!(run.status, RunStatus::Canceled, "{:?}", run.error);
+        assert!(run.directory.is_none(), "a queued run should never start");
+        assert!(!manager.runs.lock().await.contains_key(&queued.id));
+    }
+
+    #[sqlx::test]
+    async fn shutdown_cancels_run_during_analysis(pool: SqlitePool) {
+        // A server that accepts but never replies, so analysis hangs on the
+        // import.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let _server = tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((stream, _)) = listener.accept().await {
+                held.push(stream);
+            }
+        });
+
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().canonicalize().unwrap();
+        let path = dir.join("hang.wdl");
+        std::fs::write(
+            &path,
+            format!(
+                "version 1.2\n\nimport \"http://{addr}/x.wdl\"\n\n{}",
+                &WAIT_TASK[13..]
+            ),
+        )
+        .unwrap();
+        let (db, session_id) = test_db(pool).await;
+        let shutdown = CancellationContext::new(FailureMode::Fast);
+        let manager = test_manager(
+            local_config(&dir, FailureMode::Fast),
+            db.clone(),
+            shutdown.clone(),
+        )
+        .await;
+
+        let response = manager
+            .submit_run(
+                session_id,
+                path.to_str().unwrap().to_string(),
+                Default::default(),
+                Some("wait".into()),
+                None,
+            )
+            .await
+            .expect("failed to submit run");
+        wait_for_status(&db, response.id, RunStatus::Analyzing).await;
+
+        let _ = shutdown.cancel();
+        tokio::time::timeout(Duration::from_secs(10), response.handle)
+            .await
+            .expect("run did not stop")
+            .expect("run executor panicked");
+
+        let run = db.get_run(response.id).await.unwrap().unwrap();
+        assert_eq!(run.status, RunStatus::Canceled, "{:?}", run.error);
+        assert!(!manager.runs.lock().await.contains_key(&response.id));
+    }
+
+    #[sqlx::test]
+    async fn drain_waits_for_runs(pool: SqlitePool) {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().canonicalize().unwrap();
+        let source = write_wait_task(&dir);
+        let (db, _) = test_db(pool).await;
+        let shutdown = CancellationContext::new(FailureMode::Fast);
+        let (_, tx) = RunManagerSvc::spawn(
+            16,
+            local_config(&dir, FailureMode::Fast),
+            Mode::default(),
+            false,
+            db.clone(),
+            ContainerImageOverrides::default(),
+            shutdown.clone(),
+        )
+        .await
+        .expect("failed to spawn run manager");
+
+        let (rx_tx, rx) = tokio::sync::oneshot::channel();
+        tx.send(RunManagerCmd::Submit {
+            source,
+            inputs: Default::default(),
+            target: Some("wait".into()),
+            index_on: None,
+            rx: rx_tx,
+        })
+        .await
+        .unwrap();
+        let response = rx.await.unwrap().expect("failed to submit run");
+        wait_for_status(&db, response.id, RunStatus::Running).await;
+
+        let _ = shutdown.cancel();
+        let (rx_tx, rx) = tokio::sync::oneshot::channel();
+        tx.send(RunManagerCmd::Drain { rx: rx_tx }).await.unwrap();
+        let tracker = rx.await.unwrap();
+        assert!(tracker.is_closed());
+
+        tokio::time::timeout(Duration::from_secs(30), tracker.wait())
+            .await
+            .expect("drain did not finish");
+        let run = db.get_run(response.id).await.unwrap().unwrap();
+        assert_eq!(run.status, RunStatus::Canceled, "{:?}", run.error);
     }
 }

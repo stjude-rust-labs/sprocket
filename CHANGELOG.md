@@ -25,6 +25,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Task records now store the backend's ID for each attempt (`external_id`): the job ID for LSF and
   Slurm, or the task ID for TES. The API returns it with each task
   ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* `sprocket server` shuts down gracefully on SIGINT or SIGTERM. It stops taking runs and cancels the
+  ones in progress in two stages, following `failure_mode`, so they end `canceled`. Set
+  `server.shutdown_timeout_minutes` to cancel running tasks after a deadline. `GET /api/v1/info`
+  reports the shutdown `state` ([#1411](https://github.com/stjude-rust-labs/sprocket/pull/1411)).
 
 ### Changed
 

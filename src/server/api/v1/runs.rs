@@ -232,6 +232,7 @@ impl From<Option<Value>> for RunOutputsResponse {
         (status = 200, description = "Run submitted successfully", body = SubmitResponse),
         (status = 400, description = "Invalid request"),
         (status = 403, description = "File sources not allowed"),
+        (status = 503, description = "Server is shutting down"),
     ),
     tag = "runs"
 )]

@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::error;
 
+use crate::server::api::v1::info::ServerState;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::exec::ConfigError;
 use crate::system::v1::exec::SelectTargetError;
@@ -47,6 +48,9 @@ pub enum Error {
     /// A "conflict" error (`409`).
     Conflict(String),
 
+    /// A "service unavailable" error (`503`).
+    ServiceUnavailable(String),
+
     /// An "internal server" error (`500`).
     Internal,
 }
@@ -83,6 +87,10 @@ impl From<SubmitRunError> for Error {
             SubmitRunError::Json(e) => Self::BadRequest(e.to_string()),
             SubmitRunError::Database(_) => Self::Internal,
             SubmitRunError::Io(_) => Self::Internal,
+            SubmitRunError::ShuttingDown(state) => Self::ServiceUnavailable(format!(
+                "server is shutting down ({}); not accepting new runs",
+                ServerState::from(state)
+            )),
         }
     }
 }
@@ -132,6 +140,9 @@ impl IntoResponse for Error {
             Self::Forbidden(msg) => (StatusCode::FORBIDDEN, "Forbidden", msg),
             Self::NotFound(msg) => (StatusCode::NOT_FOUND, "NotFound", msg),
             Self::Conflict(msg) => (StatusCode::CONFLICT, "Conflict", msg),
+            Self::ServiceUnavailable(msg) => {
+                (StatusCode::SERVICE_UNAVAILABLE, "ServiceUnavailable", msg)
+            }
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal",
@@ -194,6 +205,19 @@ mod tests {
             StatusCode::CONFLICT,
             "Conflict",
             "busy",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn shutting_down_maps_to_service_unavailable() {
+        assert_error_response(
+            Error::from(SubmitRunError::ShuttingDown(
+                wdl::engine::CancellationContextState::Waiting,
+            )),
+            StatusCode::SERVICE_UNAVAILABLE,
+            "ServiceUnavailable",
+            "server is shutting down (draining); not accepting new runs",
         )
         .await;
     }

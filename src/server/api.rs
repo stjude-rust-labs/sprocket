@@ -5,8 +5,10 @@ use std::sync::Arc;
 use axum::Router;
 use bon::Builder;
 use tokio::sync::mpsc;
+use wdl::engine::CancellationContext;
 
 use crate::server::api::v1::info::ServerFailureMode;
+use crate::server::api::v1::info::ServerState;
 use crate::system::v1::db::Database;
 use crate::system::v1::exec::svc::run_manager::RunManagerCmd;
 
@@ -33,6 +35,12 @@ pub struct AppState {
     /// Surfaced via the [`info`](crate::server::api::v1::info) endpoint so
     /// clients (e.g. `dev server inspect`) can display absolute output paths.
     output_dir: String,
+    /// The server's root cancellation context, canceled when shutdown starts.
+    ///
+    /// Every run's context is its child. Reported by the
+    /// [`info`](crate::server::api::v1::info) endpoint as a [`ServerState`].
+    #[builder(default)]
+    shutdown: CancellationContext,
 }
 
 impl std::fmt::Debug for AppState {
@@ -42,6 +50,7 @@ impl std::fmt::Debug for AppState {
             .field("database", &"<dyn Database>")
             .field("failure_mode", &self.failure_mode)
             .field("output_dir", &self.output_dir)
+            .field("state", &ServerState::from(self.shutdown.state()))
             .finish()
     }
 }

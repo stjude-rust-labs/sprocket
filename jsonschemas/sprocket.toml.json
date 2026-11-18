@@ -2719,6 +2719,15 @@
           "format": "uint64",
           "minimum": 0,
           "default": 5
+        },
+        "shutdown_timeout_minutes": {
+          "description": "Minutes to wait, after a shutdown signal, for running tasks to finish\nbefore canceling them. Unset waits until a second signal. Has no effect\nin fast failure mode.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       },
       "additionalProperties": false

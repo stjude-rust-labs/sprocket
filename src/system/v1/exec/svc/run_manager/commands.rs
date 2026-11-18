@@ -4,6 +4,7 @@ use anyhow::Result;
 use serde_json::Value;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+use tokio_util::task::TaskTracker;
 use uuid::Uuid;
 
 use crate::system::v1::db::DatabaseError;
@@ -235,5 +236,13 @@ pub enum RunManagerCmd {
     Shutdown {
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<()>>,
+    },
+    /// Stop tracking new runs and return a tracker of the submitted ones.
+    ///
+    /// Send only after the shutdown context is canceled, so no runs are added
+    /// later. `TaskTracker::wait` finishes once every run's task has finished.
+    Drain {
+        /// Channel to send the tracker back.
+        rx: oneshot::Sender<TaskTracker>,
     },
 }

@@ -95,11 +95,11 @@ pub async fn get_json<T: DeserializeOwned>(url: &str, what: &str) -> CommandResu
     send_json(reqwest::Client::new().get(url), what).await
 }
 
-/// Fetches static server metadata.
+/// Fetches server metadata.
 ///
-/// Queries `GET /api/v1/info`. The response describes the server's static
-/// configuration (e.g. its cancellation failure mode); CLI commands use it to
-/// adapt their output to the server's setup.
+/// Queries `GET /api/v1/info`. The response describes the server's
+/// configuration and shutdown state (e.g. its cancellation failure mode); CLI
+/// commands use it to adapt their output to the server's setup.
 pub async fn fetch_server_info(base_url: &str) -> CommandResult<ServerInfoResponse> {
     let url = format!("{base_url}{path}", path = paths::SERVER_INFO);
     get_json(&url, "server info").await
