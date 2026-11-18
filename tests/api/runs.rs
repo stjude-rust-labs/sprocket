@@ -2251,6 +2251,196 @@ async fn get_run_returns_seeded_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+async fn submit_run_records_backend(pool: sqlx::SqlitePool) {
+    let engine = wdl::engine::Config {
+        backend: String::from("my-local"),
+        backends: [(
+            String::from("my-local"),
+            wdl::engine::config::BackendConfig::Local {
+                config: Default::default(),
+            },
+        )]
+        .into(),
+        ..Default::default()
+    };
+
+    let (app, db, temp) = create_test_server().pool(pool).engine(engine).call().await;
+
+    let wdl_file = temp.path().join("wdl").join("test.wdl");
+    std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(paths::LIST_RUNS)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    // The backend is recorded when execution starts.
+    let status = poll_for_completion(&db, run_id, 120)
+        .await
+        .expect("run should complete");
+    assert_eq!(status, RunStatus::Completed);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/runs/{run_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(
+        json["backend"],
+        json!({"name": "my-local", "type": "local", "info": {"cpu": null, "memory": null}})
+    );
+}
+
+#[sqlx::test]
+async fn backend_secrets_are_never_persisted(pool: sqlx::SqlitePool) {
+    use wdl::engine::config::BackendConfig;
+    use wdl::engine::config::BasicAuthConfig;
+    use wdl::engine::config::TesBackendAuthConfig;
+    use wdl::engine::config::TesBackendConfig;
+
+    const SECRETS: &[&str] = &[
+        "basic-password",
+        "service-password",
+        "service-query-token",
+        "inputs-sas-token",
+        "outputs-sas-token",
+    ];
+
+    // The TES service is unreachable, so the run fails after the backend is
+    // recorded.
+    let engine = wdl::engine::Config {
+        backend: String::from("cloud"),
+        backends: [(
+            String::from("cloud"),
+            BackendConfig::Tes {
+                config: TesBackendConfig {
+                    service: "http://user:service-password@127.0.0.1:9/?token=service-query-token"
+                        .parse()
+                        .unwrap(),
+                    auth: Some(TesBackendAuthConfig::Basic {
+                        config: BasicAuthConfig {
+                            username: "user".into(),
+                            password: Some("basic-password".into()),
+                        },
+                    }),
+                    inputs: "s3://bucket/inputs/?sig=inputs-sas-token".parse().unwrap(),
+                    outputs: "s3://bucket/outputs/?sig=outputs-sas-token"
+                        .parse()
+                        .unwrap(),
+                    interval: None,
+                    retries: Some(0),
+                    max_concurrency: None,
+                    insecure: true,
+                },
+            },
+        )]
+        .into(),
+        ..Default::default()
+    };
+
+    let (app, db, temp) = create_test_server()
+        .pool(pool.clone())
+        .engine(engine)
+        .call()
+        .await;
+
+    let wdl_file = temp.path().join("wdl").join("test.wdl");
+    std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+    });
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(paths::LIST_RUNS)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    poll_for_completion(&db, run_id, 120)
+        .await
+        .expect("run should finish");
+
+    let run = db.get_run(run_id).await.unwrap().expect("run should exist");
+    assert_eq!(
+        run.backend.as_deref(),
+        Some(
+            r#"{"name":"cloud","type":"tes","info":{"service":"http://127.0.0.1:9/","max_concurrency":null}}"#
+        )
+    );
+
+    // Check every value in every table, not just the backend columns.
+    let tables: Vec<String> =
+        sqlx::query_scalar("select name from sqlite_master where type = 'table'")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    for table in tables {
+        let columns: Vec<String> = sqlx::query_scalar("select name from pragma_table_info(?)")
+            .bind(&table)
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+        for column in columns {
+            let values: Vec<Option<Vec<u8>>> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                r#"select cast("{column}" as blob) from "{table}""#
+            )))
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+            for value in values.into_iter().flatten() {
+                let value = String::from_utf8_lossy(&value);
+                for secret in SECRETS {
+                    assert!(
+                        !value.contains(secret),
+                        "secret `{secret}` was persisted in `{table}.{column}`: {value}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[sqlx::test]
 #[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn submit_run_rejects_non_object_inputs(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;

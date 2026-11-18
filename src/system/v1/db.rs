@@ -14,6 +14,7 @@ use tokio_retry2::strategy::ExponentialBackoff;
 use uuid::Uuid;
 
 pub mod models;
+mod run_backend;
 pub mod sqlite;
 
 pub use models::IndexLogEntry;
@@ -25,6 +26,7 @@ pub use models::SprocketCommand;
 pub use models::Task;
 pub use models::TaskLog;
 pub use models::TaskStatus;
+pub use run_backend::RunBackend;
 pub use sqlite::SqliteDatabase;
 
 /// Database errors.
@@ -401,11 +403,11 @@ pub trait Database: Send + Sync {
     #[must_use = "the return value indicates whether a run was updated"]
     async fn update_run_index_directory(&self, id: Uuid, index_directory: &str) -> Result<bool>;
 
-    /// Record the name of the execution backend the run executed on.
+    /// Record the execution backend the run executed on.
     ///
     /// Returns `true` if a run was updated, `false` if it was not found.
     #[must_use = "the return value indicates whether a run was updated"]
-    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool>;
+    async fn update_run_backend(&self, id: Uuid, backend: &RunBackend) -> Result<bool>;
 
     /// Record the run's transfer byte totals.
     ///
