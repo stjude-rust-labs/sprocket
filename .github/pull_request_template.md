@@ -23,6 +23,9 @@ For all contributors:
 - [ ] You have logged a tracking issue on the
       [sprocket-action repository](https://github.com/stjude-rust-labs/sprocket-action), ensuring
       the action stays current with all API changes (when appropriate).
+- [ ] You have classified changes to stable interfaces under the
+      [compatibility policy](https://github.com/stjude-rust-labs/sprocket/blob/main/COMPATIBILITY.md)
+      (when appropriate).
 
 For PRs containing lint rule changes:
 
