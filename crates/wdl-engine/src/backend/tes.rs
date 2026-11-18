@@ -549,7 +549,7 @@ impl TaskExecutionBackend for TesBackend {
                             .build(),
                     ))
                     .inputs(backend_inputs.clone())
-                    .outputs(outputs.clone())
+                    .outputs(outputs)
                     .resources(
                         Resources::builder()
                             .cpu(request.constraints.cpu)

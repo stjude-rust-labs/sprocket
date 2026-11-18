@@ -1975,7 +1975,7 @@
               "default": true
             },
             "resource_usage_interval": {
-              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nMemory is sampled container memory with inactive file cache removed.\nPeak memory is the largest sample; average memory is the arithmetic\nmean of successful samples. CPU time excludes work after the last\nsuccessful sample.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.\nTasks that finish before the first sample may report no usage.",
+              "description": "The interval, in seconds, at which to sample a running container's\nresource usage.\n\nMemory is sampled from the container with inactive file cache removed.\nPeak memory is the largest sample; average memory is the arithmetic\nmean of successful samples. CPU time excludes work after the last\nsuccessful sample.\n\nDefaults to one second. Set to zero to disable sampling. Sampling\napplies only to local container execution, not Docker Swarm services.\nTasks that finish before the first sample may report no usage.",
               "type": [
                 "integer",
                 "null"

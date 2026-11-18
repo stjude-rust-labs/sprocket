@@ -1718,7 +1718,7 @@ pub struct DockerBackendConfig {
     /// The interval, in seconds, at which to sample a running container's
     /// resource usage.
     ///
-    /// Memory is sampled container memory with inactive file cache removed.
+    /// Memory is sampled from the container with inactive file cache removed.
     /// Peak memory is the largest sample; average memory is the arithmetic
     /// mean of successful samples. CPU time excludes work after the last
     /// successful sample.

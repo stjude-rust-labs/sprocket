@@ -3,9 +3,9 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -19,7 +19,7 @@ use crankshaft::events::send_event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[cfg(not(unix))]
 use tokio::process::Command;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
@@ -58,10 +58,10 @@ struct LocalTask<'a> {
 }
 
 /// Terminates a task's process group if execution is canceled or dropped.
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 struct TaskProcessGroup(Arc<std::sync::Mutex<Option<libc::pid_t>>>);
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 impl Drop for TaskProcessGroup {
     fn drop(&mut self) {
         let mut ownership = self.0.lock().unwrap_or_else(|e| e.into_inner());
@@ -76,7 +76,7 @@ impl Drop for TaskProcessGroup {
 /// Terminates the process group rooted at a task's child process.
 ///
 /// Returns true after successful termination or when the group is already gone.
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 fn terminate_process_group(id: libc::pid_t) -> bool {
     // The child starts its own group, never Sprocket's group.
     if unsafe { libc::kill(-id, libc::SIGKILL) } != 0 {
@@ -90,7 +90,7 @@ fn terminate_process_group(id: libc::pid_t) -> bool {
 }
 
 /// Reaps exactly this child, including when its async execution was dropped.
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 fn wait_with_usage(
     mut child: std::process::Child,
     ownership: Arc<std::sync::Mutex<Option<libc::pid_t>>>,
@@ -258,10 +258,10 @@ impl ManagedTask for LocalTask<'_> {
                         .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
                 );
 
-            #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+            #[cfg(not(unix))]
             command.kill_on_drop(true);
 
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(unix)]
             command.process_group(0);
 
             // Set the PATH variable for the child on Windows to get consistent
@@ -272,15 +272,15 @@ impl ManagedTask for LocalTask<'_> {
             }
 
             let child = command.spawn().context("failed to spawn shell")?;
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(unix)]
             let pid = child.id();
-            #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+            #[cfg(not(unix))]
             let pid = child.id().expect("should have id");
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(unix)]
             let ownership = Arc::new(std::sync::Mutex::new(Some(
                 pid.try_into().context("task PID is out of range")?,
             )));
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(unix)]
             let _process_group = TaskProcessGroup(ownership.clone());
 
             // Notify that the process has spawned
@@ -294,7 +294,7 @@ impl ManagedTask for LocalTask<'_> {
                 name = self.name
             );
 
-            #[cfg(any(target_os = "linux", target_os = "macos"))]
+            #[cfg(unix)]
             let status = {
                 let (status, usage) =
                     tokio::task::spawn_blocking(move || wait_with_usage(child, ownership))
@@ -306,7 +306,7 @@ impl ManagedTask for LocalTask<'_> {
                 );
                 status
             };
-            #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+            #[cfg(not(unix))]
             let status = {
                 let mut child = child;
                 child.wait().await.with_context(|| {
@@ -545,7 +545,7 @@ impl TaskExecutionBackend for LocalBackend {
     }
 }
 
-#[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
+#[cfg(all(test, unix))]
 mod tests {
     use std::time::Duration;
 
@@ -567,7 +567,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
     async fn successful_cancellation_consumes_group_cleanup_before_reaping() {
         use std::os::unix::process::ExitStatusExt;
 
@@ -589,7 +588,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
     async fn waiter_disarms_group_before_reaping() {
         let child = Command::new("/bin/sh")
             .args(["-c", "exit 0"])
@@ -626,7 +624,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
     async fn native_resource_usage_reports_cpu_and_rss_for_nonzero_exits() {
         let root = tempfile::tempdir().unwrap();
         let events = Events::default().with_crankshaft(32);
