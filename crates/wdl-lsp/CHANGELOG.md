@@ -7,6 +7,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added support for the `textDocument/documentLink` request
+  ([#1381](https://github.com/stjude-rust-labs/sprocket/pull/1381)).
+
+### Fixed
+
+* `textDocument/documentSymbol` requests will now respect the configured fallback version
+  ([#1381](https://github.com/stjude-rust-labs/sprocket/pull/1381)).
+* `textDocument/definition` requests on re-exported structs/enums will now resolve the defining
+  document, rather than the exporting document
+  ([#1410](https://github.com/stjude-rust-labs/sprocket/pull/1410)).
+
 ## 0.25.0 - 2026-10-29
 
 ### Added

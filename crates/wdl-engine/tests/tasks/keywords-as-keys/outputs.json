@@ -1,0 +1,12 @@
+{
+  "test.import_value": "abc",
+  "test.none_value": "xyz",
+  "test.enum_value": "e",
+  "test.if_value": true,
+  "test.o": {
+    "import": 1,
+    "enum": 2,
+    "None": 3
+  },
+  "test.sum": 6
+}

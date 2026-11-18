@@ -367,6 +367,7 @@ impl MetricsCollector {
                 utilization: record.utilization,
                 created_at: record.created_at,
                 submitted_at: record.submitted_at,
+                external_id: None,
                 started_at: record.started_at,
                 completed_at: record.completed_at,
             })

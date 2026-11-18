@@ -1,5 +1,7 @@
 //! Integration tests for `sprocket dev module` commands.
 
+mod common;
+
 #[path = "module/fixtures.rs"]
 mod fixtures;
 
