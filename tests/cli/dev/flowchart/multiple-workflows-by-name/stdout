@@ -1,0 +1,6 @@
+---
+title: foo
+---
+flowchart TD
+    subgraph n0["bar"]
+    end

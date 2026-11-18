@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `sprocket dev flowchart` to render WDL workflows as diagrams; Mermaid is the default and
+  only `--type` ([#1069](https://github.com/stjude-rust-labs/sprocket/pull/1069)).
 * Execution metrics include backend-reported peak and average memory and cumulative CPU time when
   available. Local Docker containers sample these measurements every second by default; set
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
