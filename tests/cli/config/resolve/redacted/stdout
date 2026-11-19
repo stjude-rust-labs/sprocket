@@ -237,6 +237,8 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
+resource_usage_metadata = false
 
 [run.backends.first.auth]
 type = "basic"
@@ -249,6 +251,8 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
+resource_usage_metadata = false
 
 [run.backends.second.auth]
 type = "bearer"
@@ -260,6 +264,8 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
+resource_usage_metadata = false
 
 [run.backends.third.auth]
 type = "oauth"
@@ -343,6 +349,8 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
+resource_usage_metadata = false
 
 [server.engine.backends.first.auth]
 type = "basic"
@@ -355,6 +363,8 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
+resource_usage_metadata = false
 
 [server.engine.backends.second.auth]
 type = "bearer"
@@ -366,6 +376,8 @@ service = "https://example.com/"
 inputs = "http://example.com/inputs/"
 outputs = "http://example.com/outputs/"
 insecure = false
+cgroup_usage = true
+resource_usage_metadata = false
 
 [server.engine.backends.third.auth]
 type = "oauth"

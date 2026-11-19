@@ -9,12 +9,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from
-  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); using them in a WDL 1.0 document is
-  an error.
 * Added the WDL 1.4 `exists` function signature from
   [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
   ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+
+## 0.28.1 - 2026-11-18
+
+### Added
+
+* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from
+  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); using them in a WDL 1.0 document is
+  an error.
 
 ### Changed
 

@@ -50,6 +50,8 @@ use crate::backend::ExecuteTaskRequest;
 use crate::backend::PullResults;
 use crate::backend::manager::ManagedTask;
 use crate::backend::manager::TaskManager;
+use crate::backend::usage;
+use crate::backend::usage::UsageEvents;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
@@ -153,6 +155,16 @@ impl ManagedTask for DockerTask<'_> {
     }
 
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
+        let container_usage = self.backend.resources().use_service()
+            && self
+                .config
+                .backend()?
+                .as_docker()
+                .expect("backend should be Docker")
+                .cgroup_usage
+            && self.request.context.events().crankshaft().is_some();
+        let usage_dir = self.request.attempt_dir.join("usage");
+        let usage_path = usage_dir.join("recording");
         // Create the working directory
         let work_dir = self.request.work_dir();
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -224,6 +236,24 @@ impl ManagedTask for DockerTask<'_> {
                 .build(),
         );
 
+        if container_usage {
+            fs::create_dir_all(&usage_dir).context("failed to create container usage directory")?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&usage_dir, fs::Permissions::from_mode(0o770))
+                    .context("failed to set container usage directory permissions")?;
+            }
+            inputs.push(
+                Input::builder()
+                    .path("/mnt/task/usage")
+                    .contents(Contents::Path(usage_dir))
+                    .ty(InputType::Directory)
+                    .read_only(false)
+                    .build(),
+            );
+        }
+
         // Add an input for the command
         inputs.push(
             Input::builder()
@@ -281,8 +311,20 @@ impl ManagedTask for DockerTask<'_> {
                     .images(collect_applicable_sources(
                         &self.request.constraints.sources,
                     )?)?
-                    .program(&self.config.task.shell)
-                    .args([GUEST_COMMAND_PATH.to_string()])
+                    .program(if container_usage {
+                        usage::WRAPPER_SHELL
+                    } else {
+                        &self.config.task.shell
+                    })
+                    .args(if container_usage {
+                        usage::command_args(
+                            &self.config.task.shell,
+                            GUEST_COMMAND_PATH,
+                            "/mnt/task/usage/recording",
+                        )
+                    } else {
+                        vec![GUEST_COMMAND_PATH.to_string()]
+                    })
                     .work_dir(GUEST_WORK_DIR)
                     .env(self.request.env.clone())
                     .stdout(GUEST_STDOUT_PATH)
@@ -303,15 +345,22 @@ impl ManagedTask for DockerTask<'_> {
             .volumes(volumes)
             .build();
 
-        let results = match self
-            .backend
-            .run(
-                task,
-                self.request.context.events().crankshaft().cloned(),
-                self.request.context.cancellation().second().clone(),
-            )?
-            .await
-        {
+        let mut observed = container_usage.then(|| {
+            UsageEvents::new(
+                self.request.context.events().crankshaft(),
+                self.request.name,
+            )
+        });
+        let execution = self.backend.run(
+            task,
+            self.request.context.events().crankshaft().cloned(),
+            self.request.context.cancellation().second().clone(),
+        )?;
+        let results = match if let Some(observed) = &mut observed {
+            observed.run(execution).await
+        } else {
+            execution.await
+        } {
             Ok(results) => results,
             Err(TaskRunError::Canceled) => return Ok(None),
             Err(e) => return Err(explain_missing_bind_source(e.into())),
@@ -319,6 +368,15 @@ impl ManagedTask for DockerTask<'_> {
 
         assert_eq!(results.len(), 1, "there should only be one exit status");
         let result = results.into_iter().next().unwrap();
+
+        if let Some(observed) = &observed
+            && observed.needs_fallback()
+        {
+            match fs::read_to_string(&usage_path) {
+                Ok(contents) => observed.publish(&contents),
+                Err(error) => warn!("failed to read container usage recording: {error:#}"),
+            }
+        }
 
         Ok(Some(TaskExecutionResult {
             execution_name_override: None,

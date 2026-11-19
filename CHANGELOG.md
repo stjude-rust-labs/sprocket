@@ -9,6 +9,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added the WDL 1.4 `exists` function from
+  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
+  ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+
+## 0.34.1 - 2026-11-18
+
+### Security Fix
+
+* Fixed host-side shell injection through task environment values, input mount paths, and local
+  container image paths in the Slurm and LSF Apptainer/Singularity backends
+  ([GHSA-rhmr-gc89-f7vj](https://github.com/stjude-rust-labs/sprocket/security/advisories/GHSA-rhmr-gc89-f7vj)).
+
+### Changed
+
+* Each `apptainer.extra_args` entry is now passed as one literal argument, without shell expansion
+  or splitting. Configurations that relied on shell splitting must use separate entries for each
+  argument.
+
+## 0.34.0 - 2026-11-18
+
+### Added
+
+* The `backend` reported for runs and run metrics is an object with the configured `name` of the
+  execution backend, its `type`, and allowlisted, secret-free configuration `info`
+  ([#1395](https://github.com/stjude-rust-labs/sprocket/pull/1395)).
 * Execution metrics include backend-reported peak and average memory and cumulative CPU time when
   available. Local Docker containers sample these measurements every second by default; set
   `backends.<name>.resource_usage_interval = 0` to disable sampling. Docker Swarm sampling is
@@ -18,13 +43,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Sprocket version, and localization transfer volume as a data-movement proxy
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261))
 * Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals in WDL 1.1 and later
-  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
+  documents from [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791)
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * Task records now store the backend's ID for each attempt (`external_id`): the job ID for LSF and
   Slurm, or the task ID for TES. The API returns it with each task
   ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
-* Added the WDL 1.4 `exists` function from
-  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
-  ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+* Docker Swarm services and TES tasks collect a small cgroup-v2 fallback recording, used only when
+  no native usage was reported. Set `backends.<name>.cgroup_usage = false` to opt out of the
+  `/bin/sh` fallback wrapper. Unsupported environments leave usage unavailable
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Added opt-in TES resource usage reporting through
+  `backends.<name>.resource_usage_metadata = true`. It reads supported `TaskLog.metadata` keys,
+  including Planetary's sampled Kubernetes working-set memory and cumulative CPU time
+  ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ### Changed
 
@@ -46,13 +77,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791).
 * In WDL 1.1 and later, `read_int` and `read_float` accept the numeric forms defined by
   [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791), including an optional sign and
-  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values.
+  hexadecimal, octal, and binary forms, and reject legacy octal forms and non-finite values
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 
 ### Fixed
 
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
   config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
-* `read_json` now rejects files with trailing content after the JSON value.
+* `read_json` now rejects files with trailing content after the JSON value
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * The `enum` keyword can now be used, like other reserved keywords, as an arbitrary key in
   `runtime`, `requirements`, `hints`, and `meta` sections, metadata objects, and `Object` literals,
   and as a member name (e.g., `task.meta.enum`), per

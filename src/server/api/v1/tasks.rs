@@ -104,10 +104,15 @@ pub struct Task {
     /// retried.
     #[schema(value_type = Option<Object>)]
     pub retry_cause: Option<serde_json::Value>,
-    /// Resource utilization as a JSON object: memory in bytes and CPU time
-    /// in milliseconds. Reported by LSF, Slurm, and local Docker containers
-    /// with a nonzero `backends.<name>.resource_usage_interval` (not Swarm).
-    /// `null` when no measurements have been reported.
+    /// Resource utilization as a JSON object: memory and disk usage in bytes
+    /// and CPU time in milliseconds.
+    ///
+    /// CPU and memory come from native scheduler accounting, Docker sampling,
+    /// or a cgroup-v2 fallback for Swarm/TES without native usage. Cgroup
+    /// memory includes page cache; Docker samples exclude inactive file cache.
+    /// Local work-directory size is measured separately by the engine, not as a
+    /// disk high-water mark.
+    /// `null` when no source reports usage.
     #[schema(value_type = Option<Object>)]
     pub utilization: Option<serde_json::Value>,
     /// Timestamp when task was created.

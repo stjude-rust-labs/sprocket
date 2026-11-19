@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.25.2 - 2026-11-18
+
+## 0.25.1 - 2026-11-18
+
 ### Added
 
 * Added support for the `textDocument/documentLink` request

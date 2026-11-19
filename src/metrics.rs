@@ -420,7 +420,7 @@ pub fn local_run_summary(
     name: &str,
     status: crate::system::v1::db::RunStatus,
     started_at: DateTime<Utc>,
-    backend: Option<String>,
+    backend: Option<crate::system::v1::db::RunBackend>,
     transfer: Option<TransferTotals>,
 ) -> RunMetrics {
     RunMetrics {
@@ -628,6 +628,26 @@ mod tests {
         let totals = acc.totals().expect("transfers were observed");
         assert_eq!(totals.downloaded_bytes, 1024);
         assert_eq!(totals.uploaded_bytes, 2048);
+    }
+
+    #[test]
+    fn usage_after_terminal_event_does_not_reopen_the_attempt() {
+        let mut collector = MetricsCollector::default();
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+            id: 7,
+            name: "wf-t-x1".to_string(),
+            tes_id: None,
+            token: Default::default(),
+        });
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskCanceled { id: 7 });
+
+        let mut usage = crankshaft_events::TaskResourceUsage::default();
+        usage.cpu_time_ms = Some(300);
+        collector.handle_crankshaft_event(CrankshaftEvent::TaskResourceUsage { id: 7, usage });
+
+        let attempt = &collector.attempts["wf-t-x1"];
+        assert_eq!(attempt.status, TaskStatus::Canceled);
+        assert_eq!(attempt.utilization.as_ref().unwrap()["cpu_time_ms"], 300);
     }
 
     #[test]

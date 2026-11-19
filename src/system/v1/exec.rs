@@ -46,6 +46,7 @@ use crate::analysis::Source;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::Run;
+use crate::system::v1::db::RunBackend;
 use crate::system::v1::db::RunStatus;
 use crate::system::v1::db::Session;
 use crate::system::v1::db::SprocketCommand;
@@ -981,7 +982,12 @@ pub async fn execute_target(
     // Record the execution backend for the run's environment tracking. This
     // is best-effort.
     if let Ok(backend) = engine.config().backend()
-        && let Err(e) = db.update_run_backend(ctx.run_id, backend.name()).await
+        && let Err(e) = db
+            .update_run_backend(
+                ctx.run_id,
+                &RunBackend::new(&engine.config().backend, &backend),
+            )
+            .await
     {
         tracing::warn!("failed to record run backend: {e:#}");
     }

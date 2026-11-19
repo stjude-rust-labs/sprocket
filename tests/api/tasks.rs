@@ -16,6 +16,7 @@ use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::LogSource;
 use sprocket::system::v1::db::NewTask;
+use sprocket::system::v1::db::RunBackend;
 use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
@@ -796,9 +797,13 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
         .unwrap();
     let run_id = seed_run(&db, session_id, "metrics-run").await;
     db.start_run(run_id, Utc::now()).await.unwrap();
-    db.update_run_backend(run_id, "lsf_apptainer")
-        .await
-        .unwrap();
+    let backend = RunBackend::new(
+        "hpc",
+        &wdl::engine::config::BackendConfig::LsfApptainer {
+            config: Default::default(),
+        },
+    );
+    db.update_run_backend(run_id, &backend).await.unwrap();
     db.update_run_transfer_totals(run_id, r#"{"downloaded_bytes":1024,"uploaded_bytes":0}"#)
         .await
         .unwrap();
@@ -885,7 +890,12 @@ async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
     // Run summary, including the execution environment and transfer proxy.
     assert_eq!(json["run"]["uuid"], run_id.to_string().as_str());
     assert_eq!(json["run"]["name"], "metrics-run");
-    assert_eq!(json["run"]["backend"], "lsf_apptainer");
+    assert_eq!(json["run"]["backend"]["name"], "hpc");
+    assert_eq!(json["run"]["backend"]["type"], "lsf_apptainer");
+    assert_eq!(
+        json["run"]["backend"]["info"]["max_concurrency"],
+        serde_json::Value::Null
+    );
     assert!(json["run"]["sprocket_version"].is_string());
     assert_eq!(json["run"]["transfer"]["downloaded_bytes"], 1024);
     assert_eq!(json["run"]["transfer"]["uploaded_bytes"], 0);
