@@ -15,6 +15,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Added support for the `textDocument/documentLink` request
   ([#1381](https://github.com/stjude-rust-labs/sprocket/pull/1381)).
+* `textDocument/hover` requests on call aliases will now render the documentation of the source
+  task/workflow ([#1421](https://github.com/stjude-rust-labs/sprocket/pull/1421)).
 
 ### Fixed
 
