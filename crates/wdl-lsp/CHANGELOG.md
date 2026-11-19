@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+* `textDocument/completion` requests within `call` statements will now only produce valid call
+  targets ([#1423](https://github.com/stjude-rust-labs/sprocket/pull/1423)).
+
 ## 0.25.2 - 2026-11-18
 
 ## 0.25.1 - 2026-11-18
