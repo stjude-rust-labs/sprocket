@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "dependencies": {
+    "module": {
+      "source": { "path": "module" },
+      "dependencies": {}
+    }
+  }
+}

@@ -124,6 +124,16 @@
       "enabled": false
     },
     {
+      "description": "Do not update the Python version in GitHub Actions workflows; the wheel smoke tests must match the built wheels",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Group all Nix updates into one PR",
       "matchManagers": [
         "nix"

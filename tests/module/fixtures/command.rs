@@ -30,6 +30,7 @@ pub(crate) fn sprocket_with_global_args(global_args: &[&str], args: &[&str]) -> 
     let config_root = SHARED_CONFIG_ROOT
         .get_or_init(|| tempfile::tempdir().expect("failed to create shared config root"));
     let mut command = Command::new(env!("CARGO_BIN_EXE_sprocket"));
+    crate::common::configure_child_llvm_profile(&mut command);
     command
         .arg("--skip-config-search")
         .args(global_args)
@@ -78,4 +79,108 @@ pub(crate) fn use_home(command: &mut Command, home: &Path) {
         "SPROCKET_CONFIG_ROOT",
         home.join(".config").join("sprocket"),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsStr;
+    use std::fs;
+    use std::path::Path;
+    use std::process::Command;
+
+    use uuid::Uuid;
+
+    use crate::common::child_llvm_profile_file;
+
+    #[test]
+    fn rewrites_llvm_profile_file_with_unique_id() {
+        let cwd = if cfg!(windows) {
+            Path::new(r"C:\workspace\sprocket")
+        } else {
+            Path::new("/workspace/sprocket")
+        };
+        let abs_dir = if cfg!(windows) {
+            Path::new(r"D:\a\sprocket\target\llvm-cov-target")
+        } else {
+            Path::new("/tmp/sprocket/target/llvm-cov-target")
+        };
+        let id = Uuid::from_u128(0x01234567_89AB_CDEF_0123_456789ABCDEF);
+
+        assert_eq!(child_llvm_profile_file(OsStr::new(""), cwd, id), None);
+        assert_eq!(
+            child_llvm_profile_file(OsStr::new("/dev/null"), cwd, id),
+            None
+        );
+        assert_eq!(child_llvm_profile_file(OsStr::new("NUL"), cwd, id), None);
+
+        let cargo_llvm_cov_input = abs_dir.join("sprocket-%p-%4m.profraw");
+        assert_eq!(
+            child_llvm_profile_file(cargo_llvm_cov_input.as_os_str(), cwd, id),
+            Some(abs_dir.join(format!("sprocket-%p-%4m-{id}.profraw")))
+        );
+
+        assert_eq!(
+            child_llvm_profile_file(OsStr::new("sprocket-%p-%c.profraw"), cwd, id),
+            Some(cwd.join(format!("sprocket-%p-%c-{id}.profraw")))
+        );
+
+        assert_eq!(
+            child_llvm_profile_file(OsStr::new("profiles/sprocket-%p.profraw"), cwd, id),
+            Some(
+                cwd.join("profiles")
+                    .join(format!("sprocket-%p-{id}.profraw"))
+            )
+        );
+
+        assert_eq!(
+            child_llvm_profile_file(OsStr::new("%t/sprocket-%p-%m.profraw"), cwd, id),
+            Some(Path::new("%t").join(format!("sprocket-%p-%m-{id}.profraw")))
+        );
+    }
+
+    #[test]
+    fn child_sprocket_writes_isolated_profile_outside_working_dir() {
+        let temp = tempfile::tempdir().unwrap();
+        let work_dir = temp.path().join("workdir");
+        let prof_dir = temp.path().join("profraw");
+        fs::create_dir_all(&work_dir).unwrap();
+        fs::create_dir_all(&prof_dir).unwrap();
+
+        let base_pattern = Path::new("profraw").join("sprocket-%p-%m.profraw");
+        for _ in 0..2 {
+            let profile_file =
+                child_llvm_profile_file(base_pattern.as_os_str(), temp.path(), Uuid::new_v4())
+                    .expect("expected rewritten profile path");
+            let output = Command::new(env!("CARGO_BIN_EXE_sprocket"))
+                .arg("--version")
+                .current_dir(&work_dir)
+                .env("LLVM_PROFILE_FILE", &profile_file)
+                .output()
+                .expect("failed to run sprocket --version");
+
+            assert!(
+                output.status.success(),
+                "sprocket --version failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(String::from_utf8_lossy(&output.stderr), "");
+        }
+
+        // Changing `current_dir` must never spill `.profraw` files into
+        // `work_dir`.
+        assert_eq!(fs::read_dir(&work_dir).unwrap().count(), 0);
+
+        // When compiled with `-C instrument-coverage` (e.g. `cargo llvm-cov`),
+        // each invocation writes its own distinct `.profraw` file in
+        // `prof_dir`.
+        let profraw_files = fs::read_dir(&prof_dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        assert!(
+            profraw_files.is_empty() || profraw_files.len() == 2,
+            "expected 0 (uninstrumented) or 2 (instrumented) .profraw files, found: \
+             {profraw_files:?}"
+        );
+    }
 }

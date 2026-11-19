@@ -14,6 +14,7 @@ use tokio_retry2::strategy::ExponentialBackoff;
 use uuid::Uuid;
 
 pub mod models;
+mod run_backend;
 pub mod sqlite;
 
 pub use models::IndexLogEntry;
@@ -25,6 +26,7 @@ pub use models::SprocketCommand;
 pub use models::Task;
 pub use models::TaskLog;
 pub use models::TaskStatus;
+pub use run_backend::RunBackend;
 pub use sqlite::SqliteDatabase;
 
 /// Database errors.
@@ -223,6 +225,14 @@ pub enum TaskWrite {
         /// The serialized retry cause.
         cause: String,
     },
+    /// Record the ID the execution backend assigned to a task (see
+    /// [`Database::update_task_external_id`]).
+    ExternalId {
+        /// The task's name.
+        name: String,
+        /// The backend's ID for the task.
+        external_id: String,
+    },
     /// Merge newly observed resource-utilization fields (see
     /// [`Database::update_task_utilization`]).
     Utilization {
@@ -393,11 +403,11 @@ pub trait Database: Send + Sync {
     #[must_use = "the return value indicates whether a run was updated"]
     async fn update_run_index_directory(&self, id: Uuid, index_directory: &str) -> Result<bool>;
 
-    /// Record the name of the execution backend the run executed on.
+    /// Record the execution backend the run executed on.
     ///
     /// Returns `true` if a run was updated, `false` if it was not found.
     #[must_use = "the return value indicates whether a run was updated"]
-    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool>;
+    async fn update_run_backend(&self, id: Uuid, backend: &RunBackend) -> Result<bool>;
 
     /// Record the run's transfer byte totals.
     ///
@@ -495,6 +505,15 @@ pub trait Database: Send + Sync {
     /// Returns `true` if a task was updated, `false` if it was not found.
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_retry_cause(&self, name: &str, cause: &str) -> Result<bool>;
+
+    /// Record the ID the execution backend assigned to a task.
+    ///
+    /// No status guard applies, since the ID may arrive after the task has
+    /// already started.
+    ///
+    /// Returns `true` if a task was updated, `false` if it was not found.
+    #[must_use = "the return value indicates whether a task was updated"]
+    async fn update_task_external_id(&self, name: &str, external_id: &str) -> Result<bool>;
 
     /// Merge newly observed resource utilization fields for a task into
     /// whatever has already been recorded.
@@ -700,6 +719,9 @@ pub trait Database: Send + Sync {
                 }
                 TaskWrite::RetryCause { name, cause } => {
                     self.update_task_retry_cause(&name, &cause).await?;
+                }
+                TaskWrite::ExternalId { name, external_id } => {
+                    self.update_task_external_id(&name, &external_id).await?;
                 }
                 TaskWrite::Utilization { name, patch } => {
                     self.update_task_utilization(&name, &patch).await?;

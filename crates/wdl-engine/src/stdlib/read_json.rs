@@ -48,13 +48,19 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
             })?;
 
         let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
-        Value::deserialize(&mut deserializer).map_err(|e| {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("failed to deserialize JSON file `{path}`: {e}"),
-                context.call_site,
-            )
-        })
+        Value::deserialize(&mut deserializer)
+            .and_then(|value| {
+                // Ensure there is no trailing content after the value
+                deserializer.end()?;
+                Ok(value)
+            })
+            .map_err(|e| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!("failed to deserialize JSON file `{path}`: {e}"),
+                    context.call_site,
+                )
+            })
     }
     .boxed()
 }
@@ -92,6 +98,9 @@ mod tests {
         env.write_file("float.json", r#"12345.6789"#);
         env.write_file("array.json", "[1, 2, 3]");
         env.write_file("bad_array.json", r#"[1, "2", 3]"#);
+        env.write_file("hex.json", "0x10");
+        env.write_file("trailing.json", "[1, 2, 3] [4]");
+        env.write_file("trailing-whitespace.json", "  12345  \n");
         env.write_file(
             "object.json",
             r#"{ "foo": "bar", "bar": 12345, "baz": [1, 2, 3] }"#,
@@ -121,6 +130,36 @@ mod tests {
             "call to function `read_json` failed: failed to deserialize JSON file \
              `not-json.json`: expected ident at line 1 column 2"
         );
+    }
+
+    #[tokio::test]
+    async fn read_trailing_json() {
+        let diagnostic = eval_v1_expr(&make_env(), V1::One, "read_json('hex.json')")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_json` failed: failed to deserialize JSON file `hex.json`: \
+             trailing characters at line 1 column 2"
+        );
+
+        let diagnostic = eval_v1_expr(&make_env(), V1::Zero, "read_json('trailing.json')")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_json` failed: failed to deserialize JSON file \
+             `trailing.json`: trailing characters at line 1 column 11"
+        );
+
+        let value = eval_v1_expr(
+            &make_env(),
+            V1::One,
+            "read_json('trailing-whitespace.json')",
+        )
+        .await
+        .unwrap();
+        assert_eq!(value.unwrap_integer(), 12345);
     }
 
     #[tokio::test]

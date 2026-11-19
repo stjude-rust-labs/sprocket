@@ -13,6 +13,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#787`](https://github.com/openwdl/wdl/pull/787): the two-argument form statically
   returns `Array[Object]` and its `Boolean` argument must evaluate to `true`.
 
+## 0.28.1 - 2026-11-18
+
+### Added
+
+* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from
+  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); using them in a WDL 1.0 document is
+  an error.
+
+### Changed
+
+* Legacy octal integer literals with a leading zero (e.g. `0755`) are now an error in WDL 1.1 and
+  later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); they remain
+  valid in WDL 1.0 documents.
+
 ## 0.28.0 - 2026-10-29
 
 ### Added
