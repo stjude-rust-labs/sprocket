@@ -10,8 +10,8 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
-use std::io::BufReader;
-use std::io::BufWriter;
+use std::io::ErrorKind;
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -22,6 +22,7 @@ use arrayvec::ArrayString;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::fs;
+use tokio::task::spawn_blocking;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
@@ -39,6 +40,7 @@ use crate::cache::hash::hash_sequence;
 use crate::config::ContentDigestMode;
 use crate::digest::DigestCalculator;
 use crate::lock::LockedFile;
+use crate::slow::warn_if_slow;
 
 /// The current cache entry version.
 ///
@@ -584,21 +586,35 @@ impl CallCache {
     ///
     /// Returns an error if the entry could not be read or if the entry is no
     /// longer valid.
+    ///
+    /// Entries are read without a file lock because [`CallCache::put`]
+    /// replaces them atomically.
     pub async fn get(
         &self,
         key: &Key,
         digests: &DigestCalculator,
         token: &CancellationToken,
     ) -> Result<Option<TaskExecutionResult>> {
-        // Take a shared lock on the entry file
         let path = self.0.entry_path(key);
-        let file = match LockedFile::acquire_shared(&path, false).await? {
-            Some(file) => file,
-            None => return Ok(None),
+        let contents = match warn_if_slow(fs::read(&path), || {
+            format!("reading call cache entry `{path}`", path = path.display())
+        })
+        .await
+        {
+            Ok(contents) => contents,
+            Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
+            Err(e) => {
+                return Err(e).with_context(|| {
+                    format!(
+                        "failed to read call cache entry file `{path}`",
+                        path = path.display()
+                    )
+                });
+            }
         };
 
         // Deserialize the entry and ensure it matches the current evaluation
-        let entry: CallCacheEntry = serde_json::from_reader(BufReader::new(file))
+        let entry: CallCacheEntry = serde_json::from_slice(&contents)
             .with_context(|| format!("failed to deserialize call cache entry `{key}`"))?;
 
         // Ensure the key matches the cache entry
@@ -631,6 +647,10 @@ impl CallCache {
     ///
     /// Upon a successful update of the key, returns the key as an
     /// [`ArrayString`].
+    ///
+    /// The entry is written to a temporary file that is then renamed over the
+    /// entry file, so concurrent readers see either the previous entry or the
+    /// new one, and no file lock is needed.
     pub async fn put(
         &self,
         key: Key,
@@ -639,17 +659,6 @@ impl CallCache {
         token: &CancellationToken,
     ) -> Result<ArrayString<64>> {
         let path = self.0.entry_path(&key);
-        let file = LockedFile::acquire_exclusive(&path).await?;
-
-        // Truncate the file before attempting to serialize it
-        // If further operations fail, this guarantees that the cache entry will
-        // be invalidated
-        file.set_len(0).with_context(|| {
-            format!(
-                "failed to truncate call cache entry file `{path}`",
-                path = path.display()
-            )
-        })?;
 
         let entry = CallCacheEntry {
             command: key.command,
@@ -696,14 +705,53 @@ impl CallCache {
             .await?,
         };
 
-        serde_json::to_writer(BufWriter::new(file), &entry).with_context(|| {
+        let contents = serde_json::to_vec(&entry).with_context(|| {
             format!(
                 "failed to serialize call cache entry file `{path}`",
                 path = path.display()
             )
         })?;
 
-        Ok(key.key)
+        let cache_dir = self.0.cache_dir.clone();
+        let entry_key = key.key;
+        warn_if_slow(
+            spawn_blocking({
+                let path = path.clone();
+                move || -> Result<()> {
+                    let mut file = tempfile::Builder::new()
+                        .prefix(&format!(".{entry_key}."))
+                        .suffix(".tmp")
+                        .tempfile_in(&cache_dir)
+                        .with_context(|| {
+                            format!(
+                                "failed to create temporary call cache entry file in `{dir}`",
+                                dir = cache_dir.display()
+                            )
+                        })?;
+
+                    file.write_all(&contents).with_context(|| {
+                        format!(
+                            "failed to write temporary call cache entry file `{path}`",
+                            path = file.path().display()
+                        )
+                    })?;
+
+                    file.persist(&path).map_err(|e| e.error).with_context(|| {
+                        format!(
+                            "failed to replace call cache entry file `{path}`",
+                            path = path.display()
+                        )
+                    })?;
+
+                    Ok(())
+                }
+            }),
+            || format!("writing call cache entry `{path}`", path = path.display()),
+        )
+        .await
+        .context("call cache entry write task panicked")??;
+
+        Ok(entry_key)
     }
 
     /// Determines if an input is excluded from the cache.
@@ -2268,5 +2316,105 @@ mod tests {
             original.key, modified.key,
             "expected different cache keys for different backends"
         );
+    }
+
+    /// Creates a key request for a simple task.
+    fn simple_request<'a>(
+        document_uri: &'a Url,
+        inputs: &'a BTreeMap<String, Value>,
+        object: &'a Object,
+    ) -> KeyRequest<'a> {
+        KeyRequest {
+            document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: object,
+            hints: object,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        }
+    }
+
+    #[tokio::test]
+    async fn put_replaces_entry_without_temporary_files() {
+        let cache = TestCache::new().await;
+
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let object = Default::default();
+        let request = simple_request(&document_uri, &inputs, &object);
+
+        let token = Default::default();
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests, &token).await;
+
+        // Replace the existing entry
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
+        let result = cache
+            .inner
+            .get(&key, &digests, &token)
+            .await
+            .unwrap()
+            .unwrap();
+        cache
+            .inner
+            .put(key, &result, &digests, &token)
+            .await
+            .unwrap();
+
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
+        assert!(
+            cache
+                .inner
+                .get(&key, &digests, &token)
+                .await
+                .unwrap()
+                .is_some()
+        );
+
+        let mut names = Vec::new();
+        let mut entries = fs::read_dir(&cache.inner.0.cache_dir).await.unwrap();
+        while let Some(entry) = entries.next_entry().await.unwrap() {
+            names.push(entry.file_name().into_string().unwrap());
+        }
+        names.sort();
+        assert_eq!(names, [CACHE_LOCK_FILE_NAME, key.as_str()]);
+    }
+
+    /// Ensures entries are read and written without taking file locks, which
+    /// can stall indefinitely on some network file systems.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn entries_ignore_file_locks() {
+        let cache = TestCache::new().await;
+
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let object = Default::default();
+        let request = simple_request(&document_uri, &inputs, &object);
+
+        let token = Default::default();
+        let digests = digests(Default::default()).await;
+        cache.populate(&request, &digests, &token).await;
+
+        let key = cache.inner.key(&request, &digests, &token).await.unwrap();
+        let _lock = LockedFile::acquire_exclusive(cache.inner.0.entry_path(&key))
+            .await
+            .unwrap();
+
+        let timeout = std::time::Duration::from_secs(5);
+        let result = tokio::time::timeout(timeout, cache.inner.get(&key, &digests, &token))
+            .await
+            .expect("reading an entry should not wait for a file lock")
+            .unwrap()
+            .unwrap();
+        tokio::time::timeout(timeout, cache.inner.put(key, &result, &digests, &token))
+            .await
+            .expect("writing an entry should not wait for a file lock")
+            .unwrap();
     }
 }
