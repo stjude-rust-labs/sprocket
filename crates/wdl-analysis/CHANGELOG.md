@@ -13,6 +13,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
   ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
 
+### Fixed
+
+* Updated the `read_tsv` documentation to match
+  [`openwdl/wdl#787`](https://github.com/openwdl/wdl/pull/787): the two-argument form statically
+  returns `Array[Object]` and its `Boolean` argument must evaluate to `true`.
+
 ## 0.28.1 - 2026-11-18
 
 ### Added
@@ -26,6 +32,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Legacy octal integer literals with a leading zero (e.g. `0755`) are now an error in WDL 1.1 and
   later documents, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); they remain
   valid in WDL 1.0 documents.
+* Updated the WDL 1.2+ `basename` and `size` documentation to describe the explicit `String` path
+  overloads specified in [`openwdl/wdl#790`](https://github.com/openwdl/wdl/pull/790).
 
 ## 0.28.0 - 2026-10-29
 
