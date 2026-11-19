@@ -24,7 +24,9 @@ performed manually.
 1. Increment `workspace.package.version` in the root `Cargo.toml` for `sprocket` and `sprocket_bio`.
    Go through each remaining publishable crate (i.e., each `wdl-*` crate and `wdl`) and increment
    its version in `Cargo.toml`, as well as any internal dependency versions that need to be bumped.
+
 2. Update each CHANGELOG.md file with a new release header.
+
 3. Create a new tag for each new crate version _excluding_ `sprocket`, with the format
    `{CRATE_NAME}-v{VERSION}`, where `VERSION` matches that crate's version.
     - For new `sprocket` and `sprocket_bio` releases, the tag name format is `v{VERSION}`, where

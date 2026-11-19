@@ -9,13 +9,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from
-  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); using them in a WDL 1.0 document is
-  an error.
 * Added type checking for the WDL 1.4 postfix unwrap operator (`x!`) from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping a non-optional value or a
   value that is always `None` is an error, and use of the operator prior to WDL 1.4 is rejected
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+
+## 0.28.1 - 2026-11-18
+
+### Added
+
+* Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from
+  [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791); using them in a WDL 1.0 document is
+  an error.
 
 ### Changed
 

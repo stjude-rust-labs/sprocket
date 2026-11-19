@@ -48,6 +48,7 @@ use tracing::warn;
 
 use super::ApptainerRuntime;
 use super::TaskExecutionBackend;
+use super::apptainer::record_job_id;
 use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
@@ -66,10 +67,6 @@ use crate::v1::requirements;
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
 
-/// The name of the file which stores the id of the job that was submitted to
-/// Slurm.
-const JOB_ID_FILE_NAME: &str = "job_id";
-
 /// The name of the file which stores the full command used to enqueue the task.
 const SBATCH_COMMAND_FILE_NAME: &str = "sbatch_command";
 
@@ -86,17 +83,6 @@ async fn write_sbatch_command_file(dir: &Path, command: &Command) -> Result<()> 
         .await
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
     Ok(())
-}
-
-/// Writes a `job_id` file with the given job identifier.
-///
-/// If a failure to write the file occurs, an error is logged instead of
-/// returned so that the engine can continue to monitor the task.
-async fn write_job_id_file(dir: &Path, job_id: u64) {
-    let path = dir.join(JOB_ID_FILE_NAME);
-    if let Err(e) = fs::write(&path, format!("{job_id}\n")).await {
-        error!("failed to write file `{path}`: {e}", path = path.display());
-    }
 }
 
 /// Represents a Slurm job state.
@@ -812,7 +798,13 @@ impl Monitor {
 
         // Write out the job id to the attempt directory
         debug!("task `{task_name}` was queued as Slurm job `{job_id}`");
-        write_job_id_file(request.attempt_dir, job_id).await;
+        record_job_id(
+            request.context.events(),
+            request.attempt_dir,
+            &task_name,
+            job_id,
+        )
+        .await;
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");

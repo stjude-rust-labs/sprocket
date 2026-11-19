@@ -359,6 +359,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::CallKeyword as u8,
     Token::CommandKeyword as u8,
     Token::ElseKeyword as u8,
+    Token::EnumKeyword as u8,
     Token::EnvKeyword as u8,
     Token::FalseKeyword as u8,
     Token::FromKeyword as u8,

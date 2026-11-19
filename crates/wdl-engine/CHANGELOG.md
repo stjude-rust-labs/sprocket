@@ -9,6 +9,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added evaluation of the WDL 1.4 postfix unwrap operator (`x!`) from
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping `None` is an evaluation
+  error ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+
+### Changed
+
+* Documented and tested that task `File` outputs that share a parent directory remain in the same
+  storage directory, as required by [`openwdl/wdl#796`](https://github.com/openwdl/wdl/pull/796).
+  Backends that store the task working directory elsewhere, such as TES, must store it as a whole.
+  Existing behavior already met this requirement
+  ([#1393](https://github.com/stjude-rust-labs/sprocket/pull/1393)).
+
+## 0.21.1 - 2026-11-18
+
+### Security Fix
+
+* Fixed host-side shell injection through task environment values, input mount paths, and local
+  container image paths in the Slurm and LSF Apptainer/Singularity backends. Mount paths containing
+  commas or quotes are now CSV-encoded before shell quoting. NUL-containing arguments and
+  environment values are rejected
+  ([GHSA-rhmr-gc89-f7vj](https://github.com/stjude-rust-labs/sprocket/security/advisories/GHSA-rhmr-gc89-f7vj)).
+
+### Changed
+
+* Each `ApptainerConfig::extra_args` entry is now passed as one literal argument, without shell
+  expansion or splitting. Configurations that relied on shell splitting must use separate entries
+  for each argument.
+
+## 0.21.0 - 2026-11-18
+
+### Added
+
 * Added the `backends.<name>.resource_usage_interval` Docker configuration option for sampling task
   memory and CPU usage. Local containers are sampled every second by default; set the interval to
   `0` to disable sampling. Docker Swarm sampling is unsupported
@@ -24,9 +56,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory is on a local file system. This complements the scheduler-observed measurements a
   backend may report through Crankshaft's `TaskResourceUsage` event
   ([#1261](https://github.com/stjude-rust-labs/sprocket/pull/1261)).
-* Added evaluation of the WDL 1.4 postfix unwrap operator (`x!`) from
-  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping `None` is an evaluation
-  error ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* `EngineEvent` gained a `TaskSubmitted` event. The LSF and Slurm backends send it with the job ID
+  once the scheduler accepts a job
+  ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* LSF and Slurm job scripts now write the Apptainer exit code to an `apptainer_exit_code` file in
+  the attempt folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* The TES backend now writes the task's outputs location to a `tes_outputs` file in the attempt
+  folder ([#1407](https://github.com/stjude-rust-labs/sprocket/pull/1407)).
+* Docker Swarm services and TES tasks collect backend-owned cgroup-v2 fallback recordings. Native
+  usage takes priority; fallback requires task-scoped, readable `cpu.stat` and `memory.peak`
+  counters. Cgroup memory includes page cache and differs from native RSS and Docker sampled
+  working-set memory. Recordings are outside the work directory and do not affect call-cache keys.
+  Set the backend-specific `cgroup_usage = false` to disable the `/bin/sh` wrapper and usage
+  storage; Docker's `resource_usage_interval` only controls local container sampling
+  ([#1262](https://github.com/stjude-rust-labs/sprocket/pull/1262)).
+* Added the `backends.<name>.resource_usage_metadata` TES configuration option. When enabled, tasks
+  are polled with the `BASIC` view and supported top-level `TaskLog.metadata` resource usage values
+  are reported through Crankshaft's `TaskResourceUsage` event. The TES server defines each value's
+  semantics. Planetary reports sampled Kubernetes working-set memory and cumulative CPU time
+  ([#1263](https://github.com/stjude-rust-labs/sprocket/pull/1263)).
 
 ### Changed
 
@@ -38,19 +86,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   any form accepted for an `Int` (or, for `read_float`, `Int` or `Float`) literal, including
   hexadecimal, octal, and binary forms, and reject legacy octal forms (e.g. `0755`) and non-finite
   values, per [`openwdl/wdl#791`](https://github.com/openwdl/wdl/pull/791). WDL 1.0 behavior is
-  unchanged.
+  unchanged ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 
 ### Fixed
 
-* `read_json` now rejects files with trailing content after the JSON value.
-
-### Fixed
-
+* `read_json` now rejects files with trailing content after the JSON value
+  ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
 * The `%` operator now follows the truncating remainder semantics from
   [`openwdl/wdl#789`](https://github.com/openwdl/wdl/pull/789): a `Float` remainder with a
   right-hand operand equal to zero, including negative zero, is an error instead of `NaN`, and `Int`
   remainders evaluate to their exact result, so the remainder of the minimum `Int` value by `-1` is
-  `0` instead of an overflow error.
+  `0` instead of an overflow error
+  ([#1384](https://github.com/stjude-rust-labs/sprocket/pull/1384)).
+
+### Dependencies
+
+* Updated `cloud-copy` to `0.13.0`
+  ([#1409](https://github.com/stjude-rust-labs/sprocket/pull/1409)).
 
 ## 0.20.0 - 2026-10-29
 
@@ -173,7 +225,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Call cache entries for commands that reference temporary files created by a call to a `write_*`
   stdlib function will no longer be ignored due to a mismatch between the evaluated command and the
   cached evaluated command.
-
   NOTE: this fix will invalidate all existing call cache entries ([#1103](https://github.com/stjude-rust-labs/sprocket/pull/1103)).
 * `WorkflowInputs` serialization no longer drops call-nested inputs. Previously, the `Serialize`
   impl silently discarded per-call inputs (including task input overrides, requirements, and hints

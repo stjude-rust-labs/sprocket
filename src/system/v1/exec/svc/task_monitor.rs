@@ -343,6 +343,10 @@ impl TaskMonitorSvc {
                 self.pending
                     .push(TaskWrite::Constraints { name, constraints });
             }
+            EngineEvent::TaskSubmitted { name, external_id } => {
+                self.pending
+                    .push(TaskWrite::ExternalId { name, external_id });
+            }
             EngineEvent::TaskRetrying {
                 prior_name,
                 next_name,
@@ -442,7 +446,7 @@ impl TaskMonitorSvc {
             CrankshaftEvent::TaskCreated {
                 id,
                 name,
-                tes_id: _,
+                tes_id,
                 token: _,
             } => {
                 // A backend may run a task on its own behalf rather than on
@@ -471,6 +475,12 @@ impl TaskMonitorSvc {
                     name: name.clone(),
                     submitted_at: Utc::now(),
                 });
+                if let Some(external_id) = tes_id {
+                    self.pending.push(TaskWrite::ExternalId {
+                        name: name.clone(),
+                        external_id,
+                    });
+                }
                 self.unfinished.insert(name);
             }
             CrankshaftEvent::TaskStarted { id } => {
@@ -776,5 +786,66 @@ mod tests {
             .expect("failed to get successor");
         assert_eq!(successor.call_id.as_deref(), Some("wf.task"));
         assert_eq!(successor.attempt, 2);
+    }
+
+    #[sqlx::test]
+    async fn external_ids_are_recorded_for_scheduler_and_tes_tasks(pool: sqlx::SqlitePool) {
+        let db = Arc::new(
+            SqliteDatabase::from_pool(pool)
+                .await
+                .expect("failed to create database"),
+        );
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        let (_crankshaft_tx, crankshaft) = broadcast::channel(1);
+        let (_engine_tx, engine) = broadcast::channel(1);
+        let (_transfer_tx, transfer) = broadcast::channel(1);
+        let mut monitor = TaskMonitorSvc::new(
+            run_id,
+            db.clone(),
+            crankshaft,
+            engine,
+            transfer,
+            CancellationToken::new(),
+        );
+
+        monitor.handle_engine_event(EngineEvent::TaskInitializing {
+            id: "wf.lsf".to_string(),
+            name: "lsf".to_string(),
+            attempt: 0,
+        });
+        monitor.handle_engine_event(EngineEvent::TaskSubmitted {
+            name: "lsf".to_string(),
+            external_id: "42".to_string(),
+        });
+        monitor.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+            id: 1,
+            name: "tes".to_string(),
+            tes_id: Some("task-abc".to_string()),
+            token: CancellationToken::new(),
+        });
+        monitor.handle_crankshaft_event(CrankshaftEvent::TaskCreated {
+            id: 2,
+            name: "local".to_string(),
+            tes_id: None,
+            token: CancellationToken::new(),
+        });
+        monitor.flush_final().await.expect("failed to flush tasks");
+
+        for (name, expected) in [
+            ("lsf", Some("42")),
+            ("tes", Some("task-abc")),
+            ("local", None),
+        ] {
+            let task = db.get_task(name).await.expect("failed to get task");
+            assert_eq!(task.external_id.as_deref(), expected, "{name}");
+        }
     }
 }
