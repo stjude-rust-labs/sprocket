@@ -13,6 +13,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777)
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
+### Fixed
+
+* Recovery of struct literal items has been improved
+  ([#1425](https://github.com/stjude-rust-labs/sprocket/pull/1425)).
+
 ## 0.27.2 - 2026-11-18
 
 ### Added
