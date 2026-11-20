@@ -33,6 +33,7 @@ use wdl_ast::v1;
 
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
+use crate::document::Callable;
 use crate::document::Document;
 use crate::document::EnumRef;
 use crate::document::StructRef;
@@ -102,7 +103,7 @@ pub fn goto_definition(
                     target.inner(),
                     callee_name.inner(),
                     document,
-                    lines,
+                    &lines,
                     graph,
                 );
             }
@@ -133,7 +134,7 @@ fn resolve_by_context(
         }
 
         SyntaxKind::CallTargetNode => {
-            resolve_call_target(parent_node, token, analysis_doc, lines.clone(), graph)
+            resolve_call_target(parent_node, token, analysis_doc, lines, graph)
         }
         SyntaxKind::ImportStatementNode => {
             resolve_import_namespace(parent_node, token, &analysis_doc.uri(), lines)
@@ -166,7 +167,7 @@ fn resolve_by_context(
         }
 
         SyntaxKind::CallInputItemNode => {
-            resolve_call_input_item(parent_node, token, analysis_doc, lines, graph)
+            resolve_call_input_item(parent_node, token, analysis_doc, graph)
         }
 
         // This case is handled by scope resolution.
@@ -300,7 +301,7 @@ fn resolve_call_target(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    mut lines: Arc<LineIndex>,
+    lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
     let target = wdl_ast::v1::CallTarget::cast(parent_node.clone()).unwrap();
@@ -314,7 +315,7 @@ fn resolve_call_target(
             return Ok(Some(location_from_span(
                 &analysis_doc.uri(),
                 ns_info.span(),
-                &lines,
+                lines,
             )?));
         }
 
@@ -340,40 +341,23 @@ fn resolve_call_target(
             return Ok(None);
         };
 
-        lines = node.parse_state().lines().cloned().unwrap();
-
         imported_doc
     } else {
-        // NOTE: Local calls
+        // NOTE: Local or unqualified imported calls
         analysis_doc
     };
 
-    let Some(callable) = target_doc.callable_by_name(callee_name_str) else {
+    let Some((callable, source_doc, source_lines)) =
+        callable_source_doc_and_lines(graph, target_doc, callee_name_str)
+    else {
         return Ok(None);
     };
 
-    let mut source_uri = target_doc.uri();
-    let mut name_span = callable.name_span();
-
-    // Re-exported definition, need to find the actual source...
-    if callable.is_imported() {
-        let Some(source_doc) = callable.source_document() else {
-            return Ok(None);
-        };
-
-        let Some(source_callable) = source_doc.local_callable_by_name(callable.source_name())
-        else {
-            return Ok(None);
-        };
-
-        let node = graph.get(graph.get_index(&source_doc.uri()).unwrap());
-
-        source_uri = source_doc.uri();
-        name_span = source_callable.name_span();
-        lines = node.parse_state().lines().cloned().unwrap();
-    }
-
-    Ok(Some(location_from_span(&source_uri, name_span, &lines)?))
+    Ok(Some(location_from_span(
+        &source_doc.uri(),
+        callable.name_span(),
+        &source_lines,
+    )?))
 }
 
 /// Resolves import namespace identifier to their definition locations.
@@ -719,7 +703,7 @@ fn resolve_access_expression(
             return Ok(None);
         };
 
-        let (uri, callee_lines) = match call_ty.namespace() {
+        let target_doc = match call_ty.namespace() {
             Some(ns_name) => {
                 // SAFETY: `namespace` returns `Some` only when the call target
                 // was imported from a namespace that exists in the document.
@@ -728,20 +712,26 @@ fn resolve_access_expression(
                 // SAFETY: `ns.source` comes from a valid namespace entry which
                 // guarantees the document is present in the graph.
                 let imported_node = graph.get(graph.get_index(&ns.source()).unwrap());
+                let Some(imported_doc) = imported_node.document() else {
+                    return Ok(None);
+                };
 
-                // SAFETY: we successfully resolved the node above; it is in
-                // `ParseState::Parsed`, which always has a valid lines field.
-                let lines = imported_node.parse_state().lines().unwrap();
-                (ns.source(), lines)
+                imported_doc
             }
-            None => (analysis_doc.uri(), lines),
+            None => analysis_doc,
+        };
+
+        let Some((_, doc, callee_lines)) =
+            callable_source_doc_and_lines(graph, target_doc, call_ty.name())
+        else {
+            return Ok(None);
         };
 
         // Returns found call output definition location.
         return Ok(Some(location_from_span(
-            &uri,
+            &doc.uri(),
             output.name_span(),
-            callee_lines,
+            &callee_lines,
         )?));
     }
 
@@ -908,7 +898,6 @@ fn resolve_call_input_item(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     analysis_doc: &Document,
-    lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
     let Some(input_item) = wdl_ast::v1::CallInputItem::cast(parent_node.clone()) else {
@@ -941,15 +930,19 @@ fn resolve_call_input_item(
 
             let target = call_stmt.target();
             let mut target_names = target.names();
-            let (target_name, target_namespace) = match (target_names.next(), target_names.next()) {
+            let (target_name, target_namespace) = match (
+                target_names.next(),
+                target_names.next(),
+                target_names.next(),
+            ) {
                 // Namespaced call
-                (Some(ns), Some(name)) => (name, Some(ns)),
-                // Local call
-                (Some(name), None) => (name, None),
+                (Some(ns), Some(name), None) => (name, Some(ns)),
+                // Local or imported without a namespace call
+                (Some(name), None, None) => (name, None),
                 _ => return Ok(None),
             };
 
-            if let Some(ns_str) = target_namespace {
+            let target_doc = if let Some(ns_str) = target_namespace {
                 let Some(ns) = analysis_doc.namespace(ns_str.text()) else {
                     return Ok(None);
                 };
@@ -961,31 +954,45 @@ fn resolve_call_input_item(
                     return Ok(None);
                 };
 
-                // SAFETY: we successfully resolved the node above; it is in
-                // `ParseState::Parsed`, which always has a valid lines field.
-                let imported_lines = node.parse_state().lines().unwrap();
-
-                return find_target_input_parameter(
-                    imported_doc,
-                    target_name.text(),
-                    token,
-                    &ns.source(),
-                    imported_lines,
-                );
+                imported_doc
             } else {
-                // Local tasks/workflow inputs
-                return find_target_input_parameter(
-                    analysis_doc,
-                    target_name.text(),
-                    token,
-                    &analysis_doc.uri(),
-                    lines,
-                );
-            }
+                // Locally defined or imported without a namespace task/workflow
+                // inputs
+                analysis_doc
+            };
+
+            return find_target_input_parameter(target_doc, target_name.text(), token, graph);
         }
         current = node.parent();
     }
     Ok(None)
+}
+
+/// Attempt to find a [`Callable`] with the given `target_name`
+///
+/// If the callable exists, it is returned alongside the _defining_ document and
+/// its [`LineIndex`].
+fn callable_source_doc_and_lines<'a>(
+    graph: &DocumentGraph,
+    doc: &'a Document,
+    target_name: &str,
+) -> Option<(Callable<'a>, &'a Document, Arc<LineIndex>)> {
+    fn doc_lines(graph: &DocumentGraph, doc: &Document) -> Option<Arc<LineIndex>> {
+        let node = graph.get(graph.get_index(&doc.uri())?);
+        node.parse_state().lines().cloned()
+    }
+
+    let callable = doc.callable_by_name(target_name)?;
+
+    if !callable.is_imported() {
+        let lines = doc_lines(graph, doc)?;
+        return Some((callable, doc, lines));
+    }
+
+    let source_doc = callable.source_document()?;
+    let local_callable = source_doc.local_callable_by_name(callable.source_name())?;
+    let lines = doc_lines(graph, source_doc)?;
+    Some((local_callable, source_doc, lines))
 }
 
 /// Finds input parameter definitions in tasks and workflows.
@@ -993,10 +1000,11 @@ fn find_target_input_parameter(
     doc: &Document,
     target_name: &str,
     token: &SyntaxToken,
-    uri: &Url,
-    lines: &Arc<LineIndex>,
+    graph: &DocumentGraph,
 ) -> Result<Option<Location>> {
-    let Some(callable) = doc.local_callable_by_name(target_name) else {
+    let Some((callable, source_doc, lines)) =
+        callable_source_doc_and_lines(graph, doc, target_name)
+    else {
         return Ok(None);
     };
 
@@ -1009,7 +1017,11 @@ fn find_target_input_parameter(
     };
 
     if let Some(ident) = scope.lookup(token.text()) {
-        return Ok(Some(location_from_span(uri, ident.span(), lines)?));
+        return Ok(Some(location_from_span(
+            &source_doc.uri(),
+            ident.span(),
+            &lines,
+        )?));
     }
 
     Ok(None)
