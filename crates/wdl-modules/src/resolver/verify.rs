@@ -7,10 +7,15 @@
 //! verification, trust-store key comparison, and lockfile checksum and
 //! signer matching.
 
+use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::path::Path;
+use std::path::PathBuf;
 
 use crate::Lockfile;
+use crate::Manifest;
 use crate::dependency::DependencyName;
+use crate::exclude::ExclusionSet;
 use crate::hash::ContentHash;
 use crate::module_walk;
 use crate::resolver::config::LargeFileWarning;
@@ -110,8 +115,9 @@ pub(crate) fn verify(
     module_root: &Path,
 ) -> Result<VerifiedModule, ResolverError> {
     check_materialized_tree(policy, name, module_root)?;
-    check_quoted_imports(name, module_root)?;
-    let checksum = crate::hash::hash_directory(module_root)?;
+    let (manifest, exclusions) = crate::exclude::load_from_root(module_root)?;
+    check_quoted_imports(name, module_root, manifest.as_ref(), &exclusions)?;
+    let checksum = crate::hash::hash_directory_with_exclusions(module_root, &exclusions)?;
     let signer = read_and_verify_signature(policy, name, module_root, &checksum)?;
     Ok(VerifiedModule { checksum, signer })
 }
@@ -131,60 +137,241 @@ pub(crate) fn verify_structure(
     module_root: &Path,
 ) -> Result<(), ResolverError> {
     check_materialized_tree(policy, name, module_root)?;
-    check_quoted_imports(name, module_root)?;
-    crate::hash::hash_directory(module_root)?;
+    let (manifest, exclusions) = crate::exclude::load_from_root(module_root)?;
+    check_quoted_imports(name, module_root, manifest.as_ref(), &exclusions)?;
+    crate::hash::hash_directory_with_exclusions(module_root, &exclusions)?;
     Ok(())
 }
 
-/// Validates that every quoted `import` in the module's `.wdl` files
-/// resolves to a location inside the module root.
+/// Shared state for validating quoted imports within a single module root.
+struct QuotedImportContext<'a> {
+    /// The owning dependency name for diagnostics.
+    dep: &'a DependencyName,
+    /// The cleaned absolute path to the module root.
+    root: PathBuf,
+    /// The canonicalized path to the module root (for case-insensitive checks).
+    canonical_root: PathBuf,
+    /// Compiled manifest exclusions for this module.
+    exclusions: &'a ExclusionSet,
+}
+
+impl<'a> QuotedImportContext<'a> {
+    /// Builds a quoted-import verification context for `module_root`.
+    fn new(
+        dep: &'a DependencyName,
+        module_root: &Path,
+        exclusions: &'a ExclusionSet,
+    ) -> Result<Self, ResolverError> {
+        let root = absolutize_clean(module_root)?;
+        let canonical_root = std::fs::canonicalize(&root).map_err(|source| ResolverError::Io {
+            path: root.clone(),
+            source,
+        })?;
+        Ok(Self {
+            dep,
+            root,
+            canonical_root,
+            exclusions,
+        })
+    }
+
+    /// Collects all included `.wdl` files plus an included custom entrypoint.
+    fn collect_seed_documents(
+        &self,
+        module_root: &Path,
+        manifest: Option<&Manifest>,
+    ) -> Result<VecDeque<PathBuf>, ResolverError> {
+        let mut queue = VecDeque::new();
+        module_walk::walk_module_content_tree(
+            module_root,
+            self.exclusions,
+            &mut |path: &Path, _size| {
+                if path.extension().and_then(|extension| extension.to_str()) == Some("wdl") {
+                    let relative = path.strip_prefix(module_root).unwrap_or(path);
+                    queue.push_back(path_clean::clean(self.root.join(relative)));
+                }
+                Ok::<_, ResolverError>(())
+            },
+        )
+        .map_err(|error| match error {
+            module_walk::WalkError::Walk(error) => ResolverError::Walk(error),
+            module_walk::WalkError::Visitor(error) => error,
+        })?;
+
+        if let Some(entrypoint) = manifest.map(Manifest::entrypoint_filename)
+            && !self.exclusions.excludes_content_path(entrypoint)
+        {
+            let path = path_clean::clean(self.root.join(entrypoint));
+            if std::fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file()) {
+                let canonical =
+                    std::fs::canonicalize(&path).map_err(|source| ResolverError::Io {
+                        path: path.clone(),
+                        source,
+                    })?;
+                if let Ok(actual) = canonical.strip_prefix(&self.canonical_root)
+                    && !self.exclusions.excludes_content_path(actual)
+                {
+                    queue.push_back(path);
+                }
+            }
+        }
+
+        Ok(queue)
+    }
+
+    /// Validates a single quoted import from `source_path` and returns the
+    /// cleaned local target path when it names an existing file to traverse.
+    fn verify_import(
+        &self,
+        source_path: &Path,
+        base: &url::Url,
+        import: String,
+    ) -> Result<Option<PathBuf>, ResolverError> {
+        let Ok(resolved_url) = base.join(&import) else {
+            // Analysis reports malformed import URIs separately.
+            return Ok(None);
+        };
+        // Absolute non-file URIs are not paths within module content.
+        if resolved_url.scheme() != "file" {
+            return Ok(None);
+        }
+
+        let resolved = match resolved_url.to_file_path() {
+            Ok(path) => path_clean::clean(path),
+            Err(()) => return Err(self.escapes_root_error(source_path, import)),
+        };
+        let Ok(target) = resolved.strip_prefix(&self.root) else {
+            return Err(self.escapes_root_error(source_path, import));
+        };
+        if self.exclusions.excludes_content_path(target) {
+            return Err(self.excluded_error(source_path, import));
+        }
+
+        match std::fs::symlink_metadata(&resolved) {
+            Ok(metadata) if metadata.is_file() => {
+                let canonical =
+                    std::fs::canonicalize(&resolved).map_err(|source| ResolverError::Io {
+                        path: resolved.clone(),
+                        source,
+                    })?;
+                let Ok(canonical_target) = canonical.strip_prefix(&self.canonical_root) else {
+                    return Err(self.escapes_root_error(source_path, import));
+                };
+                // Match again using the target's actual on-disk spelling.
+                // Case-insensitive filesystems may resolve a differently
+                // cased URI to an excluded file.
+                if self.exclusions.excludes_content_path(canonical_target) {
+                    return Err(self.excluded_error(source_path, import));
+                }
+                // Keep the lexical root spelling for subsequent URL joins;
+                // `canonical_root` may use a platform alias such as
+                // `/private/var` for a lexical `/var` root.
+                Ok(Some(resolved))
+            }
+            Ok(_) => Ok(None),
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(source) => Err(ResolverError::Io {
+                path: resolved,
+                source,
+            }),
+        }
+    }
+
+    /// Formats a [`ResolverError::QuotedImportEscapesRoot`] error.
+    fn escapes_root_error(&self, source_path: &Path, import: String) -> ResolverError {
+        ResolverError::QuotedImportEscapesRoot {
+            dep: self.dep.manifest().to_string(),
+            file: module_relative_path(&self.root, source_path),
+            import,
+        }
+    }
+
+    /// Formats a [`ResolverError::QuotedImportExcluded`] error.
+    fn excluded_error(&self, source_path: &Path, import: String) -> ResolverError {
+        ResolverError::QuotedImportExcluded {
+            dep: self.dep.manifest().to_string(),
+            file: module_relative_path(&self.root, source_path),
+            import,
+        }
+    }
+}
+
+/// Validates that every quoted `import` in included module documents resolves
+/// to included content inside the module root.
 ///
 /// A quoted import such as `import "../shared.wdl"` that escapes the
 /// module root makes the module invalid, even if the target exists.
-/// Imports that name an absolute URI (with a scheme) are not
-/// file-relative and are not subject to this check.
+/// Absolute non-file URIs are not file-relative and are not subject to this
+/// check. File URLs are decoded and checked like relative file imports.
 ///
-/// Each file is parsed with the WDL grammar and its actual import
-/// statements are inspected, so `import` appearing in a command block or
-/// after a definition cannot bypass the check. Files that fail to parse
-/// are skipped here; analysis reports their syntax errors separately.
-fn check_quoted_imports(name: &DependencyName, module_root: &Path) -> Result<(), ResolverError> {
-    // Symbolic links are already forbidden by the tree walk, so a
-    // lexical comparison of cleaned paths is sufficient; the walk yields
-    // paths under `module_root`, so the root is used as-is.
-    let root = path_clean::clean(module_root);
+/// Every included `.wdl` file (plus any included custom entrypoint) is parsed
+/// with the WDL grammar. Local imports are followed recursively regardless of
+/// file extension because WDL import URIs do not require one. Actual import
+/// statements are inspected, so `import` appearing in a command block or after
+/// a definition cannot bypass the check. Files that fail to parse yield no
+/// imports here; analysis reports their syntax errors separately.
+fn check_quoted_imports(
+    name: &DependencyName,
+    module_root: &Path,
+    manifest: Option<&Manifest>,
+    exclusions: &ExclusionSet,
+) -> Result<(), ResolverError> {
+    // Symbolic links are already forbidden by the tree walk, so a lexical
+    // comparison of cleaned paths is supplemented with canonical checks for
+    // case-insensitive filesystems.
+    let ctx = QuotedImportContext::new(name, module_root, exclusions)?;
+    let mut queue = ctx.collect_seed_documents(module_root, manifest)?;
 
-    walk_module_tree(module_root, &mut |path: &Path, _size| {
-        if path.extension().and_then(|e| e.to_str()) != Some("wdl") {
-            return Ok(());
+    // Start with every included `.wdl` file to preserve whole-module
+    // validation, then follow local imports regardless of file extension.
+    // This catches import chains through extensionless documents without
+    // loading unrelated binary module assets into memory.
+    let mut visited = HashSet::new();
+    while let Some(path) = queue.pop_front() {
+        if !visited.insert(path.clone()) {
+            continue;
         }
-        let contents = std::fs::read_to_string(path).map_err(|source| ResolverError::Io {
-            path: path.to_path_buf(),
+        let contents = std::fs::read_to_string(&path).map_err(|source| ResolverError::Io {
+            path: path.clone(),
             source,
         })?;
-        let file_dir = path.parent().unwrap_or(&root);
+        let base = url::Url::from_file_path(&path).map_err(|()| ResolverError::Io {
+            path: path.clone(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "could not convert module path to a file URL",
+            ),
+        })?;
         for import in quoted_imports(&contents) {
-            // Absolute URIs (with a scheme) are not file-relative.
-            if url::Url::parse(&import).is_ok() {
-                continue;
-            }
-            let resolved = path_clean::clean(file_dir.join(&import));
-            if !resolved.starts_with(&root) {
-                let rel = path
-                    .strip_prefix(&root)
-                    .unwrap_or(path)
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                return Err(ResolverError::QuotedImportEscapesRoot {
-                    dep: name.manifest().to_string(),
-                    file: rel,
-                    import,
-                });
+            if let Some(target) = ctx.verify_import(&path, &base, import)? {
+                queue.push_back(target);
             }
         }
-        Ok(())
-    })?;
+    }
     Ok(())
+}
+
+/// Returns an absolute, lexically cleaned version of `path`.
+fn absolutize_clean(path: &Path) -> Result<PathBuf, ResolverError> {
+    if path.is_absolute() {
+        return Ok(path_clean::clean(path));
+    }
+    Ok(path_clean::clean(
+        std::env::current_dir()
+            .map_err(|source| ResolverError::Io {
+                path: path.to_path_buf(),
+                source,
+            })?
+            .join(path),
+    ))
+}
+
+/// Returns a module-root-relative path using portable separators.
+fn module_relative_path(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
 }
 
 /// Extracts the target of each quoted (URI) `import` statement from WDL
@@ -359,6 +546,20 @@ mod tests {
         fs::write(dir.join("index.wdl"), content).unwrap();
     }
 
+    fn write_manifest(dir: &std::path::Path, exclusions: &[&str]) {
+        let body = serde_json::json!({
+            "name": "foo",
+            "license": "MIT",
+            "readme": false,
+            "exclude": exclusions,
+        });
+        fs::write(
+            dir.join(crate::MANIFEST_FILENAME),
+            serde_json::to_vec(&body).unwrap(),
+        )
+        .unwrap();
+    }
+
     fn write_signed_module(dir: &std::path::Path, content: &str, seed: u64) {
         write_module(dir, content);
         let checksum = crate::hash::hash_directory(dir).unwrap();
@@ -444,6 +645,165 @@ mod tests {
         .unwrap();
         let policy = ResolverPolicy::default();
         assert!(verify(&policy, &test_dep(), dir.path()).is_ok());
+    }
+
+    #[test]
+    fn verify_accepts_relative_module_root() {
+        let current = std::env::current_dir().unwrap();
+        let dir = tempfile::tempdir_in(&current).unwrap();
+        let relative = dir.path().strip_prefix(&current).unwrap();
+        write_manifest(dir.path(), &[]);
+        write_module(dir.path(), "version 1.3\nimport \"helper.wdl\"\n");
+        fs::write(dir.path().join("helper.wdl"), "version 1.3\n").unwrap();
+
+        let result = verify(&ResolverPolicy::default(), &test_dep(), relative);
+        assert!(
+            result.is_ok(),
+            "relative module root should verify: {result:?}"
+        );
+    }
+
+    #[test]
+    fn verify_ignores_escaping_import_in_excluded_file() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &["testrun.wdl"]);
+        write_module(dir.path(), "version 1.3\n");
+        fs::write(
+            dir.path().join("testrun.wdl"),
+            "version 1.3\nimport \"../shared.wdl\"\n",
+        )
+        .unwrap();
+
+        let result = verify(&ResolverPolicy::default(), &test_dep(), dir.path());
+        assert!(
+            result.is_ok(),
+            "excluded harness should be ignored: {result:?}"
+        );
+    }
+
+    #[test]
+    fn verify_rejects_included_import_targeting_excluded_content() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &["private/**"]);
+        write_module(dir.path(), "version 1.3\nimport \"private/helper.wdl\"\n");
+        fs::create_dir(dir.path().join("private")).unwrap();
+        fs::write(dir.path().join("private/helper.wdl"), "version 1.3\n").unwrap();
+
+        let error = verify(&ResolverPolicy::default(), &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(error, ResolverError::QuotedImportExcluded { .. }));
+    }
+
+    #[test]
+    fn verify_checks_imports_in_wdl_documents_without_wdl_extension() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &["private.wdl"]);
+        write_module(dir.path(), "version 1.3\nimport \"helper.txt\"\n");
+        fs::write(
+            dir.path().join("helper.txt"),
+            "version 1.3\nimport \"private.wdl\"\n",
+        )
+        .unwrap();
+        fs::write(dir.path().join("private.wdl"), "version 1.3\n").unwrap();
+
+        let error = verify(&ResolverPolicy::default(), &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(error, ResolverError::QuotedImportExcluded { .. }));
+    }
+
+    #[test]
+    fn verify_checks_custom_entrypoint_without_wdl_extension() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join(crate::MANIFEST_FILENAME),
+            br#"{
+                "name":"foo",
+                "license":"MIT",
+                "readme":false,
+                "entrypoint":"main.txt",
+                "exclude":["private.wdl"]
+            }"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("main.txt"),
+            "version 1.3\nimport \"private.wdl\"\n",
+        )
+        .unwrap();
+        fs::write(dir.path().join("private.wdl"), "version 1.3\n").unwrap();
+
+        let error = verify(&ResolverPolicy::default(), &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(error, ResolverError::QuotedImportExcluded { .. }));
+    }
+
+    #[test]
+    fn verify_rejects_import_of_unhashed_metadata() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &[]);
+        write_module(dir.path(), "version 1.3\nimport \"module-lock.json\"\n");
+        fs::write(dir.path().join(crate::LOCKFILE_FILENAME), "version 1.3\n").unwrap();
+
+        let error = verify(&ResolverPolicy::default(), &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(error, ResolverError::QuotedImportExcluded { .. }));
+    }
+
+    #[test]
+    fn verify_decodes_file_uri_before_checking_exclusions() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &["private files/**"]);
+        fs::create_dir(dir.path().join("private files")).unwrap();
+        let target = dir.path().join("private files/helper.wdl");
+        fs::write(&target, "version 1.3\n").unwrap();
+        let target = url::Url::from_file_path(&target).unwrap();
+        write_module(dir.path(), &format!("version 1.3\nimport \"{target}\"\n"));
+
+        let error = verify(&ResolverPolicy::default(), &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(error, ResolverError::QuotedImportExcluded { .. }));
+    }
+
+    #[test]
+    fn verify_decodes_relative_uri_before_checking_exclusions() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &["private.wdl"]);
+        write_module(
+            dir.path(),
+            "version 1.3\nimport \"private%2Ewdl#fragment\"\n",
+        );
+        fs::write(dir.path().join("private.wdl"), "version 1.3\n").unwrap();
+
+        let error = verify(&ResolverPolicy::default(), &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(error, ResolverError::QuotedImportExcluded { .. }));
+    }
+
+    #[test]
+    fn verify_matches_actual_path_case_on_case_insensitive_filesystems() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &["private.wdl"]);
+        fs::write(dir.path().join("private.wdl"), "version 1.3\n").unwrap();
+        if !dir.path().join("PRIVATE.wdl").exists() {
+            return;
+        }
+        write_module(dir.path(), "version 1.3\nimport \"PRIVATE.wdl\"\n");
+
+        let error = verify(&ResolverPolicy::default(), &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(error, ResolverError::QuotedImportExcluded { .. }));
+    }
+
+    #[test]
+    fn physical_limits_count_excluded_files() {
+        let dir = tempdir().unwrap();
+        write_manifest(dir.path(), &["testrun.wdl"]);
+        write_module(dir.path(), "version 1.3\n");
+        fs::write(dir.path().join("testrun.wdl"), "version 1.3\n").unwrap();
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
+            max_materialized_files: Some(2),
+            ..ModulesConfig::default()
+        })
+        .unwrap();
+
+        let error = verify(&policy, &test_dep(), dir.path()).unwrap_err();
+        assert!(matches!(
+            error,
+            ResolverError::MaterializedTreeLimitExceeded { files: 3, .. }
+        ));
     }
 
     #[test]

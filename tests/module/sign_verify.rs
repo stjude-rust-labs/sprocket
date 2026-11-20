@@ -425,6 +425,52 @@ fn sign_writes_verifiable_signature() {
 }
 
 #[test]
+fn verify_signature_ignores_edits_to_excluded_files() {
+    let fixture = ModuleFixture::with_local_dep();
+    fs::write(
+        fixture.consumer().join("module.json"),
+        r#"{
+  "name": "consumer",
+  "license": "MIT",
+  "entrypoint": "index.wdl",
+  "exclude": ["testrun.wdl"]
+}
+"#,
+    )
+    .unwrap();
+    let harness = fixture.consumer().join("testrun.wdl");
+    fs::write(&harness, "version 1.3\nworkflow before {}\n").unwrap();
+    let key_path = fixture.dir.path().join("id_ed25519");
+    fs::write(&key_path, generate_openssh_ed25519_private_key()).unwrap();
+
+    let key_path_arg = key_path.to_string_lossy().into_owned();
+    let sign = sprocket(&["dev", "module", "sign", "--key", &key_path_arg])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module sign");
+    assert!(
+        sign.status.success(),
+        "command failed {status}: {stderr}",
+        status = sign.status,
+        stderr = String::from_utf8_lossy(&sign.stderr)
+    );
+
+    fs::write(&harness, "version 1.3\nworkflow after {}\n").unwrap();
+
+    let verify = sprocket(&["dev", "module", "verify", "signature"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module verify signature");
+    assert!(
+        verify.status.success(),
+        "command failed {status}: {stderr}",
+        status = verify.status,
+        stderr = String::from_utf8_lossy(&verify.stderr)
+    );
+    assert!(String::from_utf8_lossy(&verify.stdout).contains("Verified module signature"));
+}
+
+#[test]
 fn sign_preserves_unstructured_public_key_comment() -> anyhow::Result<()> {
     let fixture = ModuleFixture::with_local_dep();
     let key_path = fixture.dir.path().join("id_ed25519");

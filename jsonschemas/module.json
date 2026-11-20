@@ -63,7 +63,7 @@
       "$ref": "#/$defs/Readme"
     },
     "exclude": {
-      "description": "Gitignore-style glob patterns identifying files within the module\nthat consumers may not reach via symbolic import.\n\nExcluded files have no effect on content hashing, signing, validation,\nor quoted within-module imports.",
+      "description": "Gitignore-style glob patterns identifying files outside the module's\nlogical content.\n\nExcluded files cannot be reached through symbolic or quoted module\nimports and do not contribute to content validation, hashing, signing,\nor packaging. The root `module.json` is always included.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/RelativePath"
