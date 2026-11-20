@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+* Updated the `read_tsv` documentation to match
+  [`openwdl/wdl#787`](https://github.com/openwdl/wdl/pull/787): the two-argument form statically
+  returns `Array[Object]` and its `Boolean` argument must evaluate to `true`.
+* Updated the WDL 1.2+ `basename` and `size` documentation to describe the explicit `String` path
+  overloads specified in [`openwdl/wdl#790`](https://github.com/openwdl/wdl/pull/790)
+  ([#1391](https://github.com/stjude-rust-labs/sprocket/pull/1391)).
+
+## 0.28.1 - 2026-11-18
+
 ### Added
 
 * Added support for `0o`/`0O` octal and `0b`/`0B` binary integer literals from

@@ -99,8 +99,11 @@ pub trait HttpClient: Send + Sync {
 
     /// Walks a given storage URL as if it were a directory.
     ///
-    /// Returns a list of relative paths from the given URL that are in
-    /// lexicographical order.
+    /// Returns a lexicographically-sorted list of relative paths from the given
+    /// URL.
+    ///
+    /// If the storage URL contains directory objects, the entry will end with a
+    /// `/`.
     ///
     /// If the given storage URL is not a directory, an empty list is returned.
     fn walk<'a>(
@@ -371,11 +374,16 @@ impl HttpClient for DefaultHttpClient {
                         .context("failed to acquire permit")?;
 
                     // Get the size
-                    cloud_copy::size(self.0.config.clone(), self.0.client.clone(), url.clone())
-                        .await
-                        .with_context(|| {
-                            format!("failed to retrieve size of `{url}`", url = url.display())
-                        })
+                    cloud_copy::size(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                        token.clone(),
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("failed to retrieve size of `{url}`", url = url.display())
+                    })
                 })
                 .await?
             {
@@ -405,15 +413,15 @@ impl HttpClient for DefaultHttpClient {
                         .await
                         .context("failed to acquire permit")?;
 
-                    let mut entries =
-                        cloud_copy::walk(self.0.config.clone(), self.0.client.clone(), url.clone())
-                            .await
-                            .with_context(|| {
-                                format!("failed to walk URL `{url}`", url = url.display())
-                            })?;
-
-                    // We return the entries in lexicographical order
-                    entries.sort();
+                    let entries = cloud_copy::walk(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                        token.clone(),
+                    )
+                    .await
+                    .with_context(|| format!("failed to walk URL `{url}`", url = url.display()))?
+                    .unwrap_or_default();
 
                     anyhow::Ok(entries.into())
                 })
@@ -454,14 +462,19 @@ impl HttpClient for DefaultHttpClient {
                         .context("failed to acquire permit")?;
 
                     // Determine if the URL exists
-                    cloud_copy::exists(self.0.config.clone(), self.0.client.clone(), url.clone())
-                        .await
-                        .with_context(|| {
-                            format!(
-                                "failed to determine existence of `{url}`",
-                                url = url.display()
-                            )
-                        })
+                    cloud_copy::exists(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                        token.clone(),
+                    )
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to determine existence of `{url}`",
+                            url = url.display()
+                        )
+                    })
                 })
                 .await?
             {
@@ -492,10 +505,11 @@ impl HttpClient for DefaultHttpClient {
                         .context("failed to acquire permit")?;
 
                     debug!("retrieving content digest for `{url}`", url = url.display());
-                    let digest = cloud_copy::get_content_digest(
+                    let digest = cloud_copy::digest(
                         self.0.config.clone(),
                         self.0.client.clone(),
                         url.clone(),
+                        token.clone(),
                     )
                     .await
                     .with_context(|| {

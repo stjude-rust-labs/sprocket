@@ -28,6 +28,7 @@ pub mod tasks;
 
 // Re-export enum types for OpenAPI schema.
 pub use crate::system::v1::db::LogSource;
+pub use crate::system::v1::db::RunBackend;
 pub use crate::system::v1::db::RunStatus;
 pub use crate::system::v1::db::SprocketCommand;
 pub use crate::system::v1::db::TaskStatus;
@@ -66,6 +67,7 @@ pub use crate::system::v1::db::TaskStatus;
         ListTasksResponse,
         LogSource,
         Run,
+        RunBackend,
         RunMetricsResponse,
         RunMetrics,
         RunMetricsTotals,

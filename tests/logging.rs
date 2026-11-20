@@ -7,6 +7,8 @@ use std::process::Stdio;
 
 use tempfile::tempdir;
 
+mod common;
+
 /// A test that ensures that `sprocket run` outputs logging to both stderr and
 /// to `output.log`.
 #[test]
@@ -35,7 +37,9 @@ task hello {
 
     for (opt, level) in [("-vvv", " TRACE "), ("-vv", " DEBUG "), ("-v", " INFO ")] {
         // Spawn sprocket with the requested logging option
-        let result = Command::new(env!("CARGO_BIN_EXE_sprocket"))
+        let mut command = Command::new(env!("CARGO_BIN_EXE_sprocket"));
+        common::configure_child_llvm_profile(&mut command);
+        let result = command
             .args(["run", "-s", "source.wdl", "-t", "hello", opt])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

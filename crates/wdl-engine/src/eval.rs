@@ -660,6 +660,16 @@ pub enum EngineEvent {
         /// The resolved execution constraints for this attempt.
         constraints: TaskConstraintsSnapshot,
     },
+    /// The execution backend accepted a task execution attempt and assigned it
+    /// an ID of its own.
+    ///
+    /// Sent by the LSF and Slurm backends once the scheduler accepts the job.
+    TaskSubmitted {
+        /// The unique name of the task for this attempt.
+        name: String,
+        /// The ID the backend assigned, such as an LSF or Slurm job ID.
+        external_id: String,
+    },
     /// A task execution attempt failed and is being retried.
     ///
     /// A retry from the evaluator mints a new attempt name, which is

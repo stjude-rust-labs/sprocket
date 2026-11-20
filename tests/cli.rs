@@ -44,6 +44,8 @@ use tempfile::TempDir;
 use tracing::debug;
 use walkdir::WalkDir;
 
+mod common;
+
 /// Regex pattern for timestamp directories (e.g., `2026-02-05_123456789012`).
 static TIMESTAMP_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\d{4}-\d{2}-\d{2}_\d{12,}").unwrap());
@@ -250,6 +252,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
         command.arg(env_config.path());
     }
 
+    common::configure_child_llvm_profile(&mut command);
     command.current_dir(working_test_directory).args(args);
     let result = command
         .stdout(Stdio::piped())

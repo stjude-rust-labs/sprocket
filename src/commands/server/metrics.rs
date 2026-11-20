@@ -148,7 +148,7 @@ fn format_retry_cause(cause: &serde_json::Value) -> String {
 
 /// Formats an attempt's observed resource utilization for display.
 ///
-/// Reports peak resident memory and total CPU time; the full detail is
+/// Reports maximum observed memory and total CPU time; the full detail is
 /// available in `--json` mode.
 fn format_utilization(utilization: Option<&serde_json::Value>) -> Option<String> {
     let utilization = utilization?;
@@ -309,6 +309,7 @@ mod tests {
     use crate::server::RunMetrics;
     use crate::server::RunMetricsTotals;
     use crate::server::TransferTotals;
+    use crate::system::v1::db::RunBackend;
     use crate::system::v1::db::RunStatus;
     use crate::system::v1::db::TaskStatus;
 
@@ -319,7 +320,12 @@ mod tests {
                 name: "happy-dolphin-42".to_string(),
                 status: RunStatus::Completed,
                 wall_time_ms: Some(83_000),
-                backend: Some("lsf_apptainer".to_string()),
+                backend: Some(RunBackend::new(
+                    "hpc",
+                    &wdl::engine::config::BackendConfig::LsfApptainer {
+                        config: Default::default(),
+                    },
+                )),
                 sprocket_version: "0.0.0-test".to_string(),
                 transfer: None,
             },
@@ -502,7 +508,7 @@ mod tests {
         assert!(report.contains("transferred 3.0 GiB down, 1.0 GiB up"));
     }
 
-    /// A transfer well under 1 GiB  must not render as `0.0 GiB`.
+    /// A transfer well under 1 GiB must not render as `0.0 GiB`.
     #[test]
     fn report_does_not_round_small_transfers_to_zero() {
         let mut small = body();

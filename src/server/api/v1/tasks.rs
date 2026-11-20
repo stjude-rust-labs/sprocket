@@ -104,16 +104,26 @@ pub struct Task {
     /// retried.
     #[schema(value_type = Option<Object>)]
     pub retry_cause: Option<serde_json::Value>,
-    /// Resource utilization as a JSON object: memory in bytes and CPU time
-    /// in milliseconds. Reported by LSF, Slurm, and local Docker containers
-    /// with a nonzero `backends.<name>.resource_usage_interval` (not Swarm).
-    /// `null` when no measurements have been reported.
+    /// Resource utilization as a JSON object: memory and disk usage in bytes
+    /// and CPU time in milliseconds.
+    ///
+    /// CPU and memory come from native scheduler accounting, Docker sampling,
+    /// or a cgroup-v2 fallback for Swarm/TES without native usage. Cgroup
+    /// memory includes page cache; Docker samples exclude inactive file cache.
+    /// Local work-directory size is measured separately by the engine, not as a
+    /// disk high-water mark.
+    /// `null` when no source reports usage.
     #[schema(value_type = Option<Object>)]
     pub utilization: Option<serde_json::Value>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when the task was submitted to an execution backend.
     pub submitted_at: Option<DateTime<Utc>>,
+    /// The ID the execution backend assigned to this attempt.
+    ///
+    /// The job ID for LSF and Slurm, or the task ID for TES. `null` for other
+    /// backends and for attempts that were never submitted.
+    pub external_id: Option<String>,
     /// Timestamp when task started executing.
     pub started_at: Option<DateTime<Utc>>,
     /// Timestamp when task reached terminal state.
@@ -135,6 +145,7 @@ impl From<crate::system::v1::db::Task> for Task {
             utilization: parse_json_column(task.utilization),
             created_at: task.created_at,
             submitted_at: task.submitted_at,
+            external_id: task.external_id,
             started_at: task.started_at,
             completed_at: task.completed_at,
         }
@@ -505,6 +516,7 @@ mod tests {
             utilization: None,
             created_at: now,
             submitted_at: Some(now),
+            external_id: None,
             started_at: Some(now),
             completed_at: Some(now),
         }

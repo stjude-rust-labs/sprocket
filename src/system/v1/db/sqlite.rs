@@ -18,6 +18,7 @@ use super::Database;
 use super::DatabaseError;
 use super::NewTask;
 use super::Result;
+use super::RunBackend;
 use super::TaskWrite;
 use super::models::IndexLogEntry;
 use super::models::LogSource;
@@ -416,9 +417,9 @@ impl Database for SqliteDatabase {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn update_run_backend(&self, id: Uuid, backend: &str) -> Result<bool> {
+    async fn update_run_backend(&self, id: Uuid, backend: &RunBackend) -> Result<bool> {
         let result = sqlx::query("update runs set backend = ? where uuid = ?")
-            .bind(backend)
+            .bind(backend.to_json())
             .bind(id.to_string())
             .execute(&self.pool)
             .await?;
@@ -642,7 +643,8 @@ impl Database for SqliteDatabase {
              call_id = coalesce(tasks.call_id, excluded.call_id), attempt = max(tasks.attempt, \
              excluded.attempt) returning name, (select uuid from runs where id = run_id) as \
              run_uuid, status, exit_status, error, call_id, attempt, \"constraints\", \
-             retry_cause, utilization, submitted_at, created_at, started_at, completed_at",
+             retry_cause, utilization, submitted_at, external_id, created_at, started_at, \
+             completed_at",
         )
         .bind(task.name)
         .bind(task.status)
@@ -679,6 +681,20 @@ impl Database for SqliteDatabase {
              where name = ?",
         )
         .bind(cause)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_task_external_id(&self, name: &str, external_id: &str) -> Result<bool> {
+        let result = sqlx::query(
+            "update tasks
+             set external_id = ?
+             where name = ?",
+        )
+        .bind(external_id)
         .bind(name)
         .execute(&self.pool)
         .await?;
@@ -851,7 +867,7 @@ impl Database for SqliteDatabase {
         let task: Option<Task> = sqlx::query_as(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
                     t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization, \
-             t.submitted_at,
+             t.submitted_at, t.external_id,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id
              where t.name = ?",
@@ -876,7 +892,7 @@ impl Database for SqliteDatabase {
         let mut query = String::from(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
                     t.call_id, t.attempt, t.\"constraints\", t.retry_cause, t.utilization, \
-             t.submitted_at,
+             t.submitted_at, t.external_id,
                     t.created_at, t.started_at, t.completed_at
              from tasks t join runs r on t.run_id = r.id where 1=1",
         );
@@ -1100,6 +1116,17 @@ where
                  where name = ?",
             )
             .bind(cause)
+            .bind(name)
+            .execute(executor)
+            .await?;
+        }
+        TaskWrite::ExternalId { name, external_id } => {
+            sqlx::query(
+                "update tasks
+                 set external_id = ?
+                 where name = ?",
+            )
+            .bind(external_id)
             .bind(name)
             .execute(executor)
             .await?;
@@ -1935,8 +1962,14 @@ mod tests {
             .await
             .expect("failed to create run");
 
+        let backend = RunBackend::new(
+            "hpc",
+            &wdl::engine::config::BackendConfig::LsfApptainer {
+                config: Default::default(),
+            },
+        );
         assert!(
-            db.update_run_backend(run_id, "lsf_apptainer")
+            db.update_run_backend(run_id, &backend)
                 .await
                 .expect("failed to update backend")
         );
@@ -1952,12 +1985,12 @@ mod tests {
             .await
             .expect("failed to get run")
             .expect("run should exist");
-        assert_eq!(run.backend.as_deref(), Some("lsf_apptainer"));
+        assert_eq!(run.backend, Some(backend.to_json()));
         assert_eq!(run.transfer_totals.as_deref(), Some(totals));
 
         // Unknown runs are reported as not updated.
         assert!(
-            !db.update_run_backend(Uuid::new_v4(), "docker")
+            !db.update_run_backend(Uuid::new_v4(), &backend)
                 .await
                 .expect("failed to update backend")
         );

@@ -450,7 +450,7 @@ async fn should_goto_enum_definition() {
     let mut ctx = setup().await;
 
     // Position of `Status` in `Status s`
-    let response = goto_definition_request(&mut ctx, "enum.wdl", Position::new(9, 4))
+    let response = goto_definition_request(&mut ctx, "enums.wdl", Position::new(9, 4))
         .await
         .expect("request should succeed")
         .unwrap();
@@ -459,7 +459,7 @@ async fn should_goto_enum_definition() {
         panic!("expected a single location response, got {:?}", response);
     };
 
-    assert_eq!(location.uri, ctx.doc_uri("enum.wdl"));
+    assert_eq!(location.uri, ctx.doc_uri("enums.wdl"));
     assert_eq!(
         location.range,
         Range::new(Position::new(2, 5), Position::new(2, 11)) // `enum Status`
@@ -471,7 +471,7 @@ async fn should_goto_enum_choice_definition() {
     let mut ctx = setup().await;
 
     // Position of `Active` in `Status.Active`
-    let response = goto_definition_request(&mut ctx, "enum.wdl", Position::new(9, 22))
+    let response = goto_definition_request(&mut ctx, "enums.wdl", Position::new(9, 22))
         .await
         .expect("request should succeed")
         .unwrap();
@@ -480,7 +480,7 @@ async fn should_goto_enum_choice_definition() {
         panic!("expected a single location response, got {:?}", response);
     };
 
-    assert_eq!(location.uri, ctx.doc_uri("enum.wdl"));
+    assert_eq!(location.uri, ctx.doc_uri("enums.wdl"));
     assert_eq!(
         location.range,
         Range::new(Position::new(3, 4), Position::new(3, 10)) // `Active,`
@@ -492,7 +492,7 @@ async fn should_goto_enum_definition_in_member_access() {
     let mut ctx = setup().await;
 
     // Position of `Status` in `Status.Active`
-    let response = goto_definition_request(&mut ctx, "enum.wdl", Position::new(9, 17))
+    let response = goto_definition_request(&mut ctx, "enums.wdl", Position::new(9, 17))
         .await
         .expect("request should succeed")
         .unwrap();
@@ -501,7 +501,7 @@ async fn should_goto_enum_definition_in_member_access() {
         panic!("expected a single location response, got {:?}", response);
     };
 
-    assert_eq!(location.uri, ctx.doc_uri("enum.wdl"));
+    assert_eq!(location.uri, ctx.doc_uri("enums.wdl"));
     assert_eq!(
         location.range,
         Range::new(Position::new(2, 5), Position::new(2, 11)) // `enum Status`
@@ -547,5 +547,42 @@ async fn should_goto_imported_enum_definition_in_member_access() {
     assert_eq!(
         location.range,
         Range::new(Position::new(2, 5), Position::new(2, 13)) // `enum Priority`
+    );
+}
+
+#[tokio::test]
+async fn should_goto_transitive_structs_and_enums() {
+    let mut ctx = setup().await;
+
+    // Position of `Qux` in `Wrapper.qux`
+    let response = goto_definition_request(&mut ctx, "reexports_consumer.wdl", Position::new(5, 5))
+        .await
+        .expect("request should succeed")
+        .unwrap();
+
+    let GotoDefinitionResponse::Scalar(location) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("structs.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(2, 7), Position::new(2, 10)) // `struct Qux`
+    );
+
+    // Position of `Status` in `Wrapper.status`
+    let response = goto_definition_request(&mut ctx, "reexports_consumer.wdl", Position::new(6, 5))
+        .await
+        .expect("request should succeed")
+        .unwrap();
+
+    let GotoDefinitionResponse::Scalar(location) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("enums.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(2, 5), Position::new(2, 11)) // `enum Status`
     );
 }
