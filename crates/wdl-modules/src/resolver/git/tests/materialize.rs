@@ -30,12 +30,12 @@ fn exclude_set_honors_gitignore_semantics() {
     let patterns = [rel("internal"), rel("scratch/*.wdl"), rel("secret/**")];
     let set = exclude_set(&patterns).unwrap();
 
-    assert!(set.is_match(Path::new("internal/private.wdl")));
-    assert!(set.is_match(Path::new("internal/deep/nested.wdl")));
-    assert!(set.is_match(Path::new("scratch/tmp.wdl")));
-    assert!(!set.is_match(Path::new("scratch/sub/tmp.wdl")));
-    assert!(set.is_match(Path::new("secret/a/b/c.wdl")));
-    assert!(!set.is_match(Path::new("public.wdl")));
+    assert!(set.is_excluded(Path::new("internal/private.wdl")));
+    assert!(set.is_excluded(Path::new("internal/deep/nested.wdl")));
+    assert!(set.is_excluded(Path::new("scratch/tmp.wdl")));
+    assert!(!set.is_excluded(Path::new("scratch/sub/tmp.wdl")));
+    assert!(set.is_excluded(Path::new("secret/a/b/c.wdl")));
+    assert!(!set.is_excluded(Path::new("public.wdl")));
 }
 
 #[test]
@@ -376,6 +376,49 @@ async fn materialize_blocks_excluded_glob() {
         panic!("expected `MissingFile`, got: {err}");
     };
     assert_eq!(kind, MissingFileKind::Excluded);
+}
+
+#[tokio::test]
+async fn materialize_matches_actual_entrypoint_case_on_case_insensitive_filesystems() {
+    let workdir = tempdir().unwrap();
+    let dep_dir = workdir.path().join("dep");
+    fs::create_dir_all(&dep_dir).unwrap();
+    fs::write(
+        dep_dir.join(crate::MANIFEST_FILENAME),
+        r#"{
+            "name":"dep",
+            "license":"MIT",
+            "readme":false,
+            "entrypoint":"INDEX.wdl",
+            "exclude":["index.wdl"]
+        }"#,
+    )
+    .unwrap();
+    fs::write(dep_dir.join("index.wdl"), b"version 1.3\n").unwrap();
+    if !dep_dir.join("INDEX.wdl").exists() {
+        return;
+    }
+
+    let consumer_dir = workdir.path().join("consumer");
+    let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+    write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+    let consumer =
+        Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap()).unwrap();
+    let consumer = module(consumer, &consumer_dir);
+    let cache = tempdir().unwrap();
+    let (resolver, _) = resolve_and_lock(&cache, &consumer).await;
+
+    let error = resolver
+        .materialize(&consumer, &"dep".parse().unwrap())
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        ResolverError::MissingFile {
+            kind: MissingFileKind::Excluded,
+            ..
+        }
+    ));
 }
 
 #[tokio::test]

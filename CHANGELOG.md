@@ -22,6 +22,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * SQLite connections now apply the 30-second lock-wait timeout before running initialization
   statements, rather than using the five-second default during initialization
   ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).
+* Module `exclude` patterns now remove files from content validation, hashing, signing, and imports.
+  Excluded test harnesses can remain beside module files and still run directly from a local
+  checkout ([#1188](https://github.com/stjude-rust-labs/sprocket/pull/1188)).
 
 ## 0.34.1 - 2026-11-18
 

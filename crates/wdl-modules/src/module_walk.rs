@@ -12,6 +12,7 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
+use crate::exclude::ExclusionSet;
 use crate::hash::NON_MODULE_CONTENT;
 
 /// An error encountered while walking a module tree.
@@ -58,6 +59,35 @@ pub fn walk_module_tree<E>(
 ) -> Result<TreeStats, WalkError<E>> {
     let mut stats = TreeStats::default();
     walk_recursive(root, visitor, &mut stats)?;
+    Ok(stats)
+}
+
+/// Walks logical module content, omitting files matched by `exclusions`.
+///
+/// The underlying physical tree is still traversed in full, so excluded paths
+/// cannot conceal symbolic links. Statistics count only visited module-content
+/// files; callers enforcing physical materialization limits should use
+/// [`walk_module_tree`] directly.
+pub fn walk_module_content_tree<E>(
+    root: &Path,
+    exclusions: &ExclusionSet,
+    visitor: &mut dyn FnMut(&Path, u64) -> Result<(), E>,
+) -> Result<TreeStats, WalkError<E>> {
+    let mut stats = TreeStats::default();
+    let mut visit_content = |path: &Path, size: u64| {
+        // SAFETY: `walk_module_tree` only yields paths beneath `root`.
+        let relative = path.strip_prefix(root).unwrap();
+        if exclusions.is_excluded(relative) {
+            return Ok(());
+        }
+        stats.files += 1;
+        stats.bytes = stats.bytes.saturating_add(size);
+        visitor(path, size)
+    };
+
+    // Discard the physical-tree statistics: this function reports logical
+    // module-content statistics accumulated by `visit_content`.
+    walk_module_tree(root, &mut visit_content)?;
     Ok(stats)
 }
 
@@ -162,9 +192,10 @@ fn walk_recursive<E>(
     Ok(())
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 mod tests {
     use std::convert::Infallible;
+    #[cfg(unix)]
     use std::os::unix::fs::symlink;
 
     use tempfile::tempdir;
@@ -172,6 +203,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(unix)]
     fn rejects_symlink_in_excluded_directory() -> Result<(), Box<dyn std::error::Error>> {
         let root = tempdir()?;
         let outside = tempdir()?;
@@ -189,6 +221,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn rejects_symlink_inside_sprocket_directory() -> Result<(), Box<dyn std::error::Error>> {
         let root = tempdir()?;
         let outside = tempdir()?;
