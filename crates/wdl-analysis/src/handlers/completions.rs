@@ -55,6 +55,7 @@ use wdl_ast::v1::TASK_FIELDS;
 use wdl_ast::v1::TASK_HINT_KEYS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WORKFLOW_HINT_KEYS;
+use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 use wdl_grammar::grammar::v1::NESTED_WORKFLOW_STATEMENT_KEYWORDS;
 use wdl_grammar::grammar::v1::ROOT_SECTION_KEYWORDS;
@@ -69,6 +70,7 @@ use crate::SourcePositionEncoding;
 use crate::document::Callable;
 use crate::document::ScopeRef;
 use crate::document::TASK_VAR_NAME;
+use crate::document::WorkflowRef;
 use crate::graph::DocumentGraph;
 use crate::handlers::TypeEvalContext;
 use crate::handlers::common::ensure_analyzed;
@@ -154,105 +156,141 @@ pub fn completion(
         .and_then(|t| t.parent())
         .unwrap_or_else(|| root.clone());
 
-    // Trigger member access completions if the cursor is on a dot, or on an
-    // identifier immediately following a dot.
-    let is_member_access = if let Some(t) = &token {
-        match t.kind() {
-            SyntaxKind::Dot | SyntaxKind::OpenBracket => true,
-            SyntaxKind::Ident => t
-                .prev_token()
-                .filter(|prev| !prev.kind().is_trivia())
-                .is_some_and(|prev| prev.kind() == SyntaxKind::Dot),
-            _ => false,
+    match parent.kind() {
+        // call <foo>
+        SyntaxKind::CallTargetNode => {
+            add_call_target_completions(document, &parent, &mut items);
         }
-    } else {
-        false
-    };
-
-    if is_member_access {
-        add_member_access_completions(document, &parent, &mut items)?;
-    } else {
-        let mut visited_kinds = IndexSet::new();
-        let mut current = Some(parent);
-        while let Some(node) = current {
-            if visited_kinds.insert(node.kind()) {
-                add_snippet_completions(document, &node, &mut items);
+        // call foo after <bar>
+        SyntaxKind::CallAfterNode => {
+            if let Some(scope) = document.find_scope_by_position(offset.into()) {
+                add_call_after_completions(scope, &mut items);
             }
+        }
+        // call foo as <bar>
+        SyntaxKind::CallAliasNode => {}
 
-            match node.kind() {
-                SyntaxKind::WorkflowDefinitionNode => {
-                    add_keyword_completions(&WORKFLOW_ITEM_EXPECTED_SET, &mut items);
-                    let scope = document.find_scope_by_position(offset.into());
-                    if let Some(scope) = scope {
-                        add_scope_completions(scope, &mut items);
+        // call <> (no target)
+        SyntaxKind::WorkflowDefinitionNode
+        | SyntaxKind::ScatterStatementNode
+        | SyntaxKind::ConditionalStatementNode
+        | SyntaxKind::ConditionalStatementClauseNode
+            if token.as_ref().is_some_and(|t| {
+                prev_non_trivia_token(t.clone())
+                    .is_some_and(|t| t.kind() == SyntaxKind::CallKeyword)
+            }) =>
+        {
+            add_call_target_completions(document, &parent, &mut items);
+        }
+
+        // Trigger member access completions if the cursor is on a dot, or on an
+        // identifier immediately following a dot.
+        _ if token.is_some_and(|t| {
+            matches!(t.kind(), SyntaxKind::Dot | SyntaxKind::OpenBracket)
+                || (t.kind() == SyntaxKind::Ident
+                    && t.prev_token()
+                        .filter(|prev| !prev.kind().is_trivia())
+                        .is_some_and(|prev| prev.kind() == SyntaxKind::Dot))
+        }) =>
+        {
+            add_member_access_completions(document, &parent, &mut items)?;
+        }
+
+        _ => {
+            let mut visited_kinds = IndexSet::new();
+            let mut current = Some(parent);
+            while let Some(node) = current {
+                if visited_kinds.insert(node.kind()) {
+                    add_snippet_completions(document, &node, &mut items);
+                }
+
+                match node.kind() {
+                    SyntaxKind::WorkflowDefinitionNode => {
+                        add_keyword_completions(&WORKFLOW_ITEM_EXPECTED_SET, &mut items);
+                        let scope = document.find_scope_by_position(offset.into());
+                        if let Some(scope) = scope {
+                            add_scope_completions(scope, &mut items);
+                        }
+                        add_stdlib_completions(document.version(), &mut items);
+                        add_struct_completions(document, scope, &mut items);
+                        add_enum_type_completions(document, scope, &mut items);
+                        add_namespace_completions(document, &mut items);
+                        let enclosing_wf = enclosing_workflow_name(&node);
+                        add_callable_completions(
+                            document,
+                            true,
+                            enclosing_wf.as_deref(),
+                            &mut items,
+                        );
+                        break;
                     }
-                    add_stdlib_completions(document.version(), &mut items);
-                    add_struct_completions(document, scope, &mut items);
-                    add_enum_type_completions(document, scope, &mut items);
-                    add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, true, &mut items);
-                    break;
-                }
-                SyntaxKind::ScatterStatementNode | SyntaxKind::ConditionalStatementNode => {
-                    add_keyword_completions(&NESTED_WORKFLOW_STATEMENT_KEYWORDS, &mut items);
-                    let scope = document.find_scope_by_position(offset.into());
-                    if let Some(scope) = scope {
-                        add_scope_completions(scope, &mut items);
+                    SyntaxKind::ScatterStatementNode | SyntaxKind::ConditionalStatementNode => {
+                        add_keyword_completions(&NESTED_WORKFLOW_STATEMENT_KEYWORDS, &mut items);
+                        let scope = document.find_scope_by_position(offset.into());
+                        if let Some(scope) = scope {
+                            add_scope_completions(scope, &mut items);
+                        }
+                        add_stdlib_completions(document.version(), &mut items);
+                        add_struct_completions(document, scope, &mut items);
+                        add_enum_type_completions(document, scope, &mut items);
+                        add_namespace_completions(document, &mut items);
+                        let enclosing_wf = enclosing_workflow_name(&node);
+                        add_callable_completions(
+                            document,
+                            true,
+                            enclosing_wf.as_deref(),
+                            &mut items,
+                        );
+                        break;
                     }
-                    add_stdlib_completions(document.version(), &mut items);
-                    add_struct_completions(document, scope, &mut items);
-                    add_enum_type_completions(document, scope, &mut items);
-                    add_namespace_completions(document, &mut items);
-                    add_callable_completions(document, true, &mut items);
-                    break;
-                }
 
-                SyntaxKind::TaskDefinitionNode => {
-                    add_keyword_completions(&TASK_ITEM_EXPECTED_SET, &mut items);
-                    let scope = document.find_scope_by_position(offset.into());
-                    if let Some(scope) = scope {
-                        add_scope_completions(scope, &mut items);
+                    SyntaxKind::TaskDefinitionNode => {
+                        add_keyword_completions(&TASK_ITEM_EXPECTED_SET, &mut items);
+                        let scope = document.find_scope_by_position(offset.into());
+                        if let Some(scope) = scope {
+                            add_scope_completions(scope, &mut items);
+                        }
+                        add_stdlib_completions(document.version(), &mut items);
+                        add_struct_completions(document, scope, &mut items);
+                        add_enum_type_completions(document, scope, &mut items);
+                        break;
                     }
-                    add_stdlib_completions(document.version(), &mut items);
-                    add_struct_completions(document, scope, &mut items);
-                    add_enum_type_completions(document, scope, &mut items);
-                    break;
-                }
 
-                SyntaxKind::StructDefinitionNode => {
-                    add_struct_completions(document, None, &mut items);
-                    add_enum_type_completions(document, None, &mut items);
-                    add_keyword_completions(&STRUCT_SECTION_KEYWORDS, &mut items);
-                    break;
-                }
+                    SyntaxKind::StructDefinitionNode => {
+                        add_struct_completions(document, None, &mut items);
+                        add_enum_type_completions(document, None, &mut items);
+                        add_keyword_completions(&STRUCT_SECTION_KEYWORDS, &mut items);
+                        break;
+                    }
 
-                SyntaxKind::RuntimeSectionNode => {
-                    add_runtime_key_completions(document.version(), &mut items);
-                    break;
-                }
+                    SyntaxKind::RuntimeSectionNode => {
+                        add_runtime_key_completions(document.version(), &mut items);
+                        break;
+                    }
 
-                SyntaxKind::RequirementsSectionNode => {
-                    add_requirements_key_completions(document.version(), &mut items);
-                    break;
-                }
-                SyntaxKind::TaskHintsSectionNode => {
-                    add_task_hints_key_completions(document.version(), &mut items);
-                    break;
-                }
+                    SyntaxKind::RequirementsSectionNode => {
+                        add_requirements_key_completions(document.version(), &mut items);
+                        break;
+                    }
+                    SyntaxKind::TaskHintsSectionNode => {
+                        add_task_hints_key_completions(document.version(), &mut items);
+                        break;
+                    }
 
-                SyntaxKind::WorkflowHintsSectionNode => {
-                    add_workflow_hints_key_completions(&mut items);
-                    break;
-                }
+                    SyntaxKind::WorkflowHintsSectionNode => {
+                        add_workflow_hints_key_completions(&mut items);
+                        break;
+                    }
 
-                SyntaxKind::RootNode => {
-                    add_keyword_completions(&ROOT_SECTION_KEYWORDS, &mut items);
-                    add_struct_completions(document, None, &mut items);
-                    add_enum_type_completions(document, None, &mut items);
-                    add_namespace_completions(document, &mut items);
-                    break;
+                    SyntaxKind::RootNode => {
+                        add_keyword_completions(&ROOT_SECTION_KEYWORDS, &mut items);
+                        add_struct_completions(document, None, &mut items);
+                        add_enum_type_completions(document, None, &mut items);
+                        add_namespace_completions(document, &mut items);
+                        break;
+                    }
+                    _ => current = node.parent(),
                 }
-                _ => current = node.parent(),
             }
         }
     }
@@ -267,6 +305,22 @@ pub fn completion(
         }
         None => Ok(items),
     }
+}
+
+/// Finds the nearest preceding non-trivia token.
+fn prev_non_trivia_token(token: SyntaxToken) -> Option<SyntaxToken> {
+    if !token.kind().is_trivia() {
+        return Some(token);
+    }
+
+    let mut prev = token.prev_token();
+    while let Some(t) = prev {
+        if !t.kind().is_trivia() {
+            return Some(t);
+        }
+        prev = t.prev_token();
+    }
+    None
 }
 
 /// Generates completion items for WDL keywords based on the provided token set.
@@ -330,7 +384,7 @@ fn add_member_access_completions(
         && token.kind() == SyntaxKind::Ident
         && let Some(ns) = document.namespace(token.text())
     {
-        add_callable_completions(ns.document(), false, items);
+        add_callable_completions(ns.document(), false, None, items);
         return Ok(());
     }
 
@@ -572,21 +626,70 @@ fn add_member_access_completions(
     Ok(())
 }
 
+/// Returns the name of the enclosing workflow definition, if any.
+fn enclosing_workflow_name(node: &SyntaxNode) -> Option<String> {
+    node.ancestors()
+        .find_map(WorkflowDefinition::cast)
+        .map(|wf| wf.name().text().to_string())
+}
+
+/// Adds completions valid as a `call` target (namespaces and callables).
+fn add_call_target_completions(
+    document: &Document,
+    node: &SyntaxNode,
+    items: &mut Vec<CompletionItem>,
+) {
+    let enclosing_wf = enclosing_workflow_name(node);
+    add_namespace_completions(document, items);
+    add_callable_completions(document, true, enclosing_wf.as_deref(), items);
+}
+
+/// Adds completions for call names valid in an `after` clause.
+fn add_call_after_completions(scope: ScopeRef<'_>, items: &mut Vec<CompletionItem>) {
+    let mut current_scope = Some(scope);
+    while let Some(s) = current_scope {
+        for (name, name_info) in s.names() {
+            if let Type::Call(call_ty) = name_info.ty()
+                && !items.iter().any(|i| i.label == name)
+            {
+                items.push(CompletionItem {
+                    label: name.to_string(),
+                    kind: Some(CompletionItemKind::REFERENCE),
+                    detail: Some(call_ty.to_string()),
+                    ..Default::default()
+                });
+            }
+        }
+        current_scope = s.parent();
+    }
+}
+
 /// Adds completions for callable items available in the current document.
 ///
 /// Includes both local and imported tasks and workflows.
 fn add_callable_completions(
     document: &Document,
     prefix_namespaces: bool,
+    exclude_local_workflow: Option<&str>,
     items: &mut Vec<CompletionItem>,
 ) {
-    fn inner<F>(mut label: F, document: &Document, items: &mut Vec<CompletionItem>)
-    where
+    fn inner<F>(
+        mut label: F,
+        document: &Document,
+        exclude_local_workflow: Option<&str>,
+        items: &mut Vec<CompletionItem>,
+    ) where
         F: FnMut(Callable<'_>) -> String,
     {
         let version = document.version();
 
         for callable in document.callables() {
+            if let Some(excluded) = exclude_local_workflow
+                && matches!(callable, Callable::Workflow(WorkflowRef::Local(w)) if w.name() == excluded)
+            {
+                continue;
+            }
+
             let ty = match callable {
                 Callable::Task(_) => "task",
                 Callable::Workflow(_) => "workflow",
@@ -617,7 +720,12 @@ fn add_callable_completions(
         }
     }
 
-    inner(|callable| callable.name().to_string(), document, items);
+    inner(
+        |callable| callable.name().to_string(),
+        document,
+        exclude_local_workflow,
+        items,
+    );
 
     for ns in document.namespaces() {
         inner(
@@ -631,6 +739,7 @@ fn add_callable_completions(
                 }
             },
             ns.document(),
+            None,
             items,
         );
     }

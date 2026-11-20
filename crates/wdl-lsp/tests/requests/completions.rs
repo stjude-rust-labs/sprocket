@@ -54,6 +54,25 @@ fn assert_not_contains(items: &[CompletionItem], unexpected_label: &str) {
     );
 }
 
+fn verify_completion_items(mut expected_labels: Vec<&str>, received: &[CompletionItem]) {
+    for item in received {
+        let matched = expected_labels
+            .iter()
+            .position(|expected| item.label.contains(expected));
+
+        if let Some(index) = matched {
+            expected_labels.remove(index);
+        } else {
+            panic!("unexpected completion item returned: {item:?}");
+        }
+    }
+
+    assert!(
+        expected_labels.is_empty(),
+        "some expected items were not returned: {expected_labels:?}"
+    );
+}
+
 async fn setup(v1_4: bool) -> TestContext {
     let mut ctx = TestContextBuilder::new("completions")
         .server_options(ServerOptions {
@@ -767,4 +786,55 @@ async fn should_complete_select_imported_task() {
     };
 
     assert_contains(&items, "add");
+}
+
+#[tokio::test]
+async fn should_complete_callables() {
+    let mut ctx = setup(false).await;
+
+    // Position of `f` in `call say_hello as second after f` in callables.wdl
+    let response = completion_request(&mut ctx, "callables.wdl", Position::new(10, 36))
+        .await
+        .expect("request should succeed");
+
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].label, "first");
+
+    // Position of `s` in `call s` in callables.wdl
+    let response = completion_request(&mut ctx, "callables.wdl", Position::new(11, 10))
+        .await
+        .expect("request should succeed");
+
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    // We should *only* get completions for the `say_hello` task
+    for item in items {
+        assert!(
+            item.label.contains("say_hello"),
+            "unexpected completion item returned: {item:?}"
+        );
+    }
+
+    // Position of after the bare `call` keyword in callables.wdl
+    let response = completion_request(&mut ctx, "callables.wdl", Position::new(15, 9))
+        .await
+        .expect("request should succeed");
+
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    // Duplicated entries since the completions have both the bare callable name
+    // *and* a snippet
+    assert_eq!(items.len(), 4);
+    verify_completion_items(
+        vec!["say_hello", "say_hello", "do_greetings", "do_greetings"],
+        &items,
+    );
 }
