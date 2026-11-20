@@ -155,11 +155,18 @@ pub struct DocumentGraphNode {
     /// Symbolic imports that this node attempted but failed to resolve, keyed
     /// by the symbolic path text. The value is the resolver's error message.
     failed_symbolic_imports: HashMap<String, String>,
+    /// Whether the document is external to the workspace.
+    external: bool,
 }
 
 impl DocumentGraphNode {
     /// Constructs a new unparsed document graph node.
     pub fn new(config: Config, uri: Arc<Url>) -> Self {
+        // By default, we can assume that any non-`file://` URI is external. This check isn't final
+        // though, as all modules, both local paths and external (e.g., git) will also use `file://` URIs.
+        // Those cases aren't caught until the document is analyzed.
+        let external = uri.scheme() != "file";
+
         Self {
             config,
             uri,
@@ -169,12 +176,31 @@ impl DocumentGraphNode {
             cache: None,
             failed_symbolic_imports: HashMap::new(),
             analysis_error: None,
+            external,
         }
     }
 
     /// Gets the URI of the document node.
     pub fn uri(&self) -> &Arc<Url> {
         &self.uri
+    }
+
+    /// Returns whether the document is external to the workspace.
+    ///
+    /// A document is considered external if:
+    ///
+    /// * It comes from a non-`file://` URI
+    /// * It comes from a module defined outside of the consuming module
+    ///
+    /// NOTE: This may not be accurate if the document hasn't been analyzed
+    /// beforehand.
+    pub fn is_external(&self) -> bool {
+        self.external
+    }
+
+    /// Marks the document as external to the workspace.
+    pub fn mark_external(&mut self) {
+        self.external = true;
     }
 
     /// Notifies the document node that there's been an incremental change.

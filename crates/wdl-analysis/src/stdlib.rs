@@ -2339,9 +2339,8 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::String,
-                            "Path of the file or directory to read. If the argument is a \
-                             `String`, it is assumed to be a local file path relative to the \
-                             current working directory of the task."
+                            "Path of the file or directory to read. It is assumed to be a local \
+                             path relative to the current working directory of the task."
                         )
                         .parameter(
                             "suffix",
@@ -2357,9 +2356,7 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::Directory,
-                            "Path of the file or directory to read. If the argument is a \
-                             `String`, it is assumed to be a local file path relative to the \
-                             current working directory of the task.",
+                            "Path of the directory to read.",
                         )
                         .parameter(
                             "suffix",
@@ -2685,15 +2682,16 @@ task file_sizes {
                 "size",
                 PolymorphicFunction::new(vec![
                     // This overload isn't explicitly in the spec, but it fixes
-                    // an ambiguity in 1.2 when passed a literal `None` value.
+                    // an ambiguity in 1.2 when passed a literal `None` value,
+                    // which would otherwise coerce to `File?`, `String?`, and
+                    // `Directory?` equally.
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "value",
                             Type::None,
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A `None` value, which has a size of `0.0`."
                         )
                         .parameter(
                             "unit",
@@ -2745,8 +2743,7 @@ task file_sizes {
                         .parameter(
                             "value",
                             Type::from(PrimitiveType::Directory).optional(),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A directory for which to determine the size."
                         )
                         .parameter(
                             "unit",
@@ -2802,6 +2799,34 @@ To provide an optional argument, all preceding arguments must also be provided.
 **Returns**: A `Pair[Array[File], Array[Directory]]` containing the matching files in its `left` array and directories in its `right` array. Either array is empty if it has no matching entries.
 
 **Restrictions**: This function reads directory contents and may only be called in a context where the directory exists. If the directory is an input to a task or workflow, then it may be called anywhere in that task or workflow.
+
+Example: list_fastqs_task.wdl
+
+```wdl
+version 1.4
+
+task list_fastqs {
+  input {
+    Directory sample_dir
+  }
+
+  Pair[Array[File], Array[Directory]] contents = list(sample_dir, false, true, "*.fastq.gz")
+  Array[File] fastqs = contents.left
+
+  command <<<
+    echo "~{sep(' ', fastqs)}"
+  >>>
+
+  output {
+    Int num_fastqs = length(fastqs)
+    String file_list = read_string(stdout())
+  }
+
+  requirements {
+    container: "ubuntu:latest"
+  }
+}
+```
 "#;
 
     assert!(

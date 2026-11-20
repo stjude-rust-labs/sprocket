@@ -36,9 +36,8 @@ const FUNCTION_NAME: &str = "size";
 /// files/directories contained within a compound value. A `String` is assumed
 /// to be a local file path relative to the current working directory of the
 /// task. Paths may be optional values; None values have a size of 0.0. By
-/// default, the size is
-/// returned in bytes unless the optional second argument is specified with a
-/// unit.
+/// default, the size is returned in bytes unless the optional second argument
+/// is specified with a unit.
 ///
 /// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size>
 fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
