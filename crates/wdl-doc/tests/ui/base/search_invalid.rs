@@ -21,7 +21,7 @@ impl UiTest for SearchInvalid {
     }
 
     async fn run(&self, driver: &mut WebDriver, _docs_path: &Path) -> anyhow::Result<()> {
-        driver.search("does_not_exist").await?;
+        driver.search("zyxwvutsrqponmlkjihgfedcba").await?;
 
         let no_results_text = driver
             .query(By::XPath(
@@ -33,7 +33,18 @@ impl UiTest for SearchInvalid {
             .exists()
             .await?;
         if !no_results_text {
-            bail!("expected \"No results found\" text");
+            let state = driver
+                .execute(
+                    "const s = window.Alpine.store('search'); return {query:s.query, \
+                     input:document.getElementById('searchbox').value, loading:s.loading, \
+                     results:s.results.map(r => r.meta?.title)};",
+                    Vec::new(),
+                )
+                .await?;
+            bail!(
+                "expected \"No results found\" text; state: {}",
+                state.json()
+            );
         }
 
         let no_results = driver

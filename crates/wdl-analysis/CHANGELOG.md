@@ -15,6 +15,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added the WDL 1.4 `exists` function signature from
   [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
   ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+* Added type checking for the WDL 1.4 postfix unwrap operator (`x!`) from
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping a non-optional value or a
+  value that is always `None` is an error, and use of the operator prior to WDL 1.4 is rejected
+  ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
 ### Fixed
 

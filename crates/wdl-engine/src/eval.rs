@@ -932,6 +932,18 @@ pub(crate) trait EvaluationContext: Send + Sync {
     /// Gets the value of the given name in scope.
     fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic>;
 
+    /// Gets the type that analysis declared for the given name, as referenced
+    /// at the given span of the document being evaluated.
+    ///
+    /// Unlike the type of a name's value, the declared type preserves
+    /// optionality.
+    ///
+    /// Returns `None` if the declared type of the name is unknown.
+    fn declared_type(&self, name: &str, span: Span) -> Option<Type> {
+        let _ = (name, span);
+        None
+    }
+
     /// Resolves a type name to a type.
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 

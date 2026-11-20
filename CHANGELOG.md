@@ -12,10 +12,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added contextual input help to `sprocket run`: passing `--help` (or `-h`) with a WDL source now
   appends the selected task's or workflow's required inputs and their types to the help output
   ([#1086](https://github.com/stjude-rust-labs/sprocket/issues/1086)).
-
 * Added the WDL 1.4 `exists` function from
   [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
   ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+* Added the experimental WDL 1.4 postfix unwrap operator (`x!`), which converts an optional value to
+  its non-optional type and fails if the value is `None`. This implements
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
+  `feature_flags.wdl_1_4 = true` ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
 ## 0.34.1 - 2026-11-18
 
