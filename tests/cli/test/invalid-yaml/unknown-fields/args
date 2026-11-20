@@ -1,1 +1,1 @@
-test -qq --no-status
+test ./foo.wdl -qq --no-status

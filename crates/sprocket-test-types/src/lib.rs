@@ -37,7 +37,7 @@ pub(crate) fn convert_yaml_span(span: serde_saphyr::Span) -> Span {
 
 /// The parser encountered an unknown field.
 fn unknown_field(span: serde_saphyr::Span, field: &str) -> Diagnostic {
-    Diagnostic::warning(format!("unknown field `{field}`")).with_highlight(convert_yaml_span(span))
+    Diagnostic::error(format!("unknown field `{field}`")).with_highlight(convert_yaml_span(span))
 }
 
 /// A target has multiple test definitions with the same name.
