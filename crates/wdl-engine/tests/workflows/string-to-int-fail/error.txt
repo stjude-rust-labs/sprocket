@@ -1,0 +1,7 @@
+error: type mismatch: expected type `Int`, but found type `String`: cannot coerce type `String` to type `Int`: `not an integer` is not a valid integer
+  ┌─ tests/workflows/string-to-int-fail/source.wdl:4:17
+  │
+4 │   Int invalid = "not an integer"
+  │       -------   ^^^^^^^^^^^^^^^^ this is type `String`
+  │       │          
+  │       this expects type `Int`

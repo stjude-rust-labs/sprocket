@@ -1,5 +1,5 @@
-error: type mismatch: expected negation operand to be type `Int` or `Float`, but found type `String`
+error: type mismatch: expected negation operand to be type `Int` or `Float`, but found type `Boolean`
    ┌─ tests/analysis/negation-mismatch/source.wdl:11:14
    │
 11 │     Int d = -c
-   │              ^ this is type `String`
+   │              ^ this is type `Boolean`

@@ -98,6 +98,12 @@ impl Coercible for PrimitiveType {
             (Self::String, Self::File) |
             // String -> Directory
             (Self::String, Self::Directory) |
+            // String -> Int
+            (Self::String, Self::Integer) |
+            // String -> Float
+            (Self::String, Self::Float) |
+            // String -> Boolean
+            (Self::String, Self::Boolean) |
             // Int -> Float
             (Self::Integer, Self::Float) |
             // File -> String
@@ -1739,7 +1745,13 @@ mod tests {
         assert!(PrimitiveType::Integer.is_coercible_to(&PrimitiveType::Float));
         assert!(PrimitiveType::File.is_coercible_to(&PrimitiveType::String));
         assert!(PrimitiveType::Directory.is_coercible_to(&PrimitiveType::String));
+        assert!(PrimitiveType::String.is_coercible_to(&PrimitiveType::Integer));
+        assert!(PrimitiveType::String.is_coercible_to(&PrimitiveType::Float));
+        assert!(PrimitiveType::String.is_coercible_to(&PrimitiveType::Boolean));
         assert!(!PrimitiveType::Float.is_coercible_to(&PrimitiveType::Integer));
+        assert!(!PrimitiveType::Integer.is_coercible_to(&PrimitiveType::String));
+        assert!(!PrimitiveType::Boolean.is_coercible_to(&PrimitiveType::String));
+        assert!(!PrimitiveType::Boolean.is_coercible_to(&PrimitiveType::Integer));
     }
 
     #[test_log::test]
@@ -1757,9 +1769,9 @@ mod tests {
         let ty = MapType::new(PrimitiveType::File, PrimitiveType::String).into();
         assert!(!Type::OptionalObject.is_coercible_to(&ty));
 
-        // Object -> Map[Int, X] (key not coercible from string)
+        // Object -> Map[Int, X] (key coercible from string)
         let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::String).into();
-        assert!(!Type::Object.is_coercible_to(&ty));
+        assert!(Type::Object.is_coercible_to(&ty));
 
         // Object -> Map[String, X]?
         let ty = Type::from(MapType::new(PrimitiveType::String, PrimitiveType::String)).optional();
@@ -2197,7 +2209,7 @@ mod tests {
         let type2 = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         assert!(!type1.is_coercible_to(&type2));
 
-        // Struct -> Map[Int, String] (key not coercible from String)
+        // Struct -> Map[Int, String] (key coercible from String)
         let type1: Type = StructType::new(
             "Foo",
             [
@@ -2208,7 +2220,7 @@ mod tests {
         )
         .into();
         let type2 = MapType::new(PrimitiveType::Integer, PrimitiveType::String).into();
-        assert!(!type1.is_coercible_to(&type2));
+        assert!(type1.is_coercible_to(&type2));
 
         // Struct -> Object
         assert!(type1.is_coercible_to(&Type::Object));
@@ -2496,20 +2508,20 @@ mod tests {
 
     #[test_log::test]
     fn enum_type_new_fails_when_not_coercible() {
-        // Try to create enum with `Int` type but `String` choices.
+        // Try to create enum with `Int` type but `Boolean` choices.
         let result = EnumType::new(
             "Bad",
             Span::new(0, 0),
             PrimitiveType::Integer.into(),
             vec![
-                ("First".into(), PrimitiveType::String.into()),
+                ("First".into(), PrimitiveType::Boolean.into()),
                 ("Second".into(), PrimitiveType::Integer.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0)][..],
         );
 
         assert!(
-            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce choice `First` in enum `Bad` from type `String` to type `Int`")
+            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce choice `First` in enum `Bad` from type `Boolean` to type `Int`")
         );
     }
 
@@ -2554,12 +2566,31 @@ mod tests {
     }
 
     #[test_log::test]
+    fn enum_type_infer_coerces_string_to_int() {
+        // Mix of `Int` and `String` should coerce to `Int`.
+        let mixed = EnumType::infer(
+            "Mixed",
+            vec![
+                ("IntValue".into(), PrimitiveType::Integer.into()),
+                ("StringValue".into(), PrimitiveType::String.into()),
+            ],
+            &[Span::new(0, 0), Span::new(0, 0)],
+        )
+        .unwrap();
+
+        assert_eq!(
+            mixed.inner_value_type(),
+            &Type::from(PrimitiveType::Integer)
+        );
+    }
+
+    #[test_log::test]
     fn enum_type_infer_fails_without_common_type() {
-        // `String` and `Int` have no common type.
+        // `Boolean` and `Int` have no common type.
         let result = EnumType::infer(
             "Bad",
             vec![
-                ("StringVal".into(), PrimitiveType::String.into()),
+                ("BooleanVal".into(), PrimitiveType::Boolean.into()),
                 ("IntVal".into(), PrimitiveType::Integer.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0)][..],

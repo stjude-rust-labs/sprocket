@@ -1,10 +1,12 @@
-//! Parsing of numeric values read from files by `read_int` and `read_float`.
+//! Parsing of numeric values for `String` coercions and `read_int` /
+//! `read_float`.
 //!
 //! Starting with WDL 1.1, these functions accept surrounding whitespace, an
 //! optional `+` or `-` sign, and then any form accepted for an `Int` (or, for
-//! `read_float`, `Int` or `Float`) source literal.
+//! `Float`, `Int` or `Float`) source literal.
 //!
-//! See <https://github.com/openwdl/wdl/pull/791>.
+//! See <https://github.com/openwdl/wdl/pull/791> and
+//! <https://github.com/openwdl/wdl/pull/797>.
 
 use wdl_grammar::lexer::Lexer;
 use wdl_grammar::lexer::v1::Token;
@@ -53,7 +55,7 @@ fn is_float_literal(s: &str) -> bool {
 ///
 /// Returns `None` if the contents are not a valid integer or if the integer is
 /// out of range.
-pub(super) fn parse_int(s: &str) -> Option<i64> {
+pub(crate) fn parse_int(s: &str) -> Option<i64> {
     let (negative, s) = split_sign(s.trim());
     let (radix, digits) = int_literal_digits(s)?;
     let magnitude = u64::from_str_radix(digits, radix).ok()?;
@@ -72,7 +74,7 @@ pub(super) fn parse_int(s: &str) -> Option<i64> {
 ///
 /// Returns `None` if the contents are not a valid integer or float or if the
 /// value is outside the finite range of `f64`.
-pub(super) fn parse_float(s: &str) -> Option<f64> {
+pub(crate) fn parse_float(s: &str) -> Option<f64> {
     let (negative, s) = split_sign(s.trim());
     let value = match int_literal_digits(s) {
         Some((10, digits)) => digits.parse::<f64>().ok()?,

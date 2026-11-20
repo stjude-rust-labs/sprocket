@@ -9,15 +9,15 @@ struct Foo {
 }
 
 task foo {
-    Int a = "hello"
+    Int a = true
     String b = 5
     Array[String] c = { 1: "one", 2: "two" }
-    Array[Int] d = ["a", "b", "c"]
+    Array[Int] d = [true, false, true]
     Map[Int, String] e = { "a": 1, "b": 2, "c": 3 }
-    Array[Int] f = [1, "2", "3"]
-    Map[String, String] g = { "a": "1", "b": 2, "c": "3" }
+    Array[Int] f = [1, true, false]
+    Map[String, Int] g = { "a": 1, "b": true, "c": 3 }
     Foo h = Foo { x: [1] }
-    Map[String, String] i = { "a": "1", 0: "2", "c": "3" }
+    Map[Int, String] i = { 1: "1", true: "2", 3: "3" }
 
     command <<<>>>
 }

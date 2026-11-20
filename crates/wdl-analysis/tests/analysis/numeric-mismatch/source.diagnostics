@@ -1,211 +1,211 @@
 error: type mismatch: addition operator is not supported for type `File` and type `File`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:22:15
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:23:15
    │
-22 │     File a5 = d + d     # NOT OK
+23 │     File a5 = d + d     # NOT OK
    │               ^^^^^
    │               │   │
    │               │   this is type `File`
    │               this is type `File`
 
 error: type mismatch: string concatenation is not supported for type `Int?`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:26:21
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:27:21
    │
-26 │     String a9 = c + f   # NOT OK
+27 │     String a9 = c + f   # NOT OK
    │                     ^ this is type `Int?`
 
 error: type mismatch: string concatenation is not supported for type `String?`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:27:22
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:28:22
    │
-27 │     String a10 = c + g  # NOT OK
+28 │     String a10 = c + g  # NOT OK
    │                      ^ this is type `String?`
 
 error: type mismatch: string concatenation is not supported for type `File?`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:28:22
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:29:22
    │
-28 │     String a11 = c + h  # NOT OK
+29 │     String a11 = c + h  # NOT OK
    │                      ^ this is type `File?`
 
 error: type mismatch: string concatenation is not supported for type `Float?`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:29:22
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:30:22
    │
-29 │     String a12 = c + i  # NOT OK
+30 │     String a12 = c + i  # NOT OK
    │                      ^ this is type `Float?`
 
-error: type mismatch: subtraction operator is not supported for type `Int` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:43:17
+error: type mismatch: subtraction operator is not supported for type `Int` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:44:18
    │
-43 │     String s2 = a - c   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `String`
-   │                 this is type `Int`
+44 │     Boolean s2 = a - j  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Boolean`
+   │                  this is type `Int`
 
-error: type mismatch: subtraction operator is not supported for type `String` and type `Int`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:44:17
+error: type mismatch: subtraction operator is not supported for type `Boolean` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:45:18
    │
-44 │     String s3 = c - a   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `Int`
-   │                 this is type `String`
+45 │     Boolean s3 = j - a  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Int`
+   │                  this is type `Boolean`
 
-error: type mismatch: subtraction operator is not supported for type `String` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:45:17
+error: type mismatch: subtraction operator is not supported for type `Boolean` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:46:18
    │
-45 │     String s4 = c - c   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `String`
-   │                 this is type `String`
+46 │     Boolean s4 = j - j  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Boolean`
+   │                  this is type `Boolean`
 
 error: type mismatch: subtraction operator is not supported for type `File` and type `File`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:46:15
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:47:15
    │
-46 │     File s5 = d - d     # NOT OK
+47 │     File s5 = d - d     # NOT OK
    │               ^^^^^
    │               │   │
    │               │   this is type `File`
    │               this is type `File`
 
-error: type mismatch: multiplication operator is not supported for type `Int` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:52:17
+error: type mismatch: multiplication operator is not supported for type `Int` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:53:18
    │
-52 │     String m2 = a * c   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `String`
-   │                 this is type `Int`
+53 │     Boolean m2 = a * j  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Boolean`
+   │                  this is type `Int`
 
-error: type mismatch: multiplication operator is not supported for type `String` and type `Int`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:53:17
+error: type mismatch: multiplication operator is not supported for type `Boolean` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:54:18
    │
-53 │     String m3 = c * a   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `Int`
-   │                 this is type `String`
+54 │     Boolean m3 = j * a  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Int`
+   │                  this is type `Boolean`
 
-error: type mismatch: multiplication operator is not supported for type `String` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:54:17
+error: type mismatch: multiplication operator is not supported for type `Boolean` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:55:18
    │
-54 │     String m4 = c * c   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `String`
-   │                 this is type `String`
+55 │     Boolean m4 = j * j  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Boolean`
+   │                  this is type `Boolean`
 
 error: type mismatch: multiplication operator is not supported for type `File` and type `File`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:55:15
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:56:15
    │
-55 │     File m5 = d * d     # NOT OK
+56 │     File m5 = d * d     # NOT OK
    │               ^^^^^
    │               │   │
    │               │   this is type `File`
    │               this is type `File`
 
-error: type mismatch: division operator is not supported for type `Int` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:61:17
+error: type mismatch: division operator is not supported for type `Int` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:62:18
    │
-61 │     String d2 = a / c   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `String`
-   │                 this is type `Int`
+62 │     Boolean d2 = a / j  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Boolean`
+   │                  this is type `Int`
 
-error: type mismatch: division operator is not supported for type `String` and type `Int`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:62:17
+error: type mismatch: division operator is not supported for type `Boolean` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:63:18
    │
-62 │     String d3 = c / a   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `Int`
-   │                 this is type `String`
+63 │     Boolean d3 = j / a  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Int`
+   │                  this is type `Boolean`
 
-error: type mismatch: division operator is not supported for type `String` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:63:17
+error: type mismatch: division operator is not supported for type `Boolean` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:64:18
    │
-63 │     String d4 = c / c   # NOT OK
-   │                 ^^^^^
-   │                 │   │
-   │                 │   this is type `String`
-   │                 this is type `String`
+64 │     Boolean d4 = j / j  # NOT OK
+   │                  ^^^^^
+   │                  │   │
+   │                  │   this is type `Boolean`
+   │                  this is type `Boolean`
 
 error: type mismatch: division operator is not supported for type `File` and type `File`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:64:15
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:65:15
    │
-64 │     File d5 = d / d     # NOT OK
+65 │     File d5 = d / d     # NOT OK
    │               ^^^^^
    │               │   │
    │               │   this is type `File`
    │               this is type `File`
 
-error: type mismatch: remainder operator is not supported for type `Int` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:70:19
+error: type mismatch: remainder operator is not supported for type `Int` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:71:20
    │
-70 │     String mod2 = a % c   # NOT OK
-   │                   ^^^^^
-   │                   │   │
-   │                   │   this is type `String`
-   │                   this is type `Int`
+71 │     Boolean mod2 = a % j  # NOT OK
+   │                    ^^^^^
+   │                    │   │
+   │                    │   this is type `Boolean`
+   │                    this is type `Int`
 
-error: type mismatch: remainder operator is not supported for type `String` and type `Int`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:71:19
+error: type mismatch: remainder operator is not supported for type `Boolean` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:72:20
    │
-71 │     String mod3 = c % a   # NOT OK
-   │                   ^^^^^
-   │                   │   │
-   │                   │   this is type `Int`
-   │                   this is type `String`
+72 │     Boolean mod3 = j % a  # NOT OK
+   │                    ^^^^^
+   │                    │   │
+   │                    │   this is type `Int`
+   │                    this is type `Boolean`
 
-error: type mismatch: remainder operator is not supported for type `String` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:72:19
+error: type mismatch: remainder operator is not supported for type `Boolean` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:73:20
    │
-72 │     String mod4 = c % c   # NOT OK
-   │                   ^^^^^
-   │                   │   │
-   │                   │   this is type `String`
-   │                   this is type `String`
+73 │     Boolean mod4 = j % j  # NOT OK
+   │                    ^^^^^
+   │                    │   │
+   │                    │   this is type `Boolean`
+   │                    this is type `Boolean`
 
 error: type mismatch: remainder operator is not supported for type `File` and type `File`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:73:17
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:74:17
    │
-73 │     File mod5 = d % d     # NOT OK
+74 │     File mod5 = d % d     # NOT OK
    │                 ^^^^^
    │                 │   │
    │                 │   this is type `File`
    │                 this is type `File`
 
-error: type mismatch: exponentiation operator is not supported for type `Int` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:79:17
+error: type mismatch: exponentiation operator is not supported for type `Int` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:80:18
    │
-79 │     String e2 = a ** c   # NOT OK
-   │                 ^^^^^^
-   │                 │    │
-   │                 │    this is type `String`
-   │                 this is type `Int`
+80 │     Boolean e2 = a ** j  # NOT OK
+   │                  ^^^^^^
+   │                  │    │
+   │                  │    this is type `Boolean`
+   │                  this is type `Int`
 
-error: type mismatch: exponentiation operator is not supported for type `String` and type `Int`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:80:17
+error: type mismatch: exponentiation operator is not supported for type `Boolean` and type `Int`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:81:18
    │
-80 │     String e3 = c ** a   # NOT OK
-   │                 ^^^^^^
-   │                 │    │
-   │                 │    this is type `Int`
-   │                 this is type `String`
+81 │     Boolean e3 = j ** a  # NOT OK
+   │                  ^^^^^^
+   │                  │    │
+   │                  │    this is type `Int`
+   │                  this is type `Boolean`
 
-error: type mismatch: exponentiation operator is not supported for type `String` and type `String`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:81:17
+error: type mismatch: exponentiation operator is not supported for type `Boolean` and type `Boolean`
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:82:18
    │
-81 │     String e4 = c ** c   # NOT OK
-   │                 ^^^^^^
-   │                 │    │
-   │                 │    this is type `String`
-   │                 this is type `String`
+82 │     Boolean e4 = j ** j  # NOT OK
+   │                  ^^^^^^
+   │                  │    │
+   │                  │    this is type `Boolean`
+   │                  this is type `Boolean`
 
 error: type mismatch: exponentiation operator is not supported for type `File` and type `File`
-   ┌─ tests/analysis/numeric-mismatch/source.wdl:82:15
+   ┌─ tests/analysis/numeric-mismatch/source.wdl:83:15
    │
-82 │     File e5 = d ** d     # NOT OK
+83 │     File e5 = d ** d     # NOT OK
    │               ^^^^^^
    │               │    │
    │               │    this is type `File`

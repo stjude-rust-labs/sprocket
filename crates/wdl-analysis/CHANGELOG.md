@@ -19,6 +19,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping a non-optional value or a
   value that is always `None` is an error, and use of the operator prior to WDL 1.4 is rejected
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Added `String` to `Int`, `Float`, and `Boolean` coercions, per
+  [`openwdl/wdl#797`](https://github.com/openwdl/wdl/pull/797). Invalid values are no longer
+  reported by static analysis and instead fail during evaluation
+  ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
 
 ### Fixed
 

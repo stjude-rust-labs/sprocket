@@ -24,8 +24,11 @@ use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
+use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::CustomType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
+use wdl_analysis::types::Type;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
@@ -95,7 +98,52 @@ fn check_input_type(name: &str, input: &Input, value: &Value) -> Result<()> {
         bail!("expected {expected_ty:#} for input `{name}`, but found {ty:#}");
     }
 
+    // Eagerly coerce to catch invalid runtime conversions (e.g. `String` to
+    // `Int`, `Float`, or `Boolean`), skipping types containing enums since
+    // enum choice values require an evaluation context.
+    if !contains_enum(&expected_ty) {
+        value
+            .coerce(None, &expected_ty)
+            .with_context(|| format!("invalid value for input `{name}`"))?;
+    }
+
     Ok(())
+}
+
+/// Returns `true` if `ty` is or contains an enum type.
+fn contains_enum(ty: &Type) -> bool {
+    match ty {
+        Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _) => true,
+        Type::Compound(CompoundType::Array(ty), _) => contains_enum(ty.element_type()),
+        Type::Compound(CompoundType::Pair(ty), _) => {
+            contains_enum(ty.left_type()) || contains_enum(ty.right_type())
+        }
+        Type::Compound(CompoundType::Map(ty), _) => {
+            contains_enum(ty.key_type()) || contains_enum(ty.value_type())
+        }
+        Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
+            ty.members().values().any(contains_enum)
+        }
+        _ => false,
+    }
+}
+
+/// Checks if an uncoerced requirement or hint override value of type `src` is
+/// acceptable for `target`.
+///
+/// Requirement and hint overrides are read without being coerced at runtime, so
+/// `String` overrides are not accepted for `Int`, `Float`, or `Boolean` keys.
+fn is_valid_override_type(src: &Type, target: &Type) -> bool {
+    if matches!(src.as_primitive(), Some(PrimitiveType::String))
+        && matches!(
+            target.as_primitive(),
+            Some(PrimitiveType::Integer | PrimitiveType::Float | PrimitiveType::Boolean)
+        )
+    {
+        return false;
+    }
+
+    src.is_coercible_to(target)
 }
 
 /// Resolves paths in a value using per-element origins.
@@ -274,7 +322,10 @@ impl TaskInputs {
         for (name, value) in &self.requirements {
             let ty = value.ty();
             if let Some(expected) = task_requirement_types(version, name.as_str()) {
-                if !expected.iter().any(|target| ty.is_coercible_to(target)) {
+                if !expected
+                    .iter()
+                    .any(|target| is_valid_override_type(&ty, target))
+                {
                     bail!(
                         "expected {expected:#} for requirement `{name}`, but found {ty:#}",
                         expected = display_types(expected),
@@ -291,7 +342,9 @@ impl TaskInputs {
         for (name, value) in &self.hints {
             let ty = value.ty();
             if let Some(expected) = task_hint_types(version, name.as_str(), false)
-                && !expected.iter().any(|target| ty.is_coercible_to(target))
+                && !expected
+                    .iter()
+                    .any(|target| is_valid_override_type(&ty, target))
             {
                 bail!(
                     "expected {expected:#} for hint `{name}`, but found {ty:#}",
@@ -352,7 +405,7 @@ impl TaskInputs {
 
                 if let Some((requirement, expected)) = matched {
                     for ty in expected {
-                        if value.ty().is_coercible_to(ty) {
+                        if is_valid_override_type(&value.ty(), ty) {
                             if requirement {
                                 self.requirements.insert(remainder.to_string(), value);
                             } else {

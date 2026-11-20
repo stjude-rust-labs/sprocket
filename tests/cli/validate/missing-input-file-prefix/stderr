@@ -2,4 +2,4 @@ error: arguments `read_group.json` after `align.threads`, `align.json` after `al
 
 Caused by:
     0: invalid input value for key `align.threads`
-    1: a common element type does not exist between type `Int` and type `String`
+    1: cannot coerce value to Array[Int]: failed to coerce array element at index 1: cannot coerce type `String` to type `Int`: `read_group.json` is not a valid integer

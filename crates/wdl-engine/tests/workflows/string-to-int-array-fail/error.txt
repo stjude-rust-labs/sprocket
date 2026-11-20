@@ -1,0 +1,7 @@
+error: type mismatch: expected type `Int`, but found type `String`: cannot coerce type `String` to type `Int`: `abc` is not a valid integer
+  ┌─ tests/workflows/string-to-int-array-fail/source.wdl:5:26
+  │
+5 │     Array[Int] result = ["abc", 1]
+  │                          ^^^^^  - this expects type `Int`
+  │                          │       
+  │                          this is type `String`
