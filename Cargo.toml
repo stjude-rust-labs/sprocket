@@ -29,7 +29,7 @@ repository = "https://github.com/stjude-rust-labs/sprocket"
 rust-version = "1.95"
 
 [workspace.dependencies]
-ammonia = "4.2.4"
+ammonia = "4.2.5"
 anyhow = "1.0.100"
 approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }

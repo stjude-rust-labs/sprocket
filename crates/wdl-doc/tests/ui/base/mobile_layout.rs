@@ -84,8 +84,9 @@ impl UiTest for MobileLayout {
         tokio::time::sleep(Duration::from_millis(300)).await;
 
         let layout = driver
-            .execute(
+            .execute_async(
                 r#"
+                const done = arguments[arguments.length - 1];
                 const rect = selector =>
                   document.querySelector(selector).getBoundingClientRect();
                 const header = document.querySelector('.layout__header');
@@ -94,7 +95,9 @@ impl UiTest for MobileLayout {
                 // a known theme in case a prior test left light mode persisted.
                 document.documentElement.classList.remove('light');
                 document.documentElement.classList.add('dark');
-                return {
+                Promise.all([
+                  ...header.getAnimations(), ...sidebar.getAnimations()
+                ].map(animation => animation.finished)).then(() => done({
                   logo: rect('#logo'),
                   search: rect('#search'),
                   theme: rect('#theme-toggle'),
@@ -102,7 +105,7 @@ impl UiTest for MobileLayout {
                   firstRowTop: rect('.left-sidebar__row').top,
                   headerBorder: getComputedStyle(header).borderBottomColor,
                   sidebarBorder: getComputedStyle(sidebar).borderRightColor,
-                };
+                }));
                 "#,
                 Vec::new(),
             )

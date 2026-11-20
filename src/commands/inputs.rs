@@ -6,6 +6,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use clap::Parser;
+use indexmap::IndexMap;
 use serde_json::Map;
 use serde_json::Value;
 use serde_yaml_ng;
@@ -89,7 +90,7 @@ impl Key {
 #[derive(Debug)]
 pub struct InputProcessor {
     /// The results of the input processing.
-    results: Map<String, Value>,
+    pub(super) results: IndexMap<String, Decl>,
 
     /// Whether or not to include nested inputs.
     include_nested_inputs: bool,
@@ -124,6 +125,39 @@ impl InputProcessor {
     /// Consumes `self` and returns the inner results.
     pub fn into_inner(self) -> Map<String, Value> {
         self.results
+            .iter()
+            .filter_map(|(key, decl)| {
+                let value = match decl {
+                    Decl::Bound(decl) => {
+                        let expr = decl.expr();
+                        if self.type_signatures {
+                            Value::from(format!("{}", decl.ty()))
+                        } else if let Some(value) = self.expression(&expr) {
+                            value
+                        } else if self.show_expressions {
+                            Value::from(format!(
+                                "{ty} <NON-LITERAL: `{expr}`>",
+                                ty = decl.ty(),
+                                expr = expr.text()
+                            ))
+                        } else {
+                            return None;
+                        }
+                    }
+                    Decl::Unbound(decl) => {
+                        let ty = decl.ty();
+                        if self.type_signatures {
+                            Value::from(format!("{ty}"))
+                        } else if ty.is_optional() {
+                            Value::Null
+                        } else {
+                            Value::String(format!("{ty} <REQUIRED>"))
+                        }
+                    }
+                };
+                Some((key.clone(), value))
+            })
+            .collect()
     }
 
     /// Processes an expression.
@@ -300,79 +334,40 @@ impl InputProcessor {
     /// Processes an input section.
     fn input_section(&mut self, namespace: Key, input_section: InputSection) {
         for decl in input_section.declarations() {
-            match decl {
-                Decl::Bound(decl) if !self.hide_defaults => {
-                    let name = decl.name();
-                    let expr = decl.expr();
-                    let key = namespace
-                        .clone()
-                        .push(name.text())
-                        .join()
-                        .expect("key to join");
-
-                    if self.type_signatures {
-                        self.results
-                            .insert(key, Value::from(format!("{}", decl.ty())));
-                    } else if let Some(value) = self.expression(&expr) {
-                        self.results.insert(key, value);
-                    } else if self.show_expressions {
-                        self.results.insert(
-                            key,
-                            Value::from(format!(
-                                "{ty} <NON-LITERAL: `{expr}`>",
-                                ty = decl.ty(),
-                                expr = expr.text()
-                            )),
-                        );
-                    }
-                }
-                Decl::Unbound(decl) => {
-                    let name = decl.name();
-                    let ty = decl.ty();
-                    let key = namespace
-                        .clone()
-                        .push(name.text())
-                        .join()
-                        .expect("key to join");
-
-                    if !ty.is_optional() {
-                        // required input
-                        if self.type_signatures {
-                            self.results.insert(key, Value::from(format!("{}", ty)));
-                        } else {
-                            self.results
-                                .insert(key, Value::String(format!("{ty} <REQUIRED>")));
-                        }
-                    } else if !self.hide_defaults {
-                        if self.type_signatures {
-                            self.results.insert(key, Value::from(format!("{}", ty)));
-                        } else {
-                            self.results.insert(key, Value::Null);
-                        }
-                    }
-                }
-                _ => {
-                    // default input we shouldn't insert
-                }
+            if self.hide_defaults
+                && !matches!(&decl, Decl::Unbound(decl) if !decl.ty().is_optional())
+            {
+                continue;
             }
+            let key = namespace
+                .clone()
+                .push(decl.name().text())
+                .join()
+                .expect("key to join");
+            self.results.insert(key, decl);
         }
     }
 
     /// Processes a task.
-    fn task(&mut self, namespace: Key, task: &TaskDefinition, specified: &HashSet<String>) {
+    pub(super) fn task(
+        &mut self,
+        namespace: Key,
+        task: &TaskDefinition,
+        specified: &HashSet<String>,
+    ) {
         if let Some(inputs) = task.input() {
             self.input_section(namespace.clone(), inputs);
 
             // Any inputs specified by the call itself cannot be overridden.
             specified.iter().for_each(|s| {
                 let key = namespace.clone().push(s).join().expect("key to join");
-                self.results.remove(&key);
+                self.results.shift_remove(&key);
             });
         }
     }
 
     /// Processes a workflow.
-    fn workflow(
+    pub(super) fn workflow(
         &mut self,
         namespace: Key,
         document: &Document,
@@ -462,7 +457,7 @@ impl InputProcessor {
                         // overridden.
                         specified.iter().for_each(|s| {
                             let key = namespace.clone().push(s).join().expect("key to join");
-                            self.results.remove(&key);
+                            self.results.shift_remove(&key);
                         });
                     }
                 }
@@ -636,4 +631,29 @@ pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> Comman
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hide_defaults_collects_only_required_declarations() {
+        let (document, _) = wdl::ast::Document::parse(
+            "version 1.2\nworkflow wf { input { String required String? optional Int count = 4 } }",
+            None,
+        );
+        let ast = document.ast().into_v1().unwrap();
+        let input = ast.workflows().next().unwrap().input().unwrap();
+        let mut processor = InputProcessor::new(true, false, true, false);
+        processor.input_section(Key::new("wf".to_owned()), input);
+        assert_eq!(
+            processor
+                .results
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["wf.required"]
+        );
+    }
 }

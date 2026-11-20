@@ -26,6 +26,7 @@ Alpine.store('search', {
     },
 
     async performSearch(query) {
+        const requestedQuery = query;
         if (!query || query.trim() === '') {
             this.results = [];
             this.loading = false;
@@ -46,14 +47,21 @@ Alpine.store('search', {
                 filters
             });
 
-            this.results = await Promise.all(
+            const results = await Promise.all(
                 search.results.slice(0, 10).map(r => r.data())
             );
+            if (this.query === requestedQuery) {
+                this.results = results;
+            }
         } catch (e) {
-            console.error("Search error:", e);
-            this.results = [];
+            if (this.query === requestedQuery) {
+                console.error("Search error:", e);
+                this.results = [];
+            }
         } finally {
-            this.loading = false;
+            if (this.query === requestedQuery) {
+                this.loading = false;
+            }
         }
     },
 
