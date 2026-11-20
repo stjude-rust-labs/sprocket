@@ -925,7 +925,7 @@ pub async fn run(
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     if args.help {
-        return help::display_help(&args, config.common.wdl.fallback_version.into(), output);
+        return help::display_help(&args, &config, output).await;
     }
 
     let source = match args.source.as_ref() {
