@@ -378,6 +378,8 @@ pub enum SyntaxKind {
     IndexExprNode,
     /// Represents an an access expression node.
     AccessExprNode,
+    /// Represents an unwrap expression node.
+    UnwrapExprNode,
     /// Represents a placeholder node in a string literal.
     PlaceholderNode,
     /// Placeholder `sep` option node.
@@ -586,6 +588,7 @@ impl SyntaxKind {
             Self::CallExprNode => "call expression",
             Self::IndexExprNode => "index expression",
             Self::AccessExprNode => "access expression",
+            Self::UnwrapExprNode => "unwrap expression",
             Self::PlaceholderNode => "placeholder",
             Self::PlaceholderSepOptionNode => "placeholder `sep` option",
             Self::PlaceholderDefaultOptionNode => "placeholder `default` option",
