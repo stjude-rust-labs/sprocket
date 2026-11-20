@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.28.2 - 2026-11-20
+
 ### Added
 
 * Added the [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) `list_fastqs_task.wdl`
