@@ -470,6 +470,19 @@ impl EvaluationHttpClient {
             .await
     }
 
+    /// Determines if the given URL exists without using the evaluation's
+    /// response cache.
+    ///
+    /// This is used when the result must reflect the URL at the time of the
+    /// call rather than the result of an earlier check.
+    pub async fn exists_uncached(&self, url: &Url, token: &CancellationToken) -> Result<bool> {
+        self.0
+            .engine
+            .http_client()
+            .exists(url, token, &Cache::new(NonZeroUsize::MIN))
+            .await
+    }
+
     /// Gets the content digest of the resource identified by the given URL.
     ///
     /// Returns `Ok(None)` if the resource has no associated content digest.

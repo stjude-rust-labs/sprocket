@@ -1,5 +1,6 @@
 //! Integration tests for the `textDocument/rename` request.
 
+use async_lsp::lsp_types::request::PrepareRenameRequest;
 use async_lsp::lsp_types::request::Rename;
 use async_lsp::lsp_types::*;
 use pretty_assertions::assert_eq;
@@ -27,7 +28,7 @@ async fn rename_request(
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContextBuilder::new("rename").build();
+    let mut ctx = TestContextBuilder::new("rename").setup_modules().build();
     ctx.initialize().await;
     ctx
 }
@@ -290,4 +291,105 @@ async fn should_rename_call_alias() {
     for edit in &expected_edits {
         assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
     }
+}
+
+#[tokio::test]
+async fn should_prepare_valid_renames() {
+    let ctx = setup().await;
+
+    // Rename `main`
+    let response = ctx
+        .request::<PrepareRenameRequest>(TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri("source.wdl"),
+            },
+            position: Position::new(5, 9),
+        })
+        .await
+        .unwrap()
+        .expect("should have a response");
+
+    assert_eq!(
+        response,
+        PrepareRenameResponse::RangeWithPlaceholder {
+            range: Range::new(Position::new(5, 9), Position::new(5, 13)),
+            placeholder: String::from("main"),
+        }
+    );
+
+    // Rename `module_task`. Renames across module boundaries are valid if the
+    // module is in the same workspace
+    let response = ctx
+        .request::<PrepareRenameRequest>(TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri("external.wdl"),
+            },
+            position: Position::new(12, 10),
+        })
+        .await
+        .unwrap()
+        .expect("should have a response");
+
+    assert_eq!(
+        response,
+        PrepareRenameResponse::RangeWithPlaceholder {
+            range: Range::new(Position::new(12, 9), Position::new(12, 20)),
+            placeholder: String::from("module_task"),
+        }
+    );
+}
+
+#[tokio::test]
+async fn should_not_prepare_invalid_renames() {
+    let ctx = setup().await;
+
+    // Renaming the `version` keyword should fail
+    let response = ctx
+        .request::<PrepareRenameRequest>(TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri("source.wdl"),
+            },
+            position: Position::new(0, 0),
+        })
+        .await
+        .unwrap();
+    assert_eq!(response, None);
+
+    // Same with renaming a stdlib function
+    let response = ctx
+        .request::<PrepareRenameRequest>(TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri("foo.wdl"),
+            },
+            position: Position::new(14, 23),
+        })
+        .await
+        .unwrap();
+    assert_eq!(response, None);
+
+    // Same with renaming external symbols
+
+    // Item from external URI namespace
+    let response = ctx
+        .request::<PrepareRenameRequest>(TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri("external.wdl"),
+            },
+            position: Position::new(7, 15),
+        })
+        .await
+        .unwrap();
+    assert_eq!(response, None);
+
+    // Item from external module
+    let response = ctx
+        .request::<PrepareRenameRequest>(TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri("external.wdl"),
+            },
+            position: Position::new(14, 5),
+        })
+        .await
+        .unwrap();
+    assert_eq!(response, None);
 }

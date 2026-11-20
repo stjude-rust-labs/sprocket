@@ -30,6 +30,7 @@ use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::InlayHint;
 use lsp_types::Location;
+use lsp_types::PrepareRenameResponse;
 use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
@@ -52,6 +53,7 @@ use wdl_ast::Severity;
 use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
+use wdl_modules::lockfile::ResolvedSource;
 use wdl_modules::module::Module;
 use wdl_modules::module::ModuleId;
 use wdl_modules::symbolic_path::SymbolicPath;
@@ -152,6 +154,8 @@ pub enum Request<Context> {
     Hover(HoverRequest<Context>),
     /// A request to rename a symbol workspace wide.
     Rename(RenameRequest<Context>),
+    /// A request to get the range of a symbol for a rename.
+    PrepareRename(PrepareRenameRequest<Context>),
     /// A request to get semantic tokens for a document.
     SemanticTokens(SemanticTokenRequest<Context>),
     /// A request to get symbols for a document.
@@ -340,6 +344,21 @@ pub struct RenameRequest<Context> {
     pub new_name: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<WorkspaceEdit>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
+}
+
+/// Represents a request to get the rename range of a symbol at a given
+/// position.
+pub struct PrepareRenameRequest<Context> {
+    /// The document where the request was initiated.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<PrepareRenameResponse>>,
     /// The context to provide to the progress callback.
     pub context: Context,
 }
@@ -1037,6 +1056,40 @@ where
                         }
                         Err(err) => {
                             error!("rename request failed: {err:?}");
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::PrepareRename(PrepareRenameRequest {
+                    document,
+                    position,
+                    encoding,
+                    completed,
+                    context,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request to prepare rename at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
+                    let graph = self.graph.read();
+                    match handlers::prepare_rename(&graph, &document, position, encoding) {
+                        Ok(result) => {
+                            debug!(
+                                "prepare rename request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!("prepare rename request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -1816,6 +1869,12 @@ where
                                     let import_index = graph
                                         .get_index(&import_uri)
                                         .unwrap_or_else(|| graph.add_node(import_uri, false));
+
+                                    let is_external = graph.get(index).is_external();
+                                    if is_external {
+                                        graph.get_mut(import_index).mark_external();
+                                    }
+
                                     graph.add_dependency_edge(
                                         index,
                                         import_index,
@@ -2000,6 +2059,18 @@ where
                         let import_index = graph
                             .get_index(&import_uri)
                             .unwrap_or_else(|| graph.add_node(import_uri.clone(), false));
+
+                        let is_external = match &materialized.source {
+                            ResolvedSource::Git { .. } => true,
+                            ResolvedSource::Path { path } => self
+                                .consumer_module
+                                .as_ref()
+                                .is_some_and(|m| !path.starts_with(&m.root)),
+                        };
+                        if is_external {
+                            graph.get_mut(import_index).mark_external();
+                        }
+
                         for importer in &importers {
                             graph.add_dependency_edge(
                                 *importer,
