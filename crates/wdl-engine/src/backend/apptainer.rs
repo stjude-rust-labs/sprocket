@@ -6,11 +6,14 @@
 //! The entrypoint for both of these is [`ApptainerRuntime::generate_script`].
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::process::Stdio;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -36,6 +39,7 @@ use crate::backend::ExecuteTaskRequest;
 use crate::backend::PullResults;
 use crate::config::ApptainerConfig;
 use crate::lock::LockedFile;
+use crate::slow::warn_if_slow;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -110,6 +114,52 @@ fn quote_mount_arg(source: &Path, destination: &str, read_only: bool) -> Result<
     quote_shell_arg(&mount).map(Cow::into_owned)
 }
 
+/// A guard for the temporary file of an in-progress image pull.
+///
+/// Unless disarmed, the file is removed on the blocking thread pool when the
+/// guard is dropped so that an unresponsive file system cannot stall the async
+/// runtime.
+struct PartialImage(Option<PathBuf>);
+
+impl PartialImage {
+    /// Disarms the guard so the file is not removed.
+    fn disarm(mut self) {
+        self.0 = None;
+    }
+}
+
+impl std::ops::Deref for PartialImage {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_deref().expect("guard should not be disarmed")
+    }
+}
+
+impl Drop for PartialImage {
+    fn drop(&mut self) {
+        let Some(path) = self.0.take() else {
+            return;
+        };
+
+        let remove = move || {
+            if let Err(e) = std::fs::remove_file(&path)
+                && e.kind() != std::io::ErrorKind::NotFound
+            {
+                warn!(
+                    "failed to remove partially pulled image `{path}`: {e}",
+                    path = path.display()
+                );
+            }
+        };
+
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => drop(handle.spawn_blocking(remove)),
+            Err(_) => remove(),
+        }
+    }
+}
+
 /// Represents the Apptainer container runtime.
 pub struct ApptainerRuntime {
     /// The shared image cache lock.
@@ -121,6 +171,12 @@ pub struct ApptainerRuntime {
     _lock: LockedFile,
     /// The cache directory for `.sif` images.
     cache_dir: PathBuf,
+    /// Per-image locks used to serialize pulls of the same image within this
+    /// process.
+    ///
+    /// This ensures that at most one task per process contends for an image's
+    /// cache entry file lock.
+    pulls: Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 impl ApptainerRuntime {
@@ -153,7 +209,11 @@ impl ApptainerRuntime {
             .await?
             .unwrap();
 
-        Ok(Self { _lock, cache_dir })
+        Ok(Self {
+            _lock,
+            cache_dir,
+            pulls: Default::default(),
+        })
     }
 
     /// Generates the script to run the given task using the Apptainer runtime.
@@ -397,12 +457,39 @@ impl ApptainerRuntime {
         let mut path = self.cache_dir.join(key.as_str());
         path.add_extension("sif");
 
+        // If the image is already in the cache, use it without locking.
+        //
+        // Images are only ever moved into the cache once completely pulled, so
+        // an existing entry is always complete.
+        if Self::exists(&path).await {
+            debug!(path = %path.display(), "Apptainer image `{image:#}` already cached; using existing image");
+            return Ok(Some(path));
+        }
+
+        // Serialize pulls of the same image within this process so that only
+        // one task contends for the cache entry's file lock
+        let pull_lock = self
+            .pulls
+            .lock()
+            .expect("failed to lock pulls")
+            .entry(path.clone())
+            .or_default()
+            .clone();
+        let _pull_guard = tokio::select! {
+            _ = cancellation.cancelled() => return Ok(None),
+            guard = pull_lock.lock() => guard,
+        };
+
         // Take an exclusive lock to prevent another process from also
         // attempting a pull for this cache entry
-        let _lock = LockedFile::acquire_exclusive(path.with_extension("lock")).await?;
+        let _lock = tokio::select! {
+            _ = cancellation.cancelled() => return Ok(None),
+            lock = LockedFile::acquire_exclusive(path.with_extension("lock")) => lock?,
+        };
 
-        // If the image already exists, then a previous pull was successful
-        if path.exists() {
+        // If the image now exists, then another task or process pulled it
+        // while we were waiting for the lock
+        if Self::exists(&path).await {
             debug!(path = %path.display(), "Apptainer image `{image:#}` already cached; using existing image");
             return Ok(Some(path));
         }
@@ -412,6 +499,26 @@ impl ApptainerRuntime {
         // Image doesn't exist, so pull it now
         let executable = executable.to_string();
 
+        // Pull into a uniquely named temporary file that is moved into place
+        // once the pull completes; this ensures a partially pulled image is
+        // never observed in the cache. The temporary file is removed if the
+        // pull fails or is canceled.
+        let temp_path = PartialImage(Some(
+            tempfile::Builder::new()
+                .prefix(&format!("{key}."))
+                .suffix(".partial.sif")
+                .make_in(&self.cache_dir, |_| Ok(()))
+                .with_context(|| {
+                    format!(
+                        "failed to create temporary file name in `{dir}`",
+                        dir = self.cache_dir.display()
+                    )
+                })?
+                .into_temp_path()
+                .keep()
+                .context("failed to persist temporary file name")?,
+        ));
+
         send_event!(
             events.crankshaft(),
             Event::ImagePullStarted {
@@ -420,40 +527,86 @@ impl ApptainerRuntime {
             }
         );
 
-        let pull = Retry::spawn_notify(
-            // TODO ACF 2025-09-22: configure the retry behavior based on actual
-            // experience with flakiness of the container registries. This is a
-            // finger-in-the-wind guess at some reasonable parameters that
-            // shouldn't lead to us making our own problems worse by
-            // overwhelming registries with repeated retries.
-            ExponentialBackoff::from_millis(50)
-                .max_delay_millis(60_000)
-                .take(10),
-            || Self::try_pull_image(&executable, image, &path),
-            {
-                let executable = executable.clone();
-                move |e: &anyhow::Error, _| {
-                    warn!(e = %e, "`{executable} pull` failed");
-                }
-            },
-        );
+        let pull = async {
+            Retry::spawn_notify(
+                // TODO ACF 2025-09-22: configure the retry behavior based on
+                // actual experience with flakiness of the container registries.
+                // This is a finger-in-the-wind guess at some reasonable
+                // parameters that shouldn't lead to us making our own problems
+                // worse by overwhelming registries with repeated retries.
+                ExponentialBackoff::from_millis(50)
+                    .max_delay_millis(60_000)
+                    .take(10),
+                || Self::try_pull_image(&executable, image, &temp_path),
+                {
+                    let executable = executable.clone();
+                    move |e: &anyhow::Error, _| {
+                        warn!(e = %e, "`{executable} pull` failed");
+                    }
+                },
+            )
+            .await?;
 
-        tokio::select! {
-            _ = cancellation.cancelled() => {
-                send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: String::from("pull canceled") });
+            warn_if_slow(tokio::fs::rename(&*temp_path, &path), || {
+                format!(
+                    "moving pulled image `{temp}` to `{path}`",
+                    temp = temp_path.display(),
+                    path = path.display()
+                )
+            })
+            .await
+            .with_context(|| {
+                format!(
+                    "failed to move pulled image `{temp}` to `{path}`",
+                    temp = temp_path.display(),
+                    path = path.display()
+                )
+            })
+        };
+
+        let res = tokio::select! {
+            _ = cancellation.cancelled() => None,
+            res = pull => Some(res),
+        };
+
+        match res {
+            None => {
+                send_event!(
+                    events.crankshaft(),
+                    Event::ImagePullFailed {
+                        id: task_id,
+                        name: uri,
+                        message: String::from("pull canceled")
+                    }
+                );
                 Ok(None)
-            },
-            res = pull => match res.with_context(|| format!("failed pulling Apptainer image `{image:#}`")) {
-                Ok(_) => {
-                    send_event!(events.crankshaft(), Event::ImagePullFinished { id: task_id, name: image.uri() });
-                    debug!(path = %path.display(), "Apptainer image `{image:#}` pulled successfully");
-                    Ok(Some(path))
-                },
-                Err(e) => {
-                    send_event!(events.crankshaft(), Event::ImagePullFailed { id: task_id, name: uri, message: format!("{e:#}") });
-                    Err(e)
-                },
-            },
+            }
+            Some(Ok(())) => {
+                // The temporary file was moved into place, so it no longer
+                // needs removal
+                temp_path.disarm();
+                send_event!(
+                    events.crankshaft(),
+                    Event::ImagePullFinished {
+                        id: task_id,
+                        name: image.uri()
+                    }
+                );
+                debug!(path = %path.display(), "Apptainer image `{image:#}` pulled successfully");
+                Ok(Some(path))
+            }
+            Some(Err(e)) => {
+                let e = e.context(format!("failed pulling Apptainer image `{image:#}`"));
+                send_event!(
+                    events.crankshaft(),
+                    Event::ImagePullFailed {
+                        id: task_id,
+                        name: uri,
+                        message: format!("{e:#}")
+                    }
+                );
+                Err(e)
+            }
         }
     }
 
@@ -493,6 +646,17 @@ impl ApptainerRuntime {
         Some(results)
     }
 
+    /// Determines if the given path exists.
+    ///
+    /// Errors are treated as the path not existing.
+    async fn exists(path: &Path) -> bool {
+        warn_if_slow(tokio::fs::try_exists(path), || {
+            format!("checking for file `{path}`", path = path.display())
+        })
+        .await
+        .unwrap_or(false)
+    }
+
     /// Tries to pull an image.
     ///
     /// The tricky thing about this function is determining whether a failure is
@@ -510,9 +674,23 @@ impl ApptainerRuntime {
         image: &ImageSource,
         path: &Path,
     ) -> Result<(), RetryError<anyhow::Error>> {
+        // Remove any output left behind by a previous failed attempt as
+        // `pull` will not overwrite an existing file
+        match tokio::fs::remove_file(path).await {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => {
+                return Err(RetryError::permanent(anyhow::Error::from(e).context(
+                    format!("failed to remove file `{path}`", path = path.display()),
+                )));
+            }
+        }
+
         debug!("spawning `{executable}` to pull image `{image:#}`");
 
         let child = Command::new(executable)
+            // Ensure the pull is terminated if the task is canceled
+            .kill_on_drop(true)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -986,6 +1164,88 @@ mod tests {
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))
             .expect("example task script should generate");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn concurrent_pulls_of_same_image_pull_once() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = TempDir::new().unwrap();
+
+        // A fake executable that records each pull and writes the image
+        let executable = root.path().join("fake-apptainer");
+        std::fs::write(
+            &executable,
+            "#!/bin/sh\necho pulled >> \"$(dirname \"$0\")/pulls\"\nsleep 0.2\necho sif > \"$2\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let executable = executable.to_str().unwrap();
+
+        let cache_dir = root.path().join("cache");
+        let runtime = ApptainerRuntime::new(&cache_dir).await.unwrap();
+
+        let image: ImageSource = "docker://ubuntu:22.04".parse().unwrap();
+        let env = IndexMap::new();
+        let context = EvalContext::new(Events::default(), Default::default()).await;
+        let request = ExecuteTaskRequest {
+            context: &context,
+            name: "example-task-0",
+            command: "echo hello",
+            inputs: &TaskInputs::default(),
+            backend_inputs: &[],
+            requirements: &Object::empty(),
+            hints: &Object::empty(),
+            env: &env,
+            constraints: &TaskExecutionConstraints {
+                sources: vec![image.clone()],
+                cpu: 1.0,
+                memory: ONE_GIBIBYTE as u64,
+                gpu: Default::default(),
+                fpga: Default::default(),
+                disks: Default::default(),
+            },
+            base_dir: &EvaluationPath::from_local_path(root.path().into()),
+            attempt_dir: &root.path().join("0"),
+            temp_dir: &root.path().join("temp"),
+        };
+
+        let results = futures::future::join_all(
+            (0..8).map(|_| runtime.pull_image(executable, &image, &request, next_task_id())),
+        )
+        .await;
+
+        let paths = results
+            .into_iter()
+            .map(|r| r.unwrap().expect("pull should not be canceled"))
+            .collect::<Vec<_>>();
+        assert!(paths.iter().all(|p| *p == paths[0]));
+        assert_eq!(std::fs::read_to_string(&paths[0]).unwrap(), "sif\n");
+
+        // A subsequent pull should use the cached image
+        let path = runtime
+            .pull_image(executable, &image, &request, next_task_id())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(path, paths[0]);
+
+        let pulls = std::fs::read_to_string(root.path().join("pulls")).unwrap();
+        assert_eq!(
+            pulls.lines().count(),
+            1,
+            "image should be pulled exactly once"
+        );
+
+        // No partially pulled images should remain in the cache
+        for entry in std::fs::read_dir(&cache_dir).unwrap() {
+            let name = entry.unwrap().file_name();
+            assert!(
+                !name.to_string_lossy().ends_with(".partial.sif"),
+                "unexpected temporary file `{name:?}` in cache"
+            );
+        }
     }
 
     // `shellcheck` works quite differently on Windows, and since we're not

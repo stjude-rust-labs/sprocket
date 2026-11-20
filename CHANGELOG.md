@@ -76,6 +76,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+* Fixed the Slurm and LSF Apptainer backends hanging silently when the image cache or scheduler is
+  unresponsive (e.g., on CephFS): cached images are used without taking a file lock, images are
+  pulled to a temporary file and atomically moved into the cache, file lock acquisition no longer
+  blocks async runtime threads, `sacct`, `scancel`, `bjobs`, and `bkill` time out after five
+  minutes, and warnings are emitted for slow lock acquisition and job submission
+  ([#1345](https://github.com/stjude-rust-labs/sprocket/issues/1345)).
+* Fixed call cache lookups and updates stalling on network file systems (e.g., CephFS) when many
+  runs share a call cache: call cache entries are now written to a temporary file and atomically
+  renamed into place, and are read without taking a file lock
+  ([#1345](https://github.com/stjude-rust-labs/sprocket/issues/1345)).
 * `test.enable_custom_assertions` is assigned a proper `false` default instead of being a required
   config entry ([#1343](https://github.com/stjude-rust-labs/sprocket/pull/1343)).
 * `read_json` now rejects files with trailing content after the JSON value
