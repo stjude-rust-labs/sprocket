@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.21.2 - 2026-11-20
+
 ### Added
 
 * Added the WDL 1.4 `exists` function from
