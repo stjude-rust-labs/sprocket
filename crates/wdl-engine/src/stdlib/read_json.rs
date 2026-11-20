@@ -97,7 +97,7 @@ mod tests {
         env.write_file("int.json", r#"12345"#);
         env.write_file("float.json", r#"12345.6789"#);
         env.write_file("array.json", "[1, 2, 3]");
-        env.write_file("bad_array.json", r#"[1, "2", 3]"#);
+        env.write_file("bad_array.json", r#"[1, true, 3]"#);
         env.write_file("hex.json", "0x10");
         env.write_file("trailing.json", "[1, 2, 3] [4]");
         env.write_file("trailing-whitespace.json", "  12345  \n");
@@ -230,7 +230,7 @@ mod tests {
             diagnostic.message(),
             "call to function `read_json` failed: failed to deserialize JSON file \
              `bad_array.json`: a common element type does not exist between type `Int` and type \
-             `String` at line 1 column 11"
+             `Boolean` at line 1 column 12"
         );
     }
 

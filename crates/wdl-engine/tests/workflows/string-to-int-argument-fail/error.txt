@@ -1,0 +1,5 @@
+error: call to function `range` failed: cannot coerce type `String` to type `Int`: `three` is not a valid integer
+  ┌─ tests/workflows/string-to-int-argument-fail/source.wdl:7:32
+  │
+7 │     Array[Int] numbers = range(count)
+  │                                ^^^^^
