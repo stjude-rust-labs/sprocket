@@ -37,6 +37,7 @@ use tracing::error;
 use tracing::info;
 use tracing::warn;
 use tracing_indicatif::indicatif_eprintln;
+use url::Url;
 
 use super::ExecuteTaskRequest;
 use super::TaskExecutionBackend;
@@ -111,6 +112,58 @@ fn record_outputs_url(attempt_dir: &std::path::Path, url: &url::Url) {
 /// name.
 fn execution_name_override(requested: &str, actual: String) -> Option<String> {
     (actual != requested).then_some(actual)
+}
+
+/// The outputs of a TES task and where they are stored.
+struct TaskOutputs {
+    /// The outputs to request from TES.
+    outputs: Vec<Output>,
+    /// The URL where the working directory is stored.
+    work_dir_url: Url,
+    /// The URL where stdout is stored.
+    stdout_url: Url,
+    /// The URL where stderr is stored.
+    stderr_url: Url,
+}
+
+/// Gets the outputs of a TES task that are stored under `outputs_url`.
+///
+/// The TES backend outputs three things: the working directory contents,
+/// stdout, and stderr.
+///
+/// The working directory is stored as a single directory rather than as
+/// individual files. This keeps task `File` outputs that share a parent
+/// directory in the same storage directory, as WDL requires
+/// ([openwdl/wdl#796](https://github.com/openwdl/wdl/pull/796)).
+fn task_outputs(outputs_url: &Url) -> TaskOutputs {
+    let work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
+    let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
+    let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
+
+    let outputs = vec![
+        Output::builder()
+            .path(GUEST_WORK_DIR)
+            .url(work_dir_url.clone())
+            .ty(OutputType::Directory)
+            .build(),
+        Output::builder()
+            .path(GUEST_STDOUT_PATH)
+            .url(stdout_url.clone())
+            .ty(OutputType::File)
+            .build(),
+        Output::builder()
+            .path(GUEST_STDERR_PATH)
+            .url(stderr_url.clone())
+            .ty(OutputType::File)
+            .build(),
+    ];
+
+    TaskOutputs {
+        outputs,
+        work_dir_url,
+        stdout_url,
+        stderr_url,
+    }
 }
 
 /// Represents the Task Execution Service (TES) backend.
@@ -437,28 +490,14 @@ impl TaskExecutionBackend for TesBackend {
                 .expect("should join");
             record_outputs_url(request.attempt_dir, &outputs_url);
 
-            let mut work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
-            let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
-            let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
+            let TaskOutputs {
+                outputs,
+                mut work_dir_url,
+                stdout_url,
+                stderr_url,
+            } = task_outputs(&outputs_url);
             let container_usage =
                 backend_config.cgroup_usage && request.context.events().crankshaft().is_some();
-            let outputs = vec![
-                Output::builder()
-                    .path(GUEST_WORK_DIR)
-                    .url(work_dir_url.clone())
-                    .ty(OutputType::Directory)
-                    .build(),
-                Output::builder()
-                    .path(GUEST_STDOUT_PATH)
-                    .url(stdout_url.clone())
-                    .ty(OutputType::File)
-                    .build(),
-                Output::builder()
-                    .path(GUEST_STDERR_PATH)
-                    .url(stderr_url.clone())
-                    .ty(OutputType::File)
-                    .build(),
-            ];
 
             // Calculate the total size required for all disks as TES does not
             // have a way of specifying volume sizes; a single disk
@@ -1115,5 +1154,52 @@ insecure = true
             std::fs::read_to_string(root.path().join(OUTPUTS_URL_FILE_NAME)).unwrap(),
             "s3://bucket/outputs/task-0-20260101-000000/\n"
         );
+    }
+
+    /// Tests that task outputs keep their guest layout in storage, so outputs
+    /// that share a parent directory remain colocated (openwdl/wdl#796).
+    #[test]
+    fn task_outputs_preserve_guest_layout() {
+        let outputs_url: Url = "s3://bucket/outputs/task-20260101-000000/".parse().unwrap();
+        let TaskOutputs {
+            outputs,
+            work_dir_url,
+            stdout_url,
+            stderr_url,
+        } = task_outputs(&outputs_url);
+
+        assert_eq!(outputs.len(), 3);
+        for output in &outputs {
+            let relative = output
+                .path()
+                .strip_prefix("/mnt/task/")
+                .expect("output should be under the task directory");
+            assert_eq!(
+                output.url(),
+                outputs_url.join(relative).unwrap().as_str(),
+                "output `{path}` was not stored at its guest-relative location",
+                path = output.path()
+            );
+        }
+
+        // The work directory must be stored as a whole rather than file by file
+        let work_dir = outputs
+            .iter()
+            .find(|o| o.path() == GUEST_WORK_DIR)
+            .expect("should output the work directory");
+        assert!(matches!(work_dir.ty(), OutputType::Directory));
+        assert_eq!(work_dir.url(), work_dir_url.as_str());
+
+        for (path, url) in [
+            (GUEST_STDOUT_PATH, &stdout_url),
+            (GUEST_STDERR_PATH, &stderr_url),
+        ] {
+            let output = outputs
+                .iter()
+                .find(|o| o.path() == path)
+                .expect("should have output");
+            assert!(matches!(output.ty(), OutputType::File));
+            assert_eq!(output.url(), url.as_str());
+        }
     }
 }

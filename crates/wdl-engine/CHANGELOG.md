@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+* Documented and tested that task `File` outputs that share a parent directory remain in the same
+  storage directory, as required by [`openwdl/wdl#796`](https://github.com/openwdl/wdl/pull/796).
+  Backends that store the task working directory elsewhere, such as TES, must store it as a whole.
+  Existing behavior already met this requirement
+  ([#1393](https://github.com/stjude-rust-labs/sprocket/pull/1393)).
+
 ## 0.21.1 - 2026-11-18
 
 ### Security Fix

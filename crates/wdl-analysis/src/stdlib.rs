@@ -2282,13 +2282,13 @@ workflow test_split {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
     const BASENAME_DEFINITION_V1_2: &str = r#"
-Returns the "basename" of a file or directory - the name after the last directory separator in the path.
+Returns the "basename" of a path, file, or directory - the name after the last directory separator in the path.
 
 The optional second parameter specifies a literal suffix to remove from the file name. If the file name does not end with the specified suffix then it is ignored.
 
 **Parameters**
 
-1. `File|Directory`: Path of the file or directory to read. If the argument is a `String`, it is assumed to be a local file path relative to the current working directory of the task.
+1. `String|File|Directory`: Path of the file or directory to read. If the argument is a `String`, it is assumed to be a local file path relative to the current working directory of the task.
 2. `String`: (Optional) Suffix to remove from the file name.
 
 **Returns**: The file's basename as a `String`.
@@ -2330,20 +2330,17 @@ workflow test_basename {
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but
-                    // the spec allows for `String` where file/directory are
-                    // accepted; an explicit `String` overload is required as
-                    // `String` may coerce to either `File` or `Directory`,
-                    // which is ambiguous.
+                    // An explicit `String` overload is required as `String` may
+                    // coerce to either `File` or `Directory`, which is
+                    // ambiguous (see https://github.com/openwdl/wdl/pull/790).
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "path",
                             PrimitiveType::String,
-                            "Path of the file or directory to read. If the argument is a \
-                             `String`, it is assumed to be a local file path relative to the \
-                             current working directory of the task."
+                            "Path of the file or directory to read. It is assumed to be a local \
+                             path relative to the current working directory of the task."
                         )
                         .parameter(
                             "suffix",
@@ -2359,9 +2356,7 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::Directory,
-                            "Path of the file or directory to read. If the argument is a \
-                             `String`, it is assumed to be a local file path relative to the \
-                             current working directory of the task.",
+                            "Path of the directory to read.",
                         )
                         .parameter(
                             "suffix",
@@ -2579,15 +2574,15 @@ Varieties of the `size` function also exist for the following compound types. Th
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
     const SIZE_DEFINITION_V1_2: &str = r#"
-Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. The files may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage)
+Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. A `String` is assumed to be a local file path relative to the current working directory of the task. Paths may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage).
 
-In the second variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
+In the generic variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
 
 If the size cannot be represented in the specified unit because the resulting value is too large to fit in a `Float`, an error is raised. It is recommended to use a unit that will always be large enough to handle any expected inputs without numerical overflow.
 
 **Parameters**
 
-1. `File|File?|Directory|Directory?|X|X?`: A file, directory, or a compound value containing files/directories, for which to determine the size.
+1. `String|String?|File|File?|Directory|Directory?|X|X?`: A path, file, directory, or a compound value containing files/directories, for which to determine the size.
 2. `String`: (Optional) The unit of storage; defaults to 'B'.
 
 **Returns**: The size of the files/directories as a `Float`.
@@ -2599,18 +2594,21 @@ version 1.2
 
 task file_sizes {
   command <<<
-    printf "this file is 22 bytes\n" > created_file
+    printf "this file is 22 bytes\n" > out.txt
   >>>
 
   File? missing_file = None
+  String? missing_path = None
 
   output {
-    File created_file = "created_file"
-    Float missing_file_bytes = size(missing_file)
+    File created_file = "out.txt"
+    Float missing_file_bytes = size(missing_file, "B")
+    Float missing_path_bytes = size(missing_path, "B")
     Float created_file_bytes = size(created_file, "B")
-    Float multi_file_kb = size([created_file, missing_file], "K")
+    Float created_path_bytes = size("out.txt", "B")
+    Float multi_file_kb = size([created_file, missing_file], "K") # 0.022
 
-    Map[String, Pair[Int, File]] nested = {
+    Map[String, Pair[Int, File?]] nested = {
       "a": (10, created_file),
       "b": (50, missing_file)
     }
@@ -2630,15 +2628,16 @@ task file_sizes {
                 "size",
                 PolymorphicFunction::new(vec![
                     // This overload isn't explicitly in the spec, but it fixes
-                    // an ambiguity in 1.2 when passed a literal `None` value.
+                    // an ambiguity in 1.2 when passed a literal `None` value,
+                    // which would otherwise coerce to `File?`, `String?`, and
+                    // `Directory?` equally.
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "value",
                             Type::None,
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A `None` value, which has a size of `0.0`."
                         )
                         .parameter(
                             "unit",
@@ -2663,19 +2662,18 @@ task file_sizes {
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but
-                    // the spec allows for `String` where file/directory are
-                    // accepted; an explicit `String` overload is required as
-                    // `String` may coerce to either `File` or `Directory`,
-                    // which is ambiguous.
+                    // An explicit `String` overload is required as `String` may
+                    // coerce to either `File` or `Directory`, which is
+                    // ambiguous (see https://github.com/openwdl/wdl/pull/790).
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "value",
                             Type::from(PrimitiveType::String).optional(),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size.",
+                            "A path for which to determine the size. A `String` is assumed to be \
+                             a local file path relative to the current working directory of the \
+                             task.",
                         )
                         .parameter(
                             "unit",
@@ -2691,8 +2689,7 @@ task file_sizes {
                         .parameter(
                             "value",
                             Type::from(PrimitiveType::Directory).optional(),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A directory for which to determine the size."
                         )
                         .parameter(
                             "unit",
@@ -3279,8 +3276,8 @@ Reads a tab-separated value (TSV) file as an `Array[Array[String]]` representing
 
 This function has three variants:
 
-1. `Array[Array[String]] read_tsv(File, [false])`: Returns each row of the table as an `Array[String]`. There is no requirement that the rows of the table are all the same length.
-2. `Array[Object] read_tsv(File, true)`: The second parameter must be `true` and specifies that the TSV file contains a header line. Each row is returned as an `Object` with its keys determined by the header (the first line in the file) and its values as `String`s. All rows in the file must be the same length and the field names in the header row must be valid `Object` field names, or an error is raised.
+1. `Array[Array[String]] read_tsv(File)`: Returns each row of the table as an `Array[String]`. There is no requirement that the rows of the table are all the same length.
+2. `Array[Object] read_tsv(File, Boolean)`: The second parameter must evaluate to `true`, specifying that the TSV file contains a header line; if it evaluates to `false`, an error is raised. Each row is returned as an `Object` with its keys determined by the header (the first line in the file) and its values as `String`s. All rows in the file must be the same length and the field names in the header row must be valid `Object` field names, or an error is raised.
 3. `Array[Object] read_tsv(File, Boolean, Array[String])`: The second parameter specifies whether the TSV file contains a header line, and the third parameter is an array of field names that is used to specify the field names to use for the returned `Object`s. If the second parameter is `true`, the specified field names override those in the file's header (i.e., the header line is ignored).
 
 If the file is empty, an empty array is returned.
@@ -3290,10 +3287,10 @@ If the entire contents of the file can not be read for any reason, the calling t
 **Parameters**
 
 1. `File`: The TSV file to read.
-2. `Boolean`: (Optional) Whether to treat the file's first line as a header.
+2. `Boolean`: (Optional) Whether to treat the file's first line as a header. For the two-parameter variant, this must evaluate to `true`.
 3. `Array[String]`: (Optional) An array of field names. If specified, then the second parameter is also required.
 
-**Returns**: An `Array` of rows in the TSV file, where each row is an `Array[String]` of fields or an `Object` with keys determined by the second and third parameters and `String` values.
+**Returns**: The one-parameter variant returns an `Array` of rows, where each row is an `Array[String]` of fields. The two- and three-parameter variants return an `Array` of rows, where each row is an `Object` with keys determined by the second and third parameters and `String` values.
 
 Example: read_tsv_task.wdl
 
@@ -3301,6 +3298,10 @@ Example: read_tsv_task.wdl
 version 1.2
 
 task read_tsv {
+  input {
+    Boolean has_header = true
+  }
+
   command <<<
     {
       printf "row1\tvalue1\n"
@@ -3319,7 +3320,7 @@ task read_tsv {
   output {
     Array[Array[String]] output_table = read_tsv("data.no_headers.tsv")
     Array[Object] output_objs1 = read_tsv("data.no_headers.tsv", false, ["name", "value"])
-    Array[Object] output_objs2 = read_tsv("data.headers.tsv", true)
+    Array[Object] output_objs2 = read_tsv("data.headers.tsv", has_header)
     Array[Object] output_objs3 = read_tsv("data.headers.tsv", true, ["name", "value"])
   }
 }
@@ -3342,7 +3343,8 @@ task read_tsv {
                         .parameter(
                             "header",
                             PrimitiveType::Boolean,
-                            "(Optional) Whether to treat the file's first line as a header.",
+                            "Whether to treat the file's first line as a header. Must evaluate to \
+                             `true`.",
                         )
                         .ret(array_object.clone())
                         .definition(READ_TSV_DEFINITION_V1_2)
