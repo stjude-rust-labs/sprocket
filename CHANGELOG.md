@@ -17,6 +17,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
   `feature_flags.wdl_1_4 = true` ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
+### Fixed
+
+* sprocket test now exits with code 1 on unknown keys in test definitions or assertions instead of silently skipping the affected tests and exiting with 0.
+
 ## 0.34.1 - 2026-11-18
 
 ### Security Fix
