@@ -1,6 +1,7 @@
 //! Contextual help for the `run` subcommand.
 
 use std::fmt;
+use std::fmt::Write as _;
 
 use clap::CommandFactory as _;
 use wdl::analysis::Document;
@@ -30,14 +31,19 @@ pub async fn display_help(
     // Match Clap's behavior of rendering the long help for `--help` and the
     // short help for `-h`. Both flags map to the same `SetTrue` action, so the
     // requested variant is recovered from the raw arguments.
-    let base = if std::env::args().any(|arg| arg == "--help") {
+    let mut help = if std::env::args().any(|arg| arg == "--help") {
         base_help(true)
     } else {
         base_help(false)
     };
 
-    let help =
-        format_contextual_help(args.source.as_ref(), args.target.as_deref(), config, &base).await;
+    append_contextual_help(
+        args.source.as_ref(),
+        args.target.as_deref(),
+        config,
+        &mut help,
+    )
+    .await;
     output.payload(help);
     Ok(())
 }
@@ -73,27 +79,31 @@ fn base_help(long: bool) -> String {
         .join("\n")
 }
 
-/// Formats the contextual help for the `run` subcommand.
-pub async fn format_contextual_help(
+/// Appends contextual help for the `run` subcommand.
+pub async fn append_contextual_help(
     source: Option<&Source>,
     target: Option<&str>,
     config: &Config,
-    base_help: &str,
-) -> String {
+    help: &mut String,
+) {
     let Some(source) = source else {
-        return base_help.to_string();
+        return;
     };
 
+    let resolved;
     let source = match source {
         Source::Directory(dir) => match crate::analysis::resolve_module_entrypoint(dir) {
-            Ok(source) => source,
-            Err(error) => return append_note(base_help, error),
+            Ok(source) => {
+                resolved = source;
+                &resolved
+            }
+            Err(error) => return append_note(help, error),
         },
-        source => source.clone(),
+        source => source,
     };
 
     let document = match analyze_singular_source(
-        &source,
+        source,
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
@@ -104,7 +114,7 @@ pub async fn format_contextual_help(
     .await
     {
         Ok(document) => document,
-        Err(errors) => return append_note(base_help, CommandError::from(errors)),
+        Err(errors) => return append_note(help, CommandError::from(errors)),
     };
 
     let Some(ast) = document
@@ -113,7 +123,7 @@ pub async fn format_contextual_help(
         .into_v1()
     else {
         return append_note(
-            base_help,
+            help,
             "contextual input help is not available for this WDL document",
         );
     };
@@ -125,30 +135,27 @@ pub async fn format_contextual_help(
                 .any(|d| d.severity() == wdl::ast::Severity::Error)
             {
                 return append_note(
-                    base_help,
+                    help,
                     "contextual input help is not available for this WDL document",
                 );
             }
-            let mut help = base_help.to_string();
             if let Err(error) =
-                process_input_section(&document, &ast, &selected, target.is_some(), &mut help)
+                process_input_section(&document, &ast, &selected, target.is_some(), help)
             {
-                return append_note(base_help, error);
+                append_note(help, error);
             }
-            help
         }
         Err(SelectTargetError::TargetNotFound(name)) => append_note(
-            base_help,
-            format!("no task or workflow named `{name}` was found in the document"),
+            help,
+            format_args!("no task or workflow named `{name}` was found in the document"),
         ),
         Err(SelectTargetError::TargetRequired) => {
-            let mut help = base_help.to_string();
             help.push_str("\n\nAvailable Targets:");
             for workflow in ast.workflows() {
-                help.push_str(&format!("\n  {}", workflow.name().text()));
+                let _ = write!(help, "\n  {}", workflow.name().text());
             }
             for task in ast.tasks() {
-                help.push_str(&format!("\n  {}", task.name().text()));
+                let _ = write!(help, "\n  {}", task.name().text());
             }
 
             let reason = if ast.workflows().nth(1).is_some() {
@@ -157,19 +164,19 @@ pub async fn format_contextual_help(
                 "the document contains multiple tasks and no workflow"
             };
             append_note(
-                &help,
-                format!("{reason}; use `--target <NAME>` to select a target"),
-            )
+                help,
+                format_args!("{reason}; use `--target <NAME>` to select a target"),
+            );
         }
         Err(SelectTargetError::NoExecutableTarget) => {
-            append_note(base_help, "the document contains no tasks and no workflow")
+            append_note(help, "the document contains no tasks and no workflow");
         }
     }
 }
 
 /// Appends a note to the given help text.
-fn append_note(base_help: &str, note: impl fmt::Display) -> String {
-    format!("{base_help}\n\nNote: {note}")
+fn append_note(help: &mut String, note: impl fmt::Display) {
+    let _ = write!(help, "\n\nNote: {note}");
 }
 
 /// Processes the inputs of the selected target.
@@ -180,9 +187,9 @@ fn process_input_section(
     target_specified: bool,
     help: &mut String,
 ) -> anyhow::Result<()> {
-    let mut processor = InputProcessor::new(true, true, false, false);
+    let mut processor = InputProcessor::new(true, false, true, false);
     let namespace = Key::new(target.name().to_owned());
-    let kind = match target {
+    match target {
         Target::Workflow(name) => {
             let workflow = ast
                 .workflows()
@@ -196,7 +203,6 @@ fn process_input_section(
                     .expect("selected workflow should exist"),
                 &workflow,
             )?;
-            "Workflow Inputs"
         }
         Target::Task(name) => {
             let task = ast
@@ -204,47 +210,32 @@ fn process_input_section(
                 .find(|task| task.name().text() == name)
                 .expect("selected task should exist");
             processor.task(namespace, &task, &Default::default());
-            "Task Inputs"
         }
-    };
+    }
 
-    help.push_str(&format!("\n\n{kind} ({}):", target.name()));
+    let _ = write!(help, "\n\n`{}` inputs:", target.name());
 
-    let prefix = format!("{}.", target.name());
-    let rows = processor
-        .results
-        .into_iter()
-        .filter_map(|(key, decl)| {
-            let key = if target_specified {
-                key.strip_prefix(&prefix)
-                    .expect("input key should be qualified")
-                    .to_owned()
-            } else {
-                key
-            };
-            process_decl(key, decl)
-        })
-        .collect::<Vec<_>>();
-
-    if rows.is_empty() {
+    if processor.results.is_empty() {
         help.push_str("\n  (none)");
         return Ok(());
     }
 
-    for row in rows {
-        help.push_str(&format!("\n  {row}"));
+    for (key, decl) in &processor.results {
+        let key = if target_specified {
+            key.split_once('.')
+                .expect("input key should be qualified")
+                .1
+        } else {
+            key
+        };
+        process_decl(key, decl, help);
     }
     Ok(())
 }
 
 /// Processes a declaration into an input row.
-fn process_decl(key: String, decl: Decl) -> Option<String> {
-    match decl {
-        Decl::Unbound(decl) if !decl.ty().is_optional() => {
-            Some(format!("{key}=<{ty}>", ty = decl.ty()))
-        }
-        _ => None,
-    }
+fn process_decl(key: &str, decl: &Decl, help: &mut String) {
+    let _ = write!(help, "\n  `{key}=<{ty}>`", ty = decl.ty());
 }
 
 #[cfg(test)]
@@ -255,6 +246,17 @@ mod tests {
     use url::Url;
 
     use super::*;
+
+    async fn contextual_help(
+        source: Option<&Source>,
+        target: Option<&str>,
+        config: &Config,
+        base: &str,
+    ) -> String {
+        let mut help = base.to_owned();
+        append_contextual_help(source, target, config, &mut help).await;
+        help
+    }
 
     /// A workflow with bound, unbound, optional, and documented inputs.
     const WORKFLOW: &str = r#"version 1.2
@@ -313,7 +315,7 @@ task second {
     fn assert_workflow_section(help: &str) {
         assert_eq!(
             help,
-            "base\n\nWorkflow Inputs (wf):\n  wf.sample_id=<String>\n  wf.reads=<Array[File]>"
+            "base\n\n`wf` inputs:\n  `wf.sample_id=<String>`\n  `wf.reads=<Array[File]>`"
         );
     }
 
@@ -323,15 +325,15 @@ task second {
             "version 1.2\n\nworkflow wf {}\n\ntask first { command <<<>>> }\n\ntask second { \
              command <<<>>> }\n",
         );
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
-        assert!(help.contains("Workflow Inputs (wf):"), "{help}");
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
+        assert!(help.contains("`wf` inputs:"), "{help}");
     }
 
     #[tokio::test]
     async fn selects_single_task() {
         let (_dir, source) = source_file("version 1.2\n\ntask only { command <<<>>> }\n");
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
-        assert!(help.contains("Task Inputs (only):"), "{help}");
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
+        assert!(help.contains("`only` inputs:"), "{help}");
     }
 
     #[tokio::test]
@@ -339,7 +341,7 @@ task second {
         let (_dir, source) = source_file(MULTI_WORKFLOWS);
         let mut config = Config::default();
         config.common.wdl.feature_flags = config.common.wdl.feature_flags.with_wdl_1_4();
-        let help = format_contextual_help(Some(&source), None, &config, "base").await;
+        let help = contextual_help(Some(&source), None, &config, "base").await;
         assert!(help.contains("Available Targets:"), "{help}");
         assert!(help.contains("first"), "{help}");
         assert!(help.contains("second"), "{help}");
@@ -353,7 +355,7 @@ task second {
     #[tokio::test]
     async fn notes_empty_document() {
         let (_dir, source) = source_file("version 1.2\n");
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert!(
             help.contains("the document contains no tasks and no workflow"),
             "{help}"
@@ -380,8 +382,8 @@ workflow wf {
 }
 "#,
         );
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
-        assert!(help.contains("wf.nested.value=<String>"), "{help}");
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
+        assert!(help.contains("`wf.nested.value=<String>`"), "{help}");
         assert!(!help.contains("(none)"), "{help}");
     }
 
@@ -395,12 +397,8 @@ workflow wf {
             include_str!("../../../tests/cli/run/help-nested-inputs/inputs/child.wdl"),
         )
         .unwrap();
-        let help =
-            format_contextual_help(Some(&source), Some("wf"), &Config::default(), "base").await;
-        assert_eq!(
-            help,
-            "base\n\nWorkflow Inputs (wf):\n  outer.inner.value=<String>"
-        );
+        let help = contextual_help(Some(&source), Some("wf"), &Config::default(), "base").await;
+        assert_eq!(help, "base\n\n`wf` inputs:\n  `outer.inner.value=<String>`");
     }
 
     #[tokio::test]
@@ -419,7 +417,7 @@ workflow wf {
             include_str!("../../../tests/cli/run/help-nested-inputs/inputs/child.wdl"),
         )
         .unwrap();
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert!(help.contains("wf.renamed.value="), "{help}");
         assert!(!help.contains("supplied="), "{help}");
         assert!(!help.contains("wf.nested"), "{help}");
@@ -439,8 +437,8 @@ workflow wf {
 }
 "#,
         );
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
-        assert!(help.contains("Workflow Inputs (wf):\n  (none)"), "{help}");
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
+        assert!(help.contains("`wf` inputs:\n  (none)"), "{help}");
         assert!(!help.contains("value="), "{help}");
     }
 
@@ -448,15 +446,15 @@ workflow wf {
     async fn omits_optional_and_defaulted_inputs() {
         let (_dir, source) =
             source_file("version 1.2\nworkflow wf { input { String? optional Int count = 4 } }\n");
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
-        assert_eq!(help, "base\n\nWorkflow Inputs (wf):\n  (none)");
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
+        assert_eq!(help, "base\n\n`wf` inputs:\n  (none)");
     }
 
     #[tokio::test]
     async fn notes_analysis_errors() {
         let (_dir, source) =
             source_file("version 1.2\nworkflow wf { input { Int value = \"invalid\" } }\n");
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert_eq!(
             help,
             "base\n\nNote: contextual input help is not available for this WDL document"
@@ -469,22 +467,34 @@ workflow wf {
         let mut config = Config::default();
         config.common.wdl.fallback_version =
             "1.2".parse::<wdl::ast::SupportedVersion>().unwrap().into();
-        let help = format_contextual_help(Some(&source), None, &config, "base").await;
+        let help = contextual_help(Some(&source), None, &config, "base").await;
         assert_workflow_section(&help);
     }
 
     #[tokio::test]
     async fn formats_workflow_inputs() {
         let (_dir, source) = source_file(WORKFLOW);
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert_workflow_section(&help);
+    }
+
+    #[tokio::test]
+    async fn appends_to_the_existing_buffer() {
+        let (_dir, source) = source_file(WORKFLOW);
+        let mut help = String::with_capacity(1024);
+        help.push_str("base");
+        let allocation = help.as_ptr() as usize;
+        append_contextual_help(None, None, &Config::default(), &mut help).await;
+        assert_eq!(help, "base");
+        append_contextual_help(Some(&source), None, &Config::default(), &mut help).await;
+        assert_workflow_section(&help);
+        assert_eq!(help.as_ptr() as usize, allocation);
     }
 
     #[tokio::test]
     async fn formats_bare_keys_when_target_specified() {
         let (_dir, source) = source_file(WORKFLOW);
-        let help =
-            format_contextual_help(Some(&source), Some("wf"), &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), Some("wf"), &Config::default(), "base").await;
         assert!(help.contains("sample_id="), "{help}");
         assert!(!help.contains("wf.sample_id="), "{help}");
     }
@@ -492,9 +502,8 @@ workflow wf {
     #[tokio::test]
     async fn formats_task_inputs() {
         let (_dir, source) = source_file(MULTI_TASKS);
-        let help =
-            format_contextual_help(Some(&source), Some("first"), &Config::default(), "base").await;
-        assert!(help.contains("Task Inputs (first):"), "{help}");
+        let help = contextual_help(Some(&source), Some("first"), &Config::default(), "base").await;
+        assert!(help.contains("`first` inputs:"), "{help}");
         assert!(help.contains("value="), "{help}");
         assert!(!help.contains("first.value="), "{help}");
     }
@@ -502,7 +511,7 @@ workflow wf {
     #[tokio::test]
     async fn lists_available_targets() {
         let (_dir, source) = source_file(MULTI_TASKS);
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert!(help.contains("Available Targets:"), "{help}");
         assert!(help.contains("first"), "{help}");
         assert!(help.contains("second"), "{help}");
@@ -513,8 +522,7 @@ workflow wf {
     async fn notes_unknown_target() {
         let (_dir, source) = source_file(WORKFLOW);
         let help =
-            format_contextual_help(Some(&source), Some("missing"), &Config::default(), "base")
-                .await;
+            contextual_help(Some(&source), Some("missing"), &Config::default(), "base").await;
         assert!(
             help.contains("no task or workflow named `missing`"),
             "{help}"
@@ -541,14 +549,12 @@ workflow wf {
         let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         let remote: Source = format!("http://{address}/source.wdl").parse().unwrap();
         for target in [None, Some("wf")] {
-            let expected =
-                format_contextual_help(Some(&local), target, &Config::default(), "base").await;
-            let actual =
-                format_contextual_help(Some(&remote), target, &Config::default(), "base").await;
+            let expected = contextual_help(Some(&local), target, &Config::default(), "base").await;
+            let actual = contextual_help(Some(&remote), target, &Config::default(), "base").await;
             assert_eq!(actual, expected);
         }
         let missing: Source = format!("http://{address}/missing.wdl").parse().unwrap();
-        let help = format_contextual_help(Some(&missing), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&missing), None, &Config::default(), "base").await;
         assert!(help.starts_with("base\n\nNote: "), "{help}");
         server.abort();
     }
@@ -556,7 +562,7 @@ workflow wf {
     #[tokio::test]
     async fn notes_non_v1_document() {
         let (_dir, source) = source_file("version 2.0\n\nworkflow wf {}\n");
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert!(
             help.contains("contextual input help is not available for this WDL document"),
             "{help}"
@@ -574,7 +580,7 @@ workflow wf {
         fs::write(dir.path().join("index.wdl"), WORKFLOW).expect("should write the entrypoint");
 
         let source = Source::Directory(dir.path().to_path_buf());
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        let help = contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert_workflow_section(&help);
     }
 

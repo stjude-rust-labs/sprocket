@@ -128,7 +128,7 @@ impl InputProcessor {
             .iter()
             .filter_map(|(key, decl)| {
                 let value = match decl {
-                    Decl::Bound(decl) if !self.hide_defaults => {
+                    Decl::Bound(decl) => {
                         let expr = decl.expr();
                         if self.type_signatures {
                             Value::from(format!("{}", decl.ty()))
@@ -146,9 +146,6 @@ impl InputProcessor {
                     }
                     Decl::Unbound(decl) => {
                         let ty = decl.ty();
-                        if ty.is_optional() && self.hide_defaults {
-                            return None;
-                        }
                         if self.type_signatures {
                             Value::from(format!("{ty}"))
                         } else if ty.is_optional() {
@@ -157,7 +154,6 @@ impl InputProcessor {
                             Value::String(format!("{ty} <REQUIRED>"))
                         }
                     }
-                    _ => return None,
                 };
                 Some((key.clone(), value))
             })
@@ -338,6 +334,11 @@ impl InputProcessor {
     /// Processes an input section.
     fn input_section(&mut self, namespace: Key, input_section: InputSection) {
         for decl in input_section.declarations() {
+            if self.hide_defaults
+                && !matches!(&decl, Decl::Unbound(decl) if !decl.ty().is_optional())
+            {
+                continue;
+            }
             let key = namespace
                 .clone()
                 .push(decl.name().text())
@@ -630,4 +631,29 @@ pub async fn inputs(args: Args, config: Config, output: CommandOutput) -> Comman
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hide_defaults_collects_only_required_declarations() {
+        let (document, _) = wdl::ast::Document::parse(
+            "version 1.2\nworkflow wf { input { String required String? optional Int count = 4 } }",
+            None,
+        );
+        let ast = document.ast().into_v1().unwrap();
+        let input = ast.workflows().next().unwrap().input().unwrap();
+        let mut processor = InputProcessor::new(true, false, true, false);
+        processor.input_section(Key::new("wf".to_owned()), input);
+        assert_eq!(
+            processor
+                .results
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["wf.required"]
+        );
+    }
 }
