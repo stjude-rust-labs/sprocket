@@ -9,15 +9,57 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use anyhow::bail;
+use lsp_types::PrepareRenameResponse;
 use lsp_types::TextEdit;
 use lsp_types::Url;
 use lsp_types::WorkspaceEdit;
+use wdl_ast::TreeToken;
 use wdl_ast::lexer::v1::is_ident;
 
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::handlers;
+use crate::handlers::common::ensure_analyzed;
+use crate::handlers::common::find_identifier_token_at_offset;
+use crate::handlers::common::position_to_offset;
+use crate::handlers::common::range_from_span;
+
+/// Get the range of the symbol at `position` for a rename.
+///
+/// Returns `Ok(None)` for invalid renames (e.g., renaming a keyword), otherwise
+/// it returns the span of the closest identifier.
+pub fn prepare_rename(
+    graph: &DocumentGraph,
+    document_uri: &Url,
+    position: SourcePosition,
+    encoding: SourcePositionEncoding,
+) -> Result<Option<PrepareRenameResponse>> {
+    let (_, root, lines, _) = ensure_analyzed(graph, document_uri)?;
+
+    let offset = position_to_offset(&lines, position, encoding)?;
+    let Some(token) = find_identifier_token_at_offset(&root, offset) else {
+        return Ok(None);
+    };
+
+    let Some(location) = handlers::goto_definition(graph, document_uri, position, encoding)? else {
+        return Ok(None); // Not a valid definition, reject the rename
+    };
+
+    let Some(def_index) = graph.get_index(&location.uri) else {
+        return Ok(None);
+    };
+
+    if graph.get(def_index).is_external() {
+        // External to the workspace (e.g., non-`file://` URI or external module), reject
+        return Ok(None);
+    }
+
+    Ok(Some(PrepareRenameResponse::RangeWithPlaceholder {
+        range: range_from_span(token.span(), &lines)?,
+        placeholder: token.text().to_string(),
+    }))
+}
 
 /// Renames a symbol at a given position in a document.
 ///
@@ -35,6 +77,10 @@ pub fn rename(
 ) -> Result<Option<WorkspaceEdit>> {
     if !is_ident(&new_name) {
         bail!("name `{new_name}` is not a valid WDL identifier");
+    }
+
+    if prepare_rename(graph, document_uri, position, encoding)?.is_none() {
+        bail!("invalid symbol for rename");
     }
 
     let references = handlers::find_all_references(graph, document_uri, position, encoding, true)?;

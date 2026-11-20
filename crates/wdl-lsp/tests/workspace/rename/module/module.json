@@ -1,0 +1,5 @@
+{
+  "name": "module",
+  "description": "The `module` WDL module.",
+  "license": "Apache-2.0 OR MIT"
+}
