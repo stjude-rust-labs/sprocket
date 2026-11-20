@@ -118,19 +118,25 @@ fn glob_local_path(
 
         // Add it to the list if it matches
         if matcher.is_match(relative_path) {
-            matches.push(
-                PrimitiveValue::new_file(relative_path.to_str().ok_or_else(|| {
-                    function_call_failed(
-                        FUNCTION_NAME,
-                        format!(
-                            "path `{path}` cannot be represented as UTF-8",
-                            path = relative_path.display()
-                        ),
-                        context.call_site,
-                    )
-                })?)
-                .into(),
-            );
+            let relative_path = relative_path.to_str().ok_or_else(|| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!(
+                        "path `{path}` cannot be represented as UTF-8",
+                        path = relative_path.display()
+                    ),
+                    context.call_site,
+                )
+            })?;
+
+            // Allow the context to resolve the relative path (e.g. workflows
+            // resolve paths relative to the containing document)
+            let path = context
+                .inner()
+                .resolve_path(relative_path)
+                .map(|p| p.as_str().to_string())
+                .unwrap_or_else(|| relative_path.to_string());
+            matches.push(PrimitiveValue::new_file(path).into());
         }
     }
 
@@ -157,7 +163,12 @@ async fn glob_remote_path(
     for path in paths.iter().filter(|e| !e.ends_with('/')) {
         // Add it to the list if it matches
         if matcher.is_match(path) {
-            matches.push(PrimitiveValue::new_file(path.as_str()).into());
+            let path = context
+                .inner()
+                .resolve_path(path.as_str())
+                .map(|p| p.as_str().to_string())
+                .unwrap_or_else(|| path.to_string());
+            matches.push(PrimitiveValue::new_file(path).into());
         }
     }
 

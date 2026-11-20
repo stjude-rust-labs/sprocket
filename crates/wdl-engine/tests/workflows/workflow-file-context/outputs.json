@@ -1,0 +1,14 @@
+{
+  "workflow_file_context.same_files": true,
+  "workflow_file_context.scattered_same": [
+    true,
+    true,
+    true
+  ],
+  "workflow_file_context.contents": "hello",
+  "workflow_file_context.output_file": "data/hello.txt",
+  "workflow_file_context.glob_same": true,
+  "workflow_file_context.map_value": 1,
+  "workflow_file_context.map_has_key": true,
+  "workflow_file_context.array_has_file": true
+}

@@ -1705,13 +1705,19 @@ impl Coercible for PrimitiveValue {
                     // String -> File
                     PrimitiveType::File => Ok(Self::File(
                         context
-                            .and_then(|c| c.host_path(&GuestPath(s.clone())))
+                            .and_then(|c| {
+                                c.host_path(&GuestPath(s.clone()))
+                                    .or_else(|| c.resolve_path(s))
+                            })
                             .unwrap_or_else(|| s.clone().into()),
                     )),
                     // String -> Directory
                     PrimitiveType::Directory => Ok(Self::Directory(
                         context
-                            .and_then(|c| c.host_path(&GuestPath(s.clone())))
+                            .and_then(|c| {
+                                c.host_path(&GuestPath(s.clone()))
+                                    .or_else(|| c.resolve_path(s))
+                            })
                             .unwrap_or_else(|| s.clone().into()),
                     )),
                     // String -> Int

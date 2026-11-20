@@ -1,0 +1,10 @@
+{
+  "workflow_file_context_imports.task_lines": [
+    "hello from root",
+    "hello from root",
+    "hello from root"
+  ],
+  "workflow_file_context_imports.workflow_contents": "hello from root",
+  "workflow_file_context_imports.workflow_wrapper_contents": "hello from root",
+  "workflow_file_context_imports.workflow_local_contents": "hello from lib"
+}

@@ -11,6 +11,7 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
+use crate::Coercible as _;
 use crate::CompoundValue;
 use crate::PrimitiveValue;
 use crate::Value;
@@ -32,9 +33,15 @@ fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .as_map()
         .expect("first argument should be a map");
 
-    let key = match &context.arguments[1].value {
-        Value::Primitive(v) => v.clone(),
-        _ => unreachable!("expected a primitive value for second argument"),
+    let map_ty = map.ty();
+    let key_type = map_ty.as_map().expect("type should be a map").key_type();
+    let key = match context.arguments[1]
+        .value
+        .coerce(Some(context.inner()), key_type)
+        .unwrap_or_else(|_| context.arguments[1].value.clone())
+    {
+        Value::Primitive(v) => v,
+        _ => return Ok(false.into()),
     };
 
     Ok(map.contains_key(&key).into())
