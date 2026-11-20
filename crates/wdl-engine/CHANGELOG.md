@@ -24,6 +24,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Existing behavior already met this requirement
   ([#1393](https://github.com/stjude-rust-labs/sprocket/pull/1393)).
 
+### Fixed
+
+* TES tasks with the cgroup usage fallback no longer request `/mnt/task/usage` as a volume as well
+  as a directory output. Servers that mount both, such as Planetary, created pods with duplicate
+  mount paths, and the tasks failed to start
+  ([#1424](https://github.com/stjude-rust-labs/sprocket/pull/1424)).
+
 ## 0.21.1 - 2026-11-18
 
 ### Security Fix

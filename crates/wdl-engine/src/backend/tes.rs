@@ -81,7 +81,11 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
-/// A separate writable volume for the fallback recording.
+/// A separate directory output for the fallback recording.
+///
+/// This must not also be requested as a volume: some TES servers (e.g.
+/// Planetary) mount volumes and outputs separately, and duplicate mount paths
+/// stop the task from starting.
 const GUEST_USAGE_DIR: &str = "/mnt/task/usage";
 
 /// The path to the fallback recording outside the exported work directory.
@@ -515,7 +519,7 @@ impl TaskExecutionBackend for TesBackend {
                 }
             };
 
-            let mut volumes = request
+            let volumes = request
                 .constraints
                 .disks
                 .keys()
@@ -536,9 +540,6 @@ impl TaskExecutionBackend for TesBackend {
                     "disk size constraints cannot be enforced by the Docker backend; mount points \
                      will be created but sizes will not be limited"
                 );
-            }
-            if container_usage {
-                volumes.push(GUEST_USAGE_DIR.to_string());
             }
 
             let mut preemptible = preemptible;
@@ -1077,11 +1078,14 @@ insecure = true
                 let path = recording["path"].as_str().unwrap();
                 assert_eq!(recording["type"], "DIRECTORY");
                 assert_eq!(path, GUEST_USAGE_DIR);
+                // Some TES servers (e.g. Planetary) mount volumes and outputs
+                // separately, so a volume at the output path creates a pod with
+                // duplicate mount paths that fails to start.
                 assert!(
-                    task["volumes"]
+                    !task["volumes"]
                         .as_array()
                         .is_some_and(|volumes| volumes.iter().any(|volume| volume == path)),
-                    "recording needs a provisioned volume: {task}"
+                    "recording output must not also be a volume: {task}"
                 );
                 assert!(!path.starts_with(GUEST_WORK_DIR));
                 assert_eq!(
