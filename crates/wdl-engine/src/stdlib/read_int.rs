@@ -2,9 +2,6 @@
 
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use tokio::fs;
-use tokio::io::AsyncBufReadExt;
-use tokio::io::BufReader;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_ast::SupportedVersion;
@@ -15,17 +12,20 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use super::numbers;
+use super::read_single_token;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_int";
 
-/// Reads a file that contains a single line containing only an integer and
-/// (optional) whitespace.
+/// The maximum byte length of an integer token read from a file.
+const MAX_INT_LEN: usize = 1024;
+
+/// Reads the contents of a file as a `String` and coerces it to an `Int`.
 ///
-/// If the line contains a valid integer, that value is returned as an Int. If
-/// the file is empty or does not contain a single integer, an error is raised.
+/// If the file is empty or its contents cannot be coerced to an `Int`, an
+/// error is raised.
 ///
 /// Starting with WDL 1.1, the integer may have an optional `+` or `-` sign
 /// followed by any form accepted for an `Int` literal; legacy octal forms
@@ -57,34 +57,26 @@ fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
             )
         };
 
-        let invalid_contents = || {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("file `{path}` does not contain an integer value on a single line"),
-                context.call_site,
-            )
-        };
-
-        let mut lines =
-            BufReader::new(fs::File::open(&file_path).await.map_err(read_error)?).lines();
-        let line = lines
-            .next_line()
+        let token = read_single_token(&file_path, MAX_INT_LEN)
             .await
-            .map_err(read_error)?
-            .ok_or_else(invalid_contents)?;
-
-        if lines.next_line().await.map_err(read_error)?.is_some() {
-            return Err(invalid_contents());
-        }
+            .map_err(read_error)?;
 
         // WDL 1.0 predates the specification of the accepted numeric forms
-        let value = if context.inner().version() >= SupportedVersion::V1(V1::One) {
-            numbers::parse_int(&line)
-        } else {
-            line.trim().parse::<i64>().ok()
-        };
+        let value = token.and_then(|token| {
+            if context.inner().version() >= SupportedVersion::V1(V1::One) {
+                numbers::parse_int(&token)
+            } else {
+                token.parse::<i64>().ok()
+            }
+        });
 
-        Ok(value.ok_or_else(invalid_contents)?.into())
+        value.map(Into::into).ok_or_else(|| {
+            function_call_failed(
+                FUNCTION_NAME,
+                format!("file `{path}` does not contain an integer value"),
+                context.call_site,
+            )
+        })
     }
     .boxed()
 }
@@ -115,6 +107,8 @@ mod tests {
         let mut env = TestEnv::default();
         env.write_file("foo", "12345 hello world!");
         env.write_file("bar", "     \t   \t12345   \n");
+        env.write_file("baz", "\n12345\n\n");
+        env.write_file("qux", "123\n45\n");
         env.insert_name("file", PrimitiveValue::new_file("bar"));
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_int('does-not-exist')")
@@ -131,8 +125,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_int` failed: file `foo` does not contain an integer value on \
-             a single line"
+            "call to function `read_int` failed: file `foo` does not contain an integer value"
         );
 
         for file in ["bar", "https://example.com/bar"] {
@@ -144,6 +137,19 @@ mod tests {
 
         let value = eval_v1_expr(&env, V1::Two, "read_int(file)").await.unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
+
+        let value = eval_v1_expr(&env, V1::Two, "read_int('baz')")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), 12345);
+
+        let diagnostic = eval_v1_expr(&env, V1::Two, "read_int('qux')")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "call to function `read_int` failed: file `qux` does not contain an integer value"
+        );
     }
 
     #[tokio::test]
@@ -174,7 +180,7 @@ mod tests {
         let invalid = |file: &str| {
             Err(format!(
                 "call to function `read_int` failed: file `{file}` does not contain an integer \
-                 value on a single line"
+                 value"
             ))
         };
 

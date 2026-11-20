@@ -11,6 +11,9 @@ use anyhow::bail;
 use futures::future::BoxFuture;
 use regex::Regex;
 use tempfile::TempPath;
+use tokio::fs;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::BufReader;
 use tokio_util::sync::CancellationToken;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
@@ -50,7 +53,7 @@ mod list;
 mod matches;
 mod max;
 mod min;
-mod numbers;
+pub(crate) mod numbers;
 mod prefix;
 mod quote;
 mod range;
@@ -170,13 +173,81 @@ pub(crate) fn temp_path_to_value(
     Ok(PrimitiveValue::File(path).into())
 }
 
+/// Reads a single whitespace-delimited token from a file without loading the
+/// entire file into memory.
+///
+/// Leading and trailing ASCII whitespace is skipped. Returns `Ok(None)` if the
+/// file is empty or whitespace-only, if the token exceeds `max_len` bytes, if
+/// non-whitespace appears after trailing whitespace, or if the token is not
+/// valid UTF-8.
+async fn read_single_token(path: &Path, max_len: usize) -> std::io::Result<Option<String>> {
+    /// Parser state while scanning the file.
+    enum State {
+        /// Skipping leading whitespace before the token.
+        LeadingWhitespace,
+        /// Reading consecutive non-whitespace bytes of the token.
+        Token,
+        /// Verifying that all remaining bytes are whitespace.
+        TrailingWhitespace,
+    }
+
+    let file = fs::File::open(path).await?;
+    let mut reader = BufReader::new(file);
+    let mut state = State::LeadingWhitespace;
+    let mut token = Vec::new();
+
+    loop {
+        let buf = reader.fill_buf().await?;
+        if buf.is_empty() {
+            break;
+        }
+
+        let len = buf.len();
+        for &byte in buf {
+            match state {
+                State::LeadingWhitespace => {
+                    if !byte.is_ascii_whitespace() {
+                        if token.len() == max_len {
+                            return Ok(None);
+                        }
+                        token.push(byte);
+                        state = State::Token;
+                    }
+                }
+                State::Token => {
+                    if byte.is_ascii_whitespace() {
+                        state = State::TrailingWhitespace;
+                    } else {
+                        if token.len() == max_len {
+                            return Ok(None);
+                        }
+                        token.push(byte);
+                    }
+                }
+                State::TrailingWhitespace => {
+                    if !byte.is_ascii_whitespace() {
+                        return Ok(None);
+                    }
+                }
+            }
+        }
+        reader.consume(len);
+    }
+
+    if token.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(String::from_utf8(token).ok())
+}
+
 /// Represents a function call argument.
 #[derive(Clone)]
 pub struct CallArgument {
     /// The value of the argument.
-    value: Value,
+    pub(crate) value: Value,
     /// The span of the expression of the argument.
-    span: Span,
+    pub(crate) span: Span,
 }
 
 impl CallArgument {
@@ -491,5 +562,42 @@ mod tests {
                 ),
             }
         }
+    }
+
+    #[tokio::test]
+    async fn read_single_token_cases() {
+        let dir = tempfile::tempdir().expect("should create temp dir");
+        let write = |name: &str, contents: &[u8]| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, contents).expect("should write file");
+            path
+        };
+
+        let p = write("trimmed", b" \t\n  hello \r\n\t ");
+        assert_eq!(
+            read_single_token(&p, 10).await.unwrap(),
+            Some("hello".to_string())
+        );
+
+        let p = write("empty", b"");
+        assert_eq!(read_single_token(&p, 10).await.unwrap(), None);
+
+        let p = write("whitespace", b" \t\r\n ");
+        assert_eq!(read_single_token(&p, 10).await.unwrap(), None);
+
+        let p = write("trailing", b"  hello\nworld  ");
+        assert_eq!(read_single_token(&p, 10).await.unwrap(), None);
+
+        let p = write("exact_len", b"12345");
+        assert_eq!(
+            read_single_token(&p, 5).await.unwrap(),
+            Some("12345".to_string())
+        );
+
+        let p = write("too_long", b"123456");
+        assert_eq!(read_single_token(&p, 5).await.unwrap(), None);
+
+        let p = write("invalid_utf8", b"  \xff\xfe  ");
+        assert_eq!(read_single_token(&p, 10).await.unwrap(), None);
     }
 }

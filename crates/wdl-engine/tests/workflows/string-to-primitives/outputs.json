@@ -1,0 +1,48 @@
+{
+  "string_to_primitives.integer_result": 42,
+  "string_to_primitives.float_result": 3.5,
+  "string_to_primitives.float_from_int_result": 7.0,
+  "string_to_primitives.boolean_result": true,
+  "string_to_primitives.false_boolean_result": false,
+  "string_to_primitives.optional_result": 2,
+  "string_to_primitives.array_result": [
+    1,
+    2,
+    3
+  ],
+  "string_to_primitives.mixed_array_result": [
+    1,
+    2,
+    3
+  ],
+  "string_to_primitives.string_first_array_result": [
+    1,
+    2
+  ],
+  "string_to_primitives.string_first_map_result": {
+    "a": 1,
+    "b": 2
+  },
+  "string_to_primitives.merged_result": 6,
+  "string_to_primitives.map_result": {
+    "1": 1.5,
+    "2": 2.5
+  },
+  "string_to_primitives.numbers_result": {
+    "i": 1,
+    "f": 2.5,
+    "b": false
+  },
+  "string_to_primitives.if_common_result": 10,
+  "string_to_primitives.range_result_output": [
+    0,
+    1
+  ],
+  "string_to_primitives.contains_result_output": true,
+  "string_to_primitives.logical_result": true,
+  "string_to_primitives.conditional_result": 1,
+  "string_to_primitives.concat_result": "22",
+  "string_to_primitives.enum_value": 2,
+  "string_to_primitives.call_result": 2,
+  "string_to_primitives.input_result": 5
+}

@@ -422,7 +422,7 @@ mod tests {
             (0, PrimitiveType::File.into()),
             (0, PrimitiveType::Integer.into()),
             (0, ArrayType::new(PrimitiveType::Directory).into()),
-            (1, PrimitiveType::String.into()),
+            (1, PrimitiveType::File.into()),
             (2, PrimitiveType::Integer.into()),
             (3, PrimitiveType::Boolean.into()),
         ] {

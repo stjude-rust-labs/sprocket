@@ -16,6 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   its non-optional type and fails if the value is `None`. This implements
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
   `feature_flags.wdl_1_4 = true` ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* WDL `String` values now coerce to `Int`, `Float`, and `Boolean`, per
+  [`openwdl/wdl#797`](https://github.com/openwdl/wdl/pull/797)
+  ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
 
 ## 0.34.1 - 2026-11-18
 

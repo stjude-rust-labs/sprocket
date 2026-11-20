@@ -9,10 +9,11 @@ task test {
     String c = "3"
     File d = "4"
     Float e = 1.0
+    Boolean f = true
 
     Boolean e1 = a == b
-    Boolean e2 = a == c
-    Boolean e3 = c == a
+    Boolean e2 = a == f
+    Boolean e3 = f == a
     Boolean e4 = c == c
     Boolean e5 = d == d
     Boolean e6 = e == e
@@ -20,8 +21,8 @@ task test {
     Boolean e8 = e == a
 
     Boolean ne1 = a != b
-    Boolean ne2 = a != c
-    Boolean ne3 = c != a
+    Boolean ne2 = a != f
+    Boolean ne3 = f != a
     Boolean ne4 = c != c
     Boolean ne5 = d != d
     Boolean ne6 = e != e
@@ -29,8 +30,8 @@ task test {
     Boolean ne8 = e != a
 
     Boolean l1 = a < b
-    Boolean l2 = a < c
-    Boolean l3 = c < a
+    Boolean l2 = a < f
+    Boolean l3 = f < a
     Boolean l4 = c < c
     Boolean l5 = d < d
     Boolean l6 = e < e
@@ -38,8 +39,8 @@ task test {
     Boolean l8 = e < a
 
     Boolean le1 = a <= b
-    Boolean le2 = a <= c
-    Boolean le3 = c <= a
+    Boolean le2 = a <= f
+    Boolean le3 = f <= a
     Boolean le4 = c <= c
     Boolean le5 = d <= d
     Boolean le6 = e <= e
@@ -47,8 +48,8 @@ task test {
     Boolean le8 = e <= a
 
     Boolean g1 = a > b
-    Boolean g2 = a > c
-    Boolean g3 = c > a
+    Boolean g2 = a > f
+    Boolean g3 = f > a
     Boolean g4 = c > c
     Boolean g5 = d > d
     Boolean g6 = e > e
@@ -56,8 +57,8 @@ task test {
     Boolean g8 = e > a
 
     Boolean ge1 = a >= b
-    Boolean ge2 = a >= c
-    Boolean ge3 = c >= a
+    Boolean ge2 = a >= f
+    Boolean ge3 = f >= a
     Boolean ge4 = c >= c
     Boolean ge5 = d >= d
     Boolean ge6 = e >= e
