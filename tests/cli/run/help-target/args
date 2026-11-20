@@ -1,1 +1,1 @@
-run multi.wdl -t second --help
+run multi.wdl -t second -h

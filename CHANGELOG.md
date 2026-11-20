@@ -9,9 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-* Added contextual input help to `sprocket run`: passing `--help` (or `-h`) with a local WDL source
-  now appends the selected task's or workflow's inputs including types, defaults, required markers,
-  and doc comment descriptions to the help output
+* Added contextual input help to `sprocket run`: passing `--help` (or `-h`) with a WDL source now
+  appends the selected task's or workflow's required inputs and their types to the help output
   ([#1086](https://github.com/stjude-rust-labs/sprocket/issues/1086)).
 
 ## 0.34.1 - 2026-11-18

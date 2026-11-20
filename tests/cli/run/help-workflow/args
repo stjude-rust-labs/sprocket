@@ -1,1 +1,1 @@
-run wf.wdl --help
+run wf.wdl -h

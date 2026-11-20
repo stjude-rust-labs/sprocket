@@ -34,5 +34,4 @@ Options:
   -h, --help                          Print help
 
 Workflow Inputs (my_wf):
-  my_wf.sample_id= String  (required)  ## Sample identifier
-  my_wf.threads=   Int = 4
+  my_wf.sample_id=<String>

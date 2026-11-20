@@ -4,10 +4,7 @@ use std::fmt;
 
 use clap::CommandFactory as _;
 use wdl::analysis::Document;
-use wdl::ast::AstNode as _;
 use wdl::ast::AstToken as _;
-use wdl::ast::DOC_COMMENT_PREFIX;
-use wdl::ast::Documented as _;
 use wdl::ast::v1::Ast;
 use wdl::ast::v1::Decl;
 
@@ -88,12 +85,6 @@ pub async fn format_contextual_help(
     };
 
     let source = match source {
-        Source::Url(_) => {
-            return append_note(
-                base_help,
-                "contextual input help is not available for remote sources",
-            );
-        }
         Source::Directory(dir) => match crate::analysis::resolve_module_entrypoint(dir) {
             Ok(source) => source,
             Err(error) => return append_note(base_help, error),
@@ -140,7 +131,7 @@ pub async fn format_contextual_help(
             }
             let mut help = base_help.to_string();
             if let Err(error) =
-                format_input_section(&document, &ast, &selected, target.is_some(), &mut help)
+                process_input_section(&document, &ast, &selected, target.is_some(), &mut help)
             {
                 return append_note(base_help, error);
             }
@@ -165,10 +156,10 @@ pub async fn format_contextual_help(
             } else {
                 "the document contains multiple tasks and no workflow"
             };
-            help.push_str(&format!(
-                "\n\nNote: {reason}; use `--target <NAME>` to select a target"
-            ));
-            help
+            append_note(
+                &help,
+                format!("{reason}; use `--target <NAME>` to select a target"),
+            )
         }
         Err(SelectTargetError::NoExecutableTarget) => {
             append_note(base_help, "the document contains no tasks and no workflow")
@@ -181,17 +172,8 @@ fn append_note(base_help: &str, note: impl fmt::Display) -> String {
     format!("{base_help}\n\nNote: {note}")
 }
 
-/// A single input row in the contextual inputs listing.
-#[derive(Debug)]
-struct InputRow {
-    /// The key to pass on the command line (e.g., `wf.sample_id=`).
-    key: String,
-    /// The type, default, required marker, and description of the input.
-    details: String,
-}
-
-/// Formats the inputs of the selected target.
-fn format_input_section(
+/// Processes the inputs of the selected target.
+fn process_input_section(
     document: &Document,
     ast: &Ast,
     target: &Target,
@@ -232,7 +214,7 @@ fn format_input_section(
     let rows = processor
         .results
         .into_iter()
-        .map(|(key, decl)| {
+        .filter_map(|(key, decl)| {
             let key = if target_specified {
                 key.strip_prefix(&prefix)
                     .expect("input key should be qualified")
@@ -240,7 +222,7 @@ fn format_input_section(
             } else {
                 key
             };
-            format_row(key, decl)
+            process_decl(key, decl)
         })
         .collect::<Vec<_>>();
 
@@ -249,62 +231,20 @@ fn format_input_section(
         return Ok(());
     }
 
-    let width = rows
-        .iter()
-        .map(|row| row.key.len())
-        .max()
-        .unwrap_or_default();
     for row in rows {
-        help.push_str(&format!("\n  {:<width$} {}", row.key, row.details));
+        help.push_str(&format!("\n  {row}"));
     }
     Ok(())
 }
 
-/// Formats a declaration into an input row.
-fn format_row(key: String, decl: Decl) -> InputRow {
-    let key = format!("{key}=");
+/// Processes a declaration into an input row.
+fn process_decl(key: String, decl: Decl) -> Option<String> {
     match decl {
-        Decl::Bound(decl) => {
-            let details = format!("{} = {}", decl.ty(), decl.expr().text());
-            InputRow {
-                key,
-                details: with_description(details, decl.doc_comments()),
-            }
+        Decl::Unbound(decl) if !decl.ty().is_optional() => {
+            Some(format!("{key}=<{ty}>", ty = decl.ty()))
         }
-        Decl::Unbound(decl) => {
-            let ty = decl.ty();
-            let details = if ty.is_optional() {
-                format!("{ty}")
-            } else {
-                format!("{ty}  (required)")
-            };
-            InputRow {
-                key,
-                details: with_description(details, decl.doc_comments()),
-            }
-        }
+        _ => None,
     }
-}
-
-/// Appends the first line of the declaration's doc comments (if any) to the
-/// given details.
-fn with_description(mut details: String, comments: Option<Vec<wdl::ast::Comment>>) -> String {
-    if let Some(description) = first_doc_line(comments) {
-        details.push_str("  ## ");
-        details.push_str(&description);
-    }
-
-    details
-}
-
-/// Extracts the first line of the first doc comment.
-fn first_doc_line(comments: Option<Vec<wdl::ast::Comment>>) -> Option<String> {
-    comments?
-        .first()
-        .and_then(|comment| comment.text().strip_prefix(DOC_COMMENT_PREFIX))
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(str::to_string)
 }
 
 #[cfg(test)]
@@ -371,13 +311,10 @@ task second {
 
     /// Asserts that the given help contains the expected inputs section.
     fn assert_workflow_section(help: &str) {
-        assert!(help.contains("Workflow Inputs (wf):"), "{help}");
-        assert!(help.contains("wf.sample_id="), "{help}");
-        assert!(help.contains("String"), "{help}");
-        assert!(help.contains("## Sample identifier"), "{help}");
-        assert!(help.contains("Int = 4"), "{help}");
-        assert!(help.contains("File?"), "{help}");
-        assert!(help.contains("(required)"), "{help}");
+        assert_eq!(
+            help,
+            "base\n\nWorkflow Inputs (wf):\n  wf.sample_id=<String>\n  wf.reads=<Array[File]>"
+        );
     }
 
     #[tokio::test]
@@ -444,10 +381,7 @@ workflow wf {
 "#,
         );
         let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
-        assert!(
-            help.contains("wf.nested.value= String  (required)"),
-            "{help}"
-        );
+        assert!(help.contains("wf.nested.value=<String>"), "{help}");
         assert!(!help.contains("(none)"), "{help}");
     }
 
@@ -463,17 +397,10 @@ workflow wf {
         .unwrap();
         let help =
             format_contextual_help(Some(&source), Some("wf"), &Config::default(), "base").await;
-        assert!(help.contains("outer.inner.value="), "{help}");
-        assert!(
-            help.contains("String  (required)  ## Sample identifier"),
-            "{help}"
+        assert_eq!(
+            help,
+            "base\n\nWorkflow Inputs (wf):\n  outer.inner.value=<String>"
         );
-        assert!(help.contains("Int = 4"), "{help}");
-        assert!(help.contains("File?"), "{help}");
-        assert!(help.contains("String = value + \"!\""), "{help}");
-        assert!(!help.contains("wf.outer"), "{help}");
-        assert!(!help.contains("fixed="), "{help}");
-        assert!(!help.contains("supplied="), "{help}");
     }
 
     #[tokio::test]
@@ -515,6 +442,14 @@ workflow wf {
         let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
         assert!(help.contains("Workflow Inputs (wf):\n  (none)"), "{help}");
         assert!(!help.contains("value="), "{help}");
+    }
+
+    #[tokio::test]
+    async fn omits_optional_and_defaulted_inputs() {
+        let (_dir, source) =
+            source_file("version 1.2\nworkflow wf { input { String? optional Int count = 4 } }\n");
+        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
+        assert_eq!(help, "base\n\nWorkflow Inputs (wf):\n  (none)");
     }
 
     #[tokio::test]
@@ -587,13 +522,35 @@ workflow wf {
     }
 
     #[tokio::test]
-    async fn notes_remote_source() {
-        let source: Source = "https://example.com/source.wdl".parse().unwrap();
-        let help = format_contextual_help(Some(&source), None, &Config::default(), "base").await;
-        assert_eq!(
-            help,
-            "base\n\nNote: contextual input help is not available for remote sources"
-        );
+    async fn remote_sources_match_local_sources_with_relative_imports() {
+        let text = include_str!("../../../tests/cli/run/help-nested-inputs/inputs/source.wdl");
+        let child = include_str!("../../../tests/cli/run/help-nested-inputs/inputs/child.wdl");
+        let (dir, local) = source_file(text);
+        fs::write(dir.path().join("child.wdl"), child).unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = axum::Router::new()
+            .route(
+                "/source.wdl",
+                axum::routing::get(move || async move { text }),
+            )
+            .route(
+                "/child.wdl",
+                axum::routing::get(move || async move { child }),
+            );
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let remote: Source = format!("http://{address}/source.wdl").parse().unwrap();
+        for target in [None, Some("wf")] {
+            let expected =
+                format_contextual_help(Some(&local), target, &Config::default(), "base").await;
+            let actual =
+                format_contextual_help(Some(&remote), target, &Config::default(), "base").await;
+            assert_eq!(actual, expected);
+        }
+        let missing: Source = format!("http://{address}/missing.wdl").parse().unwrap();
+        let help = format_contextual_help(Some(&missing), None, &Config::default(), "base").await;
+        assert!(help.starts_with("base\n\nNote: "), "{help}");
+        server.abort();
     }
 
     #[tokio::test]

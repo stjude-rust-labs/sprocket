@@ -1,1 +1,1 @@
-run task.wdl --help
+run task.wdl -h

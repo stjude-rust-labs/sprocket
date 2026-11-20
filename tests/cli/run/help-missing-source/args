@@ -1,1 +1,1 @@
-run missing.wdl --help
+run missing.wdl -h

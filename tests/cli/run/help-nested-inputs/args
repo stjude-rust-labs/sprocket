@@ -1,1 +1,1 @@
-run source.wdl --help
+run source.wdl -h
