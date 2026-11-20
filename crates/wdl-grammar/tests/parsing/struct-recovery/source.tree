@@ -1,4 +1,4 @@
-RootNode@0..204
+RootNode@0..531
   Comment@0..71 "# This test ensures t ..."
   Whitespace@71..73 "\n\n"
   VersionStatementNode@73..84
@@ -48,4 +48,175 @@ RootNode@0..204
       Ident@200..201 "c"
     Whitespace@201..202 "\n"
     CloseBrace@202..203 "}"
-  Whitespace@203..204 "\n"
+  Whitespace@203..205 "\n\n"
+  StructDefinitionNode@205..250
+    StructKeyword@205..211 "struct"
+    Whitespace@211..212 " "
+    Ident@212..218 "Person"
+    Whitespace@218..219 " "
+    OpenBrace@219..220 "{"
+    Whitespace@220..225 "\n    "
+    UnboundDeclNode@225..236
+      PrimitiveTypeNode@225..231
+        StringTypeKeyword@225..231 "String"
+      Whitespace@231..232 " "
+      Ident@232..236 "name"
+    Whitespace@236..241 "\n    "
+    UnboundDeclNode@241..248
+      PrimitiveTypeNode@241..244
+        IntTypeKeyword@241..244 "Int"
+      Whitespace@244..245 " "
+      Ident@245..248 "age"
+    Whitespace@248..249 "\n"
+    CloseBrace@249..250 "}"
+  Whitespace@250..252 "\n\n"
+  WorkflowDefinitionNode@252..530
+    WorkflowKeyword@252..260 "workflow"
+    Whitespace@260..261 " "
+    Ident@261..264 "foo"
+    Whitespace@264..265 " "
+    OpenBrace@265..266 "{"
+    Whitespace@266..271 "\n    "
+    BoundDeclNode@271..302
+      TypeRefNode@271..277
+        Ident@271..277 "Person"
+      Whitespace@277..278 " "
+      Ident@278..284 "person"
+      Whitespace@284..285 " "
+      Assignment@285..286 "="
+      Whitespace@286..287 " "
+      LiteralStructNode@287..302
+        Ident@287..293 "Person"
+        Whitespace@293..294 " "
+        OpenBrace@294..295 "{"
+        Whitespace@295..296 " "
+        Ident@296..300 "name"
+        Whitespace@300..301 " "
+        CloseBrace@301..302 "}"
+    Whitespace@302..307 "\n    "
+    BoundDeclNode@307..338
+      TypeRefNode@307..313
+        Ident@307..313 "Person"
+      Whitespace@313..314 " "
+      Ident@314..320 "person"
+      Whitespace@320..321 " "
+      Assignment@321..322 "="
+      Whitespace@322..323 " "
+      LiteralStructNode@323..338
+        Ident@323..329 "Person"
+        Whitespace@329..330 " "
+        OpenBrace@330..331 "{"
+        Whitespace@331..332 " "
+        Ident@332..336 "name"
+        Colon@336..337 ":"
+        CloseBrace@337..338 "}"
+    Whitespace@338..343 "\n    "
+    BoundDeclNode@343..382
+      TypeRefNode@343..349
+        Ident@343..349 "Person"
+      Whitespace@349..350 " "
+      Ident@350..356 "person"
+      Whitespace@356..357 " "
+      Assignment@357..358 "="
+      Whitespace@358..359 " "
+      LiteralStructNode@359..382
+        Ident@359..365 "Person"
+        Whitespace@365..366 " "
+        OpenBrace@366..367 "{"
+        Whitespace@367..368 " "
+        LiteralStructItemNode@368..380
+          Ident@368..372 "name"
+          Colon@372..373 ":"
+          Whitespace@373..374 " "
+          LiteralStringNode@374..380
+            DoubleQuote@374..375 "\""
+            LiteralStringText@375..379 "John"
+            DoubleQuote@379..380 "\""
+        Whitespace@380..381 " "
+        CloseBrace@381..382 "}"
+    Whitespace@382..387 "\n    "
+    BoundDeclNode@387..427
+      TypeRefNode@387..393
+        Ident@387..393 "Person"
+      Whitespace@393..394 " "
+      Ident@394..400 "person"
+      Whitespace@400..401 " "
+      Assignment@401..402 "="
+      Whitespace@402..403 " "
+      LiteralStructNode@403..427
+        Ident@403..409 "Person"
+        Whitespace@409..410 " "
+        OpenBrace@410..411 "{"
+        Whitespace@411..412 " "
+        LiteralStructItemNode@412..424
+          Ident@412..416 "name"
+          Colon@416..417 ":"
+          Whitespace@417..418 " "
+          LiteralStringNode@418..424
+            DoubleQuote@418..419 "\""
+            LiteralStringText@419..423 "John"
+            DoubleQuote@423..424 "\""
+        Comma@424..425 ","
+        Whitespace@425..426 " "
+        CloseBrace@426..427 "}"
+    Whitespace@427..432 "\n    "
+    BoundDeclNode@432..475
+      TypeRefNode@432..438
+        Ident@432..438 "Person"
+      Whitespace@438..439 " "
+      Ident@439..445 "person"
+      Whitespace@445..446 " "
+      Assignment@446..447 "="
+      Whitespace@447..448 " "
+      LiteralStructNode@448..475
+        Ident@448..454 "Person"
+        Whitespace@454..455 " "
+        OpenBrace@455..456 "{"
+        Whitespace@456..457 " "
+        LiteralStructItemNode@457..469
+          Ident@457..461 "name"
+          Colon@461..462 ":"
+          Whitespace@462..463 " "
+          LiteralStringNode@463..469
+            DoubleQuote@463..464 "\""
+            LiteralStringText@464..468 "John"
+            DoubleQuote@468..469 "\""
+        Comma@469..470 ","
+        Whitespace@470..471 " "
+        Ident@471..474 "age"
+        CloseBrace@474..475 "}"
+    Whitespace@475..480 "\n    "
+    BoundDeclNode@480..528
+      TypeRefNode@480..486
+        Ident@480..486 "Person"
+      Whitespace@486..487 " "
+      Ident@487..493 "person"
+      Whitespace@493..494 " "
+      Assignment@494..495 "="
+      Whitespace@495..496 " "
+      LiteralStructNode@496..528
+        Ident@496..502 "Person"
+        Whitespace@502..503 " "
+        OpenBrace@503..504 "{"
+        Whitespace@504..505 " "
+        LiteralStructItemNode@505..517
+          Ident@505..509 "name"
+          Colon@509..510 ":"
+          Whitespace@510..511 " "
+          LiteralStringNode@511..517
+            DoubleQuote@511..512 "\""
+            LiteralStringText@512..516 "John"
+            DoubleQuote@516..517 "\""
+        Comma@517..518 ","
+        Whitespace@518..519 " "
+        LiteralStructItemNode@519..526
+          Ident@519..522 "age"
+          Colon@522..523 ":"
+          Whitespace@523..524 " "
+          LiteralIntegerNode@524..526
+            Integer@524..526 "34"
+        Whitespace@526..527 " "
+        CloseBrace@527..528 "}"
+    Whitespace@528..529 "\n"
+    CloseBrace@529..530 "}"
+  Whitespace@530..531 "\n"

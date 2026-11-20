@@ -19,3 +19,21 @@ error: expected `}`, but found `struct` keyword
 12 │ struct Foo {
    │ ^^^^^^ unexpected `struct` keyword
 
+error: expected `:`, but found `}`
+   ┌─ tests/parsing/struct-recovery/source.wdl:22:35
+   │
+22 │     Person person = Person { name }
+   │                                   ^ unexpected `}`
+
+error: expected expression, but found `}`
+   ┌─ tests/parsing/struct-recovery/source.wdl:23:35
+   │
+23 │     Person person = Person { name:}
+   │                                   ^ unexpected `}`
+
+error: expected `:`, but found `}`
+   ┌─ tests/parsing/struct-recovery/source.wdl:26:47
+   │
+26 │     Person person = Person { name: "John", age}
+   │                                               ^ unexpected `}`
+

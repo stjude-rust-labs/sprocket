@@ -12,3 +12,17 @@ struct MyStruct {
 struct Foo {
     Int c
 }
+
+struct Person {
+    String name
+    Int age
+}
+
+workflow foo {
+    Person person = Person { name }
+    Person person = Person { name:}
+    Person person = Person { name: "John" }
+    Person person = Person { name: "John", }
+    Person person = Person { name: "John", age}
+    Person person = Person { name: "John", age: 34 }
+}
