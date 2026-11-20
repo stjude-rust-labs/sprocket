@@ -120,7 +120,7 @@ ssh-key = "0.6.7"
 strsim = "0.11.1"
 struct-patch = "0.14.0"
 strum = { version = "0.28", features = ["derive"] }
-sysinfo = "0.39.0"
+sysinfo = "0.40.0"
 tempfile = "3.24.0"
 tes = { version = "0.11.0", features = ["oauth"] }
 test-log = { version = "0.2.21", default-features = false, features = ["color", "trace"] }
