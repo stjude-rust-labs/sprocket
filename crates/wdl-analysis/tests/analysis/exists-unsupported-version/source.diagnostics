@@ -1,0 +1,5 @@
+error: this use of function `exists` requires a minimum WDL version of 1.4
+  ┌─ tests/analysis/exists-unsupported-version/source.wdl:9:31
+  │
+9 │         Boolean path_exists = exists(path)
+  │                               ^^^^^^

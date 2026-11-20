@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the WDL 1.4 `exists` function from
+  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), which checks whether a local or
+  remote file or directory exists ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+
 ### Changed
 
 * Documented and tested that task `File` outputs that share a parent directory remain in the same

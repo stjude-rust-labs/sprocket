@@ -122,6 +122,9 @@ struct ClientSupport {
     pub work_done_progress: bool,
     /// Whether or not the client supports configuration change notifications.
     pub did_change_configuration: bool,
+    /// Whether or not the client supports `textDocument/prepareRename`
+    /// requests.
+    pub prepare_rename: bool,
 }
 
 impl ClientSupport {
@@ -157,6 +160,12 @@ impl ClientSupport {
                         .map(|c| c.dynamic_registration == Some(true))
                         .unwrap_or(false)
                 })
+                .unwrap_or(false),
+            prepare_rename: capabilities
+                .text_document
+                .as_ref()
+                .and_then(|c| c.rename.as_ref())
+                .and_then(|c| c.prepare_support)
                 .unwrap_or(false),
         }
     }
@@ -634,6 +643,11 @@ enum Request {
         params: RenameParams,
         tx: RequestResponseSender<Option<WorkspaceEdit>>,
     },
+    /// `textDocument/prepareRename`
+    PrepareRename {
+        params: TextDocumentPositionParams,
+        tx: RequestResponseSender<Option<PrepareRenameResponse>>,
+    },
     /// `textDocument/semanticTokens/full`
     SemanticTokensFull {
         params: SemanticTokensParams,
@@ -994,6 +1008,10 @@ impl<S: 'static> Server<S> {
                     Request::Rename { params, tx } => {
                         let state = state.read().await;
                         Self::rename(params, tx, &state).await
+                    }
+                    Request::PrepareRename { params, tx } => {
+                        let state = state.read().await;
+                        Self::prepare_rename(params, tx, &state).await
                     }
                     Request::SemanticTokensFull { params, tx } => {
                         let state = state.read().await;
@@ -1403,6 +1421,29 @@ impl<S: 'static> Server<S> {
                 position,
                 SourcePositionEncoding::UTF16,
                 params.new_name,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/prepareRename` request handler.
+    async fn prepare_rename(
+        params: TextDocumentPositionParams,
+        tx: RequestResponseSender<Option<PrepareRenameResponse>>,
+        state: &ServerState<S>,
+    ) {
+        let position = SourcePosition::new(params.position.line, params.position.character);
+
+        let result = state
+            .config
+            .analyzer
+            .prepare_rename(
+                ProgressToken::default(),
+                params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
             )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
@@ -1857,7 +1898,14 @@ impl<S: 'static> LanguageServer for Server<S> {
                         ..Default::default()
                     }),
                     hover_provider: Some(HoverProviderCapability::Simple(true)),
-                    rename_provider: Some(OneOf::Left(true)),
+                    rename_provider: Some(if client_support.prepare_rename {
+                        OneOf::Right(RenameOptions {
+                            prepare_provider: Some(true),
+                            work_done_progress_options: Default::default(),
+                        })
+                    } else {
+                        OneOf::Left(true)
+                    }),
                     semantic_tokens_provider: Some(
                         SemanticTokensServerCapabilities::SemanticTokensOptions(
                             SemanticTokensOptions {
@@ -2122,6 +2170,18 @@ impl<S: 'static> LanguageServer for Server<S> {
         normalize_uri_path(&mut params.text_document_position.text_document.uri);
         if to_wdl_file_path(&params.text_document_position.text_document.uri).is_some() {
             self.request(move |tx| Message::Request(Request::Rename { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
+    }
+
+    fn prepare_rename(
+        &mut self,
+        mut params: TextDocumentPositionParams,
+    ) -> BoxFuture<'static, Result<Option<PrepareRenameResponse>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::PrepareRename { params, tx }))
         } else {
             Box::pin(async { Ok(None) })
         }
