@@ -17,6 +17,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
   `feature_flags.wdl_1_4 = true` ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
+### Changed
+
+* SQLite connections now apply the 30-second lock-wait timeout before running initialization
+  statements, rather than using the five-second default during initialization
+  ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).
+
 ## 0.34.1 - 2026-11-18
 
 ### Security Fix
