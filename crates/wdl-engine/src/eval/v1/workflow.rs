@@ -1941,9 +1941,7 @@ mod tests {
             .expect("failed to write WDL source file");
 
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2149,9 +2147,7 @@ workflow test {
         .expect("failed to write WDL source file");
 
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2607,9 +2603,7 @@ workflow test {
         .expect("failed to write WDL source file");
 
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2657,7 +2651,7 @@ workflow test {
         fs::write(
             root_dir.path().join("source.wdl"),
             r#"
-version 1.3
+version 1.4
 
 task sayColor {
     input {

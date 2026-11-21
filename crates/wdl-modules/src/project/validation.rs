@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn validates_default_entrypoint_and_readme() -> Result<(), Box<dyn Error>> {
         let (directory, project) = project(r#"{"name":"example","license":"MIT"}"#)?;
-        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.4\n")?;
         std::fs::write(directory.path().join("README.md"), "# Example\n")?;
 
         let checksum = project.validate()?;
@@ -155,7 +155,7 @@ mod tests {
         )?;
         std::fs::create_dir_all(directory.path().join("src"))?;
         std::fs::create_dir_all(directory.path().join("docs"))?;
-        std::fs::write(directory.path().join("src/main.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("src/main.wdl"), "version 1.4\n")?;
         std::fs::write(directory.path().join("docs/guide.md"), "# Guide\n")?;
 
         project.validate()?;
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn accepts_disabled_readme() -> Result<(), Box<dyn Error>> {
         let (directory, project) = project(r#"{"name":"example","license":"MIT","readme":false}"#)?;
-        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.4\n")?;
 
         project.validate()?;
         Ok(())
@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn reports_missing_readme() -> Result<(), Box<dyn Error>> {
         let (directory, project) = project(r#"{"name":"example","license":"MIT"}"#)?;
-        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.4\n")?;
 
         let error = project.validate().unwrap_err();
         assert!(matches!(
@@ -229,7 +229,7 @@ mod tests {
         assert!(error.to_string().contains("src/main.wdl"));
 
         std::fs::create_dir_all(directory.path().join("src"))?;
-        std::fs::write(directory.path().join("src/main.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("src/main.wdl"), "version 1.4\n")?;
         std::fs::remove_file(directory.path().join("docs/guide.md"))?;
 
         let error = project.validate().unwrap_err();
@@ -301,7 +301,7 @@ mod tests {
                 "readme":".sprocket/README.md"
             }"#,
         )?;
-        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.4\n")?;
         std::fs::create_dir(directory.path().join(".sprocket"))?;
         std::fs::write(directory.path().join(".sprocket/README.md"), "# Hidden\n")?;
 
@@ -327,7 +327,7 @@ mod tests {
     #[test]
     fn preserves_tree_validation_errors() -> Result<(), Box<dyn Error>> {
         let (directory, project) = project(r#"{"name":"example","license":"MIT"}"#)?;
-        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.4\n")?;
         std::fs::write(directory.path().join("README.md"), "# Example\n")?;
         std::fs::create_dir(directory.path().join("nested"))?;
         std::fs::write(directory.path().join("nested/module.json"), b"not metadata")?;
@@ -346,9 +346,9 @@ mod tests {
     #[test]
     fn rejects_symlink_anywhere_in_module() -> Result<(), Box<dyn Error>> {
         let (directory, project) = project(r#"{"name":"example","license":"MIT"}"#)?;
-        std::fs::write(directory.path().join("index.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("index.wdl"), "version 1.4\n")?;
         std::fs::write(directory.path().join("README.md"), "# Example\n")?;
-        std::fs::write(directory.path().join("real.wdl"), "version 1.3\n")?;
+        std::fs::write(directory.path().join("real.wdl"), "version 1.4\n")?;
         std::os::unix::fs::symlink(
             directory.path().join("real.wdl"),
             directory.path().join("alias.wdl"),

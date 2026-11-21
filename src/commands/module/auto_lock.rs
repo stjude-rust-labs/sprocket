@@ -93,7 +93,7 @@ mod tests {
             br#"{"name":"dep","license":"MIT"}"#,
         )
         .unwrap();
-        std::fs::write(dep_dir.join("index.wdl"), b"version 1.3\n").unwrap();
+        std::fs::write(dep_dir.join("index.wdl"), b"version 1.4\n").unwrap();
 
         let consumer_dir = work.path().join("consumer");
         std::fs::create_dir_all(&consumer_dir).unwrap();

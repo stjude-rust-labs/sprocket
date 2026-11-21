@@ -2694,10 +2694,7 @@ fn resolve_import<'a>(
             // A symbolic import in a pre-1.4 document is already rejected
             // during validation (see `validation::version`), so when the
             // feature is not enabled here the import is silently skipped.
-            if !importer_node
-                .parse_state()
-                .symbolic_imports_enabled(graph.config())
-            {
+            if !importer_node.parse_state().symbolic_imports_enabled() {
                 return Err(None);
             }
 

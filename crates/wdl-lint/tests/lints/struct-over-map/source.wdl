@@ -1,6 +1,6 @@
 #@ except: BashSetSyntax, RequirementsSection, MetaSections, InputName, OutputName, DeclarationName, EmptyOutputs
 
-version 1.3
+version 1.4
 
 struct ContainsStringMap {
     Map[String, Int] values

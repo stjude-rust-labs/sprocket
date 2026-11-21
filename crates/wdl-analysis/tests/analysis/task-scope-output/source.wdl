@@ -1,6 +1,6 @@
 ## Test that task variable has all members in output section.
 
-version 1.3
+version 1.4
 
 task test_output_scope {
     command <<<

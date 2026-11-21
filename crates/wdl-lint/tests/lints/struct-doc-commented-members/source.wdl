@@ -1,7 +1,7 @@
 ## This is a test that doc comments on all struct members silence the
 ## `MetaSections` lint's `parameter_meta` requirement.
 
-version 1.3
+version 1.4
 
 ## A struct to represent the filtering flags used in various `samtools` commands.
 ##

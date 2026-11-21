@@ -3,7 +3,7 @@
 ## This preamble is considered a valid doc comment,
 ## despite having whitespace between it and the version statement.
 
-version 1.3
+version 1.4
 
 ## This doc comment is allowed
 enum Color {

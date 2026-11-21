@@ -1,6 +1,6 @@
 #@ except: UnusedDeclaration, UnusedCall
 
-version 1.3
+version 1.4
 
 import "foo.wdl" as bar
 

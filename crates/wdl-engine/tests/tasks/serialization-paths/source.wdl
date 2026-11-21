@@ -1,5 +1,5 @@
 ## This is a test of properly translating host to guest paths during JSON serialization.
-version 1.3
+version 1.4
 
 struct Foo {
   File file

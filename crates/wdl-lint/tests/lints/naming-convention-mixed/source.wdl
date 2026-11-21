@@ -1,6 +1,6 @@
 #@ except: BashSetSyntax, EmptyOutputs, MetaDescription, MetaSections, MissingParameterMeta, RequirementsSection, RuntimeSection
 
-version 1.3
+version 1.4
 
 enum Bad_mixedEnum {
     Bad_mixedChoice,

@@ -1,6 +1,6 @@
 ## Test enum with invalid choice syntax
 
-version 1.3
+version 1.4
 
 # Missing choice name before assignment
 enum Priority[Int] {

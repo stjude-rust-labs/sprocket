@@ -2448,7 +2448,6 @@ mod tests {
     use wdl_analysis::Analyzer;
     use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
-    use wdl_analysis::FeatureFlags;
 
     use crate::CancellationContext;
     use crate::CancellationContextState;
@@ -2596,9 +2595,7 @@ mod tests {
 
         // Analyze the source file
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(FeatureFlags::default().with_wdl_1_4()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer
@@ -3200,7 +3197,7 @@ task test {
     #[traced_test]
     async fn cache_write_lines() {
         const SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     input {
@@ -3267,7 +3264,7 @@ task test {
     #[traced_test]
     async fn cache_unreferenced_write_lines() {
         const SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     File f = write_lines(["foo"])
@@ -3333,7 +3330,7 @@ task test {
     #[traced_test]
     async fn cache_swapped_write_lines() {
         const SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     command <<<
@@ -3347,7 +3344,7 @@ task test {
 "#;
 
         const SWAPPED_SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     command <<<
@@ -3430,7 +3427,7 @@ task test {
     #[traced_test]
     async fn cache_excluded_input_file() {
         const SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     input {
@@ -3449,7 +3446,7 @@ task test {
 "#;
 
         const MODIFIED_SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     input {
@@ -3564,7 +3561,7 @@ task test {
     #[traced_test]
     async fn cache_aliased_excluded_input_file() {
         const SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     input {
@@ -3659,7 +3656,7 @@ task test {
     #[traced_test]
     async fn cache_with_retry() {
         const SOURCE: &str = r#"
-version 1.3
+version 1.4
 
 task test {
     command <<<

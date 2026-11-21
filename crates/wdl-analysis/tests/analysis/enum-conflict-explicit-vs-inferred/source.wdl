@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 # First definition with explicit type parameter
 enum Status[String] {

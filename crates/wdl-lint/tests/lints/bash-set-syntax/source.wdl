@@ -1,6 +1,6 @@
 #@ except: MetaSections, RequirementsSection, EmptyOutputs, HereDocCommands
 
-version 1.3
+version 1.4
 
 task good {
     command <<<

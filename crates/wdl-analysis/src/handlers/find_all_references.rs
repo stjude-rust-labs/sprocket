@@ -273,7 +273,7 @@ mod tests {
     #[tokio::test]
     async fn classifies_reference_visibility_from_analyzed_name_scope() {
         let document = analyzed_document(
-            r#"version 1.3
+            r#"version 1.4
 
 struct Person {
     String struct_member
@@ -358,7 +358,7 @@ workflow example {
     #[tokio::test]
     async fn classifies_import_names_as_local() {
         let document = analyzed_document(
-            r#"version 1.3
+            r#"version 1.4
 
 import "lib.wdl" as lib alias Source as Target
 
@@ -370,7 +370,7 @@ workflow main {
 "#,
             &[(
                 "lib.wdl",
-                r#"version 1.3
+                r#"version 1.4
 
 struct Source {
     String name

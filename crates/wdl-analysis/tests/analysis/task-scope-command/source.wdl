@@ -1,6 +1,6 @@
 ## Test that task variable has all members in command section.
 
-version 1.3
+version 1.4
 
 task test_command_scope {
   requirements {

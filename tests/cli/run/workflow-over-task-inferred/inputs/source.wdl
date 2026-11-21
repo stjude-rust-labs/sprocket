@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 workflow my_workflow {
     call my_task

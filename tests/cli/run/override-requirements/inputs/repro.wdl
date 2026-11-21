@@ -1,5 +1,5 @@
 ## Test case to ensure that requirements can be overridden on the CLI
-version 1.3
+version 1.4
 
 task repro {
     requirements {

@@ -4,7 +4,7 @@
 #@ except: MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder, MatchingOutputMeta, OutputMetaOrder
 
 ## part of preamble
-version 1.3
+version 1.4
 
 #@ except: MetaSections
 struct AStruct {

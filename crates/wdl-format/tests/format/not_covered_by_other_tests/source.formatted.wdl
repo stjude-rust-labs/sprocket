@@ -1,5 +1,5 @@
 ## This is a WDL file with Nodes not covered by other tests
-version 1.3
+version 1.4
 
 task test1 {
     meta {

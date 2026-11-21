@@ -1,6 +1,6 @@
 ## This is a test of retrying a failed task execution.
 
-version 1.3
+version 1.4
 
 task test {
     requirements {

@@ -1,6 +1,6 @@
 #@ except: MetaSections, RequirementsSection, EmptyOutputs
 
-version 1.3
+version 1.4
 
 task good {
     command <<<

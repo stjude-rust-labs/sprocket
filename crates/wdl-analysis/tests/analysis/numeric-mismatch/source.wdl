@@ -2,7 +2,7 @@
 
 #@ except: UnusedDeclaration
 
-version 1.3
+version 1.4
 
 task test {
     Int a = 1

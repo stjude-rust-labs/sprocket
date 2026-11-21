@@ -1,5 +1,5 @@
 ## Tests that enum names may conflict with task names.
-version 1.3
+version 1.4
 
 task Status {
     command <<<

@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 task foo {
     # Should produce a single `Unknown` token and diagnostic

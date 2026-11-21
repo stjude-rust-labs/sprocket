@@ -82,7 +82,7 @@ impl Rule for ParameterizedResourcesRule {
             Example {
                 negative: LabeledSnippet {
                     label: None,
-                    snippet: r#"version 1.3
+                    snippet: r#"version 1.4
 
 task say_hello {
     input {
@@ -102,7 +102,7 @@ task say_hello {
                 },
                 revised: Some(LabeledSnippet {
                     label: Some("Consider moving requirements to user-controlled inputs"),
-                    snippet: r#"version 1.3
+                    snippet: r#"version 1.4
 
 task say_hello {
     input {
@@ -126,7 +126,7 @@ task say_hello {
             Example {
                 negative: LabeledSnippet {
                     label: Some("Or consider introducing retry-aware scaling"),
-                    snippet: r#"version 1.3
+                    snippet: r#"version 1.4
 
 task say_hello {
     input {
@@ -145,7 +145,7 @@ task say_hello {
                 },
                 revised: Some(LabeledSnippet {
                     label: None,
-                    snippet: r#"version 1.3
+                    snippet: r#"version 1.4
 
 task say_hello {
     input {

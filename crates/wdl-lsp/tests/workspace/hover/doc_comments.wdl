@@ -1,6 +1,6 @@
 ## This is a preamble comment
 
-version 1.3
+version 1.4
 
 ## Greets someone by name.
 ## Used for hover doc tests.

@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 import "structs.wdl" alias Person as Human
 import "foo.wdl" as tools

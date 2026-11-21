@@ -3,7 +3,7 @@
 # Rules excepted over the CLI should still be known to the validator.
 #@ except: EmptyOutputs, BashSetSyntax, MetaSections, RequirementsSection
 
-version 1.3
+version 1.4
 
 task foo {
     #@ except: ShellCheck

@@ -1,5 +1,5 @@
 ## Test case to ensure we don't regress https://github.com/stjude-rust-labs/sprocket/issues/636
-version 1.3
+version 1.4
 
 task serde_array_json {
   input {

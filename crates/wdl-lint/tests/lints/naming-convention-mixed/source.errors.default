@@ -118,15 +118,6 @@ warning[NamingConvention]: workflow name `Bad_mixedWorkflow` is not snake_case
    │
    = fix: replace `Bad_mixedWorkflow` with `bad_mixed_workflow`
 
-error: cannot define workflow `goodWorkflow` as only one workflow is allowed per source file
-   ┌─ tests/lints/naming-convention-mixed/source.wdl:41:10
-   │
-38 │ workflow Bad_mixedWorkflow {
-   │          ----------------- first workflow is defined here
-   ·
-41 │ workflow goodWorkflow {
-   │          ^^^^^^^^^^^^ consider moving this workflow to a new file
-
 warning[NamingConvention]: workflow name `goodWorkflow` is not snake_case
    ┌─ tests/lints/naming-convention-mixed/source.wdl:41:10
    │
@@ -135,15 +126,6 @@ warning[NamingConvention]: workflow name `goodWorkflow` is not snake_case
    │
    = fix: replace `goodWorkflow` with `good_workflow`
 
-error: cannot define workflow `badButAllowed_Workflow` as only one workflow is allowed per source file
-   ┌─ tests/lints/naming-convention-mixed/source.wdl:44:10
-   │
-38 │ workflow Bad_mixedWorkflow {
-   │          ----------------- first workflow is defined here
-   ·
-44 │ workflow badButAllowed_Workflow {
-   │          ^^^^^^^^^^^^^^^^^^^^^^ consider moving this workflow to a new file
-
 warning[NamingConvention]: workflow name `badButAllowed_Workflow` is not snake_case
    ┌─ tests/lints/naming-convention-mixed/source.wdl:44:10
    │
@@ -151,13 +133,4 @@ warning[NamingConvention]: workflow name `badButAllowed_Workflow` is not snake_c
    │          ^^^^^^^^^^^^^^^^^^^^^^ this name must be snake_case
    │
    = fix: replace `badButAllowed_Workflow` with `bad_but_allowed_workflow`
-
-error: cannot define workflow `Excepted_workflow` as only one workflow is allowed per source file
-   ┌─ tests/lints/naming-convention-mixed/source.wdl:48:10
-   │
-38 │ workflow Bad_mixedWorkflow {
-   │          ----------------- first workflow is defined here
-   ·
-48 │ workflow Excepted_workflow {
-   │          ^^^^^^^^^^^^^^^^^ consider moving this workflow to a new file
 

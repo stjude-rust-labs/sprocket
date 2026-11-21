@@ -1,6 +1,6 @@
 ## This is a test of `read_tsv` overloads resolving their return types statically.
 
-version 1.3
+version 1.4
 
 task read_tsv_task {
     input {

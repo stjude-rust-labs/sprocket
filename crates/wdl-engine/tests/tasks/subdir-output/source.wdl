@@ -1,6 +1,6 @@
 ## This is a test to ensure that task outputs may refer to existing sub-paths of a directory input.
 ## See: https://github.com/stjude-rust-labs/sprocket/issues/931
-version 1.3
+version 1.4
 
 task test {
     input {

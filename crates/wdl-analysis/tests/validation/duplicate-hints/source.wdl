@@ -1,6 +1,6 @@
 # This is a test of too many hints sections in a task or workflow.
 
-version 1.3
+version 1.4
 
 task t {
     hints {}

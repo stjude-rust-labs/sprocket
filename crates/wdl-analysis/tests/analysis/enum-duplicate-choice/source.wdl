@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 # Enum with duplicate choice names
 enum Status {

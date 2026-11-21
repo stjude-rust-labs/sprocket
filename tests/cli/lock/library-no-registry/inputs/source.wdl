@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 task sylabs_no_registry {
     command <<<>>>

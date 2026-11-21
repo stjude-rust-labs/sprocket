@@ -197,8 +197,6 @@ where
         );
 
         if self.setup_modules {
-            self.server_options.feature_flags = self.server_options.feature_flags.with_wdl_1_4();
-
             let modules_json = workspace.path().join("module.json");
             assert!(
                 modules_json.exists(),

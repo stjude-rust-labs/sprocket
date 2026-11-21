@@ -3,7 +3,7 @@
 #
 # See https://github.com/stjude-rust-labs/sprocket/pull/891
 
-version 1.3
+version 1.4
 
 task super_slow_task {
     command <<<

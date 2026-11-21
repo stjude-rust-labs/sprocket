@@ -1,6 +1,6 @@
 #@ except: MetaSections, RequirementsSection, ContainerUri, EmptyOutputs, BashSetSyntax, MutableContainerTag
 
-version 1.3
+version 1.4
 
 task good {
     input {

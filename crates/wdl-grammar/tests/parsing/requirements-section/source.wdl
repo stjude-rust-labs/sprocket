@@ -1,6 +1,6 @@
 ## This is a test of parsing a requirements section.
 
-version 1.3
+version 1.4
 
 task test {
     requirements {

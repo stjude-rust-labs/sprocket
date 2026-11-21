@@ -2,7 +2,7 @@
 
 ## This is a test for a missing description in a `meta` section.
 
-version 1.3
+version 1.4
 
 task foo {
     meta {}

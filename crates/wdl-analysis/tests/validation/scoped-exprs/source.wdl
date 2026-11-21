@@ -1,6 +1,6 @@
 ## This is a test of ensuring certain expressions can only be used in particular scopes.
 
-version 1.3
+version 1.4
 
 task ok {
     input {

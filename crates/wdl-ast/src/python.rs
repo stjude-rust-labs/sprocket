@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn syntax_round_trips() {
-        const SOURCE: &str = r#"version 1.3
+        const SOURCE: &str = r#"version 1.4
 
 task say_hello {
     input {

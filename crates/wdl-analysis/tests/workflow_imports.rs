@@ -6,7 +6,6 @@ use tempfile::TempDir;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config;
 use wdl_analysis::Document;
-use wdl_analysis::FeatureFlags;
 use wdl_analysis::path_to_uri;
 use wdl_ast::Severity;
 
@@ -17,7 +16,7 @@ async fn analyze(files: &[(&str, &str)]) -> Document {
     }
 
     let source = path_to_uri(dir.path().join("source.wdl")).expect("source URI should be valid");
-    let config = Config::default().with_feature_flags(FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let analyzer = Analyzer::new(config, |(), _, _, _| async {});
     analyzer
         .add_document(source.clone())

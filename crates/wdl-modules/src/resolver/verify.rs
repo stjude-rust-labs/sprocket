@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn verify_unsigned_module() {
         let dir = tempdir().unwrap();
-        write_module(dir.path(), "version 1.3\n");
+        write_module(dir.path(), "version 1.4\n");
         let policy = ResolverPolicy::default();
         let result = verify(&policy, &test_dep(), dir.path());
         assert!(result.is_ok(), "unsigned module should verify: {result:?}");
@@ -385,7 +385,7 @@ mod tests {
         // Parsing (not line scanning) means `import` inside a command
         // block is ignored, and an import *after* a definition is still
         // found — both cases the old line scanner mishandled.
-        let src = "version 1.3\nimport \"sort.wdl\"\nimport \"https://example.com/lib.wdl\" as \
+        let src = "version 1.4\nimport \"sort.wdl\"\nimport \"https://example.com/lib.wdl\" as \
                    lib\ntask t {\ncommand <<< import \"not-an-import.wdl\" >>>\n}\nimport \
                    \"grep.wdl\"\n";
         assert_eq!(
@@ -405,7 +405,7 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::write(
             dir.path().join("index.wdl"),
-            "version 1.3\ntask t {\n    command <<<>>>\n}\nimport \"../shared.wdl\"\n",
+            "version 1.4\ntask t {\n    command <<<>>>\n}\nimport \"../shared.wdl\"\n",
         )
         .unwrap();
         let policy = ResolverPolicy::default();
@@ -421,7 +421,7 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::write(
             dir.path().join("index.wdl"),
-            "version 1.3\nimport \"../shared.wdl\"\n",
+            "version 1.4\nimport \"../shared.wdl\"\n",
         )
         .unwrap();
         let policy = ResolverPolicy::default();
@@ -436,10 +436,10 @@ mod tests {
     fn verify_allows_in_root_and_absolute_uri_imports() {
         let dir = tempdir().unwrap();
         fs::create_dir(dir.path().join("sub")).unwrap();
-        fs::write(dir.path().join("sub/helper.wdl"), "version 1.3\n").unwrap();
+        fs::write(dir.path().join("sub/helper.wdl"), "version 1.4\n").unwrap();
         fs::write(
             dir.path().join("index.wdl"),
-            "version 1.3\nimport \"sub/helper.wdl\"\nimport \"https://example.com/remote.wdl\"\n",
+            "version 1.4\nimport \"sub/helper.wdl\"\nimport \"https://example.com/remote.wdl\"\n",
         )
         .unwrap();
         let policy = ResolverPolicy::default();
@@ -449,7 +449,7 @@ mod tests {
     #[test]
     fn verify_signed_module() {
         let dir = tempdir().unwrap();
-        write_signed_module(dir.path(), "version 1.3\n", 0xAB);
+        write_signed_module(dir.path(), "version 1.4\n", 0xAB);
         let policy = ResolverPolicy::default();
         let result = verify(&policy, &test_dep(), dir.path());
         assert!(result.is_ok(), "signed module should verify: {result:?}");
@@ -464,7 +464,7 @@ mod tests {
     #[test]
     fn require_signed_rejects_unsigned() {
         let dir = tempdir().unwrap();
-        write_module(dir.path(), "version 1.3\n");
+        write_module(dir.path(), "version 1.4\n");
         let config = ModulesConfig {
             require_signed: true,
             ..Default::default()
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn lockfile_checksum_mismatch() {
         let dir = tempdir().unwrap();
-        write_module(dir.path(), "version 1.3\n");
+        write_module(dir.path(), "version 1.4\n");
         let checksum = crate::hash::hash_directory(dir.path()).unwrap();
         let wrong_checksum = ContentHash::from([0xFFu8; 32]);
         assert_ne!(checksum, wrong_checksum);
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn lockfile_checksum_match() {
         let dir = tempdir().unwrap();
-        write_module(dir.path(), "version 1.3\n");
+        write_module(dir.path(), "version 1.4\n");
         let checksum = crate::hash::hash_directory(dir.path()).unwrap();
 
         let dep = test_dep();
@@ -706,7 +706,7 @@ mod tests {
     fn file_count_limit_exceeded() {
         let dir = tempdir().unwrap();
         for i in 0..5 {
-            fs::write(dir.path().join(format!("file_{i}.wdl")), "version 1.3\n").unwrap();
+            fs::write(dir.path().join(format!("file_{i}.wdl")), "version 1.4\n").unwrap();
         }
         let config = ModulesConfig {
             max_materialized_files: Some(2),

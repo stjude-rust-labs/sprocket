@@ -1,6 +1,6 @@
 #@ except: BashSetSyntax
 
-version 1.3
+version 1.4
 
 #@ except: DeprecatedRuntimeSection, RequirementsSection, SnakeCase, NamingConvention
 task foo {

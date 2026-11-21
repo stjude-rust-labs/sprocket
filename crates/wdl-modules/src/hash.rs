@@ -656,7 +656,7 @@ mod tests {
     #[test]
     fn directory_symlink_cycle_is_rejected() {
         let dir = tempdir().unwrap();
-        fs::write(dir.path().join("real.wdl"), b"version 1.3\n").unwrap();
+        fs::write(dir.path().join("real.wdl"), b"version 1.4\n").unwrap();
         fs::create_dir(dir.path().join("sub")).unwrap();
         #[cfg(unix)]
         std::os::unix::fs::symlink("..", dir.path().join("sub").join("loop")).unwrap();

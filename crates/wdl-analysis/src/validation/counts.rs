@@ -97,7 +97,7 @@ impl<T: std::fmt::Display> std::fmt::Display for OxfordCommaOr<T> {
 fn at_least_one_definition(version: SupportedVersion) -> Diagnostic {
     let mut definitions = vec!["task", "workflow", "struct"];
 
-    if version <= SupportedVersion::V1(V1::Three) {
+    if version >= SupportedVersion::V1(V1::Three) {
         definitions.push("enum");
     }
 
@@ -371,7 +371,7 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(version) = self.version
-            && version <= SupportedVersion::V1(V1::Three)
+            && version >= SupportedVersion::V1(V1::Three)
         {
             self.has_enum = true;
         }

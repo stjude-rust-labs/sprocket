@@ -4,7 +4,7 @@
 
 #@ except: InputName, MetaDescription, RequirementsSection
 
-version 1.3
+version 1.4
 
 struct Text {
     meta {

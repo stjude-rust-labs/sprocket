@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 workflow static_regex_validation {
     input {

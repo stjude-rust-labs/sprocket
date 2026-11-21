@@ -1,7 +1,7 @@
 #@ except: BashSetSyntax, EmptyOutputs, MetaDescription, MetaSections, MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder
 #@ except: RequirementsSection, ShellCheck
 
-version 1.3
+version 1.4
 
 task mutable_container_tag {
     requirements {

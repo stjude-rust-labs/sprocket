@@ -42,7 +42,7 @@ fn exclude_set_honors_gitignore_semantics() {
 fn resolve_normalized_subpath_matches_hyphen_variant() {
     let dir = tempdir().unwrap();
     fs::create_dir_all(dir.path().join("my-tasks")).unwrap();
-    fs::write(dir.path().join("my-tasks/do-thing.wdl"), b"version 1.3\n").unwrap();
+    fs::write(dir.path().join("my-tasks/do-thing.wdl"), b"version 1.4\n").unwrap();
     let dep: DependencyName = "dep".parse().unwrap();
 
     let resolved = resolve_normalized_subpath(dir.path(), "my_tasks/do_thing", &dep).unwrap();
@@ -53,8 +53,8 @@ fn resolve_normalized_subpath_matches_hyphen_variant() {
 #[test]
 fn resolve_normalized_subpath_reports_ambiguity() {
     let dir = tempdir().unwrap();
-    fs::write(dir.path().join("my_task.wdl"), b"version 1.3\n").unwrap();
-    fs::write(dir.path().join("my-task.wdl"), b"version 1.3\n").unwrap();
+    fs::write(dir.path().join("my_task.wdl"), b"version 1.4\n").unwrap();
+    fs::write(dir.path().join("my-task.wdl"), b"version 1.4\n").unwrap();
     let dep: DependencyName = "dep".parse().unwrap();
 
     let err = resolve_normalized_subpath(dir.path(), "my_task", &dep).unwrap_err();

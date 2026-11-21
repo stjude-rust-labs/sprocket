@@ -1,7 +1,7 @@
 #@ except: BashSetSyntax, EmptyOutputs, MatchingOutputMeta, OutputMetaOrder, MetaDescription, MetaSections
 #@ except: RequirementsSection, ShellCheck
 
-version 1.3
+version 1.4
 
 workflow parameter_meta_order_workflow {
     parameter_meta {

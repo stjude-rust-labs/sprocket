@@ -493,7 +493,7 @@ task t {
     #[tokio::test]
     async fn merge_unprefixed_input_file_reports_missing_at_prefix() {
         let wdl = r#"
-version 1.3
+version 1.4
 
 task t {
     input {

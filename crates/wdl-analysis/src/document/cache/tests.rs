@@ -98,7 +98,7 @@ async fn setup_analyzer<const N: usize>(
 #[tokio::test]
 #[test_log::test]
 async fn should_track_local_dependencies() {
-    let initial_file = r#"version 1.3
+    let initial_file = r#"version 1.4
 
 task foo {
     command <<<
@@ -158,7 +158,7 @@ task baz {
 
     // Now `foo` has a required input. Both it and `bar` should be re-analyzed,
     // with `bar` getting a diagnostic for the missing input.
-    let edited_contents = r#"version 1.3
+    let edited_contents = r#"version 1.4
 
 task foo {
     input {
@@ -265,8 +265,7 @@ workflow second {
 workflow third {}
 "#;
 
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), acyclic)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
@@ -364,8 +363,7 @@ workflow duplicate {}
 
 workflow duplicate {}
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), source)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
@@ -411,8 +409,7 @@ workflow caller {
 
 workflow callee {}
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), initial)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
@@ -468,8 +465,7 @@ workflow caller {
     call added
 }
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut library, main], analyzer) = setup_analyzer(
         config,
         [
@@ -526,8 +522,7 @@ workflow caller {
 
 workflow added {}
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([main], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), source)]).await;
 
     let result = main.analyze(&analyzer).await;
@@ -579,7 +574,7 @@ async fn should_track_external_dependencies() {
     // Signature changes should always invalidate dependents, even across
     // document boundaries.
 
-    let initial_foo_content = r#"version 1.3
+    let initial_foo_content = r#"version 1.4
 
 task foo {
     command <<<
@@ -588,7 +583,7 @@ task foo {
 }
 "#;
 
-    let initial_main_content = r#"version 1.3
+    let initial_main_content = r#"version 1.4
 
 import "foo.wdl"
 
@@ -607,7 +602,7 @@ workflow bar {
     .await;
 
     // Now foo has a required input
-    let foo_edit = r#"version 1.3
+    let foo_edit = r#"version 1.4
 
 task foo {
     input {
@@ -636,7 +631,7 @@ task foo {
 #[tokio::test]
 #[test_log::test]
 async fn should_drop_removed_items() {
-    let initial_file = r#"version 1.3
+    let initial_file = r#"version 1.4
 
 struct ToBeRemoved {}
 "#;
@@ -650,7 +645,7 @@ struct ToBeRemoved {}
     assert_eq!(cache.len(), 1);
 
     // `ToBeRemoved` should be dropped from the cache
-    let edited_contents = r#"version 1.3"#;
+    let edited_contents = r#"version 1.4"#;
     doc_handle.edit(edited_contents, &analyzer).await;
 
     let result = doc_handle.analyze(&analyzer).await;
@@ -665,7 +660,7 @@ async fn should_isolate_local_body_changes() {
     // When editing the *body* of an item with dependents, we should only ever
     // invalidate the item itself and preserve the dependents.
 
-    let initial_file = r#"version 1.3
+    let initial_file = r#"version 1.4
 
 task foo {
     command <<<
@@ -738,7 +733,7 @@ workflow bar {
 #[tokio::test]
 #[test_log::test]
 async fn should_invalidate_dependents_of_dropped_items() {
-    let initial_file = r#"version 1.3
+    let initial_file = r#"version 1.4
 
 task foo {
     command <<<
@@ -769,7 +764,7 @@ workflow bar {
         .expect("`bar` is locally defined");
 
     // Now drop `foo`
-    let edited_contents = r#"version 1.3
+    let edited_contents = r#"version 1.4
 
 workflow bar {
     call foo
@@ -796,7 +791,7 @@ async fn should_shift_clean_item_diagnostics() {
     // We should be updating the diagnostic offsets regardless if the item is
     // dirty.
 
-    let initial_file = r#"version 1.3
+    let initial_file = r#"version 1.4
 
 task taking_up_space {
     command <<<
@@ -826,7 +821,7 @@ workflow stays_clean {
     assert_eq!(highlight_initial_span, Span::new(126, 4));
 
     // Now drop `taking_up_space`
-    let edited_contents = r#"version 1.3
+    let edited_contents = r#"version 1.4
 
 workflow stays_clean {
     String name = "super unused"
@@ -899,8 +894,7 @@ workflow bar {
 }
 "#;
 
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_foo, mut doc_main], analyzer) = setup_analyzer(
         config,
         [
@@ -993,7 +987,7 @@ async fn trivia_should_shift_diagnostics() {
     //
     // See `CachedItemRefMut::shift_existing_diagnostics()` for an explanation.
 
-    let initial_content = r#"version 1.3
+    let initial_content = r#"version 1.4
 
 task foo {
     input {
@@ -1143,7 +1137,7 @@ async fn trivia_should_shift_spans() {
     // Like `trivia_should_shift_diagnostics`, we need to verify that the spans
     // of the items themselves also update when trivia shifts them.
 
-    let initial_content = r#"version 1.3
+    let initial_content = r#"version 1.4
 
 task foo {
     input {
@@ -1243,7 +1237,7 @@ async fn cache_results_are_consistent() {
     // A file incrementally analyzed should produce the same results as analysis
     // over the final product.
 
-    let initial_content = r#"version 1.3
+    let initial_content = r#"version 1.4
 
 task foo {
     command <<<>>>
@@ -1306,7 +1300,7 @@ task foo {
 
     result3.expect_diagnostic(UnusedDeclarationRule::ID);
 
-    let current_file = r#"version 1.3
+    let current_file = r#"version 1.4
 
 task foo {
     input {
@@ -1350,14 +1344,14 @@ async fn simple_collisions() {
     let a_uri: Url = "file:///a.wdl".parse().unwrap();
     let b_uri: Url = "file:///b.wdl".parse().unwrap();
 
-    let foo_content = r#"version 1.3
+    let foo_content = r#"version 1.4
 
 struct A { String foo }
 struct C { String bar }
 struct AB { String baz }
 "#;
 
-    let a_content = r#"version 1.3
+    let a_content = r#"version 1.4
 
 import "foo.wdl" alias A as B, alias C as D
 
@@ -1404,7 +1398,7 @@ enum FooBar {
 #[tokio::test]
 #[test_log::test]
 async fn type_updates() {
-    let initial_content = r#"version 1.3
+    let initial_content = r#"version 1.4
 
 task foo {
     Array[Int] a = []
@@ -1461,7 +1455,7 @@ async fn exception_population() {
     // re-analysis. Validation-time rules such as `MeaninglessLintDirective`
     // rely on analysis to provide a list of all directives in the document.
 
-    let initial_content = r#"version 1.3
+    let initial_content = r#"version 1.4
 
 task foo {
     input {

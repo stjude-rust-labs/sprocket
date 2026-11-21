@@ -328,7 +328,7 @@ impl Rule for BashSetSyntax {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task say_hello {
     command <<<

@@ -1,6 +1,6 @@
 ## This test ensures that enum choice values must be literal expressions only.
 
-version 1.3
+version 1.4
 
 # Valid examples with literal values:
 # This should pass: integer literals

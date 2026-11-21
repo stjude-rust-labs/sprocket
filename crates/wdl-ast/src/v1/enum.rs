@@ -230,7 +230,7 @@ mod tests {
     fn enum_definitions() {
         let (document, diagnostics) = Document::parse(
             r#"
-version 1.3
+version 1.4
 
 enum Empty {}
 

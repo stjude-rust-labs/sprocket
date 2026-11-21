@@ -1,5 +1,5 @@
 ## Test that task variable has correct members in runtime section.
-version 1.3
+version 1.4
 
 task test_runtime_scope {
     command <<<

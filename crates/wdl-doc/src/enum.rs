@@ -193,7 +193,7 @@ mod tests {
     fn test_enum() {
         let (doc, _) = Document::parse(
             r##"
-            version 1.3
+            version 1.4
             ## An RGB24 color enum
             ##
             ## Each choice is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
@@ -211,7 +211,7 @@ mod tests {
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let ast_enum = doc_item.into_enum_definition().unwrap();
 
-        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), false, None);
+        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Four), false, None);
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(

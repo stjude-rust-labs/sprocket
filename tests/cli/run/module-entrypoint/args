@@ -1,1 +1,1 @@
--qq -c sprocket.toml run . hello.name=modules
+-qq run . hello.name=modules

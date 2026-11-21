@@ -389,7 +389,7 @@ impl CachedItemRefMut<'_> {
     /// For example, in the following document:
     ///
     /// ```wdl
-    /// version 1.3
+    /// version 1.4
     ///
     /// task foo {
     ///     input {
@@ -403,7 +403,7 @@ impl CachedItemRefMut<'_> {
     /// If we make edits like:
     ///
     /// ```wdl
-    /// version 1.3
+    /// version 1.4
     ///
     /// # Here's a comment that shifts the entire task down
     /// task foo {

@@ -1,6 +1,6 @@
 # This is a test of reserved keywords used as arbitrary keys and member names.
 
-version 1.3
+version 1.4
 
 struct Foo {
     String x

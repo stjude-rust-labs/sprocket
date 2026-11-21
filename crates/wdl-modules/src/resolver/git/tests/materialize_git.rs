@@ -34,8 +34,8 @@ fn upstream_at(path: &str) -> (TempDir, String) {
     let repo = git2::Repository::init(upstream.path()).unwrap();
     let dep = upstream.path().join(path);
     write_manifest(&dep, "dep", "1.0.0", &[]);
-    fs::write(dep.join("index.wdl"), b"version 1.3\n").unwrap();
-    fs::write(dep.join("a.wdl"), b"version 1.3\ntask a {}\n").unwrap();
+    fs::write(dep.join("index.wdl"), b"version 1.4\n").unwrap();
+    fs::write(dep.join("a.wdl"), b"version 1.4\ntask a {}\n").unwrap();
     let mut index = repo.index().unwrap();
     index
         .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
@@ -119,12 +119,12 @@ async fn materialize_restores_damaged_cache_content() {
 
     let path = materialize(&r, &consumer).await.unwrap();
     let module_root = path.parent().unwrap().to_path_buf();
-    fs::write(&path, b"version 1.3\ntask x {}\n").unwrap();
+    fs::write(&path, b"version 1.4\ntask x {}\n").unwrap();
     fs::write(module_root.join("extra.wdl"), b"extra").unwrap();
 
     let restored = materialize(&r, &consumer).await.unwrap();
     assert_eq!(restored, path);
-    assert_eq!(fs::read(&path).unwrap(), b"version 1.3\ntask a {}\n");
+    assert_eq!(fs::read(&path).unwrap(), b"version 1.4\ntask a {}\n");
     assert!(!module_root.join("extra.wdl").exists());
 }
 
@@ -176,11 +176,11 @@ async fn fresh_resolution_does_not_lock_damaged_cache_content() {
     let path = materialize(&resolver(&cache, lockfile), &consumer)
         .await
         .unwrap();
-    fs::write(&path, b"version 1.3\ntask x {}\n").unwrap();
+    fs::write(&path, b"version 1.4\ntask x {}\n").unwrap();
 
     let relocked = lock(&cache, &consumer).await;
     assert_eq!(locked_checksum(&relocked), expected);
-    assert_eq!(fs::read(&path).unwrap(), b"version 1.3\ntask a {}\n");
+    assert_eq!(fs::read(&path).unwrap(), b"version 1.4\ntask a {}\n");
 }
 
 #[tokio::test]
@@ -198,7 +198,7 @@ async fn materialize_root_module_dependency() {
     let r = resolver(&cache, lock(&cache, &consumer).await);
 
     let path = materialize(&r, &consumer).await.unwrap();
-    assert_eq!(fs::read(&path).unwrap(), b"version 1.3\ntask a {}\n");
+    assert_eq!(fs::read(&path).unwrap(), b"version 1.4\ntask a {}\n");
     assert!(
         path.parent()
             .unwrap()

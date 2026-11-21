@@ -90,7 +90,7 @@ async fn should_ignore_non_wdl_files() {
 
     let new_wdl = ctx.doc_path("new.wdl");
     let new_wdl_url = Url::from_file_path(new_wdl.clone()).unwrap();
-    std::fs::write(new_wdl, "version 1.3\ntask foo {}").expect("failed to write file");
+    std::fs::write(new_wdl, "version 1.4\ntask foo {}").expect("failed to write file");
 
     ctx.notify::<DidChangeWatchedFiles>(DidChangeWatchedFilesParams {
         changes: vec![FileEvent {
