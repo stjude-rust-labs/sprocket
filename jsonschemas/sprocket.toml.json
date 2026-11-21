@@ -3105,9 +3105,9 @@
           "default": true
         },
         "wdl_1_4": {
-          "description": "Enables experimental WDL 1.4 features.\n\nDefaults to `false`. While `false`, `wdl-analysis` reports an error for\nany document declaring `version 1.4`.",
+          "description": "Formerly enabled experimental WDL 1.4 features.\n\nThis flag is now a no-op as WDL 1.4 is fully supported. Setting this to\n`false` will emit a warning.",
           "type": "boolean",
-          "default": false
+          "default": true
         }
       },
       "additionalProperties": false

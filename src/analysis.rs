@@ -639,7 +639,6 @@ mod tests {
         let analysis = Analysis::default()
             .add_source(Source::File(module_url))
             .add_source(Source::File(plain_url))
-            .feature_flags(super::FeatureFlags::default().with_wdl_1_4())
             .modules_config(modules_config(dir.path().join("cache")));
 
         let resolution = analysis

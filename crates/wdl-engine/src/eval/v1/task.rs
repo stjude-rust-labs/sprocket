@@ -2448,7 +2448,6 @@ mod tests {
     use wdl_analysis::Analyzer;
     use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
-    use wdl_analysis::FeatureFlags;
 
     use crate::CancellationContext;
     use crate::CancellationContextState;
@@ -2596,9 +2595,7 @@ mod tests {
 
         // Analyze the source file
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(FeatureFlags::default().with_wdl_1_4()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer

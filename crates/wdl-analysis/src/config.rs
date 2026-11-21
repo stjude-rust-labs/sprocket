@@ -237,6 +237,11 @@ fn default_wdl_1_3() -> bool {
     true
 }
 
+/// Default value for the WDL v1.4 feature flag.
+fn default_wdl_1_4() -> bool {
+    true
+}
+
 /// A set of feature flags that can be enabled.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(rename_all = "snake_case", warn_unknown_fields)]
@@ -249,12 +254,12 @@ pub struct FeatureFlags {
     #[toml(default = true)]
     #[schemars(default = "default_wdl_1_3")]
     wdl_1_3: bool,
-    /// Enables experimental WDL 1.4 features.
+    /// Formerly enabled experimental WDL 1.4 features.
     ///
-    /// Defaults to `false`. While `false`, `wdl-analysis` reports an error for
-    /// any document declaring `version 1.4`.
-    #[toml(default)]
-    #[schemars(default)]
+    /// This flag is now a no-op as WDL 1.4 is fully supported. Setting this to
+    /// `false` will emit a warning.
+    #[toml(default = true)]
+    #[schemars(default = "default_wdl_1_4")]
     wdl_1_4: bool,
 }
 
@@ -262,7 +267,7 @@ impl Default for FeatureFlags {
     fn default() -> Self {
         Self {
             wdl_1_3: true,
-            wdl_1_4: false,
+            wdl_1_4: true,
         }
     }
 }
@@ -283,13 +288,16 @@ impl FeatureFlags {
     }
 
     /// Returns whether WDL 1.4 is enabled.
+    ///
+    /// WDL 1.4 is now fully supported and defaults to `true`. Setting this to
+    /// `false` will emit a deprecation warning.
     pub fn wdl_1_4(&self) -> bool {
         self.wdl_1_4
     }
 
     /// Returns a new `FeatureFlags` with WDL 1.4 features enabled.
-    pub fn with_wdl_1_4(mut self) -> Self {
-        self.wdl_1_4 = true;
+    #[deprecated(note = "WDL 1.4 is now enabled by default; this method is a no-op")]
+    pub fn with_wdl_1_4(self) -> Self {
         self
     }
 }
@@ -525,5 +533,18 @@ mod tests {
         let default_format_config = FormatConfig::default();
         let analysis_config = Config::default();
         assert_eq!(analysis_config.format(), &default_format_config);
+    }
+
+    #[test_log::test]
+    fn wdl_1_4_feature_flag_defaults_to_true() {
+        assert!(FeatureFlags::default().wdl_1_4());
+
+        let config: Config = toml_spanner::from_str("[feature_flags]\n")
+            .expect("empty feature_flags table should deserialize");
+        assert!(config.feature_flags().wdl_1_4());
+
+        let disabled: Config = toml_spanner::from_str("[feature_flags]\nwdl_1_4 = false\n")
+            .expect("disabled wdl_1_4 flag should deserialize");
+        assert!(!disabled.feature_flags().wdl_1_4());
     }
 }
