@@ -1,0 +1,237 @@
+RootNode@0..725
+  Comment@0..49 "## This is a test of  ..."
+  Whitespace@49..51 "\n\n"
+  VersionStatementNode@51..62
+    VersionKeyword@51..58 "version"
+    Whitespace@58..59 " "
+    Version@59..62 "1.4"
+  Whitespace@62..64 "\n\n"
+  TaskDefinitionNode@64..265
+    TaskKeyword@64..68 "task"
+    Whitespace@68..69 " "
+    Ident@69..82 "missing_comma"
+    Whitespace@82..83 " "
+    OpenBrace@83..84 "{"
+    Whitespace@84..89 "\n    "
+    InputSectionNode@89..243
+      InputKeyword@89..94 "input"
+      Whitespace@94..95 " "
+      OpenBrace@95..96 "{"
+      Whitespace@96..105 "\n        "
+      UnboundDeclNode@105..110
+        PrimitiveTypeNode@105..108
+          IntTypeKeyword@105..108 "Int"
+        Whitespace@108..109 " "
+        Ident@109..110 "a"
+      Whitespace@110..119 "\n        "
+      UnboundDeclNode@119..124
+        PrimitiveTypeNode@119..122
+          IntTypeKeyword@119..122 "Int"
+        Whitespace@122..123 " "
+        Ident@123..124 "b"
+      Whitespace@124..134 "\n\n        "
+      ValidationBlockNode@134..237
+        ValidationKeyword@134..144 "validation"
+        Whitespace@144..145 " "
+        OpenBrace@145..146 "{"
+        Whitespace@146..159 "\n            "
+        ValidationClauseNode@159..186
+          GreaterExprNode@159..164
+            NameRefExprNode@159..160
+              Ident@159..160 "a"
+            Whitespace@160..161 " "
+            Greater@161..162 ">"
+            Whitespace@162..163 " "
+            LiteralIntegerNode@163..164
+              Integer@163..164 "0"
+          Colon@164..165 ":"
+          Whitespace@165..166 " "
+          LiteralStringNode@166..186
+            DoubleQuote@166..167 "\""
+            LiteralStringText@167..185 "a must be positive"
+            DoubleQuote@185..186 "\""
+        Whitespace@186..199 "\n            "
+        Ident@199..200 "b"
+        Whitespace@200..201 " "
+        Greater@201..202 ">"
+        Whitespace@202..203 " "
+        Integer@203..204 "0"
+        Colon@204..205 ":"
+        Whitespace@205..206 " "
+        DoubleQuote@206..207 "\""
+        LiteralStringText@207..225 "b must be positive"
+        DoubleQuote@225..226 "\""
+        Comma@226..227 ","
+        Whitespace@227..236 "\n        "
+        CloseBrace@236..237 "}"
+      Whitespace@237..242 "\n    "
+      CloseBrace@242..243 "}"
+    Whitespace@243..249 "\n\n    "
+    CommandSectionNode@249..263
+      CommandKeyword@249..256 "command"
+      Whitespace@256..257 " "
+      OpenHeredoc@257..260 "<<<"
+      CloseHeredoc@260..263 ">>>"
+    Whitespace@263..264 "\n"
+    CloseBrace@264..265 "}"
+  Whitespace@265..267 "\n\n"
+  TaskDefinitionNode@267..595
+    TaskKeyword@267..271 "task"
+    Whitespace@271..272 " "
+    Ident@272..285 "missing_colon"
+    Whitespace@285..286 " "
+    OpenBrace@286..287 "{"
+    Whitespace@287..292 "\n    "
+    InputSectionNode@292..437
+      InputKeyword@292..297 "input"
+      Whitespace@297..298 " "
+      OpenBrace@298..299 "{"
+      Whitespace@299..308 "\n        "
+      UnboundDeclNode@308..313
+        PrimitiveTypeNode@308..311
+          IntTypeKeyword@308..311 "Int"
+        Whitespace@311..312 " "
+        Ident@312..313 "a"
+      Whitespace@313..323 "\n\n        "
+      ValidationBlockNode@323..431
+        ValidationKeyword@323..333 "validation"
+        Whitespace@333..334 " "
+        OpenBrace@334..335 "{"
+        Whitespace@335..348 "\n            "
+        GreaterExprNode@348..353
+          NameRefExprNode@348..349
+            Ident@348..349 "a"
+          Whitespace@349..350 " "
+          Greater@350..351 ">"
+          Whitespace@351..352 " "
+          LiteralIntegerNode@352..353
+            Integer@352..353 "0"
+        Whitespace@353..354 " "
+        DoubleQuote@354..355 "\""
+        LiteralStringText@355..373 "a must be positive"
+        DoubleQuote@373..374 "\""
+        Comma@374..375 ","
+        Whitespace@375..388 "\n            "
+        ValidationClauseNode@388..420
+          LessExprNode@388..394
+            NameRefExprNode@388..389
+              Ident@388..389 "a"
+            Whitespace@389..390 " "
+            Less@390..391 "<"
+            Whitespace@391..392 " "
+            LiteralIntegerNode@392..394
+              Integer@392..394 "10"
+          Colon@394..395 ":"
+          Whitespace@395..396 " "
+          LiteralStringNode@396..420
+            DoubleQuote@396..397 "\""
+            LiteralStringText@397..419 "a must be less than 10"
+            DoubleQuote@419..420 "\""
+        Comma@420..421 ","
+        Whitespace@421..430 "\n        "
+        CloseBrace@430..431 "}"
+      Whitespace@431..436 "\n    "
+      CloseBrace@436..437 "}"
+    Whitespace@437..443 "\n\n    "
+    CommandSectionNode@443..457
+      CommandKeyword@443..450 "command"
+      Whitespace@450..451 " "
+      OpenHeredoc@451..454 "<<<"
+      CloseHeredoc@454..457 ">>>"
+    Whitespace@457..463 "\n\n    "
+    OutputSectionNode@463..593
+      OutputKeyword@463..469 "output"
+      Whitespace@469..470 " "
+      OpenBrace@470..471 "{"
+      Whitespace@471..480 "\n        "
+      BoundDeclNode@480..491
+        PrimitiveTypeNode@480..483
+          IntTypeKeyword@480..483 "Int"
+        Whitespace@483..484 " "
+        Ident@484..487 "out"
+        Whitespace@487..488 " "
+        Assignment@488..489 "="
+        Whitespace@489..490 " "
+        NameRefExprNode@490..491
+          Ident@490..491 "a"
+      Whitespace@491..501 "\n\n        "
+      ValidationBlockNode@501..587
+        ValidationKeyword@501..511 "validation"
+        Whitespace@511..512 " "
+        OpenBrace@512..513 "{"
+        Whitespace@513..526 "\n            "
+        ValidationClauseNode@526..557
+          GreaterExprNode@526..533
+            NameRefExprNode@526..529
+              Ident@526..529 "out"
+            Whitespace@529..530 " "
+            Greater@530..531 ">"
+            Whitespace@531..532 " "
+            LiteralIntegerNode@532..533
+              Integer@532..533 "0"
+          Colon@533..534 ":"
+          Whitespace@534..535 " "
+          LiteralStringNode@535..557
+            DoubleQuote@535..536 "\""
+            LiteralStringText@536..556 "out must be positive"
+            DoubleQuote@556..557 "\""
+        Comma@557..558 ","
+        Whitespace@558..571 "\n            "
+        NameRefExprNode@571..574
+          Ident@571..574 "out"
+        Colon@574..575 ":"
+        Whitespace@575..576 " "
+        Comma@576..577 ","
+        Whitespace@577..586 "\n        "
+        CloseBrace@586..587 "}"
+      Whitespace@587..592 "\n    "
+      CloseBrace@592..593 "}"
+    Whitespace@593..594 "\n"
+    CloseBrace@594..595 "}"
+  Whitespace@595..597 "\n\n"
+  WorkflowDefinitionNode@597..724
+    WorkflowKeyword@597..605 "workflow"
+    Whitespace@605..606 " "
+    Ident@606..621 "missing_message"
+    Whitespace@621..622 " "
+    OpenBrace@622..623 "{"
+    Whitespace@623..628 "\n    "
+    InputSectionNode@628..722
+      InputKeyword@628..633 "input"
+      Whitespace@633..634 " "
+      OpenBrace@634..635 "{"
+      Whitespace@635..644 "\n        "
+      UnboundDeclNode@644..649
+        PrimitiveTypeNode@644..647
+          IntTypeKeyword@644..647 "Int"
+        Whitespace@647..648 " "
+        Ident@648..649 "a"
+      Whitespace@649..659 "\n\n        "
+      ValidationBlockNode@659..701
+        ValidationKeyword@659..669 "validation"
+        Whitespace@669..670 " "
+        OpenBrace@670..671 "{"
+        Whitespace@671..684 "\n            "
+        GreaterExprNode@684..689
+          NameRefExprNode@684..685
+            Ident@684..685 "a"
+          Whitespace@685..686 " "
+          Greater@686..687 ">"
+          Whitespace@687..688 " "
+          LiteralIntegerNode@688..689
+            Integer@688..689 "0"
+        Colon@689..690 ":"
+        Comma@690..691 ","
+        Whitespace@691..700 "\n        "
+        CloseBrace@700..701 "}"
+      Whitespace@701..711 "\n\n        "
+      UnboundDeclNode@711..716
+        PrimitiveTypeNode@711..714
+          IntTypeKeyword@711..714 "Int"
+        Whitespace@714..715 " "
+        Ident@715..716 "b"
+      Whitespace@716..721 "\n    "
+      CloseBrace@721..722 "}"
+    Whitespace@722..723 "\n"
+    CloseBrace@723..724 "}"
+  Whitespace@724..725 "\n"

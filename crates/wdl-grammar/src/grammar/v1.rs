@@ -71,6 +71,15 @@ const TYPE_EXPECTED_SET: TokenSet = PRIMITIVE_TYPE_SET.union(TokenSet::new(&[
     Token::Ident as u8,
 ]));
 
+/// A set of keywords introduced in WDL 1.4 that may still name a user-defined
+/// type (or otherwise appear where only a plain identifier is accepted) in
+/// documents of earlier versions.
+///
+/// These are accepted wherever a type name is expected; [`ident`] reports a
+/// diagnostic when such a keyword is used as an identifier in WDL 1.4+.
+const VERSIONED_KEYWORD_IDENT_SET: TokenSet =
+    TokenSet::new(&[Token::FromKeyword as u8, Token::ValidationKeyword as u8]);
+
 /// The recovery set for struct items.
 const STRUCT_ITEM_RECOVERY_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
     Token::MetaKeyword as u8,
@@ -91,12 +100,23 @@ const ENUM_SECTION_RECOVERY_SET: TokenSet =
     TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
 
 /// The recovery set for input items.
-const INPUT_ITEM_RECOVERY_SET: TokenSet =
-    TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
+const INPUT_ITEM_RECOVERY_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
+    Token::ValidationKeyword as u8,
+    Token::CloseBrace as u8,
+]));
 
 /// The recovery set for output items.
-const OUTPUT_ITEM_RECOVERY_SET: TokenSet =
-    TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
+const OUTPUT_ITEM_RECOVERY_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
+    Token::ValidationKeyword as u8,
+    Token::CloseBrace as u8,
+]));
+
+/// The recovery set for validation clauses.
+///
+/// As both the condition and the message of a validation clause are
+/// expressions, we recover only at the next comma.
+const VALIDATION_CLAUSE_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Comma as u8, Token::CloseBrace as u8]);
 
 /// The recovery set for runtime items.
 const RUNTIME_ITEM_RECOVERY_SET: TokenSet =
@@ -381,6 +401,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::TaskKeyword as u8,
     Token::ThenKeyword as u8,
     Token::TrueKeyword as u8,
+    Token::ValidationKeyword as u8,
     Token::VersionKeyword as u8,
     Token::WorkflowKeyword as u8,
 ]);
@@ -631,7 +652,7 @@ fn ident(parser: &mut Parser<'_>, name: &str) -> Result<(), ParseDiagnostic> {
         }
 
         // WDL 1.4+
-        found @ Some((Token::FromKeyword, _)) => {
+        found @ Some((Token::FromKeyword | Token::ValidationKeyword, _)) => {
             if parser.version() >= SupportedVersion::V1(V1::Four) {
                 let diagnostic = parser.unexpected(name, found);
                 parser.diagnostic(diagnostic);
@@ -809,9 +830,7 @@ fn struct_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, P
     match parser.peek() {
         Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
         Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
-        Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
-            struct_member_decl(parser, marker)
-        }
+        Some((t, _)) if starts_type(t) => struct_member_decl(parser, marker),
         found => Err((
             marker,
             parser.unexpected_many(STRUCT_ITEM_EXPECTED_NAMES, found),
@@ -924,6 +943,12 @@ fn workflow_definition(
     Ok(())
 }
 
+/// Determines if the given token may start a type.
+fn starts_type(token: Token) -> bool {
+    TYPE_EXPECTED_SET.contains(token.into_raw())
+        || VERSIONED_KEYWORD_IDENT_SET.contains(token.into_raw())
+}
+
 /// Parses a type used in a declaration.
 fn ty(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
     match parser.peek() {
@@ -931,7 +956,9 @@ fn ty(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagn
         Some((Token::ArrayTypeKeyword, _)) => array_type(parser, marker),
         Some((Token::PairTypeKeyword, _)) => pair_type(parser, marker),
         Some((Token::ObjectTypeKeyword, _)) => object_type(parser, marker),
-        Some((Token::Ident, _)) => type_ref(parser, marker),
+        Some((t, _)) if t == Token::Ident || VERSIONED_KEYWORD_IDENT_SET.contains(t.into_raw()) => {
+            type_ref(parser, marker)
+        }
         Some((t, _)) if PRIMITIVE_TYPE_SET.contains(t.into_raw()) => primitive_type(parser, marker),
         found => Err((marker, parser.unexpected("type", found))),
     }
@@ -997,7 +1024,7 @@ fn object_type(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, P
 
 /// Parses a type reference used in a declaration.
 fn type_ref(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
-    parser.require(Token::Ident);
+    ident!(parser, marker, "type name");
     parser.next_if(Token::QuestionMark);
     marker.complete(parser, SyntaxKind::TypeRefNode);
     Ok(())
@@ -1035,7 +1062,7 @@ fn task_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Par
         Some((Token::HintsKeyword, _)) => task_hints_section(parser, marker),
         Some((Token::MetaKeyword, _)) => metadata_section(parser, marker),
         Some((Token::ParameterMetaKeyword, _)) => parameter_metadata_section(parser, marker),
-        Some((t, _)) if t == Token::EnvKeyword || TYPE_EXPECTED_SET.contains(t.into_raw()) => {
+        Some((t, _)) if t == Token::EnvKeyword || starts_type(t) => {
             bound_decl(parser, marker, false, true)
         }
         found => Err((
@@ -1056,9 +1083,7 @@ fn workflow_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker,
         Some((Token::IfKeyword, _)) => conditional_statement(parser, marker),
         Some((Token::ScatterKeyword, _)) => scatter_statement(parser, marker),
         Some((Token::CallKeyword, _)) => call_statement(parser, marker),
-        Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
-            bound_decl(parser, marker, false, false)
-        }
+        Some((t, _)) if starts_type(t) => bound_decl(parser, marker, false, false),
         found => Err((
             marker,
             parser.unexpected_many(WORKFLOW_ITEM_EXPECTED_NAMES, found),
@@ -1075,9 +1100,7 @@ fn workflow_statement(
         Some((Token::IfKeyword, _)) => conditional_statement(parser, marker),
         Some((Token::ScatterKeyword, _)) => scatter_statement(parser, marker),
         Some((Token::CallKeyword, _)) => call_statement(parser, marker),
-        Some((t, _)) if TYPE_EXPECTED_SET.contains(t.into_raw()) => {
-            bound_decl(parser, marker, false, false)
-        }
+        Some((t, _)) if starts_type(t) => bound_decl(parser, marker, false, false),
         found => Err((marker, parser.unexpected("workflow statement", found))),
     }
 }
@@ -1100,12 +1123,71 @@ fn input_section(
     Ok(())
 }
 
+/// Determines if the next tokens start a validation block.
+///
+/// A validation block is only recognized when the `validation` keyword is
+/// immediately followed by an open brace; otherwise, `validation` may be the
+/// name of a user-defined type in a declaration of a pre-1.4 document.
+fn at_validation_block(parser: &mut Parser<'_>) -> bool {
+    parser.peek2().is_some_and(|peek| {
+        peek.first.0 == Token::ValidationKeyword && peek.second.0 == Token::OpenBrace
+    })
+}
+
+/// Parses a validation block in an input or output section.
+fn validation_block(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, ParseDiagnostic)> {
+    parser.require(Token::ValidationKeyword);
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        VALIDATION_CLAUSE_RECOVERY_SET,
+        validation_clause
+    );
+    marker.complete(parser, SyntaxKind::ValidationBlockNode);
+    Ok(())
+}
+
+/// Parses a validation clause in a validation block.
+///
+/// Errors encountered while parsing a clause are recovered from within the
+/// validation block itself (i.e. at the next `,` or `}`). Otherwise, as clauses
+/// commonly start with an identifier, the delimited item parsing would treat
+/// the clause as the start of a new declaration in the containing section.
+fn validation_clause(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, ParseDiagnostic)> {
+    /// Parses the condition and message of the clause.
+    fn parse(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
+        expected_fn!(parser, marker, expr);
+        expected!(parser, marker, Token::Colon);
+        expected_fn!(parser, marker, expr);
+        marker.complete(parser, SyntaxKind::ValidationClauseNode);
+        Ok(())
+    }
+
+    if let Err((marker, e)) = parse(parser, marker) {
+        parser.recover(e);
+        marker.abandon(parser);
+    }
+
+    Ok(())
+}
+
 /// Parses an input item.
 fn input_item(
     parser: &mut Parser<'_>,
     marker: Marker,
     allow_env: bool,
 ) -> Result<(), (Marker, ParseDiagnostic)> {
+    if at_validation_block(parser) {
+        return validation_block(parser, marker);
+    }
+
     if allow_env {
         parser.next_if(Token::EnvKeyword);
     }
@@ -1378,15 +1460,18 @@ fn output_section(
     marker: Marker,
 ) -> Result<(), (Marker, ParseDiagnostic)> {
     parser.require(Token::OutputKeyword);
-    braced_items!(
-        parser,
-        marker,
-        None,
-        OUTPUT_ITEM_RECOVERY_SET,
-        |parser, marker| bound_decl(parser, marker, true, false)
-    );
+    braced_items!(parser, marker, None, OUTPUT_ITEM_RECOVERY_SET, output_item);
     marker.complete(parser, SyntaxKind::OutputSectionNode);
     Ok(())
+}
+
+/// Parses an output item.
+fn output_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
+    if at_validation_block(parser) {
+        return validation_block(parser, marker);
+    }
+
+    bound_decl(parser, marker, true, false)
 }
 
 /// Parses a runtime section in a task.
@@ -2177,7 +2262,14 @@ fn scatter_statement(
 ) -> Result<(), (Marker, ParseDiagnostic)> {
     parser.require(Token::ScatterKeyword);
     paren!(parser, marker, |parser, _| {
-        parser.expect_with_name(Token::Ident, "scatter variable name")?;
+        match parser.peek() {
+            Some((t, _)) if VERSIONED_KEYWORD_IDENT_SET.contains(t.into_raw()) => {
+                ident(parser, "scatter variable name")?;
+            }
+            _ => {
+                parser.expect_with_name(Token::Ident, "scatter variable name")?;
+            }
+        }
         parser.expect(Token::InKeyword)?;
         expected_fn!(parser, expr);
         Ok(())

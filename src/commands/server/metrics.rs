@@ -141,6 +141,7 @@ fn format_retry_cause(cause: &serde_json::Value) -> String {
             None => "retried: unacceptable exit code".to_string(),
         },
         Some("preempted") => "retried: preempted".to_string(),
+        Some("output_validation_failed") => "retried: output validation failed".to_string(),
         Some(kind) => format!("retried: {kind}"),
         None => format!("retried: {cause}"),
     }

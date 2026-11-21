@@ -586,3 +586,46 @@ async fn should_goto_transitive_structs_and_enums() {
         Range::new(Position::new(2, 5), Position::new(2, 11)) // `enum Status`
     );
 }
+
+#[tokio::test]
+async fn should_goto_definition_from_validation_blocks() {
+    let mut options = wdl_lsp::ServerOptions::default();
+    options.feature_flags = options.feature_flags.with_wdl_1_4();
+    let mut ctx = TestContextBuilder::new("goto_definition_validation")
+        .server_options(options)
+        .build();
+    ctx.initialize().await;
+
+    for (position, expected) in [
+        // `a` in the task's input validation block
+        (
+            Position::new(7, 12),
+            Range::new(Position::new(4, 12), Position::new(4, 13)),
+        ),
+        // `out` in the task's output validation block
+        (
+            Position::new(17, 12),
+            Range::new(Position::new(14, 12), Position::new(14, 15)),
+        ),
+        // `name` in the workflow's input validation block
+        (
+            Position::new(27, 12),
+            Range::new(Position::new(24, 15), Position::new(24, 19)),
+        ),
+        // `result` in the workflow's output validation block
+        (
+            Position::new(37, 12),
+            Range::new(Position::new(34, 12), Position::new(34, 18)),
+        ),
+    ] {
+        let response = goto_definition_request(&mut ctx, "source.wdl", position)
+            .await
+            .expect("request should succeed");
+        let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+            panic!("expected a single location response, got {:?}", response);
+        };
+
+        assert_eq!(location.uri, ctx.doc_uri("source.wdl"));
+        assert_eq!(location.range, expected);
+    }
+}

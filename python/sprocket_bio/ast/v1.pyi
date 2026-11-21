@@ -671,6 +671,7 @@ class InputKeyword(AstToken):
 class InputSection(AstNode):
     def declarations(self) -> list[Decl]: ...
     def parent(self) -> SectionParent: ...
+    def validation(self) -> ValidationBlock | None: ...
 
 @typing.final
 class IntTypeKeyword(AstToken):
@@ -1120,6 +1121,7 @@ class OutputKeyword(AstToken):
 class OutputSection(AstNode):
     def declarations(self) -> list[BoundDecl]: ...
     def parent(self) -> SectionParent: ...
+    def validation(self) -> ValidationBlock | None: ...
 
 @typing.final
 class PairType(AstNode):
@@ -1578,6 +1580,20 @@ class UnwrapExpr(AstNode):
     def operand(self) -> Expr: ...
 
 @typing.final
+class ValidationBlock(AstNode):
+    def clauses(self) -> list[ValidationClause]: ...
+    def keyword(self) -> ValidationKeyword: ...
+
+@typing.final
+class ValidationClause(AstNode):
+    def condition(self) -> Expr: ...
+    def message(self) -> Expr: ...
+
+@typing.final
+class ValidationKeyword(AstToken):
+    pass
+
+@typing.final
 class VersionKeyword(AstToken):
     pass
 
@@ -1982,6 +1998,9 @@ __all__ = [
     "UnboundDecl",
     "Unknown",
     "UnwrapExpr",
+    "ValidationBlock",
+    "ValidationClause",
+    "ValidationKeyword",
     "VersionKeyword",
     "WorkflowDefinition",
     "WorkflowHintsArray",

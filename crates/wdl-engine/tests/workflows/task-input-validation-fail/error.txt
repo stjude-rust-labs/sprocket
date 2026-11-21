@@ -1,0 +1,14 @@
+error: input validation failed for task `process`:
+  - Name must not be empty
+  - Count must be at least 1
+   ┌─ tests/workflows/task-input-validation-fail/source.wdl:9:7
+   │
+ 9 │       length(name) > 0: "Name must not be empty",
+   │       ^^^^^^^^^^^^^^^^ this condition evaluated to `false`
+10 │       count >= 1: "Count must be at least 1",
+   │       ---------- this condition evaluated to `false`
+   │
+   ┌─ tests/workflows/task-input-validation-fail/source.wdl:20:3
+   │
+20 │   call process {
+   │   ---- called from this location

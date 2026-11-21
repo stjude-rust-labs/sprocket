@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* `Linter` forwards the new `validation_block` and `validation_clause` visitor callbacks to lint
+  rules ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
+
 ## 0.30.1 - 2026-11-18
 
 ### Changed

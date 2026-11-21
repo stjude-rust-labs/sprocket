@@ -136,6 +136,8 @@ pub enum SyntaxKind {
     ThenKeyword,
     /// The `true` keyword token.
     TrueKeyword,
+    /// The 1.4 `validation` keyword token.
+    ValidationKeyword,
     /// The `version` keyword token.
     VersionKeyword,
     /// The `workflow` keyword token.
@@ -248,6 +250,10 @@ pub enum SyntaxKind {
     InputSectionNode,
     /// Represents an output section node.
     OutputSectionNode,
+    /// Represents a validation block node in an input or output section.
+    ValidationBlockNode,
+    /// Represents a validation clause node in a validation block.
+    ValidationClauseNode,
     /// Represents a command section node.
     CommandSectionNode,
     /// Represents a requirements section node.
@@ -473,6 +479,7 @@ impl SyntaxKind {
             Self::TaskKeyword => "`task` keyword",
             Self::ThenKeyword => "`then` keyword",
             Self::TrueKeyword => "`true` keyword",
+            Self::ValidationKeyword => "`validation` keyword",
             Self::VersionKeyword => "`version` keyword",
             Self::WorkflowKeyword => "`workflow` keyword",
             Self::DirectoryTypeKeyword => "`Directory` type keyword",
@@ -525,6 +532,8 @@ impl SyntaxKind {
             Self::BoundDeclNode => "declaration with assignment",
             Self::InputSectionNode => "input section",
             Self::OutputSectionNode => "output section",
+            Self::ValidationBlockNode => "validation block",
+            Self::ValidationClauseNode => "validation clause",
             Self::CommandSectionNode => "command section",
             Self::RequirementsSectionNode => "requirements section",
             Self::RequirementsItemNode => "requirements item",
@@ -644,6 +653,7 @@ impl SyntaxKind {
                 | SyntaxKind::TaskKeyword
                 | SyntaxKind::ThenKeyword
                 | SyntaxKind::TrueKeyword
+                | SyntaxKind::ValidationKeyword
                 | SyntaxKind::VersionKeyword
                 | SyntaxKind::WorkflowKeyword
         )

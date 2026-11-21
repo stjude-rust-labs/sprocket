@@ -449,6 +449,9 @@ pub enum Token {
     /// The `true` keyword.
     #[token("true")]
     TrueKeyword,
+    /// The 1.4 `validation` keyword.
+    #[token("validation")]
+    ValidationKeyword,
     /// The `version` keyword.
     #[token("version")]
     VersionKeyword,
@@ -574,6 +577,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::EnvKeyword => SyntaxKind::EnvKeyword,
             Self::FalseKeyword => SyntaxKind::FalseKeyword,
             Self::FromKeyword => SyntaxKind::FromKeyword,
+            Self::ValidationKeyword => SyntaxKind::ValidationKeyword,
             Self::HintsKeyword => SyntaxKind::HintsKeyword,
             Self::IfKeyword => SyntaxKind::IfKeyword,
             Self::InKeyword => SyntaxKind::InKeyword,
@@ -663,6 +667,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::EnvKeyword => "`env` keyword",
             Self::FalseKeyword => "`false` keyword",
             Self::FromKeyword => "`from` keyword",
+            Self::ValidationKeyword => "`validation` keyword",
             Self::HintsKeyword => "`hints` keyword",
             Self::IfKeyword => "`if` keyword",
             Self::InKeyword => "`in` keyword",
@@ -1448,7 +1453,8 @@ then
 true
 version
 workflow
-env"#,
+env
+validation"#,
         );
         let tokens: Vec<_> = lexer.map(map).collect();
         assert_eq!(
@@ -1532,6 +1538,8 @@ env"#,
                 (Ok(WorkflowKeyword), 235..243),
                 (Ok(Whitespace), 243..244),
                 (Ok(EnvKeyword), 244..247),
+                (Ok(Whitespace), 247..248),
+                (Ok(ValidationKeyword), 248..258),
             ],
         );
     }

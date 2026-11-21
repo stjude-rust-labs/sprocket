@@ -1,0 +1,6 @@
+error: output validation failed for task `test`:
+  - attempt 1 printed `attempt 1`
+   ┌─ tests/tasks/output-validation-retries-exhausted/source.wdl:16:7
+   │
+16 │       task.attempt > 5: "attempt ~{task.attempt} printed `~{out}`",
+   │       ^^^^^^^^^^^^^^^^ this condition evaluated to `false`

@@ -1,0 +1,44 @@
+error: input section contains a duplicate validation block
+   ┌─ tests/validation/validation-block-structure/source.wdl:13:9
+   │
+ 9 │         validation {
+   │         ---------- first validation block is defined here
+   ·
+13 │         validation {
+   │         ^^^^^^^^^^ this validation block is a duplicate
+   │
+   = fix: merge the clauses into a single validation block in the input section
+
+error: a validation block must follow all declarations in the output section
+   ┌─ tests/validation/validation-block-structure/source.wdl:25:13
+   │
+21 │         validation {
+   │         ---------- the validation block is defined here
+   ·
+25 │         Int out = a
+   │             ^^^ this declaration follows the validation block
+   │
+   = fix: move the validation block to the end of the output section
+
+error: a validation block must follow all declarations in the input section
+   ┌─ tests/validation/validation-block-structure/source.wdl:35:13
+   │
+31 │         validation {
+   │         ---------- the validation block is defined here
+   ·
+35 │         Int a
+   │             ^ this declaration follows the validation block
+   │
+   = fix: move the validation block to the end of the input section
+
+error: output section contains a duplicate validation block
+   ┌─ tests/validation/validation-block-structure/source.wdl:46:9
+   │
+42 │         validation {
+   │         ---------- first validation block is defined here
+   ·
+46 │         validation {
+   │         ^^^^^^^^^^ this validation block is a duplicate
+   │
+   = fix: merge the clauses into a single validation block in the output section
+

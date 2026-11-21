@@ -220,6 +220,28 @@ impl Visitor for Linter {
         });
     }
 
+    fn validation_block(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        block: &v1::ValidationBlock,
+    ) {
+        self.each_enabled_rule(diagnostics, |diagnostics, rule| {
+            rule.validation_block(diagnostics, reason, block)
+        });
+    }
+
+    fn validation_clause(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        clause: &v1::ValidationClause,
+    ) {
+        self.each_enabled_rule(diagnostics, |diagnostics, rule| {
+            rule.validation_clause(diagnostics, reason, clause)
+        });
+    }
+
     fn command_section(
         &mut self,
         diagnostics: &mut Diagnostics,

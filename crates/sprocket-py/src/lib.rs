@@ -455,6 +455,12 @@ mod _sprocket_bio {
             #[pymodule_export]
             use wdl_ast::v1::PyUnwrapExpr;
             #[pymodule_export]
+            use wdl_ast::v1::PyValidationBlock;
+            #[pymodule_export]
+            use wdl_ast::v1::PyValidationClause;
+            #[pymodule_export]
+            use wdl_ast::v1::PyValidationKeyword;
+            #[pymodule_export]
             use wdl_ast::v1::PyVersionKeyword;
             #[pymodule_export]
             use wdl_ast::v1::PyWorkflowDefinition;
