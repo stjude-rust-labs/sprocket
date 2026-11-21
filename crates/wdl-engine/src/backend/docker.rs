@@ -397,6 +397,7 @@ impl ManagedTask for DockerTask<'_> {
                     .expect("path should be UTF-8"),
             )
             .into(),
+            preemptions: 0,
         }))
     }
 }
@@ -631,6 +632,10 @@ impl TaskExecutionBackend for DockerBackend {
         image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
+        if requirements::preemptible_only(inputs, requirements) {
+            bail!("the Docker backend does not support the `preemptible_only` requirement");
+        }
+
         let sources = requirements::container(
             inputs,
             requirements,
@@ -920,6 +925,7 @@ mod tests {
             base_dir: &base_dir,
             attempt_dir: &attempt_dir,
             temp_dir: &temp_dir,
+            preemptions: 0,
         };
 
         let work_dir = request.work_dir();
@@ -1018,5 +1024,27 @@ mod tests {
             task_id.is_some(),
             "the task itself should have been reported on the event stream"
         );
+    }
+
+    #[cfg(not(docker_tests_disabled))]
+    #[tokio::test]
+    async fn constraints_rejects_preemptible_only() {
+        let mut config = Config::default();
+        config.backends.insert(
+            "default".into(),
+            crate::config::DockerBackendConfig::default().into(),
+        );
+        let backend = DockerBackend::new(Arc::new(config)).await.unwrap();
+        let requirements = Object::new([("preemptible_only".to_string(), true.into())].into());
+
+        let err = backend
+            .constraints(
+                &TaskInputs::default(),
+                &requirements,
+                &Default::default(),
+                &Object::empty(),
+            )
+            .expect_err("Docker backend should reject `preemptible_only: true`");
+        assert!(err.to_string().contains("preemptible_only"));
     }
 }

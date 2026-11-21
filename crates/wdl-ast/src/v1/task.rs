@@ -135,6 +135,15 @@ pub const TASK_FIELDS: &[(&str, &str)] = &[
          aren't any. Members of ext should be considered optional. It is recommended to only \
          access a member of ext using string interpolation to avoid an error if it is not defined.",
     ),
+    (
+        TASK_FIELD_PREEMPTIBLE,
+        "An Int suggesting the maximum number of preemptions to tolerate before switching to a \
+         non-preemptible instance or failing the task.",
+    ),
+    (
+        TASK_FIELD_PREEMPTIBLE_ONLY,
+        "A Boolean indicating whether the task may run only on preemptible instances.",
+    ),
 ];
 
 /// The set of all valid runtime section keys and their descriptions.
@@ -178,6 +187,10 @@ pub const REQUIREMENTS_KEY: &[(&str, &str)] = &[
     (
         TASK_REQUIREMENT_MAX_RETRIES,
         "The maximum number of times the task can be retried.",
+    ),
+    (
+        TASK_REQUIREMENT_PREEMPTIBLE_ONLY,
+        "Whether every attempt of the task must run on a preemptible instance.",
     ),
     (
         TASK_REQUIREMENT_RETURN_CODES,
@@ -236,6 +249,11 @@ pub const TASK_HINT_KEYS: &[(&str, &str)] = &[
          struct output.",
     ),
     (
+        TASK_HINT_PREEMPTIBLE,
+        "Suggests the maximum number of preemptions to tolerate on preemptible instances before \
+         switching to a non-preemptible instance or failing the task.",
+    ),
+    (
         TASK_HINT_SHORT_TASK,
         "A hint to the execution engine about the expected duration of this task. The value of \
          this hint is a Boolean for which true indicates that that this task is not expected to \
@@ -283,6 +301,10 @@ pub const TASK_FIELD_PARAMETER_META: &str = "parameter_meta";
 pub const TASK_FIELD_EXT: &str = "ext";
 /// The name of the `max_retries` task variable field.
 pub const TASK_FIELD_MAX_RETRIES: &str = "max_retries";
+/// The name of the `preemptible` task variable field.
+pub const TASK_FIELD_PREEMPTIBLE: &str = "preemptible";
+/// The name of the `preemptible_only` task variable field.
+pub const TASK_FIELD_PREEMPTIBLE_ONLY: &str = "preemptible_only";
 
 /// The name of the `container` task requirement.
 pub const TASK_REQUIREMENT_CONTAINER: &str = "container";
@@ -302,6 +324,8 @@ pub const TASK_REQUIREMENT_MAX_RETRIES: &str = "max_retries";
 pub const TASK_REQUIREMENT_MAX_RETRIES_ALIAS: &str = "maxRetries";
 /// The name of the `memory` task requirement.
 pub const TASK_REQUIREMENT_MEMORY: &str = "memory";
+/// The name of the `preemptible_only` task requirement.
+pub const TASK_REQUIREMENT_PREEMPTIBLE_ONLY: &str = "preemptible_only";
 /// The name of the `return_codes` task requirement.
 pub const TASK_REQUIREMENT_RETURN_CODES: &str = "return_codes";
 /// The alias of the `return_codes` task requirement (i.e. `returnCodes`).
@@ -330,6 +354,8 @@ pub const TASK_HINT_MAX_MEMORY: &str = "max_memory";
 pub const TASK_HINT_MAX_MEMORY_ALIAS: &str = "maxMemory";
 /// The name of the `outputs` task hint.
 pub const TASK_HINT_OUTPUTS: &str = "outputs";
+/// The name of the `preemptible` task hint.
+pub const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
 /// The name of the `short_task` task hint.
 pub const TASK_HINT_SHORT_TASK: &str = "short_task";
 /// The alias of the `short_task` task hint (e.g. `shortTask`).

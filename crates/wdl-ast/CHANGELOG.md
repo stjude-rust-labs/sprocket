@@ -9,6 +9,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added `TASK_REQUIREMENT_PREEMPTIBLE_ONLY`, `TASK_HINT_PREEMPTIBLE`, `TASK_FIELD_PREEMPTIBLE`, and
+  `TASK_FIELD_PREEMPTIBLE_ONLY` constants and completion metadata for WDL 1.4 from
+  [`openwdl/wdl#728`](https://github.com/openwdl/wdl/pull/728)
+  ([#1432](https://github.com/stjude-rust-labs/sprocket/pull/1432)).
 * Added `Expr::Unwrap` and `UnwrapExpr` for the WDL 1.4 postfix unwrap operator (`x!`) from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777)
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
