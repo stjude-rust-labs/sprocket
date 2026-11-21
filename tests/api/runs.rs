@@ -2062,8 +2062,7 @@ version 1.2
     let run = db.get_run(run_id).await.unwrap().unwrap();
     let error_message = run.error.as_ref().unwrap();
     assert!(
-        error_message
-            .contains("there must be at least one task, workflow, struct, or enum definition"),
+        error_message.contains("there must be at least one task, workflow, or struct definition"),
         "error message should indicate no executable target, got: {}",
         error_message
     );
