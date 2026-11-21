@@ -53,6 +53,8 @@ use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELDS;
 use wdl_ast::v1::TASK_HINT_KEYS;
+use wdl_ast::v1::TASK_HINT_PREEMPTIBLE;
+use wdl_ast::v1::TASK_REQUIREMENT_PREEMPTIBLE_ONLY;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WORKFLOW_HINT_KEYS;
 use wdl_ast::version::V1;
@@ -864,6 +866,12 @@ fn add_requirements_key_completions(
     items: &mut Vec<CompletionItem>,
 ) {
     for (key, desc) in REQUIREMENTS_KEY {
+        if *key == TASK_REQUIREMENT_PREEMPTIBLE_ONLY
+            && !version.is_some_and(|v| v >= SupportedVersion::V1(V1::Four))
+        {
+            continue;
+        }
+
         let ty = version
             .and_then(|v| task_requirement_types(v, key))
             .map(|types| {
@@ -890,6 +898,12 @@ fn add_task_hints_key_completions(
     items: &mut Vec<CompletionItem>,
 ) {
     for (key, desc) in TASK_HINT_KEYS {
+        if *key == TASK_HINT_PREEMPTIBLE
+            && !version.is_some_and(|v| v >= SupportedVersion::V1(V1::Four))
+        {
+            continue;
+        }
+
         let ty = version
             .and_then(|v| task_hint_types(v, key, false))
             .map(|types| {

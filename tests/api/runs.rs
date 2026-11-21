@@ -2343,6 +2343,7 @@ async fn backend_secrets_are_never_persisted(pool: sqlx::SqlitePool) {
                 config: TesBackendConfig {
                     cgroup_usage: true,
                     resource_usage_metadata: false,
+                    preemptible_only_supported: false,
                     service: "http://user:service-password@127.0.0.1:9/?token=service-query-token"
                         .parse()
                         .unwrap(),

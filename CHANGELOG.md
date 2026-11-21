@@ -9,6 +9,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added WDL 1.4 support for the `preemptible_only` task requirement, the formalized `preemptible`
+  task hint, and the `task.preemptible` and `task.preemptible_only` fields from
+  [`openwdl/wdl#728`](https://github.com/openwdl/wdl/pull/728), gated by `feature_flags.wdl_1_4`.
+  Non-preemptible backends fail before command instantiation when `preemptible_only` is `true`, and
+  the TES backend requires opting in with `preemptible_only_supported = true` (default `false`) to
+  run `preemptible_only: true` tasks
+  ([#1432](https://github.com/stjude-rust-labs/sprocket/pull/1432)).
 * Added contextual input help to `sprocket run`: passing `--help` (or `-h`) with a WDL source now
   appends the selected task's or workflow's required inputs and their types to the help output
   ([#1086](https://github.com/stjude-rust-labs/sprocket/issues/1086)).
@@ -22,6 +29,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+* The TES backend now tracks preemptions cumulatively across all attempts of a task (including
+  `max_retries` retries) when applying the `preemptible` hint across all WDL versions, including
+  pre-1.4 documents ([#1432](https://github.com/stjude-rust-labs/sprocket/pull/1432)).
 * SQLite connections now apply the 30-second lock-wait timeout before running initialization
   statements, rather than using the five-second default during initialization
   ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).

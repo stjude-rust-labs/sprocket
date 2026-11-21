@@ -57,6 +57,8 @@ use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
+use wdl_ast::v1::TASK_FIELD_PREEMPTIBLE;
+use wdl_ast::v1::TASK_FIELD_PREEMPTIBLE_ONLY;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::version::V1;
@@ -3482,6 +3484,10 @@ struct TaskPostEvaluationInner {
     ///
     /// A value of `None` indicates there is no deadline.
     end_time: Option<i64>,
+    /// The suggested maximum number of preemptions to tolerate (WDL 1.4+).
+    preemptible: i64,
+    /// Whether the task may run only on preemptible instances (WDL 1.4+).
+    preemptible_only: bool,
     /// The previous attempt's task data (WDL 1.3+).
     ///
     /// Contains the evaluated task data from the previous attempt.
@@ -3507,6 +3513,8 @@ impl TaskPostEvaluationValue {
         id: impl Into<String>,
         constraints: &TaskExecutionConstraints,
         max_retries: i64,
+        preemptible: i64,
+        preemptible_only: bool,
         attempt: i64,
         meta: Object,
         parameter_meta: Object,
@@ -3558,6 +3566,8 @@ impl TaskPostEvaluationValue {
             ext,
             return_code: None,
             end_time: None,
+            preemptible,
+            preemptible_only,
             previous: PreviousTaskDataValue::empty(),
         }))
     }
@@ -3650,6 +3660,16 @@ impl TaskPostEvaluationValue {
         &self.0.ext
     }
 
+    /// Gets the suggested maximum number of preemptions to tolerate.
+    pub fn preemptible(&self) -> i64 {
+        self.0.preemptible
+    }
+
+    /// Gets whether the task may run only on preemptible instances.
+    pub fn preemptible_only(&self) -> bool {
+        self.0.preemptible_only
+    }
+
     /// Sets the container image after task execution has completed.
     pub(crate) fn set_container(&mut self, container: String) {
         let inner = Arc::get_mut(&mut self.0).expect("task value must be uniquely owned to mutate");
@@ -3728,6 +3748,12 @@ impl TaskPostEvaluationValue {
             }
             TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
                 Some(HiddenValue::PreviousTaskData(self.0.previous.clone()).into())
+            }
+            TASK_FIELD_PREEMPTIBLE if version >= SupportedVersion::V1(V1::Four) => {
+                Some(self.0.preemptible.into())
+            }
+            TASK_FIELD_PREEMPTIBLE_ONLY if version >= SupportedVersion::V1(V1::Four) => {
+                Some(self.0.preemptible_only.into())
             }
             _ => None,
         }

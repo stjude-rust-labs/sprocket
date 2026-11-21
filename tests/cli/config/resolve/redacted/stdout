@@ -239,6 +239,7 @@ outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
 resource_usage_metadata = false
+preemptible_only_supported = false
 
 [run.backends.first.auth]
 type = "basic"
@@ -253,6 +254,7 @@ outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
 resource_usage_metadata = false
+preemptible_only_supported = false
 
 [run.backends.second.auth]
 type = "bearer"
@@ -266,6 +268,7 @@ outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
 resource_usage_metadata = false
+preemptible_only_supported = false
 
 [run.backends.third.auth]
 type = "oauth"
@@ -351,6 +354,7 @@ outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
 resource_usage_metadata = false
+preemptible_only_supported = false
 
 [server.engine.backends.first.auth]
 type = "basic"
@@ -365,6 +369,7 @@ outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
 resource_usage_metadata = false
+preemptible_only_supported = false
 
 [server.engine.backends.second.auth]
 type = "bearer"
@@ -378,6 +383,7 @@ outputs = "http://example.com/outputs/"
 insecure = false
 cgroup_usage = true
 resource_usage_metadata = false
+preemptible_only_supported = false
 
 [server.engine.backends.third.auth]
 type = "oauth"

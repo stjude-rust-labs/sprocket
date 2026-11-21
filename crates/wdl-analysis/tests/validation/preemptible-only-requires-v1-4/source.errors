@@ -1,0 +1,6 @@
+error: use of the `preemptible_only` requirement requires WDL version 1.4
+  ┌─ tests/validation/preemptible-only-requires-v1-4/source.wdl:7:9
+  │
+7 │         preemptible_only: true
+  │         ^^^^^^^^^^^^^^^^
+
