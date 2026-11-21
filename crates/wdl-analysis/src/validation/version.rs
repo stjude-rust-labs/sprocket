@@ -104,15 +104,6 @@ fn unsupported_version(version: SupportedVersion, span: Span) -> Diagnostic {
     Diagnostic::error(format!("unsupported version {version}")).with_highlight(span)
 }
 
-/// Creates an "unstable WDL 1.4" diagnostic.
-fn unstable_wdl_1_4(span: Span) -> Diagnostic {
-    Diagnostic::error(
-        "WDL version 1.4 is unstable; set `feature_flags.wdl_1_4 = true` in your configuration to \
-         opt in",
-    )
-    .with_highlight(span)
-}
-
 /// Creates a "symbolic module path requires WDL 1.4" diagnostic.
 fn symbolic_path_requires_wdl_1_4(span: Span) -> Diagnostic {
     Diagnostic::error("use of a symbolic module path requires WDL version 1.4").with_highlight(span)
@@ -144,8 +135,8 @@ struct DeprecatedVersionFeatureFlag {
 pub struct VersionVisitor {
     /// The state of the deprecated `wdl_1_3` feature flag.
     wdl_1_3_ff: DeprecatedVersionFeatureFlag,
-    /// Whether the `wdl_1_4` feature flag is enabled.
-    wdl_1_4_enabled: bool,
+    /// The state of the deprecated `wdl_1_4` feature flag.
+    wdl_1_4_ff: DeprecatedVersionFeatureFlag,
     /// Stores the supported version of the WDL document we're visiting.
     version: Option<SupportedVersion>,
 }
@@ -153,15 +144,15 @@ pub struct VersionVisitor {
 impl Visitor for VersionVisitor {
     fn register(&mut self, config: &Config) {
         self.wdl_1_3_ff.explicitly_disabled = !config.feature_flags().wdl_1_3();
-        self.wdl_1_4_enabled = config.feature_flags().wdl_1_4();
+        self.wdl_1_4_ff.explicitly_disabled = !config.feature_flags().wdl_1_4();
     }
 
     fn reset(&mut self) {
         let wdl_1_3_ff = self.wdl_1_3_ff;
-        let wdl_1_4_enabled = self.wdl_1_4_enabled;
+        let wdl_1_4_ff = self.wdl_1_4_ff;
         *self = Default::default();
         self.wdl_1_3_ff = wdl_1_3_ff;
-        self.wdl_1_4_enabled = wdl_1_4_enabled;
+        self.wdl_1_4_ff = wdl_1_4_ff;
     }
 
     fn document(
@@ -188,12 +179,14 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        // Emit a deprecation warning if the user explicitly disabled WDL 1.3
-        // and we encounter a WDL 1.3 document.
+        // Emit a deprecation warning if the user explicitly disabled a version
+        // feature flag and we encounter a document declaring that version.
         if let Some(version) = self.version {
             match version {
                 SupportedVersion::V1(V1::Three)
-                    if self.wdl_1_3_ff.explicitly_disabled && !self.wdl_1_3_ff.warning_emitted =>
+                    if self.wdl_1_3_ff.explicitly_disabled
+                        && !self.wdl_1_3_ff.warning_emitted
+                        && stmt.version().text() == "1.3" =>
                 {
                     diagnostics.add(deprecated_version_feature_flag(
                         "wdl_1_3",
@@ -201,8 +194,16 @@ impl Visitor for VersionVisitor {
                     ));
                     self.wdl_1_3_ff.warning_emitted = true;
                 }
-                SupportedVersion::V1(V1::Four) if !self.wdl_1_4_enabled => {
-                    diagnostics.add(unstable_wdl_1_4(stmt.version().span()));
+                SupportedVersion::V1(V1::Four)
+                    if self.wdl_1_4_ff.explicitly_disabled
+                        && !self.wdl_1_4_ff.warning_emitted
+                        && stmt.version().text() == "1.4" =>
+                {
+                    diagnostics.add(deprecated_version_feature_flag(
+                        "wdl_1_4",
+                        stmt.version().span(),
+                    ));
+                    self.wdl_1_4_ff.warning_emitted = true;
                 }
                 // TODO ACF 2025-10-21: This is an unfortunate consequence of
                 // using `#[non_exhaustive]` on the version enums. We should

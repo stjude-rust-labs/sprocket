@@ -7,7 +7,6 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::v1;
 use wdl_ast::v1::StringPart;
 
-use crate::Config;
 use crate::Diagnostics;
 use crate::VisitReason;
 use crate::Visitor;
@@ -35,21 +34,13 @@ fn invalid_import_namespace(span: Span) -> Diagnostic {
 /// An AST visitor that ensures that imports are valid.
 #[derive(Debug, Default)]
 pub struct ImportsVisitor {
-    /// Whether WDL 1.4 has been opted into via `feature_flags.wdl_1_4`.
-    wdl_1_4_enabled: bool,
     /// The version of the document currently being visited.
     version: Option<SupportedVersion>,
 }
 
 impl Visitor for ImportsVisitor {
-    fn register(&mut self, config: &Config) {
-        self.wdl_1_4_enabled = config.feature_flags().wdl_1_4();
-    }
-
     fn reset(&mut self) {
-        let wdl_1_4_enabled = self.wdl_1_4_enabled;
         *self = Default::default();
-        self.wdl_1_4_enabled = wdl_1_4_enabled;
     }
 
     fn document(

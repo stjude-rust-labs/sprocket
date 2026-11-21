@@ -29,7 +29,10 @@ fn init_scaffolds_a_parseable_module() {
     assert_eq!(value["description"], "The `demo` WDL module.");
     assert_eq!(value["license"], "Apache-2.0 OR MIT");
     assert!(value.get("version").is_none());
-    assert!(dir.path().join("index.wdl").exists());
+    assert_eq!(
+        fs::read_to_string(dir.path().join("index.wdl")).unwrap(),
+        "version 1.4\n"
+    );
     assert!(dir.path().join("README.md").exists());
 
     assert!(!dir.path().join(".gitignore").exists());

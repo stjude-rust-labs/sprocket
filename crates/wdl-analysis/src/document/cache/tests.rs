@@ -265,8 +265,7 @@ workflow second {
 workflow third {}
 "#;
 
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), acyclic)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
@@ -364,8 +363,7 @@ workflow duplicate {}
 
 workflow duplicate {}
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), source)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
@@ -411,8 +409,7 @@ workflow caller {
 
 workflow callee {}
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_handle], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), initial)]).await;
 
     let result = doc_handle.analyze(&analyzer).await;
@@ -468,8 +465,7 @@ workflow caller {
     call added
 }
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut library, main], analyzer) = setup_analyzer(
         config,
         [
@@ -526,8 +522,7 @@ workflow caller {
 
 workflow added {}
 "#;
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([main], analyzer) = setup_analyzer(config, [(MAIN_WDL.clone(), source)]).await;
 
     let result = main.analyze(&analyzer).await;
@@ -899,8 +894,7 @@ workflow bar {
 }
 "#;
 
-    let config =
-        Config::default().with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+    let config = Config::default();
     let ([mut doc_foo, mut doc_main], analyzer) = setup_analyzer(
         config,
         [

@@ -1,1 +1,1 @@
--qq -c sprocket.toml run main.wdl hello.name=modules
+-qq run main.wdl hello.name=modules

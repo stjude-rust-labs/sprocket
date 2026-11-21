@@ -1,1 +1,1 @@
--qq -c sprocket.toml run .
+-qq run .

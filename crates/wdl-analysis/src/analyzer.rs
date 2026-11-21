@@ -1985,8 +1985,7 @@ workflow run {
         )
         .expect("failed to create source document");
 
-        let config = Config::default()
-            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let config = Config::default();
         let analyzer = Analyzer::new(config, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(dir.path().join("source.wdl")).expect("should convert"))
@@ -2105,8 +2104,7 @@ workflow run {
         )
         .unwrap();
 
-        let config = Config::default()
-            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let config = Config::default();
         let resolver: Arc<dyn wdl_modules::Resolver> = Arc::new(MockResolver {
             dep_path: dep_dir.clone(),
         });
@@ -2265,8 +2263,7 @@ workflow run {
         source.push_str("\nworkflow main {}\n");
         fs::write(consumer_dir.join("source.wdl"), &source).unwrap();
 
-        let config = Config::default()
-            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let config = Config::default();
         let resolver = Arc::new(SlowMockResolver {
             dep_path: dep_dir.clone(),
             delay: Duration::from_millis(DELAY_MS),
@@ -2361,5 +2358,172 @@ workflow test {}
             String::from("invalid range"),
         )
         .expect_err("should fail");
+    }
+
+    #[tokio::test]
+    #[test_log::test]
+    async fn disabled_wdl_1_4_flag_still_resolves_symbolic_imports_with_warning() {
+        use wdl_modules::Manifest;
+        use wdl_modules::lockfile::ResolvedSource;
+        use wdl_modules::resolver::MaterializedFile;
+        use wdl_modules::resolver::ResolvedTree;
+        use wdl_modules::resolver::ResolverError;
+
+        #[derive(Debug)]
+        struct MockResolver {
+            dep_path: PathBuf,
+        }
+
+        #[async_trait::async_trait]
+        impl wdl_modules::Resolver for MockResolver {
+            async fn materialize(
+                &self,
+                _consumer: &wdl_modules::module::Module,
+                path: &wdl_modules::symbolic_path::SymbolicPath,
+            ) -> Result<MaterializedFile, ResolverError> {
+                let rel = match path.sub_path() {
+                    Some(sub) => {
+                        let mut p = sub.to_path_buf();
+                        p.set_extension("wdl");
+                        p
+                    }
+                    None => PathBuf::from("index.wdl"),
+                };
+                let manifest_bytes = fs::read(self.dep_path.join("module.json")).unwrap();
+                let manifest = Manifest::parse(&manifest_bytes).unwrap();
+                Ok(MaterializedFile {
+                    path: self.dep_path.join(rel),
+                    module_root: self.dep_path.clone(),
+                    source: ResolvedSource::Path {
+                        path: self.dep_path.clone(),
+                    },
+                    manifest: Arc::new(manifest),
+                })
+            }
+
+            async fn resolve_tree(
+                &self,
+                _consumer: &wdl_modules::module::Module,
+            ) -> Result<ResolvedTree, ResolverError> {
+                Ok(ResolvedTree::default())
+            }
+
+            async fn discover_versions(
+                &self,
+                _name: &wdl_modules::dependency::DependencyName,
+                _source: &wdl_modules::dependency::DependencySource,
+                _scope: wdl_modules::resolver::DependencyScope,
+            ) -> Result<Vec<semver::Version>, ResolverError> {
+                Ok(Vec::new())
+            }
+        }
+
+        let dir = TempDir::new().expect("failed to create temporary directory");
+
+        let dep_dir = dir.path().join("dep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        fs::write(
+            dep_dir.join("module.json"),
+            r#"{"name":"dep","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dep_dir.join("index.wdl"),
+            "version 1.4\n\ntask hello {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        let consumer_dir = dir.path().join("consumer");
+        fs::create_dir_all(&consumer_dir).unwrap();
+        let dep_path_json = dep_dir.display().to_string().replace('\\', "/");
+        fs::write(
+            consumer_dir.join("module.json"),
+            format!(
+                r#"{{"name":"consumer","version":"0.1.0","license":"MIT","dependencies":{{"dep":{{"path":"{dep_path_json}"}}}}}}"#
+            ),
+        )
+        .unwrap();
+        fs::write(
+            consumer_dir.join("source.wdl"),
+            "version 1.4\n\nimport dep\n\nworkflow main {\n    call dep.hello\n}\n",
+        )
+        .unwrap();
+
+        let config: Config = toml_spanner::from_str("[feature_flags]\nwdl_1_4 = false\n")
+            .expect("config should deserialize");
+        let resolver: Arc<dyn wdl_modules::Resolver> = Arc::new(MockResolver {
+            dep_path: dep_dir.clone(),
+        });
+        let consumer_module = wdl_modules::module::Module::load_from_path(&consumer_dir)
+            .expect("test consumer module should load");
+        let resolution = ResolutionContext::enabled(resolver, consumer_module);
+        let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
+        analyzer
+            .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+        let consumer_result = results
+            .iter()
+            .find(|r| r.document.uri().path().contains("source.wdl"))
+            .expect("should find consumer result");
+        let errors: Vec<_> = consumer_result
+            .document
+            .diagnostics()
+            .filter(|d| d.severity() == Severity::Error)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "symbolic import should still resolve when `wdl_1_4 = false`, got errors: {:?}",
+            errors.iter().map(|d| d.message()).collect::<Vec<_>>()
+        );
+        let warnings: Vec<_> = results
+            .iter()
+            .flat_map(|r| r.document.diagnostics())
+            .filter(|d| {
+                d.severity() == Severity::Warning
+                    && d.message().contains("`wdl_1_4` feature flag is deprecated")
+            })
+            .collect();
+        assert_eq!(
+            warnings.len(),
+            1,
+            "expected one deprecation warning across analyzed documents"
+        );
+    }
+
+    #[tokio::test]
+    #[test_log::test]
+    async fn disabled_wdl_1_4_flag_does_not_warn_on_fallback_version() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let path = dir.path().join("source.wdl");
+        fs::write(&path, "version development\n\nworkflow main {}\n")
+            .expect("failed to write WDL file");
+
+        let config: Config = toml_spanner::from_str("[feature_flags]\nwdl_1_4 = false\n")
+            .expect("config should deserialize");
+        let config = config.with_fallback_version(Some(wdl_ast::SupportedVersion::default()));
+        let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+        analyzer
+            .add_document(path_to_uri(&path).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        let deprecation_warnings: Vec<_> = results[0]
+            .document
+            .diagnostics()
+            .filter(|d| d.message().contains("`wdl_1_4` feature flag is deprecated"))
+            .collect();
+        assert!(
+            deprecation_warnings.is_empty(),
+            "fallback version should not emit `wdl_1_4` deprecation warning, got: {:?}",
+            deprecation_warnings
+                .iter()
+                .map(|d| d.message())
+                .collect::<Vec<_>>()
+        );
     }
 }

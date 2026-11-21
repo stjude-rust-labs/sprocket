@@ -108,17 +108,12 @@ impl ParseState {
         }
     }
 
-    /// Returns whether symbolic imports may be resolved for this parse state
-    /// under the given configuration.
+    /// Returns whether symbolic imports may be resolved for this parse state.
     ///
-    /// Symbolic imports require the WDL 1.4 feature flag and a document parsed
-    /// at WDL 1.4 or later. This is the single source of truth shared by the
-    /// analysis queue and document resolution.
-    pub(crate) fn symbolic_imports_enabled(&self, config: &Config) -> bool {
-        if !config.feature_flags().wdl_1_4() {
-            return false;
-        }
-
+    /// Symbolic imports require a document parsed at WDL 1.4 or later. This is
+    /// the single source of truth shared by the analysis queue and document
+    /// resolution.
+    pub(crate) fn symbolic_imports_enabled(&self) -> bool {
         matches!(
             self,
             ParseState::Parsed {
@@ -624,11 +619,6 @@ impl DocumentGraph {
             roots: IndexSet::new(),
             cycles: HashSet::new(),
         }
-    }
-
-    /// Gets the analyzer configuration used by this graph.
-    pub fn config(&self) -> &Config {
-        &self.config
     }
 
     /// Add a node to the document graph.

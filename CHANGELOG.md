@@ -19,6 +19,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+* WDL v1.4 is now enabled by default; the `wdl_1_4` feature flag is deprecated and will emit a
+  warning if explicitly set to `false`
+  ([#1431](https://github.com/stjude-rust-labs/sprocket/pull/1431)).
 * SQLite connections now apply the 30-second lock-wait timeout before running initialization
   statements, rather than using the five-second default during initialization
   ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).

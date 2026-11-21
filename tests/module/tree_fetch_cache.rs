@@ -104,11 +104,7 @@ fn check_warns_on_lock_drift() {
     .unwrap();
 
     let config_path = fixture.dir.path().join("sprocket.toml");
-    fs::write(
-        &config_path,
-        "[common.wdl.feature_flags]\nwdl_1_4 = true\n\n[modules]\n",
-    )
-    .unwrap();
+    fs::write(&config_path, "[modules]\n").unwrap();
 
     let entrypoint = fixture.consumer().join("index.wdl");
     fs::write(
