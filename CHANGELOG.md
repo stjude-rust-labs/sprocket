@@ -23,6 +23,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   statements, rather than using the five-second default during initialization
   ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).
 
+### Fixed
+
+* Fixed WDL 1.4 workflows ignoring `hints { allow_nested_inputs: true }` (and
+  `meta { allowNestedInputs: true }`) during analysis and execution.
+* Fixed WDL 1.4 enum-only documents failing validation due to an inverted version check in
+  `wdl-analysis`.
+
 ## 0.34.1 - 2026-11-18
 
 ### Security Fix

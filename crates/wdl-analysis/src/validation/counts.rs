@@ -97,7 +97,7 @@ impl<T: std::fmt::Display> std::fmt::Display for OxfordCommaOr<T> {
 fn at_least_one_definition(version: SupportedVersion) -> Diagnostic {
     let mut definitions = vec!["task", "workflow", "struct"];
 
-    if version <= SupportedVersion::V1(V1::Three) {
+    if version >= SupportedVersion::V1(V1::Three) {
         definitions.push("enum");
     }
 
@@ -371,7 +371,7 @@ impl Visitor for CountingVisitor {
         }
 
         if let Some(version) = self.version
-            && version <= SupportedVersion::V1(V1::Three)
+            && version >= SupportedVersion::V1(V1::Three)
         {
             self.has_enum = true;
         }
@@ -623,5 +623,99 @@ impl Visitor for CountingVisitor {
             .token()
             .expect("should have a parameter meta keyword token");
         self.param_metadata = Some(token.span());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+    use wdl_ast::Severity;
+
+    use crate::Analyzer;
+    use crate::Config;
+    use crate::FeatureFlags;
+    use crate::path_to_uri;
+
+    async fn analyze_errors(source: &str) -> Vec<String> {
+        let dir = TempDir::new().expect("temporary directory should be created");
+        let path = dir.path().join("source.wdl");
+        fs::write(&path, source).expect("test document should be written");
+
+        let uri = path_to_uri(path).expect("source URI should be valid");
+        let config = Config::default().with_feature_flags(FeatureFlags::default().with_wdl_1_4());
+        let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+        analyzer
+            .add_document(uri.clone())
+            .await
+            .expect("source document should be added");
+
+        let document = analyzer
+            .analyze_document((), uri)
+            .await
+            .expect("analysis should succeed")
+            .pop()
+            .expect("source result should exist")
+            .document()
+            .clone();
+
+        document
+            .diagnostics()
+            .filter(|d| d.severity() == Severity::Error)
+            .map(|d| d.message().to_string())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn empty_document_diagnostic_mentions_enum_only_in_wdl_1_3_and_later() {
+        for version in ["1.0", "1.1", "1.2"] {
+            let errors = analyze_errors(&format!("version {version}\n")).await;
+            assert_eq!(
+                errors,
+                vec!["there must be at least one task, workflow, or struct definition in the file"],
+                "unexpected empty-document errors for WDL {version}"
+            );
+        }
+
+        for version in ["1.3", "1.4"] {
+            let errors = analyze_errors(&format!("version {version}\n")).await;
+            assert_eq!(
+                errors,
+                vec![
+                    "there must be at least one task, workflow, struct, or enum definition in the \
+                     file"
+                ],
+                "unexpected empty-document errors for WDL {version}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn enum_only_document_is_accepted_in_wdl_1_3_and_later() {
+        for version in ["1.3", "1.4"] {
+            let errors = analyze_errors(&format!(
+                "version {version}\n\nenum Color {{\n    Red,\n    Blue,\n}}\n"
+            ))
+            .await;
+            assert!(
+                errors.is_empty(),
+                "WDL {version} enum-only document should validate cleanly, got: {errors:?}"
+            );
+        }
+
+        let v1_2_errors =
+            analyze_errors("version 1.2\n\nenum Color {\n    Red,\n    Blue,\n}\n").await;
+        assert!(
+            v1_2_errors
+                .iter()
+                .any(|e| e == "enums are not supported in WDL v1.2"),
+            "expected unsupported-enum error in WDL 1.2, got: {v1_2_errors:?}"
+        );
+        assert!(
+            v1_2_errors.iter().any(|e| e
+                == "there must be at least one task, workflow, or struct definition in the file"),
+            "expected missing-definition error in WDL 1.2, got: {v1_2_errors:?}"
+        );
     }
 }

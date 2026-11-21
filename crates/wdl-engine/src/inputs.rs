@@ -1448,4 +1448,136 @@ mod tests {
              `WorkflowInputs::Serialize` calls"
         );
     }
+
+    #[tokio::test]
+    async fn wdl_1_4_allow_nested_inputs_validation() {
+        use std::fs;
+
+        use tempfile::TempDir;
+        use wdl_analysis::Analyzer;
+        use wdl_analysis::Config;
+        use wdl_analysis::FeatureFlags;
+        use wdl_analysis::path_to_uri;
+        use wdl_ast::Severity;
+
+        let dir = TempDir::new().expect("temporary directory should be created");
+        let wdl_path = dir.path().join("source.wdl");
+        fs::write(
+            &wdl_path,
+            r#"
+version 1.4
+
+task greet {
+    input {
+        String salutation
+        String name = "Joe"
+    }
+
+    command <<<
+        echo "~{salutation} ~{name}"
+    >>>
+
+    output {
+        String greeting = read_string(stdout())
+    }
+}
+
+workflow allowed {
+    call greet {
+        salutation = "Hello"
+    }
+
+    output {
+        String greeting = greet.greeting
+    }
+
+    hints {
+        allow_nested_inputs: true
+    }
+}
+
+workflow disallowed {
+    call greet {
+        salutation = "Hello"
+    }
+
+    output {
+        String greeting = greet.greeting
+    }
+}
+"#,
+        )
+        .expect("should write WDL source");
+
+        let uri = path_to_uri(&wdl_path).expect("should convert path to URI");
+        let config = Config::default().with_feature_flags(FeatureFlags::default().with_wdl_1_4());
+        let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+        analyzer
+            .add_document(uri.clone())
+            .await
+            .expect("should add document");
+        let result = analyzer
+            .analyze_document((), uri)
+            .await
+            .expect("analysis should succeed")
+            .pop()
+            .expect("result should exist");
+        let document = result.document();
+        let errors: Vec<_> = document
+            .diagnostics()
+            .filter(|d| d.severity() == Severity::Error)
+            .collect();
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+
+        let allowed_wf = document
+            .local_workflow_by_name("allowed")
+            .expect("workflow `allowed` should exist");
+        assert!(allowed_wf.allows_nested_inputs());
+
+        let disallowed_wf = document
+            .local_workflow_by_name("disallowed")
+            .expect("workflow `disallowed` should exist");
+        assert!(!disallowed_wf.allows_nested_inputs());
+
+        // Overriding a defaulted call input succeeds when `allow_nested_inputs:
+        // true`
+        let ok_inputs_path = dir.path().join("ok.json");
+        fs::write(&ok_inputs_path, r#"{"allowed.greet.name": "World"}"#)
+            .expect("should write inputs");
+        let (name, inputs) = Inputs::parse(document, &ok_inputs_path)
+            .expect("should parse inputs")
+            .expect("should have workflow inputs");
+        assert_eq!(name, "allowed");
+        inputs
+            .unwrap_workflow_inputs()
+            .validate(document, allowed_wf, None)
+            .expect("nested override of defaulted call input should validate");
+
+        // Overriding an explicitly bound call input is still rejected
+        let bound_inputs_path = dir.path().join("bound.json");
+        fs::write(&bound_inputs_path, r#"{"allowed.greet.salutation": "Hi"}"#)
+            .expect("should write inputs");
+        let err = Inputs::parse(document, &bound_inputs_path)
+            .expect_err("explicitly bound call input should be rejected");
+        let err_msg = format!("{err:#}");
+        assert!(
+            err_msg.contains("explicitly specified in the call itself"),
+            "unexpected error: {err_msg}"
+        );
+
+        // Without `allow_nested_inputs`, nested call inputs are rejected
+        let disallowed_inputs_path = dir.path().join("disallowed.json");
+        fs::write(
+            &disallowed_inputs_path,
+            r#"{"disallowed.greet.name": "World"}"#,
+        )
+        .expect("should write inputs");
+        let err = Inputs::parse(document, &disallowed_inputs_path)
+            .expect_err("nested input should be rejected when allow_nested_inputs is false");
+        let err_msg = format!("{err:#}");
+        assert!(
+            err_msg.contains("does not allow nested inputs"),
+            "unexpected error: {err_msg}"
+        );
+    }
 }
