@@ -165,6 +165,45 @@ async fn should_goto_selected_imported_workflow_definition() {
 }
 
 #[tokio::test]
+async fn should_goto_members_of_wildcard_reexported_aliases() {
+    let mut options = wdl_lsp::ServerOptions::default();
+    options.feature_flags = options.feature_flags.with_wdl_1_4();
+    let mut ctx = TestContextBuilder::new("goto_definition_selected")
+        .server_options(options)
+        .build();
+    ctx.initialize().await;
+
+    // Position of `identifier` in `rec.identifier`, where `rec` is an `Item`
+    // (an alias of `Record`)
+    let response = goto_definition_request(&mut ctx, "aliased_source.wdl", Position::new(10, 26))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("aliased_base.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(3, 11), Position::new(3, 21))
+    );
+
+    // Position of `Ready` in `Code.Ready`, where `Code` is an alias of `State`
+    let response = goto_definition_request(&mut ctx, "aliased_source.wdl", Position::new(11, 28))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("aliased_base.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(7, 4), Position::new(7, 9))
+    );
+}
+
+#[tokio::test]
 async fn should_goto_imported_struct_definition() {
     let mut ctx = setup().await;
 

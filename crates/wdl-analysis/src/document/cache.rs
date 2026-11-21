@@ -8,6 +8,7 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use itertools::Either;
 use petgraph::prelude::DiGraphMap;
 use sha2::Digest;
 use sha2::Sha256;
@@ -23,6 +24,7 @@ use wdl_grammar::SyntaxKind;
 use crate::AppliedEdit;
 use crate::Diagnostics;
 use crate::Exceptable;
+use crate::document::Document;
 use crate::document::Enum;
 use crate::document::EnumRef;
 use crate::document::ImportedEnum;
@@ -39,6 +41,7 @@ use crate::document::Workflow;
 use crate::document::WorkflowRef;
 use crate::document::cache::hash::HashableCallable;
 use crate::document::cache::hash::HashableItem;
+use crate::graph::DocumentGraph;
 
 /// The kind of an [`LocalItem`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -55,8 +58,10 @@ pub enum ItemKind {
 }
 
 /// The import merges its contents directly into the document's scope.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MergingImport {
+    /// The imported document.
+    pub document: Document,
     /// Tasks imported via wildcard or selected import.
     pub imported_tasks: IndexMap<String, ImportedTask>,
     /// Workflows imported via wildcard or selected import.
@@ -72,6 +77,17 @@ pub struct MergingImport {
 }
 
 impl MergingImport {
+    /// Creates a new, empty merging import of the given document.
+    pub fn new(document: Document) -> Self {
+        Self {
+            document,
+            imported_tasks: Default::default(),
+            imported_workflows: Default::default(),
+            imported_structs: Default::default(),
+            imported_enums: Default::default(),
+        }
+    }
+
     /// Gets all of the items that this import brings into scope.
     pub fn items(&self) -> impl Iterator<Item = ImportedItem<'_>> {
         self.imported_tasks
@@ -93,6 +109,31 @@ pub enum Import {
 }
 
 impl Import {
+    /// Gets the imported document.
+    pub fn document(&self) -> &Document {
+        match self {
+            Import::Namespace(n) => n.document(),
+            Import::Merging(m) => &m.document,
+        }
+    }
+
+    /// Gets the items this import makes available for selected imports from
+    /// the importing document.
+    ///
+    /// For a merging import, this is every item it brings into scope. For a
+    /// namespace import, this is the structs and enums it copies into scope.
+    pub fn items(&self) -> impl Iterator<Item = ImportedItem<'_>> {
+        match self {
+            Import::Namespace(n) => Either::Left(
+                n.imported_structs
+                    .values()
+                    .map(ImportedItem::Struct)
+                    .chain(n.imported_enums.values().map(ImportedItem::Enum)),
+            ),
+            Import::Merging(m) => Either::Right(m.items()),
+        }
+    }
+
     /// Get the [`MergingImport`] contents of the import if it's a merging
     /// import.
     pub fn merging(&self) -> Option<&MergingImport> {
@@ -563,6 +604,7 @@ impl CachedItemRefMut<'_> {
                 }
                 Import::Merging(m) => {
                     let MergingImport {
+                        document: _,
                         imported_tasks,
                         imported_workflows,
                         imported_structs,
@@ -972,10 +1014,20 @@ impl AnalysisCache {
             .map(Item::Local)
             .chain(
                 self.imports()
-                    .filter_map(|(_idx, _hash, i)| i.merging())
-                    .flat_map(|i| i.items().map(Item::Imported)),
+                    .flat_map(|(_idx, _hash, i)| i.items().map(Item::Imported)),
             )
             .find(|i| i.name() == Some(name))
+    }
+
+    /// Marks the namespace import with the given signature hash as used.
+    ///
+    /// This does nothing if the import is not a namespace import.
+    pub fn mark_namespace_used(&mut self, hash: &SignatureHash) {
+        if let Some(import) = self.imports.get_mut(hash)
+            && let Some(ns) = import.item.item.namespace_mut()
+        {
+            ns.used = true;
+        }
     }
 
     /// Gets a struct in the document at the given cache index.
@@ -1284,6 +1336,110 @@ impl AnalysisCache {
 
         false
     }
+
+    /// Returns whether any imported [`Document`] retained by this cache is
+    /// older than the latest analyzed document in the graph.
+    ///
+    /// A dependency with a body-only edit keeps the same exports hash, so its
+    /// importers reuse their cached imports; those imports still hold the
+    /// previous analysis of the dependency.
+    pub fn has_stale_import_documents(&self, graph: &DocumentGraph) -> bool {
+        self.imports().any(|(_, _, import)| {
+            let callables = import.merging().into_iter().flat_map(|m| {
+                m.imported_tasks
+                    .values()
+                    .map(|t| &t.document)
+                    .chain(m.imported_workflows.values().map(|w| &w.document))
+            });
+
+            std::iter::once(import.document())
+                .chain(import.structs().map(|s| &s.document))
+                .chain(import.enums().map(|e| &e.document))
+                .chain(callables)
+                .any(|doc| latest_document(graph, doc).is_some())
+        })
+    }
+
+    /// Replaces every stale imported [`Document`] retained by this cache with
+    /// the latest analyzed document in the graph.
+    ///
+    /// The offsets and nodes of imported structs and enums are refreshed too,
+    /// as a body-only edit may move their definitions.
+    pub fn refresh_import_documents(&mut self, graph: &DocumentGraph) {
+        for cached in self.imports.values_mut() {
+            let (document, structs, enums, callables) = match &mut cached.item.item {
+                Import::Namespace(ns) => (
+                    &mut ns.document,
+                    &mut ns.imported_structs,
+                    &mut ns.imported_enums,
+                    None,
+                ),
+                Import::Merging(m) => (
+                    &mut m.document,
+                    &mut m.imported_structs,
+                    &mut m.imported_enums,
+                    Some((&mut m.imported_tasks, &mut m.imported_workflows)),
+                ),
+            };
+
+            if let Some(latest) = latest_document(graph, document) {
+                *document = latest.clone();
+            }
+
+            for s in structs.values_mut() {
+                let Some(latest) = latest_document(graph, &s.document) else {
+                    continue;
+                };
+
+                if let Some((_, _, local)) = latest
+                    .data
+                    .cache
+                    .local_struct_by_name(s.definition().name().text())
+                {
+                    s.offset = local.offset;
+                    s.node = local.node.clone();
+                }
+
+                s.document = latest.clone();
+            }
+
+            for e in enums.values_mut() {
+                let Some(latest) = latest_document(graph, &e.document) else {
+                    continue;
+                };
+
+                if let Some((_, _, local)) = latest
+                    .data
+                    .cache
+                    .local_enum_by_name(e.definition().name().text())
+                {
+                    e.offset = local.offset;
+                    e.node = local.node.clone();
+                }
+
+                e.document = latest.clone();
+            }
+
+            if let Some((tasks, workflows)) = callables {
+                for doc in tasks
+                    .values_mut()
+                    .map(|t| &mut t.document)
+                    .chain(workflows.values_mut().map(|w| &mut w.document))
+                {
+                    if let Some(latest) = latest_document(graph, doc) {
+                        *doc = latest.clone();
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Gets the latest analyzed version of `doc` from the graph if it differs from
+/// `doc`.
+fn latest_document<'a>(graph: &'a DocumentGraph, doc: &Document) -> Option<&'a Document> {
+    let latest = graph.get(graph.get_index(&doc.uri())?).document()?;
+    (!Arc::ptr_eq(&doc.data, &latest.data)).then_some(latest)
 }
 
 /// Represents an item in the AST.
