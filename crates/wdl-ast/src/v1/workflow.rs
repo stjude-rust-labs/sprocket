@@ -128,7 +128,7 @@ impl<N: TreeNode> WorkflowDefinition<N> {
             SupportedVersion::V1(V1::One) => {
                 // Fall through to below
             }
-            SupportedVersion::V1(V1::Two | V1::Three) => {
+            SupportedVersion::V1(v) if v >= V1::Two => {
                 // Check the hints section
                 let allow = self.hints().and_then(|s| {
                     s.items().find_map(|i| {
@@ -1766,5 +1766,113 @@ workflow test {
                 .text(),
             "private"
         );
+    }
+
+    #[test]
+    fn allows_nested_inputs() {
+        fn workflow_from(source: &str) -> WorkflowDefinition {
+            let (document, diagnostics) = Document::parse(source, None);
+            assert!(
+                diagnostics.is_empty(),
+                "expected no parse diagnostics, got: {diagnostics:?}"
+            );
+            document
+                .ast()
+                .as_v1()
+                .expect("should be a V1 AST")
+                .workflows()
+                .next()
+                .expect("should have a workflow")
+        }
+
+        // Default behavior without hints or metadata
+        let wf = workflow_from("version 1.4\nworkflow w {}\n");
+        assert!(wf.allows_nested_inputs(SupportedVersion::V1(V1::Zero)));
+        for version in [V1::One, V1::Two, V1::Three, V1::Four] {
+            assert!(
+                !wf.allows_nested_inputs(SupportedVersion::V1(version)),
+                "expected false by default for WDL {version}"
+            );
+        }
+
+        // `hints { allow_nested_inputs: true }` applies to WDL 1.2+
+        let wf = workflow_from(
+            r#"
+version 1.4
+workflow w {
+    hints {
+        allow_nested_inputs: true
+    }
+}
+"#,
+        );
+        assert!(wf.allows_nested_inputs(SupportedVersion::V1(V1::Zero)));
+        assert!(!wf.allows_nested_inputs(SupportedVersion::V1(V1::One)));
+        for version in [V1::Two, V1::Three, V1::Four] {
+            assert!(
+                wf.allows_nested_inputs(SupportedVersion::V1(version)),
+                "expected hints `allow_nested_inputs: true` to be honored for WDL {version}"
+            );
+        }
+
+        // `hints { allowNestedInputs: true }` alias applies to WDL 1.2+
+        let wf = workflow_from(
+            r#"
+version 1.4
+workflow w {
+    hints {
+        allowNestedInputs: true
+    }
+}
+"#,
+        );
+        assert!(!wf.allows_nested_inputs(SupportedVersion::V1(V1::One)));
+        for version in [V1::Two, V1::Three, V1::Four] {
+            assert!(
+                wf.allows_nested_inputs(SupportedVersion::V1(version)),
+                "expected hints `allowNestedInputs: true` to be honored for WDL {version}"
+            );
+        }
+
+        // `meta { allowNestedInputs: true }` fallback applies to WDL 1.1+
+        let wf = workflow_from(
+            r#"
+version 1.4
+workflow w {
+    meta {
+        allowNestedInputs: true
+    }
+}
+"#,
+        );
+        for version in [V1::One, V1::Two, V1::Three, V1::Four] {
+            assert!(
+                wf.allows_nested_inputs(SupportedVersion::V1(version)),
+                "expected meta `allowNestedInputs: true` to be honored for WDL {version}"
+            );
+        }
+
+        // Explicit `hints { allow_nested_inputs: false }` takes precedence over
+        // `meta { allowNestedInputs: true }` in WDL 1.2+
+        let wf = workflow_from(
+            r#"
+version 1.4
+workflow w {
+    hints {
+        allow_nested_inputs: false
+    }
+    meta {
+        allowNestedInputs: true
+    }
+}
+"#,
+        );
+        assert!(wf.allows_nested_inputs(SupportedVersion::V1(V1::One)));
+        for version in [V1::Two, V1::Three, V1::Four] {
+            assert!(
+                !wf.allows_nested_inputs(SupportedVersion::V1(version)),
+                "expected hints `allow_nested_inputs: false` to override meta for WDL {version}"
+            );
+        }
     }
 }
