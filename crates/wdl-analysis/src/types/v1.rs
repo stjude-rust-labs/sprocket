@@ -925,6 +925,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     ) -> Option<Type> {
         let name = expr.name();
         match self.context.resolve_type_name(name.text(), name.span()) {
+            Ok(Type::Union) => None,
             Ok(ty) => {
                 let ty = match &ty {
                     Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false) => ty,

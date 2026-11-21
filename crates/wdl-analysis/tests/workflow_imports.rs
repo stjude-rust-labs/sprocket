@@ -11,6 +11,11 @@ use wdl_analysis::path_to_uri;
 use wdl_ast::Severity;
 
 async fn analyze(files: &[(&str, &str)]) -> Document {
+    analyze_all(files, &["source.wdl"]).await.remove(0)
+}
+
+/// Analyzes `source.wdl` and returns the documents with the given file names.
+async fn analyze_all(files: &[(&str, &str)], names: &[&str]) -> Vec<Document> {
     let dir = TempDir::new().expect("temporary directory should be created");
     for (name, contents) in files {
         fs::write(dir.path().join(name), contents).expect("test document should be written");
@@ -20,16 +25,23 @@ async fn analyze(files: &[(&str, &str)]) -> Document {
     let config = Config::default().with_feature_flags(FeatureFlags::default().with_wdl_1_4());
     let analyzer = Analyzer::new(config, |(), _, _, _| async {});
     analyzer
-        .add_document(source.clone())
+        .add_document(source)
         .await
         .expect("source document should be added");
 
-    let mut results = analyzer.analyze(()).await.expect("analysis should succeed");
-    let index = results
+    let results = analyzer.analyze(()).await.expect("analysis should succeed");
+    names
         .iter()
-        .position(|result| *result.document().uri() == source)
-        .expect("source result should exist");
-    results.swap_remove(index).document().clone()
+        .map(|name| {
+            let uri = path_to_uri(dir.path().join(name)).expect("URI should be valid");
+            results
+                .iter()
+                .find(|result| *result.document().uri() == uri)
+                .expect("result should exist")
+                .document()
+                .clone()
+        })
+        .collect()
 }
 
 fn errors(document: &Document) -> Vec<String> {
@@ -300,4 +312,347 @@ async fn namespaced_call_resolves_reexported_workflow() {
             .name(),
         "child"
     );
+}
+
+#[tokio::test]
+async fn wildcard_reexport_preserves_aliases_and_propagates_types() {
+    let document = analyze(&[
+        (
+            "base.wdl",
+            "version 1.4\n\nstruct Record {\n    Int value\n}\n\nenum State {\n    Ready,\n    \
+             Done\n}\n\ntask greet {\n    command <<<>>>\n    output { Int out = 1 \
+             }\n}\n\nworkflow sub {\n    output { Int out = 2 }\n}\n",
+        ),
+        (
+            "mid.wdl",
+            "version 1.4\n\nimport { Record as Item, State as Code, greet as say_hi, sub as \
+             run_sub } from \"base.wdl\"\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport * from \"mid.wdl\"\n\nworkflow main {\n    input {\n        \
+             Item item\n        Code code = Code.Ready\n    }\n\n    call say_hi\n    call \
+             run_sub\n\n    output {\n        Int value = item.value\n        Code result = \
+             code\n    }\n}\n",
+        ),
+    ])
+    .await;
+
+    assert!(errors(&document).is_empty(), "{:?}", errors(&document));
+
+    let task = document
+        .imported_task_by_name("say_hi")
+        .expect("aliased task should be re-exported");
+    assert_eq!(task.name(), "greet");
+    assert!(task.document().uri().as_str().ends_with("base.wdl"));
+
+    let workflow = document
+        .imported_workflow_by_name("run_sub")
+        .expect("aliased workflow should be re-exported");
+    assert_eq!(workflow.name(), "sub");
+    assert!(workflow.document().uri().as_str().ends_with("base.wdl"));
+
+    assert!(document.struct_by_name("Item").is_some());
+    assert!(document.enum_by_name("Code").is_some());
+    assert!(document.get_choice_cache_key("Code", "Ready").is_some());
+
+    assert!(document.imported_task_by_name("greet").is_none());
+    assert!(document.imported_workflow_by_name("sub").is_none());
+    assert!(document.struct_by_name("Record").is_none());
+    assert!(document.enum_by_name("State").is_none());
+}
+
+#[tokio::test]
+async fn selected_import_reexports_namespace_imported_types() {
+    let document =
+        analyze(
+            &[
+                (
+                    "base.wdl",
+                    "version 1.4\n\nstruct Record {\n    Int value\n}\n\nenum State {\n    \
+                     Ready,\n    Done\n}\n",
+                ),
+                (
+                    "mid.wdl",
+                    "version 1.4\n\nimport \"base.wdl\" as b\n\nstruct Marker { Int value }\n",
+                ),
+                (
+                    "source.wdl",
+                    "version 1.4\n\nimport { Record, State } from \"mid.wdl\"\n\nworkflow main \
+                     {\n    input {\n        Record rec\n        State state = State.Done\n    \
+                     }\n\n    output {\n        Int value = rec.value\n        State result = \
+                     state\n    }\n}\n",
+                ),
+            ],
+        )
+        .await;
+
+    assert!(errors(&document).is_empty(), "{:?}", errors(&document));
+
+    let record = document
+        .struct_by_name("Record")
+        .expect("namespace-imported struct should be re-exported");
+    assert!(record.ty().is_some());
+
+    let state = document
+        .enum_by_name("State")
+        .expect("namespace-imported enum should be re-exported");
+    assert!(state.ty().is_some());
+    assert!(document.get_choice_cache_key("State", "Done").is_some());
+}
+
+#[tokio::test]
+async fn has_errors_propagates_through_scope_merging_imports() {
+    let broken = "version 1.4\n\ntask broken {\n    command <<<>>>\n    output { Int out = \"not \
+                  an int\" }\n}\n";
+
+    for (mid, source) in [
+        (
+            None,
+            "version 1.4\n\nimport * from \"lib.wdl\"\n\nstruct Anchor { Int value }\n",
+        ),
+        (
+            None,
+            "version 1.4\n\nimport { broken } from \"lib.wdl\"\n\nstruct Anchor { Int value }\n",
+        ),
+        (
+            Some(
+                "version 1.4\n\nimport { broken as relay } from \"lib.wdl\"\n\nstruct MidAnchor { \
+                 Int value }\n",
+            ),
+            "version 1.4\n\nimport * from \"mid.wdl\"\n\nstruct Anchor { Int value }\n",
+        ),
+        (
+            Some("version 1.4\n\nimport * from \"lib.wdl\"\n\nstruct MidAnchor { Int value }\n"),
+            "version 1.4\n\nimport { broken } from \"mid.wdl\"\n\nstruct Anchor { Int value }\n",
+        ),
+    ] {
+        let mut files = vec![("lib.wdl", broken), ("source.wdl", source)];
+        if let Some(mid) = mid {
+            files.push(("mid.wdl", mid));
+        }
+
+        let names: &[&str] = if mid.is_some() {
+            &["source.wdl", "mid.wdl"]
+        } else {
+            &["source.wdl"]
+        };
+        let documents = analyze_all(&files, names).await;
+        for document in &documents {
+            assert!(errors(document).is_empty(), "{:?}", errors(document));
+        }
+        assert!(documents[0].has_errors(), "source: {source}");
+    }
+}
+
+#[tokio::test]
+async fn namespace_providing_reexported_types_is_marked_used() {
+    let document =
+        analyze(
+            &[
+                (
+                    "base.wdl",
+                    "version 1.4\n\nstruct Record {\n    Int value\n}\n\nenum State {\n    \
+                     Ready,\n    Done\n}\n",
+                ),
+                (
+                    "mid.wdl",
+                    "version 1.4\n\nimport { Record, State as Code } from \"base.wdl\"\n",
+                ),
+                (
+                    "source.wdl",
+                    "version 1.4\n\nimport \"mid.wdl\" as m\nimport \"mid.wdl\" as n\n\nworkflow \
+                     main {\n    input {\n        Record rec\n    }\n\n    output {\n        Code \
+                     code = Code.Ready\n    }\n}\n",
+                ),
+            ],
+        )
+        .await;
+
+    assert!(errors(&document).is_empty(), "{:?}", errors(&document));
+    let unused = document
+        .diagnostics()
+        .filter(|d| d.message().starts_with("unused import namespace"))
+        .map(|d| d.message().to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(unused, ["unused import namespace `n`"]);
+
+    // A namespace whose only use is an enum choice expression is still used
+    let document = analyze(&[
+        (
+            "base.wdl",
+            "version 1.4\n\nenum State {\n    Ready,\n    Done\n}\n",
+        ),
+        (
+            "mid.wdl",
+            "version 1.4\n\nimport { State as Code } from \"base.wdl\"\n\nstruct MidAnchor { Int \
+             value }\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport \"mid.wdl\" as m\n\nworkflow main {\n    output {\n        \
+             String state = \"~{Code.Ready}\"\n    }\n}\n",
+        ),
+    ])
+    .await;
+
+    assert!(errors(&document).is_empty(), "{:?}", errors(&document));
+    assert!(
+        !document
+            .diagnostics()
+            .any(|d| d.message().starts_with("unused import namespace")),
+        "{:?}",
+        document
+            .diagnostics()
+            .map(|d| d.message().to_string())
+            .collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test]
+async fn literal_of_untyped_reexported_struct_does_not_panic() {
+    let document = analyze(&[
+        (
+            "base.wdl",
+            "version 1.4\n\nstruct Bad {\n    Map[Int?, Int] bad\n}\n",
+        ),
+        (
+            "mid.wdl",
+            "version 1.4\n\nimport { Bad as Alias } from \"base.wdl\"\n\nstruct MidAnchor { Int \
+             value }\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport * from \"mid.wdl\"\n\nworkflow main {\n    output {\n        \
+             Alias value = Alias { bad: {} }\n    }\n}\n",
+        ),
+    ])
+    .await;
+
+    assert!(document.has_errors());
+}
+
+#[tokio::test]
+async fn body_only_dependency_edits_refresh_cached_imports() {
+    let valid = "version 1.4\n\ntask run {\n    command <<<\n        echo hi\n    >>>\n}\n";
+    let invalid =
+        "version 1.4\n\n\ntask run {\n    command <<<\n        echo ~{undefined}\n    >>>\n}\n";
+
+    let dir = TempDir::new().expect("temporary directory should be created");
+    let lib = dir.path().join("lib.wdl");
+    fs::write(&lib, valid).expect("library should be written");
+    fs::write(
+        dir.path().join("source.wdl"),
+        "version 1.4\n\nimport * from \"lib.wdl\"\n\nworkflow main {\n    call run\n}\n",
+    )
+    .expect("source should be written");
+
+    let lib_uri = path_to_uri(&lib).expect("library URI should be valid");
+    let source = path_to_uri(dir.path().join("source.wdl")).expect("source URI should be valid");
+    let config = Config::default().with_feature_flags(FeatureFlags::default().with_wdl_1_4());
+    let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+    analyzer
+        .add_document(source.clone())
+        .await
+        .expect("source document should be added");
+
+    let analyze_source = async || {
+        analyzer
+            .analyze(())
+            .await
+            .expect("analysis should succeed")
+            .into_iter()
+            .find(|result| *result.document().uri() == source)
+            .expect("source result should exist")
+            .document()
+            .clone()
+    };
+
+    let document = analyze_source().await;
+    assert!(!document.has_errors(), "{:?}", errors(&document));
+
+    for (contents, expected) in [(invalid, true), (valid, false)] {
+        fs::write(&lib, contents).expect("library should be written");
+        analyzer
+            .notify_change(lib_uri.clone(), false)
+            .expect("change should be accepted");
+
+        let document = analyze_source().await;
+        assert!(errors(&document).is_empty(), "{:?}", errors(&document));
+        assert_eq!(document.has_errors(), expected, "library: {contents}");
+    }
+}
+
+#[tokio::test]
+async fn transitive_export_changes_invalidate_downstream_importers() {
+    let base = |suffix: &str| {
+        format!(
+            "version 1.4\n\nstruct Record{suffix} {{\n    Int value\n}}\n\nenum State{suffix} \
+             {{\n    Ready\n}}\n\ntask work{task_suffix} {{\n    command <<<>>>\n\n    output \
+             {{\n        Int out = 1\n    }}\n}}\n",
+            task_suffix = if suffix.is_empty() { "" } else { "_v2" },
+        )
+    };
+
+    let dir = TempDir::new().expect("temporary directory should be created");
+    let base_path = dir.path().join("base.wdl");
+    fs::write(&base_path, base("")).expect("base should be written");
+    fs::write(
+        dir.path().join("mid.wdl"),
+        "version 1.4\n\nimport * from \"base.wdl\"\n\nstruct Anchor {\n    Int value\n}\n",
+    )
+    .expect("mid should be written");
+    fs::write(
+        dir.path().join("source.wdl"),
+        "version 1.4\n\nimport * from \"mid.wdl\"\n\nworkflow main {\n    input {\n        Record \
+         rec\n        State state = State.Ready\n    }\n\n    call work\n}\n",
+    )
+    .expect("source should be written");
+
+    let base_uri = path_to_uri(&base_path).expect("base URI should be valid");
+    let source = path_to_uri(dir.path().join("source.wdl")).expect("source URI should be valid");
+    let config = Config::default().with_feature_flags(FeatureFlags::default().with_wdl_1_4());
+    let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+    analyzer
+        .add_document(source.clone())
+        .await
+        .expect("source document should be added");
+
+    let analyze_source = async || {
+        analyzer
+            .analyze(())
+            .await
+            .expect("analysis should succeed")
+            .into_iter()
+            .find(|result| *result.document().uri() == source)
+            .expect("source result should exist")
+            .document()
+            .clone()
+    };
+
+    let document = analyze_source().await;
+    assert!(errors(&document).is_empty(), "{:?}", errors(&document));
+    assert!(document.imported_task_by_name("work").is_some());
+    assert!(document.struct_by_name("Record").is_some());
+    assert!(document.enum_by_name("State").is_some());
+
+    fs::write(&base_path, base("V2")).expect("base should be written");
+    analyzer
+        .notify_change(base_uri, false)
+        .expect("change should be accepted");
+
+    let document = analyze_source().await;
+    let errors = errors(&document);
+    for name in ["work", "Record", "State"] {
+        assert!(
+            errors.iter().any(|e| e.contains(&format!("`{name}`"))),
+            "expected an error for `{name}`: {errors:?}"
+        );
+    }
+    assert!(document.imported_task_by_name("work").is_none());
+    assert!(document.struct_by_name("Record").is_none());
+    assert!(document.enum_by_name("State").is_none());
+    assert!(document.imported_task_by_name("work_v2").is_some());
+    assert!(document.struct_by_name("RecordV2").is_some());
+    assert!(document.enum_by_name("StateV2").is_some());
 }

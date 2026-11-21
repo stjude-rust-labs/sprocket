@@ -1,0 +1,1 @@
+-c sprocket.toml inputs --nested-inputs source.wdl

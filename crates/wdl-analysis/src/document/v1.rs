@@ -229,12 +229,19 @@ pub(crate) fn populate_document(
             document
                 .analysis_diagnostics
                 .extend(existing_cache.diagnostics());
-            document.cache = existing_cache;
+            if existing_cache.has_stale_import_documents(graph) {
+                let mut cache = Arc::unwrap_or_clone(existing_cache);
+                cache.refresh_import_documents(graph);
+                document.cache = Arc::new(cache);
+            } else {
+                document.cache = existing_cache;
+            }
             return;
         }
 
         cache = Arc::unwrap_or_clone(existing_cache);
         cache.invalidate(&ast_items, edits, to_remove);
+        cache.refresh_import_documents(graph);
     }
 
     let dirty_items: Vec<_> = cache.dirty(&ast_items).collect();
@@ -549,7 +556,10 @@ fn add_namespace(
                     offset: s.offset(),
                     node: s.node().clone(),
                     span,
-                    document: imported_doc.clone(),
+                    document: match s {
+                        StructRef::Local(_) => imported_doc.clone(),
+                        StructRef::Imported(s) => s.document().clone(),
+                    },
                     ty: s.ty().cloned(),
                 });
             }
@@ -611,7 +621,10 @@ fn add_namespace(
                     local_name: aliased_name.to_string(),
                     span,
                     node: e.node().clone(),
-                    document: imported_doc.clone(),
+                    document: match e {
+                        EnumRef::Local(_) => imported_doc.clone(),
+                        EnumRef::Imported(e) => e.document().clone(),
+                    },
                     ty: e.ty().cloned(),
                     offset: e.offset(),
                 });
@@ -703,7 +716,7 @@ fn add_wildcard_import(
     let span = import_statement.source().span();
 
     let mut diagnostics = document.analysis_diagnostics.child();
-    let mut import = MergingImport::default();
+    let mut import = MergingImport::new(imported_doc.clone());
 
     import_structs(
         cache,
@@ -720,7 +733,21 @@ fn add_wildcard_import(
                 span,
                 document: imported_doc.clone(),
                 ty: s.ty().cloned(),
-            }),
+            })
+            .chain(
+                imported_doc
+                    .data
+                    .cache
+                    .imported_structs()
+                    .map(|(_, s)| ImportedStruct {
+                        local_name: s.local_name.clone(),
+                        offset: s.offset,
+                        node: s.node.clone(),
+                        span,
+                        document: s.document.clone(),
+                        ty: s.ty().cloned(),
+                    }),
+            ),
         span,
         wildcard_import_conflict,
     );
@@ -740,7 +767,21 @@ fn add_wildcard_import(
                 span,
                 document: imported_doc.clone(),
                 ty: e.ty().cloned(),
-            }),
+            })
+            .chain(
+                imported_doc
+                    .data
+                    .cache
+                    .imported_enums()
+                    .map(|(_, e)| ImportedEnum {
+                        local_name: e.local_name.clone(),
+                        offset: e.offset,
+                        node: e.node.clone(),
+                        span,
+                        document: e.document.clone(),
+                        ty: e.ty().cloned(),
+                    }),
+            ),
         span,
         wildcard_import_conflict,
     );
@@ -767,7 +808,7 @@ fn add_wildcard_import(
                     .cache
                     .imported_tasks()
                     .map(|(_, task)| ImportedTask {
-                        local_name: task.name.clone(),
+                        local_name: task.local_name.clone(),
                         name: task.name.clone(),
                         span,
                         document: task.document.clone(),
@@ -779,25 +820,35 @@ fn add_wildcard_import(
         wildcard_import_conflict,
     );
 
-    for (name, source_doc, inputs, outputs) in imported_doc
+    for (local_name, name, source_doc, inputs, outputs) in imported_doc
         .data
         .cache
         .local_workflows()
-        .map(|(_idx, _hash, w)| (w.name.as_str(), imported_doc.clone(), &w.inputs, &w.outputs))
-        .chain(
-            imported_doc
-                .data
-                .cache
-                .imported_workflows()
-                .map(|(_, w)| (w.name.as_str(), w.document.clone(), &w.inputs, &w.outputs)),
-        )
+        .map(|(_idx, _hash, w)| {
+            (
+                w.name.as_str(),
+                w.name.as_str(),
+                imported_doc.clone(),
+                &w.inputs,
+                &w.outputs,
+            )
+        })
+        .chain(imported_doc.data.cache.imported_workflows().map(|(_, w)| {
+            (
+                w.local_name.as_str(),
+                w.name.as_str(),
+                w.document.clone(),
+                &w.inputs,
+                &w.outputs,
+            )
+        }))
     {
         insert_imported_workflow(
             cache,
             &mut diagnostics,
             &mut import.imported_workflows,
             ImportedWorkflow {
-                local_name: name.to_string(),
+                local_name: local_name.to_string(),
                 name: name.to_string(),
                 span,
                 document: source_doc,
@@ -851,7 +902,7 @@ fn add_selected_import(
     };
 
     let mut diagnostics = document.analysis_diagnostics.child();
-    let mut import = MergingImport::default();
+    let mut import = MergingImport::new(imported_doc.clone());
 
     for member in members.members() {
         let member_name = member.name();
@@ -1349,41 +1400,29 @@ fn convert_ast_type(
 
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-            if let Some((ty, dependency, uri)) = self.cache.struct_by_name(name).map(|(hash, s)| {
-                (
-                    s.ty().cloned().unwrap_or(Type::Union),
-                    hash,
-                    s.source().clone(),
-                )
-            }) {
+            if let Some((ty, dependency)) = self
+                .cache
+                .struct_by_name(name)
+                .map(|(hash, s)| (s.ty().cloned().unwrap_or(Type::Union), hash))
+            {
                 if let Some(dependent) = self.dependent {
                     self.cache.add_dependency(dependent, dependency);
                 }
 
-                if let Some(uri) = uri
-                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
-                {
-                    resolved.used = true;
-                }
+                self.cache.mark_namespace_used(&dependency);
                 return Ok(ty);
             }
 
-            if let Some((ty, dependency, uri)) = self.cache.enum_by_name(name).map(|(hash, e)| {
-                (
-                    e.ty().cloned().unwrap_or(Type::Union),
-                    hash,
-                    e.source().clone(),
-                )
-            }) {
+            if let Some((ty, dependency)) = self
+                .cache
+                .enum_by_name(name)
+                .map(|(hash, e)| (e.ty().cloned().unwrap_or(Type::Union), hash))
+            {
                 if let Some(dependent) = self.dependent {
                     self.cache.add_dependency(dependent, dependency);
                 }
 
-                if let Some(uri) = uri
-                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
-                {
-                    resolved.used = true;
-                }
+                self.cache.mark_namespace_used(&dependency);
                 return Ok(ty);
             }
 
@@ -2808,41 +2847,29 @@ fn populate_types(cache: &mut AnalysisCache, document: &mut DocumentData) {
 
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-            if let Some((ty, dependency, uri)) = self.cache.struct_by_name(name).map(|(hash, s)| {
-                (
-                    s.ty().cloned().unwrap_or(Type::Union),
-                    hash,
-                    s.source().clone(),
-                )
-            }) {
+            if let Some((ty, dependency)) = self
+                .cache
+                .struct_by_name(name)
+                .map(|(hash, s)| (s.ty().cloned().unwrap_or(Type::Union), hash))
+            {
                 if let Some(dependent) = self.dependent {
                     self.cache.add_dependency(dependent, dependency);
                 }
 
-                if let Some(uri) = uri
-                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
-                {
-                    resolved.used = true;
-                }
+                self.cache.mark_namespace_used(&dependency);
                 return Ok(ty);
             }
 
-            if let Some((ty, dependency, uri)) = self.cache.enum_by_name(name).map(|(hash, e)| {
-                (
-                    e.ty().cloned().unwrap_or(Type::Union),
-                    hash,
-                    e.source().clone(),
-                )
-            }) {
+            if let Some((ty, dependency)) = self
+                .cache
+                .enum_by_name(name)
+                .map(|(hash, e)| (e.ty().cloned().unwrap_or(Type::Union), hash))
+            {
                 if let Some(dependent) = self.dependent {
                     self.cache.add_dependency(dependent, dependency);
                 }
 
-                if let Some(uri) = uri
-                    && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
-                {
-                    resolved.used = true;
-                }
+                self.cache.mark_namespace_used(&dependency);
                 return Ok(ty);
             }
 
@@ -3278,11 +3305,12 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
         // If the name is a reference to a struct, return it as a
         // [`Type::TypeNameRef`].
-        if let Some(s) = self
+        if let Some((hash, s)) = self
             .cache
             .struct_by_name(name)
-            .and_then(|(_hash, s)| s.ty().cloned())
+            .and_then(|(hash, s)| Some((hash, s.ty().cloned()?)))
         {
+            self.cache.mark_namespace_used(&hash);
             return Some(
                 TypeNameRef::new(
                     name,
@@ -3297,11 +3325,12 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
         // If the name is a reference to an enum, return it as a
         // [`Type::TypeNameRef`].
-        if let Some(e) = self
+        if let Some((hash, e)) = self
             .cache
             .enum_by_name(name)
-            .and_then(|(_hash, e)| e.ty().cloned())
+            .and_then(|(hash, e)| Some((hash, e.ty().cloned()?)))
         {
+            self.cache.mark_namespace_used(&hash);
             return Some(
                 TypeNameRef::new(
                     name,
@@ -3315,31 +3344,21 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-        if let Some((ty, uri)) = self
+        if let Some((ty, dependency)) = self
             .cache
             .struct_by_name(name)
-            .map(|(_hash, s)| (s.ty().expect("struct should have type").clone(), s.source()))
+            .map(|(hash, s)| (s.ty().cloned().unwrap_or(Type::Union), hash))
         {
-            if let Some(uri) = uri
-                && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
-            {
-                resolved.used = true;
-            }
-
+            self.cache.mark_namespace_used(&dependency);
             return Ok(ty);
         }
 
-        if let Some((ty, uri)) = self
+        if let Some((ty, dependency)) = self
             .cache
             .enum_by_name(name)
-            .map(|(_hash, e)| (e.ty().expect("enum should have type").clone(), e.source()))
+            .map(|(hash, e)| (e.ty().cloned().unwrap_or(Type::Union), hash))
         {
-            if let Some(uri) = uri
-                && let Some(resolved) = self.cache.namespaces_mut().find(|n| n.source() == uri)
-            {
-                resolved.used = true;
-            }
-
+            self.cache.mark_namespace_used(&dependency);
             return Ok(ty);
         }
 

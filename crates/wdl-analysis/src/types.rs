@@ -1128,6 +1128,11 @@ struct StructTypeInner {
 pub struct StructType(Arc<StructTypeInner>);
 
 impl StructType {
+    /// Determines if two struct types share the same underlying definition.
+    pub(crate) fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
     /// Constructs a new struct type definition.
     pub fn new<N, T>(name: impl Into<String>, members: impl IntoIterator<Item = (N, T)>) -> Self
     where
@@ -1217,6 +1222,11 @@ struct EnumTypeInner {
 pub struct EnumType(Arc<EnumTypeInner>);
 
 impl EnumType {
+    /// Determines if two enum types share the same underlying definition.
+    pub(crate) fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
     /// Constructs a new enum type with a known coerced type.
     ///
     /// Validates that all choice types are coercible to the provided type.
