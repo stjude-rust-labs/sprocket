@@ -24,7 +24,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Fixed inverted WDL 1.3 version checks (`<=` instead of `>=`) in document definition count
   validation so enum-only WDL 1.4 documents are accepted and empty WDL 1.0–1.2 documents no longer
-  mention `enum` in the missing-definition diagnostic.
+  mention `enum` in the missing-definition diagnostic
+  ([#1430](https://github.com/stjude-rust-labs/sprocket/pull/1430)).
 * Updated the `read_tsv` documentation to match
   [`openwdl/wdl#787`](https://github.com/openwdl/wdl/pull/787): the two-argument form statically
   returns `Array[Object]` and its `Boolean` argument must evaluate to `true`.

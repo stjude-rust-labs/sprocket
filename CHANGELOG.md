@@ -26,9 +26,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 * Fixed WDL 1.4 workflows ignoring `hints { allow_nested_inputs: true }` (and
-  `meta { allowNestedInputs: true }`) during analysis and execution.
+  `meta { allowNestedInputs: true }`) during analysis and execution
+  ([#1430](https://github.com/stjude-rust-labs/sprocket/pull/1430)).
 * Fixed WDL 1.4 enum-only documents failing validation due to an inverted version check in
-  `wdl-analysis`.
+  `wdl-analysis` ([#1430](https://github.com/stjude-rust-labs/sprocket/pull/1430)).
 
 ## 0.34.1 - 2026-11-18
 

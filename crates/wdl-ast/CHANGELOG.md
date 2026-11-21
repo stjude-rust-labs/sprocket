@@ -16,7 +16,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 * Fixed `WorkflowDefinition::allows_nested_inputs()` returning `false` for WDL 1.4 (and future 1.x)
-  workflows by matching `v >= V1::Two` instead of only `V1::Two | V1::Three`.
+  workflows by matching `v >= V1::Two` instead of only `V1::Two | V1::Three`
+  ([#1430](https://github.com/stjude-rust-labs/sprocket/pull/1430)).
 
 ## 0.27.3 - 2026-11-18
 
