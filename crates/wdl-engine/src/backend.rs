@@ -276,6 +276,9 @@ pub struct ExecuteTaskRequest<'a> {
     pub attempt_dir: &'a Path,
     /// The temp directory for the evaluation.
     pub temp_dir: &'a Path,
+    /// The total number of preemptions already incurred across prior attempts
+    /// of this task.
+    pub preemptions: u64,
 }
 
 impl<'a> ExecuteTaskRequest<'a> {
@@ -331,6 +334,8 @@ pub struct TaskExecutionResult {
     pub stdout: Value,
     /// The value of the task's stderr file.
     pub stderr: Value,
+    /// The number of preemptions that occurred while executing this attempt.
+    pub preemptions: u64,
 }
 
 /// Represents a task execution backend.

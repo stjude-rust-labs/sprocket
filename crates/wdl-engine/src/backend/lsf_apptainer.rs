@@ -839,6 +839,10 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
+        if requirements::preemptible_only(inputs, requirements) {
+            bail!("the LSF Apptainer backend does not support the `preemptible_only` requirement");
+        }
+
         let mut required_cpu = requirements::cpu(inputs, requirements);
         let mut required_memory = ByteSize::b(requirements::memory(inputs, requirements)? as u64);
 
@@ -1114,6 +1118,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                             .expect("path should be UTF-8"),
                     )
                         .into(),
+                    preemptions: 0,
                 }))
             };
 
@@ -1260,5 +1265,30 @@ mod tests {
             system_cpu_time: String::new(),
         };
         assert!(record.utilization().is_empty());
+    }
+
+    #[tokio::test]
+    async fn constraints_rejects_preemptible_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = Config {
+            output_dir: dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        config.backends.insert(
+            "default".into(),
+            crate::config::LsfApptainerBackendConfig::default().into(),
+        );
+        let backend = LsfApptainerBackend::new(Arc::new(config)).await.unwrap();
+        let requirements = Object::new([("preemptible_only".to_string(), true.into())].into());
+
+        let err = backend
+            .constraints(
+                &TaskInputs::default(),
+                &requirements,
+                &Default::default(),
+                &Object::empty(),
+            )
+            .expect_err("LSF Apptainer backend should reject `preemptible_only: true`");
+        assert!(err.to_string().contains("preemptible_only"));
     }
 }

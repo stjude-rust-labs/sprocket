@@ -195,6 +195,7 @@ impl ManagedTask for LocalTask<'_> {
                             work_dir: EvaluationPath::from_local_path(work_dir),
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                             stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                            preemptions: 0,
                         }))
                     }
                     Err(e) => {
@@ -268,6 +269,10 @@ impl TaskExecutionBackend for LocalBackend {
         _: &ContainerImageOverrides,
         _: &Object,
     ) -> Result<TaskExecutionConstraints> {
+        if requirements::preemptible_only(inputs, requirements) {
+            bail!("the local backend does not support the `preemptible_only` requirement");
+        }
+
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.cpu < cpu {
             let env_specific = if self.config.suppress_env_specific_output {
@@ -362,5 +367,49 @@ impl TaskExecutionBackend for LocalBackend {
             self.manager.run(cpu, memory, task).await
         }
         .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constraints_rejects_preemptible_only() {
+        let backend = LocalBackend::new(Arc::new(Config::local())).unwrap();
+        let requirements = Object::new([("preemptible_only".to_string(), true.into())].into());
+
+        let err = backend
+            .constraints(
+                &TaskInputs::default(),
+                &requirements,
+                &Default::default(),
+                &Object::empty(),
+            )
+            .expect_err("local backend should reject `preemptible_only: true`");
+        assert!(err.to_string().contains("preemptible_only"));
+
+        let mut inputs = TaskInputs::default();
+        inputs.override_requirement("preemptible_only", true);
+        let err = backend
+            .constraints(
+                &inputs,
+                &Object::empty(),
+                &Default::default(),
+                &Object::empty(),
+            )
+            .expect_err("local backend should reject overridden `preemptible_only: true`");
+        assert!(err.to_string().contains("preemptible_only"));
+
+        let false_requirements =
+            Object::new([("preemptible_only".to_string(), false.into())].into());
+        backend
+            .constraints(
+                &TaskInputs::default(),
+                &false_requirements,
+                &Default::default(),
+                &Object::empty(),
+            )
+            .expect("local backend should allow `preemptible_only: false`");
     }
 }

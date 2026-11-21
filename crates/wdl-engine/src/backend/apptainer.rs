@@ -629,6 +629,7 @@ mod tests {
                     base_dir: &EvaluationPath::from_local_path(root.into()),
                     attempt_dir: &root.join("0"),
                     temp_dir: &root.join("temp"),
+                    preemptions: 0,
                 },
             )
             .await
@@ -980,6 +981,7 @@ mod tests {
                     base_dir: &EvaluationPath::from_local_path(root.path().into()),
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
+                    preemptions: 0,
                 },
                 next_task_id(),
             )
@@ -1039,6 +1041,7 @@ mod tests {
                     base_dir: &EvaluationPath::from_local_path(root.path().into()),
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
+                    preemptions: 0,
                 },
                 next_task_id(),
             )
@@ -1108,6 +1111,7 @@ mod tests {
                     base_dir: &EvaluationPath::from_local_path(root.path().into()),
                     attempt_dir: &attempt_dir,
                     temp_dir: &root.path().join("temp"),
+                    preemptions: 0,
                 },
             )
             .await

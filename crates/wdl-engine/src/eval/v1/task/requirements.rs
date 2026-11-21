@@ -20,6 +20,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_PREEMPTIBLE_ONLY;
 
 use crate::Coercible;
 use crate::ContainerImageOverrides;
@@ -451,6 +452,15 @@ pub(crate) fn max_retries(
     Ok(config.task.retries.into())
 }
 
+/// Gets the `preemptible_only` requirement from a requirements map.
+pub(crate) fn preemptible_only(inputs: &TaskInputs, requirements: &Object) -> bool {
+    find_key_value(&[TASK_REQUIREMENT_PREEMPTIBLE_ONLY], |key| {
+        inputs.requirement(key).or_else(|| requirements.get(key))
+    })
+    .and_then(|(_, v)| v.as_boolean())
+    .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;
@@ -791,5 +801,20 @@ mod tests {
             max_retries(&inputs, &requirements, &Default::default()).unwrap(),
             1234
         );
+    }
+
+    #[test]
+    fn preemptible_only_defaults_to_false_and_respects_overrides() {
+        assert!(!preemptible_only(&TaskInputs::default(), &Object::empty()));
+
+        let requirements = object_with_value(TASK_REQUIREMENT_PREEMPTIBLE_ONLY, Value::from(true));
+        assert!(preemptible_only(&TaskInputs::default(), &requirements));
+
+        let mut inputs = TaskInputs::default();
+        inputs.override_requirement(TASK_REQUIREMENT_PREEMPTIBLE_ONLY, false);
+        assert!(!preemptible_only(&inputs, &requirements));
+
+        inputs.override_requirement(TASK_REQUIREMENT_PREEMPTIBLE_ONLY, true);
+        assert!(preemptible_only(&inputs, &Object::empty()));
     }
 }

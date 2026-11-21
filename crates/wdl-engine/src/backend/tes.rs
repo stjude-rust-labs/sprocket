@@ -351,6 +351,8 @@ impl TaskExecutionBackend for TesBackend {
                 .expect("configured backend should be TES");
 
             let preemptible = hints::preemptible(request.inputs, request.hints)?;
+            let preemptible_only =
+                requirements::preemptible_only(request.inputs, request.requirements);
             let max_memory =
                 hints::max_memory(request.inputs, request.hints)?.map(|m| m as f64 / ONE_GIBIBYTE);
 
@@ -542,10 +544,25 @@ impl TaskExecutionBackend for TesBackend {
                 );
             }
 
-            let mut preemptible = preemptible;
+            // Track cumulative preemptions across evaluator retries so that the
+            // `preemptible` hint limit is honored across the entire task.
+            //
+            // Note that per the GA4GH TES specification, individual TES servers
+            // may ignore `resources.preemptible` or handle preemptions
+            // internally.
+            let mut total_preemptions = request.preemptions;
+            if preemptible_only && preemptible > 0 && total_preemptions >= preemptible as u64 {
+                bail!(
+                    "task `{name}` reached the `preemptible` limit of {preemptible} preemption{s} \
+                     with `preemptible_only` enabled",
+                    name = request.name,
+                    s = if preemptible == 1 { "" } else { "s" }
+                );
+            }
             let mut name = request.name.to_string();
             let mut resubmission: u64 = 0;
             loop {
+                let use_preemptible = preemptible_only || total_preemptions < preemptible as u64;
                 let mut outputs = outputs.clone();
                 let usage_url = container_usage.then(|| {
                     outputs_url
@@ -598,7 +615,7 @@ impl TaskExecutionBackend for TesBackend {
                             .ram(request.constraints.memory as f64 / ONE_GIBIBYTE)
                             .disk(disk)
                             .maybe_ram_limit(max_memory)
-                            .preemptible(preemptible > 0)
+                            .preemptible(use_preemptible)
                             .build(),
                     )
                     .volumes(volumes.clone())
@@ -617,23 +634,47 @@ impl TaskExecutionBackend for TesBackend {
                     execution.await
                 } {
                     Ok(results) => results,
-                    Err(TaskRunError::Preempted) if preemptible > 0 => {
-                        // Decrement the preemptible count and resubmit under a
-                        // derived name so that consumers can attribute each
-                        // resubmission distinctly; see
-                        // `RESUBMIT_NAME_SEPARATOR`.
-                        preemptible -= 1;
-                        resubmission += 1;
-                        let next_name = resubmit_task_name(&name, resubmission);
-                        if let Some(sender) = request.context.events().engine() {
-                            let _ = sender.send(EngineEvent::TaskRetrying {
-                                prior_name: name.clone(),
-                                next_name: next_name.clone(),
-                                cause: RetryCause::Preempted,
-                            });
+                    Err(TaskRunError::Preempted) => {
+                        total_preemptions += 1;
+                        let should_retry = if preemptible_only {
+                            preemptible > 0 && total_preemptions < preemptible as u64
+                        } else {
+                            use_preemptible
+                        };
+
+                        if should_retry {
+                            // Resubmit under a derived name so that consumers
+                            // can attribute each resubmission distinctly; see
+                            // `RESUBMIT_NAME_SEPARATOR`.
+                            resubmission += 1;
+                            let next_name = resubmit_task_name(&name, resubmission);
+                            if let Some(sender) = request.context.events().engine() {
+                                let _ = sender.send(EngineEvent::TaskRetrying {
+                                    prior_name: name.clone(),
+                                    next_name: next_name.clone(),
+                                    cause: RetryCause::Preempted,
+                                });
+                            }
+                            name = next_name;
+                            continue;
                         }
-                        name = next_name;
-                        continue;
+
+                        if preemptible_only {
+                            if preemptible > 0 {
+                                bail!(
+                                    "task `{name}` reached the `preemptible` limit of \
+                                     {preemptible} preemption{s} with `preemptible_only` enabled",
+                                    s = if preemptible == 1 { "" } else { "s" }
+                                );
+                            }
+
+                            bail!(
+                                "task `{name}` was preempted and cannot fall back to a \
+                                 non-preemptible instance with `preemptible_only` enabled"
+                            );
+                        }
+
+                        return Err(TaskRunError::Preempted.into());
                     }
                     Err(TaskRunError::Canceled) => return Ok(None),
                     Err(e) => return Err(e.into()),
@@ -675,6 +716,7 @@ impl TaskExecutionBackend for TesBackend {
                     work_dir: EvaluationPath::try_from(work_dir_url)?,
                     stdout: PrimitiveValue::new_file(stdout_url).into(),
                     stderr: PrimitiveValue::new_file(stderr_url).into(),
+                    preemptions: resubmission,
                 }));
             }
         }
@@ -894,6 +936,7 @@ cgroup_usage = {enabled}
                 base_dir: &EvaluationPath::from(root.path()),
                 attempt_dir: root.path(),
                 temp_dir: root.path(),
+                preemptions: 0,
             };
             let result = tokio::time::timeout(Duration::from_secs(10), backend.execute(&request))
                 .await
@@ -1051,6 +1094,7 @@ insecure = true
                 base_dir: &EvaluationPath::from(root.path()),
                 attempt_dir: root.path(),
                 temp_dir: root.path(),
+                preemptions: 0,
             };
             assert!(
                 tokio::time::timeout(Duration::from_secs(10), backend.execute(&request))
@@ -1205,5 +1249,287 @@ insecure = true
             assert!(matches!(output.ty(), OutputType::File));
             assert_eq!(output.url(), url.as_str());
         }
+    }
+
+    #[tokio::test]
+    async fn constraints_accepts_preemptible_only() {
+        let config = toml_spanner::from_str::<Config>(
+            r#"
+backend = "tes"
+[backends.tes]
+type = "tes"
+service = "http://127.0.0.1:8000"
+inputs = "http://127.0.0.1:8000/inputs/"
+outputs = "http://127.0.0.1:8000/outputs/"
+insecure = true
+"#,
+        )
+        .unwrap();
+        let backend = TesBackend::new(Arc::new(config)).await.unwrap();
+        let requirements = Object::new([("preemptible_only".to_string(), true.into())].into());
+
+        backend
+            .constraints(
+                &TaskInputs::default(),
+                &requirements,
+                &Default::default(),
+                &Object::empty(),
+            )
+            .expect("TES backend should accept `preemptible_only: true`");
+    }
+
+    /// Tests TES preemption retry policies for combinations of
+    /// `preemptible_only`, `preemptible`, and prior `request.preemptions`.
+    #[tokio::test]
+    async fn preemptible_and_preemptible_only_retry_policies() {
+        use std::time::Duration;
+
+        use tokio::io::AsyncBufReadExt;
+        use tokio::io::AsyncReadExt;
+        use tokio::io::AsyncWriteExt;
+        use tokio::io::BufReader;
+        use tokio::net::TcpListener;
+
+        use crate::CancellationContext;
+        use crate::Events;
+        use crate::backend::tests::EvalContext;
+
+        struct Case {
+            label: &'static str,
+            preemptible_only: bool,
+            preemptible_hint: Option<i64>,
+            prior_preemptions: u64,
+            // States returned by the mock TES server for each submission in
+            // order.
+            states: &'static [&'static str],
+            // Expected `resources.preemptible` flag on each TES submission.
+            expected_preemptible_flags: &'static [bool],
+            // Expected Ok(preemptions) or Err substring.
+            expected_result: Result<u64, &'static str>,
+        }
+
+        let cases = [
+            Case {
+                label: "preemptible_only with positive limit fails when limit reached",
+                preemptible_only: true,
+                preemptible_hint: Some(2),
+                prior_preemptions: 0,
+                states: &["PREEMPTED", "PREEMPTED"],
+                expected_preemptible_flags: &[true, true],
+                expected_result: Err("reached the `preemptible` limit of 2 preemptions"),
+            },
+            Case {
+                label: "preemptible_only with positive limit retries and succeeds",
+                preemptible_only: true,
+                preemptible_hint: Some(2),
+                prior_preemptions: 0,
+                states: &["PREEMPTED", "COMPLETE"],
+                expected_preemptible_flags: &[true, true],
+                expected_result: Ok(1),
+            },
+            Case {
+                label: "preemptible_only with absent hint fails on preemption without fallback",
+                preemptible_only: true,
+                preemptible_hint: None,
+                prior_preemptions: 0,
+                states: &["PREEMPTED"],
+                expected_preemptible_flags: &[true],
+                expected_result: Err("cannot fall back to a non-preemptible instance"),
+            },
+            Case {
+                label: "preemptible_only false falls back to non-preemptible after limit",
+                preemptible_only: false,
+                preemptible_hint: Some(2),
+                prior_preemptions: 0,
+                states: &["PREEMPTED", "PREEMPTED", "COMPLETE"],
+                expected_preemptible_flags: &[true, true, false],
+                expected_result: Ok(2),
+            },
+            Case {
+                label: "prior preemptions count toward fallback limit when preemptible_only false",
+                preemptible_only: false,
+                preemptible_hint: Some(2),
+                prior_preemptions: 1,
+                states: &["PREEMPTED", "COMPLETE"],
+                expected_preemptible_flags: &[true, false],
+                expected_result: Ok(1),
+            },
+            Case {
+                label: "prior preemptions count toward failure limit when preemptible_only true",
+                preemptible_only: true,
+                preemptible_hint: Some(2),
+                prior_preemptions: 1,
+                states: &["PREEMPTED"],
+                expected_preemptible_flags: &[true],
+                expected_result: Err("reached the `preemptible` limit of 2 preemptions"),
+            },
+            Case {
+                label: "already-exhausted preemption limit fails before submission when \
+                        preemptible_only true",
+                preemptible_only: true,
+                preemptible_hint: Some(1),
+                prior_preemptions: 1,
+                states: &[],
+                expected_preemptible_flags: &[],
+                expected_result: Err("reached the `preemptible` limit of 1 preemption"),
+            },
+        ];
+
+        futures::future::join_all(cases.into_iter().map(|case| async move {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let address = listener.local_addr().unwrap();
+            let observed_flags = Arc::new(Mutex::new(Vec::<bool>::new()));
+            let observed_flags_server = observed_flags.clone();
+            let states = case.states;
+
+            let server = tokio::spawn(async move {
+                let mut task = None;
+                let mut submissions = 0usize;
+                loop {
+                    let (stream, _) = listener.accept().await.unwrap();
+                    let mut stream = BufReader::new(stream);
+                    let mut line = String::new();
+                    stream.read_line(&mut line).await.unwrap();
+                    let request_line = line.clone();
+                    let mut length = 0;
+                    loop {
+                        line.clear();
+                        assert!(stream.read_line(&mut line).await.unwrap() > 0);
+                        if line == "\r\n" {
+                            break;
+                        }
+                        if let Some((key, value)) = line.split_once(':')
+                            && key.eq_ignore_ascii_case("content-length")
+                        {
+                            length = value.trim().parse().unwrap();
+                        }
+                    }
+                    let mut body = vec![0; length];
+                    stream.read_exact(&mut body).await.unwrap();
+                    let path = request_line.split_whitespace().nth(1).unwrap();
+                    let (status, response) = if request_line.starts_with("POST ") {
+                        let mut created: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                        let flag = created["resources"]["preemptible"]
+                            .as_bool()
+                            .unwrap_or(false);
+                        observed_flags_server.lock().unwrap().push(flag);
+                        let state = states.get(submissions).copied().unwrap_or("COMPLETE");
+                        submissions += 1;
+                        let id = format!("tes-preempt-{submissions}");
+                        created["id"] = id.clone().into();
+                        created["state"] = state.into();
+                        created["logs"] = serde_json::json!([{
+                            "logs": [{"exit_code": 0}],
+                            "outputs": [],
+                            "metadata": {},
+                        }]);
+                        task = Some(created);
+                        ("200 OK", serde_json::json!({"id": id}).to_string())
+                    } else if path.starts_with("/tasks?") {
+                        let tasks: Vec<_> = task
+                            .iter()
+                            .map(|t| serde_json::json!({"id": t["id"], "state": t["state"]}))
+                            .collect();
+                        ("200 OK", serde_json::json!({"tasks": tasks}).to_string())
+                    } else if path.starts_with("/tasks/") {
+                        ("200 OK", task.as_ref().unwrap().to_string())
+                    } else {
+                        ("404 Not Found", String::new())
+                    };
+                    stream
+                        .get_mut()
+                        .write_all(
+                            format!(
+                                "HTTP/1.1 {status}\r\nContent-Type: \
+                                 application/json\r\nContent-Length: {}\r\nConnection: \
+                                 close\r\n\r\n{response}",
+                                response.len(),
+                            )
+                            .as_bytes(),
+                        )
+                        .await
+                        .unwrap();
+                }
+            });
+
+            let config = toml_spanner::from_str::<Config>(&format!(
+                r#"
+backend = "tes"
+[backends.tes]
+type = "tes"
+service = "http://{address}"
+inputs = "http://{address}/inputs/"
+outputs = "http://{address}/outputs/"
+insecure = true
+interval = 1
+cgroup_usage = false
+"#
+            ))
+            .unwrap();
+            let backend = TesBackend::new(Arc::new(config)).await.unwrap();
+            let events = Events::default().with_engine(32);
+            let context = EvalContext::new(events, CancellationContext::default()).await;
+            let root = tempfile::tempdir().unwrap();
+            let requirements = Object::new(
+                [("preemptible_only".to_string(), case.preemptible_only.into())].into(),
+            );
+            let hints = match case.preemptible_hint {
+                Some(limit) => Object::new([("preemptible".to_string(), limit.into())].into()),
+                None => Object::empty(),
+            };
+            let request = ExecuteTaskRequest {
+                context: &context,
+                name: "preempt-test",
+                command: "exit 0",
+                inputs: &TaskInputs::default(),
+                backend_inputs: &[],
+                requirements: &requirements,
+                hints: &hints,
+                env: &Default::default(),
+                constraints: &TaskExecutionConstraints {
+                    sources: vec![ImageSource::Docker("test:latest".into())],
+                    cpu: 1.0,
+                    memory: 1024 * 1024 * 1024,
+                    gpu: Vec::new(),
+                    fpga: Vec::new(),
+                    disks: Default::default(),
+                },
+                base_dir: &EvaluationPath::from(root.path()),
+                attempt_dir: root.path(),
+                temp_dir: root.path(),
+                preemptions: case.prior_preemptions,
+            };
+
+            let outcome = tokio::time::timeout(Duration::from_secs(15), backend.execute(&request))
+                .await
+                .unwrap();
+            server.abort();
+            let _ = server.await;
+
+            assert_eq!(
+                *observed_flags.lock().unwrap(),
+                case.expected_preemptible_flags,
+                "case `{}` submitted unexpected `preemptible` flags",
+                case.label
+            );
+
+            match case.expected_result {
+                Ok(expected_preemptions) => {
+                    let result = outcome
+                        .unwrap_or_else(|e| panic!("case `{}` should succeed: {e:#}", case.label))
+                        .expect("should not be canceled");
+                    assert_eq!(result.preemptions, expected_preemptions, "{}", case.label);
+                }
+                Err(expected_msg) => {
+                    let err = outcome.expect_err(&format!("case `{}` should fail", case.label));
+                    assert!(
+                        err.to_string().contains(expected_msg),
+                        "case `{}` error `{err:#}` did not contain `{expected_msg}`",
+                        case.label
+                    );
+                }
+            }
+        }))
+        .await;
     }
 }

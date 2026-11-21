@@ -49,6 +49,8 @@ use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
+use wdl_ast::v1::TASK_FIELD_PREEMPTIBLE;
+use wdl_ast::v1::TASK_FIELD_PREEMPTIBLE_ONLY;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::v1::TASK_HINT_CACHEABLE;
@@ -63,6 +65,7 @@ use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY_ALIAS;
 use wdl_ast::v1::TASK_HINT_OUTPUTS;
+use wdl_ast::v1::TASK_HINT_PREEMPTIBLE;
 use wdl_ast::v1::TASK_HINT_SHORT_TASK;
 use wdl_ast::v1::TASK_HINT_SHORT_TASK_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER;
@@ -74,6 +77,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_PREEMPTIBLE_ONLY;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::UnwrapExpr;
@@ -177,6 +181,12 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
         TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
             Some(Type::Hidden(HiddenType::PreviousTaskData))
         }
+        TASK_FIELD_PREEMPTIBLE if version >= SupportedVersion::V1(V1::Four) => {
+            Some(PrimitiveType::Integer.into())
+        }
+        TASK_FIELD_PREEMPTIBLE_ONLY if version >= SupportedVersion::V1(V1::Four) => {
+            Some(PrimitiveType::Boolean.into())
+        }
         _ => None,
     }
 }
@@ -236,6 +246,8 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
     });
     /// The types for the `max_retries` requirement.
     const MAX_RETRIES_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Integer, false)];
+    /// The types for the `preemptible_only` requirement.
+    const PREEMPTIBLE_ONLY_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
     /// The types for the `return_codes` requirement.
     static RETURN_CODES_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
@@ -256,6 +268,9 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         }
         TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
         TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
+        TASK_REQUIREMENT_PREEMPTIBLE_ONLY if version >= SupportedVersion::V1(V1::Four) => {
+            Some(PREEMPTIBLE_ONLY_TYPES)
+        }
         TASK_REQUIREMENT_RETURN_CODES if version >= SupportedVersion::V1(V1::Two) => {
             Some(&RETURN_CODES_TYPES)
         }
@@ -309,6 +324,8 @@ pub fn task_hint_types(
     const OUTPUTS_TYPES: &[Type] = &[Type::Object];
     /// The types for the `outputs` hint (with hidden types).
     const OUTPUTS_HIDDEN_TYPES: &[Type] = &[Type::Hidden(HiddenType::Output)];
+    /// The types for the `preemptible` hint.
+    const PREEMPTIBLE_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Integer, false)];
     /// The types for the `short_task` hint.
     const SHORT_TASK_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
     /// The types for the `cacheable` hint
@@ -334,6 +351,9 @@ pub fn task_hint_types(
             Some(OUTPUTS_HIDDEN_TYPES)
         }
         TASK_HINT_OUTPUTS => Some(OUTPUTS_TYPES),
+        TASK_HINT_PREEMPTIBLE if version >= SupportedVersion::V1(V1::Four) => {
+            Some(PREEMPTIBLE_TYPES)
+        }
         TASK_HINT_SHORT_TASK if version >= SupportedVersion::V1(V1::Two) => Some(SHORT_TASK_TYPES),
         TASK_HINT_SHORT_TASK_ALIAS => Some(SHORT_TASK_TYPES),
         TASK_HINT_CACHEABLE => Some(CACHEABLE_TYPES),

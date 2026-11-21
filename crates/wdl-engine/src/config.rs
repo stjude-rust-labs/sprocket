@@ -4480,6 +4480,7 @@ type = 'lsf_apptainer'
                     base_dir: &EvaluationPath::from_local_path(dir.path().into()),
                     attempt_dir: &dir.path().join("0"),
                     temp_dir: &dir.path().join("tmp"),
+                    preemptions: 0,
                 })
                 .await
         }
