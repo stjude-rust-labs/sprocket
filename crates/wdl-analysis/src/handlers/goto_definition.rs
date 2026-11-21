@@ -572,8 +572,15 @@ fn resolve_access_expression(
         }
 
         // Check for struct definition in local document.
+        // An aliased import is in scope under its local name rather than the
+        // name of the struct type, so fall back to matching on the type.
         let struct_def = analysis_doc
             .struct_by_name(struct_ty.name())
+            .or_else(|| {
+                analysis_doc
+                    .structs()
+                    .find(|s| s.ty().and_then(|t| t.as_struct()) == Some(struct_ty))
+            })
             .ok_or_else(|| {
                 anyhow!(
                     "definition not found for struct `{name}`",
@@ -671,12 +678,16 @@ fn resolve_access_expression(
         }
 
         // Check for enum definition in local document.
-        let enum_def = analysis_doc.enum_by_name(enum_ty.name()).ok_or_else(|| {
-            anyhow!(
-                "definition not found for enum `{name}`",
-                name = enum_ty.name()
-            )
-        })?;
+        // The type name reference holds the local (possibly aliased) name.
+        let enum_def = analysis_doc
+            .enum_by_name(ty.name())
+            .or_else(|| analysis_doc.enum_by_name(enum_ty.name()))
+            .ok_or_else(|| {
+                anyhow!(
+                    "definition not found for enum `{name}`",
+                    name = enum_ty.name()
+                )
+            })?;
 
         let (uri, def_lines) = match enum_def {
             // The enum was imported, so its definition lives in the source
@@ -747,12 +758,21 @@ fn resolve_access_expression(
 
     if let Some(enum_ty) = target_type.as_enum() {
         // Check for enum definition in local document.
-        let enum_def = analysis_doc.enum_by_name(enum_ty.name()).ok_or_else(|| {
-            anyhow!(
-                "definition not found for enum `{name}`",
-                name = enum_ty.name()
-            )
-        })?;
+        // An aliased import is in scope under its local name rather than the
+        // name of the enum type, so fall back to matching on the type.
+        let enum_def = analysis_doc
+            .enum_by_name(enum_ty.name())
+            .or_else(|| {
+                analysis_doc
+                    .enums()
+                    .find(|e| e.ty().and_then(|t| t.as_enum()) == Some(enum_ty))
+            })
+            .ok_or_else(|| {
+                anyhow!(
+                    "definition not found for enum `{name}`",
+                    name = enum_ty.name()
+                )
+            })?;
 
         let (uri, def_lines) = match enum_def {
             // The enum was imported, so its definition lives in the source

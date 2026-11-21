@@ -1,0 +1,12 @@
+{
+  "main.who": "String <REQUIRED>",
+  "main.greet.punctuation": "!",
+  "main.hi.punctuation": "!",
+  "main.pipe.greet.punctuation": "!",
+  "main.relay_task.name": "String <REQUIRED>",
+  "main.relay_task.punctuation": "!",
+  "main.relayed.x": 1,
+  "main.relayed.greet.punctuation": "!",
+  "main.sub.x": 1,
+  "main.sub.greet.punctuation": "!"
+}

@@ -30,6 +30,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   as a directory output. Servers that mount both, such as Planetary, created pods with duplicate
   mount paths, and the tasks failed to start
   ([#1424](https://github.com/stjude-rust-labs/sprocket/pull/1424)).
+* Fixed evaluation of WDL 1.4 workflows that call tasks and workflows imported with `import * from`
+  and `import { ... } from`, including renamed and transitively re-exported callables, structs, and
+  enums. Nested inputs now work for WDL 1.4 workflows with `allow_nested_inputs`, and evaluation
+  fails with an error when a scope-merged import has analysis errors. Added tests for these cases
+  ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
 
 ## 0.21.1 - 2026-11-18
 

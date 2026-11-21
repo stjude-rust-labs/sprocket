@@ -128,7 +128,7 @@ impl<N: TreeNode> WorkflowDefinition<N> {
             SupportedVersion::V1(V1::One) => {
                 // Fall through to below
             }
-            SupportedVersion::V1(V1::Two | V1::Three) => {
+            SupportedVersion::V1(V1::Two | V1::Three | V1::Four) => {
                 // Check the hints section
                 let allow = self.hints().and_then(|s| {
                     s.items().find_map(|i| {
