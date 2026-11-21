@@ -3,3 +3,6 @@ say_hello:
     some_unknown_field: true
     assertions:
       this_isnt_a_valid_assertion: 1
+      outputs:
+        number:
+          - IntEquals: 2

@@ -147,9 +147,7 @@ impl Assertions {
     }
 
     /// Parse the assertions from the user supplied values.
-    pub(crate) fn parse(raw: RawAssertions) -> Result<Self, Diagnostics> {
-        let mut diagnostics = Diagnostics::default();
-
+    pub(crate) fn parse(raw: RawAssertions, diagnostics: &mut Diagnostics) -> Self {
         let mut exit_code = None;
         if let Some(raw_exit) = raw.exit_code {
             if let Some(code) = raw_exit.value.as_i64() {
@@ -201,12 +199,8 @@ impl Assertions {
             }
         }
 
-        let stdout = raw
-            .stdout
-            .and_then(|f| Self::parse_stdio(f, &mut diagnostics));
-        let stderr = raw
-            .stderr
-            .and_then(|f| Self::parse_stdio(f, &mut diagnostics));
+        let stdout = raw.stdout.and_then(|f| Self::parse_stdio(f, diagnostics));
+        let stderr = raw.stderr.and_then(|f| Self::parse_stdio(f, diagnostics));
 
         let mut custom_bins = HashMap::new();
         if let Some(raw_custom) = raw.custom {
@@ -279,17 +273,13 @@ impl Assertions {
             );
         }
 
-        if diagnostics.is_empty() {
-            Ok(Assertions {
-                exit_code,
-                should_fail,
-                stdout,
-                stderr,
-                outputs,
-                custom: custom_bins,
-            })
-        } else {
-            Err(diagnostics)
+        Self {
+            exit_code,
+            should_fail,
+            stdout,
+            stderr,
+            outputs,
+            custom: custom_bins,
         }
     }
 
