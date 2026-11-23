@@ -194,7 +194,7 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
 /// Gets the type of a `task.previous` member.
 ///
 /// Returns [`None`] if the given member name is unknown.
-pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
+pub fn previous_task_data_member_type(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
         TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
         TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
@@ -204,6 +204,9 @@ pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
         }
         TASK_FIELD_DISKS => Some(Type::from(STDLIB.map_string_int_type().clone()).optional()),
         TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_PREEMPTIBLE_ONLY if version >= SupportedVersion::V1(V1::Four) => {
+            Some(Type::from(PrimitiveType::Boolean).optional())
+        }
         _ => None,
     }
 }
@@ -1806,7 +1809,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 };
             }
             Type::Hidden(HiddenType::PreviousTaskData) => {
-                return match previous_task_data_member_type(name.text()) {
+                return match previous_task_data_member_type(self.context.version(), name.text()) {
                     Some(ty) => Some(ty),
                     None => {
                         self.context

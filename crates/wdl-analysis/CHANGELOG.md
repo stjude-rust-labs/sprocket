@@ -10,8 +10,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 * Added WDL 1.4 validation, type checking, and completions for the `preemptible_only` task
-  requirement, the `preemptible` task hint, and the `task.preemptible` and `task.preemptible_only`
-  fields from [`openwdl/wdl#728`](https://github.com/openwdl/wdl/pull/728)
+  requirement, the `preemptible` task hint, and the `task.preemptible`, `task.preemptible_only`, and
+  `task.previous.preemptible_only` fields from
+  [`openwdl/wdl#728`](https://github.com/openwdl/wdl/pull/728)
   ([#1432](https://github.com/stjude-rust-labs/sprocket/pull/1432)).
 * Added the [`openwdl/wdl#800`](https://github.com/openwdl/wdl/pull/800) `list_fastqs_task.wdl`
   example to the WDL 1.4 `list` standard library documentation

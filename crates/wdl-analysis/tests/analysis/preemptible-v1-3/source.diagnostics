@@ -21,3 +21,9 @@ error: the `task` variable does not have a member named `preemptible_only`
    │
 10 │         Boolean po = task.preemptible_only
    │                           ^^^^^^^^^^^^^^^^
+
+error: `task.previous` does not have a member named `preemptible_only`
+   ┌─ tests/analysis/preemptible-v1-3/source.wdl:11:42
+   │
+11 │         Boolean? prev_po = task.previous.preemptible_only
+   │                                          ^^^^^^^^^^^^^^^^

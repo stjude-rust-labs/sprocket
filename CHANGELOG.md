@@ -10,7 +10,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 * Added WDL 1.4 support for the `preemptible_only` task requirement, the formalized `preemptible`
-  task hint, and the `task.preemptible` and `task.preemptible_only` fields from
+  task hint, and the `task.preemptible`, `task.preemptible_only`, and
+  `task.previous.preemptible_only` fields from
   [`openwdl/wdl#728`](https://github.com/openwdl/wdl/pull/728), gated by `feature_flags.wdl_1_4`.
   Non-preemptible backends fail before command instantiation when `preemptible_only` is `true`, and
   the TES backend requires opting in with `preemptible_only_supported = true` (default `false`) to

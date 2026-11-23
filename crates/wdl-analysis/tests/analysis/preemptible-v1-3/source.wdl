@@ -8,6 +8,7 @@ task legacy_preemptible_hint {
     output {
         Int p = task.preemptible
         Boolean po = task.preemptible_only
+        Boolean? prev_po = task.previous.preemptible_only
     }
 
     hints {

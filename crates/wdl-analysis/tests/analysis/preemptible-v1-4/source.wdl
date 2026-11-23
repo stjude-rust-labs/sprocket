@@ -8,10 +8,11 @@ task valid_preemptible {
     output {
         Int p = task.preemptible
         Boolean po = task.preemptible_only
+        Boolean? prev_po = task.previous.preemptible_only
     }
 
     requirements {
-        preemptible_only: true
+        preemptible_only: select_first([task.previous.preemptible_only, true])
     }
 
     hints {
@@ -32,7 +33,6 @@ task invalid_types_and_scopes {
 
     output {
         Int? prev_p = task.previous.preemptible
-        Boolean? prev_po = task.previous.preemptible_only
     }
 
     requirements {

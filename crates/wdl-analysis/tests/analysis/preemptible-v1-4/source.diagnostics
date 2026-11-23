@@ -1,22 +1,16 @@
 warning[DeprecatedRuntimeSection]: task `valid_runtime_preemptible_only` contains a deprecated `runtime` section
-   ┌─ tests/analysis/preemptible-v1-4/source.wdl:25:5
+   ┌─ tests/analysis/preemptible-v1-4/source.wdl:26:5
    │
-25 │     runtime {
+26 │     runtime {
    │     ^^^^^^^
    │
    = fix: replace the `runtime` section with a `requirements` section
 
 error: `task.previous` does not have a member named `preemptible`
-   ┌─ tests/analysis/preemptible-v1-4/source.wdl:34:37
+   ┌─ tests/analysis/preemptible-v1-4/source.wdl:35:37
    │
-34 │         Int? prev_p = task.previous.preemptible
+35 │         Int? prev_p = task.previous.preemptible
    │                                     ^^^^^^^^^^^
-
-error: `task.previous` does not have a member named `preemptible_only`
-   ┌─ tests/analysis/preemptible-v1-4/source.wdl:35:42
-   │
-35 │         Boolean? prev_po = task.previous.preemptible_only
-   │                                          ^^^^^^^^^^^^^^^^
 
 error: type mismatch: expected type `Boolean`, but found type `Int`
    ┌─ tests/analysis/preemptible-v1-4/source.wdl:39:27

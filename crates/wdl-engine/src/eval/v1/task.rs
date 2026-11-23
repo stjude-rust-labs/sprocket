@@ -4190,6 +4190,7 @@ task defaults {
         String cmd = read_string(stdout())
         Int p = task.preemptible
         Boolean po = task.preemptible_only
+        Boolean? prev_po = task.previous.preemptible_only
     }
 }
 
@@ -4263,6 +4264,7 @@ task negative_hint_ignored_on_local {
         );
         assert_eq!(outputs.get("p").unwrap().as_integer(), Some(0));
         assert_eq!(outputs.get("po").unwrap().as_boolean(), Some(false));
+        assert!(outputs.get("prev_po").unwrap().is_none());
 
         // Explicit hint value: preemptible = 3
         let evaluated = evaluator
@@ -4406,11 +4408,12 @@ task test {
         Int attempt = task.attempt
         Int p = task.preemptible
         Boolean po = task.preemptible_only
+        Boolean? prev_po = task.previous.preemptible_only
     }
 
     requirements {
         max_retries: 2
-        preemptible_only: true
+        preemptible_only: !select_first([task.previous.preemptible_only, false])
     }
 
     hints {
@@ -4422,9 +4425,12 @@ task test {
         let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let backend = Box::new(PreemptionTrackingBackend {
             seen_prior_preemptions: seen.clone(),
-            // Attempt 0: 1 preemption, then exit 1 (consumes retry 1 of 2)
-            // Attempt 1: 2 preemptions, then exit 1 (consumes retry 2 of 2)
-            // Attempt 2: 0 preemptions, exit 0 (succeeds)
+            // Attempt 0: 1 preemption, then exit 1 (consumes retry 1 of 2);
+            //            preemptible_only = true (previous was None)
+            // Attempt 1: 2 preemptions, then exit 1 (consumes retry 2 of 2);
+            //            preemptible_only = false (previous was true)
+            // Attempt 2: 0 preemptions, exit 0 (succeeds);
+            //            preemptible_only = true (previous was false)
             scripted: &[(1, 1), (2, 1), (0, 0)],
         });
         let engine = Engine::new_with_backend(Config::local(), NotImplementedHttpClient, backend)
@@ -4442,5 +4448,6 @@ task test {
         assert_eq!(outputs.get("attempt").unwrap().as_integer(), Some(2));
         assert_eq!(outputs.get("p").unwrap().as_integer(), Some(3));
         assert_eq!(outputs.get("po").unwrap().as_boolean(), Some(true));
+        assert_eq!(outputs.get("prev_po").unwrap().as_boolean(), Some(false));
     }
 }
