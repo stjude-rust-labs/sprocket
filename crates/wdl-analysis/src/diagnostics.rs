@@ -631,6 +631,68 @@ pub fn if_conditional_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     .with_label(format!("this is {actual:#}"), actual_span)
 }
 
+/// Creates a "validation condition mismatch" diagnostic.
+pub fn validation_condition_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "type mismatch: expected validation condition to be type `Boolean`, but found {actual:#}"
+    ))
+    .with_label(format!("this is {actual:#}"), actual_span)
+}
+
+/// Creates a "validation message mismatch" diagnostic.
+pub fn validation_message_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "type mismatch: expected validation message to be type `String`, but found {actual:#}"
+    ))
+    .with_label(format!("this is {actual:#}"), actual_span)
+}
+
+/// Creates an "input validation reference" diagnostic.
+///
+/// This is used when an input validation clause references a name that is not
+/// an input declaration.
+pub fn input_validation_reference(name: &str, span: Span, context: NameContext) -> Diagnostic {
+    Diagnostic::error(format!(
+        "input validation cannot reference {context} `{name}`"
+    ))
+    .with_label(
+        format!("`{name}` is not a declaration in the input section"),
+        span,
+    )
+    .with_label(format!("the {context} is defined here"), context.span())
+    .with_help("input validation clauses may only reference declarations in the input section")
+}
+
+/// Creates an "input validation dependency" diagnostic.
+///
+/// This is used when an input validation clause references an input whose
+/// default expression (directly or transitively) depends on a name that is not
+/// an input declaration.
+pub fn input_validation_dependency(
+    name: &str,
+    span: Span,
+    dependency: &str,
+    dependency_span: Span,
+    context: NameContext,
+) -> Diagnostic {
+    Diagnostic::error(format!(
+        "input validation cannot reference input `{name}` as it depends on {context} \
+         `{dependency}`"
+    ))
+    .with_label(
+        format!("`{name}` depends on a name that is not an input"),
+        span,
+    )
+    .with_label(
+        format!("{context} `{dependency}` is referenced here"),
+        dependency_span,
+    )
+    .with_help(
+        "the default expressions of inputs referenced by input validation clauses may only \
+         reference other inputs",
+    )
+}
+
 /// Creates an "else if not supported" diagnostic.
 pub fn else_if_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
     Diagnostic::error(format!(

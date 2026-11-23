@@ -19,6 +19,7 @@ use pretty_assertions::StrComparison;
 use regex::Regex;
 use toml_spanner::Toml;
 use wdl_analysis::Config as AnalysisConfig;
+use wdl_analysis::FeatureFlags;
 use wdl_engine::config::BuiltConfig;
 use wdl_engine::config::Config as EngineConfig;
 
@@ -107,8 +108,12 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
             Ok((
                 name,
                 TestConfig {
+                    // WDL 1.4 is enabled so that fixtures may exercise
+                    // features that are not yet generally available; this
+                    // has no effect on documents with an earlier version
+                    analysis: AnalysisConfig::default()
+                        .with_feature_flags(FeatureFlags::default().with_wdl_1_4()),
                     engine,
-                    ..Default::default()
                 },
             ))
         })

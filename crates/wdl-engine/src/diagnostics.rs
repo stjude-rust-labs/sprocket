@@ -195,6 +195,46 @@ pub fn task_execution_failed(e: &anyhow::Error, name: &str, id: &str, span: Span
     .with_label("this task failed to execute", span)
 }
 
+/// Represents a single failing clause of an input or output validation block.
+#[derive(Debug, Clone)]
+pub struct ValidationFailure {
+    /// The description of the failure.
+    ///
+    /// This is either the evaluated message of the clause or a description of
+    /// the evaluation error that occurred.
+    pub description: String,
+    /// The label to use for the failing clause.
+    pub label: &'static str,
+    /// The span of the expression associated with the failure.
+    pub span: Span,
+}
+
+/// Creates a "validation failed" diagnostic.
+///
+/// The failures are expected to be in source order.
+pub fn validation_failed(
+    io: Io,
+    task: bool,
+    name: &str,
+    failures: &[ValidationFailure],
+) -> Diagnostic {
+    let mut message = format!(
+        "{io} validation failed for {kind} `{name}`:",
+        kind = if task { "task" } else { "workflow" },
+    );
+
+    for failure in failures {
+        message.push_str("\n  - ");
+        message.push_str(&failure.description);
+    }
+
+    failures
+        .iter()
+        .fold(Diagnostic::error(message), |diagnostic, failure| {
+            diagnostic.with_label(failure.label, failure.span)
+        })
+}
+
 /// Creates an "unknown enum" diagnostic.
 pub(crate) fn unknown_enum(name: &str) -> Diagnostic {
     Diagnostic::error(format!("unknown enum `{name}`"))

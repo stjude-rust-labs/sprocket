@@ -557,6 +557,8 @@ pub enum RetryCause {
     },
     /// The attempt was preempted by the execution environment.
     Preempted,
+    /// The attempt's outputs failed the task's output validation block.
+    OutputValidationFailed,
 }
 
 impl fmt::Display for RetryCause {
@@ -566,6 +568,7 @@ impl fmt::Display for RetryCause {
                 write!(f, "unacceptable exit code {code}")
             }
             Self::Preempted => write!(f, "preempted"),
+            Self::OutputValidationFailed => write!(f, "output validation failed"),
         }
     }
 }
@@ -640,6 +643,13 @@ pub enum EngineEvent {
     ///
     /// This is the first event emitted for any attempt and precedes both
     /// input localization and submission of the task to the backend.
+    ///
+    /// For a task with an input `validation` block, the event for the first
+    /// attempt is emitted only after the task's inputs have been evaluated
+    /// and validated; if input validation fails, no attempt is made and this
+    /// event is not emitted. Any [`EngineEvent::TaskLocalizing`] event for
+    /// inputs localized during input evaluation is emitted immediately after
+    /// this event.
     TaskInitializing {
         /// The id of the task being evaluated.
         id: String,
@@ -1516,6 +1526,14 @@ mod tests {
         let json = serde_json::to_value(cause).expect("cause should serialize");
         assert_eq!(json, serde_json::json!({ "kind": "preempted" }));
         assert_eq!(cause.to_string(), "preempted");
+
+        let cause = RetryCause::OutputValidationFailed;
+        let json = serde_json::to_value(cause).expect("cause should serialize");
+        assert_eq!(
+            json,
+            serde_json::json!({ "kind": "output_validation_failed" })
+        );
+        assert_eq!(cause.to_string(), "output validation failed");
 
         let parsed: RetryCause = serde_json::from_value(
             serde_json::json!({ "kind": "unacceptable_exit_code", "code": 1 }),

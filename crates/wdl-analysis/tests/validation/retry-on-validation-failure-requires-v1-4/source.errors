@@ -1,0 +1,6 @@
+error: use of the `retry_on_validation_failure` requirement requires WDL version 1.4
+  ┌─ tests/validation/retry-on-validation-failure-requires-v1-4/source.wdl:7:9
+  │
+7 │         retry_on_validation_failure: false
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

@@ -2,6 +2,7 @@
 
 mod expr;
 mod task;
+mod validation;
 mod validators;
 mod workflow;
 

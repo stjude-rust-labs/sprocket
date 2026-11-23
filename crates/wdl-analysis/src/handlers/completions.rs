@@ -53,6 +53,7 @@ use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELDS;
 use wdl_ast::v1::TASK_HINT_KEYS;
+use wdl_ast::v1::TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WORKFLOW_HINT_KEYS;
 use wdl_ast::version::V1;
@@ -173,7 +174,7 @@ pub fn completion(
         add_member_access_completions(document, &parent, &mut items)?;
     } else {
         let mut visited_kinds = IndexSet::new();
-        let mut current = Some(parent);
+        let mut current = Some(parent.clone());
         while let Some(node) = current {
             if visited_kinds.insert(node.kind()) {
                 add_snippet_completions(document, &node, &mut items);
@@ -243,6 +244,20 @@ pub fn completion(
                 SyntaxKind::WorkflowHintsSectionNode => {
                     add_workflow_hints_key_completions(&mut items);
                     break;
+                }
+
+                SyntaxKind::InputSectionNode | SyntaxKind::OutputSectionNode => {
+                    // Only suggest a `validation` block when directly within
+                    // the section (e.g. not within a declaration)
+                    if node == parent && document.version() >= Some(SupportedVersion::V1(V1::Four))
+                    {
+                        add_keyword_completions(
+                            &TokenSet::new(&[Token::ValidationKeyword as u8]),
+                            &mut items,
+                        );
+                    }
+
+                    current = node.parent();
                 }
 
                 SyntaxKind::RootNode => {
@@ -864,6 +879,12 @@ fn add_requirements_key_completions(
     items: &mut Vec<CompletionItem>,
 ) {
     for (key, desc) in REQUIREMENTS_KEY {
+        if *key == TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE
+            && !version.is_some_and(|v| v >= SupportedVersion::V1(V1::Four))
+        {
+            continue;
+        }
+
         let ty = version
             .and_then(|v| task_requirement_types(v, key))
             .map(|types| {

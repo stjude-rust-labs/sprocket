@@ -1,0 +1,26 @@
+error: expected `,`, but found identifier
+   ┌─ tests/parsing/validation-blocks-errors/source.wdl:12:13
+   │
+11 │             a > 0: "a must be positive"
+   │                                       - consider adding a `,` after this
+12 │             b > 0: "b must be positive",
+   │             ^ unexpected identifier
+
+error: expected `:`, but found string
+   ┌─ tests/parsing/validation-blocks-errors/source.wdl:24:19
+   │
+24 │             a > 0 "a must be positive",
+   │                   ^^^^^^^^^^^^^^^^^^^^ unexpected string
+
+error: expected expression, but found `,`
+   ┌─ tests/parsing/validation-blocks-errors/source.wdl:36:18
+   │
+36 │             out: ,
+   │                  ^ unexpected `,`
+
+error: expected expression, but found `,`
+   ┌─ tests/parsing/validation-blocks-errors/source.wdl:46:19
+   │
+46 │             a > 0:,
+   │                   ^ unexpected `,`
+

@@ -15,6 +15,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added evaluation of the WDL 1.4 postfix unwrap operator (`x!`) from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping `None` is an evaluation
   error ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Added evaluation of WDL 1.4 input and output `validation` blocks from
+  [`openwdl/wdl#778`](https://github.com/openwdl/wdl/pull/778). Every clause is evaluated in source
+  order; a clause's message is only evaluated when its condition is `false`, and evaluation errors
+  are recorded as failures for that clause. All failures are reported in a single error. Input
+  validation runs after inputs are evaluated and before any other task or workflow work. A task that
+  fails input validation makes no execution attempt and is not retried. Task output validation runs
+  after each successful execution and is retried, up to `max_retries`, with the new
+  `RetryCause::OutputValidationFailed` cause; a result that fails output validation is never written
+  to the call cache, and a cached result that fails it is re-executed. Setting the new
+  `retry_on_validation_failure` requirement (default `true`) to `false` fails a task on its first
+  output validation failure without affecting retries for unacceptable exit codes; its value is
+  available as `task.retry_on_validation_failure` and `task.previous.retry_on_validation_failure`.
+  Workflow output validation runs before the workflow's outputs are written
+  ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ### Changed
 
@@ -23,6 +37,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Backends that store the task working directory elsewhere, such as TES, must store it as a whole.
   Existing behavior already met this requirement
   ([#1393](https://github.com/stjude-rust-labs/sprocket/pull/1393)).
+* For tasks with an input `validation` block, `EngineEvent::TaskInitializing` for the first attempt
+  (and any `EngineEvent::TaskLocalizing` event for inputs localized during input evaluation) is now
+  emitted after the task's inputs are evaluated and validated
+  ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ### Fixed
 

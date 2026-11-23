@@ -60,8 +60,10 @@ use wdl_ast::v1::ConditionalStatementClauseKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ScatterStatement;
+use wdl_ast::v1::ValidationBlock;
 use wdl_ast::version::V1;
 
+use super::validation::evaluate_validation;
 use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
@@ -819,6 +821,14 @@ impl State {
                         // `evaluate_scatter`
                         continue;
                     }
+                    WorkflowGraphNode::InputValidation(block) => self
+                        .evaluate_validation(&id, Io::Input, block)
+                        .await
+                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                    WorkflowGraphNode::OutputValidation(block) => self
+                        .evaluate_validation(&id, Io::Output, block)
+                        .await
+                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
                 }
             }
 
@@ -1004,6 +1014,42 @@ impl State {
             .get_mut(scope)
             .insert(name.text(), value);
         Ok(())
+    }
+
+    /// Evaluates an input or output validation block.
+    ///
+    /// Input validation is evaluated in the root scope and output validation
+    /// is evaluated in the output scope.
+    async fn evaluate_validation(
+        &self,
+        id: &str,
+        io: Io,
+        block: &ValidationBlock<SyntaxNode>,
+    ) -> Result<(), Diagnostic> {
+        debug!(
+            workflow_id = id,
+            workflow_name = self.workflow.name(),
+            document = %self.document.uri(),
+            "evaluating {io} validation",
+        );
+
+        let scope = match io {
+            Io::Input => Scopes::ROOT_INDEX,
+            Io::Output => {
+                // Mark the start of evaluating outputs; an output section may
+                // contain only a validation block
+                self.output_evaluated.store(true, Ordering::SeqCst);
+                Scopes::OUTPUT_INDEX
+            }
+        };
+
+        let scopes = self.scopes.read().await;
+        let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
+            self,
+            scopes.reference(scope),
+            self.http_cancellation_token(),
+        ));
+        evaluate_validation(&mut evaluator, block, io, false, self.workflow.name()).await
     }
 
     /// Evaluates a workflow output.
@@ -2191,6 +2237,135 @@ workflow test {
                 .as_str(),
             "hello from selected import"
         );
+    }
+
+    #[tokio::test]
+    async fn input_validation_gates_workflow_execution() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let marker = root_dir.path().join("marker");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            &format!(
+                r#"
+version 1.4
+
+task touch {{
+    command <<<touch '{marker}'>>>
+}}
+
+workflow test {{
+    input {{
+        Int n = 2
+
+        validation {{
+            false: "the input validation gate is closed",
+        }}
+    }}
+
+    call touch as top
+
+    scatter (i in range(n)) {{
+        if (i >= 0) {{
+            call touch as nested
+        }}
+    }}
+
+    if (true) {{
+        call touch as conditional
+    }}
+}}
+"#,
+                marker = marker.display()
+            ),
+        )
+        .await;
+
+        let events = Events::default().with_engine(100);
+        let mut receiver = events.subscribe_engine().unwrap();
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            events,
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs_dir = root_dir.path().join("outputs");
+        let e = evaluator
+            .evaluate_workflow(&document, "test", WorkflowInputs::default(), &outputs_dir)
+            .await
+            .expect_err("workflow evaluation should fail");
+        let EvaluationError::Source(e) = e else {
+            panic!("unexpected evaluation error: {e}", e = e.to_string());
+        };
+        assert_eq!(
+            e.diagnostic.message(),
+            "input validation failed for workflow `test`:\n  - the input validation gate is closed"
+        );
+
+        // No call should have been evaluated
+        assert!(!marker.exists(), "a call was executed");
+        assert!(
+            fs::read_dir(outputs_dir.join("calls"))
+                .expect("calls directory should exist")
+                .next()
+                .is_none(),
+            "a call was evaluated"
+        );
+        while let Ok(event) = receiver.try_recv() {
+            assert!(
+                !matches!(event, EngineEvent::TaskInitializing { .. }),
+                "unexpected task event: {event:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn output_validation_fails_before_outputs_are_exposed() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow test {
+    input {
+        Int value = 0
+    }
+
+    output {
+        Int result = value
+
+        validation {
+            result > 0: "result ~{result} must be positive",
+            result < 0: "result ~{result} must be negative",
+        }
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs_dir = root_dir.path().join("outputs");
+        let e = evaluator
+            .evaluate_workflow(&document, "test", WorkflowInputs::default(), &outputs_dir)
+            .await
+            .expect_err("workflow evaluation should fail");
+        let EvaluationError::Source(e) = e else {
+            panic!("unexpected evaluation error: {e}", e = e.to_string());
+        };
+        assert_eq!(
+            e.diagnostic.message(),
+            "output validation failed for workflow `test`:\n  - result 0 must be positive\n  - \
+             result 0 must be negative"
+        );
+        assert!(!outputs_dir.join(OUTPUTS_FILE).exists());
     }
 
     #[tokio::test]

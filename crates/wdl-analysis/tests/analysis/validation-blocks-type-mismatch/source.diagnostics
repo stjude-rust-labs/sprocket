@@ -1,0 +1,65 @@
+error: type mismatch: expected validation condition to be type `Boolean`, but found type `Int`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:11:13
+   │
+11 │             a: "condition is not a Boolean",
+   │             ^ this is type `Int`
+
+error: type mismatch: expected validation message to be type `String`, but found type `Array[String]`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:12:20
+   │
+12 │             a > 0: b,
+   │                    ^ this is type `Array[String]`
+
+error: type mismatch: expected validation condition to be type `Boolean`, but found type `String`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:13:13
+   │
+13 │             "nope": 1,
+   │             ^^^^^^ this is type `String`
+
+error: type mismatch: expected validation message to be type `String`, but found type `Int`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:13:21
+   │
+13 │             "nope": 1,
+   │                     ^ this is type `Int`
+
+error: type mismatch: expected validation message to be type `String`, but found type `Int`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:14:20
+   │
+14 │             a > 0: a,
+   │                    ^ this is type `Int`
+
+error: type mismatch: expected validation condition to be type `Boolean`, but found type `Int`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:24:13
+   │
+24 │             out: "condition is not a Boolean",
+   │             ^^^ this is type `Int`
+
+error: type mismatch: expected validation message to be type `String`, but found type `Array[Int]`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:25:22
+   │
+25 │             out > 0: [out],
+   │                      ^^^^^ this is type `Array[Int]`
+
+error: type mismatch: expected validation condition to be type `Boolean`, but found type `Map[String, Int]`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:35:13
+   │
+35 │             m: "condition is not a Boolean",
+   │             ^ this is type `Map[String, Int]`
+
+error: type mismatch: expected validation message to be type `String`, but found type `Map[String, Int]`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:36:28
+   │
+36 │             length(m) > 0: m,
+   │                            ^ this is type `Map[String, Int]`
+
+error: type mismatch: expected validation condition to be type `Boolean`, but found type `String`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:44:13
+   │
+44 │             "x": "condition is not a Boolean",
+   │             ^^^ this is type `String`
+
+error: type mismatch: expected validation message to be type `String`, but found type `Map[String, Int]`
+   ┌─ tests/analysis/validation-blocks-type-mismatch/source.wdl:45:22
+   │
+45 │             out > 0: { "a": out },
+   │                      ^^^^^^^^^^^^ this is type `Map[String, Int]`

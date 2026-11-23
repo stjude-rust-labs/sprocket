@@ -12,6 +12,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 use wdl_ast::v1::CommandKeyword;
 use wdl_ast::v1::CommandSection;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::HintsKeyword;
 use wdl_ast::v1::InputKeyword;
 use wdl_ast::v1::InputSection;
@@ -29,6 +30,7 @@ use wdl_ast::v1::SectionParent;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
+use wdl_ast::v1::ValidationBlock;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
 
@@ -217,6 +219,64 @@ fn empty_struct(name: Ident) -> Diagnostic {
     .with_label("this struct cannot be empty", name.span())
 }
 
+/// Creates a "duplicate validation block" diagnostic.
+fn duplicate_validation_block(section: Section, first: Span, duplicate: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "{section} section contains a duplicate validation block"
+    ))
+    .with_label("this validation block is a duplicate", duplicate)
+    .with_label("first validation block is defined here", first)
+    .with_fix(format!(
+        "merge the clauses into a single validation block in the {section} section"
+    ))
+}
+
+/// Creates a "validation block not last" diagnostic.
+fn validation_block_not_last(section: Section, block: Span, decl: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "a validation block must follow all declarations in the {section} section"
+    ))
+    .with_label("this declaration follows the validation block", decl)
+    .with_label("the validation block is defined here", block)
+    .with_fix(format!(
+        "move the validation block to the end of the {section} section"
+    ))
+}
+
+/// Checks the validation blocks of an input or output section.
+///
+/// Ensures there is at most one validation block in the section and that the
+/// validation block follows all declarations in the section.
+fn check_validation_blocks(diagnostics: &mut Diagnostics, section: Section, node: &SyntaxNode) {
+    let mut first: Option<Span> = None;
+    let mut reported_order = false;
+    for child in node.children() {
+        if let Some(block) = ValidationBlock::cast(child.clone()) {
+            let span = block.keyword().span();
+            match first {
+                Some(first) => {
+                    diagnostics.add(duplicate_validation_block(section, first, span));
+                }
+                None => first = Some(span),
+            }
+
+            continue;
+        }
+
+        if let Some(block) = first
+            && !reported_order
+            && let Some(decl) = Decl::cast(child)
+        {
+            diagnostics.add(validation_block_not_last(
+                section,
+                block,
+                decl.name().span(),
+            ));
+            reported_order = true;
+        }
+    }
+}
+
 /// A visitor for counting items within an AST.
 ///
 /// Ensures that a document:
@@ -226,6 +286,8 @@ fn empty_struct(name: Ident) -> Diagnostic {
 /// * Contains exactly one command section in every task
 /// * Contains at most one input section in a task or workflow
 /// * Contains at most one output section in a task or workflow
+/// * Contains at most one validation block in an input or output section, which
+///   must follow all declarations in the section
 /// * Contains at most one requirements or runtime section in a task
 /// * Contains at most one hints section in a task
 /// * Contains at most one meta section in a task or workflow
@@ -413,6 +475,8 @@ impl Visitor for CountingVisitor {
             return;
         }
 
+        check_validation_blocks(diagnostics, Section::Input, section.inner());
+
         if let Some(input) = self.input {
             diagnostics.add(duplicate_section(
                 section.parent(),
@@ -436,6 +500,8 @@ impl Visitor for CountingVisitor {
         if self.ignore_current || reason == VisitReason::Exit {
             return;
         }
+
+        check_validation_blocks(diagnostics, Section::Output, section.inner());
 
         if let Some(output) = self.output {
             diagnostics.add(duplicate_section(

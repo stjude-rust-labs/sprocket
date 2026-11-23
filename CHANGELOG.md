@@ -19,6 +19,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   its non-optional type and fails if the value is `None`. This implements
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777) and requires
   `feature_flags.wdl_1_4 = true` ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Added support for WDL 1.4 input and output `validation` blocks from
+  [`openwdl/wdl#778`](https://github.com/openwdl/wdl/pull/778), gated by `feature_flags.wdl_1_4`.
+  `sprocket dev server` metrics report the new `output_validation_failed` retry cause as "retried:
+  output validation failed" ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ### Changed
 

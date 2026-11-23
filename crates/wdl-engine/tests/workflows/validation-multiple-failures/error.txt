@@ -1,0 +1,18 @@
+error: input validation failed for workflow `test`:
+  - expected more than 5 values but found 3
+  - failed to evaluate condition: array index 10 is out of range
+  - failed to evaluate message: array index 7 is out of range
+  - the last value must be 4
+   ┌─ tests/workflows/validation-multiple-failures/source.wdl:9:7
+   │
+ 9 │       length(values) > 5: "expected more than 5 values but found ~{length(values)}",
+   │       ^^^^^^^^^^^^^^^^^^ this condition evaluated to `false`
+10 │       # Fails: the condition fails to evaluate
+11 │       values[10] > 0: "this message is not evaluated",
+   │       -------------- this condition failed to evaluate
+   ·
+15 │       false: "the value at index 7 is ~{values[7]}",
+   │              -------------------------------------- this message failed to evaluate
+   ·
+19 │       values[2] == 4: "the last value must be 4",
+   │       -------------- this condition evaluated to `false`

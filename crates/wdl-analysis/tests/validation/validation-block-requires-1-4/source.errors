@@ -1,0 +1,12 @@
+error: use of a `validation` block requires WDL version 1.4
+  ┌─ tests/validation/validation-block-requires-1-4/source.wdl:9:9
+  │
+9 │         validation {
+  │         ^^^^^^^^^^
+
+error: use of a `validation` block requires WDL version 1.4
+   ┌─ tests/validation/validation-block-requires-1-4/source.wdl:19:9
+   │
+19 │         validation {
+   │         ^^^^^^^^^^
+

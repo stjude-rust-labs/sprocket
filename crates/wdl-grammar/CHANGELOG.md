@@ -12,6 +12,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added parsing of the WDL 1.4 postfix unwrap operator (`x!`) as `SyntaxKind::UnwrapExprNode` from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777)
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Added the WDL 1.4 `validation` keyword (`SyntaxKind::ValidationKeyword`) and parsing of
+  `validation { <condition>: <message>, ... }` blocks in `input` and `output` sections as new
+  `ValidationBlockNode` and `ValidationClauseNode` syntax kinds from
+  [`openwdl/wdl#778`](https://github.com/openwdl/wdl/pull/778)
+  ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
+
+### Fixed
+
+* The WDL 1.4 reserved keywords `from` and `validation` can now be used as struct type references
+  and scatter variable names in documents with versions prior to 1.4
+  ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ## 0.27.2 - 2026-11-18
 

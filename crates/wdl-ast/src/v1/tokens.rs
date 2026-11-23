@@ -137,5 +137,6 @@ define_token!(TaskKeyword, "the `task` keyword", "task");
 define_token!(ThenKeyword, "the `then` keyword", "then");
 define_token!(TrueKeyword, "the `true` keyword", "true");
 define_token!(Unknown, "unknown contents within a WDL document");
+define_token!(ValidationKeyword, "the `validation` keyword", "validation");
 define_token!(VersionKeyword, "the `version` keyword", "version");
 define_token!(WorkflowKeyword, "the `workflow` keyword", "workflow");

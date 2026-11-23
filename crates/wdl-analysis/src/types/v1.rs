@@ -50,6 +50,7 @@ use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
+use wdl_ast::v1::TASK_FIELD_RETRY_ON_VALIDATION_FAILURE;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::v1::TASK_HINT_CACHEABLE;
 use wdl_ast::v1::TASK_HINT_DISKS;
@@ -74,6 +75,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::UnwrapExpr;
@@ -177,6 +179,9 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
         TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
             Some(Type::Hidden(HiddenType::PreviousTaskData))
         }
+        TASK_FIELD_RETRY_ON_VALIDATION_FAILURE if version >= SupportedVersion::V1(V1::Four) => {
+            Some(PrimitiveType::Boolean.into())
+        }
         _ => None,
     }
 }
@@ -184,7 +189,7 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
 /// Gets the type of a `task.previous` member.
 ///
 /// Returns [`None`] if the given member name is unknown.
-pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
+pub fn previous_task_data_member_type(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
         TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
         TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
@@ -194,6 +199,9 @@ pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
         }
         TASK_FIELD_DISKS => Some(Type::from(STDLIB.map_string_int_type().clone()).optional()),
         TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_RETRY_ON_VALIDATION_FAILURE if version >= SupportedVersion::V1(V1::Four) => {
+            Some(Type::from(PrimitiveType::Boolean).optional())
+        }
         _ => None,
     }
 }
@@ -236,6 +244,9 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
     });
     /// The types for the `max_retries` requirement.
     const MAX_RETRIES_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Integer, false)];
+    /// The types for the `retry_on_validation_failure` requirement.
+    const RETRY_ON_VALIDATION_FAILURE_TYPES: &[Type] =
+        &[Type::Primitive(PrimitiveType::Boolean, false)];
     /// The types for the `return_codes` requirement.
     static RETURN_CODES_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
@@ -256,6 +267,11 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         }
         TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
         TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
+        TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE
+            if version >= SupportedVersion::V1(V1::Four) =>
+        {
+            Some(RETRY_ON_VALIDATION_FAILURE_TYPES)
+        }
         TASK_REQUIREMENT_RETURN_CODES if version >= SupportedVersion::V1(V1::Two) => {
             Some(&RETURN_CODES_TYPES)
         }
@@ -1786,7 +1802,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 };
             }
             Type::Hidden(HiddenType::PreviousTaskData) => {
-                return match previous_task_data_member_type(name.text()) {
+                return match previous_task_data_member_type(self.context.version(), name.text()) {
                     Some(ty) => Some(ty),
                     None => {
                         self.context

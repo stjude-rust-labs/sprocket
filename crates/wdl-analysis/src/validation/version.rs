@@ -129,6 +129,11 @@ fn unwrap_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of the unwrap operator requires WDL version 1.4").with_highlight(span)
 }
 
+/// Creates a "validation block requires WDL 1.4" diagnostic.
+fn validation_block_requires_wdl_1_4(span: Span) -> Diagnostic {
+    Diagnostic::error("use of a `validation` block requires WDL version 1.4").with_highlight(span)
+}
+
 /// Tracks the state of a deprecated version feature flag.
 #[derive(Clone, Copy, Debug, Default)]
 struct DeprecatedVersionFeatureFlag {
@@ -238,6 +243,23 @@ impl Visitor for VersionVisitor {
             diagnostics.add(from_selection_requires_wdl_1_4(from.span()));
         } else if let v1::ImportSource::ModulePath(path) = stmt.source() {
             diagnostics.add(symbolic_path_requires_wdl_1_4(path.span()));
+        }
+    }
+
+    fn validation_block(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        block: &v1::ValidationBlock,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version
+            && version < SupportedVersion::V1(V1::Four)
+        {
+            diagnostics.add(validation_block_requires_wdl_1_4(block.keyword().span()));
         }
     }
 

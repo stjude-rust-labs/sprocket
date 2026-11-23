@@ -19,6 +19,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping a non-optional value or a
   value that is always `None` is an error, and use of the operator prior to WDL 1.4 is rejected
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Added static analysis of WDL 1.4 input and output `validation` blocks from
+  [`openwdl/wdl#778`](https://github.com/openwdl/wdl/pull/778), gated by `feature_flags.wdl_1_4`.
+  Analysis checks version support, block placement and duplication, clause condition and message
+  types, and that input validation only depends on input declarations. Task and workflow evaluation
+  graphs include `InputValidation` and `OutputValidation` nodes, and `Visitor` has new
+  `validation_block` and `validation_clause` callbacks. Analysis also checks the WDL 1.4
+  `retry_on_validation_failure` requirement (`Boolean`) and the `task.retry_on_validation_failure`
+  (`Boolean`) and `task.previous.retry_on_validation_failure` (`Boolean?`) fields, which are
+  rejected prior to WDL 1.4 ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
+* Added `validation` keyword completions in the input and output sections of WDL 1.4 documents, and
+  `retry_on_validation_failure` completions for WDL 1.4 `requirements` sections and `task` members,
+  from [`openwdl/wdl#778`](https://github.com/openwdl/wdl/pull/778)
+  ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ### Fixed
 
