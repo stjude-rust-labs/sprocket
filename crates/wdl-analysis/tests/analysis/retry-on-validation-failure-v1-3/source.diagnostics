@@ -1,0 +1,29 @@
+error: the `task` variable does not have a member named `retry_on_validation_failure`
+  ┌─ tests/analysis/retry-on-validation-failure-v1-3/source.wdl:5:22
+  │
+5 │         echo "~{task.retry_on_validation_failure}"
+  │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: the `task` variable does not have a member named `retry_on_validation_failure`
+  ┌─ tests/analysis/retry-on-validation-failure-v1-3/source.wdl:9:26
+  │
+9 │         Boolean r = task.retry_on_validation_failure
+  │                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `task.previous` does not have a member named `retry_on_validation_failure`
+   ┌─ tests/analysis/retry-on-validation-failure-v1-3/source.wdl:10:41
+   │
+10 │         Boolean? prev_r = task.previous.retry_on_validation_failure
+   │                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `task.previous` does not have a member named `retry_on_validation_failure`
+   ┌─ tests/analysis/retry-on-validation-failure-v1-3/source.wdl:14:53
+   │
+14 │         max_retries: if select_first([task.previous.retry_on_validation_failure, true]) then 1 else 0
+   │                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `task.previous` does not have a member named `retry_on_validation_failure`
+   ┌─ tests/analysis/retry-on-validation-failure-v1-3/source.wdl:18:49
+   │
+18 │         short_task: select_first([task.previous.retry_on_validation_failure, false])
+   │                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

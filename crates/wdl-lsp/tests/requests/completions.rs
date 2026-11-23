@@ -454,6 +454,7 @@ async fn should_complete_task_variable_members() {
     assert_contains(&items, "memory");
     assert_contains(&items, "container");
     assert_contains(&items, "meta");
+    assert_not_contains(&items, "retry_on_validation_failure");
 
     // In output section
     let response = completion_request(&mut ctx, "taskvar.wdl", Position::new(8, 24))
@@ -470,9 +471,42 @@ async fn should_complete_task_variable_members() {
     assert_contains(&items, "container");
     assert_contains(&items, "meta");
     assert_contains(&items, "return_code");
+    assert_not_contains(&items, "retry_on_validation_failure");
 
     // Not a member
     assert_not_contains(&items, "foo");
+}
+
+#[tokio::test]
+async fn should_complete_retry_on_validation_failure_in_v1_4() {
+    let mut ctx = setup(true).await;
+
+    // `task.` in command section
+    let response = completion_request(&mut ctx, "taskvar_v1_4.wdl", Position::new(4, 21))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+    assert_contains(&items, "retry_on_validation_failure");
+
+    // `task.` in output section
+    let response = completion_request(&mut ctx, "taskvar_v1_4.wdl", Position::new(8, 24))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+    assert_contains(&items, "retry_on_validation_failure");
+
+    // `requirements` section
+    let response = completion_request(&mut ctx, "sections_v1_4.wdl", Position::new(8, 0))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+    assert_contains(&items, "retry_on_validation_failure");
 }
 
 #[tokio::test]
@@ -534,6 +568,7 @@ async fn should_complete_requirements_keys() {
     assert_contains(&items, "fpga");
     assert_contains(&items, "max_retries");
     assert_contains(&items, "return_codes");
+    assert_not_contains(&items, "retry_on_validation_failure");
 }
 
 #[tokio::test]

@@ -136,6 +136,10 @@ pub const TASK_FIELDS: &[(&str, &str)] = &[
          aren't any. Members of ext should be considered optional. It is recommended to only \
          access a member of ext using string interpolation to avoid an error if it is not defined.",
     ),
+    (
+        TASK_FIELD_RETRY_ON_VALIDATION_FAILURE,
+        "A Boolean indicating whether a task whose output validation fails may be retried.",
+    ),
 ];
 
 /// The set of all valid runtime section keys and their descriptions.
@@ -179,6 +183,10 @@ pub const REQUIREMENTS_KEY: &[(&str, &str)] = &[
     (
         TASK_REQUIREMENT_MAX_RETRIES,
         "The maximum number of times the task can be retried.",
+    ),
+    (
+        TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE,
+        "Whether a task whose output validation fails may be retried.",
     ),
     (
         TASK_REQUIREMENT_RETURN_CODES,
@@ -284,6 +292,8 @@ pub const TASK_FIELD_PARAMETER_META: &str = "parameter_meta";
 pub const TASK_FIELD_EXT: &str = "ext";
 /// The name of the `max_retries` task variable field.
 pub const TASK_FIELD_MAX_RETRIES: &str = "max_retries";
+/// The name of the `retry_on_validation_failure` task variable field.
+pub const TASK_FIELD_RETRY_ON_VALIDATION_FAILURE: &str = "retry_on_validation_failure";
 
 /// The name of the `container` task requirement.
 pub const TASK_REQUIREMENT_CONTAINER: &str = "container";
@@ -303,6 +313,8 @@ pub const TASK_REQUIREMENT_MAX_RETRIES: &str = "max_retries";
 pub const TASK_REQUIREMENT_MAX_RETRIES_ALIAS: &str = "maxRetries";
 /// The name of the `memory` task requirement.
 pub const TASK_REQUIREMENT_MEMORY: &str = "memory";
+/// The name of the `retry_on_validation_failure` task requirement.
+pub const TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE: &str = "retry_on_validation_failure";
 /// The name of the `return_codes` task requirement.
 pub const TASK_REQUIREMENT_RETURN_CODES: &str = "return_codes";
 /// The alias of the `return_codes` task requirement (i.e. `returnCodes`).

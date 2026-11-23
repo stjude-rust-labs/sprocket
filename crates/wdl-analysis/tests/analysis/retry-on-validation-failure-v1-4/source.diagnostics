@@ -1,0 +1,21 @@
+warning[DeprecatedRuntimeSection]: task `valid_runtime` contains a deprecated `runtime` section
+   ┌─ tests/analysis/retry-on-validation-failure-v1-4/source.wdl:30:5
+   │
+30 │     runtime {
+   │     ^^^^^^^
+   │
+   = fix: replace the `runtime` section with a `requirements` section
+
+error: type mismatch: expected type `Boolean`, but found type `Int`
+   ┌─ tests/analysis/retry-on-validation-failure-v1-4/source.wdl:39:38
+   │
+39 │         retry_on_validation_failure: 1
+   │         ---------------------------  ^ this is type `Int`
+   │         │
+   │         this expects type `Boolean`
+
+error: the `task` variable does not have a member named `retry_on_validation_failure`
+   ┌─ tests/analysis/retry-on-validation-failure-v1-4/source.wdl:40:30
+   │
+40 │         max_retries: if task.retry_on_validation_failure then 1 else 0
+   │                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^

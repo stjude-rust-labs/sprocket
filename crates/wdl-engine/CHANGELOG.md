@@ -23,8 +23,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fails input validation makes no execution attempt and is not retried. Task output validation runs
   after each successful execution and is retried, up to `max_retries`, with the new
   `RetryCause::OutputValidationFailed` cause; a result that fails output validation is never written
-  to the call cache, and a cached result that fails it is re-executed. Workflow output validation
-  runs before the workflow's outputs are written
+  to the call cache, and a cached result that fails it is re-executed. Setting the new
+  `retry_on_validation_failure` requirement (default `true`) to `false` fails a task on its first
+  output validation failure without affecting retries for unacceptable exit codes; its value is
+  available as `task.retry_on_validation_failure` and `task.previous.retry_on_validation_failure`.
+  Workflow output validation runs before the workflow's outputs are written
   ([#1429](https://github.com/stjude-rust-labs/sprocket/pull/1429)).
 
 ### Changed

@@ -58,6 +58,7 @@ use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
+use wdl_ast::v1::TASK_FIELD_RETRY_ON_VALIDATION_FAILURE;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::version::V1;
 
@@ -3255,6 +3256,9 @@ pub(crate) struct TaskPostEvaluationData {
     disks: Map,
     /// The maximum number of retries for the task.
     max_retries: i64,
+    /// Whether the task may be retried when output validation fails (WDL
+    /// 1.4+).
+    retry_on_validation_failure: bool,
 }
 
 /// Represents a `task.previous` value containing data from a previous attempt.
@@ -3280,7 +3284,7 @@ impl PreviousTaskDataValue {
     ///
     /// Returns `Some(Value::None)` for valid fields when there is no previous
     /// data (first attempt).
-    pub fn field(&self, name: &str) -> Option<Value> {
+    pub fn field(&self, version: SupportedVersion, name: &str) -> Option<Value> {
         match name {
             TASK_FIELD_MEMORY => Some(
                 self.0
@@ -3351,6 +3355,16 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::Integer).optional())
                     }),
             ),
+            TASK_FIELD_RETRY_ON_VALIDATION_FAILURE if version >= SupportedVersion::V1(V1::Four) => {
+                Some(
+                    self.0
+                        .as_ref()
+                        .map(|data| Value::from(data.retry_on_validation_failure))
+                        .unwrap_or_else(|| {
+                            Value::new_none(Type::from(PrimitiveType::Boolean).optional())
+                        }),
+                )
+            }
             _ => None,
         }
     }
@@ -3507,6 +3521,7 @@ impl TaskPostEvaluationValue {
         id: impl Into<String>,
         constraints: &TaskExecutionConstraints,
         max_retries: i64,
+        retry_on_validation_failure: bool,
         attempt: i64,
         meta: Object,
         parameter_meta: Object,
@@ -3551,6 +3566,7 @@ impl TaskPostEvaluationValue {
                         .collect(),
                 ),
                 max_retries,
+                retry_on_validation_failure,
             }),
             attempt,
             meta,
@@ -3650,6 +3666,11 @@ impl TaskPostEvaluationValue {
         &self.0.ext
     }
 
+    /// Gets whether the task may be retried when output validation fails.
+    pub fn retry_on_validation_failure(&self) -> bool {
+        self.0.data.retry_on_validation_failure
+    }
+
     /// Sets the container image after task execution has completed.
     pub(crate) fn set_container(&mut self, container: String) {
         let inner = Arc::get_mut(&mut self.0).expect("task value must be uniquely owned to mutate");
@@ -3728,6 +3749,9 @@ impl TaskPostEvaluationValue {
             }
             TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
                 Some(HiddenValue::PreviousTaskData(self.0.previous.clone()).into())
+            }
+            TASK_FIELD_RETRY_ON_VALIDATION_FAILURE if version >= SupportedVersion::V1(V1::Four) => {
+                Some(self.0.data.retry_on_validation_failure.into())
             }
             _ => None,
         }

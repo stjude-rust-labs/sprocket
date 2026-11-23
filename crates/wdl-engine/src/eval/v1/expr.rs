@@ -1557,10 +1557,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     None => Err(not_a_task_member(&name)),
                 }
             }
-            Value::Hidden(HiddenValue::PreviousTaskData(prev)) => match prev.field(name.text()) {
-                Some(value) => Ok(value),
-                None => Err(not_a_previous_task_data_member(&name)),
-            },
+            Value::Hidden(HiddenValue::PreviousTaskData(prev)) => {
+                match prev.field(self.context.version(), name.text()) {
+                    Some(value) => Ok(value),
+                    None => Err(not_a_previous_task_data_member(&name)),
+                }
+            }
             Value::Call(call) => match call.outputs().get(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),

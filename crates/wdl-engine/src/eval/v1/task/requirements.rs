@@ -20,6 +20,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE;
 
 use crate::Coercible;
 use crate::ContainerImageOverrides;
@@ -451,6 +452,15 @@ pub(crate) fn max_retries(
     Ok(config.task.retries.into())
 }
 
+/// Gets the `retry_on_validation_failure` requirement from a requirements map.
+pub(crate) fn retry_on_validation_failure(inputs: &TaskInputs, requirements: &Object) -> bool {
+    find_key_value(&[TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE], |key| {
+        inputs.requirement(key).or_else(|| requirements.get(key))
+    })
+    .and_then(|(_, v)| v.as_boolean())
+    .unwrap_or(true)
+}
+
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;
@@ -791,5 +801,36 @@ mod tests {
             max_retries(&inputs, &requirements, &Default::default()).unwrap(),
             1234
         );
+    }
+
+    #[test]
+    fn retry_on_validation_failure_defaults_to_true_and_respects_overrides() {
+        assert!(retry_on_validation_failure(
+            &TaskInputs::default(),
+            &Object::empty()
+        ));
+
+        let requirements = object_with_value(
+            TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE,
+            Value::from(false),
+        );
+        assert!(!retry_on_validation_failure(
+            &TaskInputs::default(),
+            &requirements
+        ));
+
+        let requirements = object_with_value(
+            TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE,
+            Value::from(true),
+        );
+        assert!(retry_on_validation_failure(
+            &TaskInputs::default(),
+            &requirements
+        ));
+
+        let mut inputs = TaskInputs::default();
+        inputs.override_requirement(TASK_REQUIREMENT_RETRY_ON_VALIDATION_FAILURE, false);
+        assert!(!retry_on_validation_failure(&inputs, &requirements));
+        assert!(!retry_on_validation_failure(&inputs, &Object::empty()));
     }
 }

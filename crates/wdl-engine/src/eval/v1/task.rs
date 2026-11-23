@@ -1390,6 +1390,8 @@ impl<'a> State<'a> {
         if version >= Some(SupportedVersion::V1(V1::Two)) {
             let max_retries =
                 requirements::max_retries(inputs, &requirements, self.evaluator.engine().config())?;
+            let retry_on_validation_failure =
+                requirements::retry_on_validation_failure(inputs, &requirements);
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -1401,6 +1403,7 @@ impl<'a> State<'a> {
                         task = self.task.name()
                     )
                 })?,
+                retry_on_validation_failure,
                 attempt.try_into().with_context(|| {
                     format!(
                         "too many attempts were made to run task `{task}`",
@@ -2018,6 +2021,10 @@ impl Evaluator {
                 .into());
             }
 
+            // Determine whether an output validation failure may be retried
+            let retry_on_validation_failure =
+                requirements::retry_on_validation_failure(&inputs, &requirements);
+
             // Localize the inputs now
             state.localize_inputs(id).await?;
 
@@ -2333,8 +2340,10 @@ impl Evaluator {
                     return Err(EvaluationError::new(state.document.clone(), diagnostic));
                 }
                 Err(OutputsFailure::Validation(diagnostic)) => {
-                    // Too many retries, fail with the validation error
-                    if attempt >= max_retries {
+                    // Fail with the validation error if retrying on
+                    // validation failure is disabled or there are too many
+                    // retries
+                    if !retry_on_validation_failure || attempt >= max_retries {
                         return Err(EvaluationError::new(state.document.clone(), diagnostic));
                     }
 
@@ -3528,6 +3537,255 @@ task test {
                 [
                     EngineEvent::TaskInitializing { attempt: 0, .. },
                     EngineEvent::ReusedCachedExecutionResult { .. },
+                    EngineEvent::TaskRetrying {
+                        cause: RetryCause::OutputValidationFailed,
+                        ..
+                    },
+                    EngineEvent::TaskInitializing { attempt: 1, .. },
+                    EngineEvent::TaskExecuting { .. },
+                ]
+            ),
+            "unexpected events: {events:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn retry_on_validation_failure_defaults_to_true() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    command <<<>>>
+
+    output {
+        Boolean retry = task.retry_on_validation_failure
+        Boolean? previous_retry = task.previous.retry_on_validation_failure
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (evaluated, _) = evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.failed());
+        assert_eq!(
+            evaluated.outputs.get("retry").unwrap().as_boolean(),
+            Some(true)
+        );
+        assert!(evaluated.outputs.get("previous_retry").unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn output_validation_failure_is_not_retried_when_disabled() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    command <<<echo "attempt ~{task.attempt}">>>
+
+    requirements {
+        max_retries: 1
+        retry_on_validation_failure: false
+    }
+
+    output {
+        String out = read_string(stdout())
+
+        validation {
+            false: "~{out} failed",
+        }
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (result, events) = try_evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert_eq!(
+            error_message(result),
+            "output validation failed for task `test`:\n  - attempt 0 failed"
+        );
+
+        let events = attempt_events(&events);
+        assert!(
+            matches!(
+                events.as_slice(),
+                [
+                    EngineEvent::TaskInitializing { attempt: 0, .. },
+                    EngineEvent::TaskExecuting { .. },
+                ]
+            ),
+            "unexpected events: {events:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn exit_code_failure_is_retried_when_validation_retry_disabled() {
+        // The command fails on the first attempt only because
+        // `task.previous.retry_on_validation_failure` is `None` there
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    command <<<
+        exit ~{if defined(task.previous.retry_on_validation_failure) then 0 else 1}
+    >>>
+
+    requirements {
+        max_retries: 1
+        retry_on_validation_failure: false
+    }
+
+    output {
+        Int attempt = task.attempt
+        Boolean retry = task.retry_on_validation_failure
+        Boolean? previous_retry = task.previous.retry_on_validation_failure
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (evaluated, events) = evaluate_task_with_events(config, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.failed());
+        assert_eq!(
+            evaluated.outputs.get("attempt").unwrap().as_integer(),
+            Some(1)
+        );
+        assert_eq!(
+            evaluated.outputs.get("retry").unwrap().as_boolean(),
+            Some(false)
+        );
+        assert_eq!(
+            evaluated
+                .outputs
+                .get("previous_retry")
+                .unwrap()
+                .as_boolean(),
+            Some(false)
+        );
+
+        let events = attempt_events(&events);
+        assert!(
+            matches!(
+                events.as_slice(),
+                [
+                    EngineEvent::TaskInitializing { attempt: 0, .. },
+                    EngineEvent::TaskExecuting { .. },
+                    EngineEvent::TaskRetrying {
+                        cause: RetryCause::UnacceptableExitCode { code: 1 },
+                        ..
+                    },
+                    EngineEvent::TaskInitializing { attempt: 1, .. },
+                    EngineEvent::TaskExecuting { .. },
+                ]
+            ),
+            "unexpected events: {events:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn retry_on_validation_failure_is_evaluated_per_attempt() {
+        // Retrying on validation failure is only enabled for the first attempt
+        const SUCCEEDS: &str = r#"
+version 1.4
+
+task test {
+    command <<<>>>
+
+    requirements {
+        max_retries: 2
+        retry_on_validation_failure: !defined(task.previous.retry_on_validation_failure)
+    }
+
+    output {
+        Int attempt = task.attempt
+        Boolean retry = task.retry_on_validation_failure
+        Boolean? previous_retry = task.previous.retry_on_validation_failure
+
+        validation {
+            attempt > 0: "the first attempt always fails validation",
+        }
+    }
+}
+"#;
+
+        const FAILS: &str = r#"
+version 1.4
+
+task test {
+    command <<<>>>
+
+    requirements {
+        max_retries: 2
+        retry_on_validation_failure: !defined(task.previous.retry_on_validation_failure)
+    }
+
+    output {
+        Int attempt = task.attempt
+
+        validation {
+            false: "attempt ~{attempt} failed",
+        }
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (evaluated, events) =
+            evaluate_task_with_events(config, root_dir.path(), SUCCEEDS).await;
+        assert!(!evaluated.failed());
+        assert_eq!(
+            evaluated.outputs.get("attempt").unwrap().as_integer(),
+            Some(1)
+        );
+        assert_eq!(
+            evaluated.outputs.get("retry").unwrap().as_boolean(),
+            Some(false)
+        );
+        assert_eq!(
+            evaluated
+                .outputs
+                .get("previous_retry")
+                .unwrap()
+                .as_boolean(),
+            Some(true)
+        );
+        let events = attempt_events(&events);
+        assert!(
+            matches!(
+                events.as_slice(),
+                [
+                    EngineEvent::TaskInitializing { attempt: 0, .. },
+                    EngineEvent::TaskExecuting { .. },
+                    EngineEvent::TaskRetrying {
+                        cause: RetryCause::OutputValidationFailed,
+                        ..
+                    },
+                    EngineEvent::TaskInitializing { attempt: 1, .. },
+                    EngineEvent::TaskExecuting { .. },
+                ]
+            ),
+            "unexpected events: {events:?}"
+        );
+
+        // The second attempt disables retrying on validation failure, so the
+        // third attempt allowed by `max_retries` is never made
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = local_config(root_dir.path(), CallCachingMode::Off);
+        let (result, events) = try_evaluate_task_with_events(config, root_dir.path(), FAILS).await;
+        assert_eq!(
+            error_message(result),
+            "output validation failed for task `test`:\n  - attempt 1 failed"
+        );
+        let events = attempt_events(&events);
+        assert!(
+            matches!(
+                events.as_slice(),
+                [
+                    EngineEvent::TaskInitializing { attempt: 0, .. },
+                    EngineEvent::TaskExecuting { .. },
                     EngineEvent::TaskRetrying {
                         cause: RetryCause::OutputValidationFailed,
                         ..
