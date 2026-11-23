@@ -664,6 +664,22 @@ pub fn logical_not_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     .with_label(format!("this is {actual:#}"), actual_span)
 }
 
+/// Creates an "unwrap mismatch" diagnostic.
+pub fn unwrap_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "type mismatch: expected unwrap operand to be an optional type, but found {actual:#}"
+    ))
+    .with_label(format!("this is {actual:#}"), actual_span)
+    .with_fix("remove the unwrap operator `!` as the value is never `None`")
+}
+
+/// Creates an "unwrap none" diagnostic.
+pub fn unwrap_none(span: Span) -> Diagnostic {
+    Diagnostic::error("cannot unwrap a value that is always `None`")
+        .with_label("this is always `None`", span)
+        .with_fix("remove the unwrap operator `!` or use a value that may be defined")
+}
+
 /// Creates a "negation mismatch" diagnostic.
 pub fn negation_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(

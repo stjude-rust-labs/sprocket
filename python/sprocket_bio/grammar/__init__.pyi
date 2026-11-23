@@ -235,6 +235,7 @@ class SyntaxKind:
     CALL_EXPR_NODE: SyntaxKind
     INDEX_EXPR_NODE: SyntaxKind
     ACCESS_EXPR_NODE: SyntaxKind
+    UNWRAP_EXPR_NODE: SyntaxKind
     PLACEHOLDER_NODE: SyntaxKind
     PLACEHOLDER_SEP_OPTION_NODE: SyntaxKind
     PLACEHOLDER_DEFAULT_OPTION_NODE: SyntaxKind

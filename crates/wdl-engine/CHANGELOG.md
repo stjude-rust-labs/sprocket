@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the WDL 1.4 `exists` function from
+  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), which checks whether a local or
+  remote file or directory exists ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+* Added evaluation of the WDL 1.4 postfix unwrap operator (`x!`) from
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping `None` is an evaluation
+  error ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+
 ### Changed
 
 * Documented and tested that task `File` outputs that share a parent directory remain in the same
@@ -14,6 +23,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Backends that store the task working directory elsewhere, such as TES, must store it as a whole.
   Existing behavior already met this requirement
   ([#1393](https://github.com/stjude-rust-labs/sprocket/pull/1393)).
+
+### Fixed
+
+* TES tasks with the cgroup usage fallback no longer request `/mnt/task/usage` as a volume as well
+  as a directory output. Servers that mount both, such as Planetary, created pods with duplicate
+  mount paths, and the tasks failed to start
+  ([#1424](https://github.com/stjude-rust-labs/sprocket/pull/1424)).
 
 ## 0.21.1 - 2026-11-18
 

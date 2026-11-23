@@ -92,6 +92,7 @@ use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedStringPart;
+use wdl_ast::v1::UnwrapExpr;
 use wdl_ast::version::V1;
 use wdl_grammar::SyntaxKind;
 
@@ -122,6 +123,8 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
+use crate::diagnostics::unwrap_requirement;
+use crate::diagnostics::unwrapped_none;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -285,6 +288,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Expr::Call(expr) => self.evaluate_call_expr(expr).await,
                 Expr::Index(expr) => self.evaluate_index_expr(expr).await,
                 Expr::Access(expr) => self.evaluate_access_expr(expr).await,
+                Expr::Unwrap(expr) => {
+                    if self.context.version() < SupportedVersion::V1(V1::Four) {
+                        return Err(unwrap_requirement(expr.span()));
+                    }
+                    self.evaluate_unwrap_expr(expr).await
+                }
             }?;
 
             self.evaluated_none |= self.placeholders > 0 && value.is_none();
@@ -955,7 +964,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
 
             fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type> {
-                self.context.resolve_name(name, span).map(|v| v.ty()).ok()
+                // Prefer the declared type, as the type of a value doesn't
+                // preserve optionality
+                self.context
+                    .declared_type(name, span)
+                    .or_else(|| self.context.resolve_name(name, span).map(|v| v.ty()).ok())
             }
 
             fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
@@ -1059,6 +1072,20 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             .map_err(|_| logical_not_mismatch(&value.ty(), operand.span()))?
             .unwrap_boolean())
         .into())
+    }
+
+    /// Evaluates an unwrap expression.
+    async fn evaluate_unwrap_expr(
+        &mut self,
+        expr: &UnwrapExpr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
+        let operand = expr.operand();
+        let value = self.evaluate_expr(&operand).await?;
+        if value.is_none() {
+            return Err(unwrapped_none(operand.span()));
+        }
+
+        Ok(value)
     }
 
     /// Evaluates a negation expression.
@@ -1881,11 +1908,29 @@ pub(crate) mod tests {
 
         fn exists<'a>(
             &'a self,
-            _: &'a Url,
-            _: &'a CancellationToken,
-            _: &'a Cache<Url, bool>,
+            url: &'a Url,
+            token: &'a CancellationToken,
+            cache: &'a Cache<Url, bool>,
         ) -> BoxFuture<'a, Result<bool>> {
-            unimplemented!()
+            async move {
+                assert_eq!(url.authority(), "example.com");
+                // Use the cache like the default client so tests observe
+                // caching
+                cache
+                    .get_by_ref(url, token, async || {
+                        if url.path().starts_with("/error") {
+                            anyhow::bail!("failed to determine existence of `{url}`");
+                        }
+
+                        Ok(self
+                            .0
+                            .join(url.path().strip_prefix('/').unwrap_or(url.path()))
+                            .exists())
+                    })
+                    .await?
+                    .ok_or_else(|| anyhow::anyhow!("operation was cancelled"))
+            }
+            .boxed()
         }
 
         fn digest<'a>(
@@ -1933,6 +1978,11 @@ pub(crate) mod tests {
                 stdout: None,
                 stderr: None,
             }
+        }
+
+        /// Gets the HTTP client used by the evaluation context.
+        pub fn http_client(&self) -> &EvaluationHttpClient {
+            &self.client
         }
 
         /// Sets the stdout to use for the evaluation context.
@@ -2053,7 +2103,7 @@ pub(crate) mod tests {
         .await
     }
 
-    async fn eval_v1_expr_with_context(
+    pub async fn eval_v1_expr_with_context(
         context: TestEvaluationContext<'_>,
         source: &str,
     ) -> Result<Value, Diagnostic> {
@@ -2609,6 +2659,72 @@ pub(crate) mod tests {
 
         let value = eval_v1_expr(&env, V1::Zero, r#"!false"#).await.unwrap();
         assert!(value.unwrap_boolean());
+    }
+
+    #[tokio::test]
+    async fn unwrap_expr() {
+        let mut env = TestEnv::default();
+        env.insert_name("maybe_five", 5);
+        env.insert_name("none", Value::new_none(Type::None));
+        env.insert_name("salutation", PrimitiveValue::new_string("hello"));
+        env.insert_name("name1", Value::new_none(Type::None));
+        env.insert_name("name2", PrimitiveValue::new_string("Fred"));
+
+        let value = eval_v1_expr(&env, V1::Four, "maybe_five!").await.unwrap();
+        assert_eq!(value.unwrap_integer(), 5);
+
+        let value = eval_v1_expr(&env, V1::Four, "maybe_five! + 10")
+            .await
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), 15);
+
+        let value = eval_v1_expr(&env, V1::Four, "-maybe_five!").await.unwrap();
+        assert_eq!(value.unwrap_integer(), -5);
+
+        let value = eval_v1_expr(&env, V1::Four, "[1, None][0]!").await.unwrap();
+        assert_eq!(value.unwrap_integer(), 1);
+
+        let value = eval_v1_expr(&env, V1::Four, "maybe_five! == 5")
+            .await
+            .unwrap();
+        assert!(value.unwrap_boolean());
+
+        let diagnostic = eval_v1_expr(&env, V1::Four, "none!").await.unwrap_err();
+        assert_eq!(diagnostic.message(), "cannot unwrap a `None` value");
+
+        let diagnostic = eval_v1_expr(&env, V1::Four, "[1, None][1]!")
+            .await
+            .unwrap_err();
+        assert_eq!(diagnostic.message(), "cannot unwrap a `None` value");
+
+        let value = eval_v1_expr(
+            &env,
+            V1::Four,
+            r#""~{salutation + ' ' + name1! + ' '}nice to meet you!""#,
+        )
+        .await
+        .unwrap();
+        assert_eq!(value.unwrap_string().as_str(), "nice to meet you!");
+
+        let value = eval_v1_expr(
+            &env,
+            V1::Four,
+            r#""~{salutation + ' ' + name2! + ', '}nice to meet you!""#,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            value.unwrap_string().as_str(),
+            "hello Fred, nice to meet you!"
+        );
+
+        let diagnostic = eval_v1_expr(&env, V1::Three, "maybe_five!")
+            .await
+            .unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "use of the unwrap operator requires WDL version 1.4"
+        );
     }
 
     #[tokio::test]

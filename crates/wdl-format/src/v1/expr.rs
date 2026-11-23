@@ -611,6 +611,26 @@ pub fn format_access_expr(
     }
 }
 
+/// Formats an [`UnwrapExpr`](wdl_ast::v1::UnwrapExpr).
+///
+/// # Panics
+///
+/// This will panic if the element does not have the expected children.
+pub fn format_unwrap_expr(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    let mut children = element.children().expect("unwrap expr children");
+
+    let operand = children.next().expect("unwrap expr operand");
+    (&operand).write(stream, config);
+
+    let exclamation = children.next().expect("unwrap expr exclamation");
+    assert_eq!(exclamation.element().kind(), SyntaxKind::Exclamation);
+    (&exclamation).write(stream, config);
+}
+
 /// Formats a [`CallExpr`](wdl_ast::v1::CallExpr).
 ///
 /// # Panics
