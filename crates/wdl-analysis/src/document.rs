@@ -967,6 +967,8 @@ impl Workflow {
 pub struct ImportedStruct {
     /// The aliased name of the struct in the dependent document.
     local_name: String,
+    /// The struct name in the source document.
+    name: String,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the struct
@@ -989,9 +991,14 @@ pub struct ImportedStruct {
 impl ImportedStruct {
     /// Gets the local name of the struct.
     ///
-    /// This may differ from the source documents's name due to aliasing.
+    /// This may differ from the source document's name due to aliasing.
     pub fn local_name(&self) -> &str {
         &self.local_name
+    }
+
+    /// Gets the struct name in the source document.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Gets the span of the import statement that introduced the struct.
@@ -1045,6 +1052,8 @@ impl ImportedStruct {
 pub struct ImportedEnum {
     /// The aliased name of the enum in the dependent document.
     local_name: String,
+    /// The enum name in the source document.
+    name: String,
     /// The offset of the CST node from the start of the document.
     ///
     /// This is used to adjust diagnostics resulting from traversing the enum
@@ -1052,8 +1061,7 @@ pub struct ImportedEnum {
     offset: usize,
     /// Stores the CST node of the enum.
     ///
-    /// This is used to calculate type equivalence for imports and can be
-    /// reconstructed into an AST node to access choice expressions.
+    /// This is used to calculate type equivalence for imports.
     node: rowan::GreenNode,
     /// The span of the import statement.
     span: Span,
@@ -1067,8 +1075,15 @@ pub struct ImportedEnum {
 
 impl ImportedEnum {
     /// Gets the local name of the enum.
+    ///
+    /// This may differ from the source document's name due to aliasing.
     pub fn local_name(&self) -> &str {
         &self.local_name
+    }
+
+    /// Gets the enum name in the source document.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Gets the span of the import statement that introduced the enum.

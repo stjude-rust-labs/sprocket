@@ -41,6 +41,7 @@ use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
+use lsp_types::request::GotoTypeDefinitionResponse;
 use path_clean::PathClean;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
@@ -76,6 +77,7 @@ use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
 use crate::queue::SignatureHelpRequest;
 use crate::queue::SwapValidatorRequest;
+use crate::queue::TypeDefinitionRequest;
 use crate::queue::UnrootDocumentsRequest;
 use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
@@ -1447,6 +1449,38 @@ where
             anyhow!(
                 "failed to receive inlay hints response from analysis queue because the channel \
                  has closed"
+            )
+        })
+    }
+
+    /// Performs a "goto type definition" for a symbol at the current position.
+    pub async fn type_definition(
+        &self,
+        context: Context,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<GotoTypeDefinitionResponse>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::TypeDefinition(TypeDefinitionRequest {
+                context,
+                document,
+                position,
+                completed: tx,
+                encoding,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send type definition request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive type definition response from analysis queue because the \
+                 channel has closed"
             )
         })
     }

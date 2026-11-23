@@ -26,6 +26,7 @@ mod rename;
 mod semantic_tokens;
 mod signature_help;
 pub(crate) mod snippets;
+mod type_definition;
 mod workspace_symbol;
 
 pub use call_hierarchy::*;
@@ -41,6 +42,7 @@ pub use inlay_hints::*;
 pub use rename::*;
 pub use semantic_tokens::*;
 pub use signature_help::*;
+pub use type_definition::*;
 use wdl_grammar::Diagnostic;
 use wdl_grammar::SyntaxKind;
 pub use workspace_symbol::*;

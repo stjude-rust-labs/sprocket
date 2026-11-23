@@ -19,6 +19,8 @@ use async_lsp::ResponseError;
 use async_lsp::client_monitor::ClientProcessMonitorLayer;
 use async_lsp::concurrency::ConcurrencyLayer;
 use async_lsp::lsp_types::notification::Progress;
+use async_lsp::lsp_types::request::GotoTypeDefinitionParams;
+use async_lsp::lsp_types::request::GotoTypeDefinitionResponse;
 use async_lsp::lsp_types::request::WorkDoneProgressCreate;
 use async_lsp::lsp_types::request::WorkspaceConfiguration;
 use async_lsp::lsp_types::*;
@@ -623,6 +625,11 @@ enum Request {
         params: InlayHintParams,
         tx: RequestResponseSender<Option<Vec<InlayHint>>>,
     },
+    /// `textDocument/typeDefinition`
+    TypeDefinition {
+        params: GotoTypeDefinitionParams,
+        tx: RequestResponseSender<Option<GotoTypeDefinitionResponse>>,
+    },
     /// `callHierarchy/outgoingCalls`
     OutgoingCalls {
         params: CallHierarchyOutgoingCallsParams,
@@ -993,6 +1000,10 @@ impl<S: 'static> Server<S> {
                         let state = state.read().await;
                         Self::inlay_hint(params, tx, &state).await
                     }
+                    Request::TypeDefinition { params, tx } => {
+                        let state = state.read().await;
+                        Self::type_definition(params, tx, &state).await
+                    }
                     Request::OutgoingCalls { params, tx } => {
                         let state = state.read().await;
                         Self::outgoing_calls(params, tx, &state).await
@@ -1315,6 +1326,32 @@ impl<S: 'static> Server<S> {
                 ProgressToken::default(),
                 params.text_document.uri,
                 params.range,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/typeDefinition` request handler.
+    async fn type_definition(
+        params: GotoTypeDefinitionParams,
+        tx: RequestResponseSender<Option<GotoTypeDefinitionResponse>>,
+        state: &ServerState<S>,
+    ) {
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .type_definition(
+                ProgressToken::default(),
+                params.text_document_position_params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
             )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
@@ -1936,6 +1973,7 @@ impl<S: 'static> LanguageServer for Server<S> {
                         resolve_provider: None,
                         work_done_progress_options: Default::default(),
                     }),
+                    type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
                     ..Default::default()
                 },
                 server_info: Some(info),
@@ -1959,6 +1997,18 @@ impl<S: 'static> LanguageServer for Server<S> {
 
             Ok(())
         })
+    }
+
+    fn type_definition(
+        &mut self,
+        mut params: GotoTypeDefinitionParams,
+    ) -> BoxFuture<'static, Result<Option<GotoTypeDefinitionResponse>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::TypeDefinition { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn folding_range(
