@@ -84,7 +84,6 @@ use crate::diagnostics::runtime_type_mismatch;
 use crate::eval::Scope;
 use crate::eval::ScopeIndex;
 use crate::eval::ScopeRef;
-use crate::path;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
 use crate::v1::Evaluator;
@@ -144,11 +143,6 @@ struct WorkflowEvaluationContext<'a, 'b> {
     scope: ScopeRef<'b>,
     /// The cancellation token to use for HTTP operations.
     token: &'a CancellationToken,
-    /// The document used to look up enum choice values.
-    ///
-    /// This is the workflow's document except when coercing call inputs, in
-    /// which case it is the document of the call target.
-    enum_document: &'a Document,
 }
 
 impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
@@ -158,14 +152,7 @@ impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
             state,
             scope,
             token,
-            enum_document: &state.document,
         }
-    }
-
-    /// Sets the document used to look up enum choice values.
-    fn with_enum_document(mut self, document: &'a Document) -> Self {
-        self.enum_document = document;
-        self
     }
 }
 
@@ -209,7 +196,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
         self.state
             .evaluator
-            .enum_choice_value(self.enum_document, enum_name, choice_name)
+            .enum_choice_value(&self.state.document, enum_name, choice_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -225,12 +212,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn resolve_path(&self, path: &str) -> Option<HostPath> {
-        if path.is_empty() || path::is_supported_url(path) || Path::new(path).is_absolute() {
-            return None;
-        }
-
-        let joined = self.state.base_dir.join(path).ok()?;
-        String::try_from(joined).ok().map(HostPath::new)
+        self.state.base_dir.resolve_relative(path)
     }
 
     fn compile_regex(&self, pattern: &str) -> Result<regex::Regex, regex::Error> {
@@ -1671,7 +1653,7 @@ impl State {
             .get(alias.text())
             .expect("should have call");
         let scatter_index = self
-            .evaluate_call_inputs(stmt, scope, call_ty, document, &mut inputs)
+            .evaluate_call_inputs(stmt, scope, call_ty, &mut inputs)
             .await
             .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
 
@@ -1747,10 +1729,11 @@ impl State {
 
     /// Evaluates the call inputs of a call statement.
     ///
-    /// Each input value is coerced to the call target's input type in the
-    /// context of this workflow so that any relative paths are resolved
-    /// against this workflow's document rather than the call target's
-    /// document.
+    /// Relative `String` values headed for `File` or `Directory` inputs are
+    /// resolved against this workflow's document so imported tasks and
+    /// workflows do not re-resolve them against their own document, while all
+    /// other coercions (such as `File` to `String` container guest-path
+    /// translation) remain in the call target's context.
     ///
     /// Returns the scatter index for the provided scope.
     ///
@@ -1760,7 +1743,6 @@ impl State {
         stmt: &CallStatement<SyntaxNode>,
         scope: ScopeIndex,
         call_ty: &CallType,
-        target_document: &Document,
         inputs: &mut Inputs,
     ) -> Result<String, Diagnostic> {
         let scopes = self.scopes.read().await;
@@ -1783,22 +1765,8 @@ impl State {
                     .ok_or_else(|| unknown_name(name.text(), name.span()))?,
             };
 
-            // Coerce the input to the target's expected type in the caller's
-            // context so that any relative paths resolve against this
-            // workflow's document rather than the call target's document.
-            // If coercion fails (e.g. `None` triggering a default or a runtime
-            // type mismatch), pass the original value through for the call
-            // target to handle.
             if let Some(ty) = call_ty.inputs().get(name.text()).map(|i| i.ty()) {
-                let context = WorkflowEvaluationContext::new(
-                    self,
-                    scopes.reference(scope),
-                    self.http_cancellation_token(),
-                )
-                .with_enum_document(target_document);
-                if let Ok(coerced) = value.coerce(Some(&context), ty) {
-                    value = coerced;
-                }
+                value = value.resolve_relative_paths(ty, &self.base_dir);
             }
 
             let prev = inputs.set(input.name().text(), value);
@@ -3273,6 +3241,327 @@ workflow w {
                     }
                 }
             }
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn it_resolves_workflow_symlink_parent_traversal() {
+        use std::os::unix::fs::symlink;
+
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let data_dir = root_dir.path().join("data");
+        let nested_dir = data_dir.join("nested");
+        fs::create_dir_all(&nested_dir).expect("failed to create nested directory");
+        fs::write(root_dir.path().join("hello.txt"), "wrong").expect("failed to write wrong file");
+        fs::write(root_dir.path().join("only_in_root.txt"), "root")
+            .expect("failed to write root-only file");
+        fs::write(data_dir.join("hello.txt"), "right").expect("failed to write right file");
+        fs::write(data_dir.join("only_in_data.txt"), "data")
+            .expect("failed to write data-only file");
+        symlink(&nested_dir, root_dir.path().join("link")).expect("failed to create symlink");
+
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+task read_input {
+  input {
+    File f
+  }
+
+  command <<<
+    cat '~{f}'
+  >>>
+
+  output {
+    String content = read_string(stdout())
+  }
+}
+
+workflow w {
+  File f = "link/../hello.txt"
+
+  call read_input as from_file {
+    f = f
+  }
+
+  call read_input as from_string {
+    f = "link/../hello.txt"
+  }
+
+  output {
+    Boolean found = exists(f)
+    Boolean found_data_only = exists("link/../only_in_data.txt")
+    Boolean found_root_only = exists("link/../only_in_root.txt")
+    String direct = read_string(f)
+    Float byte_size = size(f)
+    String task_from_file = from_file.content
+    String task_from_string = from_string.content
+  }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+        let outputs = evaluator
+            .evaluate_workflow(&document, "w", WorkflowInputs::default(), root_dir.path())
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        assert_eq!(outputs.get("found").and_then(Value::as_boolean), Some(true));
+        assert_eq!(
+            outputs.get("found_data_only").and_then(Value::as_boolean),
+            Some(true)
+        );
+        assert_eq!(
+            outputs.get("found_root_only").and_then(Value::as_boolean),
+            Some(false)
+        );
+        assert_eq!(
+            outputs
+                .get("direct")
+                .and_then(Value::as_string)
+                .map(|s| s.as_str()),
+            Some("right")
+        );
+        assert_eq!(
+            outputs.get("byte_size").and_then(Value::as_float),
+            Some(5.0)
+        );
+        assert_eq!(
+            outputs
+                .get("task_from_file")
+                .and_then(Value::as_string)
+                .map(|s| s.as_str()),
+            Some("right")
+        );
+        assert_eq!(
+            outputs
+                .get("task_from_string")
+                .and_then(Value::as_string)
+                .map(|s| s.as_str()),
+            Some("right")
+        );
+    }
+
+    #[tokio::test]
+    async fn it_preserves_container_guest_paths_for_call_input_file_to_string_coercion() {
+        use futures::future::BoxFuture;
+
+        use crate::Object;
+        use crate::PrimitiveValue;
+        use crate::TaskInputs;
+        use crate::backend::ExecuteTaskRequest;
+        use crate::backend::TaskExecutionBackend;
+        use crate::backend::TaskExecutionConstraints;
+        use crate::backend::TaskExecutionResult;
+        use crate::http::tests::NotImplementedHttpClient;
+
+        struct EchoCommandContainerBackend;
+
+        impl TaskExecutionBackend for EchoCommandContainerBackend {
+            fn name(&self) -> &'static str {
+                "echo-command-container"
+            }
+
+            fn guest_inputs_dir(&self) -> Option<&'static str> {
+                Some("/mnt/task/inputs/")
+            }
+
+            fn constraints(
+                &self,
+                _inputs: &TaskInputs,
+                _requirements: &Object,
+                _image_overrides: &ContainerImageOverrides,
+                _hints: &Object,
+            ) -> Result<TaskExecutionConstraints> {
+                Ok(TaskExecutionConstraints {
+                    sources: Vec::new(),
+                    cpu: 1.0,
+                    memory: 1024 * 1024,
+                    gpu: Vec::new(),
+                    fpga: Vec::new(),
+                    disks: Default::default(),
+                })
+            }
+
+            fn execute<'a>(
+                &'a self,
+                request: &'a ExecuteTaskRequest<'a>,
+            ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
+                async move {
+                    let work_dir = request.work_dir();
+                    let stdout = request.stdout_path();
+                    let stderr = request.stderr_path();
+                    fs::create_dir_all(&work_dir)?;
+                    fs::write(&stdout, request.command.trim())?;
+                    fs::write(&stderr, "")?;
+
+                    Ok(Some(TaskExecutionResult {
+                        execution_name_override: None,
+                        image: None,
+                        exit_code: 0,
+                        work_dir: EvaluationPath::from_local_path(work_dir),
+                        stdout: PrimitiveValue::new_file(
+                            stdout
+                                .into_os_string()
+                                .into_string()
+                                .expect("path should be UTF-8"),
+                        )
+                        .into(),
+                        stderr: PrimitiveValue::new_file(
+                            stderr
+                                .into_os_string()
+                                .into_string()
+                                .expect("path should be UTF-8"),
+                        )
+                        .into(),
+                    }))
+                }
+                .boxed()
+            }
+        }
+
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let data_dir = root_dir.path().join("data");
+        fs::create_dir_all(&data_dir).expect("failed to create data directory");
+        fs::write(data_dir.join("hello.txt"), "hello").expect("failed to write input file");
+
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.1
+
+task inspect {
+  input {
+    File file
+    String path = file
+  }
+
+  command <<<
+    file=~{file}
+    path=~{path}
+  >>>
+
+  output {
+    String rendered = read_string(stdout())
+  }
+}
+
+workflow w {
+  File f = "data/hello.txt"
+
+  call inspect as explicit_file {
+    input:
+      file = f,
+      path = f
+  }
+
+  call inspect as default_path {
+    input:
+      file = f
+  }
+
+  call inspect as string_file_arg {
+    input:
+      file = "data/hello.txt"
+  }
+
+  output {
+    String explicit_rendered = explicit_file.rendered
+    String default_rendered = default_path.rendered
+    String string_arg_rendered = string_file_arg.rendered
+  }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results
+            .iter()
+            .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+            .expect("should have result")
+            .document();
+
+        let engine = Engine::new_with_backend(
+            Config::local(),
+            NotImplementedHttpClient,
+            Box::new(EchoCommandContainerBackend),
+        )
+        .await
+        .unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+        let outputs = evaluator
+            .evaluate_workflow(document, "w", WorkflowInputs::default(), root_dir.path())
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        let host_root = root_dir.path().to_string_lossy();
+        for key in [
+            "explicit_rendered",
+            "default_rendered",
+            "string_arg_rendered",
+        ] {
+            let rendered = outputs
+                .get(key)
+                .and_then(Value::as_string)
+                .map(|s| s.as_str())
+                .unwrap_or_else(|| panic!("missing output `{key}`"));
+            let lines: Vec<&str> = rendered.lines().collect();
+            assert_eq!(
+                lines.len(),
+                2,
+                "unexpected rendered output for `{key}`: {rendered}"
+            );
+            let file_path = lines[0]
+                .strip_prefix("file=")
+                .unwrap_or_else(|| panic!("missing `file=` prefix for `{key}`: {rendered}"));
+            let string_path = lines[1]
+                .strip_prefix("path=")
+                .unwrap_or_else(|| panic!("missing `path=` prefix for `{key}`: {rendered}"));
+
+            assert!(
+                file_path.starts_with("/mnt/task/inputs/"),
+                "expected guest path for `{key}` `file`, got `{file_path}`"
+            );
+            assert!(
+                file_path.ends_with("/hello.txt"),
+                "expected hello.txt guest path for `{key}`, got `{file_path}`"
+            );
+            assert_eq!(
+                string_path, file_path,
+                "expected `String path` to receive guest path for `{key}`, got `{string_path}`"
+            );
+            assert!(
+                !string_path.contains(host_root.as_ref()),
+                "`String path` leaked host root for `{key}`: `{string_path}`"
+            );
         }
     }
 }

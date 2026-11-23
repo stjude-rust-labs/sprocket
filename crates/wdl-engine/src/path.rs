@@ -1,6 +1,7 @@
 //! Representation of evaluation paths that support URLs.
 
 use std::fmt;
+use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -11,6 +12,8 @@ use anyhow::anyhow;
 use anyhow::bail;
 use path_clean::PathClean;
 use url::Url;
+
+use crate::HostPath;
 
 /// The URL schemes supported by this crate.
 const SUPPORTED_SCHEMES: &[&str] = &["http://", "https://", "file://", "az://", "s3://", "gs://"];
@@ -39,6 +42,60 @@ pub(crate) fn is_supported_url(s: &str) -> bool {
 /// be resolved.
 pub(crate) fn is_broken_symlink(path: &Path) -> bool {
     path.is_symlink() && !path.exists()
+}
+
+/// Normalizes a local path while preserving symbolic links traversed before
+/// `..`.
+///
+/// When `path` contains no `..` components, this simply returns `path.clean()`.
+///
+/// Otherwise, `path` is split at its last `..` component into `(prefix, tail)`
+/// and `prefix` is canonicalized on the filesystem:
+/// - If `prefix` and `prefix.clean()` canonicalize to the same directory (no
+///   symlink was traversed, including platform aliases like `/var` vs
+///   `/private/var` on macOS or non-verbatim vs `\\?\` on Windows), returns
+///   `path.clean()` so existing path prefixes are preserved.
+/// - Otherwise, returns `canonical_prefix.join(tail).clean()` so symbolic links
+///   are followed before resolving `..` without dereferencing `tail`
+///   (preserving final symlinks, broken symlinks, and non-existent suffixes).
+/// - If canonicalizing `prefix` fails, falls back to `path.clean()`.
+fn normalize_local_path(path: PathBuf) -> PathBuf {
+    let Some(last_parent_idx) = path
+        .components()
+        .enumerate()
+        .filter_map(|(i, c)| matches!(c, Component::ParentDir).then_some(i))
+        .last()
+    else {
+        return path.clean();
+    };
+
+    let mut prefix = PathBuf::new();
+    let mut tail = PathBuf::new();
+    for (i, component) in path.components().enumerate() {
+        if i <= last_parent_idx {
+            prefix.push(component);
+        } else {
+            tail.push(component);
+        }
+    }
+
+    let lexical = path.clean();
+    if let Ok(canonical_prefix) = std::fs::canonicalize(&prefix) {
+        let lexical_prefix = prefix.clean();
+        let lexical_prefix_path = if lexical_prefix.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            lexical_prefix.as_path()
+        };
+
+        if std::fs::canonicalize(lexical_prefix_path).ok().as_ref() == Some(&canonical_prefix) {
+            return lexical;
+        }
+
+        return canonical_prefix.join(tail).clean();
+    }
+
+    lexical
 }
 
 /// Represents the kind of an evaluation path.
@@ -81,19 +138,34 @@ impl EvaluationPath {
         // We can't join an absolute local path either
         let p = Path::new(path);
         if p.is_absolute() {
-            return Ok(Self(EvaluationPathKind::Local(p.clean())));
+            return Ok(Self(EvaluationPathKind::Local(normalize_local_path(
+                p.to_path_buf(),
+            ))));
         }
 
         match &self.0 {
-            EvaluationPathKind::Local(dir) => {
-                Ok(Self(EvaluationPathKind::Local(dir.join(path).clean())))
-            }
+            EvaluationPathKind::Local(dir) => Ok(Self(EvaluationPathKind::Local(
+                normalize_local_path(dir.join(path)),
+            ))),
             EvaluationPathKind::Remote(dir) => Ok(Self(
                 dir.join(path)
                     .map(EvaluationPathKind::Remote)
                     .with_context(|| format!("failed to join `{path}` to URL `{dir}`"))?,
             )),
         }
+    }
+
+    /// Resolves a relative path against this base directory.
+    ///
+    /// Returns `None` if `path` is empty, already absolute, a supported URL,
+    /// or cannot be joined and represented as UTF-8.
+    pub(crate) fn resolve_relative(&self, path: &str) -> Option<HostPath> {
+        if path.is_empty() || is_supported_url(path) || Path::new(path).is_absolute() {
+            return None;
+        }
+
+        let joined = self.join(path).ok()?;
+        String::try_from(joined).ok().map(HostPath::new)
     }
 
     /// Gets the underlying evaluation path kind.
@@ -484,5 +556,96 @@ mod tests {
                 "/foo/bar/data/x.txt"
             );
         }
+    }
+
+    #[test]
+    fn test_evaluation_path_resolve_relative() {
+        let p: EvaluationPath = "foo/bar/baz".parse().expect("should parse");
+        assert_eq!(
+            p.resolve_relative("data/hello.txt")
+                .expect("should resolve relative")
+                .as_str(),
+            p.join("data/hello.txt").expect("should join").to_string()
+        );
+        assert_eq!(
+            p.resolve_relative("qux/../quux")
+                .expect("should resolve relative")
+                .as_str(),
+            p.join("qux/../quux").expect("should join").to_string()
+        );
+        assert!(p.resolve_relative("").is_none());
+        assert!(p.resolve_relative("https://example.com/a.txt").is_none());
+
+        #[cfg(unix)]
+        assert!(p.resolve_relative("/abs/path.txt").is_none());
+
+        #[cfg(windows)]
+        assert!(p.resolve_relative(r"C:\abs\path.txt").is_none());
+
+        let remote: EvaluationPath = "https://example.com/foo/bar/"
+            .parse()
+            .expect("should parse");
+        assert_eq!(
+            remote
+                .resolve_relative("qux/../quux")
+                .expect("should resolve relative remote")
+                .as_str(),
+            "https://example.com/foo/bar/quux"
+        );
+    }
+
+    #[test]
+    fn test_join_preserves_lexical_path_for_non_symlink_parent() {
+        let root = tempfile::tempdir().expect("failed to create tempdir");
+        let a = root.path().join("a");
+        let b = root.path().join("b");
+        std::fs::create_dir(&a).expect("failed to create dir a");
+        std::fs::create_dir(&b).expect("failed to create dir b");
+
+        let base = EvaluationPath::from_local_path(a);
+        assert_eq!(base.join("../b").expect("should join").unwrap_local(), b);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_join_preserves_symlink_parent_traversal() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().expect("failed to create tempdir");
+        let data = dir.path().join("data");
+        let nested = data.join("nested");
+        std::fs::create_dir_all(&nested).expect("failed to create nested dir");
+        std::fs::write(dir.path().join("hello.txt"), "wrong").expect("failed to write wrong file");
+        std::fs::write(data.join("hello.txt"), "right").expect("failed to write right file");
+        symlink(&nested, dir.path().join("link")).expect("failed to create symlink");
+
+        let base = EvaluationPath::from_local_path(dir.path().to_path_buf());
+        let canonical_data = std::fs::canonicalize(&data).expect("failed to canonicalize data dir");
+
+        let joined = base
+            .join("link/../hello.txt")
+            .expect("should join")
+            .unwrap_local();
+        assert_eq!(
+            std::fs::read_to_string(&joined).expect("failed to read joined path"),
+            "right"
+        );
+
+        // Missing suffix after `link/..` should still resolve `link/..` through
+        // the symlink rather than collapsing lexically.
+        let missing = base
+            .join("link/../no_such_dir/hello.txt")
+            .expect("should join")
+            .unwrap_local();
+        assert_eq!(missing, canonical_data.join("no_such_dir/hello.txt"));
+
+        // Broken final symlink name should still resolve its parent through
+        // `link/..`.
+        symlink("missing", data.join("broken")).expect("failed to create broken symlink");
+        let broken = base
+            .join("link/../broken")
+            .expect("should join")
+            .unwrap_local();
+        assert_eq!(broken, canonical_data.join("broken"));
     }
 }
