@@ -33,5 +33,5 @@ Options:
       --suffix <SUFFIX>               Optional suffix to append to the run directory name
   -h, --help                          Print help
 
-Workflow Inputs (my_wf):
+Required Inputs for `my_wf`:
   my_wf.sample_id=<String>

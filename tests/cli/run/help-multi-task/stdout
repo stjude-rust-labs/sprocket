@@ -34,7 +34,5 @@ Options:
   -h, --help                          Print help
 
 Available Targets:
-  first
-  second
-
-Note: the document contains multiple tasks and no workflow; use `--target <NAME>` to select a target
+  `first` (task)
+  `second` (task)

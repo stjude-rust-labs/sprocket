@@ -33,5 +33,5 @@ Options:
       --suffix <SUFFIX>               Optional suffix to append to the run directory name
   -h, --help                          Print help
 
-Task Inputs (my_task):
+Required Inputs for `my_task`:
   my_task.name=<String>
