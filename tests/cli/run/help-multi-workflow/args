@@ -1,0 +1,1 @@
+--config sprocket.toml run multi.wdl -h
