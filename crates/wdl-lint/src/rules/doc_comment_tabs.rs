@@ -62,7 +62,7 @@ impl Rule for DocCommentTabsRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 # Using tabs for alignment
 
@@ -78,7 +78,7 @@ workflow example {
             },
             revised: Some(LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 # Using spaces for alignment
 

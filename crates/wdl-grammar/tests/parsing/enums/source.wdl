@@ -1,6 +1,6 @@
 ## This is a test of enum parsing.
 
-version 1.3
+version 1.4
 
 # Basic enum without type parameter
 enum Color {

@@ -1,0 +1,6 @@
+warning: the `wdl_1_4` feature flag is deprecated; please remove this feature flag from your configuration file
+  ┌─ tests/validation/wdl-1-4-disabled-flag/source.wdl:1:9
+  │
+1 │ version 1.4
+  │         ^^^
+

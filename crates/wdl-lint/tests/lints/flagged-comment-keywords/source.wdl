@@ -1,6 +1,6 @@
 #@ except: MetaDescription, MetaSections, RuntimeSection, EmptyOutputs, BashSetSyntax, DescriptionLength, RequirementsSection
 
-version 1.3
+version 1.4
 
 # FIXME: at the start of the comment
 # in the middle: XYZ (the keyword is not at either end)

@@ -77,8 +77,8 @@ impl GitFixture {
         let cache_path = serde_json::to_string(&cache_path.to_string_lossy()).unwrap();
         let config_path = dir.path().join("sprocket.toml");
         let config = format!(
-            "[common.wdl.feature_flags]\nwdl_1_4 = true\n\n[modules]\ncache_path = \
-             {cache_path}\nallowed_schemes = [\"file\", \"https\", \"ssh\"]\ndenied_hosts = []\n"
+            "[modules]\ncache_path = {cache_path}\nallowed_schemes = [\"file\", \"https\", \
+             \"ssh\"]\ndenied_hosts = []\n"
         );
         fs::write(&config_path, config).unwrap();
 
@@ -144,8 +144,8 @@ impl GitFixture {
         let cache_path = serde_json::to_string(&cache_path.to_string_lossy()).unwrap();
         let config_path = dir.path().join("sprocket.toml");
         let config = format!(
-            "[common.wdl.feature_flags]\nwdl_1_4 = true\n\n[modules]\ncache_path = \
-             {cache_path}\nallowed_schemes = [\"file\", \"https\", \"ssh\"]\ndenied_hosts = []\n"
+            "[modules]\ncache_path = {cache_path}\nallowed_schemes = [\"file\", \"https\", \
+             \"ssh\"]\ndenied_hosts = []\n"
         );
         fs::write(&config_path, config).unwrap();
 
@@ -305,9 +305,8 @@ pub(crate) fn set_fixture_trust_mode(fixture: &GitFixture, trust_mode: &str) {
     fs::write(
         fixture.config_path(),
         format!(
-            "[common.wdl.feature_flags]\nwdl_1_4 = true\n\n[modules]\ncache_path = \
-             {cache_path}\nallowed_schemes = [\"file\", \"https\", \"ssh\"]\ndenied_hosts = \
-             []\ntrust_mode = \"{trust_mode}\"\n"
+            "[modules]\ncache_path = {cache_path}\nallowed_schemes = [\"file\", \"https\", \
+             \"ssh\"]\ndenied_hosts = []\ntrust_mode = \"{trust_mode}\"\n"
         ),
     )
     .unwrap();
@@ -371,7 +370,7 @@ fn write_consumer_manifest(consumer: &Path, dependencies: &str) {
         ),
     )
     .unwrap();
-    fs::write(consumer.join("index.wdl"), "version 1.3\n").unwrap();
+    fs::write(consumer.join("index.wdl"), "version 1.4\n").unwrap();
     fs::write(consumer.join("README.md"), "# Consumer\n").unwrap();
 }
 

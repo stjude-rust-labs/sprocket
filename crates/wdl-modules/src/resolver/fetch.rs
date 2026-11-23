@@ -151,7 +151,7 @@ mod tests {
             module.join(crate::MANIFEST_FILENAME),
             br#"{"name":"dep","license":"MIT"}"#,
         )?;
-        fs::write(module.join("index.wdl"), b"version 1.3\nworkflow w {}\n")?;
+        fs::write(module.join("index.wdl"), b"version 1.4\nworkflow w {}\n")?;
 
         let mut index = repo.index()?;
         index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;

@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 workflow multiline_strings3 {
   output {

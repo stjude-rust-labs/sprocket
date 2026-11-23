@@ -1,5 +1,5 @@
 #@ except: UnusedDeclaration
-version 1.3
+version 1.4
 
 # Valid enum with explicit type parameter
 enum Status[String] {

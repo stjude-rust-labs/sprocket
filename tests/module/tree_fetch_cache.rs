@@ -104,16 +104,12 @@ fn check_warns_on_lock_drift() {
     .unwrap();
 
     let config_path = fixture.dir.path().join("sprocket.toml");
-    fs::write(
-        &config_path,
-        "[common.wdl.feature_flags]\nwdl_1_4 = true\n\n[modules]\n",
-    )
-    .unwrap();
+    fs::write(&config_path, "[modules]\n").unwrap();
 
     let entrypoint = fixture.consumer().join("index.wdl");
     fs::write(
         &entrypoint,
-        "version 1.3\ntask t { command <<< echo hi >>> }\n",
+        "version 1.4\ntask t { command <<< echo hi >>> }\n",
     )
     .unwrap();
     let entrypoint_arg = entrypoint.to_string_lossy().into_owned();
@@ -159,7 +155,7 @@ fn check_does_not_warn_on_current_branch_dependency_lock() {
     let entrypoint = consumer.join("index.wdl");
     fs::write(
         &entrypoint,
-        "version 1.3\ntask t { command <<< echo hi >>> }\n",
+        "version 1.4\ntask t { command <<< echo hi >>> }\n",
     )
     .unwrap();
     let entrypoint_arg = entrypoint.to_string_lossy().into_owned();

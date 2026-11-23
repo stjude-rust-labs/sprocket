@@ -215,7 +215,7 @@ mod tests {
         let root = tempdir()?;
         std::fs::create_dir_all(root.path().join(".sprocket/nested"))?;
         std::fs::write(root.path().join(".sprocket/nested/file"), b"x")?;
-        std::fs::write(root.path().join("index.wdl"), b"version 1.3\n")?;
+        std::fs::write(root.path().join("index.wdl"), b"version 1.4\n")?;
 
         let stats = walk_module_tree(root.path(), &mut |_, _| -> Result<(), Infallible> {
             Ok(())

@@ -1,3 +1,9 @@
+error: there must be at least one task, workflow, or struct definition in the file
+  ┌─ file.wdl:4:1
+  │
+4 │
+  │
+
 error: enums are not supported in WDL v1.2
   ┌─ file.wdl:3:6
   │
@@ -6,4 +12,4 @@ error: enums are not supported in WDL v1.2
   │
   = fix: use WDL v1.3 or higher to use enums
 
-error: failing due to 1 error
+error: failing due to 2 errors

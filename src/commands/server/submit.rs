@@ -227,7 +227,7 @@ mod tests {
     }
 
     const EXAMPLE_WDL_FILE: &str = r#"
-version 1.3
+version 1.4
 
 task my_task {
 

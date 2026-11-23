@@ -1,7 +1,7 @@
 ## This is a test of the optional-to-default coercion in WDL 1.2+.
 ## See: https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#optional-inputs-with-defaults
 #@ except: UnusedCall, UnusedDeclaration, UnusedInput
-version 1.3
+version 1.4
 
 import "w.wdl"
 

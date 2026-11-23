@@ -159,7 +159,7 @@ impl Rule for UnusedImportRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 import "bar.wdl"
 import "foo.wdl" as used
@@ -171,7 +171,7 @@ workflow example {
             },
             revised: Some(LabeledSnippet {
                 label: Some("Consider removing the import entirely"),
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 import "foo.wdl" as used
 
@@ -624,7 +624,7 @@ impl Rule for MeaninglessLintDirective {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task do_work {
     command <<<
@@ -650,7 +650,7 @@ workflow calculate {
             },
             revised: Some(LabeledSnippet {
                 label: Some("Consider removing the unused exception"),
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task do_work {
     command <<<
@@ -887,7 +887,7 @@ impl Rule for ExceptDirectiveValidRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 # UsingFallbackVersion exceptions aren't valid
 # in this context
@@ -899,7 +899,7 @@ workflow example {
             revised: Some(LabeledSnippet {
                 label: None,
                 snippet: r#"#@ except: UsingFallbackVersion
-version 1.3
+version 1.4
 
 workflow example {
 }
@@ -965,7 +965,7 @@ impl Rule for CommandSectionIndentationRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task say_greetings {
     input {
@@ -983,7 +983,7 @@ task say_greetings {
             },
             revised: Some(LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task say_greetings {
     input {

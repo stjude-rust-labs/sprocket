@@ -2,7 +2,7 @@
 ## error for required inputs without defaults.
 ## See: https://github.com/stjude-rust-labs/sprocket/issues/812
 #@ except: UnusedCall, UnusedDeclaration, UnusedInput
-version 1.3
+version 1.4
 
 import "w.wdl"
 

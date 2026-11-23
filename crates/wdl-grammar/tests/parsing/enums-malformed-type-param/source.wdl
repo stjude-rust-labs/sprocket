@@ -1,6 +1,6 @@
 ## Test enum with malformed type parameter
 
-version 1.3
+version 1.4
 
 # Missing closing bracket in type parameter
 enum Status[String {

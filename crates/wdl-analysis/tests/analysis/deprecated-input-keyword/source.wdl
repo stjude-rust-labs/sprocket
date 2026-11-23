@@ -1,9 +1,9 @@
 ## This is a test of the DeprecatedInputKeyword rule for WDL 1.2+.
-## The `input:` keyword is optional in version 1.3 and should be omitted.
+## The `input:` keyword is optional in version 1.4 and should be omitted.
 
 #@ except: DeprecatedRuntimeSection, UnusedCall
 
-version 1.3
+version 1.4
 
 task example1 {
     meta {}

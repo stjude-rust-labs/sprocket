@@ -7,7 +7,7 @@
 ## ok this should be sufficient for testing
 
 #@ except: bar, foo
-version 1.3
+version 1.4
 
 task foobar {
     command <<<

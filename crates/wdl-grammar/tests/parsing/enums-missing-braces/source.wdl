@@ -1,6 +1,6 @@
 ## Test enum with missing braces
 
-version 1.3
+version 1.4
 
 # Missing braces - should error
 enum Color

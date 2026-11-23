@@ -1,6 +1,6 @@
 ## This is a test of the `InlineInstall` lint.
 #@ except: BashSetSyntax, DoubleQuotes, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, MetaDescription, EmptyOutputs, RequirementsSection
-version 1.3
+version 1.4
 
 task good {
     meta {

@@ -1,6 +1,6 @@
 ## This test is to ensure the enum choice cache works across documents that have the same enum index and choice index.
 
-version 1.3
+version 1.4
 
 import "other.wdl" alias Foo as OtherFoo
 

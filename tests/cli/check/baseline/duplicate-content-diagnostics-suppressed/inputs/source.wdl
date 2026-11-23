@@ -1,6 +1,6 @@
 #@ except: BashSetSyntax, EmptyOutputs
 
-version 1.3
+version 1.4
 
 task aa {
     meta {

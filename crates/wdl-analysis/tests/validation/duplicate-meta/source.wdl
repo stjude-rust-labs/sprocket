@@ -1,6 +1,6 @@
 # This is a test of too many meta sections in a task, workflow, and struct definition.
 
-version 1.3
+version 1.4
 
 task t {
     meta {}

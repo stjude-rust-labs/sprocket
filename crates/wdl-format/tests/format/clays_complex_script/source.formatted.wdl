@@ -5,7 +5,7 @@
 #@ except: CommentWhitespace, DeprecatedObject, ExtraneousParameterMeta
 #@ except: MatchingOutputMeta, MetaDescription, MissingParameterMeta, OutputMetaOrder
 #@ except: ParameterMetaOrder
-version 1.3
+version 1.4
 
 #@ except: MetaSections
 struct AStruct {

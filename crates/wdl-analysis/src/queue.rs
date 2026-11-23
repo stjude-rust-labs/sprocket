@@ -1835,10 +1835,8 @@ where
                 {
                     None | Some(Ast::Unsupported) => {}
                     Some(Ast::V1(ast)) => {
-                        let symbolic_imports_enabled = graph
-                            .get(index)
-                            .parse_state()
-                            .symbolic_imports_enabled(&self.config);
+                        let symbolic_imports_enabled =
+                            graph.get(index).parse_state().symbolic_imports_enabled();
                         for import in ast.imports() {
                             match import.source() {
                                 ImportSource::Uri(uri) => {

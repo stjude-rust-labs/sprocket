@@ -91,9 +91,8 @@ fn run_fails_when_required_signature_dependency_is_unsigned() {
     fs::write(
         fixture.config_path(),
         format!(
-            "[common.wdl.feature_flags]\nwdl_1_4 = true\n\n[modules]\ncache_path = \
-             {cache_path}\nallowed_schemes = [\"file\", \"https\", \"ssh\"]\ndenied_hosts = \
-             []\nrequire_signed = true\n"
+            "[modules]\ncache_path = {cache_path}\nallowed_schemes = [\"file\", \"https\", \
+             \"ssh\"]\ndenied_hosts = []\nrequire_signed = true\n"
         ),
     )
     .unwrap();

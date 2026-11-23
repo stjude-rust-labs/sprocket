@@ -3,7 +3,7 @@
 ## to be treated as an error when call statements are resolved; however
 ## we made the grammar more permissible so we can report this error gracefully.
 
-version 1.3
+version 1.4
 
 workflow test {
     call foo.bar.baz.qux

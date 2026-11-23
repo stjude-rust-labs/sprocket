@@ -20,7 +20,7 @@ fn logging() {
     fs::write(
         dir.path().join("source.wdl"),
         r#"
-version 1.3
+version 1.4
 
 task hello {
     command <<<

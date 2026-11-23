@@ -5,7 +5,7 @@
 #@ except: BashSetSyntax, EmptyOutputs, InputName, MetaDescription
 #@ except: RequirementsSection, EmptyOutputs, MetaSections, SectionOrdering
 
-version 1.3
+version 1.4
 
 # This workflow has both an extraneous and missing entry
 # in the `parameter_meta` section

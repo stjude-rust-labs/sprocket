@@ -3,7 +3,7 @@
 #@ except: BashSetSyntax, DeprecatedRuntimeSection, EmptyOutputs, MetaDescription, RequirementsSection
 #@ except: FlaggedComment
 
-version 1.3
+version 1.4
 
 task a {
     meta {}

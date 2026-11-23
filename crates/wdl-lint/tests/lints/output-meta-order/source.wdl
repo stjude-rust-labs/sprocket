@@ -1,7 +1,7 @@
 #@ except: BashSetSyntax, DescriptionLength, EmptyOutputs, MetaDescription, MetaSections
 #@ except: MissingParameterMeta, ExtraneousParameterMeta, ParameterMetaOrder, RequirementsSection, ShellCheck
 
-version 1.3
+version 1.4
 
 task output_meta_order {
     meta {

@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 enum Status {
     Active = 1, Foo = 2,

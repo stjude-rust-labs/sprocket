@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 task likes_to_fail {
     command <<<

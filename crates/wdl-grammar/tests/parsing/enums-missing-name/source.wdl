@@ -1,6 +1,6 @@
 ## Test enum with missing name
 
-version 1.3
+version 1.4
 
 # Missing enum name - should error
 enum {

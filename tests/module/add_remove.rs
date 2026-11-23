@@ -19,7 +19,7 @@ fn add_relocks_a_second_dependency_when_the_lockfile_was_current() {
         r#"{"name":"other","license":"MIT","entrypoint":"index.wdl"}"#,
     )
     .unwrap();
-    fs::write(other.join("index.wdl"), "version 1.3\n").unwrap();
+    fs::write(other.join("index.wdl"), "version 1.4\n").unwrap();
 
     let output = sprocket(&["dev", "module", "add", "other", "../other"])
         .current_dir(fixture.consumer())
@@ -94,7 +94,7 @@ fn add_local_path_dep_uses_subpath_for_module_root_and_name() {
 "#,
     )
     .unwrap();
-    fs::write(module.join("index.wdl"), "version 1.3\n").unwrap();
+    fs::write(module.join("index.wdl"), "version 1.4\n").unwrap();
 
     let collection_arg = collection.to_string_lossy().into_owned();
     let output = sprocket(&[

@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 task multiline_strings2 {
   command <<<>>>

@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 # Duplicate sections are a validation error, but formatting must still retain
 # every section that was written. See issue #852.

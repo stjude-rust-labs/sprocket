@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 workflow pair_to_array {
   Pair[Int, Int] p = (1, 2)

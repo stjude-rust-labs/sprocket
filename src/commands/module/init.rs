@@ -455,7 +455,7 @@ mod tests {
         let path = dir.path().join("index.wdl");
         std::fs::write(&path, "version 1.0\n")?;
 
-        write_scaffold_file(&path, "index.wdl", "version 1.3\n".to_string())?;
+        write_scaffold_file(&path, "index.wdl", "version 1.4\n".to_string())?;
 
         assert_eq!(std::fs::read_to_string(&path)?, "version 1.0\n");
         assert!(logs_contain("skipped existing scaffold file"));
@@ -507,7 +507,7 @@ mod tests {
         let scaffold = directory.path().join("index.wdl");
         symlink(&outside, &scaffold)?;
 
-        assert!(write_scaffold_file(&scaffold, "index.wdl", "version 1.3\n".to_string()).is_err());
+        assert!(write_scaffold_file(&scaffold, "index.wdl", "version 1.4\n".to_string()).is_err());
         assert!(!outside.exists());
         Ok(())
     }

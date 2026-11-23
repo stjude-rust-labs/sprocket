@@ -1,5 +1,5 @@
 ## This is a test of an invalid true/false placeholder option at runtime
-version 1.3
+version 1.4
 
 task test {
     command {

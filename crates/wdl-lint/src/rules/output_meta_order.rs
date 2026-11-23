@@ -82,7 +82,7 @@ impl Rule for OutputMetaOrderRule<'_> {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task ordered_outputs {
     meta {
@@ -101,7 +101,7 @@ task ordered_outputs {
             },
             revised: Some(LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task ordered_outputs {
     meta {

@@ -1,6 +1,6 @@
 #@ except: UnusedInput, SnakeCase, MetaSections, DeprecatedRuntimeSection, EmptyOutputs, RequirementsSection, BashSetSyntax
 
-version 1.3
+version 1.4
 
 task foo {
     input {

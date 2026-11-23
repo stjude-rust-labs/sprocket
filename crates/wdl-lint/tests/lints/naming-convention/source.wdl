@@ -1,7 +1,7 @@
 #@ except: BashSetSyntax, EmptyOutputs, UnknownRuntimeKeys, DeprecatedRuntimeKey, RecommendedRuntimeKeys, MatchingOutputMeta, OutputMetaOrder
 #@ except: MetaDescription, MetaSections, CallInputKeyword
 
-version 1.3
+version 1.4
 
 workflow BadWorkflow {
     meta {}

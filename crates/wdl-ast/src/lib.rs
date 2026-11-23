@@ -92,7 +92,7 @@ pub trait Documented<N: TreeNode>: AstNode<N> {
 /// ```wdl
 /// ## This is a preamble
 ///
-/// version 1.3
+/// version 1.4
 /// ```
 ///
 /// That preamble comment is still associated with the version statement,

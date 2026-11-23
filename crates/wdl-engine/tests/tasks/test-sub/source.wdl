@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 task test_sub {
   String chocolike = "I like chocolate when\nit's late"

@@ -1,5 +1,5 @@
 ## This is a test of symlinking to an input file from within a task.
-version 1.3
+version 1.4
 
 task test {
     input {

@@ -1,6 +1,6 @@
 # Make sure the default configuration rejects an unsatisfiable memory requirement.
 
-version 1.3
+version 1.4
 
 task hello_task {
   input {

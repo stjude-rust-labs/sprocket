@@ -26,7 +26,7 @@ impl ModuleFixture {
 "#,
         )
         .unwrap();
-        fs::write(fixture.consumer().join("index.wdl"), "version 1.3\n").unwrap();
+        fs::write(fixture.consumer().join("index.wdl"), "version 1.4\n").unwrap();
         fs::write(fixture.consumer().join("README.md"), "# Consumer\n").unwrap();
 
         fs::write(
@@ -39,7 +39,7 @@ impl ModuleFixture {
 "#,
         )
         .unwrap();
-        fs::write(fixture.dep().join("index.wdl"), "version 1.3\n").unwrap();
+        fs::write(fixture.dep().join("index.wdl"), "version 1.4\n").unwrap();
 
         fixture
     }

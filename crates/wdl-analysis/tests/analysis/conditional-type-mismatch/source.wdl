@@ -1,6 +1,6 @@
 ## This is a test of conditional clauses with the same name in multiple clauses conflicting with parent scope
 
-version 1.3
+version 1.4
 
 workflow test {
     Int a = 1

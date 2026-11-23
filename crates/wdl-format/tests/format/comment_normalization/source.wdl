@@ -9,7 +9,7 @@
 # this is an odd jumble
 ## ok this should be sufficient for testing
 
-version 1.3
+version 1.4
 
 task foobar {
     command <<<

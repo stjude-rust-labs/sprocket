@@ -4,7 +4,7 @@ RootNode@0..280
   VersionStatementNode@41..52
     VersionKeyword@41..48 "version"
     Whitespace@48..49 " "
-    Version@49..52 "1.3"
+    Version@49..52 "1.4"
   Whitespace@52..54 "\n\n"
   Comment@54..93 "# Missing choice name ..."
   Whitespace@93..94 "\n"

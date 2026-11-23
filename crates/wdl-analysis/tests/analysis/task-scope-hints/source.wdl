@@ -1,6 +1,6 @@
 ## Test that task variable has correct members in hints section.
 
-version 1.3
+version 1.4
 
 task test_hints_scope {
     command <<<

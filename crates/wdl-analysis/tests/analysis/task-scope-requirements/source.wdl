@@ -1,6 +1,6 @@
 ## Test that task variable has correct members in requirements section.
 
-version 1.3
+version 1.4
 
 task test_requirements_scope {
     command <<<

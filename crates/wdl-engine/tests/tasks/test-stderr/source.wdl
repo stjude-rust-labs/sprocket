@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 task echo_stderr {
   command <<< >&2 printf "hello world" >>>

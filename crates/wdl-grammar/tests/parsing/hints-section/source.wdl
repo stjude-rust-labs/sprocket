@@ -1,6 +1,6 @@
 ## This is a test of parsing task hints sections.
 
-version 1.3
+version 1.4
 
 task foo {
     hints {

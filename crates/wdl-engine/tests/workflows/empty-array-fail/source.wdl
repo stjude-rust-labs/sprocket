@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 workflow empty_array_fail {
   Array[Int] empty = []

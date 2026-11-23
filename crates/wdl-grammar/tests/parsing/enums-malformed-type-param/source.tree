@@ -4,7 +4,7 @@ RootNode@0..285
   VersionStatementNode@44..55
     VersionKeyword@44..51 "version"
     Whitespace@51..52 " "
-    Version@52..55 "1.3"
+    Version@52..55 "1.4"
   Whitespace@55..57 "\n\n"
   Comment@57..100 "# Missing closing bra ..."
   Whitespace@100..101 "\n"

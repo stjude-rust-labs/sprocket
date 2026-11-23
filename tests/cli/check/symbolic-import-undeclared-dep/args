@@ -1,1 +1,1 @@
--qq -c sprocket.toml check .
+-qq check .

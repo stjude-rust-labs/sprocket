@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 import "../test-local-call/source.wdl" as other_wf
 

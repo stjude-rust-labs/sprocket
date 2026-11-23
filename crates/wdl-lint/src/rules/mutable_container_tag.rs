@@ -70,7 +70,7 @@ impl Rule for MutableContainerTagRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task say_hello {
     input {
@@ -89,7 +89,7 @@ task say_hello {
             },
             revised: Some(LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task say_hello {
     input {

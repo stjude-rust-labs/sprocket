@@ -22,7 +22,7 @@ If you have the Python bindings installed, you can run the example yourself:
    warning: this is a warning
      ┌─ sprocket_bio/examples/example.wdl:1:1
      │
-   1 │ version 1.3
+   1 │ version 1.4
      │ ^^^^^^^^^^^ additional details on the warning
      │
      = help: this is the help message

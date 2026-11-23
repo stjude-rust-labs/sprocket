@@ -2042,8 +2042,7 @@ mod tests {
         let docs_dir = tempfile::tempdir().unwrap();
 
         let config = crate::Config::new(
-            wdl_analysis::Config::default()
-                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            wdl_analysis::Config::default(),
             workspace_dir.path(),
             docs_dir.path(),
         );

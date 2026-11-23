@@ -1,4 +1,4 @@
-version 1.3
+version 1.4
 
 # Primitive type mismatch: String vs Int
 enum Status {

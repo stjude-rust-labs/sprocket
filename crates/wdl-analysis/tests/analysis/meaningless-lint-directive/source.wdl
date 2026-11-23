@@ -1,7 +1,7 @@
 # Global exceptions should be allowed
 #@ except: UsingFallbackVersion
 
-version 1.3
+version 1.4
 
 # Shouldn't collide with `ExceptDirectiveValid`
 #@ except: UnusedCall

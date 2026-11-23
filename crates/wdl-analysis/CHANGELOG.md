@@ -13,15 +13,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   example to the WDL 1.4 `list` standard library documentation
   ([#1422](https://github.com/stjude-rust-labs/sprocket/pull/1422)).
 * Added the WDL 1.4 `exists` function signature from
-  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
+  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780)
   ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
 * Added type checking for the WDL 1.4 postfix unwrap operator (`x!`) from
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping a non-optional value or a
   value that is always `None` is an error, and use of the operator prior to WDL 1.4 is rejected
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
+### Changed
+
+* WDL v1.4 is now enabled by default; the `wdl_1_4` feature flag is deprecated and will emit a
+  warning if explicitly set to `false`
+  ([#1431](https://github.com/stjude-rust-labs/sprocket/pull/1431)).
+
 ### Fixed
 
+* Fixed `CountingVisitor` to treat `enum` definitions as valid top-level document definitions in WDL
+  v1.3 and higher rather than v1.3 and lower
+  ([#1431](https://github.com/stjude-rust-labs/sprocket/pull/1431)).
 * Updated the `read_tsv` documentation to match
   [`openwdl/wdl#787`](https://github.com/openwdl/wdl/pull/787): the two-argument form statically
   returns `Array[Object]` and its `Boolean` argument must evaluate to `true`.

@@ -4,7 +4,7 @@
 ## (requirements/hints/runtime) and post-evaluation contexts (command/output),
 ## but with different fields available in each context.
 
-version 1.3
+version 1.4
 
 task test_invalid_member {
   command <<<

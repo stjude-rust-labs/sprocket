@@ -1,6 +1,6 @@
 ## This is a test of conflicting sections.
 
-version 1.3
+version 1.4
 
 task foo {
     command <<<>>>

@@ -78,7 +78,7 @@ impl Rule for StructOverMap {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 task example {
     Map[String, Boolean] config = {
@@ -100,7 +100,7 @@ task example {
             },
             revised: Some(LabeledSnippet {
                 label: Some("If possible, consider switching to a `struct`"),
-                snippet: r#"version 1.3
+                snippet: r#"version 1.4
 
 struct Config {
     Boolean verbose

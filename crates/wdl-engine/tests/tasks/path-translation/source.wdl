@@ -1,6 +1,6 @@
 ## This is a test of properly translating paths in various expressions.
 
-version 1.3
+version 1.4
 
 task test {
     input {
