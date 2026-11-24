@@ -74,8 +74,10 @@ pub fn goto_definition(
     let parent_node = token.parent().expect("identifier has not parent");
 
     // Context based resolution
-    if let Some(location) = resolve_by_context(&parent_node, &token, document, &lines, graph)? {
-        return Ok(Some(location));
+    match resolve_by_context(&parent_node, &token, document, &lines, graph)? {
+        Some(Resolution::Resolved(location)) => return Ok(Some(location)),
+        None => return Ok(None),
+        Some(Resolution::Undetermined) => {}
     }
 
     // Scope based resolution
@@ -119,6 +121,15 @@ pub fn goto_definition(
     resolve_global_identifier(document, ident_text, document_uri, &lines, graph)
 }
 
+/// Result of attempting to resolve an identifier by its parent context.
+enum Resolution {
+    /// A location was determined.
+    Resolved(Location),
+    /// The node refers to a symbol indirectly, and will fallback to
+    /// scope/global lookup.
+    Undetermined,
+}
+
 /// Resolves identifier definition based on their parent node's syntax kind.
 fn resolve_by_context(
     parent_node: &SyntaxNode,
@@ -126,24 +137,31 @@ fn resolve_by_context(
     analysis_doc: &Document,
     lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
-) -> Result<Option<Location>> {
+) -> Result<Option<Resolution>> {
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             resolve_type_reference(analysis_doc, token, lines, graph)
+                .map(|res| res.map(Resolution::Resolved))
         }
 
         SyntaxKind::CallTargetNode => {
             resolve_call_target(parent_node, token, analysis_doc, lines.clone(), graph)
+                .map(|res| res.map(Resolution::Resolved))
         }
+
         SyntaxKind::ImportStatementNode => {
             resolve_import_namespace(parent_node, token, &analysis_doc.uri(), lines)
+                .map(|res| res.map(Resolution::Resolved))
         }
+
         SyntaxKind::ImportAliasNode => {
             resolve_import_alias_target(parent_node, token, &analysis_doc.uri(), lines)
+                .map(|res| Some(res.map_or(Resolution::Undetermined, Resolution::Resolved)))
         }
 
         SyntaxKind::AccessExprNode => {
             resolve_access_expression(parent_node, token, analysis_doc, lines, graph)
+                .map(|res| res.map(Resolution::Resolved))
         }
 
         SyntaxKind::UnboundDeclNode => resolve_decl_definition::<v1::UnboundDecl>(
@@ -151,27 +169,80 @@ fn resolve_by_context(
             token,
             &analysis_doc.uri(),
             lines,
-        ),
+        )
+        .map(|res| res.map(Resolution::Resolved)),
 
         SyntaxKind::BoundDeclNode => {
             resolve_decl_definition::<v1::BoundDecl>(parent_node, token, &analysis_doc.uri(), lines)
+                .map(|res| res.map(Resolution::Resolved))
         }
 
         SyntaxKind::EnumChoiceNode => {
             resolve_enum_choice_definition(parent_node, token, &analysis_doc.uri(), lines)
+                .map(|res| res.map(Resolution::Resolved))
         }
 
         SyntaxKind::LiteralStructItemNode => {
             resolve_struct_literal_item(parent_node, token, analysis_doc, lines, graph)
+                .map(|res| res.map(Resolution::Resolved))
         }
 
         SyntaxKind::CallInputItemNode => {
             resolve_call_input_item(parent_node, token, analysis_doc, lines, graph)
         }
 
-        // This case is handled by scope resolution.
-        SyntaxKind::NameRefExprNode => Ok(None),
-        _ => Ok(None),
+        SyntaxKind::MetadataObjectItemNode => {
+            let item = v1::MetadataObjectItem::cast(parent_node.clone()).expect("should cast");
+            if item.name().span() != token.span() {
+                return Ok(None);
+            }
+
+            let Some(param_meta) = parent_node
+                .parent()
+                .and_then(v1::ParameterMetadataSection::cast)
+            else {
+                return Ok(None);
+            };
+
+            // Check if this `parameter_meta` belongs to a struct
+            if let Some(struct_def) = param_meta
+                .inner()
+                .parent()
+                .and_then(v1::StructDefinition::cast)
+            {
+                if let Some(member) = struct_def
+                    .members()
+                    .find(|m| m.name().text() == token.text())
+                {
+                    return Ok(Some(Resolution::Resolved(location_from_span(
+                        &analysis_doc.uri(),
+                        member.name().span(),
+                        lines,
+                    )?)));
+                }
+
+                return Ok(None);
+            }
+
+            // Otherwise, we're in a task/workflow so leave it up to the scope
+            // search
+            Ok(Some(Resolution::Undetermined))
+        }
+
+        // Any identifiers in these node types should be ignored
+        SyntaxKind::RequirementsItemNode
+        | SyntaxKind::RuntimeItemNode
+        | SyntaxKind::TaskHintsItemNode
+        | SyntaxKind::WorkflowHintsItemNode
+        | SyntaxKind::WorkflowHintsObjectItemNode
+        | SyntaxKind::LiteralHintsItemNode
+        | SyntaxKind::LiteralObjectItemNode
+        | SyntaxKind::CallExprNode
+        | SyntaxKind::SymbolicModulePathNode => Ok(None),
+
+        // Need to try again with scope/global search.
+        SyntaxKind::NameRefExprNode => Ok(Some(Resolution::Undetermined)),
+        _ => Ok(Some(Resolution::Undetermined)),
     }
 }
 
@@ -910,19 +981,19 @@ fn resolve_call_input_item(
     analysis_doc: &Document,
     lines: &Arc<LineIndex>,
     graph: &DocumentGraph,
-) -> Result<Option<Location>> {
+) -> Result<Option<Resolution>> {
     let Some(input_item) = wdl_ast::v1::CallInputItem::cast(parent_node.clone()) else {
         bail!("cannot cast to `CallInputItem`");
     };
     let ident = input_item.name();
 
     if input_item.is_implicit_bind() {
-        return Ok(None);
+        return Ok(Some(Resolution::Undetermined));
     }
 
     if ident.span() != token.span() {
         // For RHS identifier, fall through to scope resolution
-        return Ok(None);
+        return Ok(Some(Resolution::Undetermined));
     }
 
     // For LHS identifier, resolve to the target task/workflow's input
@@ -971,7 +1042,8 @@ fn resolve_call_input_item(
                     token,
                     &ns.source(),
                     imported_lines,
-                );
+                )
+                .map(|res| res.map(Resolution::Resolved));
             } else {
                 // Local tasks/workflow inputs
                 return find_target_input_parameter(
@@ -980,11 +1052,13 @@ fn resolve_call_input_item(
                     token,
                     &analysis_doc.uri(),
                     lines,
-                );
+                )
+                .map(|res| res.map(Resolution::Resolved));
             }
         }
         current = node.parent();
     }
+
     Ok(None)
 }
 

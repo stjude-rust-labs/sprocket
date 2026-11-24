@@ -101,6 +101,52 @@ async fn should_rename_struct_definition() {
 }
 
 #[tokio::test]
+async fn should_rename_struct_parameter_meta() {
+    let mut ctx = setup().await;
+
+    const NEW_NAME: &str = "identifier";
+
+    let edit = rename_request(
+        &mut ctx,
+        "structs.wdl",
+        // Position of `name` in `String name`
+        Position::new(3, 12),
+        "identifier",
+    )
+    .await
+    .expect("request should succeed")
+    .unwrap();
+
+    let changes = edit.changes.expect("expected changes");
+    let edits = changes
+        .get(&ctx.doc_uri("structs.wdl"))
+        .expect("should have edits for structs.wdl");
+
+    let expected_edits = vec![
+        // member name
+        TextEdit {
+            range: Range::new(Position::new(3, 11), Position::new(3, 15)),
+            new_text: NEW_NAME.to_string(),
+        },
+        // `parameter_meta` key
+        TextEdit {
+            range: Range::new(Position::new(6, 8), Position::new(6, 12)),
+            new_text: NEW_NAME.to_string(),
+        },
+    ];
+
+    assert_eq!(
+        edits.len(),
+        expected_edits.len(),
+        "should have exactly two edits (the output declaration and its usage)"
+    );
+
+    for edit in &expected_edits {
+        assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
+    }
+}
+
+#[tokio::test]
 async fn should_rename_import_namespace_alias() {
     let mut ctx = setup().await;
 
@@ -154,6 +200,77 @@ async fn should_not_rename_shadowed_declaration() {
     for edit in &expected_edits {
         assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
     }
+}
+
+#[tokio::test]
+async fn should_not_rename_unrelated_idents() {
+    let mut ctx = setup().await;
+
+    const NEW_NAME: &str = "image";
+
+    // Position of `container` in `String container`
+    let edit = rename_request(&mut ctx, "requirements.wdl", Position::new(4, 16), NEW_NAME)
+        .await
+        .expect("request should succeed")
+        .unwrap();
+
+    let changes = edit.changes.expect("expected changes");
+    let edits = changes
+        .get(&ctx.doc_uri("requirements.wdl"))
+        .expect("should have edits for requirements.wdl");
+
+    let expected_edits = vec![
+        // `container` input
+        TextEdit {
+            range: Range::new(Position::new(4, 15), Position::new(4, 24)),
+            new_text: NEW_NAME.to_string(),
+        },
+        // `parameter_meta.container`
+        TextEdit {
+            range: Range::new(Position::new(12, 8), Position::new(12, 17)),
+            new_text: NEW_NAME.to_string(),
+        },
+        // `object.container` value
+        TextEdit {
+            range: Range::new(Position::new(19, 19), Position::new(19, 28)),
+            new_text: NEW_NAME.to_string(),
+        },
+        // `requirements.container` value
+        TextEdit {
+            range: Range::new(Position::new(27, 19), Position::new(27, 28)),
+            new_text: NEW_NAME.to_string(),
+        },
+        // `hints.container` value
+        TextEdit {
+            range: Range::new(Position::new(31, 19), Position::new(31, 28)),
+            new_text: NEW_NAME.to_string(),
+        },
+    ];
+
+    assert_eq!(
+        edits.len(),
+        expected_edits.len(),
+        "should have exactly five edits"
+    );
+
+    for edit in &expected_edits {
+        assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
+    }
+
+    // Preparing a rename on the `requirements` key should be rejected.
+    let prepare = ctx
+        .request::<PrepareRenameRequest>(TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri("requirements.wdl"),
+            },
+            position: Position::new(27, 10),
+        })
+        .await
+        .expect("request should succeed");
+    assert!(
+        prepare.is_none(),
+        "should not allow renaming a requirements key"
+    );
 }
 
 #[tokio::test]
