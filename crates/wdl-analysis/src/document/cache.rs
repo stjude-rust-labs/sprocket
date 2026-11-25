@@ -1378,7 +1378,10 @@ impl AnalysisCache {
     /// the latest analyzed document in the graph.
     ///
     /// The offsets and nodes of imported structs and enums are refreshed too,
-    /// as a body-only edit may move their definitions.
+    /// as a body-only edit may move their definitions. Likewise, the outputs
+    /// of imported tasks and workflows are refreshed, as each
+    /// [`Output`](crate::document::Output) carries a span that a body-only
+    /// edit may move.
     pub fn refresh_import_documents(&mut self, graph: &DocumentGraph) {
         for cached in self.imports.values_mut() {
             let (document, structs, enums, callables) = match &mut cached.item.item {
@@ -1435,14 +1438,30 @@ impl AnalysisCache {
             }
 
             if let Some((tasks, workflows)) = callables {
-                for doc in tasks
-                    .values_mut()
-                    .map(|t| &mut t.document)
-                    .chain(workflows.values_mut().map(|w| &mut w.document))
-                {
-                    if let Some(latest) = latest_document(graph, doc) {
-                        *doc = latest.clone();
+                for task in tasks.values_mut() {
+                    let Some(latest) = latest_document(graph, &task.document) else {
+                        continue;
+                    };
+
+                    if let Some((_, _, local)) = latest.data.cache.local_task_by_name(&task.name) {
+                        task.outputs = local.outputs.clone();
                     }
+
+                    task.document = latest.clone();
+                }
+
+                for workflow in workflows.values_mut() {
+                    let Some(latest) = latest_document(graph, &workflow.document) else {
+                        continue;
+                    };
+
+                    if let Some((_, _, local)) =
+                        latest.data.cache.local_workflow_by_name(&workflow.name)
+                    {
+                        workflow.outputs = local.outputs.clone();
+                    }
+
+                    workflow.document = latest.clone();
                 }
             }
         }

@@ -44,9 +44,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
 * Constructing a struct literal for an imported struct whose type could not be determined no longer
   panics ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
-* Go to definition now resolves struct members and enum choices for structs and enums brought into
-  scope under an alias by a wildcard import, including when a local struct or enum shadows the
-  original name ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
 
 ## 0.28.1 - 2026-11-18
 

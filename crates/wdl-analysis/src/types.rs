@@ -1149,6 +1149,9 @@ impl StructType {
     }
 
     /// Gets the name of the struct.
+    ///
+    /// This is always the name of the source definition, not any local import
+    /// alias.
     pub fn name(&self) -> &Arc<String> {
         &self.0.name
     }
@@ -1313,6 +1316,9 @@ impl EnumType {
     }
 
     /// Gets the name of the enum.
+    ///
+    /// This is always the name of the source definition, not any local import
+    /// alias.
     pub fn name(&self) -> &str {
         &self.0.name
     }
