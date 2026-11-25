@@ -20,7 +20,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   document, rather than the exporting document
   ([#1410](https://github.com/stjude-rust-labs/sprocket/pull/1410)).
 * `textDocument/definition` requests on imported task/workflow inputs and outputs will now resolve
-  the defining document ([#1413](https://github.com/stjude-rust-labs/sprocket/pull/1413)).
+  the defining document ([#1414](https://github.com/stjude-rust-labs/sprocket/pull/1414)).
 
 ## 0.25.0 - 2026-10-29
 
