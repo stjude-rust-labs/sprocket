@@ -115,6 +115,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `read_json` now rejects files with trailing content after the JSON value
   ([#1380](https://github.com/stjude-rust-labs/sprocket/pull/1380)).
+* Fixed the Slurm and LSF Apptainer backends hanging silently when the image cache or scheduler is
+  unresponsive (e.g., on CephFS): cached images are used without taking a file lock, images are
+  pulled to a temporary file and atomically moved into the cache, file lock acquisition no longer
+  blocks async runtime threads, `sacct`, `scancel`, `bjobs`, and `bkill` time out after five
+  minutes, and warnings are emitted for slow lock acquisition and job submission
+  ([#1345](https://github.com/stjude-rust-labs/sprocket/issues/1345)).
+* Fixed call cache lookups and updates stalling on network file systems (e.g., CephFS) when many
+  runs share a call cache: call cache entries are now written to a temporary file and atomically
+  renamed into place, and are read without taking a file lock
+  ([#1345](https://github.com/stjude-rust-labs/sprocket/issues/1345)).
 * The `%` operator now follows the truncating remainder semantics from
   [`openwdl/wdl#789`](https://github.com/openwdl/wdl/pull/789): a `Float` remainder with a
   right-hand operand equal to zero, including negative zero, is an error instead of `NaN`, and `Int`

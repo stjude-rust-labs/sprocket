@@ -47,8 +47,10 @@ use tracing::trace;
 use tracing::warn;
 
 use super::ApptainerRuntime;
+use super::SCHEDULER_COMMAND_TIMEOUT;
 use super::TaskExecutionBackend;
 use super::apptainer::record_job_id;
+use super::output_with_timeout;
 use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
@@ -62,6 +64,7 @@ use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::SlurmApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
+use crate::slow::warn_if_slow;
 use crate::v1::requirements;
 
 /// The name of the file where the Apptainer command invocation will be written.
@@ -766,11 +769,14 @@ impl Monitor {
             command = command.as_std()
         );
 
+        // `sbatch` is not given a timeout as killing it may leave a submitted
+        // job running that is not being monitored; instead, warn if it is slow
         let child = command.spawn().context("failed to spawn `sbatch`")?;
-        let output = child
-            .wait_with_output()
-            .await
-            .context("failed to wait for `sbatch` to exit")?;
+        let output = warn_if_slow(child.wait_with_output(), || {
+            format!("submitting task `{task_name}` with `sbatch`")
+        })
+        .await
+        .context("failed to wait for `sbatch` to exit")?;
         if !output.status.success() {
             bail!(
                 "failed to submit Slurm job with `sbatch` ({status})\n{stderr}",
@@ -883,12 +889,7 @@ impl Monitor {
             command = command.as_std()
         );
 
-        let child = command.spawn().context("failed to spawn `sacct` command")?;
-
-        let output = child
-            .wait_with_output()
-            .await
-            .context("failed to wait for `sacct` to exit")?;
+        let output = output_with_timeout(command, SCHEDULER_COMMAND_TIMEOUT).await?;
         if !output.status.success() {
             bail!(
                 "`sacct` failed: {status}: {stderr}",
@@ -969,12 +970,9 @@ impl SlurmApptainerBackend {
             command = command.as_std()
         );
 
-        let mut child = command
-            .spawn()
-            .context("failed to spawn `scancel` command")?;
-        let status = child.wait().await.context("failed to wait for `scancel`")?;
-        if !status.success() {
-            bail!("`scancel` failed: {status}");
+        let output = output_with_timeout(command, SCHEDULER_COMMAND_TIMEOUT).await?;
+        if !output.status.success() {
+            bail!("`scancel` failed: {status}", status = output.status);
         }
 
         Ok(())

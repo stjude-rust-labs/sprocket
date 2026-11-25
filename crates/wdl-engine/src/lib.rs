@@ -36,6 +36,7 @@ mod inputs;
 mod lock;
 mod outputs;
 mod path;
+mod slow;
 mod stdlib;
 mod tree;
 mod units;

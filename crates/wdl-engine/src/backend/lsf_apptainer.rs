@@ -51,7 +51,9 @@ use tracing::error;
 use tracing::trace;
 use tracing::warn;
 
+use super::SCHEDULER_COMMAND_TIMEOUT;
 use super::TaskExecutionBackend;
+use super::output_with_timeout;
 use crate::ContainerImageOverrides;
 use crate::EvaluationPath;
 use crate::Events;
@@ -67,6 +69,7 @@ use crate::backend::apptainer::record_job_id;
 use crate::config::Config;
 use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
+use crate::slow::warn_if_slow;
 use crate::v1::requirements;
 
 /// The name of the file where the Apptainer command invocation will be written.
@@ -570,11 +573,14 @@ impl Monitor {
         // Write the full `bsub` command to the attempt directory
         write_bsub_command_file(request.attempt_dir, &command).await?;
 
+        // `bsub` is not given a timeout as killing it may leave a submitted
+        // job running that is not being monitored; instead, warn if it is slow
         let child = command.spawn().context("failed to spawn `bsub`")?;
-        let output = child
-            .wait_with_output()
-            .await
-            .context("failed to wait for `bsub` to exit")?;
+        let output = warn_if_slow(child.wait_with_output(), || {
+            format!("submitting task `{task_name}` with `bsub`")
+        })
+        .await
+        .context("failed to wait for `bsub` to exit")?;
         if !output.status.success() {
             bail!(
                 "failed to submit LSF job with `bsub` ({status})\n{stderr}",
@@ -719,12 +725,7 @@ impl Monitor {
             command = command.as_std()
         );
 
-        let child = command.spawn().context("failed to spawn `bjobs` command")?;
-
-        let output = child
-            .wait_with_output()
-            .await
-            .context("failed to wait for `bjobs` to exit")?;
+        let output = output_with_timeout(command, SCHEDULER_COMMAND_TIMEOUT).await?;
         if !output.status.success() {
             bail!(
                 "`bjobs` failed: {status}: {stderr}",
@@ -817,10 +818,9 @@ impl LsfApptainerBackend {
             command = command.as_std()
         );
 
-        let mut child = command.spawn().context("failed to spawn `bkill` command")?;
-        let status = child.wait().await.context("failed to wait for `bkill`")?;
-        if !status.success() {
-            bail!("`bkill` failed: {status}");
+        let output = output_with_timeout(command, SCHEDULER_COMMAND_TIMEOUT).await?;
+        if !output.status.success() {
+            bail!("`bkill` failed: {status}", status = output.status);
         }
 
         Ok(())
