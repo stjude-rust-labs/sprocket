@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added contextual input help to `sprocket run`: passing `--help` (or `-h`) with a WDL source now
+  appends the selected task's or workflow's required inputs and their types to the help output
+  ([#1086](https://github.com/stjude-rust-labs/sprocket/issues/1086)).
 * Added the WDL 1.4 `exists` function from
   [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), gated by `feature_flags.wdl_1_4`
   ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
@@ -19,6 +22,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * WDL `String` values now coerce to `Int`, `Float`, and `Boolean`, per
   [`openwdl/wdl#797`](https://github.com/openwdl/wdl/pull/797)
   ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
+
+### Changed
+
+* SQLite connections now apply the 30-second lock-wait timeout before running initialization
+  statements, rather than using the five-second default during initialization
+  ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).
 
 ## 0.34.1 - 2026-11-18
 
