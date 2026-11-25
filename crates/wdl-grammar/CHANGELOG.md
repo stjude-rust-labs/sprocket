@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.28.0 - 2026-11-25
+
 ### Added
 
 * Added parsing of the WDL 1.4 postfix unwrap operator (`x!`) as `SyntaxKind::UnwrapExprNode` from
