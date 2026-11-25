@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added support for the `textDocument/prepareRename` request
+  ([#1388](https://github.com/stjude-rust-labs/sprocket/pull/1388)).
 * `textDocument/hover` requests on call aliases will now render the documentation of the source
   task/workflow ([#1421](https://github.com/stjude-rust-labs/sprocket/pull/1421)).
 
@@ -20,8 +22,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Added support for the `textDocument/documentLink` request
   ([#1381](https://github.com/stjude-rust-labs/sprocket/pull/1381)).
-* Added support for the `textDocument/prepareRename` request
-  ([#1388](https://github.com/stjude-rust-labs/sprocket/pull/1388)).
 
 ### Fixed
 
