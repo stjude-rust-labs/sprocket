@@ -383,6 +383,21 @@ pub enum ResolverError {
         import: String,
     },
 
+    /// A quoted `import` in included module content targets an excluded path.
+    #[error(
+        "`{dep}` file `{file}` has a quoted import `{import}` that targets content excluded by \
+         the module manifest"
+    )]
+    QuotedImportExcluded {
+        /// The owning dependency.
+        dep: String,
+        /// The included `.wdl` file containing the offending import, relative
+        /// to the module root.
+        file: String,
+        /// The offending import target as written.
+        import: String,
+    },
+
     /// An I/O error.
     #[error("i/o error at `{path}`")]
     Io {
@@ -414,6 +429,23 @@ pub enum ResolverError {
     /// A `RelativePath` validation error.
     #[error(transparent)]
     RelativePath(#[from] crate::relative_path::RelativePathError),
+}
+
+#[cfg(feature = "git-resolver")]
+impl From<crate::exclude::LoadExclusionsError> for ResolverError {
+    fn from(error: crate::exclude::LoadExclusionsError) -> Self {
+        match error {
+            crate::exclude::LoadExclusionsError::Io { path, source } => Self::Io { path, source },
+            crate::exclude::LoadExclusionsError::Symlink(path) => {
+                Self::Walk(ModuleWalkError::Symlink(path))
+            }
+            crate::exclude::LoadExclusionsError::Manifest { source, .. } => Self::Manifest(source),
+            crate::exclude::LoadExclusionsError::InvalidExclude(error) => Self::InvalidExclude {
+                pattern: error.pattern,
+                source: error.source,
+            },
+        }
+    }
 }
 
 /// The kind of Git reference named in a `ResolverError::UnknownGitRef` variant.
