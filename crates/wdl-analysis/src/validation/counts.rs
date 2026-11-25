@@ -370,11 +370,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        if let Some(version) = self.version
-            && version >= SupportedVersion::V1(V1::Three)
-        {
-            self.has_enum = true;
-        }
+        self.has_enum = true;
     }
 
     fn command_section(
@@ -706,16 +702,10 @@ mod tests {
 
         let v1_2_errors =
             analyze_errors("version 1.2\n\nenum Color {\n    Red,\n    Blue,\n}\n").await;
-        assert!(
-            v1_2_errors
-                .iter()
-                .any(|e| e == "enums are not supported in WDL v1.2"),
-            "expected unsupported-enum error in WDL 1.2, got: {v1_2_errors:?}"
-        );
-        assert!(
-            v1_2_errors.iter().any(|e| e
-                == "there must be at least one task, workflow, or struct definition in the file"),
-            "expected missing-definition error in WDL 1.2, got: {v1_2_errors:?}"
+        assert_eq!(
+            v1_2_errors,
+            vec!["enums are not supported in WDL v1.2"],
+            "expected only unsupported-enum error in WDL 1.2, got: {v1_2_errors:?}"
         );
     }
 }
