@@ -62,8 +62,9 @@ async fn should_have_references_to_struct() {
     // `Person` in `foo.wdl`, `source.wdl`, and `alias Person as Human` in
     // `aliases.wdl`
     assert!(!response.is_empty());
-    assert!(
-        response.len() == 3,
+    assert_eq!(
+        response.len(),
+        3,
         "references should not contain declaration"
     );
     assert!(has_location(
@@ -80,7 +81,7 @@ async fn should_have_references_to_struct() {
         .expect("request should succeed")
         .unwrap();
 
-    assert!(response.len() == 4, "references should contain declaration");
+    assert_eq!(response.len(), 4, "references should contain declaration");
 }
 
 #[tokio::test]
