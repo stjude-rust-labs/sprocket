@@ -2530,16 +2530,45 @@ fn object(
 
 /// Parses a single item in a literal object.
 fn object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
-    // NOTE: This can't use `ident!()`, see <https://github.com/openwdl/wdl/pull/793>
-    expected_in!(parser, marker, ANY_IDENT, "object key");
-    parser.update_last_token_kind(SyntaxKind::Ident);
+    let Some(marker) = object_item_inner(
+        |parser, marker| {
+            // NOTE: This can't use `ident!()`, see <https://github.com/openwdl/wdl/pull/793>
+            expected_in!(parser, marker, ANY_IDENT, "object key");
+            parser.update_last_token_kind(SyntaxKind::Ident);
+            Ok(marker)
+        },
+        parser,
+        marker,
+    )?
+    else {
+        return Ok(());
+    };
 
-    // Manual recovery, see `literal_struct_item()`
+    marker.complete(parser, SyntaxKind::LiteralObjectItemNode);
+    Ok(())
+}
+
+/// Shared logic between [`object_item()`] and [`struct_item()`].
+fn object_item_inner<F>(
+    parse_ident: F,
+    parser: &mut Parser<'_>,
+    mut marker: Marker,
+) -> Result<Option<Marker>, (Marker, ParseDiagnostic)>
+where
+    F: FnOnce(&mut Parser<'_>, Marker) -> Result<Marker, (Marker, ParseDiagnostic)>,
+{
+    marker = parse_ident(parser, marker)?;
+
+    // Manual recovery here, so that we don't prematurely close the
+    // struct/object literal on incomplete items.
+    //
+    // For example, bubbling up a missing colon error (`Person { name }`) would
+    // cause the `name` identifier to end up *outside* of the struct literal.
     if let Err(e) = parser.expect(Token::Colon) {
         if matches!(parser.peek(), Some((Token::CloseBrace | Token::Comma, _))) {
             parser.recover(e);
             marker.abandon(parser);
-            return Ok(());
+            return Ok(None);
         }
         return Err((marker, e));
     }
@@ -2549,11 +2578,10 @@ fn object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, P
         inner.abandon(parser);
         parser.recover(e);
         marker.abandon(parser);
-        return Ok(());
+        return Ok(None);
     }
 
-    marker.complete(parser, SyntaxKind::LiteralObjectItemNode);
-    Ok(())
+    Ok(Some(marker))
 }
 
 /// Parses a name reference expression, literal struct expression, or call
@@ -2592,29 +2620,17 @@ fn literal_struct_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, ParseDiagnostic)> {
-    ident!(parser, marker, "struct member name");
-
-    // Manual recovery here, so that we don't prematurely close the struct
-    // literal on incomplete items.
-    //
-    // For example, bubbling up a missing colon error (`Person { name }`) would
-    // cause the `name` identifier to end up *outside* of the struct literal.
-    if let Err(e) = parser.expect(Token::Colon) {
-        if matches!(parser.peek(), Some((Token::CloseBrace | Token::Comma, _))) {
-            parser.recover(e);
-            marker.abandon(parser);
-            return Ok(());
-        }
-        return Err((marker, e));
-    }
-
-    let inner = parser.start();
-    if let Err((inner, e)) = expr(parser, inner) {
-        inner.abandon(parser);
-        parser.recover(e);
-        marker.abandon(parser);
+    let Some(marker) = object_item_inner(
+        |parser, marker| {
+            ident!(parser, marker, "struct member name");
+            Ok(marker)
+        },
+        parser,
+        marker,
+    )?
+    else {
         return Ok(());
-    }
+    };
 
     marker.complete(parser, SyntaxKind::LiteralStructItemNode);
     Ok(())
