@@ -1,9 +1,10 @@
 error: expected `}`, but found end of input
-  ┌─ tests/parsing/mismatched-brace/source.wdl:8:1
+  ┌─ tests/parsing/mismatched-brace/source.wdl:5:11
   │
 5 │ task test {
-  │           - this `{` is not matched
-  ·
-8 │ 
-  │ ^ unexpected end of input
+  │           ^ unclosed delimiter
+6 │     meta {
+  │          - this opening delimiter...
+7 │     }
+  │     - ...matches this closing delimiter
 
