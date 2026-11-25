@@ -73,7 +73,7 @@ fn read_float(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnosti
         value.map(Into::into).ok_or_else(|| {
             function_call_failed(
                 FUNCTION_NAME,
-                format!("file `{path}` does not contain a float value"),
+                format!("file `{path}` cannot be parsed as a float value"),
                 context.call_site,
             )
         })
@@ -123,7 +123,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_float` failed: file `foo` does not contain a float value"
+            "call to function `read_float` failed: file `foo` cannot be parsed as a float value"
         );
 
         for file in ["bar", "https://example.com/bar"] {
@@ -167,7 +167,7 @@ mod tests {
 
         let invalid = |file: &str| {
             Err(format!(
-                "call to function `read_float` failed: file `{file}` does not contain a float \
+                "call to function `read_float` failed: file `{file}` cannot be parsed as a float \
                  value"
             ))
         };

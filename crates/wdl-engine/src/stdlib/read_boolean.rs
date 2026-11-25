@@ -59,7 +59,7 @@ fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
         value.map(Into::into).ok_or_else(|| {
             function_call_failed(
                 FUNCTION_NAME,
-                format!("file `{path}` does not contain a boolean value"),
+                format!("file `{path}` cannot be parsed as a boolean value"),
                 context.call_site,
             )
         })
@@ -111,7 +111,8 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_boolean` failed: file `foo` does not contain a boolean value"
+            "call to function `read_boolean` failed: file `foo` cannot be parsed as a boolean \
+             value"
         );
 
         for file in ["bar", "https://example.com/bar"] {

@@ -926,15 +926,9 @@ impl Coercible for CompoundType {
                 }
 
                 // Ensure all the struct members are coercible to the value type
-                if !src
-                    .members()
+                src.members()
                     .values()
                     .all(|ty| ty.is_coercible_to(target.value_type()))
-                {
-                    return false;
-                }
-
-                true
             }
 
             _ => false,

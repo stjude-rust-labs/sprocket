@@ -73,7 +73,7 @@ fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
         value.map(Into::into).ok_or_else(|| {
             function_call_failed(
                 FUNCTION_NAME,
-                format!("file `{path}` does not contain an integer value"),
+                format!("file `{path}` cannot be parsed as an integer value"),
                 context.call_site,
             )
         })
@@ -125,7 +125,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_int` failed: file `foo` does not contain an integer value"
+            "call to function `read_int` failed: file `foo` cannot be parsed as an integer value"
         );
 
         for file in ["bar", "https://example.com/bar"] {
@@ -148,7 +148,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_int` failed: file `qux` does not contain an integer value"
+            "call to function `read_int` failed: file `qux` cannot be parsed as an integer value"
         );
     }
 
@@ -179,7 +179,7 @@ mod tests {
 
         let invalid = |file: &str| {
             Err(format!(
-                "call to function `read_int` failed: file `{file}` does not contain an integer \
+                "call to function `read_int` failed: file `{file}` cannot be parsed as an integer \
                  value"
             ))
         };
