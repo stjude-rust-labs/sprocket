@@ -57,6 +57,8 @@ use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
+use wdl_ast::v1::TASK_FIELD_PREEMPTIBLE;
+use wdl_ast::v1::TASK_FIELD_PREEMPTIBLE_ONLY;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::version::V1;
@@ -3291,6 +3293,8 @@ pub(crate) struct TaskPostEvaluationData {
     disks: Map,
     /// The maximum number of retries for the task.
     max_retries: i64,
+    /// Whether the task may run only on preemptible instances (WDL 1.4+).
+    preemptible_only: bool,
 }
 
 /// Represents a `task.previous` value containing data from a previous attempt.
@@ -3316,7 +3320,7 @@ impl PreviousTaskDataValue {
     ///
     /// Returns `Some(Value::None)` for valid fields when there is no previous
     /// data (first attempt).
-    pub fn field(&self, name: &str) -> Option<Value> {
+    pub fn field(&self, version: SupportedVersion, name: &str) -> Option<Value> {
         match name {
             TASK_FIELD_MEMORY => Some(
                 self.0
@@ -3385,6 +3389,14 @@ impl PreviousTaskDataValue {
                     .map(|data| Value::from(data.max_retries))
                     .unwrap_or_else(|| {
                         Value::new_none(Type::from(PrimitiveType::Integer).optional())
+                    }),
+            ),
+            TASK_FIELD_PREEMPTIBLE_ONLY if version >= SupportedVersion::V1(V1::Four) => Some(
+                self.0
+                    .as_ref()
+                    .map(|data| Value::from(data.preemptible_only))
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::from(PrimitiveType::Boolean).optional())
                     }),
             ),
             _ => None,
@@ -3518,6 +3530,8 @@ struct TaskPostEvaluationInner {
     ///
     /// A value of `None` indicates there is no deadline.
     end_time: Option<i64>,
+    /// The suggested maximum number of preemptions to tolerate (WDL 1.4+).
+    preemptible: i64,
     /// The previous attempt's task data (WDL 1.3+).
     ///
     /// Contains the evaluated task data from the previous attempt.
@@ -3543,6 +3557,8 @@ impl TaskPostEvaluationValue {
         id: impl Into<String>,
         constraints: &TaskExecutionConstraints,
         max_retries: i64,
+        preemptible: i64,
+        preemptible_only: bool,
         attempt: i64,
         meta: Object,
         parameter_meta: Object,
@@ -3587,6 +3603,7 @@ impl TaskPostEvaluationValue {
                         .collect(),
                 ),
                 max_retries,
+                preemptible_only,
             }),
             attempt,
             meta,
@@ -3594,6 +3611,7 @@ impl TaskPostEvaluationValue {
             ext,
             return_code: None,
             end_time: None,
+            preemptible,
             previous: PreviousTaskDataValue::empty(),
         }))
     }
@@ -3686,6 +3704,16 @@ impl TaskPostEvaluationValue {
         &self.0.ext
     }
 
+    /// Gets the suggested maximum number of preemptions to tolerate.
+    pub fn preemptible(&self) -> i64 {
+        self.0.preemptible
+    }
+
+    /// Gets whether the task may run only on preemptible instances.
+    pub fn preemptible_only(&self) -> bool {
+        self.0.data.preemptible_only
+    }
+
     /// Sets the container image after task execution has completed.
     pub(crate) fn set_container(&mut self, container: String) {
         let inner = Arc::get_mut(&mut self.0).expect("task value must be uniquely owned to mutate");
@@ -3764,6 +3792,12 @@ impl TaskPostEvaluationValue {
             }
             TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
                 Some(HiddenValue::PreviousTaskData(self.0.previous.clone()).into())
+            }
+            TASK_FIELD_PREEMPTIBLE if version >= SupportedVersion::V1(V1::Four) => {
+                Some(self.0.preemptible.into())
+            }
+            TASK_FIELD_PREEMPTIBLE_ONLY if version >= SupportedVersion::V1(V1::Four) => {
+                Some(self.0.data.preemptible_only.into())
             }
             _ => None,
         }
@@ -5132,6 +5166,52 @@ mod tests {
                 .resolve_paths(false, true, None, None, &translate)
                 .await
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn previous_task_data_preemptible_only_version_gating() {
+        let empty = PreviousTaskDataValue::empty();
+        assert!(
+            empty
+                .field(SupportedVersion::V1(V1::Three), TASK_FIELD_PREEMPTIBLE_ONLY)
+                .is_none()
+        );
+        assert!(
+            empty
+                .field(SupportedVersion::V1(V1::Four), TASK_FIELD_PREEMPTIBLE_ONLY)
+                .expect("should exist in WDL 1.4")
+                .is_none()
+        );
+
+        let task = TaskPostEvaluationValue::new(
+            "t",
+            "t-0",
+            &TaskExecutionConstraints {
+                sources: Vec::new(),
+                cpu: 1.0,
+                memory: 1024,
+                gpu: Vec::new(),
+                fpga: Vec::new(),
+                disks: Default::default(),
+            },
+            0,
+            0,
+            true,
+            0,
+            Object::empty(),
+            Object::empty(),
+            Object::empty(),
+        );
+        let prev = PreviousTaskDataValue::new(task.data().clone());
+        assert!(
+            prev.field(SupportedVersion::V1(V1::Three), TASK_FIELD_PREEMPTIBLE_ONLY)
+                .is_none()
+        );
+        assert_eq!(
+            prev.field(SupportedVersion::V1(V1::Four), TASK_FIELD_PREEMPTIBLE_ONLY)
+                .and_then(|v| v.as_boolean()),
+            Some(true)
         );
     }
 }

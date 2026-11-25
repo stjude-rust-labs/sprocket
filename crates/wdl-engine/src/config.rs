@@ -2018,6 +2018,20 @@ pub struct TesBackendConfig {
     #[toml(default)]
     #[schemars(default)]
     pub resource_usage_metadata: bool,
+
+    /// Whether the TES server guarantees that tasks with
+    /// `resources.preemptible = true` run only on preemptible instances.
+    ///
+    /// Per the GA4GH TES specification, `resources.preemptible` is advisory
+    /// and servers may ignore it or schedule tasks on non-preemptible
+    /// instances. Enable this option only when the configured TES server
+    /// strictly enforces preemptible placement so that WDL tasks with
+    /// `preemptible_only: true` are permitted to run.
+    ///
+    /// Defaults to `false`.
+    #[toml(default)]
+    #[schemars(default)]
+    pub preemptible_only_supported: bool,
 }
 
 impl TesBackendConfig {
@@ -3628,6 +3642,7 @@ mod tests {
                         retries: None,
                         max_concurrency: None,
                         resource_usage_metadata: false,
+                        preemptible_only_supported: false,
                     }
                     .into(),
                 ),
@@ -3649,6 +3664,7 @@ mod tests {
                         retries: None,
                         max_concurrency: None,
                         resource_usage_metadata: false,
+                        preemptible_only_supported: false,
                     }
                     .into(),
                 ),
@@ -3702,6 +3718,7 @@ service = "https://example.com"
 inputs = "https://example.com/inputs/"
 outputs = "https://example.com/outputs/"
 resource_usage_metadata = true
+preemptible_only_supported = true
 
 [backends.tes_disabled]
 type = "tes"
@@ -3723,6 +3740,18 @@ cgroup_usage = false
                 .as_tes()
                 .unwrap()
                 .resource_usage_metadata
+        );
+        assert!(
+            config.backends["tes"]
+                .as_tes()
+                .unwrap()
+                .preemptible_only_supported
+        );
+        assert!(
+            !config.backends["tes_disabled"]
+                .as_tes()
+                .unwrap()
+                .preemptible_only_supported
         );
         let rendered = toml_spanner::to_string(&config).unwrap();
         assert_eq!(rendered.matches("cgroup_usage = true").count(), 2);
@@ -3928,6 +3957,7 @@ cgroup_usage = false
                     retries: None,
                     max_concurrency: Some(0),
                     resource_usage_metadata: false,
+                    preemptible_only_supported: false,
                 }
                 .into(),
             )]
@@ -3954,6 +3984,7 @@ cgroup_usage = false
                     retries: None,
                     max_concurrency: None,
                     resource_usage_metadata: false,
+                    preemptible_only_supported: false,
                 }
                 .into(),
             )]
@@ -3981,6 +4012,7 @@ cgroup_usage = false
                     retries: None,
                     max_concurrency: None,
                     resource_usage_metadata: false,
+                    preemptible_only_supported: false,
                 }
                 .into(),
             )]
@@ -4225,6 +4257,7 @@ type = 'lsf_apptainer'
                             retries: None,
                             max_concurrency: None,
                             resource_usage_metadata: false,
+                            preemptible_only_supported: false,
                         }
                         .into()
                     ),
@@ -4480,6 +4513,7 @@ type = 'lsf_apptainer'
                     base_dir: &EvaluationPath::from_local_path(dir.path().into()),
                     attempt_dir: &dir.path().join("0"),
                     temp_dir: &dir.path().join("tmp"),
+                    preemptions: 0,
                 })
                 .await
         }

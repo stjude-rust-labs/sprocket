@@ -1356,6 +1356,8 @@ impl<'a> State<'a> {
         if version >= Some(SupportedVersion::V1(V1::Two)) {
             let max_retries =
                 requirements::max_retries(inputs, &requirements, self.evaluator.engine().config())?;
+            let preemptible = hints::preemptible_value(inputs, &hints);
+            let preemptible_only = requirements::preemptible_only(inputs, &requirements);
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -1367,6 +1369,8 @@ impl<'a> State<'a> {
                         task = self.task.name()
                     )
                 })?,
+                preemptible,
+                preemptible_only,
                 attempt.try_into().with_context(|| {
                     format!(
                         "too many attempts were made to run task `{task}`",
@@ -1820,6 +1824,7 @@ impl Evaluator {
         // Execute the task in a retry loop
         let mut cached;
         let mut attempt = 0;
+        let mut preemptions = 0u64;
         let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
         let mut evaluated = loop {
             if self.cancellation().state() != CancellationContextState::NotCanceled {
@@ -2031,11 +2036,15 @@ impl Evaluator {
                             base_dir: &state.base_dir,
                             attempt_dir: &attempt_dir,
                             temp_dir: &temp_dir,
+                            preemptions,
                         })
                         .await
                     {
                         Ok(None) => return Err(EvaluationError::Canceled),
-                        Ok(Some(result)) => result,
+                        Ok(Some(result)) => {
+                            preemptions = preemptions.saturating_add(result.preemptions);
+                            result
+                        }
                         Err(e) => {
                             return Err(EvaluationError::new(
                                 state.document.clone(),
@@ -2568,6 +2577,7 @@ mod tests {
                             .expect("path should be UTF-8"),
                     )
                     .into(),
+                    preemptions: 0,
                 }))
             }
             .boxed()
@@ -4110,5 +4120,344 @@ task test {
                 file(&outputs, "err").parent()
             );
         }
+    }
+
+    #[tokio::test]
+    async fn preemptible_only_fails_before_command_instantiation_on_local() {
+        for (label, section) in [
+            ("requirements", "requirements { preemptible_only: true }"),
+            ("runtime", "runtime { preemptible_only: true }"),
+        ] {
+            // The command section contains a runtime division-by-zero
+            // expression. Per WDL 1.4 (`openwdl/wdl#728`), an engine that
+            // cannot provide a preemptible instance must fail before the
+            // command is instantiated.
+            let source = format!(
+                r#"
+version 1.4
+
+task test {{
+    Int zero = 0
+
+    command <<<
+        echo "~{{1 / zero}}"
+    >>>
+
+    {section}
+}}
+"#
+            );
+
+            let root_dir = tempdir().expect("failed to create temporary directory");
+            fs::write(root_dir.path().join("source.wdl"), source).unwrap();
+
+            let analyzer = Analyzer::new(
+                AnalysisConfig::default()
+                    .with_diagnostics_config(DiagnosticsConfig::except_all())
+                    .with_feature_flags(FeatureFlags::default().with_wdl_1_4()),
+                |(), _, _, _| async {},
+            );
+            analyzer.add_directory(root_dir.path()).await.unwrap();
+            let results = analyzer.analyze(()).await.unwrap();
+            let document = results.first().unwrap().document();
+
+            let engine = Engine::new(Config::local()).await.unwrap();
+            let evaluator = engine.create_v1_evaluator(
+                Events::default(),
+                CancellationContext::default(),
+                ContainerImageOverrides::default(),
+            );
+            let err = evaluator
+                .evaluate_task(
+                    document,
+                    document.local_task_by_name("test").unwrap(),
+                    TaskInputs::default(),
+                    &root_dir.path().join("runs"),
+                )
+                .await
+                .expect_err("task should fail before command instantiation");
+
+            let message = format!("{err:?}");
+            assert!(
+                message.contains("preemptible_only"),
+                "case `{label}` expected backend `preemptible_only` error before command \
+                 instantiation, got: {message}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn task_preemptible_fields_in_v1_4() {
+        const SOURCE: &str = r#"
+version 1.4
+
+task defaults {
+    command <<<
+        printf "%s:%s" "~{task.preemptible}" "~{task.preemptible_only}"
+    >>>
+
+    output {
+        String cmd = read_string(stdout())
+        Int p = task.preemptible
+        Boolean po = task.preemptible_only
+        Boolean? prev_po = task.previous.preemptible_only
+    }
+}
+
+task with_hint {
+    command <<<
+        printf "%s:%s" "~{task.preemptible}" "~{task.preemptible_only}"
+    >>>
+
+    output {
+        String cmd = read_string(stdout())
+        Int p = task.preemptible
+        Boolean po = task.preemptible_only
+    }
+
+    hints {
+        preemptible: 3
+    }
+}
+
+task negative_hint_ignored_on_local {
+    command <<<
+        printf "%s:%s" "~{task.preemptible}" "~{task.preemptible_only}"
+    >>>
+
+    output {
+        String cmd = read_string(stdout())
+        Int p = task.preemptible
+        Boolean po = task.preemptible_only
+    }
+
+    hints {
+        preemptible: -2
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        fs::write(root_dir.path().join("source.wdl"), SOURCE).unwrap();
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default()
+                .with_diagnostics_config(DiagnosticsConfig::except_all())
+                .with_feature_flags(FeatureFlags::default().with_wdl_1_4()),
+            |(), _, _, _| async {},
+        );
+        analyzer.add_directory(root_dir.path()).await.unwrap();
+        let results = analyzer.analyze(()).await.unwrap();
+        let document = results.first().unwrap().document();
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        // Default values: preemptible = 0, preemptible_only = false
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document.local_task_by_name("defaults").unwrap(),
+                TaskInputs::default(),
+                &root_dir.path().join("runs-defaults"),
+            )
+            .await
+            .unwrap();
+        let outputs = evaluated.into_outputs().unwrap();
+        assert_eq!(
+            outputs.get("cmd").unwrap().as_string().unwrap().as_str(),
+            "0:false"
+        );
+        assert_eq!(outputs.get("p").unwrap().as_integer(), Some(0));
+        assert_eq!(outputs.get("po").unwrap().as_boolean(), Some(false));
+        assert!(outputs.get("prev_po").unwrap().is_none());
+
+        // Explicit hint value: preemptible = 3
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document.local_task_by_name("with_hint").unwrap(),
+                TaskInputs::default(),
+                &root_dir.path().join("runs-hint"),
+            )
+            .await
+            .unwrap();
+        let outputs = evaluated.into_outputs().unwrap();
+        assert_eq!(
+            outputs.get("cmd").unwrap().as_string().unwrap().as_str(),
+            "3:false"
+        );
+        assert_eq!(outputs.get("p").unwrap().as_integer(), Some(3));
+        assert_eq!(outputs.get("po").unwrap().as_boolean(), Some(false));
+
+        // Input override takes precedence over task hint
+        let mut override_inputs = TaskInputs::default();
+        override_inputs.override_hint("preemptible", 5);
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document.local_task_by_name("with_hint").unwrap(),
+                override_inputs,
+                &root_dir.path().join("runs-override"),
+            )
+            .await
+            .unwrap();
+        let outputs = evaluated.into_outputs().unwrap();
+        assert_eq!(
+            outputs.get("cmd").unwrap().as_string().unwrap().as_str(),
+            "5:false"
+        );
+        assert_eq!(outputs.get("p").unwrap().as_integer(), Some(5));
+
+        // Negative hint value does not fail on local backend (which ignores it)
+        let evaluated = evaluator
+            .evaluate_task(
+                document,
+                document
+                    .local_task_by_name("negative_hint_ignored_on_local")
+                    .unwrap(),
+                TaskInputs::default(),
+                &root_dir.path().join("runs-negative"),
+            )
+            .await
+            .unwrap();
+        let outputs = evaluated.into_outputs().unwrap();
+        assert_eq!(
+            outputs.get("cmd").unwrap().as_string().unwrap().as_str(),
+            "-2:false"
+        );
+        assert_eq!(outputs.get("p").unwrap().as_integer(), Some(-2));
+    }
+
+    #[tokio::test]
+    async fn preemptions_accumulate_across_max_retries_attempts() {
+        struct PreemptionTrackingBackend {
+            seen_prior_preemptions: std::sync::Arc<std::sync::Mutex<Vec<u64>>>,
+            scripted: &'static [(u64, i32)],
+        }
+
+        impl TaskExecutionBackend for PreemptionTrackingBackend {
+            fn name(&self) -> &'static str {
+                "scripted-preemption"
+            }
+
+            fn constraints(
+                &self,
+                _inputs: &TaskInputs,
+                _requirements: &Object,
+                _image_overrides: &ContainerImageOverrides,
+                _hints: &Object,
+            ) -> Result<TaskExecutionConstraints> {
+                Ok(TaskExecutionConstraints {
+                    sources: Vec::new(),
+                    cpu: 1.0,
+                    memory: 1024 * 1024,
+                    gpu: Vec::new(),
+                    fpga: Vec::new(),
+                    disks: Default::default(),
+                })
+            }
+
+            fn execute<'a>(
+                &'a self,
+                request: &'a ExecuteTaskRequest<'a>,
+            ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
+                async move {
+                    let index = {
+                        let mut seen = self.seen_prior_preemptions.lock().unwrap();
+                        let index = seen.len();
+                        seen.push(request.preemptions);
+                        index
+                    };
+                    let (preemptions, exit_code) = self.scripted[index];
+
+                    let work_dir = request.work_dir();
+                    let stdout = request.stdout_path();
+                    let stderr = request.stderr_path();
+                    fs::create_dir_all(&work_dir)?;
+                    fs::write(&stdout, "")?;
+                    fs::write(&stderr, "")?;
+
+                    Ok(Some(TaskExecutionResult {
+                        execution_name_override: None,
+                        image: None,
+                        exit_code,
+                        work_dir: EvaluationPath::from_local_path(work_dir),
+                        stdout: PrimitiveValue::new_file(
+                            stdout
+                                .into_os_string()
+                                .into_string()
+                                .expect("path should be UTF-8"),
+                        )
+                        .into(),
+                        stderr: PrimitiveValue::new_file(
+                            stderr
+                                .into_os_string()
+                                .into_string()
+                                .expect("path should be UTF-8"),
+                        )
+                        .into(),
+                        preemptions,
+                    }))
+                }
+                .boxed()
+            }
+        }
+
+        const SOURCE: &str = r#"
+version 1.4
+
+task test {
+    command <<<true>>>
+
+    output {
+        Int attempt = task.attempt
+        Int p = task.preemptible
+        Boolean po = task.preemptible_only
+        Boolean? prev_po = task.previous.preemptible_only
+    }
+
+    requirements {
+        max_retries: 2
+        preemptible_only: !select_first([task.previous.preemptible_only, false])
+    }
+
+    hints {
+        preemptible: 3
+    }
+}
+"#;
+
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let backend = Box::new(PreemptionTrackingBackend {
+            seen_prior_preemptions: seen.clone(),
+            // Attempt 0: 1 preemption, then exit 1 (consumes retry 1 of 2);
+            //            preemptible_only = true (previous was None)
+            // Attempt 1: 2 preemptions, then exit 1 (consumes retry 2 of 2);
+            //            preemptible_only = false (previous was true)
+            // Attempt 2: 0 preemptions, exit 0 (succeeds);
+            //            preemptible_only = true (previous was false)
+            scripted: &[(1, 1), (2, 1), (0, 0)],
+        });
+        let engine = Engine::new_with_backend(Config::local(), NotImplementedHttpClient, backend)
+            .await
+            .unwrap();
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let (evaluated, _events) = evaluate_task_with_engine(engine, root_dir.path(), SOURCE).await;
+        assert_eq!(evaluated.exit_code(), 0);
+
+        // Cumulative preemptions observed at the start of each attempt:
+        // attempt 0 -> 0, attempt 1 -> 1, attempt 2 -> 3
+        assert_eq!(*seen.lock().unwrap(), vec![0, 1, 3]);
+
+        let outputs = evaluated.into_outputs().unwrap();
+        assert_eq!(outputs.get("attempt").unwrap().as_integer(), Some(2));
+        assert_eq!(outputs.get("p").unwrap().as_integer(), Some(3));
+        assert_eq!(outputs.get("po").unwrap().as_boolean(), Some(true));
+        assert_eq!(outputs.get("prev_po").unwrap().as_boolean(), Some(false));
     }
 }

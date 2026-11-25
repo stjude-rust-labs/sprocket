@@ -9,6 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+* Added WDL 1.4 support for `preemptible_only`, the `preemptible` hint, `task.preemptible`,
+  `task.preemptible_only`, `task.previous.preemptible_only`, and the opt-in
+  `TesBackendConfig::preemptible_only_supported` setting from
+  [`openwdl/wdl#728`](https://github.com/openwdl/wdl/pull/728)
+  ([#1432](https://github.com/stjude-rust-labs/sprocket/pull/1432)).
 * Added the WDL 1.4 `exists` function from
   [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), which checks whether a local or
   remote file or directory exists ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
@@ -22,6 +27,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+* The TES backend now tracks preemptions cumulatively across all attempts of a task (including
+  `max_retries` retries) when applying the `preemptible` hint across all WDL versions, including
+  pre-1.4 documents ([#1432](https://github.com/stjude-rust-labs/sprocket/pull/1432)).
 * Documented and tested that task `File` outputs that share a parent directory remain in the same
   storage directory, as required by [`openwdl/wdl#796`](https://github.com/openwdl/wdl/pull/796).
   Backends that store the task working directory elsewhere, such as TES, must store it as a whole.

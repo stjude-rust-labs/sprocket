@@ -7,6 +7,7 @@ use wdl_ast::v1::TASK_HINT_MAX_CPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY_ALIAS;
+use wdl_ast::v1::TASK_HINT_PREEMPTIBLE;
 
 use crate::Coercible;
 use crate::Object;
@@ -46,16 +47,15 @@ pub(crate) fn max_memory(inputs: &TaskInputs, hints: &Object) -> Result<Option<i
     }
 }
 
-/// Gets the `preemptible` hint from a hints map.
+/// Gets the raw `preemptible` hint value from a hints map without validating
+/// that it is non-negative.
 ///
-/// This hint is not part of the WDL standard but is used for compatibility with
-/// Cromwell where backends can support preemptible retries before using
-/// dedicated instances.
-pub(crate) fn preemptible(inputs: &TaskInputs, hints: &Object) -> Result<i64> {
-    const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
+/// This is used to populate `task.preemptible` in WDL 1.4+ so that backends
+/// ignoring the hint do not fail on negative values.
+pub(crate) fn preemptible_value(inputs: &TaskInputs, hints: &Object) -> i64 {
     const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
 
-    Ok(find_key_value(&[TASK_HINT_PREEMPTIBLE], |key| {
+    find_key_value(&[TASK_HINT_PREEMPTIBLE], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     })
     .and_then(|(_, v)| {
@@ -63,9 +63,18 @@ pub(crate) fn preemptible(inputs: &TaskInputs, hints: &Object) -> Result<i64> {
             .ok()
             .map(|value| value.unwrap_integer())
     })
-    .map(|value| ensure_non_negative_i64(SettingSource::Hint, TASK_HINT_PREEMPTIBLE, value))
-    .transpose()?
-    .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE))
+    .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE)
+}
+
+/// Gets the `preemptible` hint from a hints map and validates that it is
+/// non-negative.
+///
+/// Formalized in WDL 1.4 (`openwdl/wdl#728`) and supported in earlier versions
+/// for compatibility with Cromwell where backends can support preemptible
+/// retries before using dedicated instances.
+pub(crate) fn preemptible(inputs: &TaskInputs, hints: &Object) -> Result<i64> {
+    let value = preemptible_value(inputs, hints);
+    ensure_non_negative_i64(SettingSource::Hint, TASK_HINT_PREEMPTIBLE, value)
 }
 
 /// Gets the `cacheable` hint from a hints map with config fallback.
@@ -98,6 +107,11 @@ mod tests {
         assert!(
             err.to_string()
                 .contains("task hint `preemptible` cannot be less than zero")
+        );
+        assert_eq!(preemptible_value(&TaskInputs::default(), &hints), -3);
+        assert_eq!(
+            preemptible_value(&TaskInputs::default(), &Object::empty()),
+            0
         );
     }
 

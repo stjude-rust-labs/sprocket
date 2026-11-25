@@ -2069,6 +2069,11 @@
               "description": "Whether or not to read task resource usage from the TES server's task\nlog metadata.\n\nWhen enabled, tasks are polled with the `BASIC` view and the\ndocumented resource usage metadata keys (e.g. `peak_memory_bytes`,\n`avg_memory_bytes`, `cpu_time_ms`), when reported by the server, are\nrecorded as task resource usage.\n\nDefaults to `false`.",
               "type": "boolean",
               "default": false
+            },
+            "preemptible_only_supported": {
+              "description": "Whether the TES server guarantees that tasks with\n`resources.preemptible = true` run only on preemptible instances.\n\nPer the GA4GH TES specification, `resources.preemptible` is advisory\nand servers may ignore it or schedule tasks on non-preemptible\ninstances. Enable this option only when the configured TES server\nstrictly enforces preemptible placement so that WDL tasks with\n`preemptible_only: true` are permitted to run.\n\nDefaults to `false`.",
+              "type": "boolean",
+              "default": false
             }
           },
           "required": [

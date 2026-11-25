@@ -624,6 +624,7 @@ impl CallCache {
             work_dir: work,
             stdout: PrimitiveValue::new_file(String::try_from(stdout)?).into(),
             stderr: PrimitiveValue::new_file(String::try_from(stderr)?).into(),
+            preemptions: 0,
         }))
     }
 
@@ -799,6 +800,7 @@ mod tests {
                 work_dir: EvaluationPath::from_local_path(self.work_dir.clone()),
                 stdout: PrimitiveValue::new_file(self.stdout.to_str().unwrap()).into(),
                 stderr: PrimitiveValue::new_file(self.stderr.to_str().unwrap()).into(),
+                preemptions: 0,
             }
         }
 
