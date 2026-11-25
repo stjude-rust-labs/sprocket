@@ -1526,18 +1526,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             return Some(PrimitiveType::Integer.into());
         }
 
-        // If both sides are coercible to `Float`, the result is `Float`
-        if !lhs_ty.is_union()
-            && lhs_ty.is_coercible_to(&PrimitiveType::Float.into())
-            && !rhs_ty.is_union()
-            && rhs_ty.is_coercible_to(&PrimitiveType::Float.into())
-        {
-            return Some(PrimitiveType::Float.into());
-        }
-
-        // For addition, also support `String` on one or both sides of any
-        // primitive type that isn't `Boolean`; in placeholder
-        // expressions, allow the other side to also be optional
+        // For addition, support `String` concatenation on one or both sides of
+        // any primitive type that isn't `Boolean`; in placeholder expressions,
+        // allow the other side to also be optional. This is checked before
+        // numeric `Float` coercion so `String + String` remains concatenation.
         if op == NumericOperator::Addition {
             let allow_optional = self.placeholders > 0;
             let other = if (!lhs_ty.is_optional() || allow_optional)
@@ -1577,6 +1569,15 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     .add_diagnostic(string_concat_mismatch(other, span));
                 return None;
             }
+        }
+
+        // If both sides are coercible to `Float`, the result is `Float`
+        if !lhs_ty.is_union()
+            && lhs_ty.is_coercible_to(&PrimitiveType::Float.into())
+            && !rhs_ty.is_union()
+            && rhs_ty.is_coercible_to(&PrimitiveType::Float.into())
+        {
+            return Some(PrimitiveType::Float.into());
         }
 
         if !lhs_ty.is_union() && !rhs_ty.is_union() {

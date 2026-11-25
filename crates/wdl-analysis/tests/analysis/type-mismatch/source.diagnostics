@@ -1,8 +1,8 @@
-error: type mismatch: expected type `Int`, but found type `String`
+error: type mismatch: expected type `Int`, but found type `Boolean`
    ┌─ tests/analysis/type-mismatch/source.wdl:12:13
    │
-12 │     Int a = "hello"
-   │         -   ^^^^^^^ this is type `String`
+12 │     Int a = true
+   │         -   ^^^^ this is type `Boolean`
    │         │
    │         this expects type `Int`
 
@@ -22,11 +22,11 @@ error: type mismatch: expected type `Array[String]`, but found type `Map[Int, St
    │                   │
    │                   this expects type `Array[String]`
 
-error: type mismatch: expected type `Array[Int]`, but found type `Array[String]`
+error: type mismatch: expected type `Array[Int]`, but found type `Array[Boolean]`
    ┌─ tests/analysis/type-mismatch/source.wdl:15:20
    │
-15 │     Array[Int] d = ["a", "b", "c"]
-   │                -   ^^^^^^^^^^^^^^^ this is type `Array[String]`
+15 │     Array[Int] d = [true, false, true]
+   │                -   ^^^^^^^^^^^^^^^^^^^ this is type `Array[Boolean]`
    │                │
    │                this expects type `Array[Int]`
 
@@ -38,29 +38,29 @@ error: type mismatch: expected type `Map[Int, String]`, but found type `Map[Stri
    │                      │
    │                      this expects type `Map[Int, String]`
 
-error: type mismatch: a type common to both type `Int` and type `String` does not exist
+error: type mismatch: a type common to both type `Int` and type `Boolean` does not exist
    ┌─ tests/analysis/type-mismatch/source.wdl:17:24
    │
-17 │     Array[Int] f = [1, "2", "3"]
-   │                     -  ^^^ this is type `String`
+17 │     Array[Int] f = [1, true, false]
+   │                     -  ^^^^ this is type `Boolean`
    │                     │
    │                     this and all prior elements had a common type `Int`
 
-error: type mismatch: a type common to both type `Int` and type `String` does not exist
-   ┌─ tests/analysis/type-mismatch/source.wdl:17:29
+error: type mismatch: a type common to both type `Int` and type `Boolean` does not exist
+   ┌─ tests/analysis/type-mismatch/source.wdl:17:30
    │
-17 │     Array[Int] f = [1, "2", "3"]
-   │                     -       ^^^ this is type `String`
+17 │     Array[Int] f = [1, true, false]
+   │                     -        ^^^^^ this is type `Boolean`
    │                     │
    │                     this and all prior elements had a common type `Int`
 
-error: type mismatch: a type common to both type `String` and type `Int` does not exist
-   ┌─ tests/analysis/type-mismatch/source.wdl:18:46
+error: type mismatch: a type common to both type `Int` and type `Boolean` does not exist
+   ┌─ tests/analysis/type-mismatch/source.wdl:18:41
    │
-18 │     Map[String, String] g = { "a": "1", "b": 2, "c": "3" }
-   │                                    ---       ^ this is type `Int`
-   │                                    │
-   │                                    this and all prior elements had a common type `String`
+18 │     Map[String, Int] g = { "a": 1, "b": true, "c": 3 }
+   │                                 -       ^^^^ this is type `Boolean`
+   │                                 │
+   │                                 this and all prior elements had a common type `Int`
 
 error: type mismatch: expected type `Int`, but found type `Array[Int]`
    ┌─ tests/analysis/type-mismatch/source.wdl:19:22
@@ -70,10 +70,10 @@ error: type mismatch: expected type `Int`, but found type `Array[Int]`
    │                   │
    │                   this expects type `Int`
 
-error: type mismatch: a type common to both type `String` and type `Int` does not exist
-   ┌─ tests/analysis/type-mismatch/source.wdl:20:41
+error: type mismatch: a type common to both type `Int` and type `Boolean` does not exist
+   ┌─ tests/analysis/type-mismatch/source.wdl:20:36
    │
-20 │     Map[String, String] i = { "a": "1", 0: "2", "c": "3" }
-   │                               ---       ^ this is type `Int`
-   │                               │
-   │                               this and all prior elements had a common type `String`
+20 │     Map[Int, String] i = { 1: "1", true: "2", 3: "3" }
+   │                            -       ^^^^ this is type `Boolean`
+   │                            │
+   │                            this and all prior elements had a common type `Int`

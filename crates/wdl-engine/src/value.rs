@@ -997,15 +997,17 @@ impl Coercible for Value {
 
                 if enum_ty.choices().contains(s.as_ref()) {
                     if let Some(context) = context {
-                        if let Ok(value) = context.enum_choice_value(enum_ty.name(), s) {
-                            return Ok(Value::Compound(CompoundValue::EnumChoice(
-                                EnumChoice::new(enum_ty.clone(), s.as_str(), value),
-                            )));
-                        } else {
-                            bail!(
-                                "enum choice value lookup failed for choice `{s}` in enum `{}`",
-                                enum_ty.name()
-                            );
+                        match context.enum_choice_value(enum_ty.name(), s) {
+                            Ok(value) => {
+                                return Ok(Value::Compound(CompoundValue::EnumChoice(
+                                    EnumChoice::new(enum_ty.clone(), s.as_str(), value),
+                                )));
+                            }
+                            Err(e) => bail!(
+                                "enum choice value lookup failed for choice `{s}` in enum `{}`: {}",
+                                enum_ty.name(),
+                                e.message()
+                            ),
                         }
                     } else {
                         bail!(
@@ -1631,6 +1633,22 @@ impl From<String> for PrimitiveValue {
     }
 }
 
+/// Parses a string as a `Boolean` according to the rules of string-to-primitive
+/// coercion.
+///
+/// Leading and trailing whitespace is ignored and the comparison is
+/// case-insensitive.
+pub(crate) fn parse_boolean(s: &str) -> Option<bool> {
+    let s = s.trim();
+    if s.eq_ignore_ascii_case("true") {
+        Some(true)
+    } else if s.eq_ignore_ascii_case("false") {
+        Some(false)
+    } else {
+        None
+    }
+}
+
 impl Coercible for PrimitiveValue {
     fn coerce(&self, context: Option<&dyn EvaluationContext>, target: &Type) -> Result<Self> {
         if target.is_union() || target.is_none() || self.ty().eq(target) {
@@ -1671,26 +1689,44 @@ impl Coercible for PrimitiveValue {
                     .with_context(|| format!("cannot coerce type `Float` to {target:#}"))
             }
             Self::String(s) => {
-                target
+                let ty = target
                     .as_primitive()
-                    .and_then(|ty| match ty {
-                        // String -> String
-                        PrimitiveType::String => Some(Self::String(s.clone())),
-                        // String -> File
-                        PrimitiveType::File => Some(Self::File(
-                            context
-                                .and_then(|c| c.host_path(&GuestPath(s.clone())))
-                                .unwrap_or_else(|| s.clone().into()),
-                        )),
-                        // String -> Directory
-                        PrimitiveType::Directory => Some(Self::Directory(
-                            context
-                                .and_then(|c| c.host_path(&GuestPath(s.clone())))
-                                .unwrap_or_else(|| s.clone().into()),
-                        )),
-                        _ => None,
-                    })
-                    .with_context(|| format!("cannot coerce type `String` to {target:#}"))
+                    .with_context(|| format!("cannot coerce type `String` to {target:#}"))?;
+
+                let invalid = |kind: &str| {
+                    anyhow!(
+                        "cannot coerce type `String` to {target:#}: `{s}` is not a valid {kind}"
+                    )
+                };
+
+                match ty {
+                    // String -> String
+                    PrimitiveType::String => Ok(Self::String(s.clone())),
+                    // String -> File
+                    PrimitiveType::File => Ok(Self::File(
+                        context
+                            .and_then(|c| c.host_path(&GuestPath(s.clone())))
+                            .unwrap_or_else(|| s.clone().into()),
+                    )),
+                    // String -> Directory
+                    PrimitiveType::Directory => Ok(Self::Directory(
+                        context
+                            .and_then(|c| c.host_path(&GuestPath(s.clone())))
+                            .unwrap_or_else(|| s.clone().into()),
+                    )),
+                    // String -> Int
+                    PrimitiveType::Integer => crate::stdlib::numbers::parse_int(s)
+                        .map(Self::Integer)
+                        .ok_or_else(|| invalid("integer")),
+                    // String -> Float
+                    PrimitiveType::Float => crate::stdlib::numbers::parse_float(s)
+                        .map(|v| Self::Float(v.into()))
+                        .ok_or_else(|| invalid("float")),
+                    // String -> Boolean
+                    PrimitiveType::Boolean => parse_boolean(s)
+                        .map(Self::Boolean)
+                        .ok_or_else(|| invalid("boolean")),
+                }
             }
             Self::File(p) => {
                 target
@@ -2963,12 +2999,12 @@ impl Coercible for CompoundValue {
                                 let v = v
                                     .coerce(context, value_ty)
                                     .with_context(|| format!("failed to coerce member `{n}`"))?;
-                                Ok((
-                                    PrimitiveValue::new_string(n)
-                                        .coerce(context, key_ty)
-                                        .expect("should coerce"),
-                                    v,
-                                ))
+                                let k = PrimitiveValue::new_string(n)
+                                    .coerce(context, key_ty)
+                                    .with_context(|| {
+                                        format!("failed to coerce member name `{n}`")
+                                    })?;
+                                Ok((k, v))
                             })
                             .collect::<Result<_>>()?,
                     )));
@@ -2992,12 +3028,12 @@ impl Coercible for CompoundValue {
                                 let v = v
                                     .coerce(context, value_ty)
                                     .with_context(|| format!("failed to coerce member `{n}`"))?;
-                                Ok((
-                                    PrimitiveValue::new_string(n)
-                                        .coerce(context, key_ty)
-                                        .expect("should coerce"),
-                                    v,
-                                ))
+                                let k = PrimitiveValue::new_string(n)
+                                    .coerce(context, key_ty)
+                                    .with_context(|| {
+                                        format!("failed to coerce member name `{n}`")
+                                    })?;
+                                Ok((k, v))
                             })
                             .collect::<Result<_>>()?,
                     )));
@@ -4268,8 +4304,97 @@ mod tests {
                     .coerce(None, &PrimitiveType::Boolean.into())
                     .unwrap_err()
             ),
-            "cannot coerce type `String` to type `Boolean`"
+            "cannot coerce type `String` to type `Boolean`: `foo` is not a valid boolean"
         );
+        // String -> Int (invalid)
+        assert_eq!(
+            format!(
+                "{e:#}",
+                e = value
+                    .coerce(None, &PrimitiveType::Integer.into())
+                    .unwrap_err()
+            ),
+            "cannot coerce type `String` to type `Int`: `foo` is not a valid integer"
+        );
+        // String -> Float (invalid)
+        assert_eq!(
+            format!(
+                "{e:#}",
+                e = value
+                    .coerce(None, &PrimitiveType::Float.into())
+                    .unwrap_err()
+            ),
+            "cannot coerce type `String` to type `Float`: `foo` is not a valid float"
+        );
+
+        let coerce = |s: &str, ty: PrimitiveType| {
+            PrimitiveValue::new_string(s).coerce(None, &Type::from(ty).optional())
+        };
+
+        // String -> Int
+        assert_eq!(
+            coerce(" \t42\n", PrimitiveType::Integer).unwrap(),
+            PrimitiveValue::Integer(42)
+        );
+        assert_eq!(
+            coerce("-9223372036854775808", PrimitiveType::Integer).unwrap(),
+            PrimitiveValue::Integer(i64::MIN)
+        );
+        assert_eq!(
+            coerce("0x10", PrimitiveType::Integer).unwrap(),
+            PrimitiveValue::Integer(16)
+        );
+        assert_eq!(
+            coerce("0o755", PrimitiveType::Integer).unwrap(),
+            PrimitiveValue::Integer(0o755)
+        );
+        assert_eq!(
+            coerce("-0b1010", PrimitiveType::Integer).unwrap(),
+            PrimitiveValue::Integer(-10)
+        );
+        for invalid in ["", "4 2", "1.0", "9223372036854775808", "0755"] {
+            assert!(
+                coerce(invalid, PrimitiveType::Integer).is_err(),
+                "{invalid}"
+            );
+        }
+
+        // String -> Float
+        assert_eq!(
+            coerce(" 3.5 ", PrimitiveType::Float).unwrap(),
+            PrimitiveValue::Float(3.5.into())
+        );
+        assert_eq!(
+            coerce("42", PrimitiveType::Float).unwrap(),
+            PrimitiveValue::Float(42.0.into())
+        );
+        assert_eq!(
+            coerce("0x10", PrimitiveType::Float).unwrap(),
+            PrimitiveValue::Float(16.0.into())
+        );
+        assert_eq!(
+            coerce("1e3", PrimitiveType::Float).unwrap(),
+            PrimitiveValue::Float(1000.0.into())
+        );
+        for invalid in ["", "abc", "1e400", "inf", "NaN", "1.0.0", "0755"] {
+            assert!(coerce(invalid, PrimitiveType::Float).is_err(), "{invalid}");
+        }
+
+        // String -> Boolean
+        assert_eq!(
+            coerce(" TRUE ", PrimitiveType::Boolean).unwrap(),
+            PrimitiveValue::Boolean(true)
+        );
+        assert_eq!(
+            coerce("False", PrimitiveType::Boolean).unwrap(),
+            PrimitiveValue::Boolean(false)
+        );
+        for invalid in ["", "yes", "1", "t"] {
+            assert!(
+                coerce(invalid, PrimitiveType::Boolean).is_err(),
+                "{invalid}"
+            );
+        }
 
         struct Context;
 
@@ -4680,7 +4805,7 @@ mod tests {
         assert_eq!(
             format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
             "failed to coerce map key for element at index 0: cannot coerce type `String` to type \
-             `Int`"
+             `Int`: `foo` is not a valid integer"
         );
 
         // Map[String, File] -> Map[String, Int] (invalid)
@@ -4779,7 +4904,8 @@ mod tests {
         let ty = PairType::new(PrimitiveType::Integer, PrimitiveType::Integer).into();
         assert_eq!(
             format!("{e:#}", e = value.coerce(None, &ty).unwrap_err()),
-            "failed to coerce pair's left value: cannot coerce type `String` to type `Int`"
+            "failed to coerce pair's left value: cannot coerce type `String` to type `Int`: `foo` \
+             is not a valid integer"
         );
     }
 

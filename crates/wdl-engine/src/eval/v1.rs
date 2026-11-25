@@ -30,6 +30,7 @@ use wdl_ast::version::V1;
 
 use super::CancellationContext;
 use super::Events;
+use crate::Coercible;
 use crate::ContainerImageOverrides;
 use crate::Engine;
 use crate::EngineEvent;
@@ -271,29 +272,7 @@ impl Evaluator {
             .expect("failed to lock choice cache");
         cache
             .get_or_insert_ref(&cache_key, || {
-                let e = document
-                    .enum_by_name(enum_name)
-                    .ok_or(unknown_enum(enum_name))?;
-
-                // SAFETY: we can assume that any type associated with an
-                // [`Enum`] entry is an [`EnumType`] at this
-                // point in analysis.
-                let ty = e.ty().unwrap().as_enum().unwrap();
-
-                let choice = e
-                    .definition()
-                    .choices()
-                    .find(|choice| choice.name().text() == choice_name)
-                    .ok_or(unknown_enum_choice(ty.name(), choice_name))?;
-
-                if let Some(value_expr) = choice.value() {
-                    // SAFETY: see the panic notice for this function.
-                    Ok(expr::parse_constant_value(ty.inner_value_type(), &value_expr).unwrap())
-                } else {
-                    // NOTE: when no expression is provided, the default is the
-                    // choice name as a string.
-                    Ok(Value::Primitive(PrimitiveValue::new_string(choice_name)))
-                }
+                resolve_enum_choice_value(document, enum_name, choice_name)
             })
             .clone()
     }
@@ -312,4 +291,44 @@ impl Evaluator {
             .get_or_insert_ref(pattern, || Regex::new(pattern))
             .clone()
     }
+}
+
+/// Resolves the constant value for the given choice name of an enum in
+/// `document`.
+pub(crate) fn resolve_enum_choice_value(
+    document: &Document,
+    enum_name: &str,
+    choice_name: &str,
+) -> Result<Value, Diagnostic> {
+    let e = document
+        .enum_by_name(enum_name)
+        .ok_or(unknown_enum(enum_name))?;
+
+    // SAFETY: we can assume that any type associated with an
+    // [`Enum`] entry is an [`EnumType`] at this
+    // point in analysis.
+    let ty = e.ty().unwrap().as_enum().unwrap();
+
+    let choice = e
+        .definition()
+        .choices()
+        .find(|choice| choice.name().text() == choice_name)
+        .ok_or(unknown_enum_choice(ty.name(), choice_name))?;
+
+    let value = match choice.value() {
+        Some(value_expr) => expr::parse_constant_value(ty.inner_value_type(), &value_expr),
+        // NOTE: when no expression is provided, the default is the
+        // choice name as a string.
+        None => Value::Primitive(PrimitiveValue::new_string(choice_name))
+            .coerce(None, ty.inner_value_type())
+            .ok(),
+    };
+
+    value.ok_or_else(|| {
+        Diagnostic::error(format!(
+            "the value of choice `{choice_name}` in enum `{name}` cannot be coerced to {inner:#}",
+            name = ty.name(),
+            inner = ty.inner_value_type()
+        ))
+    })
 }

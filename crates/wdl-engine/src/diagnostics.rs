@@ -81,6 +81,21 @@ pub fn runtime_type_mismatch(
         .with_label(format!("this expects {expected:#}"), expected_span)
 }
 
+/// Creates a "runtime argument type mismatch" diagnostic.
+pub fn runtime_argument_type_mismatch(
+    e: anyhow::Error,
+    name: &str,
+    expected: &Type,
+    actual: &Type,
+    span: Span,
+) -> Diagnostic {
+    let e = e.context(format!(
+        "type mismatch: argument to function `{name}` expects {expected:#}, but found {actual:#}"
+    ));
+
+    Diagnostic::error(format!("{e:#}")).with_label(format!("this is {actual:#}"), span)
+}
+
 /// Creates an "if conditional mismatch" diagnostic.
 pub fn if_conditional_mismatch(e: anyhow::Error, actual: &Type, actual_span: Span) -> Diagnostic {
     let e = e.context(format!(

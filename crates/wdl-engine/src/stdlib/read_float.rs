@@ -2,9 +2,6 @@
 
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use tokio::fs;
-use tokio::io::AsyncBufReadExt;
-use tokio::io::BufReader;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 use wdl_ast::SupportedVersion;
@@ -15,16 +12,19 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use super::numbers;
+use super::read_single_token;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_float";
 
-/// Reads a file that contains only a float value and (optional) whitespace.
+/// The maximum byte length of a float token read from a file.
+const MAX_FLOAT_LEN: usize = 1024;
+
+/// Reads the contents of a file as a `String` and coerces it to a `Float`.
 ///
-/// If the line contains a valid floating point number, that value is returned
-/// as a Float. If the file is empty or does not contain a single float, an
+/// If the file is empty or its contents cannot be coerced to a `Float`, an
 /// error is raised.
 ///
 /// Starting with WDL 1.1, the value may have an optional `+` or `-` sign
@@ -57,34 +57,26 @@ fn read_float(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnosti
             )
         };
 
-        let invalid_contents = || {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("file `{path}` does not contain a float value on a single line"),
-                context.call_site,
-            )
-        };
-
-        let mut lines =
-            BufReader::new(fs::File::open(&file_path).await.map_err(read_error)?).lines();
-        let line = lines
-            .next_line()
+        let token = read_single_token(&file_path, MAX_FLOAT_LEN)
             .await
-            .map_err(read_error)?
-            .ok_or_else(invalid_contents)?;
-
-        if lines.next_line().await.map_err(read_error)?.is_some() {
-            return Err(invalid_contents());
-        }
+            .map_err(read_error)?;
 
         // WDL 1.0 predates the specification of the accepted numeric forms
-        let value = if context.inner().version() >= SupportedVersion::V1(V1::One) {
-            numbers::parse_float(&line)
-        } else {
-            line.trim().parse::<f64>().ok()
-        };
+        let value = token.and_then(|token| {
+            if context.inner().version() >= SupportedVersion::V1(V1::One) {
+                numbers::parse_float(&token)
+            } else {
+                token.parse::<f64>().ok()
+            }
+        });
 
-        Ok(value.ok_or_else(invalid_contents)?.into())
+        value.map(Into::into).ok_or_else(|| {
+            function_call_failed(
+                FUNCTION_NAME,
+                format!("file `{path}` cannot be parsed as a float value"),
+                context.call_site,
+            )
+        })
     }
     .boxed()
 }
@@ -131,8 +123,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_float` failed: file `foo` does not contain a float value on a \
-             single line"
+            "call to function `read_float` failed: file `foo` cannot be parsed as a float value"
         );
 
         for file in ["bar", "https://example.com/bar"] {
@@ -176,8 +167,8 @@ mod tests {
 
         let invalid = |file: &str| {
             Err(format!(
-                "call to function `read_float` failed: file `{file}` does not contain a float \
-                 value on a single line"
+                "call to function `read_float` failed: file `{file}` cannot be parsed as a float \
+                 value"
             ))
         };
 

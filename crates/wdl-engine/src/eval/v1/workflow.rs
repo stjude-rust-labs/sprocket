@@ -1180,34 +1180,73 @@ impl State {
                 .evaluate_subgraph(scope, self.subgraphs[&clause_node].clone(), id)
                 .await?;
 
+            // Set the names into the parent scope
             let mut scopes = self.scopes.write().await;
-            let (parent, child) = scopes.parent_mut(scope);
-
             for (name, name_info) in all_names {
-                let value = child
-                    .local()
-                    .find(|(n, _)| *n == name)
-                    .map(|(_, v)| v.clone());
+                let Some(value) = scopes.reference(scope).local(&name).cloned() else {
+                    let (parent, _) = scopes.parent_mut(scope);
 
-                if let Some(value) = value {
+                    if let Type::Call(call_ty) = name_info.ty() {
+                        // A call not in the child scope; set `None` for each of
+                        // its outputs
+                        parent.insert(
+                            name,
+                            CallValue::new_unchecked(
+                                call_ty.clone(),
+                                Outputs::from_iter(
+                                    call_ty
+                                        .outputs()
+                                        .iter()
+                                        .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
+                                )
+                                .into(),
+                            ),
+                        );
+                    } else {
+                        // Otherwise, just set a `None` value
+                        parent.insert(name, Value::new_none(name_info.ty().clone()));
+                    }
+                    continue;
+                };
+
+                // If the value is a call, skip coercions
+                if matches!(value, Value::Call(_)) {
+                    let (parent, _) = scopes.parent_mut(scope);
                     parent.insert(name, value);
-                } else if let Type::Call(call_ty) = &name_info.ty() {
-                    parent.insert(
-                        name,
-                        CallValue::new_unchecked(
-                            call_ty.clone(),
-                            Outputs::from_iter(
-                                call_ty
-                                    .outputs()
-                                    .iter()
-                                    .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
-                            )
-                            .into(),
-                        ),
-                    );
-                } else {
-                    parent.insert(name, Value::new_none(name_info.ty().clone()));
+                    continue;
                 }
+
+                let context = WorkflowEvaluationContext::new(
+                    &self,
+                    scopes.reference(Scopes::ROOT_INDEX),
+                    self.http_cancellation_token(),
+                );
+
+                // Coerce the value to the expected type, handling any runtime
+                // type mismatch errors
+                let value = value.coerce(Some(&context), name_info.ty()).map_err(|e| {
+                    let span = clause
+                        .statements()
+                        .find_map(|s| {
+                            s.into_declaration()
+                                .filter(|d| d.name().text() == name)
+                                .map(|d| d.name().span())
+                        })
+                        .unwrap_or_else(|| name_info.span());
+                    EvaluationError::new(
+                        self.document.clone(),
+                        runtime_type_mismatch(
+                            e,
+                            name_info.ty(),
+                            name_info.span(),
+                            &value.ty(),
+                            span,
+                        ),
+                    )
+                })?;
+
+                let (parent, _) = scopes.parent_mut(scope);
+                parent.insert(name, value);
             }
 
             scopes.free(scope);

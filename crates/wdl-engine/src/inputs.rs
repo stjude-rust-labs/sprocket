@@ -12,10 +12,12 @@ use anyhow::Result;
 use anyhow::bail;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
+use regex::Regex;
 use serde::Serialize;
 use serde::ser::SerializeMap;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
+use tokio_util::sync::CancellationToken;
 use wdl_analysis::Document;
 use wdl_analysis::document::Input;
 use wdl_analysis::document::Task;
@@ -26,15 +28,22 @@ use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
+use wdl_analysis::types::Type;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
+use wdl_ast::Diagnostic;
+use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
 
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::EvaluationContext;
+use crate::EvaluationHttpClient;
 use crate::EvaluationPath;
 use crate::Value;
+use crate::eval::v1::resolve_enum_choice_value;
 
 /// A type alias to a JSON map (object).
 pub type JsonMap = serde_json::Map<String, JsonValue>;
@@ -70,8 +79,46 @@ fn resolve_call_document<'a>(
     })
 }
 
+/// A minimal evaluation context used to validate input coercions, including
+/// enum choice lookups.
+struct InputCoercionContext<'a>(&'a Document);
+
+impl EvaluationContext for InputCoercionContext<'_> {
+    fn version(&self) -> SupportedVersion {
+        unreachable!("not used during input coercion")
+    }
+
+    fn resolve_name(&self, _: &str, _: Span) -> Result<Value, Diagnostic> {
+        unreachable!("not used during input coercion")
+    }
+
+    fn resolve_type_name(&self, _: &str, _: Span) -> Result<Type, Diagnostic> {
+        unreachable!("not used during input coercion")
+    }
+
+    fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
+        resolve_enum_choice_value(self.0, enum_name, choice_name)
+    }
+
+    fn base_dir(&self) -> &EvaluationPath {
+        unreachable!("not used during input coercion")
+    }
+
+    fn temp_dir(&self) -> &Path {
+        unreachable!("not used during input coercion")
+    }
+
+    fn http(&self) -> (&EvaluationHttpClient, &CancellationToken) {
+        unreachable!("not used during input coercion")
+    }
+
+    fn compile_regex(&self, _: &str) -> Result<Regex, regex::Error> {
+        unreachable!("not used during input coercion")
+    }
+}
+
 /// Checks that an input value matches the type of the input.
-fn check_input_type(name: &str, input: &Input, value: &Value) -> Result<()> {
+fn check_input_type(document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
     // We accept optional values for the input even if the input's type is
     // non-optional; if the runtime value is `None` for a non-optional input,
     // the default expression will be evaluated instead.
@@ -95,7 +142,29 @@ fn check_input_type(name: &str, input: &Input, value: &Value) -> Result<()> {
         bail!("expected {expected_ty:#} for input `{name}`, but found {ty:#}");
     }
 
+    value
+        .coerce(Some(&InputCoercionContext(document)), &expected_ty)
+        .with_context(|| format!("invalid value for input `{name}`"))?;
+
     Ok(())
+}
+
+/// Checks if an uncoerced requirement or hint override value of type `src` is
+/// acceptable for `target`.
+///
+/// Requirement and hint overrides are read without being coerced at runtime, so
+/// `String` overrides are not accepted for `Int`, `Float`, or `Boolean` keys.
+fn is_valid_override_type(src: &Type, target: &Type) -> bool {
+    if matches!(src.as_primitive(), Some(PrimitiveType::String))
+        && matches!(
+            target.as_primitive(),
+            Some(PrimitiveType::Integer | PrimitiveType::Float | PrimitiveType::Boolean)
+        )
+    {
+        return false;
+    }
+
+    src.is_coercible_to(target)
 }
 
 /// Resolves paths in a value using per-element origins.
@@ -254,7 +323,7 @@ impl TaskInputs {
                 .get(name)
                 .with_context(|| format!("unknown input `{name}`"))?;
 
-            check_input_type(name, input, value)?;
+            check_input_type(document, name, input, value)?;
         }
 
         // Next check for missing required inputs
@@ -274,7 +343,10 @@ impl TaskInputs {
         for (name, value) in &self.requirements {
             let ty = value.ty();
             if let Some(expected) = task_requirement_types(version, name.as_str()) {
-                if !expected.iter().any(|target| ty.is_coercible_to(target)) {
+                if !expected
+                    .iter()
+                    .any(|target| is_valid_override_type(&ty, target))
+                {
                     bail!(
                         "expected {expected:#} for requirement `{name}`, but found {ty:#}",
                         expected = display_types(expected),
@@ -291,7 +363,9 @@ impl TaskInputs {
         for (name, value) in &self.hints {
             let ty = value.ty();
             if let Some(expected) = task_hint_types(version, name.as_str(), false)
-                && !expected.iter().any(|target| ty.is_coercible_to(target))
+                && !expected
+                    .iter()
+                    .any(|target| is_valid_override_type(&ty, target))
             {
                 bail!(
                     "expected {expected:#} for hint `{name}`, but found {ty:#}",
@@ -352,7 +426,7 @@ impl TaskInputs {
 
                 if let Some((requirement, expected)) = matched {
                     for ty in expected {
-                        if value.ty().is_coercible_to(ty) {
+                        if is_valid_override_type(&value.ty(), ty) {
                             if requirement {
                                 self.requirements.insert(remainder.to_string(), value);
                             } else {
@@ -409,7 +483,7 @@ impl TaskInputs {
                     value
                 };
 
-                check_input_type(path, input, &value)?;
+                check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
                 Ok(true)
             }
@@ -606,7 +680,7 @@ impl WorkflowInputs {
                 .inputs()
                 .get(name)
                 .with_context(|| format!("unknown input `{name}`"))?;
-            check_input_type(name, input, value)?;
+            check_input_type(document, name, input, value)?;
         }
 
         // Next check for missing required inputs
@@ -834,7 +908,7 @@ impl WorkflowInputs {
                     value
                 };
 
-                check_input_type(path, input, &value)?;
+                check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
                 Ok(true)
             }

@@ -1,7 +1,7 @@
-error: type mismatch: expected type `Int`, but found type `String`
+error: type mismatch: expected type `Int`, but found type `Boolean`
    ┌─ tests/analysis/forward-reference/source.wdl:12:17
    │
 12 │         Int y = z
-   │             -   ^ this is type `String`
+   │             -   ^ this is type `Boolean`
    │             │
    │             this expects type `Int`
