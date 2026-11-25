@@ -13,6 +13,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777)
   ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
 
+### Fixed
+
+* Fixed `WorkflowDefinition::allows_nested_inputs()` returning `false` for WDL 1.4 workflows
+  ([#1430](https://github.com/stjude-rust-labs/sprocket/pull/1430)).
+
 ## 0.27.3 - 2026-11-18
 
 ### Added
