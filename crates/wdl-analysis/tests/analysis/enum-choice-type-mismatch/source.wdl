@@ -1,39 +1,39 @@
 version 1.3
 
-# Primitive type mismatch: String vs Int
+# Primitive type mismatch: Boolean vs Int
 enum Status {
-    Active = "active",
+    Active = true,
     Pending = 42,
 }
 
-# Array type mismatch: Array[Int] vs Array[String]
+# Array type mismatch: Array[Int] vs Array[Boolean]
 enum DataSets {
     Numbers = [1, 2, 3],
-    Strings = ["a", "b", "c"]
+    Booleans = [true, false, true]
 }
 
-# Map type mismatch: Map[String, Int] vs Map[String, String]
+# Map type mismatch: Map[String, Int] vs Map[String, Boolean]
 enum Config {
     Ports = {
         "http": 80,
         "https": 443,
     },
-    Names = {
-        "first": "Alice",
-        "last": "Bob",
+    Flags = {
+        "first": true,
+        "last": false,
     },
 }
 
-# Pair type mismatch: Pair[Int, String] vs Pair[String, Int]
+# Pair type mismatch: Pair[Int, Boolean] vs Pair[Boolean, Int]
 enum Coords {
-    LatLon = (37, "N"),
-    LonLat = ("122W", 37),
+    LatLon = (37, true),
+    LonLat = (false, 37),
 }
 
 # Mixed types within choices
 enum Mixed {
     First = 1,
-    Second = "two",
+    Second = false,
     Third = 3.0,
 }
 

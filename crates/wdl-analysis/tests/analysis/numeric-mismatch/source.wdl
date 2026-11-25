@@ -14,6 +14,7 @@ task test {
     String? g = "3"
     File? h = "4"
     Float? i = 1.0
+    Boolean j = true
 
     Int a1 = a + b      # OK
     String a2 = a + c   # OK
@@ -40,45 +41,45 @@ task test {
     String i8 = "~{c + i}"
 
     Int s1 = a - b      # OK
-    String s2 = a - c   # NOT OK
-    String s3 = c - a   # NOT OK
-    String s4 = c - c   # NOT OK
+    Boolean s2 = a - j  # NOT OK
+    Boolean s3 = j - a  # NOT OK
+    Boolean s4 = j - j  # NOT OK
     File s5 = d - d     # NOT OK
     Float s6 = e - e    # OK
     Float s7 = a - e    # OK
     Float s8 = e - a    # OK
 
     Int m1 = a * b      # OK
-    String m2 = a * c   # NOT OK
-    String m3 = c * a   # NOT OK
-    String m4 = c * c   # NOT OK
+    Boolean m2 = a * j  # NOT OK
+    Boolean m3 = j * a  # NOT OK
+    Boolean m4 = j * j  # NOT OK
     File m5 = d * d     # NOT OK
     Float m6 = e * e    # OK
     Float m7 = a * e    # OK
     Float m8 = e * a    # OK
 
     Int d1 = a / b      # OK
-    String d2 = a / c   # NOT OK
-    String d3 = c / a   # NOT OK
-    String d4 = c / c   # NOT OK
+    Boolean d2 = a / j  # NOT OK
+    Boolean d3 = j / a  # NOT OK
+    Boolean d4 = j / j  # NOT OK
     File d5 = d / d     # NOT OK
     Float d6 = e / e    # OK
     Float d7 = a / e    # OK
     Float d8 = e / a    # OK
 
     Int mod1 = a % b      # OK
-    String mod2 = a % c   # NOT OK
-    String mod3 = c % a   # NOT OK
-    String mod4 = c % c   # NOT OK
+    Boolean mod2 = a % j  # NOT OK
+    Boolean mod3 = j % a  # NOT OK
+    Boolean mod4 = j % j  # NOT OK
     File mod5 = d % d     # NOT OK
     Float mod6 = e % e    # OK
     Float mod7 = a % e    # OK
     Float mop8 = e % a    # OK
 
     Int e1 = a ** b      # OK
-    String e2 = a ** c   # NOT OK
-    String e3 = c ** a   # NOT OK
-    String e4 = c ** c   # NOT OK
+    Boolean e2 = a ** j  # NOT OK
+    Boolean e3 = j ** a  # NOT OK
+    Boolean e4 = j ** j  # NOT OK
     File e5 = d ** d     # NOT OK
     Float e6 = e ** e    # OK
     Float e7 = a ** e    # OK

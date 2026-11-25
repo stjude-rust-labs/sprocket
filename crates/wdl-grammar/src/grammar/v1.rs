@@ -321,6 +321,7 @@ const POSTFIX_OPERATOR_EXPECTED_SET: TokenSet = TokenSet::new(&[
     Token::OpenParen as u8,
     Token::OpenBracket as u8,
     Token::Dot as u8,
+    Token::Exclamation as u8,
 ]);
 
 /// A token set used to recover to the next expression.
@@ -2391,6 +2392,7 @@ fn expr_with_precedence(
                 let res = match token {
                     Token::OpenBracket => index_expr(&mut parser, postfix),
                     Token::Dot => access_expr(&mut parser, postfix),
+                    Token::Exclamation => unwrap_expr(&mut parser, postfix),
                     _ => panic!("unexpected postfix operator"),
                 };
 
@@ -2528,12 +2530,58 @@ fn object(
 
 /// Parses a single item in a literal object.
 fn object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
-    expected_in!(parser, marker, ANY_IDENT, "object key");
-    parser.update_last_token_kind(SyntaxKind::Ident);
-    expected!(parser, marker, Token::Colon);
-    expected_fn!(parser, marker, expr);
+    let Some(marker) = object_item_inner(
+        |parser, marker| {
+            // NOTE: This can't use `ident!()`, see <https://github.com/openwdl/wdl/pull/793>
+            expected_in!(parser, marker, ANY_IDENT, "object key");
+            parser.update_last_token_kind(SyntaxKind::Ident);
+            Ok(marker)
+        },
+        parser,
+        marker,
+    )?
+    else {
+        return Ok(());
+    };
+
     marker.complete(parser, SyntaxKind::LiteralObjectItemNode);
     Ok(())
+}
+
+/// Shared logic between [`object_item()`] and [`struct_item()`].
+fn object_item_inner<F>(
+    parse_ident: F,
+    parser: &mut Parser<'_>,
+    mut marker: Marker,
+) -> Result<Option<Marker>, (Marker, ParseDiagnostic)>
+where
+    F: FnOnce(&mut Parser<'_>, Marker) -> Result<Marker, (Marker, ParseDiagnostic)>,
+{
+    marker = parse_ident(parser, marker)?;
+
+    // Manual recovery here, so that we don't prematurely close the
+    // struct/object literal on incomplete items.
+    //
+    // For example, bubbling up a missing colon error (`Person { name }`) would
+    // cause the `name` identifier to end up *outside* of the struct literal.
+    if let Err(e) = parser.expect(Token::Colon) {
+        if matches!(parser.peek(), Some((Token::CloseBrace | Token::Comma, _))) {
+            parser.recover(e);
+            marker.abandon(parser);
+            return Ok(None);
+        }
+        return Err((marker, e));
+    }
+
+    let inner = parser.start();
+    if let Err((inner, e)) = expr(parser, inner) {
+        inner.abandon(parser);
+        parser.recover(e);
+        marker.abandon(parser);
+        return Ok(None);
+    }
+
+    Ok(Some(marker))
 }
 
 /// Parses a name reference expression, literal struct expression, or call
@@ -2572,9 +2620,18 @@ fn literal_struct_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, ParseDiagnostic)> {
-    ident!(parser, marker, "struct member name");
-    expected!(parser, marker, Token::Colon);
-    expected_fn!(parser, marker, expr);
+    let Some(marker) = object_item_inner(
+        |parser, marker| {
+            ident!(parser, marker, "struct member name");
+            Ok(marker)
+        },
+        parser,
+        marker,
+    )?
+    else {
+        return Ok(());
+    };
+
     marker.complete(parser, SyntaxKind::LiteralStructItemNode);
     Ok(())
 }
@@ -2720,6 +2777,15 @@ fn access_expr(
     Ok(marker.complete(parser, SyntaxKind::AccessExprNode))
 }
 
+/// Parses an unwrap expression.
+fn unwrap_expr(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<CompletedMarker, (Marker, ParseDiagnostic)> {
+    parser.require(Token::Exclamation);
+    Ok(marker.complete(parser, SyntaxKind::UnwrapExprNode))
+}
+
 /// An operator associativity.
 enum Associativity {
     /// The operator has left-associativity.
@@ -2771,13 +2837,17 @@ fn infix_precedence(token: Token) -> (u8, SyntaxKind, Associativity) {
 
 /// Determines the precedence of a postfix operator.
 ///
-/// <https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#operator-precedence-table>
+/// <https://github.com/openwdl/wdl/blob/v1.3.0/SPEC.md#operator-precedence-table>
+///
+/// The precedence of the unwrap operator (`!`) is defined by
+/// <https://github.com/openwdl/wdl/pull/777>, which has not yet been ratified.
 fn postfix_precedence(token: Token) -> u8 {
     // All postfix operators are left-associative
     match token {
-        Token::OpenParen => 9,
-        Token::OpenBracket => 10,
-        Token::Dot => 11,
+        Token::Exclamation => 9,
+        Token::OpenParen => 10,
+        Token::OpenBracket => 11,
+        Token::Dot => 12,
         _ => panic!("unknown postfix operator token"),
     }
 }

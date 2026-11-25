@@ -7,6 +7,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+* Added the WDL 1.4 `exists` function from
+  [`openwdl/wdl#780`](https://github.com/openwdl/wdl/pull/780), which checks whether a local or
+  remote file or directory exists ([#1386](https://github.com/stjude-rust-labs/sprocket/pull/1386)).
+* Added evaluation of the WDL 1.4 postfix unwrap operator (`x!`) from
+  [`openwdl/wdl#777`](https://github.com/openwdl/wdl/pull/777). Unwrapping `None` is an evaluation
+  error ([#1379](https://github.com/stjude-rust-labs/sprocket/pull/1379)).
+* Added runtime `String` to `Int`, `Float`, and `Boolean` coercions, per
+  [`openwdl/wdl#797`](https://github.com/openwdl/wdl/pull/797). Leading and trailing whitespace is
+  ignored and invalid values produce evaluation errors. Input validation reports invalid values
+  eagerly ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
+
+### Changed
+
+* Documented and tested that task `File` outputs that share a parent directory remain in the same
+  storage directory, as required by [`openwdl/wdl#796`](https://github.com/openwdl/wdl/pull/796).
+  Backends that store the task working directory elsewhere, such as TES, must store it as a whole.
+  Existing behavior already met this requirement
+  ([#1393](https://github.com/stjude-rust-labs/sprocket/pull/1393)).
+* `read_int`, `read_float`, and `read_boolean` now read the entire file and coerce its trimmed
+  contents, per [`openwdl/wdl#797`](https://github.com/openwdl/wdl/pull/797)
+  ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
+
+### Fixed
+
+* Failed coercions of enum choice values, `if` expression branches, array and map literal elements,
+  and object or struct members to `Map` keys now produce errors instead of panics
+  ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
+* Values of declarations promoted out of conditional statements are now coerced to the common type
+  of the declarations across all clauses
+  ([#1243](https://github.com/stjude-rust-labs/sprocket/pull/1243)).
+* TES tasks with the cgroup usage fallback no longer request `/mnt/task/usage` as a volume as well
+  as a directory output. Servers that mount both, such as Planetary, created pods with duplicate
+  mount paths, and the tasks failed to start
+  ([#1424](https://github.com/stjude-rust-labs/sprocket/pull/1424)).
+
 ## 0.21.1 - 2026-11-18
 
 ### Security Fix

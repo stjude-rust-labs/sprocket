@@ -7,7 +7,7 @@ version 1.1
 task not {
     Int a = 1
     Int b = -a
-    String c = "1"
+    Boolean c = true
     Int d = -c
 
     command <<<>>>

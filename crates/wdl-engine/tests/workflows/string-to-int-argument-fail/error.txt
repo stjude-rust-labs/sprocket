@@ -1,0 +1,5 @@
+error: type mismatch: argument to function `range` expects type `Int`, but found type `String`: cannot coerce type `String` to type `Int`: `three` is not a valid integer
+  ┌─ tests/workflows/string-to-int-argument-fail/source.wdl:7:32
+  │
+7 │     Array[Int] numbers = range(count)
+  │                                ^^^^^ this is type `String`

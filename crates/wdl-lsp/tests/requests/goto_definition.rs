@@ -126,7 +126,7 @@ async fn should_goto_selected_imported_task_definition() {
     ctx.initialize().await;
 
     // Position of `add` in `call add`
-    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(5, 9))
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(6, 9))
         .await
         .expect("request should succeed");
     let Some(GotoDefinitionResponse::Scalar(location)) = response else {
@@ -150,7 +150,7 @@ async fn should_goto_selected_imported_workflow_definition() {
     ctx.initialize().await;
 
     // Position of `run` in `call run`
-    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(6, 9))
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(7, 9))
         .await
         .expect("request should succeed");
     let Some(GotoDefinitionResponse::Scalar(location)) = response else {
@@ -584,5 +584,75 @@ async fn should_goto_transitive_structs_and_enums() {
     assert_eq!(
         location.range,
         Range::new(Position::new(2, 5), Position::new(2, 11)) // `enum Status`
+    );
+}
+
+#[tokio::test]
+async fn should_goto_imported_runnable_parameters() {
+    let mut options = wdl_lsp::ServerOptions::default();
+    options.feature_flags = options.feature_flags.with_wdl_1_4();
+    let mut ctx = TestContextBuilder::new("goto_definition_selected")
+        .server_options(options)
+        .build();
+    ctx.initialize().await;
+
+    // Inputs
+
+    // Position of the `name` input in `call say_hello`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(10, 9))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("greetings.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(4, 15), Position::new(4, 19))
+    );
+
+    // Position of the `name` input in `call do_greetings`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(14, 9))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("greetings.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(18, 15), Position::new(18, 19))
+    );
+
+    // Outputs
+
+    // Position of `stdout` in `say_hello.stdout`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(18, 31))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("greetings.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(12, 15), Position::new(12, 21))
+    );
+
+    // Position of `stdout` in `do_greetings.stdout`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(19, 41))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("greetings.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(26, 15), Position::new(26, 21))
     );
 }

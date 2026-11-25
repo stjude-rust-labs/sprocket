@@ -1,31 +1,55 @@
 error: type mismatch: expected type `Object`, but found type `Map[Int, String]`
-   ┌─ tests/analysis/map-coercions/source.wdl:33:23
+   ┌─ tests/analysis/map-coercions/source.wdl:41:23
    │
-33 │     Object invalid1 = { 1: "foo", 2: "bar" }
+41 │     Object invalid1 = { 1: "foo", 2: "bar" }
    │            --------   ^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[Int, String]`
    │            │
    │            this expects type `Object`
 
 error: type mismatch: expected an instance of struct `Foo`, but found type `Map[Int, Int]`
-   ┌─ tests/analysis/map-coercions/source.wdl:34:20
+   ┌─ tests/analysis/map-coercions/source.wdl:42:20
    │
-34 │     Foo invalid2 = { 1: 1, 2: 2 }
+42 │     Foo invalid2 = { 1: 1, 2: 2 }
    │         --------   ^^^^^^^^^^^^^^ this is type `Map[Int, Int]`
    │         │
    │         this expects an instance of struct `Foo`
 
 error: type mismatch: expected type `Map[Int, Int]`, but found type `Object`
-   ┌─ tests/analysis/map-coercions/source.wdl:35:30
+   ┌─ tests/analysis/map-coercions/source.wdl:43:30
    │
-35 │     Map[Int, Int] invalid3 = object { foo: 1, bar: 2 }
+43 │     Map[Int, Int] invalid3 = object { foo: 1, bar: 2 }
    │                   --------   ^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Object`
    │                   │
    │                   this expects type `Map[Int, Int]`
 
-error: type mismatch: expected type `Map[Int, Int]`, but found an instance of struct `Foo`
-   ┌─ tests/analysis/map-coercions/source.wdl:36:30
+error: type mismatch: expected type `Map[Float, Int]`, but found type `Object`
+   ┌─ tests/analysis/map-coercions/source.wdl:44:32
    │
-36 │     Map[Int, Int] invalid4 = Foo { x: 1, y: 2}
-   │                   --------   ^^^^^^^^^^^^^^^^^ this is an instance of struct `Foo`
+44 │     Map[Float, Int] invalid4 = object { foo: 1, bar: 2 }
+   │                     --------   ^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Object`
+   │                     │
+   │                     this expects type `Map[Float, Int]`
+
+error: type mismatch: expected type `Map[Int, Int]`, but found an instance of struct `Foo`
+   ┌─ tests/analysis/map-coercions/source.wdl:45:30
+   │
+45 │     Map[Int, Int] invalid5 = Foo { x: 1, y: 2 }
+   │                   --------   ^^^^^^^^^^^^^^^^^^ this is an instance of struct `Foo`
    │                   │
    │                   this expects type `Map[Int, Int]`
+
+error: type mismatch: expected type `Map[Float, Int]`, but found an instance of struct `Foo`
+   ┌─ tests/analysis/map-coercions/source.wdl:46:32
+   │
+46 │     Map[Float, Int] invalid6 = Foo { x: 1, y: 2 }
+   │                     --------   ^^^^^^^^^^^^^^^^^^ this is an instance of struct `Foo`
+   │                     │
+   │                     this expects type `Map[Float, Int]`
+
+error: type mismatch: expected type `Map[Boolean, Int]`, but found an instance of struct `Foo`
+   ┌─ tests/analysis/map-coercions/source.wdl:47:34
+   │
+47 │     Map[Boolean, Int] invalid7 = Foo { x: 1, y: 2 }
+   │                       --------   ^^^^^^^^^^^^^^^^^^ this is an instance of struct `Foo`
+   │                       │
+   │                       this expects type `Map[Boolean, Int]`

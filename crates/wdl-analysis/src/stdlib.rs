@@ -1074,6 +1074,22 @@ impl FunctionSignature {
         arguments.len() < self.required() || arguments.len() > self.parameters.len()
     }
 
+    /// Realizes the parameter types of the signature for the given argument
+    /// types.
+    ///
+    /// Yields one item per argument; an item is `None` if the corresponding
+    /// parameter type cannot be realized.
+    pub fn realize_parameter_types<'a>(
+        &'a self,
+        arguments: &[Type],
+    ) -> impl Iterator<Item = Option<Type>> + 'a {
+        let type_parameters = self.infer_type_parameters(arguments, false);
+        self.parameters
+            .iter()
+            .take(arguments.len())
+            .map(move |p| p.ty.realize(&type_parameters))
+    }
+
     /// Binds the function signature to the given arguments.
     ///
     /// This function will infer the type parameters for the arguments and
@@ -2282,13 +2298,13 @@ workflow test_split {
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#basename
     const BASENAME_DEFINITION_V1_2: &str = r#"
-Returns the "basename" of a file or directory - the name after the last directory separator in the path.
+Returns the "basename" of a path, file, or directory - the name after the last directory separator in the path.
 
 The optional second parameter specifies a literal suffix to remove from the file name. If the file name does not end with the specified suffix then it is ignored.
 
 **Parameters**
 
-1. `File|Directory`: Path of the file or directory to read. If the argument is a `String`, it is assumed to be a local file path relative to the current working directory of the task.
+1. `String|File|Directory`: Path of the file or directory to read. If the argument is a `String`, it is assumed to be a local file path relative to the current working directory of the task.
 2. `String`: (Optional) Suffix to remove from the file name.
 
 **Returns**: The file's basename as a `String`.
@@ -2330,20 +2346,17 @@ workflow test_basename {
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but
-                    // the spec allows for `String` where file/directory are
-                    // accepted; an explicit `String` overload is required as
-                    // `String` may coerce to either `File` or `Directory`,
-                    // which is ambiguous.
+                    // An explicit `String` overload is required as `String` may
+                    // coerce to either `File` or `Directory`, which is
+                    // ambiguous (see https://github.com/openwdl/wdl/pull/790).
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "path",
                             PrimitiveType::String,
-                            "Path of the file or directory to read. If the argument is a \
-                             `String`, it is assumed to be a local file path relative to the \
-                             current working directory of the task."
+                            "Path of the file or directory to read. It is assumed to be a local \
+                             path relative to the current working directory of the task."
                         )
                         .parameter(
                             "suffix",
@@ -2359,9 +2372,7 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::Directory,
-                            "Path of the file or directory to read. If the argument is a \
-                             `String`, it is assumed to be a local file path relative to the \
-                             current working directory of the task.",
+                            "Path of the directory to read.",
                         )
                         .parameter(
                             "suffix",
@@ -2485,6 +2496,60 @@ task join_paths {
             .is_none()
     );
 
+    // https://github.com/openwdl/wdl/pull/780
+    assert!(
+        functions
+            .insert(
+                "exists",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Four))
+                        .parameter("path", PrimitiveType::String, "The path whose existence is checked.")
+                        .ret(PrimitiveType::Boolean)
+                        .definition(
+                            r#"
+Determines whether a path refers to an existing `File` or `Directory`. The path is resolved according to the context-dependent rules for [relative and absolute paths](https://github.com/openwdl/wdl/blob/wdl-1.4/SPEC.md#relative-and-absolute-paths), including resolving symbolic links to their final targets.
+
+Unlike creating a non-optional `File` or `Directory` value, `exists` returns `false` only if the path does not exist. It returns `true` if the path refers to an existing file or directory. If the path exists but cannot be validated for any other reason, such as insufficient permissions or a localization failure, an error is raised rather than `false`.
+
+An implementation is only required to support paths local to the execution environment, but may support other resource identifiers in the same contexts where it supports them for `File` and `Directory` values. An implementation is not required to localize a remote resource solely to determine whether it exists, but it must raise an error if it cannot determine whether the resource exists and is accessible.
+
+The result only describes the path when `exists` is evaluated. It does not guarantee that the path remains available to a later expression.
+
+**Parameters**
+
+1. `String`: The path whose existence is checked.
+
+**Returns**: `true` if the path refers to an existing file or directory, or `false` if the path does not exist.
+
+Example: test_exists_task.wdl
+
+```wdl
+version 1.4
+
+task test_exists {
+  command <<<
+    printf "first\nsecond\n" > labels.txt
+    mkdir results
+  >>>
+
+  output {
+    Boolean file_exists = exists("labels.txt")
+    Boolean directory_exists = exists("results")
+    Boolean missing_exists = exists("missing.txt")
+    Array[String] labels = if exists("labels.txt") then read_lines("labels.txt") else []
+  }
+}
+```
+"#
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
     assert!(
         functions
@@ -2579,15 +2644,15 @@ Varieties of the `size` function also exist for the following compound types. Th
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#size
     const SIZE_DEFINITION_V1_2: &str = r#"
-Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. The files may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage)
+Determines the size of a file, directory, or the sum total sizes of the files/directories contained within a compound value. A `String` is assumed to be a local file path relative to the current working directory of the task. Paths may be optional values; `None` values have a size of `0.0`. By default, the size is returned in bytes unless the optional second argument is specified with a [unit](#units-of-storage).
 
-In the second variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
+In the generic variant of the `size` function, the parameter type `X` represents any compound type that contains `File` or `File?` nested at any depth.
 
 If the size cannot be represented in the specified unit because the resulting value is too large to fit in a `Float`, an error is raised. It is recommended to use a unit that will always be large enough to handle any expected inputs without numerical overflow.
 
 **Parameters**
 
-1. `File|File?|Directory|Directory?|X|X?`: A file, directory, or a compound value containing files/directories, for which to determine the size.
+1. `String|String?|File|File?|Directory|Directory?|X|X?`: A path, file, directory, or a compound value containing files/directories, for which to determine the size.
 2. `String`: (Optional) The unit of storage; defaults to 'B'.
 
 **Returns**: The size of the files/directories as a `Float`.
@@ -2599,18 +2664,21 @@ version 1.2
 
 task file_sizes {
   command <<<
-    printf "this file is 22 bytes\n" > created_file
+    printf "this file is 22 bytes\n" > out.txt
   >>>
 
   File? missing_file = None
+  String? missing_path = None
 
   output {
-    File created_file = "created_file"
-    Float missing_file_bytes = size(missing_file)
+    File created_file = "out.txt"
+    Float missing_file_bytes = size(missing_file, "B")
+    Float missing_path_bytes = size(missing_path, "B")
     Float created_file_bytes = size(created_file, "B")
-    Float multi_file_kb = size([created_file, missing_file], "K")
+    Float created_path_bytes = size("out.txt", "B")
+    Float multi_file_kb = size([created_file, missing_file], "K") # 0.022
 
-    Map[String, Pair[Int, File]] nested = {
+    Map[String, Pair[Int, File?]] nested = {
       "a": (10, created_file),
       "b": (50, missing_file)
     }
@@ -2630,15 +2698,16 @@ task file_sizes {
                 "size",
                 PolymorphicFunction::new(vec![
                     // This overload isn't explicitly in the spec, but it fixes
-                    // an ambiguity in 1.2 when passed a literal `None` value.
+                    // an ambiguity in 1.2 when passed a literal `None` value,
+                    // which would otherwise coerce to `File?`, `String?`, and
+                    // `Directory?` equally.
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "value",
                             Type::None,
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A `None` value, which has a size of `0.0`."
                         )
                         .parameter(
                             "unit",
@@ -2663,19 +2732,18 @@ task file_sizes {
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION_V1_0)
                         .build(),
-                    // This overload isn't explicitly specified in the spec, but
-                    // the spec allows for `String` where file/directory are
-                    // accepted; an explicit `String` overload is required as
-                    // `String` may coerce to either `File` or `Directory`,
-                    // which is ambiguous.
+                    // An explicit `String` overload is required as `String` may
+                    // coerce to either `File` or `Directory`, which is
+                    // ambiguous (see https://github.com/openwdl/wdl/pull/790).
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
                         .parameter(
                             "value",
                             Type::from(PrimitiveType::String).optional(),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size.",
+                            "A path for which to determine the size. A `String` is assumed to be \
+                             a local file path relative to the current working directory of the \
+                             task.",
                         )
                         .parameter(
                             "unit",
@@ -2691,8 +2759,7 @@ task file_sizes {
                         .parameter(
                             "value",
                             Type::from(PrimitiveType::Directory).optional(),
-                            "A file, directory, or a compound value containing files/directories, \
-                             for which to determine the size."
+                            "A directory for which to determine the size."
                         )
                         .parameter(
                             "unit",
@@ -2748,6 +2815,34 @@ To provide an optional argument, all preceding arguments must also be provided.
 **Returns**: A `Pair[Array[File], Array[Directory]]` containing the matching files in its `left` array and directories in its `right` array. Either array is empty if it has no matching entries.
 
 **Restrictions**: This function reads directory contents and may only be called in a context where the directory exists. If the directory is an input to a task or workflow, then it may be called anywhere in that task or workflow.
+
+Example: list_fastqs_task.wdl
+
+```wdl
+version 1.4
+
+task list_fastqs {
+  input {
+    Directory sample_dir
+  }
+
+  Pair[Array[File], Array[Directory]] contents = list(sample_dir, false, true, "*.fastq.gz")
+  Array[File] fastqs = contents.left
+
+  command <<<
+    echo "~{sep(' ', fastqs)}"
+  >>>
+
+  output {
+    Int num_fastqs = length(fastqs)
+    String file_list = read_string(stdout())
+  }
+
+  requirements {
+    container: "ubuntu:latest"
+  }
+}
+```
 "#;
 
     assert!(
@@ -3251,8 +3346,8 @@ Reads a tab-separated value (TSV) file as an `Array[Array[String]]` representing
 
 This function has three variants:
 
-1. `Array[Array[String]] read_tsv(File, [false])`: Returns each row of the table as an `Array[String]`. There is no requirement that the rows of the table are all the same length.
-2. `Array[Object] read_tsv(File, true)`: The second parameter must be `true` and specifies that the TSV file contains a header line. Each row is returned as an `Object` with its keys determined by the header (the first line in the file) and its values as `String`s. All rows in the file must be the same length and the field names in the header row must be valid `Object` field names, or an error is raised.
+1. `Array[Array[String]] read_tsv(File)`: Returns each row of the table as an `Array[String]`. There is no requirement that the rows of the table are all the same length.
+2. `Array[Object] read_tsv(File, Boolean)`: The second parameter must evaluate to `true`, specifying that the TSV file contains a header line; if it evaluates to `false`, an error is raised. Each row is returned as an `Object` with its keys determined by the header (the first line in the file) and its values as `String`s. All rows in the file must be the same length and the field names in the header row must be valid `Object` field names, or an error is raised.
 3. `Array[Object] read_tsv(File, Boolean, Array[String])`: The second parameter specifies whether the TSV file contains a header line, and the third parameter is an array of field names that is used to specify the field names to use for the returned `Object`s. If the second parameter is `true`, the specified field names override those in the file's header (i.e., the header line is ignored).
 
 If the file is empty, an empty array is returned.
@@ -3262,10 +3357,10 @@ If the entire contents of the file can not be read for any reason, the calling t
 **Parameters**
 
 1. `File`: The TSV file to read.
-2. `Boolean`: (Optional) Whether to treat the file's first line as a header.
+2. `Boolean`: (Optional) Whether to treat the file's first line as a header. For the two-parameter variant, this must evaluate to `true`.
 3. `Array[String]`: (Optional) An array of field names. If specified, then the second parameter is also required.
 
-**Returns**: An `Array` of rows in the TSV file, where each row is an `Array[String]` of fields or an `Object` with keys determined by the second and third parameters and `String` values.
+**Returns**: The one-parameter variant returns an `Array` of rows, where each row is an `Array[String]` of fields. The two- and three-parameter variants return an `Array` of rows, where each row is an `Object` with keys determined by the second and third parameters and `String` values.
 
 Example: read_tsv_task.wdl
 
@@ -3273,6 +3368,10 @@ Example: read_tsv_task.wdl
 version 1.2
 
 task read_tsv {
+  input {
+    Boolean has_header = true
+  }
+
   command <<<
     {
       printf "row1\tvalue1\n"
@@ -3291,7 +3390,7 @@ task read_tsv {
   output {
     Array[Array[String]] output_table = read_tsv("data.no_headers.tsv")
     Array[Object] output_objs1 = read_tsv("data.no_headers.tsv", false, ["name", "value"])
-    Array[Object] output_objs2 = read_tsv("data.headers.tsv", true)
+    Array[Object] output_objs2 = read_tsv("data.headers.tsv", has_header)
     Array[Object] output_objs3 = read_tsv("data.headers.tsv", true, ["name", "value"])
   }
 }
@@ -3314,7 +3413,8 @@ task read_tsv {
                         .parameter(
                             "header",
                             PrimitiveType::Boolean,
-                            "(Optional) Whether to treat the file's first line as a header.",
+                            "Whether to treat the file's first line as a header. Must evaluate to \
+                             `true`.",
                         )
                         .ret(array_object.clone())
                         .definition(READ_TSV_DEFINITION_V1_2)
@@ -5617,6 +5717,7 @@ mod tests {
                 "join_paths(base: Directory, relative: String) -> String",
                 "join_paths(base: Directory, relative: Array[String]+) -> String",
                 "join_paths(paths: Array[String]+) -> String",
+                "exists(path: String) -> Boolean",
                 "glob(pattern: String) -> Array[File]",
                 "size(value: None, <unit: String>) -> Float",
                 "size(value: File?, <unit: String>) -> Float",
@@ -5821,11 +5922,11 @@ mod tests {
             .expect_err("bind should fail");
         assert_eq!(e, FunctionBindError::TooManyArguments(1));
 
-        // Check for a string argument (should be a type mismatch)
+        // Check for a boolean argument (should be a type mismatch)
         let e = f
             .bind(
                 SupportedVersion::V1(V1::Two),
-                &[PrimitiveType::String.into()],
+                &[PrimitiveType::Boolean.into()],
             )
             .expect_err("bind should fail");
         assert_eq!(
@@ -6031,11 +6132,21 @@ mod tests {
         assert_eq!(binding.index(), 3);
         assert_eq!(binding.return_type().to_string(), "Float");
 
-        // Check for `(String, Int)`
+        // Check for `(String, Int)` (a `String` coerces to both `Int` and
+        // `Float`)
+        let e = f
+            .bind(
+                SupportedVersion::V1(V1::Two),
+                &[PrimitiveType::String.into(), PrimitiveType::Integer.into()],
+            )
+            .expect_err("binding should fail");
+        assert!(matches!(e, FunctionBindError::Ambiguous { .. }));
+
+        // Check for `(Boolean, Int)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::One),
-                &[PrimitiveType::String.into(), PrimitiveType::Integer.into()],
+                &[PrimitiveType::Boolean.into(), PrimitiveType::Integer.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(
@@ -6046,11 +6157,11 @@ mod tests {
             }
         );
 
-        // Check for `(Int, String)`
+        // Check for `(Int, Boolean)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::Two),
-                &[PrimitiveType::Integer.into(), PrimitiveType::String.into()],
+                &[PrimitiveType::Integer.into(), PrimitiveType::Boolean.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(
@@ -6061,11 +6172,11 @@ mod tests {
             }
         );
 
-        // Check for `(String, Float)`
+        // Check for `(Boolean, Float)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::One),
-                &[PrimitiveType::String.into(), PrimitiveType::Float.into()],
+                &[PrimitiveType::Boolean.into(), PrimitiveType::Float.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(
@@ -6076,11 +6187,11 @@ mod tests {
             }
         );
 
-        // Check for `(Float, String)`
+        // Check for `(Float, Boolean)`
         let e = f
             .bind(
                 SupportedVersion::V1(V1::Two),
-                &[PrimitiveType::Float.into(), PrimitiveType::String.into()],
+                &[PrimitiveType::Float.into(), PrimitiveType::Boolean.into()],
             )
             .expect_err("binding should fail");
         assert_eq!(

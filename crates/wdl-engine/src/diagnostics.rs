@@ -81,6 +81,21 @@ pub fn runtime_type_mismatch(
         .with_label(format!("this expects {expected:#}"), expected_span)
 }
 
+/// Creates a "runtime argument type mismatch" diagnostic.
+pub fn runtime_argument_type_mismatch(
+    e: anyhow::Error,
+    name: &str,
+    expected: &Type,
+    actual: &Type,
+    span: Span,
+) -> Diagnostic {
+    let e = e.context(format!(
+        "type mismatch: argument to function `{name}` expects {expected:#}, but found {actual:#}"
+    ));
+
+    Diagnostic::error(format!("{e:#}")).with_label(format!("this is {actual:#}"), span)
+}
+
 /// Creates an "if conditional mismatch" diagnostic.
 pub fn if_conditional_mismatch(e: anyhow::Error, actual: &Type, actual_span: Span) -> Diagnostic {
     let e = e.context(format!(
@@ -132,6 +147,16 @@ pub fn not_an_object_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
 pub fn exponentiation_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of the exponentiation operator requires WDL version 1.2")
         .with_highlight(span)
+}
+
+/// Creates an "unwrap operator requirement" diagnostic.
+pub fn unwrap_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of the unwrap operator requires WDL version 1.4").with_highlight(span)
+}
+
+/// Creates an "unwrapped `None`" diagnostic.
+pub fn unwrapped_none(span: Span) -> Diagnostic {
+    Diagnostic::error("cannot unwrap a `None` value").with_label("this evaluated to `None`", span)
 }
 
 /// Creates a "multi-line string requirement" diagnostic.

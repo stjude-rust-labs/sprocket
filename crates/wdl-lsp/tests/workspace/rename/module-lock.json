@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "dependencies": {
+    "external_module": {
+      "source": {
+        "git": "https://github.com/openwdl/modules",
+        "sha": "f2411d7b1569750f21a7b2a60efe276432dbedd7",
+        "selector": {
+          "commit": "f2411d7b1569750f21a7b2a60efe276432dbedd7"
+        },
+        "path": "fq"
+      },
+      "checksum": "sha256:285eb94fe14751416dcf34d1615104fa8ab8b16eb50be146e6ffe90717c05d37",
+      "dependencies": {}
+    },
+    "local_module": {
+      "source": {
+        "path": "./module"
+      },
+      "dependencies": {}
+    }
+  }
+}

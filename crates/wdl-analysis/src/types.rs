@@ -98,6 +98,12 @@ impl Coercible for PrimitiveType {
             (Self::String, Self::File) |
             // String -> Directory
             (Self::String, Self::Directory) |
+            // String -> Int
+            (Self::String, Self::Integer) |
+            // String -> Float
+            (Self::String, Self::Float) |
+            // String -> Boolean
+            (Self::String, Self::Boolean) |
             // Int -> Float
             (Self::Integer, Self::Float) |
             // File -> String
@@ -562,7 +568,8 @@ impl Coercible for Type {
             },
 
             // Object -> Map[X, Y], Object -> Map[X, Y]?, Object? -> Map[X, Y]?
-            // where: String -> X and all object members are coercible to Y
+            // where: String -> X (excluding Int/Float since Object keys are
+            // identifiers) and all object members are coercible to Y
             //
             // Object -> Struct, Object -> Struct?, Object? -> Struct? where:
             // object keys match struct member names and object values are
@@ -571,7 +578,14 @@ impl Coercible for Type {
             | (Self::OptionalObject, Self::Compound(target, true)) => {
                 match target {
                     CompoundType::Map(target) => {
-                        Type::from(PrimitiveType::String).is_coercible_to(target.key_type())
+                        match target.key_type().as_primitive() {
+                            // Object keys are valid WDL identifiers, so they
+                            // can never coerce to `Int` or `Float`
+                            Some(PrimitiveType::Integer | PrimitiveType::Float) => false,
+                            _ => {
+                                Type::from(PrimitiveType::String).is_coercible_to(target.key_type())
+                            }
+                        }
                     }
                     CompoundType::Custom(CustomType::Struct(_)) => {
                         // Note: checking object keys and values is a runtime
@@ -889,22 +903,32 @@ impl Coercible for CompoundType {
             }
 
             // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]?
-            // where: String -> X and member types -> Y
+            // where: String -> X (excluding Int/Float, and checking member
+            // names for Boolean) and member types -> Y
             (Self::Custom(CustomType::Struct(src)), Self::Map(target)) => {
-                if !Type::from(PrimitiveType::String).is_coercible_to(target.key_type()) {
-                    return false;
+                match target.key_type().as_primitive() {
+                    // Struct member names are valid WDL identifiers, so they
+                    // can never coerce to `Int` or `Float`
+                    Some(PrimitiveType::Integer | PrimitiveType::Float) => return false,
+                    // For `Boolean`, all member names must coerce to `Boolean`
+                    Some(PrimitiveType::Boolean) => {
+                        if !src.members().keys().all(|k| {
+                            k.eq_ignore_ascii_case("true") || k.eq_ignore_ascii_case("false")
+                        }) {
+                            return false;
+                        }
+                    }
+                    _ => {
+                        if !Type::from(PrimitiveType::String).is_coercible_to(target.key_type()) {
+                            return false;
+                        }
+                    }
                 }
 
                 // Ensure all the struct members are coercible to the value type
-                if !src
-                    .members()
+                src.members()
                     .values()
                     .all(|ty| ty.is_coercible_to(target.value_type()))
-                {
-                    return false;
-                }
-
-                true
             }
 
             _ => false,
@@ -1739,7 +1763,13 @@ mod tests {
         assert!(PrimitiveType::Integer.is_coercible_to(&PrimitiveType::Float));
         assert!(PrimitiveType::File.is_coercible_to(&PrimitiveType::String));
         assert!(PrimitiveType::Directory.is_coercible_to(&PrimitiveType::String));
+        assert!(PrimitiveType::String.is_coercible_to(&PrimitiveType::Integer));
+        assert!(PrimitiveType::String.is_coercible_to(&PrimitiveType::Float));
+        assert!(PrimitiveType::String.is_coercible_to(&PrimitiveType::Boolean));
         assert!(!PrimitiveType::Float.is_coercible_to(&PrimitiveType::Integer));
+        assert!(!PrimitiveType::Integer.is_coercible_to(&PrimitiveType::String));
+        assert!(!PrimitiveType::Boolean.is_coercible_to(&PrimitiveType::String));
+        assert!(!PrimitiveType::Boolean.is_coercible_to(&PrimitiveType::Integer));
     }
 
     #[test_log::test]
@@ -1757,9 +1787,18 @@ mod tests {
         let ty = MapType::new(PrimitiveType::File, PrimitiveType::String).into();
         assert!(!Type::OptionalObject.is_coercible_to(&ty));
 
-        // Object -> Map[Int, X] (key not coercible from string)
+        // Object -> Map[Int, X] (object keys are identifiers, cannot be Int)
         let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::String).into();
         assert!(!Type::Object.is_coercible_to(&ty));
+
+        // Object -> Map[Float, X] (object keys are identifiers, cannot be
+        // Float)
+        let ty = MapType::new(PrimitiveType::Float, PrimitiveType::String).into();
+        assert!(!Type::Object.is_coercible_to(&ty));
+
+        // Object -> Map[Boolean, X] (checked at runtime for Object)
+        let ty = MapType::new(PrimitiveType::Boolean, PrimitiveType::String).into();
+        assert!(Type::Object.is_coercible_to(&ty));
 
         // Object -> Map[String, X]?
         let ty = Type::from(MapType::new(PrimitiveType::String, PrimitiveType::String)).optional();
@@ -2197,7 +2236,7 @@ mod tests {
         let type2 = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         assert!(!type1.is_coercible_to(&type2));
 
-        // Struct -> Map[Int, String] (key not coercible from String)
+        // Struct -> Map[Int/Float/Boolean, String]
         let type1: Type = StructType::new(
             "Foo",
             [
@@ -2207,8 +2246,24 @@ mod tests {
             ],
         )
         .into();
-        let type2 = MapType::new(PrimitiveType::Integer, PrimitiveType::String).into();
-        assert!(!type1.is_coercible_to(&type2));
+        let map_int = MapType::new(PrimitiveType::Integer, PrimitiveType::String).into();
+        let map_float = MapType::new(PrimitiveType::Float, PrimitiveType::String).into();
+        let map_bool = MapType::new(PrimitiveType::Boolean, PrimitiveType::String).into();
+        assert!(!type1.is_coercible_to(&map_int));
+        assert!(!type1.is_coercible_to(&map_float));
+        assert!(!type1.is_coercible_to(&map_bool));
+
+        let bool_struct: Type = StructType::new(
+            "BoolKeys",
+            [
+                ("TRUE", PrimitiveType::String),
+                ("False", PrimitiveType::String),
+            ],
+        )
+        .into();
+        assert!(!bool_struct.is_coercible_to(&map_int));
+        assert!(!bool_struct.is_coercible_to(&map_float));
+        assert!(bool_struct.is_coercible_to(&map_bool));
 
         // Struct -> Object
         assert!(type1.is_coercible_to(&Type::Object));
@@ -2496,20 +2551,20 @@ mod tests {
 
     #[test_log::test]
     fn enum_type_new_fails_when_not_coercible() {
-        // Try to create enum with `Int` type but `String` choices.
+        // Try to create enum with `Int` type but `Boolean` choices.
         let result = EnumType::new(
             "Bad",
             Span::new(0, 0),
             PrimitiveType::Integer.into(),
             vec![
-                ("First".into(), PrimitiveType::String.into()),
+                ("First".into(), PrimitiveType::Boolean.into()),
                 ("Second".into(), PrimitiveType::Integer.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0)][..],
         );
 
         assert!(
-            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce choice `First` in enum `Bad` from type `String` to type `Int`")
+            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce choice `First` in enum `Bad` from type `Boolean` to type `Int`")
         );
     }
 
@@ -2554,12 +2609,31 @@ mod tests {
     }
 
     #[test_log::test]
+    fn enum_type_infer_coerces_string_to_int() {
+        // Mix of `Int` and `String` should coerce to `Int`.
+        let mixed = EnumType::infer(
+            "Mixed",
+            vec![
+                ("IntValue".into(), PrimitiveType::Integer.into()),
+                ("StringValue".into(), PrimitiveType::String.into()),
+            ],
+            &[Span::new(0, 0), Span::new(0, 0)],
+        )
+        .unwrap();
+
+        assert_eq!(
+            mixed.inner_value_type(),
+            &Type::from(PrimitiveType::Integer)
+        );
+    }
+
+    #[test_log::test]
     fn enum_type_infer_fails_without_common_type() {
-        // `String` and `Int` have no common type.
+        // `Boolean` and `Int` have no common type.
         let result = EnumType::infer(
             "Bad",
             vec![
-                ("StringVal".into(), PrimitiveType::String.into()),
+                ("BooleanVal".into(), PrimitiveType::Boolean.into()),
                 ("IntVal".into(), PrimitiveType::Integer.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0)][..],

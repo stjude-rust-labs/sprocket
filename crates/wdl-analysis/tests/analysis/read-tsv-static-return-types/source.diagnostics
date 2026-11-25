@@ -1,0 +1,7 @@
+error: type mismatch: expected type `Array[Array[String]]`, but found type `Array[Object]`
+   ┌─ tests/analysis/read-tsv-static-return-types/source.wdl:21:41
+   │
+21 │         Array[Array[String]] mismatch = read_tsv(tsv, false)
+   │                              --------   ^^^^^^^^^^^^^^^^^^^^ this is type `Array[Object]`
+   │                              │
+   │                              this expects type `Array[Array[String]]`

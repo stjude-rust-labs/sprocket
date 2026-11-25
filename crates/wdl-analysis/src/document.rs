@@ -113,7 +113,7 @@ impl<'a> WorkflowRef<'a> {
     /// Get the defining [`Document`] of the workflow, if it was imported
     ///
     /// NOTE: This will always return `None` for locally defined workflows.
-    pub fn source_document(&self) -> Option<&Document> {
+    pub fn source_document(&self) -> Option<&'a Document> {
         match self {
             WorkflowRef::Local(_) => None,
             WorkflowRef::Imported(i) => Some(i.document()),
@@ -171,7 +171,7 @@ impl<'a> TaskRef<'a> {
     /// Get the defining [`Document`] of the task, if it was imported
     ///
     /// NOTE: This will always return `None` for locally defined tasks.
-    pub fn source_document(&self) -> Option<&Document> {
+    pub fn source_document(&self) -> Option<&'a Document> {
         match self {
             TaskRef::Local(_) => None,
             TaskRef::Imported(i) => Some(i.document()),
@@ -1235,7 +1235,7 @@ pub enum Callable<'a> {
     Task(TaskRef<'a>),
 }
 
-impl Callable<'_> {
+impl<'a> Callable<'a> {
     /// Get the name of this callable.
     ///
     /// NOTE: For imported callables, this will return the aliased name. e.g.,
@@ -1246,7 +1246,7 @@ impl Callable<'_> {
     /// ```
     ///
     /// See also: [`Callable::source_name()`]
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'a str {
         match self {
             Callable::Workflow(w) => w.name(),
             Callable::Task(t) => t.name(),
@@ -1260,7 +1260,7 @@ impl Callable<'_> {
     /// defined in the source document.
     ///
     /// See also: [`Callable::name()`]
-    pub fn source_name(&self) -> &str {
+    pub fn source_name(&self) -> &'a str {
         match self {
             Callable::Workflow(WorkflowRef::Imported(w)) => &w.name,
             Callable::Task(TaskRef::Imported(w)) => &w.name,
@@ -1311,7 +1311,7 @@ impl Callable<'_> {
     /// Get the defining [`Document`] of the callable, if it was imported
     ///
     /// NOTE: This will always return `None` for locally defined callables.
-    pub fn source_document(&self) -> Option<&Document> {
+    pub fn source_document(&self) -> Option<&'a Document> {
         match self {
             Callable::Workflow(w) => w.source_document(),
             Callable::Task(t) => t.source_document(),
@@ -1334,7 +1334,7 @@ impl Callable<'_> {
     /// Get the scope of the callable
     ///
     /// NOTE: This will always return `None` for imported callables.
-    pub fn scope(&self) -> Option<ScopeRef<'_>> {
+    pub fn scope(&self) -> Option<ScopeRef<'a>> {
         match self {
             Callable::Workflow(WorkflowRef::Local(w)) => Some(w.scope()),
             Callable::Task(TaskRef::Local(t)) => Some(t.scope()),

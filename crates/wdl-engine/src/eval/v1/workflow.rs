@@ -180,6 +180,14 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         Err(unknown_name(name, span))
     }
 
+    fn declared_type(&self, name: &str, span: Span) -> Option<Type> {
+        self.state
+            .document
+            .find_scope_by_position(span.start())?
+            .lookup(name)
+            .map(|n| n.ty().clone())
+    }
+
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(&self.state.document, name, span)
     }
@@ -1172,34 +1180,73 @@ impl State {
                 .evaluate_subgraph(scope, self.subgraphs[&clause_node].clone(), id)
                 .await?;
 
+            // Set the names into the parent scope
             let mut scopes = self.scopes.write().await;
-            let (parent, child) = scopes.parent_mut(scope);
-
             for (name, name_info) in all_names {
-                let value = child
-                    .local()
-                    .find(|(n, _)| *n == name)
-                    .map(|(_, v)| v.clone());
+                let Some(value) = scopes.reference(scope).local(&name).cloned() else {
+                    let (parent, _) = scopes.parent_mut(scope);
 
-                if let Some(value) = value {
+                    if let Type::Call(call_ty) = name_info.ty() {
+                        // A call not in the child scope; set `None` for each of
+                        // its outputs
+                        parent.insert(
+                            name,
+                            CallValue::new_unchecked(
+                                call_ty.clone(),
+                                Outputs::from_iter(
+                                    call_ty
+                                        .outputs()
+                                        .iter()
+                                        .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
+                                )
+                                .into(),
+                            ),
+                        );
+                    } else {
+                        // Otherwise, just set a `None` value
+                        parent.insert(name, Value::new_none(name_info.ty().clone()));
+                    }
+                    continue;
+                };
+
+                // If the value is a call, skip coercions
+                if matches!(value, Value::Call(_)) {
+                    let (parent, _) = scopes.parent_mut(scope);
                     parent.insert(name, value);
-                } else if let Type::Call(call_ty) = &name_info.ty() {
-                    parent.insert(
-                        name,
-                        CallValue::new_unchecked(
-                            call_ty.clone(),
-                            Outputs::from_iter(
-                                call_ty
-                                    .outputs()
-                                    .iter()
-                                    .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
-                            )
-                            .into(),
-                        ),
-                    );
-                } else {
-                    parent.insert(name, Value::new_none(name_info.ty().clone()));
+                    continue;
                 }
+
+                let context = WorkflowEvaluationContext::new(
+                    &self,
+                    scopes.reference(Scopes::ROOT_INDEX),
+                    self.http_cancellation_token(),
+                );
+
+                // Coerce the value to the expected type, handling any runtime
+                // type mismatch errors
+                let value = value.coerce(Some(&context), name_info.ty()).map_err(|e| {
+                    let span = clause
+                        .statements()
+                        .find_map(|s| {
+                            s.into_declaration()
+                                .filter(|d| d.name().text() == name)
+                                .map(|d| d.name().span())
+                        })
+                        .unwrap_or_else(|| name_info.span());
+                    EvaluationError::new(
+                        self.document.clone(),
+                        runtime_type_mismatch(
+                            e,
+                            name_info.ty(),
+                            name_info.span(),
+                            &value.ty(),
+                            span,
+                        ),
+                    )
+                })?;
+
+                let (parent, _) = scopes.parent_mut(scope);
+                parent.insert(name, value);
             }
 
             scopes.free(scope);
@@ -2295,6 +2342,179 @@ workflow child {
                 .expect("expected integer output"),
             42
         );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_the_unwrap_operator() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+task unwrap_in_task {
+    input {
+        Int? maybe_five = 5
+        Int? nothing
+    }
+
+    command <<<>>>
+
+    output {
+        Int untaken = if false then maybe_five! else 0
+        Int untaken_none = if false then nothing! else 0
+    }
+}
+
+workflow test_unwrap {
+    Int? maybe_five = 5
+    Int? maybe_ten = 10
+    Int? nothing = None
+
+    call unwrap_in_task
+
+    output {
+        Int certainly_five = maybe_five!
+        Int fifteen = maybe_five! + maybe_ten!
+        Int untaken = if false then maybe_five! else 0
+        Int untaken_none = if true then 0 else nothing!
+        Int task_untaken = unwrap_in_task.untaken
+        Int task_untaken_none = unwrap_in_task.untaken_none
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "test_unwrap",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        let get = |name: &str| {
+            outputs
+                .get(name)
+                .unwrap_or_else(|| panic!("expected `{name}` output"))
+                .as_integer()
+                .expect("expected integer output")
+        };
+        assert_eq!(get("certainly_five"), 5);
+        assert_eq!(get("fifteen"), 15);
+        assert_eq!(get("untaken"), 0);
+        assert_eq!(get("untaken_none"), 0);
+        assert_eq!(get("task_untaken"), 0);
+        assert_eq!(get("task_untaken_none"), 0);
+    }
+
+    #[tokio::test]
+    async fn it_fails_to_unwrap_none() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow unwrap_none_fail {
+    Int? maybe_five = None
+    Int five = maybe_five!
+
+    output {
+        Int result = five
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let error = evaluator
+            .evaluate_workflow(
+                &document,
+                "unwrap_none_fail",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect_err("workflow should fail");
+
+        assert!(
+            error.contains("cannot unwrap a `None` value"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_an_unwrap_of_none_in_a_placeholder_to_empty() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4(
+            &root_dir,
+            r#"
+version 1.4
+
+workflow unwrap_placeholder {
+    input {
+        String salutation = "hello"
+        String? name1
+        String? name2 = "Fred"
+    }
+
+    output {
+        String greeting1 = "~{salutation + ' ' + name1! + ' '}nice to meet you!"
+        String greeting2 = "~{salutation + ' ' + name2! + ', '}nice to meet you!"
+    }
+}
+"#,
+        )
+        .await;
+
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs = evaluator
+            .evaluate_workflow(
+                &document,
+                "unwrap_placeholder",
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        let get = |name: &str| {
+            outputs
+                .get(name)
+                .unwrap_or_else(|| panic!("expected `{name}` output"))
+                .as_string()
+                .expect("expected string output")
+                .to_string()
+        };
+        assert_eq!(get("greeting1"), "nice to meet you!");
+        assert_eq!(get("greeting2"), "hello Fred, nice to meet you!");
     }
 
     #[tokio::test]

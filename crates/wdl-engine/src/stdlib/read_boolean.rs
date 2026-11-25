@@ -2,9 +2,6 @@
 
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use tokio::fs;
-use tokio::io::AsyncBufReadExt;
-use tokio::io::BufReader;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
@@ -12,18 +9,21 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
+use super::read_single_token;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::value::parse_boolean;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "read_boolean";
 
-/// Reads a file that contains a single line containing only a boolean value and
-/// (optional) whitespace.
+/// The maximum byte length of a valid boolean token (`"false"`).
+const MAX_BOOLEAN_LEN: usize = 5;
+
+/// Reads the contents of a file as a `String` and coerces it to a `Boolean`.
 ///
-/// If the non-whitespace content of the line is "true" or "false", that value
-/// is returned as a Boolean. If the file is empty or does not contain a single
-/// boolean, an error is raised. The comparison is case-insensitive.
+/// If the file is empty or its contents cannot be coerced to a `Boolean`, an
+/// error is raised.
 ///
 /// <https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_boolean>
 fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
@@ -51,32 +51,18 @@ fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
             )
         };
 
-        let invalid_contents = || {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("file `{path}` does not contain a boolean value on a single line"),
-                context.call_site,
-            )
-        };
-
-        let mut lines =
-            BufReader::new(fs::File::open(&file_path).await.map_err(read_error)?).lines();
-        let mut line = lines
-            .next_line()
+        let value = read_single_token(&file_path, MAX_BOOLEAN_LEN)
             .await
             .map_err(read_error)?
-            .ok_or_else(invalid_contents)?;
+            .and_then(|token| parse_boolean(&token));
 
-        if lines.next_line().await.map_err(read_error)?.is_some() {
-            return Err(invalid_contents());
-        }
-
-        line.make_ascii_lowercase();
-        Ok(line
-            .trim()
-            .parse::<bool>()
-            .map_err(|_| invalid_contents())?
-            .into())
+        value.map(Into::into).ok_or_else(|| {
+            function_call_failed(
+                FUNCTION_NAME,
+                format!("file `{path}` cannot be parsed as a boolean value"),
+                context.call_site,
+            )
+        })
     }
     .boxed()
 }
@@ -125,8 +111,8 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_boolean` failed: file `foo` does not contain a boolean value \
-             on a single line"
+            "call to function `read_boolean` failed: file `foo` cannot be parsed as a boolean \
+             value"
         );
 
         for file in ["bar", "https://example.com/bar"] {

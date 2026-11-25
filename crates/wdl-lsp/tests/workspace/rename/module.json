@@ -1,0 +1,15 @@
+{
+  "name": "rename",
+  "description": "The `rename` WDL module.",
+  "license": "Apache-2.0 OR MIT",
+  "dependencies": {
+    "local_module": {
+      "path": "./module"
+    },
+    "external_module": {
+      "git": "https://github.com/openwdl/modules",
+      "commit": "f2411d7b1569750f21a7b2a60efe276432dbedd7",
+      "path": "fq"
+    }
+  }
+}

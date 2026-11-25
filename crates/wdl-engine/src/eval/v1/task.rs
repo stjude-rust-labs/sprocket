@@ -163,6 +163,22 @@ where
         .find_map(|key| lookup(key).map(|value| (*key, value)))
 }
 
+/// Coerces a requirement or hint value to the first of the given types it
+/// matches or successfully coerces to.
+///
+/// An exact type match is preferred so that, for example, `memory: "1024"`
+/// remains a `String` rather than coercing to an `Int`.
+fn coerce_to_any(value: &Value, types: &[Type], context: &dyn EvaluationContext) -> Option<Value> {
+    let ty = value.ty();
+    if types.contains(&ty) {
+        return Some(value.clone());
+    }
+
+    types
+        .iter()
+        .find_map(|target| value.coerce(Some(context), target).ok())
+}
+
 /// Parses an integer or byte-unit string into a byte count using the supplied
 /// `error_message` formatter when conversion fails.
 ///
@@ -366,6 +382,14 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         }
 
         Err(unknown_name(name, span))
+    }
+
+    fn declared_type(&self, name: &str, span: Span) -> Option<Type> {
+        self.state
+            .document
+            .find_scope_by_position(span.start())?
+            .lookup(name)
+            .map(|n| n.ty().clone())
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
@@ -1044,16 +1068,14 @@ impl<'a> State<'a> {
             let expr = item.expr();
             let mut value = evaluator.evaluate_expr(&expr).await?;
             if let Some(types) = types {
-                value = types
-                    .iter()
-                    .find_map(|ty| {
-                        value
-                            .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
-                            .ok()
-                    })
-                    .ok_or_else(|| {
-                        multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
-                    })?;
+                value = coerce_to_any(
+                    &value,
+                    types,
+                    &TaskEvaluationContext::new(self, scope_index),
+                )
+                .ok_or_else(|| {
+                    multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
+                })?;
             }
 
             if requirement {
@@ -1109,16 +1131,12 @@ impl<'a> State<'a> {
             // Evaluate and coerce to the expected type
             let expr = item.expr();
             let value = evaluator.evaluate_expr(&expr).await?;
-            let value = types
-                .iter()
-                .find_map(|ty| {
-                    value
-                        .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
-                        .ok()
-                })
-                .ok_or_else(|| {
-                    multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
-                })?;
+            let value = coerce_to_any(
+                &value,
+                types,
+                &TaskEvaluationContext::new(self, scope_index),
+            )
+            .ok_or_else(|| multiple_type_mismatch(types, name.span(), &value.ty(), expr.span()))?;
 
             requirements.insert(name.text().to_string(), value);
         }
@@ -4000,5 +4018,97 @@ task test {
 
         let size = super::directory_size(dir.path()).expect("failed to measure directory");
         assert_eq!(size, 150);
+    }
+
+    /// Tests that task `File` outputs that share a parent directory in the
+    /// execution environment remain colocated, including when the outputs are
+    /// retrieved from the call cache (openwdl/wdl#796).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn outputs_sharing_a_parent_remain_colocated() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    input {
+        File input_a = "DATA/a.txt"
+        File input_b = "DATA/b.txt"
+    }
+
+    command <<<
+        mkdir out other
+        echo a > out/a.txt
+        echo b > out/b.txt
+        echo c > other/a.txt
+        echo "~{input_a}" > input_a.path
+        echo "~{input_b}" > input_b.path
+    >>>
+
+    output {
+        File out_a = "out/a.txt"
+        File out_b = "out/b.txt"
+        File other_a = "other/a.txt"
+        File input_a_out = read_string("input_a.path")
+        File input_b_out = read_string("input_b.path")
+        File out = stdout()
+        File err = stderr()
+    }
+}
+"#;
+
+        fn file(outputs: &Outputs, name: &str) -> std::path::PathBuf {
+            outputs
+                .get(name)
+                .expect("should have output")
+                .as_file()
+                .expect("should be a file")
+                .as_str()
+                .into()
+        }
+
+        let data_dir = tempdir().expect("failed to create temporary directory");
+        fs::write(data_dir.path().join("a.txt"), "input a").unwrap();
+        fs::write(data_dir.path().join("b.txt"), "input b").unwrap();
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+        let source = SOURCE.replace("DATA", data_dir.path().to_str().unwrap());
+
+        for cached in [false, true] {
+            let evaluated = evaluate_task(config.clone(), root_dir.path(), &source).await;
+            assert_eq!(evaluated.cached(), cached);
+            assert_eq!(evaluated.exit_code(), 0);
+            let outputs = evaluated.into_outputs().expect("task should succeed");
+
+            // Outputs within the same work directory remain together
+            let out_a = file(&outputs, "out_a");
+            let out_b = file(&outputs, "out_b");
+            let other_a = file(&outputs, "other_a");
+            assert_eq!(out_a.parent(), out_b.parent());
+            assert_ne!(out_a.parent(), other_a.parent());
+            assert_eq!(fs::read_to_string(&out_a).unwrap().trim(), "a");
+            assert_eq!(fs::read_to_string(&out_b).unwrap().trim(), "b");
+            assert_eq!(fs::read_to_string(&other_a).unwrap().trim(), "c");
+
+            // Inputs referenced by their guest paths map back to their
+            // original, colocated host paths
+            let work_dir = out_a.parent().and_then(Path::parent).unwrap();
+            assert!(
+                fs::read_to_string(work_dir.join("input_a.path"))
+                    .unwrap()
+                    .starts_with("/mnt/task/inputs/"),
+                "expected the command to receive a guest path"
+            );
+            let input_a = file(&outputs, "input_a_out");
+            let input_b = file(&outputs, "input_b_out");
+            assert_eq!(input_a, data_dir.path().join("a.txt"));
+            assert_eq!(input_b, data_dir.path().join("b.txt"));
+
+            // The stdout and stderr files remain together
+            assert_eq!(
+                file(&outputs, "out").parent(),
+                file(&outputs, "err").parent()
+            );
+        }
     }
 }

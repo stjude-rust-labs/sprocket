@@ -63,7 +63,7 @@ const EXPECTED_VERSION: &str = "1";
 
 /// Configure 30-second timeout when database is locked to allow concurrent
 /// processes time to complete their writes under heavy parallel access.
-const SQLITE_BUSY_TIMEOUT: &str = "30000";
+const SQLITE_BUSY_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Limit competing connections because SQLite permits only one writer at a
 /// time.
@@ -90,6 +90,7 @@ impl SqliteDatabase {
         let database_url = format!("{}//{}", SQLITE_CONNECTION_PREFIX, path.display());
         let options = SqliteConnectOptions::from_str(&database_url)?
             .create_if_missing(true)
+            .busy_timeout(SQLITE_BUSY_TIMEOUT)
             // Keep the rollback journal between commits to reduce filesystem
             // metadata operations. Avoid WAL because independent processes
             // previously encountered recovery errors.
@@ -99,7 +100,6 @@ impl SqliteDatabase {
             .pragma("mmap_size", SQLITE_MMAP_SIZE)
             .pragma("page_size", SQLITE_PAGE_SIZE)
             .pragma("foreign_keys", SQLITE_FOREIGN_KEYS)
-            .pragma("busy_timeout", SQLITE_BUSY_TIMEOUT)
             .pragma("cache_size", SQLITE_CACHE_SIZE);
 
         let pool = SqlitePoolOptions::new()
@@ -1264,6 +1264,42 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn new_connections_wait_for_locks_during_initialization() {
+        use sqlx::ConnectOptions as _;
+
+        let dir = tempfile::tempdir().expect("failed to create temp dir");
+        let db = SqliteDatabase::new(dir.path().join("startup.db"))
+            .await
+            .expect("failed to create database");
+        let lock = db
+            .pool()
+            .begin_with("BEGIN EXCLUSIVE")
+            .await
+            .expect("failed to lock database");
+        let options = db.pool().connect_options();
+        let mut connecting = std::pin::pin!(options.connect());
+
+        // Hold the lock beyond SQLx's five-second default startup timeout.
+        let while_locked = tokio::time::timeout(Duration::from_secs(6), connecting.as_mut()).await;
+        lock.rollback().await.expect("failed to unlock database");
+        assert!(
+            while_locked.is_err(),
+            "connection initialization stopped waiting while locked: {while_locked:?}"
+        );
+
+        let mut connection = tokio::time::timeout(Duration::from_secs(30), connecting)
+            .await
+            .expect("connection initialization did not resume after unlocking")
+            .expect("failed to initialize connection after unlocking");
+        let version: String =
+            sqlx::query_scalar("select value from metadata where key = 'version'")
+                .fetch_one(&mut connection)
+                .await
+                .expect("failed to read from initialized connection");
+        assert_eq!(version, EXPECTED_VERSION);
+    }
 
     #[sqlx::test]
     async fn connect_with_correct_version(pool: SqlitePool) {
