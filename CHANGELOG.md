@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.35.0 - 2026-11-25
+
 ### Added
 
 * Added contextual input help to `sprocket run`: passing `--help` (or `-h`) with a WDL source now
