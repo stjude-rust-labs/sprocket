@@ -14,6 +14,7 @@ mod semantic_tokens;
 mod shutdown;
 mod signature_help;
 mod symbols;
+mod type_definition;
 
 #[path = "../common.rs"]
 mod common;

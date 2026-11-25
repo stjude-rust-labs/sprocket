@@ -546,6 +546,7 @@ fn add_namespace(
             None => {
                 cache_item.add_struct(ImportedStruct {
                     local_name: aliased_name.to_string(),
+                    name: s.name().to_string(),
                     offset: s.offset(),
                     node: s.node().clone(),
                     span,
@@ -609,6 +610,7 @@ fn add_namespace(
             None => {
                 cache_item.add_enum(ImportedEnum {
                     local_name: aliased_name.to_string(),
+                    name: e.name().to_string(),
                     span,
                     node: e.node().clone(),
                     document: imported_doc.clone(),
@@ -715,6 +717,7 @@ fn add_wildcard_import(
             .local_structs()
             .map(|(_idx, _hash, s)| ImportedStruct {
                 local_name: s.name().to_string(),
+                name: s.name().to_string(),
                 offset: s.offset,
                 node: s.node.clone(),
                 span,
@@ -735,6 +738,7 @@ fn add_wildcard_import(
             .local_enums()
             .map(|(_idx, _hash, e)| ImportedEnum {
                 local_name: e.name().to_string(),
+                name: e.name().to_string(),
                 offset: e.offset,
                 node: e.node.clone(),
                 span,
@@ -878,6 +882,7 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    name: s.item().name().to_string(),
                     offset: s.item().offset,
                     node: s.item().node.clone(),
                     span: member_span,
@@ -897,6 +902,7 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Struct(s)) => {
                 let entry = ImportedStruct {
                     local_name,
+                    name: s.name.clone(),
                     offset: s.offset,
                     node: s.node.clone(),
                     span: member_span,
@@ -916,6 +922,7 @@ fn add_selected_import(
             Item::Local(CachedItemRef::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    name: e.item().name().to_string(),
                     offset: e.item().offset,
                     node: e.item().node.clone(),
                     span: member_span,
@@ -935,6 +942,7 @@ fn add_selected_import(
             Item::Imported(ImportedItem::Enum(e)) => {
                 let entry = ImportedEnum {
                     local_name,
+                    name: e.name.clone(),
                     offset: e.offset,
                     node: e.node.clone(),
                     span: member_span,

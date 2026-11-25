@@ -7,6 +7,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+* Added support for the `textDocument/typeDefinition` request
+  ([#1442](https://github.com/stjude-rust-labs/sprocket/pull/1442)).
+
 ## 0.25.2 - 2026-11-18
 
 ## 0.25.1 - 2026-11-18

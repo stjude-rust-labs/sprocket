@@ -35,6 +35,7 @@ use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
+use lsp_types::request::GotoTypeDefinitionResponse;
 use parking_lot::Mutex;
 use parking_lot::RwLock;
 use petgraph::Direction;
@@ -172,6 +173,8 @@ pub enum Request<Context> {
     SignatureHelp(SignatureHelpRequest),
     /// A request to get inlay hints for a document.
     InlayHints(InlayHintsRequest<Context>),
+    /// A request to goto the type definition of a symbol.
+    TypeDefinition(TypeDefinitionRequest<Context>),
     /// Replace the current validator.
     SwapValidator(SwapValidatorRequest),
 }
@@ -449,6 +452,21 @@ pub struct InlayHintsRequest<Context> {
     pub range: lsp_types::Range,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
+    /// The context to provide to the progress callback.
+    pub context: Context,
+}
+
+/// Represents a request to find the type definition of a symbol at a given
+/// position.
+pub struct TypeDefinitionRequest<Context> {
+    /// The document to search for the symbol definition.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<GotoTypeDefinitionResponse>>,
     /// The context to provide to the progress callback.
     pub context: Context,
 }
@@ -1343,6 +1361,45 @@ where
                         }
                         Err(err) => {
                             error!("inlay hints request failed: {err:?}");
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::TypeDefinition(TypeDefinitionRequest {
+                    document,
+                    position,
+                    encoding,
+                    completed,
+                    context,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for type definition at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    if !self.ensure_analyzed(Some(document.clone()), context) {
+                        completed.send(None).ok();
+                        continue;
+                    }
+
+                    let graph = self.graph.read();
+                    match handlers::type_definition(&graph, &document, position, encoding) {
+                        Ok(result) => {
+                            debug!(
+                                "type definition request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            let location = result.map(GotoTypeDefinitionResponse::Scalar);
+                            completed.send(location).ok();
+                        }
+                        Err(err) => {
+                            error!(
+                                "error occurred while completing the type definition request: \
+                                 {err:?}"
+                            );
                             completed.send(None).ok();
                         }
                     }

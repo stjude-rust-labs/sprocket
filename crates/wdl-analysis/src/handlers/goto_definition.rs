@@ -40,9 +40,11 @@ use crate::graph::DocumentGraph;
 use crate::handlers::TypeEvalContext;
 use crate::handlers::common::ensure_analyzed;
 use crate::handlers::common::find_identifier_token_at_offset;
-use crate::handlers::common::get_imported_doc_context;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
+use crate::handlers::type_definition::resolve_defining_enum;
+use crate::handlers::type_definition::resolve_defining_struct;
+use crate::handlers::type_definition::resolve_type_location;
 use crate::types::CustomType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
@@ -67,7 +69,7 @@ pub fn goto_definition(
 
     let offset = position_to_offset(&lines, position, encoding)?;
     let Some(token) = find_identifier_token_at_offset(&root, offset) else {
-        bail!("no identifier found at position");
+        return Ok(None);
     };
 
     let ident_text = token.text();
@@ -129,7 +131,7 @@ fn resolve_by_context(
 ) -> Result<Option<Location>> {
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
-            resolve_type_reference(analysis_doc, token, lines, graph)
+            resolve_type_location(analysis_doc, token.text(), lines, graph, false)
         }
 
         SyntaxKind::CallTargetNode => {
@@ -173,122 +175,6 @@ fn resolve_by_context(
         SyntaxKind::NameRefExprNode => Ok(None),
         _ => Ok(None),
     }
-}
-
-/// Resolves type references to their definition locations.
-///
-/// Searches for struct definitions in the current document and imported
-/// namespaces.
-fn resolve_type_reference(
-    analysis_doc: &Document,
-    token: &SyntaxToken,
-    lines: &Arc<LineIndex>,
-    graph: &DocumentGraph,
-) -> Result<Option<Location>> {
-    let ident_text = token.text();
-
-    if let Some(enum_info) = analysis_doc.enum_by_name(ident_text) {
-        match enum_info {
-            EnumRef::Local(e) => {
-                return Ok(Some(location_from_span(
-                    &analysis_doc.uri(),
-                    e.name_span(),
-                    lines,
-                )?));
-            }
-            EnumRef::Imported(e) => {
-                let is_aliased_import = enum_info
-                    .ty()
-                    .and_then(|t| t.as_enum())
-                    .map(|st| st.name() != ident_text)
-                    .unwrap_or(false);
-
-                if is_aliased_import {
-                    // Returns the location where alias import was defined.
-                    return Ok(Some(location_from_span(
-                        &analysis_doc.uri(),
-                        enum_info.name_span(),
-                        lines,
-                    )?));
-                }
-
-                if let Some((def_doc, _)) = resolve_defining_enum(e.document(), ident_text)
-                    && let Some(ctx) = get_imported_doc_context(&def_doc.uri(), graph)
-                    && let Some(original_enum) = ctx.doc.enum_by_name(ident_text)
-                {
-                    return Ok(Some(location_from_span(
-                        ctx.uri,
-                        original_enum.name_span(),
-                        ctx.lines,
-                    )?));
-                }
-            }
-        }
-    }
-
-    if let Some(struct_info) = analysis_doc.struct_by_name(ident_text) {
-        match struct_info {
-            StructRef::Local(s) => {
-                return Ok(Some(location_from_span(
-                    &analysis_doc.uri(),
-                    s.name_span(),
-                    lines,
-                )?));
-            }
-            StructRef::Imported(s) => {
-                let is_aliased_import = struct_info
-                    .ty()
-                    .and_then(|t| t.as_struct())
-                    .map(|st| st.name().as_str() != ident_text)
-                    .unwrap_or(false);
-
-                if is_aliased_import {
-                    // Returns the location where alias import was defined.
-                    return Ok(Some(location_from_span(
-                        &analysis_doc.uri(),
-                        struct_info.name_span(),
-                        lines,
-                    )?));
-                }
-
-                if let Some((def_doc, original_struct)) =
-                    resolve_defining_struct(s.document(), ident_text)
-                    && let Some(ctx) = get_imported_doc_context(&def_doc.uri(), graph)
-                {
-                    return Ok(Some(location_from_span(
-                        ctx.uri,
-                        original_struct.name_span(),
-                        ctx.lines,
-                    )?));
-                }
-            }
-        }
-    }
-
-    // Fallback search in case the struct is not in the current document's
-    // analysis map
-    for ns in analysis_doc.namespaces() {
-        let node = graph.get(graph.get_index(&ns.source()).unwrap());
-        let Some(imported_doc) = node.document() else {
-            continue;
-        };
-
-        let Some(struct_info) = imported_doc.struct_by_name(ident_text) else {
-            continue;
-        };
-
-        let imported_lines = node.parse_state().lines().unwrap();
-        return Ok(Some(location_from_span(
-            &ns.source(),
-            struct_info.name_span(),
-            imported_lines,
-        )?));
-    }
-
-    Err(anyhow!(
-        "could not resolve type reference for `{}`",
-        ident_text
-    ))
 }
 
 /// Resolves call targets to their definition locations.
@@ -585,7 +471,7 @@ fn resolve_access_expression(
             // The struct was imported, so its definition lives in the source
             // document the import resolved to.
             StructRef::Imported(s) => {
-                let source = resolve_defining_struct(s.document(), struct_ty.name())
+                let source = resolve_defining_struct(s.document(), s.name())
                     .map(|(doc, _)| doc.uri())
                     .unwrap_or_else(|| s.source());
 
@@ -682,7 +568,7 @@ fn resolve_access_expression(
             // The enum was imported, so its definition lives in the source
             // document the import resolved to.
             EnumRef::Imported(e) => {
-                let source = resolve_defining_enum(e.document(), enum_ty.name())
+                let source = resolve_defining_enum(e.document(), e.name())
                     .map(|(doc, _)| doc.uri())
                     .unwrap_or_else(|| e.source());
 
@@ -758,7 +644,7 @@ fn resolve_access_expression(
             // The enum was imported, so its definition lives in the source
             // document the import resolved to.
             EnumRef::Imported(e) => {
-                let source = resolve_defining_enum(e.document(), enum_ty.name())
+                let source = resolve_defining_enum(e.document(), e.name())
                     .map(|(doc, _)| doc.uri())
                     .unwrap_or_else(|| e.source());
 
@@ -860,10 +746,10 @@ fn resolve_struct_literal_item(
 
     if let Some(struct_info) = analysis_doc.struct_by_name(struct_name.text()) {
         let (uri, def_lines) = match struct_info {
-            StructRef::Imported(e) => {
-                let source = resolve_defining_struct(e.document(), struct_name.text())
+            StructRef::Imported(s) => {
+                let source = resolve_defining_struct(s.document(), s.name())
                     .map(|(doc, _)| doc.uri())
-                    .unwrap_or_else(|| e.source());
+                    .unwrap_or_else(|| s.source());
 
                 // SAFETY: `source` is the URI the import resolved to, which is
                 // guaranteed to be present in the graph.
@@ -1052,43 +938,4 @@ fn find_global_definition_in_doc(
     }
 
     Ok(None)
-}
-
-/// Walks transitive struct imports to find the defining document.
-fn resolve_defining_struct<'a>(
-    mut doc: &'a Document,
-    name: &'a str,
-) -> Option<(&'a Document, &'a crate::document::Struct)> {
-    let mut current_name = name;
-    while let Some(struct_ref) = doc.struct_by_name(current_name) {
-        match struct_ref {
-            StructRef::Local(s) => return Some((doc, s)),
-            StructRef::Imported(s) => {
-                current_name = s
-                    .ty()
-                    .and_then(|ty| ty.as_struct())
-                    .map(|s| s.name().as_str())?;
-                doc = s.document();
-            }
-        }
-    }
-    None
-}
-
-/// Walks transitive enum imports to find the defining document.
-fn resolve_defining_enum<'a>(
-    mut doc: &'a Document,
-    name: &'a str,
-) -> Option<(&'a Document, &'a crate::document::Enum)> {
-    let mut current_name = name;
-    while let Some(enum_ref) = doc.enum_by_name(current_name) {
-        match enum_ref {
-            EnumRef::Local(e) => return Some((doc, e)),
-            EnumRef::Imported(e) => {
-                current_name = e.ty().and_then(|ty| ty.as_enum()).map(|e| e.name())?;
-                doc = e.document();
-            }
-        }
-    }
-    None
 }

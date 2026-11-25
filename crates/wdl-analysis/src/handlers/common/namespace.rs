@@ -5,7 +5,6 @@ use std::sync::Arc;
 use line_index::LineIndex;
 use url::Url;
 
-use crate::Document;
 use crate::graph::DocumentGraph;
 
 /// Context for an imported document accessed through a namespace.
@@ -13,8 +12,6 @@ use crate::graph::DocumentGraph;
 /// This struct provides convenient access to all the information needed when
 /// resolving symbols in imported documents.
 pub struct ImportedDocContext<'a> {
-    /// The imported document
-    pub doc: &'a Document,
     /// Line index for the imported document
     pub lines: &'a Arc<LineIndex>,
     /// URI of the imported document
@@ -34,8 +31,8 @@ pub fn get_imported_doc_context<'a>(
     graph: &'a DocumentGraph,
 ) -> Option<ImportedDocContext<'a>> {
     let node = graph.get(graph.get_index(uri)?);
-    let doc = node.document()?;
+    node.document()?;
     let lines = node.parse_state().lines()?;
 
-    Some(ImportedDocContext { doc, lines, uri })
+    Some(ImportedDocContext { lines, uri })
 }
