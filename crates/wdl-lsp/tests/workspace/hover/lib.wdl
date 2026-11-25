@@ -2,6 +2,7 @@
 
 version 1.3
 
+## The docs for `greet`
 task greet {
     input {
         String name

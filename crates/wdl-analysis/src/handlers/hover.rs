@@ -125,7 +125,24 @@ fn resolve_hover_content(
         && let Some(name) = scope.lookup(token.text())
     {
         let (kind, documentation) = match name.ty() {
-            Type::Call(_) => ("call", None),
+            Type::Call(call) => {
+                let document = match call.namespace() {
+                    Some(ns) => document.namespace(ns).and_then(|ns| {
+                        let node = graph.get(graph.get_index(&ns.source()).unwrap());
+                        node.document()
+                    }),
+                    None => Some(document),
+                };
+
+                let mut doc = None;
+                if let Some(document) = document
+                    && let Some(callable) = document.callable_by_name(call.name())
+                {
+                    doc = provide_callable_documentation(callable, &document.root());
+                }
+
+                ("call", doc)
+            }
             _ => {
                 let doc = find_parameter_meta_documentation(token);
                 ("variable", doc)

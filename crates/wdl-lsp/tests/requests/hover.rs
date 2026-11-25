@@ -75,7 +75,7 @@ async fn should_hover_local_variable() {
 async fn should_hover_struct_definition() {
     let mut ctx = setup().await;
     // Position of `Person` in `struct Person`
-    let response = hover_request(&mut ctx, "lib.wdl", Position::new(18, 7))
+    let response = hover_request(&mut ctx, "lib.wdl", Position::new(19, 7))
         .await
         .expect("request should succeed");
     assert_hover_content(&response, "struct Person {");
@@ -96,7 +96,7 @@ async fn should_hover_struct_object() {
 async fn should_hover_task_definition() {
     let mut ctx = setup().await;
     // Position of `greet` in `task greet`
-    let response = hover_request(&mut ctx, "lib.wdl", Position::new(4, 7))
+    let response = hover_request(&mut ctx, "lib.wdl", Position::new(5, 7))
         .await
         .expect("request should succeed");
     assert_hover_content(&response, "task greet");
@@ -566,4 +566,17 @@ async fn should_hover_select_imported_task() {
         .expect("request should succeed");
 
     assert_hover_content(&response, "task add");
+}
+
+#[tokio::test]
+async fn should_hover_call_alias() {
+    let mut ctx = setup().await;
+
+    // Position of `t` in `call lib.greet as t` in source.wdl
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(16, 22))
+        .await
+        .expect("request should succeed");
+
+    assert_hover_content(&response, "(call) t: call to task `lib.greet`");
+    assert_hover_content(&response, "The docs for `greet`");
 }
