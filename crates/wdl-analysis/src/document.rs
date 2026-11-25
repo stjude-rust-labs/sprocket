@@ -2047,16 +2047,27 @@ impl Document {
     /// Returns `false` if the document, and all of its transitive imports, have
     /// no error diagnostics.
     pub fn has_errors(&self) -> bool {
-        // Check this document for errors
-        if self.diagnostics().any(|d| d.severity() == Severity::Error) {
-            return true;
-        }
+        // Iterate so that diamond imports are checked once and import cycles
+        // cannot recurse forever
+        let mut visited = HashSet::new();
+        let mut stack = vec![self];
+        while let Some(doc) = stack.pop() {
+            if !visited.insert(Arc::as_ptr(&doc.data)) {
+                continue;
+            }
 
-        // Check every imported document for errors
-        for ns in self.namespaces() {
-            if ns.document().has_errors() {
+            if doc.diagnostics().any(|d| d.severity() == Severity::Error) {
                 return true;
             }
+
+            // Check every imported document (namespace and scope-merging
+            // imports) for errors
+            stack.extend(
+                doc.data
+                    .cache
+                    .imports()
+                    .map(|(_, _, import)| import.document()),
+            );
         }
 
         false

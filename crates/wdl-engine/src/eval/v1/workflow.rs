@@ -2651,6 +2651,566 @@ workflow test {
         );
     }
 
+    /// Writes the given files beneath `root`, analyzes them with WDL 1.4
+    /// enabled, and returns the analyzed document whose path ends with
+    /// `entry`.
+    async fn analyze_wdl_1_4_files(root: &Path, files: &[(&str, &str)], entry: &str) -> Document {
+        for (path, contents) in files {
+            let path = root.join(path);
+            fs::create_dir_all(path.parent().expect("path should have a parent"))
+                .expect("failed to create WDL source directory");
+            fs::write(path, contents).expect("failed to write WDL source file");
+        }
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default()
+                .with_diagnostics_config(DiagnosticsConfig::except_all())
+                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root)
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        results
+            .iter()
+            .find(|result| result.document().uri().path().ends_with(entry))
+            .unwrap_or_else(|| panic!("expected `{entry}` analysis result"))
+            .document()
+            .clone()
+    }
+
+    /// Evaluates the named workflow and returns its outputs as JSON.
+    async fn evaluate_to_json(
+        document: &Document,
+        name: &str,
+        inputs: WorkflowInputs,
+        outputs_dir: &Path,
+    ) -> Result<serde_json::Value, String> {
+        let engine = Engine::new(Config::local()).await.unwrap();
+        let evaluator = engine.create_v1_evaluator(
+            Events::default(),
+            CancellationContext::default(),
+            ContainerImageOverrides::default(),
+        );
+
+        let outputs = evaluator
+            .evaluate_workflow(document, name, inputs, outputs_dir)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(serde_json::to_value(&outputs).expect("outputs should serialize"))
+    }
+
+    /// A library of callables used by the scope-merging import tests.
+    const SCOPE_MERGE_LIB: &str = r#"
+version 1.4
+
+struct Record {
+    Int value
+}
+
+enum Status {
+    Ready,
+    Done
+}
+
+task greet {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String message = "hello, ~{name}"
+    }
+}
+
+workflow sub {
+    input {
+        Int x
+    }
+
+    call greet { name = "sub-~{x}" }
+
+    output {
+        Int doubled = x * 2
+        String message = greet.message
+    }
+}
+"#;
+
+    #[tokio::test]
+    async fn it_evaluates_wildcard_import_task_and_workflow() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4_files(
+            root_dir.path(),
+            &[
+                ("lib.wdl", SCOPE_MERGE_LIB),
+                (
+                    "source.wdl",
+                    r#"
+version 1.4
+
+import * from "lib.wdl"
+
+workflow main {
+    call greet { name = "world" }
+    call sub { x = 21 }
+
+    output {
+        String greeting = greet.message
+        Int doubled = sub.doubled
+        String nested = sub.message
+    }
+}
+"#,
+                ),
+            ],
+            "source.wdl",
+        )
+        .await;
+        assert!(
+            !document.has_errors(),
+            "source should analyze without errors"
+        );
+
+        let outputs = evaluate_to_json(
+            &document,
+            "main",
+            WorkflowInputs::default(),
+            &root_dir.path().join("outputs"),
+        )
+        .await
+        .expect("failed to evaluate workflow");
+        assert_eq!(
+            outputs,
+            serde_json::json!({
+                "greeting": "hello, world",
+                "doubled": 42,
+                "nested": "hello, sub-21",
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_selected_import_with_renames_and_call_aliases() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let document = analyze_wdl_1_4_files(
+            root_dir.path(),
+            &[
+                ("lib.wdl", SCOPE_MERGE_LIB),
+                (
+                    "source.wdl",
+                    r#"
+version 1.4
+
+import { greet as say_hi, sub as run_sub } from "lib.wdl"
+
+workflow main {
+    call say_hi as hi { name = "alias" }
+    call run_sub as pipe { x = 5 }
+
+    output {
+        String greeting = hi.message
+        Int doubled = pipe.doubled
+        String nested = pipe.message
+    }
+}
+"#,
+                ),
+            ],
+            "source.wdl",
+        )
+        .await;
+        assert!(
+            !document.has_errors(),
+            "source should analyze without errors"
+        );
+
+        let outputs_dir = root_dir.path().join("outputs");
+        let outputs = evaluate_to_json(&document, "main", WorkflowInputs::default(), &outputs_dir)
+            .await
+            .expect("failed to evaluate workflow");
+        assert_eq!(
+            outputs,
+            serde_json::json!({
+                "greeting": "hello, alias",
+                "doubled": 10,
+                "nested": "hello, sub-5",
+            })
+        );
+
+        // Call directories are named after the call aliases
+        assert!(outputs_dir.join("calls/hi/outputs.json").is_file());
+        assert!(outputs_dir.join("calls/pipe/outputs.json").is_file());
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_transitively_reexported_callables_and_types() {
+        // Each case is `(mid.wdl import, source.wdl import, call prefix, task,
+        // workflow, struct, enum)`.
+        let cases = [
+            (
+                "import * from \"base.wdl\"",
+                "import * from \"mid.wdl\"",
+                "",
+                "greet",
+                "sub",
+                "Record",
+                "Status",
+            ),
+            (
+                "import { greet as say_hi, sub as run_sub, Record as Item, Status as Code } from \
+                 \"base.wdl\"",
+                "import * from \"mid.wdl\"",
+                "",
+                "say_hi",
+                "run_sub",
+                "Item",
+                "Code",
+            ),
+            (
+                "import * from \"base.wdl\"",
+                "import { greet as say_hi, sub as run_sub, Record as Item, Status as Code } from \
+                 \"mid.wdl\"",
+                "",
+                "say_hi",
+                "run_sub",
+                "Item",
+                "Code",
+            ),
+            (
+                "import { greet as g1, sub as s1, Record as R1, Status as S1 } from \"base.wdl\"",
+                "import { g1 as say_hi, s1 as run_sub, R1 as Item, S1 as Code } from \"mid.wdl\"",
+                "",
+                "say_hi",
+                "run_sub",
+                "Item",
+                "Code",
+            ),
+            (
+                "import { greet as say_hi, sub as run_sub, Record as Item, Status as Code } from \
+                 \"base.wdl\"",
+                "import \"mid.wdl\" as m",
+                "m.",
+                "say_hi",
+                "run_sub",
+                "Item",
+                "Code",
+            ),
+        ];
+
+        for (mid_import, source_import, prefix, task, workflow, record, status) in cases {
+            let root_dir = TempDir::new().expect("failed to create temporary directory");
+            let mid = format!("version 1.4\n\n{mid_import}\n\nstruct Marker {{ Int value }}\n");
+            let source = format!(
+                r#"
+version 1.4
+
+{source_import}
+
+workflow main {{
+    input {{
+        {record} rec = {record} {{ value: 3 }}
+        {status} initial = {status}.Ready
+    }}
+
+    call {prefix}{task} as hi {{ name = "transitive" }}
+    call {prefix}{workflow} as pipe {{ x = rec.value }}
+
+    output {{
+        String greeting = hi.message
+        Int doubled = pipe.doubled
+        String nested = pipe.message
+        Int value = rec.value
+        Boolean ready = initial == {status}.Ready
+        String done = "~{{{status}.Done}}"
+    }}
+}}
+"#
+            );
+
+            let document = analyze_wdl_1_4_files(
+                root_dir.path(),
+                &[
+                    ("base.wdl", SCOPE_MERGE_LIB),
+                    ("mid.wdl", &mid),
+                    ("source.wdl", &source),
+                ],
+                "source.wdl",
+            )
+            .await;
+            assert!(
+                !document.has_errors(),
+                "source should analyze without errors: {:?}\n{source}",
+                document
+                    .diagnostics()
+                    .map(|d| d.message().to_string())
+                    .collect::<Vec<_>>()
+            );
+
+            let outputs = evaluate_to_json(
+                &document,
+                "main",
+                WorkflowInputs::default(),
+                &root_dir.path().join("outputs"),
+            )
+            .await
+            .unwrap_or_else(|e| panic!("failed to evaluate workflow: {e}\n{source}"));
+            assert_eq!(
+                outputs,
+                serde_json::json!({
+                    "greeting": "hello, transitive",
+                    "doubled": 6,
+                    "nested": "hello, sub-3",
+                    "value": 3,
+                    "ready": true,
+                    "done": "Done",
+                }),
+                "unexpected outputs for {source}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_nested_imported_workflow_with_nested_inputs_and_files() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let wdl_dir = root_dir.path().join("wdl");
+        let document = analyze_wdl_1_4_files(
+            &wdl_dir,
+            &[
+                (
+                    "tasks/tasks.wdl",
+                    r#"
+version 1.4
+
+task count_lines {
+    input {
+        File infile
+        String label = "default"
+    }
+
+    command <<<
+        awk 'END { print NR }' '~{infile}'
+        echo '~{label}' > report.txt
+    >>>
+
+    output {
+        Int lines = read_int(stdout())
+        String tag = label
+        File report = "report.txt"
+    }
+}
+"#,
+                ),
+                (
+                    "lib/flows.wdl",
+                    r#"
+version 1.4
+
+import { count_lines as tally } from "../tasks/tasks.wdl"
+
+workflow process {
+    input {
+        File infile
+        File? notes
+        Boolean run_extra = true
+        String prefix = "flow"
+    }
+
+    call tally as primary { infile = infile }
+
+    if (run_extra) {
+        call tally as extra { infile = infile, label = prefix }
+    }
+
+    scatter (i in [1, 2]) {
+        call tally as fan { infile = infile, label = "~{prefix}-~{i}" }
+    }
+
+    output {
+        Int lines = primary.lines
+        String primary_tag = primary.tag
+        String primary_report = read_string(primary.report)
+        String? extra_tag = extra.tag
+        Array[String] fan_tags = fan.tag
+        String notes_text = read_string(select_first([notes, infile]))
+    }
+
+    hints {
+        allow_nested_inputs: true
+    }
+}
+"#,
+                ),
+                (
+                    "main.wdl",
+                    r#"
+version 1.4
+
+import { process as pipeline } from "lib/flows.wdl"
+import * from "tasks/tasks.wdl"
+
+workflow main {
+    input {
+        File infile
+        Boolean run_top = true
+    }
+
+    call pipeline as run { infile = infile }
+
+    if (run_top) {
+        call count_lines as top { infile = infile }
+    }
+
+    output {
+        Int lines = run.lines
+        String primary_tag = run.primary_tag
+        String primary_report = run.primary_report
+        String? extra_tag = run.extra_tag
+        Array[String] fan_tags = run.fan_tags
+        String notes_text = run.notes_text
+        Int? top_lines = top.lines
+        String? top_tag = top.tag
+    }
+
+    hints {
+        allow_nested_inputs: true
+    }
+}
+"#,
+                ),
+            ],
+            "main.wdl",
+        )
+        .await;
+        assert!(
+            !document.has_errors(),
+            "source should analyze without errors"
+        );
+
+        // Inputs live in a different directory than the WDL documents
+        let inputs_dir = root_dir.path().join("inputs");
+        fs::create_dir_all(inputs_dir.join("data")).expect("failed to create inputs directory");
+        fs::write(inputs_dir.join("data/input.txt"), "a\nb\nc\n")
+            .expect("failed to write input file");
+        fs::write(inputs_dir.join("data/notes.txt"), "some notes")
+            .expect("failed to write notes file");
+        let inputs_path = inputs_dir.join("inputs.json");
+        fs::write(
+            &inputs_path,
+            serde_json::json!({
+                "main.infile": "data/input.txt",
+                "main.top.label": "top-level",
+                "main.run.notes": "data/notes.txt",
+                "main.run.prefix": "custom",
+                "main.run.primary.label": "deep",
+            })
+            .to_string(),
+        )
+        .expect("failed to write inputs file");
+
+        let (name, inputs) = Inputs::parse(&document, &inputs_path)
+            .expect("failed to parse inputs")
+            .expect("inputs should not be empty");
+        assert_eq!(name, "main");
+
+        let workflow = document
+            .local_workflow_by_name(&name)
+            .expect("workflow should exist");
+        let mut inputs = inputs.unwrap_workflow_inputs();
+        let origin = EvaluationPath::from(inputs_dir.as_path());
+        inputs
+            .join_paths(&document, workflow, &|_| Ok(std::slice::from_ref(&origin)))
+            .await
+            .expect("failed to join input paths");
+        inputs
+            .validate(&document, workflow, None)
+            .expect("inputs should validate");
+
+        let outputs = evaluate_to_json(&document, &name, inputs, &root_dir.path().join("outputs"))
+            .await
+            .expect("failed to evaluate workflow");
+        assert_eq!(
+            outputs,
+            serde_json::json!({
+                "lines": 3,
+                "primary_tag": "deep",
+                "primary_report": "deep",
+                "extra_tag": "custom",
+                "fan_tags": ["custom-1", "custom-2"],
+                "notes_text": "some notes",
+                "top_lines": 3,
+                "top_tag": "top-level",
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn it_rejects_evaluation_when_scope_merged_import_has_errors() {
+        let lib = r#"
+version 1.4
+
+task broken {
+    command <<<>>>
+
+    output {
+        Int out = "not an int"
+    }
+}
+"#;
+
+        for import in [
+            "import * from \"lib.wdl\"",
+            "import { broken } from \"lib.wdl\"",
+            "import { broken as relay } from \"mid.wdl\"",
+        ] {
+            let root_dir = TempDir::new().expect("failed to create temporary directory");
+            let call = if import.contains("relay") {
+                "relay"
+            } else {
+                "broken"
+            };
+            let body =
+                format!("call {call}\n\n    output {{\n        Int out = {call}.out\n    }}");
+            let source = format!("version 1.4\n\n{import}\n\nworkflow main {{\n    {body}\n}}\n");
+            let document = analyze_wdl_1_4_files(
+                root_dir.path(),
+                &[
+                    ("lib.wdl", lib),
+                    (
+                        "mid.wdl",
+                        "version 1.4\n\nimport * from \"lib.wdl\"\n\nstruct Marker { Int value }\n",
+                    ),
+                    ("source.wdl", &source),
+                ],
+                "source.wdl",
+            )
+            .await;
+            assert!(
+                document
+                    .diagnostics()
+                    .all(|d| d.severity() != wdl_ast::Severity::Error),
+                "the importing document itself should have no errors"
+            );
+
+            let error = evaluate_to_json(
+                &document,
+                "main",
+                WorkflowInputs::default(),
+                &root_dir.path().join("outputs"),
+            )
+            .await
+            .expect_err("evaluation should fail");
+            assert_eq!(error, "cannot evaluate a document with errors", "{source}");
+        }
+    }
+
     #[tokio::test]
     async fn it_handles_conditional_with_different_variables() {
         let root_dir = TempDir::new().expect("failed to create temporary directory");

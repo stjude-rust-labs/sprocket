@@ -28,6 +28,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Updated the WDL 1.2+ `basename` and `size` documentation to describe the explicit `String` path
   overloads specified in [`openwdl/wdl#790`](https://github.com/openwdl/wdl/pull/790)
   ([#1391](https://github.com/stjude-rust-labs/sprocket/pull/1391)).
+* Wildcard imports (`import * from`) now preserve aliases for renamed imported tasks and workflows
+  instead of exposing their original names, and propagate imported structs and enums across
+  re-export chains ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
+* Selected imports (`import { ... } from`) can now import structs and enums brought into the source
+  document by a namespace import ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
+* Namespace-imported structs and enums now keep a reference to their defining document so
+  re-exported enum choices resolve, and expression-only references (such as `Code.Ready`) mark the
+  providing namespace import as used
+  ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
+* `Document::has_errors()` now visits every direct and transitive import once, including
+  `import * from` and `import { ... } from`, and cached imports refresh their dependency snapshots
+  after body-only edits. `AnalysisCache::exports_hash()` now also folds in the body hashes of
+  imports, so export changes invalidate downstream importers across multi-hop import chains
+  ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
+* Constructing a struct literal for an imported struct whose type could not be determined no longer
+  panics ([#1433](https://github.com/stjude-rust-labs/sprocket/pull/1433)).
 
 ## 0.28.1 - 2026-11-18
 

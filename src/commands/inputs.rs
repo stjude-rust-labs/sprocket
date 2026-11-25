@@ -378,48 +378,42 @@ impl InputProcessor {
         }
 
         if self.include_nested_inputs && analysis_wf.allows_nested_inputs() {
-            for (call_name, call) in analysis_wf.calls() {
+            // Sort the calls so that the output order is deterministic
+            let mut calls = analysis_wf.calls().iter().collect::<Vec<_>>();
+            calls.sort_by_key(|(name, _)| name.as_str());
+
+            for (call_name, call) in calls {
                 let namespace = namespace.clone().push(call_name);
 
                 match call.kind() {
                     CallKind::Task => {
-                        let name = call.name();
+                        let (document, name) = resolve_call(document, call)?;
                         let specified = call.specified();
 
-                        fn get_task_def(document: &Document, name: &str) -> Result<TaskDefinition> {
-                            let ast = document
-                                .root()
-                                .ast_with_version_fallback(document.config().fallback_version())
-                                .into_v1()
-                                .ok_or(anyhow!(
-                                    "non-v1 WDL document `{}` cannot be processed with this \
-                                     subcommand",
-                                    document.uri()
-                                ))?;
+                        let ast = document
+                            .root()
+                            .ast_with_version_fallback(document.config().fallback_version())
+                            .into_v1()
+                            .ok_or(anyhow!(
+                                "non-v1 WDL document `{}` cannot be processed with this subcommand",
+                                document.uri()
+                            ))?;
 
-                            Ok(ast
-                                .tasks()
-                                .find(|task| task.name().text() == name)
-                                .expect("referenced task to be present"))
-                        }
+                        let task = ast
+                            .tasks()
+                            .find(|task| task.name().text() == name)
+                            .with_context(|| {
+                                format!(
+                                    "task `{name}` was not found in the AST for document \
+                                     `{document}`",
+                                    document = document.uri()
+                                )
+                            })?;
 
-                        if let Some(ns) = call.namespace() {
-                            // The task was imported from another namespace.
-                            let document = document
-                                .namespace(ns)
-                                .expect("referenced namespace should be present")
-                                .document();
-
-                            let task = get_task_def(document, name)?;
-                            self.task(namespace, &task, specified);
-                        } else {
-                            // The task is in the current document.
-                            let task = get_task_def(document, name)?;
-                            self.task(namespace, &task, specified);
-                        }
+                        self.task(namespace, &task, specified);
                     }
                     CallKind::Workflow => {
-                        let (document, name) = resolve_workflow_call(document, call)?;
+                        let (document, name) = resolve_call(document, call)?;
                         let specified = call.specified();
 
                         let analysis_wf =
@@ -467,8 +461,9 @@ impl InputProcessor {
     }
 }
 
-/// Resolves a workflow call to its defining document and name.
-fn resolve_workflow_call<'a>(
+/// Resolves a call to the document defining its target and the target's name
+/// in that document.
+fn resolve_call<'a>(
     document: &'a Document,
     call: &'a wdl::analysis::types::CallType,
 ) -> Result<(&'a Document, &'a str)> {
@@ -480,10 +475,16 @@ fn resolve_workflow_call<'a>(
         None => document,
     };
 
-    Ok(base
-        .imported_workflow_by_name(call.name())
-        .map(|workflow| (workflow.document(), workflow.name()))
-        .unwrap_or((base, call.name())))
+    Ok(match call.kind() {
+        CallKind::Task => base
+            .imported_task_by_name(call.name())
+            .map(|task| (task.document(), task.name()))
+            .unwrap_or((base, call.name())),
+        CallKind::Workflow => base
+            .imported_workflow_by_name(call.name())
+            .map(|workflow| (workflow.document(), workflow.name()))
+            .unwrap_or((base, call.name())),
+    })
 }
 
 /// Displays the input schema for a WDL document.

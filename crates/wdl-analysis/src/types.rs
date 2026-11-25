@@ -1128,6 +1128,11 @@ struct StructTypeInner {
 pub struct StructType(Arc<StructTypeInner>);
 
 impl StructType {
+    /// Determines if two struct types share the same underlying definition.
+    pub(crate) fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
     /// Constructs a new struct type definition.
     pub fn new<N, T>(name: impl Into<String>, members: impl IntoIterator<Item = (N, T)>) -> Self
     where
@@ -1144,6 +1149,9 @@ impl StructType {
     }
 
     /// Gets the name of the struct.
+    ///
+    /// This is always the name of the source definition, not any local import
+    /// alias.
     pub fn name(&self) -> &Arc<String> {
         &self.0.name
     }
@@ -1217,6 +1225,11 @@ struct EnumTypeInner {
 pub struct EnumType(Arc<EnumTypeInner>);
 
 impl EnumType {
+    /// Determines if two enum types share the same underlying definition.
+    pub(crate) fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
     /// Constructs a new enum type with a known coerced type.
     ///
     /// Validates that all choice types are coercible to the provided type.
@@ -1303,6 +1316,9 @@ impl EnumType {
     }
 
     /// Gets the name of the enum.
+    ///
+    /// This is always the name of the source definition, not any local import
+    /// alias.
     pub fn name(&self) -> &str {
         &self.0.name
     }
