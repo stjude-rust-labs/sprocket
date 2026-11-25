@@ -25,6 +25,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `textDocument/definition` requests on re-exported structs/enums will now resolve the defining
   document, rather than the exporting document
   ([#1410](https://github.com/stjude-rust-labs/sprocket/pull/1410)).
+* `textDocument/definition` requests on imported task/workflow inputs and outputs will now resolve
+  the defining document ([#1414](https://github.com/stjude-rust-labs/sprocket/pull/1414)).
 
 ## 0.25.0 - 2026-10-29
 
