@@ -29,6 +29,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   statements, rather than using the five-second default during initialization
   ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).
 
+### Fixed
+
+* `sprocket test` now warns about unknown fields in test YAML and runs the affected test with its
+  recognized fields instead of silently skipping it and exiting successfully.
+
 ## 0.34.1 - 2026-11-18
 
 ### Security Fix

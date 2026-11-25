@@ -9,3 +9,10 @@ warning: unknown field `some_unknown_field`
   │
 3 │     some_unknown_field: true
   │     ^^^^^^^^^^^^^^^^^^
+
+error: see `_TEMP_DIR_/test/runs/_UUID_/say_hello/it_says_hello/1`
+
+Caused by:
+    0: foo::say_hello::it_says_hello #1 failed output assertions
+    1: evaluating WDL output with name `number`
+    2: output `1` does not equal assertion `2`

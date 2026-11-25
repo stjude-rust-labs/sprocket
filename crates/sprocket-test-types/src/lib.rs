@@ -113,7 +113,8 @@ impl DocumentTests {
                     .as_ref()
                     .map(|name| name.value.clone());
                 match TestDefinition::parse(definition_val) {
-                    Ok(test_definition) => {
+                    Ok((test_definition, warnings)) => {
+                        diagnostics.extend(warnings);
                         // SAFETY: The parse would fail if no name was provided
                         let name_span = name_span.unwrap();
                         if definition_names.insert(name_span.clone()) {
@@ -209,7 +210,7 @@ spanned_fields! {
 impl TestDefinition {
     /// Attempt to parse a [`TestDefinition`] within the given callable
     /// `target`.
-    fn parse(raw: Spanned<RawTestDefinition>) -> Result<Self, Diagnostics> {
+    fn parse(raw: Spanned<RawTestDefinition>) -> Result<(Self, Diagnostics), Diagnostics> {
         let mut diagnostics = Diagnostics::default();
 
         let parsed_name = match raw.0.value.name {
@@ -250,18 +251,12 @@ impl TestDefinition {
             },
             None => InputMatrix::default(),
         };
-        let parsed_assertions = {
-            match raw.0.value.assertions {
-                Some(assertions) => match Assertions::parse(assertions.value) {
-                    Ok(assertions) => assertions,
-                    Err(d) => {
-                        diagnostics.extend(d);
-                        Assertions::default()
-                    }
-                },
-                _ => Assertions::default(),
-            }
-        };
+        let parsed_assertions = raw
+            .0
+            .value
+            .assertions
+            .map(|assertions| Assertions::parse(assertions.value, &mut diagnostics))
+            .unwrap_or_default();
 
         for (unknown, _) in raw.0.value.unknown_fields {
             diagnostics.add(unknown_field(unknown.0.defined.span(), &unknown.0.value));
@@ -275,15 +270,18 @@ impl TestDefinition {
             return Err(diagnostics);
         };
 
-        if diagnostics.is_empty() {
-            Ok(Self {
-                name,
-                tags: parsed_tags,
-                inputs: parsed_inputs,
-                assertions: parsed_assertions,
-            })
-        } else {
+        if diagnostics.has_errors() {
             Err(diagnostics)
+        } else {
+            Ok((
+                Self {
+                    name,
+                    tags: parsed_tags,
+                    inputs: parsed_inputs,
+                    assertions: parsed_assertions,
+                },
+                diagnostics,
+            ))
         }
     }
 }

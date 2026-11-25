@@ -1,7 +1,7 @@
 version 1.3
 
-task say_hello {
-    command <<<
-        echo "Hello, world!"
-    >>>
+workflow say_hello {
+    output {
+        Int number = 1
+    }
 }
