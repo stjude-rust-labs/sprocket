@@ -962,6 +962,22 @@ impl Value {
             _ => None,
         }
     }
+
+    /// Resolves relative `String` values that will coerce to `File` or
+    /// `Directory` against `base_dir` while leaving all other values (including
+    /// `File`/`Directory` values headed for `String` inputs) unchanged.
+    ///
+    /// Used at workflow call sites so relative `String` arguments resolve
+    /// against the calling workflow's document while full coercion (including
+    /// container guest-path translation and enum lookup) still runs in the call
+    /// target's context.
+    pub(crate) fn resolve_relative_paths(&self, target: &Type, base_dir: &EvaluationPath) -> Self {
+        match self {
+            Self::Primitive(v) => Self::Primitive(v.resolve_relative_path(target, base_dir)),
+            Self::Compound(v) => Self::Compound(v.resolve_relative_paths(target, base_dir)),
+            _ => self.clone(),
+        }
+    }
 }
 
 impl fmt::Display for Value {
@@ -1557,6 +1573,22 @@ impl PrimitiveValue {
             context,
         }
     }
+
+    /// Resolves a relative `String` path against `base_dir` when `target` is
+    /// `File` or `Directory`, keeping the value as a `String`.
+    fn resolve_relative_path(&self, target: &Type, base_dir: &EvaluationPath) -> Self {
+        if let Self::String(s) = self
+            && matches!(
+                target.as_primitive(),
+                Some(PrimitiveType::File | PrimitiveType::Directory)
+            )
+            && let Some(resolved) = base_dir.resolve_relative(s)
+        {
+            return Self::String(resolved.into());
+        }
+
+        self.clone()
+    }
 }
 
 impl fmt::Display for PrimitiveValue {
@@ -1705,13 +1737,19 @@ impl Coercible for PrimitiveValue {
                     // String -> File
                     PrimitiveType::File => Ok(Self::File(
                         context
-                            .and_then(|c| c.host_path(&GuestPath(s.clone())))
+                            .and_then(|c| {
+                                c.host_path(&GuestPath(s.clone()))
+                                    .or_else(|| c.resolve_path(s))
+                            })
                             .unwrap_or_else(|| s.clone().into()),
                     )),
                     // String -> Directory
                     PrimitiveType::Directory => Ok(Self::Directory(
                         context
-                            .and_then(|c| c.host_path(&GuestPath(s.clone())))
+                            .and_then(|c| {
+                                c.host_path(&GuestPath(s.clone()))
+                                    .or_else(|| c.resolve_path(s))
+                            })
                             .unwrap_or_else(|| s.clone().into()),
                     )),
                     // String -> Int
@@ -2874,6 +2912,141 @@ impl CompoundValue {
             }
         }
         .boxed()
+    }
+
+    /// Recursively resolves relative `String` values headed for `File` or
+    /// `Directory` positions in `target` against `base_dir`.
+    fn resolve_relative_paths(&self, target: &Type, base_dir: &EvaluationPath) -> Self {
+        let Type::Compound(target_ty, _) = target else {
+            return self.clone();
+        };
+
+        match (self, target_ty) {
+            (Self::Array(array), CompoundType::Array(target_ty)) => {
+                let elem_ty = target_ty.element_type();
+                let elements = array
+                    .as_slice()
+                    .iter()
+                    .map(|v| v.resolve_relative_paths(elem_ty, base_dir))
+                    .collect();
+                Self::Array(Array::new_unchecked(array.ty(), elements))
+            }
+            (Self::Pair(pair), CompoundType::Pair(target_ty)) => Self::Pair(Pair::new_unchecked(
+                pair.ty(),
+                pair.left()
+                    .resolve_relative_paths(target_ty.left_type(), base_dir),
+                pair.right()
+                    .resolve_relative_paths(target_ty.right_type(), base_dir),
+            )),
+            (Self::Map(map), CompoundType::Map(target_ty)) => {
+                let key_ty = target_ty.key_type();
+                let value_ty = target_ty.value_type();
+                let entries = map
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.resolve_relative_path(key_ty, base_dir),
+                            v.resolve_relative_paths(value_ty, base_dir),
+                        )
+                    })
+                    .collect();
+                Self::Map(Map::new_unchecked(map.ty(), entries))
+            }
+            (Self::Map(map), CompoundType::Custom(CustomType::Struct(struct_ty))) => {
+                let entries =
+                    map.iter()
+                        .map(|(k, v)| {
+                            let member_ty =
+                                k.coerce(None, &PrimitiveType::String.into()).ok().and_then(
+                                    |name| struct_ty.members().get(name.unwrap_string().as_str()),
+                                );
+                            let v = match member_ty {
+                                Some(ty) => v.resolve_relative_paths(ty, base_dir),
+                                None => v.clone(),
+                            };
+                            (k.clone(), v)
+                        })
+                        .collect();
+                Self::Map(Map::new_unchecked(map.ty(), entries))
+            }
+            (Self::Object(object), CompoundType::Custom(CustomType::Struct(struct_ty))) => {
+                let members = object
+                    .iter()
+                    .map(|(k, v)| {
+                        let v = match struct_ty.members().get(k) {
+                            Some(ty) => v.resolve_relative_paths(ty, base_dir),
+                            None => v.clone(),
+                        };
+                        (k.to_string(), v)
+                    })
+                    .collect();
+                Self::Object(Object::new(members))
+            }
+            (Self::Struct(s), CompoundType::Custom(CustomType::Struct(struct_ty))) => {
+                let members: IndexMap<_, _> = s
+                    .iter()
+                    .map(|(k, v)| {
+                        let v = match struct_ty.members().get(k) {
+                            Some(ty) => v.resolve_relative_paths(ty, base_dir),
+                            None => v.clone(),
+                        };
+                        (k.to_string(), v)
+                    })
+                    .collect();
+                Self::Struct(Struct::new_unchecked(s.ty(), s.name().clone(), members))
+            }
+            (Self::Object(object), CompoundType::Map(map_ty)) => {
+                let resolve_keys = matches!(
+                    map_ty.key_type().as_primitive(),
+                    Some(PrimitiveType::File | PrimitiveType::Directory)
+                );
+                let value_ty = map_ty.value_type();
+                let members = object
+                    .iter()
+                    .map(|(k, v)| {
+                        let k = if resolve_keys {
+                            base_dir
+                                .resolve_relative(k)
+                                .map(|p| p.as_str().to_owned())
+                                .unwrap_or_else(|| k.to_string())
+                        } else {
+                            k.to_string()
+                        };
+                        (k, v.resolve_relative_paths(value_ty, base_dir))
+                    })
+                    .collect();
+                Self::Object(Object::new(members))
+            }
+            (Self::Struct(s), CompoundType::Map(map_ty)) => {
+                let resolve_keys = matches!(
+                    map_ty.key_type().as_primitive(),
+                    Some(PrimitiveType::File | PrimitiveType::Directory)
+                );
+                let value_ty = map_ty.value_type();
+                if resolve_keys {
+                    // Coercing `Object` to `Map` follows the same rules as
+                    // `Struct` to `Map`, while allowing resolved path keys.
+                    let members = s
+                        .iter()
+                        .map(|(k, v)| {
+                            let k = base_dir
+                                .resolve_relative(k)
+                                .map(|p| p.as_str().to_owned())
+                                .unwrap_or_else(|| k.to_string());
+                            (k, v.resolve_relative_paths(value_ty, base_dir))
+                        })
+                        .collect();
+                    Self::Object(Object::new(members))
+                } else {
+                    let members: IndexMap<_, _> = s
+                        .iter()
+                        .map(|(k, v)| (k.to_string(), v.resolve_relative_paths(value_ty, base_dir)))
+                        .collect();
+                    Self::Struct(Struct::new_unchecked(s.ty(), s.name().clone(), members))
+                }
+            }
+            _ => self.clone(),
+        }
     }
 }
 
@@ -5132,6 +5305,77 @@ mod tests {
                 .resolve_paths(false, true, None, None, &translate)
                 .await
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn resolve_relative_paths_targets_only_string_to_path_positions() {
+        let base_dir: EvaluationPath = "https://example.com/caller/".parse().unwrap();
+
+        // String -> File resolves against caller base_dir while staying String.
+        let resolved = Value::from(PrimitiveValue::new_string("data/a.txt"))
+            .resolve_relative_paths(&PrimitiveType::File.into(), &base_dir);
+        assert_eq!(
+            resolved.as_string().expect("should remain string").as_str(),
+            "https://example.com/caller/data/a.txt"
+        );
+
+        // File -> String is left untouched as File so callee coercion handles
+        // container guest-path translation.
+        let file = Value::from(PrimitiveValue::new_file("/host/a.txt"));
+        let untouched = file.resolve_relative_paths(&PrimitiveType::String.into(), &base_dir);
+        assert_eq!(
+            untouched.as_file().expect("should remain file").as_str(),
+            "/host/a.txt"
+        );
+
+        // Pair[String, File] -> Pair[File, String] resolves left and preserves
+        // right as File.
+        let pair_val = Value::from(Pair::new_unchecked(
+            PairType::new(PrimitiveType::String, PrimitiveType::File),
+            PrimitiveValue::new_string("rel.txt").into(),
+            PrimitiveValue::new_file("/host/b.txt").into(),
+        ));
+        let target_pair = PairType::new(PrimitiveType::File, PrimitiveType::String).into();
+        let resolved_pair = pair_val.resolve_relative_paths(&target_pair, &base_dir);
+        let pair = resolved_pair.as_pair().expect("should remain pair");
+        assert_eq!(
+            pair.left()
+                .as_string()
+                .expect("left should remain string")
+                .as_str(),
+            "https://example.com/caller/rel.txt"
+        );
+        assert_eq!(
+            pair.right()
+                .as_file()
+                .expect("right should remain file")
+                .as_str(),
+            "/host/b.txt"
+        );
+
+        // Map[File, String] -> Struct { File sample } matches member via key
+        // coercion to String and resolves the member value.
+        let struct_ty: Type = StructType::new("S", [("sample", PrimitiveType::File)]).into();
+        let map_val = Value::from(Map::new_unchecked(
+            MapType::new(PrimitiveType::File, PrimitiveType::String),
+            [(
+                PrimitiveValue::new_file("sample"),
+                PrimitiveValue::new_string("sub/x.txt").into(),
+            )]
+            .into_iter()
+            .collect(),
+        ));
+        let resolved_map = map_val.resolve_relative_paths(&struct_ty, &base_dir);
+        let (_, val) = resolved_map
+            .as_map()
+            .expect("should remain map")
+            .iter()
+            .next()
+            .expect("should have entry");
+        assert_eq!(
+            val.as_string().expect("should remain string").as_str(),
+            "https://example.com/caller/sub/x.txt"
         );
     }
 }

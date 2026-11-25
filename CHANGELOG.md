@@ -28,6 +28,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * SQLite connections now apply the 30-second lock-wait timeout before running initialization
   statements, rather than using the five-second default during initialization
   ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).
+* Relative `File` and `Directory` paths in workflows now resolve against the directory of the
+  document that contains the expression, as described in
+  [`openwdl/wdl#788`](https://github.com/openwdl/wdl/pull/788). Paths passed to an imported task or
+  workflow are no longer resolved against the imported document
+  ([#1428](https://github.com/stjude-rust-labs/sprocket/pull/1428)).
 
 ## 0.34.1 - 2026-11-18
 
