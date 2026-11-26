@@ -19,6 +19,8 @@ website <https://sprocket.bio/python-bindings.html>`_.
    api/grammar/grammar
    api/grammar/parser
    api/grammar/version
+   api/ast/index
+   api/ast/v1
 
 .. toctree::
    :caption: Examples
