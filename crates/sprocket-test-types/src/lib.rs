@@ -181,6 +181,7 @@ impl DocumentTests {
 #[derive(Clone, Debug, JsonSchema)]
 pub struct TestDefinition {
     /// Name for the test.
+    #[schemars(length(min = 1), extend("not" = {"pattern": "[^A-Za-z0-9_-]"}))]
     pub name: Spanned<String>,
     /// Any tags associated with the test.
     #[schemars(default)]
@@ -221,6 +222,21 @@ impl TestDefinition {
                     );
                     return Err(diagnostics);
                 };
+                if name.is_empty()
+                    || !name
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+                {
+                    diagnostics.add(
+                        Diagnostic::error("invalid test name")
+                            .with_highlight(convert_yaml_span(raw_name.value.0.defined.span()))
+                            .with_help(
+                                "test names must be nonempty and contain only ASCII letters, \
+                                 digits, '-' or '_'",
+                            ),
+                    );
+                    return Err(diagnostics);
+                }
                 Some(Spanned(serde_saphyr::Spanned {
                     value: name,
                     defined: raw_name.value.0.defined,
@@ -345,6 +361,81 @@ mod tests {
         assert!(
             !failed,
             "the generated schema does not match the current `TestDefinition` spec!"
+        );
+    }
+
+    #[test]
+    fn test_name_validation_matches_schema() {
+        let schema = serde_json::to_value(schema_for!(DocumentTests)).unwrap();
+        let validator = jsonschema::draft202012::new(&schema).unwrap();
+        for (names, valid) in [
+            (
+                vec![
+                    "abc",
+                    "ABC_123-x",
+                    "_",
+                    "-",
+                    "123",
+                    "Foo",
+                    "foo",
+                    "CON",
+                    "NUL",
+                ],
+                true,
+            ),
+            (
+                vec![
+                    "",
+                    ".",
+                    "..",
+                    "/tmp/x",
+                    "../x",
+                    "a/b",
+                    "a\\b",
+                    "C:\\x",
+                    "two words",
+                    " ",
+                    "a\t",
+                    "a\n",
+                    "a\r\n",
+                    "é",
+                    "测试",
+                ],
+                false,
+            ),
+        ] {
+            for name in names {
+                let source = format!(
+                    "main:\n  - name: {}\n",
+                    serde_json::to_string(name).unwrap()
+                );
+                let parsed = DocumentTests::parse(&source);
+                assert_eq!(parsed.is_ok(), valid, "parser: {name:?}");
+                let config = serde_json::json!({"main": [{"name": name}]});
+                assert_eq!(validator.is_valid(&config), valid, "schema: {name:?}");
+                match parsed {
+                    Ok((document, diagnostics)) => {
+                        assert!(diagnostics.is_empty());
+                        assert_eq!(
+                            document.targets.values().next().unwrap()[0].name.0.value,
+                            name
+                        );
+                    }
+                    Err(diagnostics) => assert!(diagnostics.has_errors(), "{name:?}"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_test_name_rejects_document_with_valid_tests() {
+        let source = "main:\n  - name: valid\n  - name: \"../escape\"\n";
+        let diagnostics = DocumentTests::parse(source).unwrap_err();
+        let diagnostic = diagnostics.iter().next().unwrap();
+        assert!(diagnostic.severity().is_error());
+        assert_eq!(
+            diagnostic.labels().next().unwrap().span(),
+            Span::new(source.find("\"../escape\"").unwrap(), "\"../escape\"".len()),
         );
     }
 }

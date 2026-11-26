@@ -1,0 +1,6 @@
+alpha:
+  - name: basic
+    assertions:
+      outputs:
+        value:
+          - IntEquals: 1

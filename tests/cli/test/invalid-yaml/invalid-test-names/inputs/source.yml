@@ -1,0 +1,4 @@
+main:
+  - name: "../../../../outside-runs"
+  - name: 'nested\case'
+  - name: 'C:\outside-runs'

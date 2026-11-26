@@ -166,6 +166,37 @@ async fn should_handle_change_notifications() {
         })
         .unwrap();
 
+    let response = code_lens_request(&mut ctx, "example.yaml")
+        .await
+        .expect("request should succeed");
+    assert!(
+        response.is_none(),
+        "invalid test name should not produce code lenses"
+    );
+
+    ctx.server
+        .notify::<DidChangeTextDocument>(DidChangeTextDocumentParams {
+            text_document: VersionedTextDocumentIdentifier {
+                uri: ctx.doc_uri("example.yaml"),
+                version: 2,
+            },
+            content_changes: vec![TextDocumentContentChangeEvent {
+                range: Some(Range {
+                    start: Position {
+                        line: 1,
+                        character: 28,
+                    },
+                    end: Position {
+                        line: 1,
+                        character: 30,
+                    },
+                }),
+                range_length: None,
+                text: String::new(),
+            }],
+        })
+        .unwrap();
+
     let Some(response) = code_lens_request(&mut ctx, "example.yaml")
         .await
         .expect("request should succeed")
@@ -204,16 +235,16 @@ async fn should_handle_change_notifications() {
                 },
                 end: Position {
                     line: 1,
-                    character: 30,
+                    character: 28,
                 },
             },
             command: Some(Command {
-                title: "Run test 'switching_up_again🚀'".to_string(),
+                title: "Run test 'switching_up_again'".to_string(),
                 command: String::from("sprocket.testSingle"),
                 arguments: Some(vec![
                     ctx.doc_uri("example.wdl").to_string().into(),
                     "say_hello".into(),
-                    "switching_up_again🚀".into(),
+                    "switching_up_again".into(),
                 ]),
             }),
             data: None,

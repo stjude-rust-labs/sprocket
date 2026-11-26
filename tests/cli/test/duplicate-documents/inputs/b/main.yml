@@ -1,0 +1,6 @@
+beta:
+  - name: basic
+    assertions:
+      outputs:
+        value:
+          - IntEquals: 2

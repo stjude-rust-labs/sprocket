@@ -1,5 +1,5 @@
 say_hello:
-  - name: custom assertions
+  - name: custom_assertions
     inputs:
       $group:
         one:

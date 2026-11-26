@@ -28,6 +28,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * SQLite connections now apply the 30-second lock-wait timeout before running initialization
   statements, rather than using the five-second default during initialization
   ([#1426](https://github.com/stjude-rust-labs/sprocket/pull/1426)).
+* Test names must contain only ASCII letters, digits, hyphens, and underscores, and cannot be empty.
+
+### Fixed
+
+* Isolated `sprocket test` execution directories and results for each document and test, fixing
+  collisions between WDL files with the same basename
+  ([#1373](https://github.com/stjude-rust-labs/sprocket/issues/1373)).
 
 ## 0.34.1 - 2026-11-18
 

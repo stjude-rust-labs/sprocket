@@ -1,5 +1,5 @@
 say_hello:
-  - name: unequal lengths
+  - name: unequal_lengths
     inputs:
       $group:
         one:
@@ -9,7 +9,7 @@ say_hello:
           - baz
       three:
         - doesn't matter
-  - name: repeated key
+  - name: repeated_key
     inputs:
       $group:
         one:
@@ -20,7 +20,7 @@ say_hello:
           - baq
       one:
         - repeated!
-  - name: scalar instead of sequence
+  - name: scalar_instead_of_sequence
     inputs:
       one: this is wrong
       two:

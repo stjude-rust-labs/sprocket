@@ -403,6 +403,7 @@ enum RunResult {
 
 #[derive(Debug)]
 struct TestIdentifier {
+    doc_id: Arc<String>,
     doc_name: Arc<str>,
     target: Arc<str>,
     test_name: Arc<str>,
@@ -595,10 +596,19 @@ enum IterationResult {
     Fail(anyhow::Error),
 }
 
-type TestResults = Vec<Result<IterationResult>>;
+struct TestResults {
+    run_root: Arc<Path>,
+    iterations: Vec<Result<IterationResult>>,
+}
+
 type TargetResults = IndexMap<Arc<str>, TestResults>;
-type DocumentResults = IndexMap<Arc<str>, TargetResults>;
-type FullResults = IndexMap<Arc<str>, DocumentResults>;
+
+struct DocumentResults {
+    name: Arc<str>,
+    targets: IndexMap<Arc<str>, TargetResults>,
+}
+
+type FullResults = IndexMap<Arc<String>, DocumentResults>;
 
 /// An individual test iteration.
 #[derive(Debug)]
@@ -836,6 +846,7 @@ impl Runner {
         tasks: &mut Vec<TestTask>,
     ) -> Result<()> {
         let wdl_document = analysis.document();
+        let doc_id = wdl_document.id().clone();
         let doc_name: Arc<str> = Path::new(&*wdl_document.path())
             .with_extension("")
             .file_name()
@@ -860,9 +871,16 @@ impl Runner {
                 let is_workflow = callable.is_workflow();
 
                 let test_name: Arc<str> = test.name.0.value.into();
-                let run_root: Arc<Path> = self.root.join(&*target).join(&*test_name).into();
+                let run_root: Arc<Path> = self.root.join(Uuid::new_v4().to_string()).into();
+                create_run_dir(&run_root)?;
 
-                target_results.insert(test_name.clone(), Vec::new());
+                target_results.insert(
+                    test_name.clone(),
+                    TestResults {
+                        run_root: run_root.clone(),
+                        iterations: Vec::new(),
+                    },
+                );
                 let assertions = Arc::new(test.assertions);
                 for (test_num, run_inputs) in test.inputs.cartesian_product().enumerate() {
                     let test_num = test_num + 1; // start count at 1
@@ -912,6 +930,7 @@ impl Runner {
 
                     tasks.push(TestTask {
                         id: TestIdentifier {
+                            doc_id: doc_id.clone(),
                             doc_name: doc_name.clone(),
                             target: target.clone(),
                             test_name: test_name.clone(),
@@ -926,7 +945,13 @@ impl Runner {
             }
             document_results.insert(target.clone(), target_results);
         }
-        all_results.insert(doc_name, document_results);
+        all_results.insert(
+            doc_id,
+            DocumentResults {
+                name: doc_name,
+                targets: document_results,
+            },
+        );
 
         Ok(())
     }
@@ -945,8 +970,9 @@ impl Runner {
 
         let test_iteration = result.context("joining futures")?;
         let test_results = all_results
-            .get_mut(&*test_iteration.id.doc_name)
+            .get_mut(&test_iteration.id.doc_id)
             .expect("document should exist")
+            .targets
             .get_mut(&*test_iteration.id.target)
             .expect("target should exist")
             .get_mut(&*test_iteration.id.test_name)
@@ -961,7 +987,7 @@ impl Runner {
                 self.output,
             )
             .await;
-        test_results.push(evaluation);
+        test_results.iterations.push(evaluation);
 
         Ok(())
     }
@@ -1035,7 +1061,6 @@ impl Runner {
 
 async fn summarize_results(
     results: FullResults,
-    root: &Path,
     clean: bool,
     errors: &mut Vec<Arc<anyhow::Error>>,
     output: CommandOutput,
@@ -1044,15 +1069,15 @@ async fn summarize_results(
     output.blank();
 
     let mut any_results = false;
-    for (document_name, target_results) in results {
-        for (target_name, results) in target_results {
-            let target_dir = root.join(&*target_name);
+    for document in results.into_values() {
+        let document_name = document.name;
+        for (target_name, results) in document.targets {
             for (test_name, test_results) in results {
                 let mut success_counter = 0usize;
                 let mut fail_counter = 0usize;
                 let mut err_counter = 0usize;
 
-                for result in test_results {
+                for result in test_results.iterations {
                     any_results = true;
                     match result {
                         Ok(IterationResult::Success) => {
@@ -1068,9 +1093,8 @@ async fn summarize_results(
                         }
                     }
                 }
-                if clean && err_counter == 0 && fail_counter == 0 {
-                    let test_dir = target_dir.join(&*test_name);
-                    let _ = remove_dir_all(&test_dir).await;
+                if clean && success_counter > 0 && err_counter == 0 && fail_counter == 0 {
+                    let _ = remove_dir_all(&test_results.run_root).await;
                 }
                 let id = format!("{document_name}::{target_name}::{test_name}");
                 if err_counter > 0 {
@@ -1101,13 +1125,23 @@ async fn summarize_results(
                     );
                 }
             }
-            // If the target directory is empty, remove it; otherwise leave it.
-            let _ = remove_dir(root.join(&*target_name));
         }
     }
     if !any_results {
         output.skipped("test execution because no runnable tests were found")
     }
+}
+
+fn create_run_root(path: &Path) -> Result<()> {
+    let parent = path.parent().context("test run directory has no parent")?;
+    std::fs::create_dir_all(parent)
+        .with_context(|| format!("creating test run directory `{}`", parent.display()))?;
+    create_run_dir(path)
+}
+
+fn create_run_dir(path: &Path) -> Result<()> {
+    std::fs::create_dir(path)
+        .with_context(|| format!("creating test run directory `{}`", path.display()))
 }
 
 fn resolve_test_paths(
@@ -1471,6 +1505,7 @@ pub async fn test(
     let engine = Engine::new(engine_config)
         .await
         .context("failed to create WDL evaluation engine")?;
+    create_run_root(&run_dir)?;
     let cancellation = CancellationContext::new(FailureMode::Fast);
     let runner = Runner {
         root: run_dir,
@@ -1540,7 +1575,6 @@ pub async fn test(
                         if !cancellation.user_canceled() {
                             summarize_results(
                                 results,
-                                &runner.root,
                                 !args.no_clean,
                                 &mut errors,
                                 output,
@@ -1574,6 +1608,207 @@ pub async fn test(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    async fn local_runner(root: PathBuf) -> Result<Runner> {
+        create_run_root(&root)?;
+        let mut config = Config::default().run.engine;
+        config.backends.insert(
+            "default".into(),
+            wdl::engine::config::BackendConfig::Local {
+                config: Default::default(),
+            },
+        );
+        Ok(Runner {
+            fixtures: Arc::new(EvaluationPath::from(root.as_path())),
+            root,
+            executables: None,
+            engine: Engine::new(config).await?,
+            status_bar: StatusBar::disabled(),
+            stdout: Stdout::Stdout,
+            output: CommandOutput::new(false),
+            permits: 2,
+            throttle: 0,
+            cancellation: CancellationContext::new(FailureMode::Fast),
+        })
+    }
+
+    #[tokio::test]
+    async fn document_results_and_directories_are_isolated() -> Result<()> {
+        for (filenames, targets) in [
+            (["a/main.wdl", "b/main.wdl"], ["alpha", "beta"]),
+            (["a/main.wdl", "b/main.wdl"], ["same", "same"]),
+            (["alpha.wdl", "beta.wdl"], ["same", "same"]),
+        ] {
+            let workspace = tempfile::tempdir()?;
+            for (index, (filename, target)) in filenames.iter().zip(targets).enumerate() {
+                let path = workspace.path().join(filename);
+                std::fs::create_dir_all(path.parent().unwrap())?;
+                std::fs::write(
+                    path,
+                    format!(
+                        "version 1.2\nworkflow {target} {{ output {{ Int value = {index} }} }}\n"
+                    ),
+                )?;
+            }
+            let source = Source::Directory(workspace.path().to_path_buf());
+            let analysis = Analysis::default()
+                .add_source(source.clone())
+                .run(wdl::diagnostics::Mode::Full, false)
+                .await
+                .map_err(|e| anyhow!("{e:?}"))?;
+            let documents: Vec<_> = analysis
+                .filter(&[&source])
+                .map(|result| {
+                    let target = result.document().local_workflows().next().unwrap().name();
+                    let yaml = format!(
+                        "{target}:\n  - name: basic\n  - name: BASIC\n  - name: CON\n  - name: \
+                         NUL\n"
+                    );
+                    let (tests, _) = DocumentTests::parse(&yaml).unwrap();
+                    tests.validate(result.document()).unwrap();
+                    (result, tests)
+                })
+                .collect();
+            let runner = local_runner(workspace.path().join("runs").join("invocation")).await?;
+            let mut errors = Vec::new();
+            let results = runner
+                .run(
+                    documents,
+                    |_, _| false,
+                    false,
+                    true,
+                    &mut errors,
+                    LockFile::default(),
+                )
+                .await?;
+            assert!(errors.is_empty());
+            assert_eq!(results.len(), 2);
+            let outputs: Vec<_> = walkdir::WalkDir::new(&runner.root)
+                .into_iter()
+                .map(|entry| entry.unwrap())
+                .filter(|entry| entry.file_name() == "outputs.json")
+                .map(|entry| {
+                    serde_json::from_str::<JsonValue>(
+                        &std::fs::read_to_string(entry.path()).unwrap(),
+                    )
+                    .unwrap()["value"]
+                        .as_i64()
+                        .unwrap()
+                })
+                .collect();
+            assert_eq!(outputs.len(), 8);
+            assert_eq!(outputs.iter().filter(|value| **value == 0).count(), 4);
+            assert_eq!(outputs.iter().filter(|value| **value == 1).count(), 4);
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn cleanup_uses_allocated_directories_and_preserves_failures() -> Result<()> {
+        for (clean, outcomes, retained) in [
+            (true, vec![Some(true)], false),
+            (false, vec![Some(true)], true),
+            (true, vec![Some(false)], true),
+            (true, vec![Some(true), Some(false)], true),
+            (true, vec![None], true),
+            (true, vec![Some(true), None], true),
+            (true, vec![], true),
+        ] {
+            let workspace = tempfile::tempdir()?;
+            let root = workspace.path().join("invocation");
+            create_run_dir(&root)?;
+            let test_root = root.join(Uuid::new_v4().to_string());
+            create_run_dir(&test_root)?;
+            let other_root = workspace.path().join("other-invocation");
+            create_run_root(&other_root)?;
+            let sentinel = other_root.join("sentinel");
+            std::fs::write(&sentinel, "unchanged")?;
+            let mut iterations = Vec::new();
+            for (index, success) in outcomes.iter().enumerate() {
+                let run_dir = test_root.join((index + 1).to_string());
+                create_run_dir(&run_dir)?;
+                let Some(success) = success else {
+                    iterations.push(Err(anyhow!("injected assertion error")));
+                    continue;
+                };
+                let outputs = if *success {
+                    Ok(Outputs::default())
+                } else {
+                    Err(anyhow!("injected execution error").into())
+                };
+                let iteration = TestIteration {
+                    id: TestIdentifier {
+                        doc_id: Arc::new("document".into()),
+                        doc_name: "main".into(),
+                        target: "main".into(),
+                        test_name: "basic".into(),
+                        iteration_num: index + 1,
+                    },
+                    result: RunResult::Workflow(outputs),
+                    assertions: Arc::new(Assertions::default()),
+                    run_dir: run_dir.clone(),
+                    cancellation: CancellationContext::new(FailureMode::Fast),
+                };
+                iterations.push(
+                    iteration
+                        .evaluate(None, clean, true, Stdout::Stdout, CommandOutput::new(false))
+                        .await,
+                );
+                assert_eq!(run_dir.exists(), !clean || !success);
+            }
+            let results = IndexMap::from([(
+                Arc::new("document".into()),
+                DocumentResults {
+                    name: "main".into(),
+                    targets: IndexMap::from([(
+                        "main".into(),
+                        IndexMap::from([(
+                            "basic".into(),
+                            TestResults {
+                                run_root: test_root.clone().into(),
+                                iterations,
+                            },
+                        )]),
+                    )]),
+                },
+            )]);
+            let mut errors = Vec::new();
+            summarize_results(results, clean, &mut errors, CommandOutput::new(false)).await;
+            assert_eq!(test_root.exists(), retained);
+            assert_eq!(
+                errors.len(),
+                outcomes
+                    .iter()
+                    .filter(|success| **success != Some(true))
+                    .count()
+            );
+            assert_eq!(std::fs::read_to_string(&sentinel)?, "unchanged");
+            clean_all_run_root(&root).await?;
+            assert!(!root.exists());
+            assert_eq!(std::fs::read_to_string(&sentinel)?, "unchanged");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn run_directory_creation_rejects_existing_entries() -> Result<()> {
+        let workspace = tempfile::tempdir()?;
+        let path = workspace.path().join("run");
+        create_run_root(&path)?;
+        std::fs::write(path.join("sentinel"), "unchanged")?;
+        assert!(create_run_root(&path).is_err());
+        assert_eq!(std::fs::read_to_string(path.join("sentinel"))?, "unchanged");
+        let file = workspace.path().join("file");
+        std::fs::write(&file, "unchanged")?;
+        assert!(create_run_root(&file).is_err());
+        #[cfg(unix)]
+        {
+            let link = workspace.path().join("link");
+            std::os::unix::fs::symlink(&path, &link)?;
+            assert!(create_run_root(&link).is_err());
+        }
+        Ok(())
+    }
 
     fn args_with_overrides(
         fixtures_dir: Option<PathBuf>,
