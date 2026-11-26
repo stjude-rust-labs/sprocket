@@ -1,0 +1,25 @@
+error: invalid test name
+  ┌─ source.yml:2:11
+  │
+2 │   - name: "../../../../outside-runs"
+  │           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+  = help: test names must be nonempty and contain only ASCII letters, digits, '-' or '_'
+
+error: invalid test name
+  ┌─ source.yml:3:11
+  │
+3 │   - name: 'nested\case'
+  │           ^^^^^^^^^^^^^
+  │
+  = help: test names must be nonempty and contain only ASCII letters, digits, '-' or '_'
+
+error: invalid test name
+  ┌─ source.yml:4:11
+  │
+4 │   - name: 'C:\outside-runs'
+  │           ^^^^^^^^^^^^^^^^^
+  │
+  = help: test names must be nonempty and contain only ASCII letters, digits, '-' or '_'
+
+error: failing due to 3 errors

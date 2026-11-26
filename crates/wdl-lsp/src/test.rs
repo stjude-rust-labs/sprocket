@@ -184,3 +184,29 @@ pub fn is_sprocket_test_file(uri: &Url) -> bool {
     let wdl_sibling = parent.join(base_name).with_extension("wdl");
     wdl_sibling.is_file()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn cache_preserves_invalid_test_name_diagnostic() {
+        let source = "main:\n  - name: \"../escape\"\n";
+        let uri =
+            Url::from_file_path(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-name.yml"))
+                .unwrap();
+        let cache = SprocketTestCache::default();
+        cache.open(uri.clone(), source.into()).await.unwrap();
+        let document = cache.ensure_parsed(uri).await.unwrap().unwrap();
+        let Some(Document::Failed(diagnostics)) = &document.document else {
+            panic!("invalid test name should fail parsing");
+        };
+        let diagnostic = diagnostics.iter().next().unwrap();
+        assert!(diagnostic.severity().is_error());
+        assert_eq!(diagnostic.message(), "invalid test name");
+        assert_eq!(
+            diagnostic.labels().next().unwrap().span(),
+            wdl_ast::Span::new(source.find("\"../escape\"").unwrap(), "\"../escape\"".len()),
+        );
+    }
+}

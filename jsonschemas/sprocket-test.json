@@ -16,7 +16,11 @@
       "properties": {
         "name": {
           "description": "Name for the test.",
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "not": {
+            "pattern": "[^A-Za-z0-9_-]"
+          }
         },
         "tags": {
           "description": "Any tags associated with the test.",

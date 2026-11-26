@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+* Test names must contain only ASCII letters, digits, hyphens, and underscores, and cannot be empty.
+
 ## 0.3.2 - 2026-11-18
 
 ## 0.3.1 - 2026-11-18

@@ -1,9 +1,9 @@
 say_hello:
-  - name: conflicting options
+  - name: conflicting_options
     assertions:
       exit_code: 0
       should_fail: true
-  - name: conflicting options with should_fail false
+  - name: conflicting_options_with_should_fail_false
     assertions:
       exit_code: 1
       should_fail: false
